@@ -374,7 +374,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         if not os.path.isfile(raw_file):
             msgs.error(f'{raw_file} not found!')
         hdu = io.fits_open(raw_file)
-        hdu = io.fits_open(raw_file)
+
         head0 = hdu[0].header
 
         datasec = head0['DATASEC']
