@@ -349,7 +349,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         ord_spat_pos = np.array(
         #[0.06748562, 0.08327305, 0.09882858, 0.11422751, 0.1294643 ,
-        [0.09882858, 0.11422751, 0.1294643 ,
+        [0.11422751, 0.1294643 ,
         0.14456395, 0.15949527, 0.17425991, 0.18887026, 0.20333023,
         0.21763396, 0.23178534, 0.2457807 , 0.25963618, 0.27333362,
         0.28688716, 0.30029984, 0.31356982, 0.32669448, 0.33967947,
@@ -361,8 +361,8 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         0.63325607, 0.64306738, 0.65280306, 0.66246134, 0.672025  ,
         0.68153262, 0.69093696, 0.70028011, 0.70953112, 0.71869543,
         0.72783612, 0.73692905, 0.74593691, 0.75489132, 0.76384089,
-        0.77268862, 0.781545  , 0.79036394, 0.79922398, 0.80807998])
-        #0.81680164])
+        0.77268862, 0.781545  , 0.79036394, 0.79922398, 0.80807998,
+        0.81680164])
 
         return ord_spat_pos
 
@@ -373,6 +373,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # Check for file; allow for extra .gz, etc. suffix
         if not os.path.isfile(raw_file):
             msgs.error(f'{raw_file} not found!')
+        hdu = io.fits_open(raw_file)
         hdu = io.fits_open(raw_file)
         head0 = hdu[0].header
 
