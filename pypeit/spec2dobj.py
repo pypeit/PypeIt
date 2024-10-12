@@ -580,7 +580,15 @@ class AllSpec2DObj:
         # Add the spectrograph-specific sub-header
         if subheader is not None:
             for key in subheader.keys():
-                hdr[key.upper()] = subheader[key]
+                # Find the value and check if it is masked
+                if isinstance(subheader[key], (tuple, list)):
+                    # value + comment
+                    _value = ('', subheader[key][1]) if np.ma.is_masked(subheader[key][0]) else subheader[key]
+                else:
+                    # value only
+                    _value = '' if np.ma.is_masked(subheader[key]) else subheader[key]
+                # Update the header card with the corresponding value
+                hdr[key.upper()] = _value
 
         # PYPEIT
         # TODO Should the spectrograph be written to the header?

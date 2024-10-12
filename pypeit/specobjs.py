@@ -811,6 +811,7 @@ class SpecObjs:
                     for line in str(subheader[key.upper()]).split('\n'):
                         header[key.upper()] = line
             else:
+                # Find the value and check if it is masked
                 if isinstance(subheader[key], (tuple, list)):
                     # value + comment
                     _value = ('', subheader[key][1]) if np.ma.is_masked(subheader[key][0]) else subheader[key]
