@@ -811,7 +811,13 @@ class SpecObjs:
                     for line in str(subheader[key.upper()]).split('\n'):
                         header[key.upper()] = line
             else:
-                _value = ('', subheader[key][1]) if np.ma.is_masked(subheader[key][0]) else subheader[key]
+                if isinstance(subheader[key], (tuple, list)):
+                    # value + comment
+                    _value = ('', subheader[key][1]) if np.ma.is_masked(subheader[key][0]) else subheader[key]
+                else:
+                    # value only
+                    _value = '' if np.ma.is_masked(subheader[key]) else subheader[key]
+                # Update the header card with the corresponding value
                 header[key.upper()] = _value
                 # Also store the datetime in ISOT format
                 if key.upper() == 'MJD':
