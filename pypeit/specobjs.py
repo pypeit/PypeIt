@@ -811,7 +811,10 @@ class SpecObjs:
                     for line in str(subheader[key.upper()]).split('\n'):
                         header[key.upper()] = line
             else:
-                header[key.upper()] = subheader[key]
+                try:
+                    header[key.upper()] = subheader[key]
+                except:
+                    embed()
                 # Also store the datetime in ISOT format
                 if key.upper() == 'MJD':
                     if isinstance(subheader[key], (list, tuple)):
