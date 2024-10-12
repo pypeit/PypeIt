@@ -811,10 +811,8 @@ class SpecObjs:
                     for line in str(subheader[key.upper()]).split('\n'):
                         header[key.upper()] = line
             else:
-                try:
-                    header[key.upper()] = subheader[key]
-                except:
-                    embed()
+                _value = ('', subheader[key][1]) if np.ma.is_masked(subheader[key][0]) else subheader[key]
+                header[key.upper()] = _value
                 # Also store the datetime in ISOT format
                 if key.upper() == 'MJD':
                     if isinstance(subheader[key], (list, tuple)):
