@@ -48,9 +48,13 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
+        self.meta['slitwid'] = dict(ext=0, card='SLIT')
         self.meta['dispname'] = dict(ext=0, card='INSTMODE')
         self.meta['idname'] = dict(ext=0, card='DATA-TYP')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        self.meta['lampstat01'] = dict(ext=0, card='CMPLAMP')
+        self.meta['lampstat02'] = dict(ext=0, card='INSLAMP')
+        self.meta['lampstat03'] = dict(ext=0, card='CMPLAMP')
 
     def pypeit_file_keys(self):
         """
@@ -204,7 +208,7 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['dark', 'lampoffflats']:
-            return good_exp & (fitstbl['idname'] == '')
+            return good_exp & (fitstbl['idname'] == 'DOMEFLAT')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             return good_exp & (fitstbl['idname'] == 'DOMEFLAT')
         if ftype == 'standard':
