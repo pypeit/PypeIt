@@ -526,6 +526,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['arcframe']['exprng'] = [None, 30]
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
+        par['reduce']['skysub']['no_poly'] = True
 
         # par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
