@@ -521,7 +521,7 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
     @property
     def norders(self):
         """
-        Number of orders for this spectograph.
+        Number of orders for this spectrograph.
         """
         self.check_disperser()
         if '10/mmLBSX' in self.dispname:
