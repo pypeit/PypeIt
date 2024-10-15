@@ -54,7 +54,7 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         self.meta['lampstat01'] = dict(ext=0, card='CMPLAMP')
         self.meta['lampstat02'] = dict(ext=0, card='INSLAMP')
-        self.meta['lampstat03'] = dict(ext=0, card='CMPLAMP')
+        # self.meta['lampstat03'] = dict(ext=0, card='CMPLAMP')
 
     def pypeit_file_keys(self):
         """
@@ -184,6 +184,40 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
 
         return par
 
+    def lamps(self, fitstbl, status):
+        """
+        Check the lamp status.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the fits header meta data.
+            status (:obj:`str`):
+                The status to check. Can be ``'off'``, ``'arcs'``, or
+                ``'dome'``.
+
+        Returns:
+            `numpy.ndarray`_: A boolean array selecting fits files that meet
+            the selected lamp status.
+
+        Raises:
+            ValueError:
+                Raised if the status is not one of the valid options.
+        """
+        if status == 'off':
+            # Check if all are off
+            return np.all(np.array([(fitstbl[k] == 'off') for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
+        if status == 'arcs':
+            # Check if any arc lamps are on
+            arc_lamp_stat = [ 'lampstat01']
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in arc_lamp_stat]), axis=0)
+        if status == 'dome':
+            # Check if any dome lamps are on
+            dome_lamp_stat = [ 'lampstat02'.format(i) for i in range(1,6) ]
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in dome_lamp_stat]), axis=0)
+        raise ValueError('No implementation for status = {0}'.format(status))
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -208,9 +242,9 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['dark', 'lampoffflats']:
-            return good_exp & (fitstbl['idname'] == 'DOMEFLAT')
+            return good_exp & (fitstbl['idname'] == 'DOMEFLAT') & self.lamps(fitstbl, 'off')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (fitstbl['idname'] == 'DOMEFLAT')
+            return good_exp & (fitstbl['idname'] == 'DOMEFLAT') & self.lamps(fitstbl, 'dome')
         if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'science':
