@@ -519,6 +519,9 @@ class RawImage:
                 mosaic.  If flats or slits are provided (and used), this *must*
                 be true because these objects are always defined in the mosaic
                 frame.
+            manual_spat_flexure (:obj:`float`, optional):
+                The spatial flexure of the image. This is only set if the user wishes to
+                manually correct the slit traces of this image for spatial flexure.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 

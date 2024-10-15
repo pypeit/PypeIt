@@ -222,6 +222,9 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             Flag processed image will be a mosaic of multiple detectors.  By
             default, this is determined by the format of ``det`` and whether or
             not this is a bias or dark frame.  *Only used for testing purposes.*
+        manual_spat_flexure (:obj:`list`, `numpy.ndarray`_, optional):
+            A list of the spatial flexures for each image in file_list.  This is only
+            used to manually correct the slit traces for spatial flexure of each image.
         calib_dir (:obj:`str`, `Path`_, optional):
             The directory for processed calibration files.  Required for
             elements of :attr:`frame_image_classes`, ignored otherwise.
