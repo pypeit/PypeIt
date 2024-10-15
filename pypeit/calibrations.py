@@ -392,7 +392,7 @@ class Calibrations:
         self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['arcframe'], raw_files,
                                                     bias=self.msbias, bpm=self.msbpm,
-                                                    dark=self.msdark, calib_dir=self.calib_dir,
+                                                    dark=self.msdark, slits=self.slits, calib_dir=self.calib_dir,
                                                     setup=setup, calib_id=calib_id,
                                                     manual_spat_flexure=manual_spat_flexure)
         # Save the result
