@@ -226,7 +226,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     slitmask_pad = pixels.tslits2mask(tslits_dict_in, pad = pad)
     thismask = (slitmask_pad == slit) # mask enclosing the wider slit bounadries
     # Create a tilts image using this padded thismask, rather than using the original thismask_in slit pixels
-    tilts = tracewave.fit2tilts(shape, tilts_dict['coeffs'], tilts_dict['func2d'])
+    tilts = tracewave.fit2tilts(tilts_dict['coeffs'], tilts_dict['func2d'], shape=shape)
     piximg = tilts * (nspec-1)
     pixvec = np.arange(nspec)
 

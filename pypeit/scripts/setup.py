@@ -150,7 +150,7 @@ class Setup(scriptbase.ScriptBase):
             pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, 
                                                    write_bkg_pairs=args.background,
                                                    write_manual=args.manual_extraction,
-                                                   write_shift = args.flexure,
+                                                   write_shift=args.flexure,
                                                    configs=configs,
                                                    version_override=args.version_override,
                                                    date_override=args.date_override)

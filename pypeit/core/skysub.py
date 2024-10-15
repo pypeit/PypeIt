@@ -1607,16 +1607,20 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
         A 2D array containing the pixel coordinates of the left slit edges
     slits_right : `numpy.ndarray`_
         A 2D array containing the pixel coordinates of the right slit edges
-    resolution: int, optional
-        The percentage regions will be scaled to the specified resolution. The
-        resolution should probably correspond to the number of spatial pixels
-        on the slit.
+    spat_flexure (`numpy.ndarray`_, optional):
+        If provided, this is the shift, in spatial pixels, to apply to each slit.
+        This is used to correct for spatial flexure. The shape of the array should
+        be (nslits, 2), where the first column is the shift to apply to the left
+        edge of each slit and the second column is the shift to apply to the
+        right edge of each slit.
 
     Returns
     -------
     mask : `numpy.ndarray`_
         Boolean mask containing sky regions
     """
+    # Check the input
+    _spat_flexure = np.zeros((slits.nslits, 2)) if spat_flexure is None else spat_flexure
     # Grab the resolution that was used to generate skyreg
     resolution = skyreg[0].size
     # Using the left/right slit edge traces, generate a series of traces that mark the
@@ -1626,7 +1630,11 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
     # regardless of which slit the sky regions falls in)
     left_edg, righ_edg = np.zeros((slits.nspec, 0)), np.zeros((slits.nspec, 0))
     spec_min, spec_max = np.array([]), np.array([])
+    # Create a dummy spatial flexure that determines the spatial flexure at the edge of each sky region
+    skyreg_spat_flexure = np.zeros((0, 2))
     for sl in range(slits.nslits):
+        this_spat_flexure_left = _spat_flexure[sl, 0]
+        this_spat_flexure_diff = _spat_flexure[sl, 1] - _spat_flexure[sl, 0]
         # Calculate the slit width
         diff = slits_right[:, sl] - slits_left[:, sl]
         # Break up the slit into `resolution` subpixels
@@ -1644,6 +1652,10 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
             nreg += 1
             spec_min = np.append(spec_min, slits.specmin[sl])
             spec_max = np.append(spec_max, slits.specmax[sl])
+            # Determine the spatial flexure at the edge of the sky regions -- linearly interpolate from the left edge
+            flex_left = this_spat_flexure_left + this_spat_flexure_diff * wl[rr]/(resolution-1.0)
+            flex_right = this_spat_flexure_left + this_spat_flexure_diff * wr[rr]/(resolution-1.0)
+            skyreg_spat_flexure = np.append(skyreg_spat_flexure, np.array([[flex_left, flex_right]]), axis=0)
 
     # Check if no regions were added
     if left_edg.shape[1] == 0:
@@ -1656,7 +1668,7 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
                                      specmax=spec_max, binspec=slits.binspec,
                                      binspat=slits.binspat, pad=0)
     # Generate the mask, and return
-    return (slitreg.slit_img(use_spatial=False, flexure=spat_flexure) >= 0).astype(bool)
+    return (slitreg.slit_img(use_spatial=False, spat_flexure=skyreg_spat_flexure) >= 0).astype(bool)
 
 
 

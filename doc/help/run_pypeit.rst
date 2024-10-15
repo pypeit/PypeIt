@@ -4,7 +4,7 @@
     usage: run_pypeit [-h] [-v VERBOSITY] [-r REDUX_PATH] [-m] [-s] [-o] [-c]
                       pypeit_file
     
-    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.16.1.dev468+g832ee84e4[0m
+    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.15.1.dev38+g075fdecaa.d20240212[0m
     ##  
     ##  Available spectrographs include:
     ##   aat_uhrf, bok_bc, gemini_flamingos1, gemini_flamingos2,

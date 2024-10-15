@@ -27,12 +27,12 @@ from pypeit.images import pypeitimage
 from pypeit.core import findobj_skymask
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
-from pypeit.core import parse 
+from pypeit.core import parse
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
 
-#TODO We should decide which parameters go in through the parset 
+#TODO We should decide which parameters go in through the parset
 # and which parameters are passed in to the method as arguments
 class CoAdd2D:
 
@@ -839,7 +839,7 @@ class CoAdd2D:
             resampled_pixscale = parse.parse_binning(sciImage.detector.binning)[1]*sciImage.detector.platescale*self.spat_samp_fact
 
             # Assign slitmask design information to detected objects
-            slits.assign_maskinfo(sobjs_obj, resampled_pixscale, None, TOLER=parcopy['reduce']['slitmask']['obj_toler'])
+            slits.assign_maskinfo(sobjs_obj, resampled_pixscale, None, tolerance=parcopy['reduce']['slitmask']['obj_toler'])
 
             if parcopy['reduce']['slitmask']['extract_missing_objs'] is True:
                 # Set the FWHM for the extraction of missing objects
@@ -1044,7 +1044,7 @@ class CoAdd2D:
             skymodel_stack.append(s2dobj.skymodel)
             sciivar_stack.append(s2dobj.ivarmodel)
             mask_stack.append(s2dobj.bpmmask.mask)
-            slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
+            slitmask_stack.append(s2dobj.slits.slit_img(spat_flexure=s2dobj.sci_spat_flexure))
 
         # check if exptime is consistent for all images
         exptime_coadd = np.percentile(exptime_stack, 50., method='higher')
@@ -1467,7 +1467,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
     def get_brightest_obj(self, specobjs_list, slit_spat_ids):
 
         """
-        Utility routine to find the brightest reference object in each exposure given a specobjs_list 
+        Utility routine to find the brightest reference object in each exposure given a specobjs_list
         for MultiSlit reductions.
 
         Args:
@@ -1483,9 +1483,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 - spatid_pixpos: ndarray, float, shape=(len(specobjs_list),):
                   Array of spatial pixel positions of the brightest reference object
                   in each exposure
-                - slit_idx (int): 
+                - slit_idx (int):
                   A zero-based index for the slit that the brightest object is on
-                - spat_id (int): 
+                - spat_id (int):
                   The SPAT_ID for the slit that the highest S/N ratio object is on
                 - snr_bar: ndarray, float, shape (len(list),): Average
                   S/N computed over all the exposures for this brightest reference object
@@ -1551,8 +1551,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
     def snr_report(self, slitid, spat_pixpos, snr_bar):
         """
-        
-        Print out a SNR report for the reference object used to compute the weights for multislit 2D coadds. 
+
+        Print out a SNR report for the reference object used to compute the weights for multislit 2D coadds.
 
         Args:
             slitid (:obj:`int`):
@@ -1561,7 +1561,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 Array of spatial pixel position of the reference object in the slit for each exposure shape = (nexp,)
             snr_bar (:obj:`numpy.ndarray`):
                 Array of average S/N ratios for the reference object in each exposure, shape = (nexp,)
-  
+
 
         Returns:
 
@@ -1649,7 +1649,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 # get maskdef_objpos
                 # find left edge
                 slits_left, _, _ = \
-                    self.stack_dict['slits_list'][iexp].select_edges(flexure=self.stack_dict['spat_flexure_list'][iexp])
+                    self.stack_dict['slits_list'][iexp].select_edges(
+                        spat_flexure=self.stack_dict['spat_flexure_list'][iexp])
                 # targeted object spat pix
                 maskdef_obj_pixpos = \
                     self.stack_dict['slits_list'][iexp].maskdef_objpos[slit_idx] + self.maskdef_offset[iexp] \
@@ -1858,7 +1859,7 @@ class EchelleCoAdd2D(CoAdd2D):
         Args:
             snr_bar (:obj:`numpy.ndarray`):
                 Array of average S/N ratios for the brightest object in each exposure. Shape = (nexp,)
-    
+
         Returns:
 
         """

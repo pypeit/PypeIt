@@ -48,7 +48,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.1.1'
+    version = '1.1.2'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -72,8 +72,8 @@ class Spec2DObj(datamodel.DataContainer):
                  'tilts': dict(otype=np.ndarray, atype=np.floating,
                                descr='2D tilts image (float64)'),
                  'scaleimg': dict(otype=np.ndarray, atype=np.floating,
-                                  descr='2D multiplicative scale image [or a single scalar as an array] that has been applied to '
-                                        'the science image (float32)'),
+                                  descr='2D multiplicative scale image [or a single scalar as an array] '
+                                        'that has been applied to the science image (float32)'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating,
                                  descr='2D wavelength image in vacuum (float64)'),
                  'bpmmask': dict(otype=imagebitmask.ImageBitMaskArray,
@@ -85,12 +85,15 @@ class Spec2DObj(datamodel.DataContainer):
                                descr='Table with WaveCalib diagnostic info'),
                  'maskdef_designtab': dict(otype=table.Table,
                                            descr='Table with slitmask design and object info'),
-                 'sci_spat_flexure': dict(otype=float,
-                                          descr='Shift, in spatial pixels, between this image '
-                                                'and SlitTrace'),
+                 'sci_spat_flexure': dict(otype=np.ndarray, atype=np.floating,
+                                      descr='Shift, in spatial pixels, between this image '
+                                            'and SlitTrace. Shape is (nslits, 2), where '
+                                            'spat_flexure[i,0] is the spatial shift of the left '
+                                            'edge of slit i and spat_flexure[i,1] is the spatial '
+                                            'shift of the right edge of slit i.'),
                  'sci_spec_flexure': dict(otype=table.Table,
-                                          descr='Global shift of the spectrum to correct for spectral'
-                                                'flexure (pixels). This is based on the sky spectrum at'
+                                          descr='Global shift of the spectrum to correct for spectral '
+                                                'flexure (pixels). This is based on the sky spectrum at '
                                                 'the center of each slit'),
                  'vel_type': dict(otype=str, descr='Type of reference frame correction (if any). '
                                                    'Options are listed in the routine: '
@@ -244,6 +247,9 @@ class Spec2DObj(datamodel.DataContainer):
             # maskdef_designtab
             elif key == 'maskdef_designtab':
                 d.append(dict(maskdef_designtab=self.maskdef_designtab))
+            # Spatial flexure
+            elif key == 'sci_spat_flexure':
+                d.append(dict(sci_spat_flexure=self.sci_spat_flexure))
             # Spectral flexure
             elif key == 'sci_spec_flexure':
                 d.append(dict(sci_spec_flexure=self.sci_spec_flexure))
@@ -331,7 +337,7 @@ class Spec2DObj(datamodel.DataContainer):
         self.slits.mask[gpm] = spec2DObj.slits.mask[gpm]
 
         # Slitmask
-        slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure,
+        slitmask = spec2DObj.slits.slit_img(spat_flexure=spec2DObj.sci_spat_flexure,
                                             exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
         # Fill in the image
         for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
@@ -574,7 +580,15 @@ class AllSpec2DObj:
         # Add the spectrograph-specific sub-header
         if subheader is not None:
             for key in subheader.keys():
-                hdr[key.upper()] = subheader[key]
+                # Find the value and check if it is masked
+                if isinstance(subheader[key], (tuple, list)):
+                    # value + comment
+                    _value = ('', subheader[key][1]) if np.ma.is_masked(subheader[key][0]) else subheader[key]
+                else:
+                    # value only
+                    _value = '' if np.ma.is_masked(subheader[key]) else subheader[key]
+                # Update the header card with the corresponding value
+                hdr[key.upper()] = _value
 
         # PYPEIT
         # TODO Should the spectrograph be written to the header?
@@ -661,7 +675,7 @@ class AllSpec2DObj:
                             msgs.error("Original spec2D object has a different version.  Too risky to continue.  Rerun both")
                         # Generate the slit "mask"
                         slitmask = _allspecobj[det].slits.slit_img(
-                            flexure=_allspecobj[det].sci_spat_flexure)
+                            spat_flexure=_allspecobj[det].sci_spat_flexure)
                         # Save the new one in a copy
                         new_Spec2DObj = deepcopy(self[det])
                         # Replace with the old
@@ -762,11 +776,21 @@ class AllSpec2DObj:
                 return_flex[det] = spec_flex
             # get and print the spatial flexure
             if flexure_type == 'spat':
-                spat_flex = self[det].sci_spat_flexure
-                # print the value
-                print(f'Spat shift: {spat_flex}')
+                spat_flexure = self[det].sci_spat_flexure
+                if np.all(spat_flexure == spat_flexure[0, 0]):
+                    # print the value
+                    print(f'Spatial shift: {spat_flexure}')
+                elif np.array_equal(spat_flexure[:,0],spat_flexure[:,1]):
+                    # print the value of each slit
+                    for ii in range(spat_flexure.shape[0]):
+                        print(f'  Slit {ii+1} spatial shift: {spat_flexure[ii,0]}')
+                else:
+                    # print the value for the edge of each slit
+                    for ii in range(spat_flexure.shape[0]):
+                        print('  Slit {0:2d} --  left edge spatial shift: {1:f}'.format(ii+1, spat_flexure[ii,0]))
+                        print('          --  right edge spatial shift: {0:f}'.format(spat_flexure[ii,1]))
                 # return the value
-                return_flex[det] = spat_flex
+                return_flex[det] = spat_flexure
 
         return return_flex
 

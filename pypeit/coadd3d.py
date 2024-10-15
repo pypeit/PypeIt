@@ -846,7 +846,7 @@ class CoAdd3D:
                 scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                                slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                                                model=None, trim=self.flatpar['slit_trim'],
-                                                               flexure=spat_flexure,
+                                                               spat_flexure=spat_flexure,
                                                                smooth_npix=self.flatpar['slit_illum_smooth_npix'])
             else:
                 msgs.info("Using relative spectral illumination from FlatImages")
@@ -950,7 +950,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             msgs.info("Using slit edges for astrometric transform")
         # If nothing better was provided, use the slit edges
         if alignments is None:
-            left, right, _ = slits.select_edges(flexure=spat_flexure)
+            left, right, _ = slits.select_edges(spat_flexure=spat_flexure)
             locations = [0.0, 1.0]
             traces = np.append(left[:, None, :], right[:, None, :], axis=1)
         else:
@@ -1015,8 +1015,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Initialise the slit edges
             msgs.info("Constructing slit image")
             slits = spec2DObj.slits
-            slitid_img = slits.slit_img(pad=0, flexure=spat_flexure)
-            slits_left, slits_right, _ = slits.select_edges(flexure=spat_flexure)
+            slitid_img = slits.slit_img(pad=0, spat_flexure=spat_flexure)
+            slits_left, slits_right, _ = slits.select_edges(spat_flexure=spat_flexure)
 
             # The order of operations below proceeds as follows:
             #  (1) Get science image

@@ -35,6 +35,8 @@ Functionality/Performance Improvements and Additions
   `pypeit_coadd_1dspec`.
 - Now PypeIt can handle the case where "Standard star trace does not match the number of orders in the echelle data"
   both in `run_pypeit` and in `pypeit_coadd_1dspec`.
+- The spatial flexure can now take a constant value for every slit, independent values for each slit,
+  or independent values for each slit edge.
 - Added the functionality to use slitless flats to create pixelflats. Note: new frametype
   `slitless_pixflat` is added to the PypeIt frametype list.
 - The created pixelflats are stored in the reduction directory and in the PypeIt cache directory
@@ -110,6 +112,7 @@ Script Changes
 Datamodel Changes
 -----------------
 
+- Spatial flexure is now stored as a 2D numpy array.
 - Adjusted spec1d datamodel to enable use with UVES_popler GUI tool
 
 Under-the-hood Improvements

@@ -29,7 +29,6 @@ class ChkFlexure(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
-        from IPython import embed
         from astropy.io import fits
         from pypeit import msgs
         from pypeit import specobjs
@@ -41,7 +40,7 @@ class ChkFlexure(scriptbase.ScriptBase):
         # Loop over the input files
         for in_file in args.input_file:
 
-            msgs.info(f'Checking fluxure for file: {in_file}')
+            msgs.info(f'Checking flexure for file: {in_file}')
 
             # What kind of file are we??
             hdul = fits.open(in_file)

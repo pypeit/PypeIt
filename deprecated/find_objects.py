@@ -191,7 +191,7 @@ def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0), debug=False):
     skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
     hist_trim = 0  # Trim the edges of the histogram to take into account edge effects
     gpm = self.sciImg.select_flag(invert=True)
-    slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
+    slitid_img_init = self.slits.slit_img(pad=0, initial=True, spat_flexure=self.spat_flexure_shift)
     spatScaleImg = np.ones_like(self.sciImg.image)
     # For each slit, grab the spatial coordinates and a spline
     # representation of the spatial profile from the illumflat
@@ -290,7 +290,7 @@ def illum_profile_spectral(self, global_sky, skymask=None):
     # relative spectral sensitivity is calculated at a given wavelength for all slits simultaneously.
     scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                 slit_illum_ref_idx=sl_ref, model=global_sky, gpmask=gpm,
-                                                skymask=skymask, trim=trim, flexure=self.spat_flexure_shift,
+                                                skymask=skymask, trim=trim, spat_flexure=self.spat_flexure_shift,
                                                 smooth_npix=smooth_npix)
     # Now apply the correction to the science frame
     self.apply_relative_scale(scaleImg)

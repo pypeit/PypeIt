@@ -17,7 +17,6 @@ import matplotlib
 from astropy import stats
 from astropy import units
 from astropy.io import ascii
-from astropy.table import Table
 import scipy.signal
 import scipy.optimize as opt
 from scipy import interpolate
@@ -43,7 +42,7 @@ from pypeit import wavemodel
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
+def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -55,14 +54,27 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
 
     Args:
         sciimg (`numpy.ndarray`_):
+            Science image
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            Slits object
+        method (:obj:`str`, optional):
+            Method to use to calculate the spatial flexure shift. Options
+            are 'detector' (default), 'slit', and 'edge'. The 'detector'
+            method calculates the shift for all slits simultaneously, the
+            'slit' method calculates the shift for each slit independently,
+            and the 'edge' method calculates the shift for each slit edge
+            independently.
         maxlag (:obj:`int`, optional):
             Maximum flexure searched for
+        debug (:obj:`bool`, optional):
+            Run in debug mode
 
     Returns:
         float:  The spatial flexure shift relative to the initial slits
 
     """
+    # TODO :: Need to implement different methods
+
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
     slitmask = slits.slit_img(initial=True, exclude_flag=slits.bitmask.exclude_for_flexure)
 
@@ -86,9 +98,8 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
         msgs.warn('No peak found in spatial flexure.  Assuming there is none...')
-        
-        return 0.
-    
+        return np.zeros((slits.nslits, 2), dtype=float)
+
     # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
@@ -110,13 +121,13 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
 
     if debug:
         # Now translate the slits in the tslits_dict
-        all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
+        all_left_flexure, all_right_flexure, mask = slits.select_edges(spat_flexure=lag_max[0])
         gpm = mask == 0
         viewer, ch = display.show_image(_sciimg)
         #display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
         #embed(header='83 of flexure.py')
 
-    return lag_max[0]
+    return np.full((slits.nslits, 2), lag_max[0])
 
 
 def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,
@@ -1342,7 +1353,7 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
         wline = [line-noff,line+noff] 
         mw    = (wave > wline[0]) & (wave < wline[1]) & good_ivar
         
-        # Reuire minimum number
+        # Require minimum number
         if np.sum(mw) <= nfit_min:
             continue
 

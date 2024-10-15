@@ -271,7 +271,7 @@ class Show2DSpec(scriptbase.ScriptBase):
             if spec2DObj.sci_spat_flexure is not None:
                 msgs.info(f'Offseting slits by {spec2DObj.sci_spat_flexure}')
             slit_left, slit_right, slit_mask \
-                    = spec2DObj.slits.select_edges(flexure=spec2DObj.sci_spat_flexure)
+                    = spec2DObj.slits.select_edges(spat_flexure=spec2DObj.sci_spat_flexure)
             slit_spat_id = spec2DObj.slits.spat_id
             slit_mask_id = spec2DObj.slits.maskdef_id
             slit_slid_IDs = spec2DObj.slits.slitord_id

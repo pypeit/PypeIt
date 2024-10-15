@@ -162,8 +162,8 @@ class Extract:
         # frames.  Is that okay for this usage?
         # Flexure
         self.spat_flexure_shift = None
-        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
+        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_method'] != "skip") or \
+           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_method'] != "skip"):
             self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
@@ -216,14 +216,15 @@ class Extract:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
             #   Deal with Flexure
-            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+            if self.par['calibrations']['tiltframe']['process']['spat_flexure_method'] != "skip":
                 _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
                 # If they both shifted the same, there will be no reason to shift the tilts
                 tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
             else:
                 tilt_flexure_shift = self.spat_flexure_shift
             msgs.info("Generating tilts image from fit in waveTilts")
-            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, self.slits_left, self.slits_right,
+                                                    spat_flexure=tilt_flexure_shift)
         elif waveTilts is None and tilts is not None:
             msgs.info("Using user input tilts image")
             self.tilts = tilts
@@ -301,7 +302,7 @@ class Extract:
 
         # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
-            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+            = self.slits.select_edges(initial=initial, spat_flexure=self.spat_flexure_shift)
         # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
@@ -312,7 +313,7 @@ class Extract:
         #self.slits_right = slits_right[:, gpm]
 
         # Slitmask
-        self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
+        self.slitmask = self.slits.slit_img(initial=initial, spat_flexure=self.spat_flexure_shift,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
