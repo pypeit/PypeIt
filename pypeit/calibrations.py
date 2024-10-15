@@ -771,8 +771,8 @@ class Calibrations:
 
         # get pixel flat frames
         pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
-        raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
-            = [], None, None, illum_setup, None, detname
+        raw_pixel_files, raw_pixel_index, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
+            = [], [], None, None, illum_setup, None, detname
         # read in the raw pixelflat frames only if the user has not provided a pixelflat_file
         if self.par['flatfield']['pixelflat_file'] is None:
             raw_pixel_files, raw_pixel_index, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
