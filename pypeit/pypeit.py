@@ -776,6 +776,7 @@ class PypeIt:
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
+        manual_spat_flexure = self.fitstbl.get_shifts(frames)
         sciImg = buildimage.buildimage_fromlist(
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
@@ -783,7 +784,8 @@ class PypeIt:
             scattlight=self.caliBrate.msscattlight,
             flatimages=self.caliBrate.flatimages,
             slits=self.caliBrate.slits,  # For flexure correction
-            ignore_saturation=False)
+            ignore_saturation=False,
+            manual_spat_flexure=manual_spat_flexure)
 
         # get no bkg subtracted sciImg to generate a global sky model without bkg subtraction.
         # it's a dictionary with only `image` and `ivar` keys if bkg_redux=False, otherwise it's None
@@ -795,6 +797,7 @@ class PypeIt:
             bkg_redux_sciimg = sciImg
             # Build the background image
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
+            bg_manual_spat_flexure = self.fitstbl.get_shifts(bg_frames)
             # TODO I think we should create a separate self.par['bkgframe'] parameter set to hold the image
             # processing parameters for the background frames.  This would allow the user to specify different
             # parameters for the background frames than for the science frames.  
@@ -805,50 +808,22 @@ class PypeIt:
                                                    scattlight=self.caliBrate.msscattlight,
                                                    flatimages=self.caliBrate.flatimages,
                                                    slits=self.caliBrate.slits,
-                                                   ignore_saturation=False)
+                                                   ignore_saturation=False,
+                                                   manual_spat_flexure=bg_manual_spat_flexure)
 
             # NOTE: If the spatial flexure exists for sciImg, the subtraction
             # function propagates that to the subtracted image, ignoring any
             # spatial flexure determined for the background image.
             sciImg = bkg_redux_sciimg.sub(bgimg)
 
-        # Flexure
-        spat_flexure = np.zeros((self.caliBrate.slits.nslits, 2))  # No spatial flexure, unless we find it below
-        # use the flexure correction in the "shift" column
-        manual_flexure = self.fitstbl[frames[0]]['shift']
-        if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_method'] != "skip") or \
-                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_method'] != "skip") or \
-                not np.ma.is_masked(manual_flexure):
-            # First check for manual flexure
-            if not np.ma.is_masked(manual_flexure):
-                msgs.info(f'Implementing manual spatial flexure of {manual_flexure} pixels')
-                spat_flexure = np.full((self.caliBrate.slits.nslits, 2), np.float64(manual_flexure))
-                sciImg.spat_flexure = spat_flexure
-            else:
-                if sciImg.spat_flexure is not None:
-                    msgs.info(f'Using auto-computed spatial flexure')
-                    spat_flexure = sciImg.spat_flexure
-                else:
-                    msgs.info('Assuming no spatial flexure correction')
-        else:
-            msgs.info('Assuming no spatial flexure correction')
-
-        # Print the flexure values
-        if np.all(spat_flexure == spat_flexure[0, 0]):
-            msgs.info(f'Spatial flexure is: {spat_flexure[0, 0]}')
-        else:
-            # Print the flexure values for each slit separately
-            for slit in range(spat_flexure.shape[0]):
-                msgs.info(
-                    f'Spatial flexure for slit {self.caliBrate.slits.spat_id[slit]} is: left={spat_flexure[slit, 0]} right={spat_flexure[slit, 1]}')
         # Build the initial sky mask
         initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'SlicerIFU',
-                                               scifile=sciImg.files[0], frame=frames[0], spat_flexure=spat_flexure)
+                                               scifile=sciImg.files[0], frame=frames[0], spat_flexure=sciImg.spat_flexure)
 
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
         manual_obj = ManualExtractionObj.by_fitstbl_input(
-            row['filename'], row['manual'], self.spectrograph) if len(row['manual'].strip()) > 0 else None
+            row['filename'], row['manual'], self.spectrograph) if not np.ma.is_masked(row['manual']) else None
 
         # Instantiate Reduce object
         # Required for pypeline specific object

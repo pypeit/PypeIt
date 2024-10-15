@@ -270,6 +270,9 @@ class Calibrations:
         raw_files : :obj:`list`
             The list of raw files in :attr:`fitstbl` with the provided
             frametype.
+        rows : :obj:`numpy.ndarray`
+            The indices of the raw files in :attr:`fitstbl` with the provided
+            frametype.
         cal_file : `Path`_
             The path with/for the processed calibration frame
         calib_key : :obj:`str`
@@ -297,12 +300,12 @@ class Calibrations:
             setup = self.fitstbl['setup'][self.frame]
             cal_file = frameclass.glob(self.calib_dir, setup, self.calib_ID, detname=detname)
             if cal_file is None or len(cal_file) > 1:
-                return [], None, None, setup, None, detname
+                return [], rows, None, None, setup, None, detname
 
             cal_file = cal_file[0]
             calib_key = frameclass.parse_key_dir(str(cal_file), from_filename=True)[0]
             calib_id = frameclass.parse_calib_key(calib_key)[1]
-            return [], cal_file, calib_key, setup, frameclass.ingest_calib_id(calib_id), detname
+            return [], rows, cal_file, calib_key, setup, frameclass.ingest_calib_id(calib_id), detname
 
         # Otherwise, use the metadata for the raw frames to set the name of
         # the processed calibration frame.
@@ -312,7 +315,7 @@ class Calibrations:
         # Construct the expected calibration frame file name
         cal_file = Path(frameclass.construct_file_name(calib_key, calib_dir=self.calib_dir))
 
-        return self.fitstbl.frame_paths(rows), cal_file, calib_key, setup, \
+        return self.fitstbl.frame_paths(rows), rows, cal_file, calib_key, setup, \
                     frameclass.ingest_calib_id(calib_id), detname
 
     def set_config(self, frame, det, par=None):
@@ -360,7 +363,7 @@ class Calibrations:
 
         # Find the calibrations
         frame = {'type': 'arc', 'class': buildimage.ArcImage}
-        raw_files, cal_file, calib_key, setup, calib_id, detname \
+        raw_files, raw_index, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
         if len(raw_files) == 0 and cal_file is None:
@@ -381,13 +384,17 @@ class Calibrations:
         # Perform a check on the files
         self.check_calibrations(raw_files)
 
+        # If a manual spatial flexure is requested for any of the frames, collect it now
+        manual_spat_flexure = self.fitstbl.get_shifts(raw_index)
+
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['arcframe'], raw_files,
                                                     bias=self.msbias, bpm=self.msbpm,
-                                                    dark=self.msdark, calib_dir=self.calib_dir,
-                                                    setup=setup, calib_id=calib_id)
+                                                    dark=self.msdark, slits=self.slits, calib_dir=self.calib_dir,
+                                                    setup=setup, calib_id=calib_id,
+                                                    manual_spat_flexure=manual_spat_flexure)
         # Save the result
         self.msarc.to_file()
         # Return it
@@ -406,7 +413,7 @@ class Calibrations:
 
         # Find the calibrations
         frame = {'type': 'tilt', 'class':buildimage.TiltImage}
-        raw_files, cal_file, calib_key, setup, calib_id, detname \
+        raw_files, raw_index, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
         if len(raw_files) == 0 and cal_file is None:
@@ -427,6 +434,9 @@ class Calibrations:
         # Perform a check on the files
         self.check_calibrations(raw_files)
 
+        # If a manual spatial flexure is requested for any of the frames, collect it now
+        manual_spat_flexure = self.fitstbl.get_shifts(raw_index)
+
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         self.mstilt = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -434,7 +444,8 @@ class Calibrations:
                                                      bias=self.msbias, bpm=self.msbpm,
                                                      dark=self.msdark, slits=self.slits,
                                                      calib_dir=self.calib_dir, setup=setup,
-                                                     calib_id=calib_id)
+                                                     calib_id=calib_id,
+                                                     manual_spat_flexure=manual_spat_flexure)
         # Save the result
         self.mstilt.to_file()
         # Return it
@@ -457,7 +468,7 @@ class Calibrations:
 
         # Find the calibrations
         frame = {'type': 'align', 'class': alignframe.Alignments}
-        raw_files, cal_file, calib_key, setup, calib_id, detname \
+        raw_files, raw_index, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
         if len(raw_files) == 0 and cal_file is None:
@@ -479,13 +490,17 @@ class Calibrations:
         # Perform a check on the files
         self.check_calibrations(raw_files)
 
+        # If a manual spatial flexure is requested for any of the frames, collect it now
+        manual_spat_flexure = self.fitstbl.get_shifts(raw_index)
+
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                  self.par['alignframe'], raw_files,
                                                  bias=self.msbias, bpm=self.msbpm,
                                                  dark=self.msdark, calib_dir=self.calib_dir,
-                                                 setup=setup, calib_id=calib_id)
+                                                 setup=setup, calib_id=calib_id,
+                                                 manual_spat_flexure=manual_spat_flexure)
 
         # Instantiate
         # TODO: From JFH: Do we need the bpm here?  Check that this was in the previous code.
@@ -511,7 +526,7 @@ class Calibrations:
 
         # Find the calibrations
         frame = {'type': 'bias', 'class': buildimage.BiasImage}
-        raw_files, cal_file, calib_key, setup, calib_id, detname \
+        raw_files, raw_index, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
         if len(raw_files) == 0 and cal_file is None:
@@ -553,7 +568,7 @@ class Calibrations:
 
         # Find the calibrations
         frame = {'type': 'dark', 'class': buildimage.DarkImage}
-        raw_files, cal_file, calib_key, setup, calib_id, detname \
+        raw_files, raw_index, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
         if len(raw_files) == 0 and cal_file is None:
@@ -632,7 +647,7 @@ class Calibrations:
 
         # Prep
         frame = {'type': 'scattlight', 'class': scattlight.ScatteredLight}
-        raw_scattlight_files, cal_file, calib_key, setup, calib_id, detname = \
+        raw_scattlight_files, raw_scattlight_index, cal_file, calib_key, setup, calib_id, detname = \
             self.find_calibrations(frame['type'], frame['class'])
         scatt_idx = self.fitstbl.find_frames(frame['type'], calib_ID=self.calib_ID, index=True)
 
@@ -659,13 +674,17 @@ class Calibrations:
         # Perform a check on the files
         self.check_calibrations(raw_scattlight_files)
 
+        # If a manual spatial flexure is requested for any of the frames, collect it now
+        manual_spat_flexure = self.fitstbl.get_shifts(raw_scattlight_index)
+
         binning = self.fitstbl[scatt_idx[0]]['binning']
         dispname = self.fitstbl[scatt_idx[0]]['dispname']
         scattlightImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                          self.par['scattlightframe'], raw_scattlight_files,
                                                          bias=self.msbias, bpm=self.msbpm,
                                                          dark=self.msdark, calib_dir=self.calib_dir,
-                                                         setup=setup, calib_id=calib_id)
+                                                         setup=setup, calib_id=calib_id,
+                                                         manual_spat_flexure=manual_spat_flexure)
 
         spatbin = parse.parse_binning(binning)[1]
         pad = self.par['scattlight_pad'] // spatbin
@@ -747,20 +766,21 @@ class Calibrations:
 
         # get illumination flat frames
         illum_frame = {'type': 'illumflat', 'class': flatfield.FlatImages}
-        raw_illum_files, illum_cal_file, illum_calib_key, illum_setup, illum_calib_id, detname \
+        raw_illum_files, raw_illum_index, illum_cal_file, illum_calib_key, illum_setup, illum_calib_id, detname \
                 = self.find_calibrations(illum_frame['type'], illum_frame['class'])
 
         # get pixel flat frames
         pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
-        raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
-            = [], None, None, illum_setup, None, detname
+        raw_pixel_files, raw_pixel_index, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
+            = [], [], None, None, illum_setup, None, detname
         # read in the raw pixelflat frames only if the user has not provided a pixelflat_file
         if self.par['flatfield']['pixelflat_file'] is None:
-            raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
+            raw_pixel_files, raw_pixel_index, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
                 = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
 
         # get lamp off flat frames
         raw_lampoff_files = self.fitstbl.find_frame_files('lampoffflats', calib_ID=self.calib_ID)
+        raw_lampoff_index = self.fitstbl.find_frames('lampoffflats', calib_ID=self.calib_ID, index=True)
 
         # Check if we have any calibration frames to work with
         if len(raw_pixel_files) == 0 and pixel_cal_file is None \
@@ -819,6 +839,9 @@ class Calibrations:
             # Perform a check on the files
             self.check_calibrations(raw_pixel_files)
 
+            # If a manual spatial flexure is requested for any of the frames, collect it now
+            manual_spat_flexure = self.fitstbl.get_shifts(raw_pixel_index)
+
             msgs.info('Creating pixel-flat calibration frame using files: ')
             for f in raw_pixel_files:
                 msgs.prindent(f'{Path(f).name}')
@@ -827,13 +850,17 @@ class Calibrations:
                                                         raw_pixel_files, dark=self.msdark,
                                                         slits=self.slits,
                                                         bias=self.msbias, bpm=self.msbpm,
-                                                        scattlight=self.msscattlight)
+                                                        scattlight=self.msscattlight,
+                                                        manual_spat_flexure=manual_spat_flexure)
             if len(raw_lampoff_files) > 0:
                 # Reset the BPM
                 self.get_bpm(frame=raw_lampoff_files[0])
 
                 # Perform a check on the files
                 self.check_calibrations(raw_lampoff_files)
+
+                # If a manual spatial flexure is requested for any of the frames, collect it now
+                manual_spat_flexure = self.fitstbl.get_shifts(raw_lampoff_index)
 
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
@@ -843,7 +870,8 @@ class Calibrations:
                                                               raw_lampoff_files,
                                                               slits=self.slits,
                                                               dark=self.msdark, bias=self.msbias,
-                                                              bpm=self.msbpm, scattlight=self.msscattlight)
+                                                              bpm=self.msbpm, scattlight=self.msscattlight,
+                                                              manual_spat_flexure=manual_spat_flexure)
                 pixel_flat = pixel_flat.sub(lampoff_flat)
 
             # Initialise the pixel flat
@@ -865,6 +893,9 @@ class Calibrations:
             # Perform a check on the files
             self.check_calibrations(raw_illum_files)
 
+            # If a manual spatial flexure is requested for any of the frames, collect it now
+            manual_spat_flexure = self.fitstbl.get_shifts(raw_illum_index)
+
             msgs.info('Creating slit-illumination flat calibration frame using files: ')
             for f in raw_illum_files:
                 msgs.prindent(f'{Path(f).name}')
@@ -872,7 +903,8 @@ class Calibrations:
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], raw_illum_files,
                                                         dark=self.msdark, bias=self.msbias, scattlight=self.msscattlight,
-                                                        slits=self.slits, flatimages=self.flatimages, bpm=self.msbpm)
+                                                        slits=self.slits, flatimages=self.flatimages, bpm=self.msbpm,
+                                                        manual_spat_flexure=manual_spat_flexure)
             if len(raw_lampoff_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
@@ -880,6 +912,9 @@ class Calibrations:
                 if lampoff_flat is None:
                     # Perform a check on the files
                     self.check_calibrations(raw_lampoff_files)
+
+                    # If a manual spatial flexure is requested for any of the frames, collect it now
+                    manual_spat_flexure = self.fitstbl.get_shifts(raw_lampoff_index)
 
                     # Build the image
                     lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -889,7 +924,8 @@ class Calibrations:
                                                                   bias=self.msbias,
                                                                   slits=self.slits,
                                                                   scattlight=self.msscattlight,
-                                                                  bpm=self.msbpm)
+                                                                  bpm=self.msbpm,
+                                                                  manual_spat_flexure=manual_spat_flexure)
                 illum_flat = illum_flat.sub(lampoff_flat)
 
             # Initialise the illum flat
@@ -953,9 +989,10 @@ class Calibrations:
 
         # Prep
         frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
-        raw_trace_files, cal_file, calib_key, setup, calib_id, detname \
-                = self.find_calibrations(frame['type'], frame['class'])
+        raw_trace_files, raw_trace_index, cal_file, calib_key, setup, calib_id, detname \
+            = self.find_calibrations(frame['type'], frame['class'])
         raw_lampoff_files = self.fitstbl.find_frame_files('lampoffflats', calib_ID=self.calib_ID)
+        raw_lampoff_index = self.fitstbl.find_frames('lampoffflats', calib_ID=self.calib_ID, index=True)
 
         if len(raw_trace_files) == 0 and cal_file is None:
             msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
@@ -998,12 +1035,16 @@ class Calibrations:
         # Perform a check on the files
         self.check_calibrations(raw_trace_files)
 
+        # If a manual spatial flexure is requested for any of the frames, collect it now
+        manual_spat_flexure = self.fitstbl.get_shifts(raw_trace_index)
+
         traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['traceframe'], raw_trace_files,
                                                     bias=self.msbias, bpm=self.msbpm,
                                                     scattlight=self.msscattlight,
                                                     dark=self.msdark, calib_dir=self.calib_dir,
-                                                    setup=setup, calib_id=calib_id)
+                                                    setup=setup, calib_id=calib_id,
+                                                    manual_spat_flexure=manual_spat_flexure)
         if len(raw_lampoff_files) > 0:
             msgs.info('Subtracting lamp off flats using files: ')
             for f in raw_lampoff_files:
@@ -1015,11 +1056,15 @@ class Calibrations:
             # Perform a check on the files
             self.check_calibrations(raw_lampoff_files)
 
+            # If a manual spatial flexure is requested for any of the frames, collect it now
+            manual_spat_flexure = self.fitstbl.get_shifts(raw_lampoff_index)
+
             lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                           self.par['lampoffflatsframe'],
                                                           raw_lampoff_files, dark=self.msdark,
                                                           bias=self.msbias, scattlight=self.msscattlight,
-                                                          bpm=self.msbpm)
+                                                          bpm=self.msbpm,
+                                                          manual_spat_flexure=manual_spat_flexure)
             traceImage = traceImage.sub(lampoff_flat)
 
         edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
@@ -1076,7 +1121,7 @@ class Calibrations:
 
         # Find the calibrations
         frame = {'type': 'arc', 'class': wavecalib.WaveCalib}
-        raw_files, cal_file, calib_key, setup, calib_id, detname \
+        raw_files, raw_index, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
         if len(raw_files) == 0 and cal_file is None:
@@ -1155,7 +1200,7 @@ class Calibrations:
 
         # Find the calibrations
         frame = {'type': 'tilt', 'class': wavetilts.WaveTilts}
-        raw_files, cal_file, calib_key, setup, calib_id, detname \
+        raw_files, raw_index, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
         if len(raw_files) == 0 and cal_file is None:

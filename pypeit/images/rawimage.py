@@ -401,7 +401,7 @@ class RawImage:
         return np.array(rn2)
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
-                mosaic=False, debug=False):
+                mosaic=False, manual_spat_flexure=None, debug=False):
         """
         Process the data.
 
@@ -519,6 +519,9 @@ class RawImage:
                 mosaic.  If flats or slits are provided (and used), this *must*
                 be true because these objects are always defined in the mosaic
                 frame.
+            manual_spat_flexure (:obj:`float`, optional):
+                The spatial flexure of the image. This is only set if the user wishes to
+                manually correct the slit traces of this image for spatial flexure.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 
@@ -671,9 +674,11 @@ class RawImage:
         # bias and dark subtraction) and before field flattening.  Also the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_method'],
-                                                                 maxlag=self.par['spat_flexure_maxlag']) \
-            if self.par['spat_flexure_method'] != "skip" else None
+        self.spat_flexure_shift = None
+        if self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(manual_spat_flexure):
+            self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_method'],
+                                                                 manual_spat_flexure=manual_spat_flexure,
+                                                                 maxlag=self.par['spat_flexure_maxlag'])
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
@@ -766,7 +771,7 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, force=False, method="detector", maxlag=20):
+    def spatial_flexure_shift(self, slits, force=False, manual_spat_flexure=np.ma.masked, method="detector", maxlag=20):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
@@ -774,11 +779,18 @@ class RawImage:
         :func:`~pypeit.core.flexure.spat_flexure_shift`.
 
         Args:
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit edge traces
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
+            manual_spat_flexure (:obj:`float`, optional):
+                Manually set the spatial flexure shift. If provided, this
+                value is used instead of calculating the shift. The default
+                value is `np.ma.masked`, which means the shift is calculated
+                from the image data. The only way this value is used is if
+                the user sets the `shift` parameter in their pypeit file to
+                be a float.
             method (:obj:`str`, optional):
                 Method to use to calculate the spatial flexure shift. Options
                 are 'detector' (default), 'slit', and 'edge'. The 'detector'
@@ -801,10 +813,34 @@ class RawImage:
         if self.nimg > 1:
             msgs.error('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, method=method, maxlag=maxlag)
+
+        # Check if the slits are provided
+        if slits is None:
+            if not np.ma.is_masked(manual_spat_flexure):
+                msgs.warn('Manual spatial flexure provided without slits - assuming no spatial flexure.')
+            else:
+                msgs.warn('Cannot calculate spatial flexure without slits - assuming no spatial flexure.')
+            return
+
+        # First check for manual flexure
+        if not np.ma.is_masked(manual_spat_flexure):
+            msgs.info(f'Adopting a manual spatial flexure of {manual_spat_flexure} pixels')
+            spat_flexure = np.full((slits.nslits, 2), np.float64(manual_spat_flexure))
+        else:
+            spat_flexure = flexure.spat_flexure_shift(self.image[0], slits, method=method, maxlag=maxlag)
+
+        # Print the flexure values
+        if np.all(spat_flexure == spat_flexure[0, 0]):
+            msgs.info(f'Spatial flexure is: {spat_flexure[0, 0]} pixels')
+        else:
+            # Print the flexure values for each slit separately
+            for slit in range(spat_flexure.shape[0]):
+                msgs.info(
+                    f'Spatial flexure for slit {slits.spat_id[slit]} is: left={spat_flexure[slit, 0]} pixels; right={spat_flexure[slit, 1]} pixels')
+
         self.steps[step] = True
         # Return
-        return self.spat_flexure_shift
+        return spat_flexure
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
         """

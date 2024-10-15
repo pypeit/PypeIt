@@ -160,7 +160,7 @@ All of these **must** subclass from
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
                         scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True,
-                        slits=None, mosaic=None, calib_dir=None, setup=None, calib_id=None):
+                        slits=None, mosaic=None, manual_spat_flexure=None, calib_dir=None, setup=None, calib_id=None):
     """
     Perform basic image processing on a list of images and combine the results. All
     core processing steps for each image are handled by :class:`~pypeit.images.rawimage.RawImage` and
@@ -222,6 +222,9 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             Flag processed image will be a mosaic of multiple detectors.  By
             default, this is determined by the format of ``det`` and whether or
             not this is a bias or dark frame.  *Only used for testing purposes.*
+        manual_spat_flexure (:obj:`list`, `numpy.ndarray`_, optional):
+            A list of the spatial flexures for each image in file_list.  This is only
+            used to manually correct the slit traces for spatial flexure of each image.
         calib_dir (:obj:`str`, `Path`_, optional):
             The directory for processed calibration files.  Required for
             elements of :attr:`frame_image_classes`, ignored otherwise.
@@ -247,6 +250,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         # NOTE: This should not be necessary because FrameGroupPar explicitly
         # requires frametype to be valid
         msgs.error(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
+    manual_spatflex = manual_spat_flexure if manual_spat_flexure is not None else [np.ma.masked]*len(file_list)
 
     # Should the detectors be reformatted into a single image mosaic?
     if mosaic is None:
@@ -254,13 +258,14 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
 
     rawImage_list = []
     # Loop on the files
-    for ifile in file_list:
+    for ii, ifile in enumerate(file_list):
         # Load raw image
         rawImage = rawimage.RawImage(ifile, spectrograph, det)
         # Process
         rawImage_list.append(rawImage.process(
             frame_par['process'], scattlight=scattlight, bias=bias,
-            bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic))
+            bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic,
+            manual_spat_flexure=manual_spatflex[ii]))
 
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])
