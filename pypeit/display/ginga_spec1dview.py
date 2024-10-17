@@ -1,5 +1,3 @@
-# This is open-source software licensed under a BSD license.
-# Please see the file LICENSE.txt for details.
 """
 Spec1dView is a plugin for the Ginga viewer that provides functionality for
 visualizing and analyzing 1D spectra from FITS files. The plugin allows users
@@ -62,13 +60,15 @@ __all__ = ['Spec1dView']
 class Spec1dView(GingaPlugin.LocalPlugin):
 
     def __init__(self, fv, fitsimage):
+        """Constructor for the plugin."""
         # superclass defines some variables for us, like logger
-        super(Spec1dView, self).__init__(fv, fitsimage)
+        super().__init__(fv, fitsimage)
 
         # get Spec1dView preferences
         prefs = self.fv.get_preferences()
         self.settings = prefs.create_category('plugin_Spec1dView')
-        self.settings.add_defaults(lines="error")
+        self.settings.add_defaults(lines="error",
+                                   extraction='OPT', fluxed=False, masked=False)
         self.settings.load(onError='silent')
 
         # will be set if we are invoked
@@ -89,13 +89,13 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.z = 0.0
 
         self.extraction_types = ('OPT', 'BOX')
-        self.extraction = 'OPT'
+        self.extraction = self.settings.get('extraction', 'OPT')
 
         self.fluxed_options = (True, False)
-        self.fluxed = False
+        self.fluxed = self.settings.get('fluxed', False)
 
         self.masked_options = (True, False)
-        self.masked = True
+        self.masked = self.settings.get('masked', False)
 
         # dictionary of plotable types
         self.dc = get_canvas_types()
@@ -103,6 +103,11 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.gui_up = False
 
     def build_gui(self, container):
+        """Construct the UI in the plugin container.
+
+        This get's called just prior to the ``start`` method when the plugin is
+        activated.
+        """
         top = Widgets.VBox()
         top.set_border_width(4)
 
@@ -114,7 +119,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         captions = (("1D file:", 'label', 'filepath', 'entryset'),
                     ("Extensions:", 'label', 'extensions', 'llabel'),
-                    ("Extension:", 'label', 'exten', 'spinbox'),
+                    ("Extension:", 'label', 'exten', 'combobox'),
                     ("Extraction:", 'label', 'extraction', 'combobox'),
                     ("Fluxed:", 'label', 'fluxed', 'combobox'),
                     ("Masked:", 'label', 'masked', 'combobox'),
@@ -123,7 +128,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.w = b
         b.filepath.add_callback('activated', self.set_filepath_cb)
         b.exten.set_tooltip("Choose extension of file to view")
-        b.exten.add_callback('value-changed', self.set_exten_cb)
+        b.exten.add_callback('activated', self.set_exten_cb)
         b.exten.set_enabled(False)
 
         combobox = b.extraction
@@ -195,6 +200,10 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.gui_up = True
 
     def set_z_cb(self, w):
+        """Callback for setting the zed value in the plugin.
+
+        Replot the lines as a result.
+        """
         z = float(w.get_text())
         self.logger.info(f"z = {z}")
         self.z = z
@@ -202,6 +211,10 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.fv.gui_do(self.plot_lines)
 
     def set_line_list_cb(self, w, idx):
+        """Callback for setting the line list in the plugin.
+
+        Construct a new line list (or None) and replot the lines as a result.
+        """
         self.line_list = self.line_lists[idx]
         if self.line_list == 'None':
             self.llist = None
@@ -212,21 +225,38 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.fv.gui_do(self.plot_lines)
 
     def set_extraction_cb(self, w, idx):
+        """Callback for changing the `extraction` option in the plugin.
+
+        Redo the data extraction and replot everything as a result.
+        """
         self.extraction = self.extraction_types[idx]
         self.logger.debug(f"Selected extraction type: {self.extraction}")
         self.recalc()
 
     def set_fluxed_cb(self, w, idx):
+        """Callback for changing the `fluxed` option in the plugin.
+
+        Redo the data extraction and replot everything as a result.
+        """
         self.fluxed = self.fluxed_options[idx]
         self.logger.debug(f"Selected fluxed option: {self.fluxed}")
         self.recalc()
 
     def set_masked_cb(self, w, idx):
+        """Callback for changing the `masked` option in the plugin.
+
+        Redo the data extraction and replot everything as a result.
+        """
         self.masked = self.masked_options[idx]
         self.logger.debug(f"Selected masked option: {self.masked}")
         self.recalc()
 
     def plot_lines(self):
+        """Plot the line list.
+
+        Lines are made into a single compound object so that it is easier
+        to remove them as a group if the line list is changed.
+        """
         canvas = self.plot.get_canvas()
         canvas.delete_object_by_tag('lines', redraw=False)
 
@@ -263,9 +293,12 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         # will be empty if there were no lines
         canvas.add(lines, tag='lines', redraw=False)
 
+        # this causes the plot viewer to redraw itself
         self.plot.make_callback('modified')
 
     def replot(self):
+        """Replot the plot and line list.
+        """
         if self.plot is None:
             return
         # plot flux vs. wavelength
@@ -291,6 +324,9 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.plot_lines()
 
     def process_file(self, filepath):
+        """Process `filepath` creating `SpecObjs` (a series of extensions),
+        which can then have data extracted and plotted.
+        """
         self.w.filepath.set_text(filepath)
 
         self.sobjs = specobjs.SpecObjs.from_fitsfile(filepath,
@@ -298,20 +334,29 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.num_exten = len(self.sobjs)
         self.w.extensions.set_text(str(self.num_exten))
 
-        self.w.exten.set_limits(0, self.num_exten - 1)
-        self.exten = 0
+        self.w.exten.clear()
+        for name in self.sobjs.NAME:
+            self.w.exten.append_text(name)
         self.w.exten.set_enabled(True)
-        self.w.exten.set_value(self.exten)
+        self.exten = 0
+        self.w.exten.set_index(self.exten)
 
+        # create a new plotable to contain the plot
         self.plot = Plotable(logger=self.logger)
         self.plot.set(name="plot-{}".format(str(time.time())),
                       path=None, nothumb=True)
 
         self.recalc()
 
+        # add the plot to this channel
         self.channel.add_image(self.plot)
 
     def recalc(self):
+        """Reprocess the chosen extension, based on current choices for extraction
+        method, fluxing and masking.
+
+        Replot everything as a result.
+        """
         specobj = self.sobjs[self.exten]
         if specobj['OPT_WAVE'] is None:
             self.fv.show_error("Spectrum not extracted with OPT.  Try --extract BOX")
@@ -336,12 +381,22 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.replot()
 
     def close(self):
+        """Method called to close the plugin when the Close button is pressed."""
         self.fv.stop_local_plugin(self.chname, str(self))
 
     def start(self):
+        """Method called right after `build_gui` when the plugin is activated.
+
+        Simply attempt to process the latest FITS file loaded in the channel.
+        """
         self.redo()
 
     def stop(self):
+        """Method called when the plugin is deactivated.
+
+        Clean up instance variables so we don't hang on to any large data
+        structures.
+        """
         self.sobjs = 0
         self.exten = 0
         self.num_exten = 0
@@ -350,6 +405,12 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.gui_up = False
 
     def redo(self):
+        """Method called when a new FITS image or extension is loaded into the
+        channel.
+
+        We do some minimal checks to make sure that it is a table, then call the
+        routine to process the file that is behind this table.
+        """
         if not self.gui_up:
             return
 
@@ -367,14 +428,21 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.process_file(path)
 
     def set_filepath_cb(self, w):
+        """Callback for changing the path in the UI.
+
+        Try to process the new file.
+        """
         filepath = w.get_text().strip()
         self.process_file(filepath)
 
     def set_exten_cb(self, w, val):
+        """Callback for changing the extension in the UI.
+
+        Try to process the new extension.
+        """
         self.exten = val
         self.recalc()
 
     def __str__(self):
+        # necessary to identify the plugin and provide correct operation in Ginga
         return 'spec1dview'
-
-# END
