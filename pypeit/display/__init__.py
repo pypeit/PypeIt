@@ -30,3 +30,9 @@ def setup_SlitWavelength():
                  module='ginga_plugins', klass='SlitWavelength',
                  ptype='global', workspace='right', start=False,
                  category='PypeIt', menu='SlitWavelength', tab='SlitWavelength')
+
+def setup_Spec1dView():
+    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'ginga_spec1dview.py'),
+                 module='ginga_spec1dview', klass='Spec1dView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='Spec1dView', tab='Spec1dView')
