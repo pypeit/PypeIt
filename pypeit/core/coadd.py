@@ -1177,26 +1177,26 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
 
     return flux_scale, ivar_scale, scale, method_used
 
-def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-8):
+def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, force_grid=True, min_weight=1e-8):
     """
     Compute a stacked spectrum from a set of exposures on the specified
     wave_grid with proper treatment of weights and masking. This code uses
     np.histogram to combine the data using NGP and does not perform any
     interpolations and thus does not correlate errors. It uses wave_grid to
     determine the set of wavelength bins that the data are averaged on. The
-    final spectrum will be on an ouptut wavelength grid which is not the same as
-    wave_grid.  The ouput wavelength grid is the weighted average of the
+    final spectrum will be on an output wavelength grid which is not the same as
+    wave_grid.  The output wavelength grid is the weighted average of the
     individual wavelengths used for each exposure that fell into a given
     wavelength bin in the input wave_grid. This 1d coadding routine thus
     maintains the independence of the errors for each pixel in the combined
     spectrum and computes the weighted averaged wavelengths of each pixel in an
     analogous way to the 2d extraction procedure which also never interpolates
-    to avoid correlating erorrs.
+    to avoid correlating errors.
 
     Parameters
     ----------
     wave_grid : `numpy.ndarray`_
-        new wavelength grid desired. This will typically be a reguarly spaced
+        new wavelength grid desired. This will typically be a regularly spaced
         grid created by the get_wave_grid routine.  The reason for the ngrid+1
         is that this is the general way to specify a set of  bins if you desire
         ngrid bin centers, i.e. the output stacked spectra have ngrid elements.
@@ -1235,7 +1235,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-
     -------
     wave_stack : `numpy.ndarray`_
         Wavelength grid for stacked spectrum. As discussed above, this is the
-        weighted average of the wavelengths of each spectrum that contriuted to
+        weighted average of the wavelengths of each spectrum that contributed to
         a bin in the input wave_grid wavelength grid. It thus has ngrid
         elements, whereas wave_grid has ngrid+1 elements to specify the ngrid
         total number of bins. Note that wave_stack is NOT simply the wave_grid
@@ -1286,6 +1286,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-
     # is achieving FW.
     wave_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=waves_flat*weights_flat)
     wave_stack = (weights_total > min_weight)*wave_stack_total/(weights_total+(weights_total==0.))
+    wave_stack = wave_grid[:-1] + 0.5*(wave_grid[1]-wave_grid[0])
 
     # Calculate the stacked flux
     flux_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=fluxes_flat*weights_flat)
