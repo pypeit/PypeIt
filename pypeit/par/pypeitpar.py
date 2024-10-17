@@ -2036,7 +2036,7 @@ class SensFuncPar(ParSet):
         descr['IR'] = 'Parameters for the IR sensfunc algorithm'
 
         # JFH SHould the default by higher like 8?
-        defaults['polyorder'] = 5
+        defaults['polyorder'] = 10
         dtypes['polyorder'] = [int, list]
         descr['polyorder'] = 'Polynomial order for sensitivity function fitting'
 
@@ -2196,7 +2196,7 @@ class SensfuncUVISPar(ParSet):
         descr['polyfunc'] = 'Whether you want to use the polynomial fit as your final SENSFUNC'
 
 
-        defaults['nresln'] = 20
+        defaults['nresln'] = 10
         dtypes['nresln'] = [int, float]
         descr['nresln'] = 'Parameter governing the spacing of the bspline breakpoints in terms of number of resolution elements.'
 
