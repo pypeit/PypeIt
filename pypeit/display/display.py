@@ -681,9 +681,13 @@ def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
     viewer = connect_to_ginga(raise_err=True, allow_new=True)
     sh = viewer.shell()
 
-    chname = "Spec1d"
+    chname, plname = "Spec1d", "Spec1dView"
     sh.add_channel(chname)
     ch = viewer.channel(chname)
-    sh.start_local_plugin(chname, "Spec1dView")
-
+    # set up the options as passed
+    kwargs = dict(ext=ext, extraction=extraction, masked=masked, fluxed=fluxed)
+    sh.call_local_plugin_method(chname, plname, 'set_params', [], kwargs)
+    # start the plugin
+    sh.start_local_plugin(chname, plname)
+    # load the file
     sh.load_file(filename, chname=chname)

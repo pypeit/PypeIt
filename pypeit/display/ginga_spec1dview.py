@@ -67,7 +67,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         # get Spec1dView preferences
         prefs = self.fv.get_preferences()
         self.settings = prefs.create_category('plugin_Spec1dView')
-        self.settings.add_defaults(lines="error",
+        self.settings.add_defaults(lines="error", start_ext=0,
                                    extraction='OPT', fluxed=False, masked=False)
         self.settings.load(onError='silent')
 
@@ -87,6 +87,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         # redshift
         self.z = 0.0
+        self.start_ext = self.settings.get('start_ext', 0)
 
         self.extraction_types = ('OPT', 'BOX')
         self.extraction = self.settings.get('extraction', 'OPT')
@@ -338,7 +339,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         for name in self.sobjs.NAME:
             self.w.exten.append_text(name)
         self.w.exten.set_enabled(True)
-        self.exten = 0
+        self.exten = min(self.start_ext, self.num_exten - 1)
         self.w.exten.set_index(self.exten)
 
         # create a new plotable to contain the plot
@@ -442,6 +443,26 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         """
         self.exten = val
         self.recalc()
+
+    def set_params(self, ext=None, extraction=None, masked=None, fluxed=None):
+        """Used to set up defaults from command line args to pypeit_show_1dspec script."""
+        self.logger.info(f"ext={ext} extraction={extraction} masked={masked} fluxed={fluxed}")
+        if ext is not None:
+            self.start_ext = ext
+        if extraction is not None:
+            self.extraction = extraction
+        if masked is not None:
+            self.masked = masked
+        if fluxed is not None:
+            self.fluxed = fluxed
+
+        if self.gui_up:
+            index = self.extraction_types.index(self.extraction)
+            self.w.extraction.set_index(index)
+            index = self.fluxed_options.index(self.fluxed)
+            self.w.fluxed.set_index(index)
+            index = self.masked_options.index(self.masked)
+            self.w.masked.set_index(index)
 
     def __str__(self):
         # necessary to identify the plugin and provide correct operation in Ginga
