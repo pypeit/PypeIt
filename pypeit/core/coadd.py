@@ -1177,7 +1177,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
 
     return flux_scale, ivar_scale, scale, method_used
 
-def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, force_grid=True, min_weight=1e-8):
+def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-8):
     """
     Compute a stacked spectrum from a set of exposures on the specified
     wave_grid with proper treatment of weights and masking. This code uses
