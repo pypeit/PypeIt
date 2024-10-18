@@ -73,6 +73,7 @@ from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit import msgs
+from pypeit import dataPaths
 
 
 def tuple_force(par):
@@ -209,6 +210,7 @@ class ProcessImagesPar(ParSet):
                  overscan_method=None, overscan_par=None,
                  combine=None, satpix=None,
                  mask_cr=None, clip=None,
+                 scale_to_mean=None,
                  #cr_sigrej=None, 
                  n_lohi=None, #replace=None,
                  lamaxiter=None, grow=None,
@@ -372,6 +374,10 @@ class ProcessImagesPar(ParSet):
         dtypes['clip'] = bool
         descr['clip'] = 'Perform sigma clipping when combining.  Only used with combine=mean'
 
+        defaults['scale_to_mean'] = False
+        dtypes['scale_to_mean'] = bool
+        descr['scale_to_mean'] = 'If True, scale the input images to have the same mean before combining.'
+
         defaults['comb_sigrej'] = None
         dtypes['comb_sigrej'] = float
         descr['comb_sigrej'] = 'Sigma-clipping level for when clip=True; ' \
@@ -457,7 +463,7 @@ class ProcessImagesPar(ParSet):
                    'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
                    'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
-                   'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
+                   'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
                    'sigclip', 'sigfrac', 'objlim']
 
@@ -833,9 +839,13 @@ class FlatFieldPar(ParSet):
             return
 
         # Check the frame exists
-        if not os.path.isfile(self.data['pixelflat_file']):
-            raise ValueError('Provided frame file name does not exist: {0}'.format(
-                                self.data['pixelflat_file']))
+        # only the file name is provided, so we need to check if the file exists
+        # in the right place (data/pixelflats)
+        file_path = dataPaths.pixelflat.get_file_path(self.data['pixelflat_file'], return_none=True)
+        if file_path is None:
+            msgs.error(
+                f'Provided pixelflat file, {self.data["pixelflat_file"]} not found. It is not a direct path, '
+                'a cached file, or a file that can be downloaded from a PypeIt repository.')
 
         # Check that if tweak slits is true that illumflatten is alwo true
         # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
@@ -1455,7 +1465,7 @@ class Coadd2DPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, only_slits=None, exclude_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
-                 use_slits4wvgrid=None, manual=None, wave_method=None):
+                 use_slits4wvgrid=None, manual=None, wave_method=None, spec_samp_fact=None, spat_samp_fact=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1544,6 +1554,23 @@ class Coadd2DPar(ParSet):
                                   "* 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity." \
                                   "* 'linear' -- Grid is uniform in wavelength" \
 
+        
+        defaults['spec_samp_fact'] = 1.0
+        dtypes['spec_samp_fact'] = float
+        descr['spec_samp_fact'] = "Make the wavelength grid sampling finer (``spec_samp_fact`` less than 1.0)" \
+                                  "or coarser (``spec_samp_fact`` greater than 1.0) by this sampling factor." \
+                                  "This  multiples the 'native' spectral pixel size by ``spec_samp_fact``," \
+                                  "i.e. the units of ``spec_samp_fact`` are pixels."
+        
+
+        defaults['spat_samp_fact'] = 1.0
+        dtypes['spat_samp_fact'] = float
+        descr['spat_samp_fact'] = "Make the spatial sampling finer (``spat_samp_fact`` less" \
+                "than 1.0) or coarser (``spat_samp_fact`` greather than 1.0) by" \
+                "this sampling factor. This basically multiples the 'native'" \
+                "spatial pixel size by ``spat_samp_fact``, i.e. the units of" \
+                "``spat_samp_fact`` are pixels."
+
 
         # Instantiate the parameter set
         super(Coadd2DPar, self).__init__(list(pars.keys()),
@@ -1559,7 +1586,7 @@ class Coadd2DPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid',
-                   'manual', 'wave_method']
+                   'manual', 'wave_method', 'spec_samp_fact', 'spat_samp_fact']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1939,7 +1966,7 @@ class SensFuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, flatfile=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
+    def __init__(self, use_flat=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
                  star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
@@ -1952,11 +1979,9 @@ class SensFuncPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        defaults['flatfile'] = None
-        dtypes['flatfile'] = str
-        descr['flatfile'] = 'Flat field file to be used if the sensitivity function model will utilize the blaze ' \
-                            'function computed from a flat field file in the Calibrations directory, e.g.' \
-                            'Calibrations/Flat_A_0_DET01.fits'
+        defaults['use_flat'] = False
+        dtypes['use_flat'] = bool
+        descr['use_flat'] = 'If True, the flatfield spectrum will be used when computing the sensitivity function.'
 
         defaults['extr'] = 'OPT'
         dtypes['extr'] = str
@@ -2059,7 +2084,7 @@ class SensFuncPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Single element parameters
-        parkeys = ['flatfile', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
+        parkeys = ['use_flat', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
                    'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'extr',
                    'mask_hydrogen_lines', 'mask_helium_lines', 'hydrogen_mask_wid']
 
@@ -4495,7 +4520,7 @@ class CalibrationsPar(ParSet):
     def __init__(self, calib_dir=None, bpm_usebias=None, biasframe=None, darkframe=None,
                  arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
                  alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
-                 lampoffflatsframe=None, scattlightframe=None, skyframe=None, standardframe=None,
+                 lampoffflatsframe=None, slitless_pixflatframe=None, scattlightframe=None, skyframe=None, standardframe=None,
                  scattlight_pad=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
                  raise_chk_error=None):
 
@@ -4580,6 +4605,15 @@ class CalibrationsPar(ParSet):
                                                                               use_specillum=False))
         dtypes['lampoffflatsframe'] = [ ParSet, dict ]
         descr['lampoffflatsframe'] = 'The frames and combination rules for the lamp off flats'
+
+        defaults['slitless_pixflatframe'] = FrameGroupPar(frametype='slitless_pixflat',
+                                                          process=ProcessImagesPar(satpix='nothing',
+                                                                                   use_pixelflat=False,
+                                                                                   use_illumflat=False,
+                                                                                   use_specillum=False,
+                                                                                   combine='median'))
+        dtypes['slitless_pixflatframe'] = [ ParSet, dict ]
+        descr['slitless_pixflatframe'] = 'The frames and combination rules for the slitless pixel flat'
 
         defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole')
         dtypes['pinholeframe'] = [ ParSet, dict ]
@@ -4672,7 +4706,7 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'calib_dir', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'illumflatframe', 'lampoffflatsframe', 'scattlightframe',
+                             'illumflatframe', 'lampoffflatsframe', 'slitless_pixflatframe', 'scattlightframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
                              'scattlight_pad', 'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = np.array([pk not in allkeys for pk in k])
@@ -4698,6 +4732,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('illumflat', cfg[pk]) if pk in k else None
         pk = 'lampoffflatsframe'
         kwargs[pk] = FrameGroupPar.from_dict('lampoffflats', cfg[pk]) if pk in k else None
+        pk = 'slitless_pixflatframe'
+        kwargs[pk] = FrameGroupPar.from_dict('slitless_pixflat', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
         pk = 'scattlightframe'
@@ -5272,7 +5308,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 
+        return ['AAT', 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT',
                 'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT', 'JWST', 'HILTNER']
 
     def validate(self):

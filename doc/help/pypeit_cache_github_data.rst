@@ -9,7 +9,7 @@
     Script to download/cache PypeIt github data
     
     positional arguments:
-      spectrograph          A valid spectrograph identifier: bok_bc,
+      spectrograph          A valid spectrograph identifier: aat_uhrf, bok_bc,
                             gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
@@ -36,14 +36,15 @@
       --exclude EXCLUDE [EXCLUDE ...]
                             A subset of the directories to *exclude* from the list
                             of files to download. Options are: tests, reid_arxiv,
-                            nist, standards, skisim, sensfunc. This option is
-                            mutually exclusive with --include. (default: ['tests'])
+                            nist, standards, skisim, sensfunc, pixelflat. This
+                            option is mutually exclusive with --include. (default:
+                            ['tests'])
       --include INCLUDE [INCLUDE ...]
                             The directories to *include* in the list of files to
                             download. Use "--include all" to include all
                             directories. Options are: all, tests, reid_arxiv, nist,
-                            standards, skisim, sensfunc. This option is mutually
-                            exclusive with --exclude. (default: None)
+                            standards, skisim, sensfunc, pixelflat. This option is
+                            mutually exclusive with --exclude. (default: None)
       --spec_dependent_only
                             Only include files that are specific to the provided
                             list of spectrographs. By default, the script also

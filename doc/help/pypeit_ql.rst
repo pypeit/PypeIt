@@ -8,16 +8,17 @@
                      [--calibs_only] [--overwrite_calibs] [--det DET [DET ...]]
                      [--slitspatnum SLITSPATNUM] [--maskID MASKID]
                      [--boxcar_radius BOXCAR_RADIUS] [--snr_thresh SNR_THRESH]
-                     [--ignore_std] [--skip_display] [--coadd2d]
-                     [--only_slits ONLY_SLITS [ONLY_SLITS ...]] [--offsets OFFSETS]
-                     [--weights WEIGHTS] [--spec_samp_fact SPEC_SAMP_FACT]
-                     [--spat_samp_fact SPAT_SAMP_FACT] [--try_old]
+                     [--ignore_std] [--skip_display] [--removetrace] [--coadd2d]
+                     [--spec_samp_fact SPEC_SAMP_FACT]
+                     [--spat_samp_fact SPAT_SAMP_FACT] [--offsets OFFSETS]
+                     [--weights WEIGHTS] [--only_slits ONLY_SLITS [ONLY_SLITS ...]]
+                     [--try_old]
                      spectrograph
     
     Script to produce quick-look PypeIt reductions
     
     positional arguments:
-      spectrograph          A valid spectrograph identifier: bok_bc,
+      spectrograph          A valid spectrograph identifier: aat_uhrf, bok_bc,
                             gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
@@ -110,13 +111,20 @@
                             detected, ignore those frames. Otherwise, they are
                             included with the reduction of the science frames.
                             (default: False)
-      --skip_display        Run the quicklook without displaying any results.
-                            (default: True)
+      --skip_display        Run the quicklook without displaying any results. The
+                            default skip_display=False will show the results.
+                            (default: False)
+      --removetrace         When the image is shown, do not overplot traces in the
+                            skysub, sky_resid, and resid channels (default: False)
       --coadd2d             Perform default 2D coadding. (default: False)
-      --only_slits ONLY_SLITS [ONLY_SLITS ...]
-                            If coadding, only coadd this space-separated set of
-                            slits. If not provided, all slits are coadded. (default:
-                            None)
+      --spec_samp_fact SPEC_SAMP_FACT
+                            If coadding, adjust the wavelength grid sampling by this
+                            factor. For a finer grid, set value to <1.0; for coarser
+                            sampling, set value to >1.0). (default: 1.0)
+      --spat_samp_fact SPAT_SAMP_FACT
+                            If coadding, adjust the spatial grid sampling by this
+                            factor. For a finer grid, set value to <1.0; for coarser
+                            sampling, set value to >1.0). (default: 1.0)
       --offsets OFFSETS     If coadding, spatial offsets to apply to each image; see
                             the [coadd2d][offsets] parameter. Options are restricted
                             here to either maskdef_offsets or auto. If not
@@ -126,14 +134,10 @@
                             [coadd2d][weights] parameter. Options are restricted
                             here to either uniform or auto. If not specified, the
                             (spectrograph-specific) default is used. (default: None)
-      --spec_samp_fact SPEC_SAMP_FACT
-                            If coadding, adjust the wavelength grid sampling by this
-                            factor. For a finer grid, set value to <1.0; for coarser
-                            sampling, set value to >1.0). (default: 1.0)
-      --spat_samp_fact SPAT_SAMP_FACT
-                            If coadding, adjust the spatial grid sampling by this
-                            factor. For a finer grid, set value to <1.0; for coarser
-                            sampling, set value to >1.0). (default: 1.0)
+      --only_slits ONLY_SLITS [ONLY_SLITS ...]
+                            If coadding, only coadd this space-separated set of
+                            slits. If not provided, all slits are coadded. (default:
+                            None)
       --try_old             Attempt to load old datamodel versions. A crash may
                             ensue.. (default: False)
     

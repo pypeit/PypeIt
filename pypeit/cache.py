@@ -162,6 +162,7 @@ def fetch_remote_file(
     install_script: bool=False,
     force_update: bool=False,
     full_url: str=None,
+    return_none: bool=False,
 ) -> pathlib.Path:
     """
     Use `astropy.utils.data`_ to fetch file from remote or cache
@@ -191,6 +192,8 @@ def fetch_remote_file(
         full_url (:obj:`str`, optional):
             The full url.  If None, use :func:`_build_remote_url`).  Defaults to
             None.
+        return_none (:obj:`bool`, optional):
+            Return None if the file is not found.  Defaults to False.
 
     Returns:
         `Path`_: The local path to the desired file in the cache
@@ -247,6 +250,9 @@ def fetch_remote_file(
                 f"your custom extinction file into the cache.  See instructions at{msgs.newline()}"
                 "https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction"
             )
+
+        elif return_none:
+            return None
 
         else:
             err_msg = (
