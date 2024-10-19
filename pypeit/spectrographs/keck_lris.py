@@ -273,7 +273,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 else:
                     return 'off'
             elif headarr[0].get('FLIMAGIN') is not None or headarr[0].get('FLSPECTR') is not None:
-                if headarr[0].get('FLIMAGIN') == 'on' or headarr[0].get('FLSPECTR') == 'on':
+                if headarr[0].get('FLIMAGIN') == 'on' or headarr[0].get('FLSPECTR') != 'off':
                     return 'on'
                 else:
                     return 'off'
