@@ -32,14 +32,19 @@ class ChkTilts(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
+        from pathlib import Path
         from pypeit import wavetilts
 
         chk_version = not args.try_old
 
+        # tilts file path
+        file = Path(args.file).absolute()
+
         # Load
-        tilts = wavetilts.WaveTilts.from_file(args.file, chk_version=chk_version)
+        tilts = wavetilts.WaveTilts.from_file(file, chk_version=chk_version)
+        embed()
         tilts.show(in_ginga=np.logical_not(args.mpl), show_traces=args.show_traces,
-                   chk_version=chk_version)
+                   calib_dir=file.parent, chk_version=chk_version)
 
 
 
