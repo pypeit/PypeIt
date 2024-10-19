@@ -25,6 +25,7 @@ from pypeit import slittrace, wavecalib
 from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import tracewave
+from pypeit.core.wavecal import autoid
 from pypeit.images import buildimage
 
 
@@ -279,6 +280,10 @@ class BuildWaveTilts:
         spat_flexure (float, optional):
             If input, the slitmask and slit edges are shifted prior
             to tilt analysis.
+        measured_fwhms (`numpy.ndarray`_, optional):
+            FWHM of the arc lines measured during wavecalib.  If provided, this
+            will be used arc/sky line detection.
+
 
 
     Attributes:
@@ -304,7 +309,7 @@ class BuildWaveTilts:
 
     # TODO This needs to be modified to take an inmask
     def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None,
-                 spat_flexure=None):
+                 spat_flexure=None, measured_fwhms=None):
 
         # TODO: Perform type checking
         self.spectrograph = spectrograph
@@ -316,6 +321,7 @@ class BuildWaveTilts:
         self.det = det
         self.qa_path = qa_path
         self.spat_flexure = spat_flexure
+        self.measured_fwhms = measured_fwhms if measured_fwhms is not None else np.array([None] * slits.nslits)
 
         # Get the non-linear count level
         if self.mstilt.is_mosaic:
@@ -385,23 +391,26 @@ class BuildWaveTilts:
 
         return arccen, arccen_bpm
 
-    def find_lines(self, arcspec, slit_cen, slit_idx, bpm=None, debug=False):
+    def find_lines(self, arcspec, slit_cen, slit_idx, fwhm, bpm=None, debug=False):
         """
         Find the lines for tracing
 
         Wrapper to tracewave.tilts_find_lines()
 
         Args:
-            arcspec ():
-                ??
-            slit_cen ():
-                ??
+            arcspec (`numpy.ndarray`_):
+                1D spectrum to be searched for significant detections.
+            slit_cen (`numpy.ndarray`_):
+                Trace down the center of the slit. Must match the shape of arcspec.
             slit_idx (int):
-                Slit index, zero-based
+                Slit index, zero-based.
+            fwhm (float):
+                FWHM of the arc lines.
             bpm (`numpy.ndarray`_, optional):
-                ??
+                Bad-pixel mask for input spectrum. If None, all pixels considered good.
+                If passed, must match the shape of arcspec.
             debug (bool, optional):
-                ??
+                Show a QA plot for the line detection.
 
         Returns:
             tuple:  2 objectcs
@@ -423,7 +432,7 @@ class BuildWaveTilts:
                                              sig_neigh=self.par['sig_neigh'],
                                              nfwhm_neigh=self.par['nfwhm_neigh'],
                                              only_these_lines=only_these_lines,
-                                             fwhm=self.wavepar['fwhm'],
+                                             fwhm=fwhm,
                                              nonlinear_counts=self.nonlinear_counts,
                                              bpm=bpm, debug_peaks=False, debug_lines=debug)
 
@@ -478,7 +487,7 @@ class BuildWaveTilts:
         self.steps.append(inspect.stack()[0][3])
         return self.all_fit_dict[slit_idx]['coeff2']
 
-    def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen,
+    def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen, fwhm,
                     debug_pca=False, show_tracefits=False):
         """
         Trace the tilts
@@ -500,6 +509,12 @@ class BuildWaveTilts:
                is (nspec, nspat) with dtype=bool.
             slit_cen (:obj:`int`):
                 Integer index indicating the slit in question.
+            fwhm (:obj:`float`):
+                FWHM of the arc lines.
+            debug_pca (:obj:`bool`, optional):
+                Show the PCA modeling QA plots.
+            show_tracefits (:obj:`bool`, optional):
+                Show the trace fits.
 
         Returns:
             dict: Dictionary containing information on the traced tilts required
@@ -507,7 +522,7 @@ class BuildWaveTilts:
 
         """
         trace_dict = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen,
-                                           inmask=self.gpm, fwhm=self.wavepar['fwhm'],
+                                           inmask=self.gpm, fwhm=fwhm,
                                            spat_order=self.par['spat_order'],
                                            maxdev_tracefit=self.par['maxdev_tracefit'],
                                            sigrej_trace=self.par['sigrej_trace'],
@@ -561,11 +576,13 @@ class BuildWaveTilts:
         for i in range(nslits):
             if self.tilt_bpm[i]:
                 continue
+            # get FWHM for this slit
+            fwhm = autoid.set_fwhm(self.wavepar, measured_fwhm=self.measured_fwhms[i])
             # TODO: What to do with the following iter_continuum parameters?:
             #       sigthresh, sigrej, niter_cont, cont_samp, cont_frac_fwhm
             arc_continuum[:,i], arc_fitmask[:,i] \
                     = arc.iter_continuum(self.arccen[:,i], gpm=np.invert(self.arccen_bpm[:,i]),
-                                         fwhm=self.wavepar['fwhm'])
+                                         fwhm=fwhm)
             # TODO: Original version.  Please leave it for now.
 #            arc_fitmask[:,i], coeff \
 #                    = utils.robust_polyfit_djs(spec, self.arccen[:,i], self.par['cont_order'],
@@ -677,6 +694,7 @@ class BuildWaveTilts:
         # Subtract arc continuum
         _mstilt = self.mstilt.image.copy()
         if self.par['rm_continuum']:
+            msgs.info('Subtracting the continuum')
             continuum = self.model_arc_continuum(debug=debug)
             _mstilt -= continuum
             if debug:
@@ -713,11 +731,13 @@ class BuildWaveTilts:
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
             msgs.info(f'Computing tilts for slit/order {self.slits.slitord_id[slit_idx]} ({slit_idx+1}/{self.slits.nslits})')
+            # Get the arc FWHM for this slit
+            fwhm = autoid.set_fwhm(self.wavepar, measured_fwhm=self.measured_fwhms[slit_idx], verbose=True)
             # Identify lines for tracing tilts
             msgs.info('Finding lines for tilt analysis')
             self.lines_spec, self.lines_spat \
                     = self.find_lines(self.arccen[:,slit_idx], self.slitcen[:,slit_idx],
-                                      slit_idx,
+                                      slit_idx, fwhm,
                                       bpm=self.arccen_bpm[:,slit_idx], debug=debug)
 
             if self.lines_spec is None:
@@ -733,7 +753,7 @@ class BuildWaveTilts:
             # each line.
             msgs.info('Trace the tilts')
             self.trace_dict = self.trace_tilts(_mstilt, self.lines_spec, self.lines_spat,
-                                               thismask, self.slitcen[:, slit_idx])
+                                               thismask, self.slitcen[:, slit_idx], fwhm)
             # IF there are < 2 usable arc lines for tilt tracing, PCA fit does not work and the reduction crushes
             # TODO investigate why some slits have <2 usable arc lines
             if np.sum(self.trace_dict['use_tilt']) < 2:

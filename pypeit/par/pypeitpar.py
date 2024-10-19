@@ -2978,15 +2978,16 @@ class WavelengthSolutionPar(ParSet):
         defaults['fwhm'] = 4.
         dtypes['fwhm'] = [int, float]
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
-                        'binned pixels of the input arc image'
+                        'binned pixels of the input arc image. Note that this is used also in the ' \
+                        'wave tilts calibration.'
 
         defaults['fwhm_fromlines'] = True
         dtypes['fwhm_fromlines'] = bool
         descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
-                                  'If True, the estimated FWHM will override ``fwhm`` only in '\
+                                  'If True, the estimated FWHM will override ``fwhm`` in '\
                                   'the determination of the wavelength solution (including the ' \
                                   'calculation of the threshold for the solution RMS, see ' \
-                                  '``rms_thresh_frac_fwhm``), but not for the wave tilts calibration.' \
+                                  '``rms_thresh_frac_fwhm``), and ALSO for the wave tilts calibration.' \
 
         defaults['fwhm_spat_order'] = 0
         dtypes['fwhm_spat_order'] = int
