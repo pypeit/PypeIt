@@ -29,6 +29,8 @@ class Show1DSpec(scriptbase.ScriptBase):
 #        parser.add_argument('--jdaviz', default=False, action='store_true',
 #                            help='Open the spectrum in jdaviz (requires specutils and jdaviz '
 #                                 'to be installed)')
+        parser.add_argument('--ginga', default=False, action='store_true',
+                            help='Open the spectrum in ginga')
         return parser
 
     @staticmethod
@@ -115,6 +117,15 @@ class Show1DSpec(scriptbase.ScriptBase):
             if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
                     msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
 
+        if args.ginga:
+            # show the 1d spectrum in Ginga
+            from pypeit.display.display import show_1dspec
+
+            show_1dspec(args.file, ext=exten,
+                        masked=args.masked, extraction=args.extract,
+                        fluxed=args.flux)
+            return
+
         spec = sobjs[exten].to_xspec1d(masked=args.masked, extraction=args.extract,
                                        fluxed=args.flux)
 
@@ -128,5 +139,3 @@ class Show1DSpec(scriptbase.ScriptBase):
         gui = XSpecGui(spec)#, screen_scale=scale)
         gui.show()
         app.exec_()
-
-
