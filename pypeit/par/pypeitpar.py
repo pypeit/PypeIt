@@ -1465,7 +1465,7 @@ class Coadd2DPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, only_slits=None, exclude_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
-                 use_slits4wvgrid=None, manual=None, wave_method=None):
+                 use_slits4wvgrid=None, manual=None, wave_method=None, spec_samp_fact=None, spat_samp_fact=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1554,6 +1554,23 @@ class Coadd2DPar(ParSet):
                                   "* 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity." \
                                   "* 'linear' -- Grid is uniform in wavelength" \
 
+        
+        defaults['spec_samp_fact'] = 1.0
+        dtypes['spec_samp_fact'] = float
+        descr['spec_samp_fact'] = "Make the wavelength grid sampling finer (``spec_samp_fact`` less than 1.0)" \
+                                  "or coarser (``spec_samp_fact`` greater than 1.0) by this sampling factor." \
+                                  "This  multiples the 'native' spectral pixel size by ``spec_samp_fact``," \
+                                  "i.e. the units of ``spec_samp_fact`` are pixels."
+        
+
+        defaults['spat_samp_fact'] = 1.0
+        dtypes['spat_samp_fact'] = float
+        descr['spat_samp_fact'] = "Make the spatial sampling finer (``spat_samp_fact`` less" \
+                "than 1.0) or coarser (``spat_samp_fact`` greather than 1.0) by" \
+                "this sampling factor. This basically multiples the 'native'" \
+                "spatial pixel size by ``spat_samp_fact``, i.e. the units of" \
+                "``spat_samp_fact`` are pixels."
+
 
         # Instantiate the parameter set
         super(Coadd2DPar, self).__init__(list(pars.keys()),
@@ -1569,7 +1586,7 @@ class Coadd2DPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid',
-                   'manual', 'wave_method']
+                   'manual', 'wave_method', 'spec_samp_fact', 'spat_samp_fact']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
