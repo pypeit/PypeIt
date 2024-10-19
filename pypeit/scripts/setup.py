@@ -95,9 +95,8 @@ class Setup(scriptbase.ScriptBase):
 
         if args.gui:
             # Start the GUI
-            from pypeit.setup_gui.controller import SetupGUIController
-            gui = SetupGUIController(args.verbosity, args.spectrograph, args.root, args.extension)
-            gui.start()
+            from pypeit.setup_gui.controller import start_gui
+            start_gui(args)
         else:
             msgs.set_logfile_and_verbosity("setup", args.verbosity)       
 

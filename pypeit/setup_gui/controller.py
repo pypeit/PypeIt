@@ -58,11 +58,12 @@ class OperationThread(QThread):
     """Signal send the operation has completed."""
 
 
-    def __init__(self):
+    def __init__(self,main_controller):
         super().__init__()
         self._operation = None
         self._max_progress = None
         self._mutex = QMutex()
+        self._main_window = main_controller.main_window
 
     def run(self):
         """Runs an operation in a background thread."""
@@ -98,11 +99,11 @@ class OperationThread(QThread):
         
         if create_progress:
             # If we've just initialized the max progress, create the progress dialog
-            SetupGUIController.main_window.create_progress_dialog(self._operation.name, max_progress, self._cancel_op)
+            self._main_window.create_progress_dialog(self._operation.name, max_progress, self._cancel_op)
             
         # Ignore the progress if there's no max progress yet
         if mp is not None:            
-            SetupGUIController.main_window.show_operation_progress(increase=1, message = progress_message)
+            self._main_window.show_operation_progress(increase=1, message = progress_message)
 
     def _op_complete(self, canceled, exc_info):
         """Signal handler that is notified when a background operation completes.
@@ -122,7 +123,7 @@ class OperationThread(QThread):
 
         if operation is not None:
             operation.progressMade.disconnect(self._op_progress)
-            SetupGUIController.main_window.operation_complete()
+            self._main_window.operation_complete()
             operation.postRun(canceled, exc_info)            
     
 
@@ -144,18 +145,22 @@ class MetadataOperation(QObject):
     """Base class for Metadata operations that take long enough that they should take place in a background thread.
     
     Args:
-        model (PypeItSetupGUIModel): The PypeIt Setup GUI's model object.
+        model (PypeItSetupGUIModel): 
+            The PypeIt Setup GUI's model object.
+        main_controller (SetupGUIController): 
+            The PypeIt Setup GUI's controller object.
     """
 
     progressMade = Signal(int, str)
     """Signal emitted emit when progress has been made. This will be reflected in the view's progress dialog."""
 
 
-    def __init__(self, name, model):
+    def __init__(self, name, model, main_controller):
         super().__init__()
         self._model=model
         self.name = name
         self._max_progress = None
+        self._main_window = main_controller.main_window
 
     def preRun(self):
         """
@@ -196,7 +201,7 @@ class MetadataOperation(QObject):
         if exc_info[0] is not None:
             traceback_string = "".join(traceback.format_exception(*exc_info))
             msgs.warn(f"Failed to {self.name.lower()}:\n" + traceback_string)
-            display_error(SetupGUIController.main_window, f"Failed to {self.name.lower()} {exc_info[0]}: {exc_info[1]}")
+            display_error(self._main_window.main_window, f"Failed to {self.name.lower()} {exc_info[0]}: {exc_info[1]}")
             self._model.reset()
         elif canceled:
             self._model.reset()
@@ -210,9 +215,11 @@ class SetupOperation(MetadataOperation):
 
         Args:
             model (PypeItSetupGUIModel): The PypeIt Setup GUI's model object.
+            main_controller (SetupGUIController): 
+                The PypeIt Setup GUI's controller object.
     """
-    def __init__(self, model):
-        super().__init__("Run Setup", model)
+    def __init__(self, model, main_controller):
+        super().__init__("Run Setup", model, main_controller)
 
     def run(self):
         """
@@ -229,10 +236,12 @@ class OpenFileOperation(MetadataOperation):
             The PypeIt Setup GUI's model object.
         file (): 
             The file to open.
+        main_controller (SetupGUIController): 
+            The PypeIt Setup GUI's controller object.
     """
 
-    def __init__(self, model, file):
-        super().__init__("Open File", model)
+    def __init__(self, model, file, main_controller):
+        super().__init__("Open File", model, main_controller)
         self._file = file
 
     def run(self):
@@ -325,7 +334,7 @@ class MetadataPasteAction(QAction):
         there are rows to paste in the clipboard."""
 
         if self._controller._is_pypeit_file:
-            if SetupGUIController.model.clipboard.rowCount() > 0:
+            if self._controller.clipboard.rowCount() > 0:
                 self.setEnabled(True)
             else:
                 self.setEnabled(False)
@@ -344,9 +353,10 @@ class PypeItMetadataController(QObject):
             True if the model is for a PypeItFileModel (that is writeable model), False if it is 
             from a PypeItObsLog model (read only)         
     """
-    def __init__(self, model, is_pypeit_file):
+    def __init__(self, model, is_pypeit_file, main_controller):
         super().__init__()
         self._model = model
+        self._main_controller = main_controller
         self._view = None
         self._is_pypeit_file = is_pypeit_file
         self._windows = {}
@@ -361,8 +371,12 @@ class PypeItMetadataController(QObject):
                                 MetadataWriteAction(self, "Comment Out", self.comment_out_metadata_rows),
                                 MetadataWriteAction(self, "Uncomment",   self.uncomment_metadata_rows),
                                 MetadataWriteAction(self, "Delete",      self.delete_metadata_rows,     shortcut=QKeySequence.StandardKey.Delete) ]
-        SetupGUIController.model.clipboard.modelReset.connect(self.updatedEnabledActions)
+        self._main_controller.model.clipboard.modelReset.connect(self.updatedEnabledActions)
         self.updatedEnabledActions()
+
+    @property
+    def clipboard(self):
+        return self._main_controller.model.clipboard
 
     def getActions(self, parent):
         """Returns the actions that this controller supports.
@@ -396,7 +410,7 @@ class PypeItMetadataController(QObject):
             try:
                 display.connect_to_ginga(raise_err=True, allow_new=True)
             except Exception as e:
-                display_error(SetupGUIController.main_window, f"Could not start ginga to view FITS files: {e}")
+                display_error(self._main_controller.main_window, f"Could not start ginga to view FITS files: {e}")
                 msgs.warn(f"Failed to connect to ginga:\n" + traceback.format_exc())
 
             
@@ -406,19 +420,19 @@ class PypeItMetadataController(QObject):
                 # Make sure to strip comments off commented out files
                 file = Path(metadata_row['directory'], metadata_row['filename'].lstrip('# '))
                 if not file.exists():
-                    display_error(SetupGUIController.main_window, f"Could not find {file.name} in {file.parent}.")
+                    display_error(self._main_controller.main_window, f"Could not find {file.name} in {file.parent}.")
                     return
 
                 try:
                     img = self._model.spectrograph.get_rawimage(str(file), 1)[1]
                 except Exception as e:
-                    display_error(SetupGUIController.main_window, f"Failed to read image {file.name}: {e}")
+                    display_error(self._main_controller.main_window, f"Failed to read image {file.name}: {e}")
                     msgs.warn(f"Failed get raw image:\n" + traceback.format_exc())
 
                 try:
                     display.show_image(img, chname = f"{file.name}")
                 except Exception as e:
-                    display_error(SetupGUIController.main_window, f"Failed to send image {file.name} to ginga: {e}")
+                    display_error(self._main_controller.main_window, f"Failed to send image {file.name} to ginga: {e}")
                     msgs.warn(f"Failed send image to ginga:\n" + traceback.format_exc())
 
     def view_header(self):
@@ -438,7 +452,7 @@ class PypeItMetadataController(QObject):
                             print(f"\n\n# HDU {i} Header from {file.name}\n",file=header_string_buffer)
                             hdu.header.totextfile(header_string_buffer)
                 except Exception as e:
-                    display_error(SetupGUIController.main_window, f"Failed to read header from file {file.name} in {file.parent}: {e}")
+                    display_error(self._main_controller.main_window, f"Failed to read header from file {file.name} in {file.parent}: {e}")
                     msgs.warn(f"Failed to read header from {file}:\n" + traceback.format_exc())
                     return
                 header_string_buffer.seek(0)
@@ -465,7 +479,7 @@ class PypeItMetadataController(QObject):
         msgs.info(f"Copying {len(row_indices)} rows to the clipboard.")
         if len(row_indices) > 0:
             row_model = self._model.createCopyForRows(row_indices)
-            SetupGUIController.model.clipboard = row_model
+            self._main_controller.model.clipboard = row_model
             return True
         return False
 
@@ -483,7 +497,7 @@ class PypeItMetadataController(QObject):
 
     def paste_metadata_rows(self):
         """Insert rows from the clipboard into the PypeItMetadataModel"""
-        clipboard = SetupGUIController.model.clipboard
+        clipboard = self._main_controller.model.clipboard
         if clipboard.rowCount() > 0:
             try:
                 msgs.info(f"Pasting {clipboard.rowCount()} rows")
@@ -491,7 +505,7 @@ class PypeItMetadataController(QObject):
             except Exception as e:
                 traceback_string = "".join(traceback.format_exc())
                 msgs.warn(f"Failed to paste metadata rows:\n" + traceback_string)
-                display_error(SetupGUIController.main_window, f"Could not paste rows to this PypeIt file: {e}")
+                display_error(self._main_controller.main_window, f"Could not paste rows to this PypeIt file: {e}")
 
 
     def comment_out_metadata_rows(self):
@@ -536,19 +550,19 @@ class PypeItObsLogController(QObject):
     Args:
         main_window (:obj:`UserPromptDelegate`): A view object that can prompt the user.
         model (:obj:`PypeItObsLogModel`): The model for the obs log.
-        operation_thread (:obj:`pypeit.setup_gui.controller.SetupGUIController`): The main Setup GUI controller.
+        main_controller (:obj:`pypeit.setup_gui.controller.SetupGUIController`): The main Setup GUI controller.
     """
 
-    def __init__(self, model, setup_gui_controller):
+    def __init__(self, model, main_controller):
         super().__init__()
         self._model = model
-        self.setup_gui_controller = setup_gui_controller
+        self._main_controller = main_controller
 
     def setModel(self, model):
         self._model = model
 
     def getMetadataController(self, model):
-        return PypeItMetadataController(model, is_pypeit_file=False)
+        return PypeItMetadataController(model, is_pypeit_file=False, main_controller=self._main_controller)
 
 
     def setSpectrograph(self, spectrograph_name):
@@ -556,7 +570,7 @@ class PypeItObsLogController(QObject):
 
         if self._model.state != ModelState.NEW:
             # Re-run setup with the new spectrograph
-            self.setup_gui_controller.run_setup()
+            self._main_controller.run_setup()
 
         else:
             self._model.set_spectrograph(spectrograph_name)
@@ -578,16 +592,18 @@ class PypeItFileController(QObject):
     Args:
         main_window (:obj:`UserPromptDelegate`): A view object that can prompt the user.
         model (:obj:`PypeItFileModel`): The model for the obs log.
+        main_controller (:obj:`pypeit.setup_gui.controller.SetupGUIController`): The main Setup GUI controller.
     """
 
-    def __init__(self, model):
+    def __init__(self, model, main_controller):
         self._model = model
+        self._main_controller = main_controller
 
     def setModel(self, model):
         self._model = model
 
     def getMetadataController(self, model):
-        return PypeItMetadataController(model, is_pypeit_file=True)
+        return PypeItMetadataController(model, is_pypeit_file=True, main_controller=self._main_controller)
 
 
 class SetupGUIController(QObject):
@@ -599,19 +615,15 @@ class SetupGUIController(QObject):
     """
 
 
-    main_window = None
-    model = PypeItSetupGUIModel()
 
-    def __init__(self, verbosity : int, spectrograph : str|None=None, root : list[str]|str|None=None, extension : str|None=".fits"):
+    def __init__(self, app : QApplication, verbosity : int, spectrograph : str|None=None, root : list[str]|str|None=None, extension : str|None=".fits"):
         super().__init__()
 
-        # Note QT expects the program name as arg 0
-        self.app = QApplication(sys.argv)
-
+        self.app = app
         QCoreApplication.setOrganizationName("PypeIt")
         QCoreApplication.setApplicationName("SetupGUI")
         QCoreApplication.setOrganizationDomain("pypeit.readthedocs.io")
-
+        self.model = PypeItSetupGUIModel()
                 
         self.model.setup_logging(verbosity=verbosity)
         if spectrograph is not None:
@@ -636,8 +648,9 @@ class SetupGUIController(QObject):
             msgs.info(f"Setting font to 12.")
             defaultFont.setPointSize(12)
             self.app.setFont(defaultFont)
-        SetupGUIController.main_window = SetupGUIMainWindow(self.model, self)
-        self.operation_thread = OperationThread()
+
+        self.main_window = SetupGUIMainWindow(self.model, self)
+        self.operation_thread = OperationThread(self)
 
 
     def getObsLogController(self, model):
@@ -655,7 +668,7 @@ class SetupGUIController(QObject):
         Args:
             model (:obj:`PypeItFileModel`): The model for the obs log.
         """
-        return PypeItFileController(model)
+        return PypeItFileController(model, self)
 
     def start(self):
         """
@@ -806,7 +819,7 @@ class SetupGUIController(QObject):
             elif response == DialogResponses.CANCEL:
                 return
 
-        self.operation_thread.startOperation(SetupOperation(self.model))
+        self.operation_thread.startOperation(SetupOperation(self.model, self))
 
     def createNewPypeItFile(self):
         # First figure out the name
@@ -848,4 +861,11 @@ class SetupGUIController(QObject):
         open_dialog = FileDialog.create_open_file_dialog(self.main_window, "Select PypeIt File", file_type=FileType("PypeIt input files",".pypeit"))
         result = open_dialog.show()
         if result != DialogResponses.CANCEL:
-            self.operation_thread.startOperation(OpenFileOperation(self.model, open_dialog.selected_path))
+            self.operation_thread.startOperation(OpenFileOperation(self.model, open_dialog.selected_path, self))
+
+def start_gui(args):
+    # Note QT expects the program name as arg 0
+    app = QApplication(sys.argv)
+
+    gui = SetupGUIController(app, args.verbosity, args.spectrograph, args.root, args.extension)
+    gui.start()
