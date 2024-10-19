@@ -68,7 +68,8 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         prefs = self.fv.get_preferences()
         self.settings = prefs.create_category('plugin_Spec1dView')
         self.settings.add_defaults(lines="error", start_ext=0,
-                                   extraction='OPT', fluxed=False, masked=False)
+                                   extraction='OPT', fluxed=False, masked=False,
+                                   plot_error=True)
         self.settings.load(onError='silent')
 
         # will be set if we are invoked
@@ -124,6 +125,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
                     ("Extraction:", 'label', 'extraction', 'combobox'),
                     ("Fluxed:", 'label', 'fluxed', 'combobox'),
                     ("Masked:", 'label', 'masked', 'combobox'),
+                    ("Plot Error", 'checkbox'),
                     )
         w, b = Widgets.build_info(captions, orientation='vertical')
         self.w = b
@@ -152,6 +154,10 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         index = self.masked_options.index(self.masked)
         combobox.set_index(index)
         combobox.add_callback('activated', self.set_masked_cb)
+
+        b.plot_error.set_state(self.settings.get('plot_error', True))
+        b.plot_error.set_tooltip("Include the error plot")
+        b.plot_error.add_callback('activated', self.plot_error_cb)
 
         fr.set_widget(w)
         vbox.add_widget(fr, stretch=0)
@@ -312,11 +318,12 @@ class Spec1dView(GingaPlugin.LocalPlugin):
                           alpha=0.7, color='black')
         canvas.add(p1, tag='spectrum', redraw=False)
 
-        # additionally, plot error vs. wavelength
-        points = np.array((self.data.wave, self.data.sig)).T
-        p2 = self.dc.Path(points, linewidth=2, linestyle='solid',
-                          alpha=1.0, color='red')
-        canvas.add(p2, tag='error', redraw=False)
+        # optionally, plot error vs. wavelength
+        if self.settings.get('plot_error', False):
+            points = np.array((self.data.wave, self.data.sig)).T
+            p2 = self.dc.Path(points, linewidth=2, linestyle='solid',
+                              alpha=1.0, color='red')
+            canvas.add(p2, tag='error', redraw=False)
 
         self.plot.set_titles(title="Spec1dView",
                              x_axis="Wavelength (Ang)", y_axis="Flux")
@@ -442,6 +449,12 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         Try to process the new extension.
         """
         self.exten = val
+        self.recalc()
+
+    def plot_error_cb(self, w, val):
+        """Callback for toggling the "Plot Error" checkbox in the UI.
+        """
+        self.settings.set(plot_error=val)
         self.recalc()
 
     def set_params(self, ext=None, extraction=None, masked=None, fluxed=None):
