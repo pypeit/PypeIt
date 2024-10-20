@@ -279,12 +279,16 @@ class BuildWaveTilts:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edges
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph object
+            The `Spectrograph` instance that sets the instrument used.  Used to set
+            :attr:`spectrograph`.
         par (:class:`~pypeit.par.pypeitpar.WaveTiltsPar` or None):
-            The parameters used to fuss with the tilts
+            The parameters used for the wavelength solution.
+            Uses ``['calibrations']['tilts']``.
         wavepar (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar` or None):
-            The parameters used for the wavelength solution
-        det (int): Detector index
+            The parameters used for the wavelength solution.
+            Uses ``['calibrations']['wavelengths']``.
+        det (int):
+            Detector index
         qa_path (:obj:`str`, optional):
             Directory for QA output.
         spat_flexure (float, optional):
@@ -292,15 +296,15 @@ class BuildWaveTilts:
             to tilt analysis.
         measured_fwhms (`numpy.ndarray`_, optional):
             FWHM of the arc lines measured during wavecalib.  If provided, this
-            will be used arc/sky line detection.
+            will be used for arc/sky line detection.
 
 
 
     Attributes:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            ??
+            The `Spectrograph` instance that sets the instrument used.
         steps (list):
-            ??
+            List of the processing steps performed
         mask (`numpy.ndarray`_):
             boolean array; True = Ignore this slit
         all_trcdict (list):
