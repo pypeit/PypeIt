@@ -282,7 +282,7 @@ class BuildWaveTilts:
             The `Spectrograph` instance that sets the instrument used.  Used to set
             :attr:`spectrograph`.
         par (:class:`~pypeit.par.pypeitpar.WaveTiltsPar` or None):
-            The parameters used for the wavelength solution.
+            The parameters used for the tilt calibration.
             Uses ``['calibrations']['tilts']``.
         wavepar (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar` or None):
             The parameters used for the wavelength solution.
