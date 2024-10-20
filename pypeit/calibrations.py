@@ -1176,11 +1176,14 @@ class Calibrations:
         _spat_flexure = self.mstilt.spat_flexure \
             if self.par['tiltframe']['process']['spat_flexure_correct'] else None
 
+        # get measured fwhm from wv_calib
+        measured_fwhms = [wvfit.fwhm for wvfit in self.wv_calib.wv_fits]
+
         # Build
         buildwaveTilts = wavetilts.BuildWaveTilts(
             self.mstilt, self.slits, self.spectrograph, self.par['tilts'],
             self.par['wavelengths'], det=self.det, qa_path=self.qa_path,
-            spat_flexure=_spat_flexure)
+            spat_flexure=_spat_flexure, measured_fwhms=measured_fwhms)
 
         # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
         self.wavetilts = buildwaveTilts.run(doqa=self.write_qa, show=self.show)
