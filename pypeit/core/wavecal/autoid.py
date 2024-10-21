@@ -1111,8 +1111,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         lines_wav = template_dict['lines_wav'] 
         lines_fit_ord = template_dict['lines_fit_ord']
 
-    temp_wv = temp_wv_og
-    temp_spec = temp_spec_og
+    temp_wv = np.copy(temp_wv_og)
+    temp_spec = np.copy(temp_spec_og)
 
     # Deal with binning (not yet tested)
     if binspectral != temp_bin:
@@ -1145,7 +1145,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         obs_spec_i = spec[:,slit]
         # get FWHM for this slit
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit], verbose=True)
-
+        
         # Find the shift
         ncomb = temp_spec.size
         # Remove the continuum before adding the padding to obs_spec_i
