@@ -1028,6 +1028,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_south_ham_b600_compiled.fits'
             par['calibrations']['wavelengths']['method'] = 'reidentify'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B480':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_north_ham_b480.fits'
 
         # The bad amp needs a larger follow_span for slit edge tracing
         obs_epoch = time.Time(self.get_meta_value(scifile, 'mjd'), format='mjd').jyear
