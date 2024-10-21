@@ -39,6 +39,7 @@ Instrument-specific Updates
 
 - Improved LRIS frame typing, including the typing of slitless flats and sky flats.
 - Improved HIRES frame typing and configuration setup.
+- Added support for Keck/KCWI BH3 grating configuration.
 - Added support for the (decommissioned) AAT/UHRF instrument
 - Updated the requirements of a spectral flip for KCWI (blue) data. If all amplifiers are
   used, the data will be flipped. If all amplifiers are used, the data will not be flipped.
@@ -88,6 +89,14 @@ Script Changes
   the reduced data.
 - Treatment of file names is now more formal.  Compression signatures are now
   considered, and filename matching is now more strict.
+- Removed `--spec_samp_fact` and `--spat_samp_fact` command line options from
+  `pypeit_coadd_2d`. These options are now parameters in `Coadd2dPar`.
+- `pypeit_show_2dspec` now shows the first available detector in the 2D spectrum
+  by default. The user can specify the detector to show with the `--det` option.
+- Added `--removetrace` command line option to `pypeit_ql` to not show the object
+  trace when displaying the 2D spectrum.
+- Change the default value for `--skip_display` in `pypeit_ql` to `True`.
+
 
 Datamodel Changes
 -----------------
@@ -121,6 +130,8 @@ Bug Fixes
 - Fixed an hidden bug that was causing the spatial flexure to fail. The bug was in the
   `SlitTraceBitMask` class, where the function `exclude_for_flexure()` was not returning
   the 'BOXSLIT' flag.
+- Fix a bug in `pypeit_coadd_2d` related to how the binning was taken into account
+  in the mask definition, and in the calculation of the offset between frames.
 
 
 

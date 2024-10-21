@@ -882,7 +882,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
 
     # Check if relative weights input
     if verbose:
-        msgs.info('Computing weights with weight_method=%s'.format(weight_method))
+        msgs.info('Computing weights with weight_method={:s}'.format(weight_method))
 
     weights = []
 
@@ -1859,20 +1859,15 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
         # Compute the stack
         wave_stack, flux_stack, ivar_stack, gpm_stack, nused = compute_stack(
             wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list=nspec_list), weights_list)
-        # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
-        # since it has no masked values
+        # Interpolate the stack onto the wavelength grids of the individual spectra. This will be used to perform 
+        # the rejection of pixels in the individual spectra.
         flux_stack_nat, ivar_stack_nat, gpm_stack_nat, _ = interp_spec(
             waves, wave_grid_mid, flux_stack, ivar_stack, gpm_stack)
-        ## TESTING
-        #nused_stack_nat, _, _ = interp_spec(
-        #    waves, wave_grid_mid, nused, ivar_stack, mask_stack)
-        #embed()
-        rejivars, sigma_corrs, outchi, chigpm = update_errors(fluxes, ivars, this_gpms,
-                                                               flux_stack_nat,  ivar_stack_nat, gpm_stack_nat, sn_clip=sn_clip)
-        this_gpms, qdone = pydl.djs_reject(fluxes, flux_stack_nat, outmask=this_gpms,inmask=gpms, invvar=rejivars,
+        rejivars, sigma_corrs, outchi, chigpm = update_errors(
+            fluxes, ivars, this_gpms, flux_stack_nat,  ivar_stack_nat, gpm_stack_nat, sn_clip=sn_clip)
+        this_gpms, qdone = pydl.djs_reject(fluxes, flux_stack_nat, outmask=this_gpms, inmask=gpms, invvar=rejivars,
                                           lower=lower,upper=upper, maxrej=maxrej, sticky=False)
         iter += 1
-
 
     if (iter == maxiter_reject) & (maxiter_reject != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter_reject) + ' reached in spec_reject_comb')

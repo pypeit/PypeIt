@@ -1,6 +1,6 @@
 
 
-Version: 1.1.10
+Version: 1.1.11
 
 =======================  =========================  =================  ====================================================================================================================================================================================
 Obj Key                  Obj Type                   Array Type         Description                                                                                                                                                                         
@@ -15,6 +15,7 @@ Obj Key                  Obj Type                   Array Type         Descripti
 ``BOX_FLAM``             ndarray                    float              Boxcar flux (erg/s/cm^2/Ang)                                                                                                                                                        
 ``BOX_FLAM_IVAR``        ndarray                    float              Boxcar flux inverse variance (1e-17 erg/s/cm^2/Ang)^-2                                                                                                                              
 ``BOX_FLAM_SIG``         ndarray                    float              Boxcar flux uncertainty (1e-17 erg/s/cm^2/Ang)                                                                                                                                      
+``BOX_FLAT``             ndarray                    float              Boxcar extracted flatfield spectrum, normalized to the peak value.                                                                                                                  
 ``BOX_FRAC_USE``         ndarray                    float              Fraction of pixels in the object profile subimage used for this extraction                                                                                                          
 ``BOX_FWHM``             ndarray                    float              Spectral FWHM (in Angstroms) at every pixel of the boxcar extracted flux.                                                                                                           
 ``BOX_MASK``             ndarray                    bool               Mask for boxcar extracted flux. True=good                                                                                                                                           
@@ -52,6 +53,7 @@ Obj Key                  Obj Type                   Array Type         Descripti
 ``OPT_FLAM``             ndarray                    float              Optimal flux (1e-17 erg/s/cm^2/Ang)                                                                                                                                                 
 ``OPT_FLAM_IVAR``        ndarray                    float              Optimal flux inverse variance (1e-17 erg/s/cm^2/Ang)^-2                                                                                                                             
 ``OPT_FLAM_SIG``         ndarray                    float              Optimal flux uncertainty (1e-17 erg/s/cm^2/Ang)                                                                                                                                     
+``OPT_FLAT``             ndarray                    float              Optimally extracted flatfield spectrum, normalised to the peak value.                                                                                                               
 ``OPT_FRAC_USE``         ndarray                    float              Fraction of pixels in the object profile subimage used for this extraction                                                                                                          
 ``OPT_FWHM``             ndarray                    float              Spectral FWHM (in Angstroms) at every pixel of the optimally extracted flux.                                                                                                        
 ``OPT_MASK``             ndarray                    bool               Mask for optimally extracted flux. True=good                                                                                                                                        
