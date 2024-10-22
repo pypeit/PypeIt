@@ -69,7 +69,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.settings = prefs.create_category('plugin_Spec1dView')
         self.settings.add_defaults(lines="error", start_ext=0,
                                    extraction='OPT', fluxed=False, masked=False,
-                                   plot_error=True)
+                                   plot_error=True, autozoom=True)
         self.settings.load(onError='silent')
 
         # will be set if we are invoked
@@ -332,6 +332,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         self.plot_lines()
 
+
     def process_file(self, filepath):
         """Process `filepath` creating `SpecObjs` (a series of extensions),
         which can then have data extracted and plotted.
@@ -359,6 +360,8 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         # add the plot to this channel
         self.channel.add_image(self.plot)
+
+        self.autozoom_plot()
 
     def recalc(self):
         """Reprocess the chosen extension, based on current choices for extraction
@@ -454,11 +457,18 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.exten = val
         self.recalc()
 
+        self.autozoom_plot()
+
     def plot_error_cb(self, w, val):
         """Callback for toggling the "Plot Error" checkbox in the UI.
         """
         self.settings.set(plot_error=val)
         self.recalc()
+
+    def autozoom_plot(self):
+        if self.settings.get('autozoom', False):
+            viewer = self.channel.get_viewer('Ginga Plot')
+            viewer.zoom_fit()
 
     def set_params(self, ext=None, extraction=None, masked=None, fluxed=None):
         """Used to set up defaults from command line args to pypeit_show_1dspec script."""
