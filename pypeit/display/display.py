@@ -349,7 +349,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
     _right = right.reshape(-1,1) if right.ndim == 1 else right
     nright = _right.shape[1]
-    
+
     nspec = _left.shape[0]
     if _right.shape[0] != nspec:
         # TODO: Any reason to remove this restriction?
@@ -666,3 +666,28 @@ def show_scattered_light(image_list, slits=None, wcs_match=True):
         if clear:
             clear = False
 
+
+def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
+    """
+    Interface to ginga to show a 1dspec and manipulate with Spec1dView plugin.
+
+    Parameters
+    ----------
+    filename : str
+        spec1d FITS file to show in the viewer
+    ext : int
+        extension to show (which spectrum)
+    """
+    viewer = connect_to_ginga(raise_err=True, allow_new=True)
+    sh = viewer.shell()
+
+    chname, plname = "Spec1d", "Spec1dView"
+    sh.add_channel(chname)
+    ch = viewer.channel(chname)
+    # set up the options as passed
+    kwargs = dict(ext=ext, extraction=extraction, masked=masked, fluxed=fluxed)
+    sh.call_local_plugin_method(chname, plname, 'set_params', [], kwargs)
+    # start the plugin
+    sh.start_local_plugin(chname, plname)
+    # load the file
+    sh.load_file(filename, chname=chname)
