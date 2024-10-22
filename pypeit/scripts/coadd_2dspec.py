@@ -32,18 +32,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
-
-        # TODO: Make spec_samp_fact and spat_samp_fact parameters in CoAdd2DPar,
-        # and then move these to setup_coadd2d.py
-        parser.add_argument('--spec_samp_fact', default=1.0, type=float,
-                            help="Make the wavelength grid finer (spec_samp_fact < 1.0) or "
-                                 "coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. "
-                                 "units of spec_samp_fact are pixels.")
-        parser.add_argument('--spat_samp_fact', default=1.0, type=float,
-                            help="Make the spatial grid finer (spat_samp_fact < 1.0) or coarser "
-                                 "(spat_samp_fact > 1.0) by this sampling factor, i.e. units of "
-                                 "spat_samp_fact are pixels.")
-
         #parser.add_argument("--wave_method", type=str, default=None,
         #                    help="Wavelength method for wavelength grid. If not set, code will "
         #                         "use linear for Multislit and log10 for Echelle")
@@ -177,8 +165,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                  weights=par['coadd2d']['weights'],
                                                  only_slits=this_only_slits,
                                                  exclude_slits=this_exclude_slits,
-                                                 spec_samp_fact=args.spec_samp_fact,
-                                                 spat_samp_fact=args.spat_samp_fact,
+                                                 spec_samp_fact=par['coadd2d']['spec_samp_fact'],
+                                                 spat_samp_fact=par['coadd2d']['spat_samp_fact'],
                                                  bkg_redux=bkg_redux, find_negative=find_negative,
                                                  debug_offsets=args.debug_offsets,
                                                  debug=args.debug)

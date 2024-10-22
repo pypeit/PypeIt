@@ -20,7 +20,8 @@
                             constructed assuming the reduction is for a single
                             detector. If a string, it must match the name of the
                             detector object (e.g., DET01 for a detector, MSC01 for a
-                            mosaic). (default: 1)
+                            mosaic). If not set, the first available detectorin the
+                            spec2d file will be shown (default: None)
       --spat_id SPAT_ID     Restrict plotting to this slit (PypeIt ID notation)
                             (default: None)
       --maskID MASKID       Restrict plotting to this maskID (default: None)
