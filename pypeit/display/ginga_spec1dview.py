@@ -85,6 +85,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.line_lists = ['None', 'ISM', 'Strong', 'HI', 'H2', 'CO',
                            'EUV', 'Galaxy', 'AGN']
         self.llist = None   # the actual line list object
+        self.ext_name = ''
 
         # redshift
         self.z = 0.0
@@ -325,7 +326,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
                               alpha=1.0, color='red')
             canvas.add(p2, tag='error', redraw=False)
 
-        self.plot.set_titles(title="Spec1dView",
+        self.plot.set_titles(title=f"Spec1dView: {self.ext_name}",
                              x_axis="Wavelength (Ang)", y_axis="Flux")
         self.plot.set_grid(True)
 
@@ -386,6 +387,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.data.flux = flux
         self.data.sig = sig
 
+        self.ext_name = self.sobjs.NAME[self.exten]
         self.replot()
 
     def close(self):
@@ -407,6 +409,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         """
         self.sobjs = 0
         self.exten = 0
+        self.ext_name = ''
         self.num_exten = 0
         self.data = Bunch.Bunch()
         self.plot = None
