@@ -1900,6 +1900,7 @@ class SlitlessFlat:
             flatpar = deepcopy(self.par['flatfield'])
             # do not tweak the slits
             flatpar['tweak_slits'] = False
+            flatpar['slit_illum_finecorr'] = False
             pixelFlatField = FlatField(slitless_pixel_flat, self.spectrograph, flatpar, slits, wavetilts=None,
                                        wv_calib=None, slitless=True, qa_path=self.qa_path)
 
