@@ -1286,6 +1286,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-
     # is achieving FW.
     wave_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=waves_flat*weights_flat)
     wave_stack = (weights_total > min_weight)*wave_stack_total/(weights_total+(weights_total==0.))
+    wave_stack = wave_grid[:-1] + 0.5*(wave_grid[1]-wave_grid[0])
 
     # Calculate the stacked flux
     flux_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=fluxes_flat*weights_flat)
