@@ -53,8 +53,7 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(ext=0, card='DATA-TYP')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         self.meta['lampstat01'] = dict(ext=0, card='CMPLAMP')
-        self.meta['lampstat02'] = dict(ext=0, card='INSLAMP')
-        # self.meta['lampstat03'] = dict(ext=0, card='CMPLAMP')
+        self.meta['lampstat02'] = dict(ext=0, card='INSFLAT')
 
     def pypeit_file_keys(self):
         """
@@ -204,16 +203,21 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
                 Raised if the status is not one of the valid options.
         """
         if status == 'off':
+            lamp_stat = ['lampstat01', 'lampstat02', 'target']
             # Check if all are off
-            return np.all(np.array([(fitstbl[k] == 'off') for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
+            chk1 = np.array([(fitstbl[k] == 'off') for k in fitstbl.keys() if k in lamp_stat])
+            chk2 = np.array([(fitstbl['idname'] == 'DOMEFLAT') & (fitstbl['target'] == 'off')])
+            return np.all(chk1&chk2, axis=0)
         if status == 'arcs':
             # Check if any arc lamps are on
             arc_lamp_stat = [ 'lampstat01']
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in arc_lamp_stat]), axis=0)
         if status == 'dome':
-            # Check if any dome lamps are on
-            dome_lamp_stat = [ 'lampstat02'.format(i) for i in range(1,6) ]
+            return np.any(np.array([fitstbl['target'] == 'on']), axis=0)
+        if status == 'internal':
+            # Check if any internal lamps are on
+            dome_lamp_stat = [ 'lampstat02' ]
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
@@ -244,7 +248,8 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         if ftype in ['dark', 'lampoffflats']:
             return good_exp & (fitstbl['idname'] == 'DOMEFLAT') & self.lamps(fitstbl, 'off')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (fitstbl['idname'] == 'DOMEFLAT') & self.lamps(fitstbl, 'dome')
+            return good_exp & (fitstbl['idname'] == 'DOMEFLAT') & \
+                   (self.lamps(fitstbl, 'internal') | self.lamps(fitstbl, 'dome'))
         if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'science':
