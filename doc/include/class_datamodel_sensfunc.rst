@@ -8,6 +8,7 @@ Attribute       Type                                     Array Type  Description
 ``airmass``     float                                                Airmass of the observation                                 
 ``algorithm``   str                                                  Algorithm used for the sensitivity calculation.            
 ``exptime``     float                                                Exposure time                                              
+``extr``        str                                                  Extraction method used for the standard star (OPT or BOX)  
 ``pypeline``    str                                                  PypeIt pipeline reduction path                             
 ``sens``        `astropy.table.table.Table`_                         Table with the sensitivity function                        
 ``spec1df``     str                                                  PypeIt spec1D file used to for sensitivity function        

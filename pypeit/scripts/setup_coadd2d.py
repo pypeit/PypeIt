@@ -70,6 +70,14 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                                  'either uniform or auto.  If not specified, the '
                                  '(spectrograph-specific) default is used.  Other options exist '
                                  'but must be entered by directly editing the coadd2d file.')
+        parser.add_argument('--spec_samp_fact', default=1.0, type=float,
+                            help="Make the wavelength grid finer (spec_samp_fact < 1.0) or "
+                                 "coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. "
+                                 "units of spec_samp_fact are pixels.")
+        parser.add_argument('--spat_samp_fact', default=1.0, type=float,
+                            help="Make the spatial grid finer (spat_samp_fact < 1.0) or coarser "
+                                 "(spat_samp_fact > 1.0) by this sampling factor, i.e. units of "
+                                 "spat_samp_fact are pixels.")
 
         return parser
 
@@ -178,7 +186,12 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                 if args.weights is None else args.weights
         cfg['coadd2d']['spat_toler'] = par['coadd2d']['spat_toler'] \
                 if args.spat_toler is None else args.spat_toler
-
+        cfg['coadd2d']['spec_samp_fact'] = par['coadd2d']['spec_samp_fact'] \
+                if args.spec_samp_fact is None else args.spec_samp_fact
+        cfg['coadd2d']['spat_samp_fact'] = par['coadd2d']['spat_samp_fact'] \
+                if args.spat_samp_fact is None else args.spat_samp_fact
+        
+        # TODO JFH Why are exclude_slits and only_slits set here when they are parameters in the parset?
         # Build the default parameters
         cfg = CoAdd2D.default_par(spec_name, inp_cfg=cfg, det=args.det, only_slits=args.only_slits,
                                   exclude_slits=args.exclude_slits)

@@ -155,7 +155,7 @@ There are several recommended steps of the coadd3d process that can be run separ
 
         pypeit_sensfunc spec1d_StandardStarName.fits -o sens_StandardStarName.fits
 
-    For further details, see :doc:`_sensitivity_function`.
+    For further details, see :ref:`sensitivity_function`.
 
 #. Step 4 - Generate a datacube of the science exposures. This is done by running the following command:
 
@@ -164,7 +164,7 @@ There are several recommended steps of the coadd3d process that can be run separ
         pypeit_coadd_datacube ScienceName.coadd3d -o
 
     Note that you will need to specify the sensitivity function file using the ``sensfile`` option in the
-    :doc:`coadd3d_file` file. For further details, see :ref:`coadd3d_fluxing`.
+    :ref:`coadd3d_file` file. For further details, see :ref:`coadd3d_fluxing`.
 
 Combination options
 ===================
@@ -239,7 +239,7 @@ If you would like to flux calibrate your datacube, you need to
 produce your standard star datacube first. Then extract the spectrum
 of the standard star using the ``pypeit_extract_datacube`` script. This
 will produce a ``spec1d`` file that you will need to use to generate a
-sensitivity function in the usual way (see :doc:`_sensitivity_function`).
+sensitivity function in the usual way (see :ref:`sensitivity_function`).
 Then, when generating the datacube of the science frame you must include
 the name of the sensitivity function in your ``coadd3d`` file as follows:
 
@@ -289,7 +289,7 @@ then you can specify the ``skysub_frame`` in the ``spec2d`` block of the
 above. If you have dedicated sky frames, then it is generally
 recommended to reduce these frames as if they are regular science
 frames, but add the following keyword arguments at the top of your
-:doc:`coadd3d_file`:
+:ref:`coadd3d_file`:
 
 .. code-block:: ini
 

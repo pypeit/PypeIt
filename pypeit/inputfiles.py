@@ -1149,6 +1149,5 @@ def grab_rawfiles(file_of_files:str=None, list_of_files:list=None, raw_paths:lis
         return [str(p / f) for p in _raw_paths for f in list_of_files if (p / f).exists()]
 
     # Find all files that have the correct extension
-    return np.concatenate([files_from_extension(str(p), extension=extension)
-                            for p in _raw_paths]).tolist()
+    return files_from_extension(_raw_paths, extension=extension)
 
