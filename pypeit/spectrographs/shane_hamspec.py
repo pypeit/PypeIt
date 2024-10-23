@@ -43,7 +43,6 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-
         # Copied from Keck/HIRES
         # Slit tracing
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
