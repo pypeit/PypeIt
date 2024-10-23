@@ -5,6 +5,8 @@ Module for Magellan/WINERED specific methods.
 """
 import numpy as np
 
+from astropy.time import Time
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -44,7 +46,7 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         self.meta['dichroic'] = dict(ext=0, card=None, default='default')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
-        self.meta['mjd'] = dict(ext=0, card='ACQTIME1')
+        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
@@ -54,6 +56,27 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         self.meta['lampstat01'] = dict(ext=0, card='CMPLAMP')
         self.meta['lampstat02'] = dict(ext=0, card='INSFLAT')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'mjd':
+            time = '{:s}T{:s}'.format(headarr[0]['DATE'], headarr[0]['UT'])
+            ttime = Time(time, format='isot')
+            return ttime.mjd
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def pypeit_file_keys(self):
         """
