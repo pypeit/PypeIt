@@ -115,8 +115,8 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
             binning         = '1,1',
             det             = 1,
             dataext         = 0,
-            specaxis        = 1,
-            specflip        = True,
+            specaxis        = 0,
+            specflip        = False,
             spatflip        = False,
             platescale      = 0.18,
             darkcurr        = 3.06,  # e-/pixel/hour  (=0.00085 e-/pixel/s)
@@ -173,6 +173,7 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['pca_order'] = 3
+        par['calibrations']['slitedges']['add_missed_orders'] = True
 
         # Model entire slit
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
@@ -203,7 +204,27 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'
 
+        return par
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+        self.dispname = self.get_meta_value(scifile, 'dispname')
         return par
 
     def lamps(self, fitstbl, status):
@@ -303,11 +324,12 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         """
         Return the expected spatial position of each echelle order.
         """
-        ord_spat_pos = np.array([0.078125, 0.13769531, 0.19189453, 0.24414062, 0.29296875,
-                                 0.34179688, 0.38330078, 0.42724609, 0.46582031, 0.50439453,
-                                 0.54199219, 0.57763672, 0.61279297, 0.6484375 , 0.68457031,
-                                 0.71875   , 0.75439453, 0.79443359, 0.83789062, 0.88671875,
-                                 0.94091797])
+        ord_spat_pos = np.array([-0.01464844,  0.03417969,  0.078125  ,  0.11230469,  0.15380859,
+        0.1953125 ,  0.234375  ,  0.2734375 ,  0.3125    ,  0.34667969,
+        0.38574219,  0.41992188,  0.45410156,  0.48828125,  0.52734375,
+        0.56152344,  0.59570312,  0.625     ,  0.65917969,  0.68847656,
+        0.72265625,  0.75683594,  0.78613281,  0.81542969,  0.84960938,
+        0.87890625,  0.90820312,  0.9375    ,  0.96679688,  1.        ])
         return ord_spat_pos
 
     @property
@@ -315,7 +337,7 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(31, 10, -1, dtype=int)
+        return np.arange(41, 10, -1, dtype=int)
 
     @property
     def spec_min_max(self):
@@ -324,9 +346,9 @@ class MagellanWINEREDSpectrograph(spectrograph.Spectrograph):
         spectral range of each order.
         """
         spec_max = np.asarray([2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,
-                               2048,2048,2048,2048,2048])
-        spec_min = np.asarray([ 500,   0,   0,   0,   0,   0,   0,    0,   0,   0,  0,   0,   0,   0,   0,   0,
-                                  0,   0,   0,   0,   0])
+                               2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,400,1050,1700])
+        spec_min = np.asarray([ 1500, 500,   0,   0,   0,   0,   0,   0,    0,   0,   0,  0,   0,   0,   0,   0,   0,
+                                  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0])
         return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):
