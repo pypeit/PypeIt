@@ -1,7 +1,7 @@
 # This directory contains data files for the blackbody stars
 # presented in Suzuki & Fukugita, 2018, AJ, 156, 219:
 # https://ui.adsabs.harvard.edu/abs/2018AJ....156..219S/abstract
-# With updates from Cooke, Suzuki, Prochaska 2025:
+# With updates from Cooke, Suzuki, Prochaska, 2025, MNRAS, :
 # <insert abs link here>
 # The flux distribution over the range 3000 – 25000A can be
 # generated using the "a" and "T" parameters in Table below,

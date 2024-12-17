@@ -338,6 +338,29 @@ def conv_telluric(tell_model, dloglam, res):
     return conv_model
 
 
+def get_shiftstretch_loglam(loglam0, loglamsz, dloglam, shift, stretch):
+    """
+    Routine to generate the wavelength grid for a shifted and stretched telluric model.
+
+    Args:
+        loglam0 (`numpy.ndarray`_):
+            The log10 of the wavelength grid on which the tell_model is evaluated.
+        loglamsz (int):
+            Size of the telluric model grid.
+        dloglam (float):
+            Wavelength spacing of the telluric grid expressed as a a dlog10(lambda), i.e. stored in the
+            tell_dict as tell_dict['dloglam']
+        shift (float):
+            Shift of the telluric model in pixels. Note that this shift can be sub-pixel.
+        stretch (float):
+            Stretch of the telluric model.
+
+    Returns:
+        `numpy.ndarray`_: logarithm of the wavelength grid for the shifted and stretched telluric model.
+    """
+    return loglam0 + np.arange(loglamsz) * dloglam * stretch + shift * dloglam
+
+
 def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     """
     Routine to apply a shift to the telluric model. Note that the shift can be sub-pixel, i.e this routine interpolates.
@@ -363,8 +386,7 @@ def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
             Shifted telluric model. Shape = same size as input tell_model.
 
     """
-    loglam_shift = loglam[0] + np.arange(len(loglam)) * dloglam * stretch + shift * dloglam
-    #loglam_shift = loglam + shift*dloglam
+    loglam_shift = get_shiftstretch_loglam(loglam[0], len(loglam), dloglam, shift, stretch)
     tell_model_shift = np.interp(loglam_shift, loglam, tell_model)
     return tell_model_shift
 
@@ -428,12 +450,20 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
         ntell = 4
 
     # Set the wavelength range if not provided
-    ind_lower = 0 if ind_lower is None else ind_lower
-    ind_upper = tell_dict['wave_grid'].size - 1 if ind_upper is None else ind_upper
+    _ind_lower = 0 if ind_lower is None else np.fmax(ind_lower,0)
+    _ind_upper = tell_dict['wave_grid'].size - 1 if ind_upper is None else np.fmin(ind_upper, tell_dict['wave_grid'].size - 1)
 
     # Deal with padding for the convolutions
-    ind_lower_pad = np.fmax(ind_lower - tell_dict['tell_pad_pix'], 0)
-    ind_upper_pad = np.fmin(ind_upper + tell_dict['tell_pad_pix'], tell_dict['wave_grid'].size - 1)
+    ind_lower_pad = np.fmax(_ind_lower - tell_dict['tell_pad_pix'], 0)
+    ind_upper_pad = np.fmin(_ind_upper + tell_dict['tell_pad_pix'], tell_dict['wave_grid'].size - 1)
+    ind_lower_pad, ind_upper_pad = 0, tell_dict['wave_grid'].size - 1
+
+    # Deal with shift/stretch padding
+    loglam_ss = get_shiftstretch_loglam(np.log10(tell_dict['wave_grid'][ind_lower_pad]), len(tell_dict['wave_grid']),
+                                        tell_dict['dloglam'], theta_tell[-2], theta_tell[-1])
+    ind_lower_ss = np.fmax(np.argmin(np.abs(np.log10(tell_dict['wave_grid'])-loglam_ss[0])), _ind_lower)
+    ind_upper_ss = np.fmin(np.argmin(np.abs(np.log10(tell_dict['wave_grid'])-loglam_ss[-1])), _ind_upper)
+
     ## FW: There is an extreme case with ind_upper == ind_upper_pad, the previous -0 won't work
     ind_lower_final = ind_lower_pad if ind_lower_pad == ind_lower else ind_lower - ind_lower_pad
     ind_upper_final = ind_upper_pad if ind_upper_pad == ind_upper else ind_upper - ind_upper_pad
@@ -549,13 +579,14 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
 
     totalmask = thismask & model_gpm
     if not np.any(totalmask):
-        return np.inf       # If everyting is masked retrun infinity
+        return np.inf       # If everything is masked return infinity
     else:
         chi_vec = totalmask * (flux - tell_model*obj_model) * np.sqrt(flux_ivar)
         robust_scale = 2.0
         huber_vec = scipy.special.huber(robust_scale, chi_vec)
         loss_function = np.sum(huber_vec * totalmask)
         return loss_function
+
 
 def tellfit(flux, thismask, arg_dict, init_from_last=None):
     """

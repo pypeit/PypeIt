@@ -1574,8 +1574,9 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     msgs.work("Should pull resolution from arc line analysis")
     msgs.work("At the moment the resolution is taken as the PixelScale")
     msgs.work("This needs to be changed!")
-    std_pix = np.median(np.abs(wave - np.roll(wave, 1)))
-    std_res = np.median(wave/resolution) # median resolution in units of Angstrom.
+    wave_nz = wave[wave!=0.0]
+    std_pix = np.median(np.abs(wave_nz - np.roll(wave_nz, 1)))
+    std_res = np.median(wave_nz/resolution) # median resolution in units of Angstrom.
     if (nresln * std_res) < std_pix:
         msgs.warn("Bspline breakpoints spacing shoud be larger than 1pixel")
         msgs.warn("Changing input nresln to fix this")
@@ -1600,6 +1601,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
 
     # init_breakpoints = fullbkpt
     msgs.info("Bspline fit on zeropoint. ")
+    upper, lower = 5, 5
     bset1, bmask = fitting.iterfit(wave, zeropoint_clean, invvar=zeropoint_ivar, inmask=zeropoint_fitmask, upper=upper, lower=lower,
                                 fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
                                 kwargs_reject=kwargs_reject)
