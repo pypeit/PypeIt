@@ -1904,6 +1904,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     msgs.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
 
     # Fit the object traces
+    numiterfit, tolerance = 10, 0.1
     if len(sobjs) > 0:
         msgs.info('Fitting the object traces')
         # Note the transpose is here to pass in the TRACE_SPAT correctly.
@@ -1914,9 +1915,16 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
                                  idx=sobjs.NAME, debug=show_fits)[0]
         xinit_gweight = np.copy(xfit_fweight)
-        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask), maxshift=1.,
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
+        for nn in range(numiterfit):
+            xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask), maxshift=1.,
+                                     trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                     weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
+            maxdev = np.max(np.abs(xfit_gweight-xinit_gweight))
+            xinit_gweight = np.copy(xfit_gweight)
+            if maxdev <= tolerance:
+                break
+        if maxdev > tolerance:
+            msgs.warn('Trace fitting did not converge.  Check the fits.')
 
         # assign the final trace
         for iobj in range(nobj_reg):
