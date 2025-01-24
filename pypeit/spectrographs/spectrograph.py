@@ -33,6 +33,7 @@ from IPython import embed
 
 import numpy as np
 from astropy.io import fits
+from astropy.table import Table
 from astropy import units
 
 from pypeit import msgs
@@ -1162,6 +1163,25 @@ class Spectrograph:
         if not isinstance(det, (int, np.integer)):
             msgs.error(f'Provided det must have type tuple or integer, not {type(det)}.')
         return 1, (det,)
+
+    def validate_fitstbl(self, fitstbl:Table) -> Table:
+        """Validate the metadata table
+
+        Some instruments may need to perform a validation step on the metadata
+        table collected from the FITS header by comparing and adjusting
+        metadata values from adjacent raw frames.
+
+        This base implementation simply returns the metadata table unchanged,
+        but subclasses may override this method with specific functionality.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The metadata table to be validated
+
+        Returns:
+            `astropy.table.Table`_: The validated metadata table
+        """
+        return fitstbl
 
     def get_rawimage(self, raw_file, det, sec_includes_binning=False):
         """

@@ -263,8 +263,8 @@ class PypeItSetup:
         if 'time' in self.fitstbl.keys():
             self.fitstbl.sort('time')
 
-        # Return the table
-        return self.fitstbl.table
+        # Return the table, run through the instrument-specific validator
+        return self.spectrograph.validate_fitstbl(self.fitstbl.table)
 
     def get_frame_types(self, flag_unknown=False):
         """
