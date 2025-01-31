@@ -1450,7 +1450,7 @@ class PypeItMetaData:
             type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftype)
 
         # Vet assigned frame types (this can be spectrograph dependent)
-        self.spectrograph.vet_assigned_ftypes(type_bits, self)
+        type_bits = self.spectrograph.vet_assigned_ftypes(type_bits, self)
 
         # Find the files without any types
         indx = np.logical_not(self.type_bitmask.flagged(type_bits))

@@ -283,14 +283,6 @@ class EdgeInspectorGUI:
             side (:obj:`int`):
                 Edge side.  Either -1 for left or 1 for right.
         """
-        # Append to the book-keeping vectors
-        self.ntrace += 1
-        self.good = np.append(self.good, [True])
-        self.side = np.append(self.side, [side])
-        self.add = np.append(self.add, [True])
-        self.remove = np.append(self.remove, [False])
-        self.offset = np.append(self.offset, [0.])
-
         # Predict the spatial location of the trace
         if self.has_pca:
             new_trace = self.edges.predict_traces(spat, side=side)
@@ -300,6 +292,15 @@ class EdgeInspectorGUI:
             new_trace = self.trace_cen[:,i] + offset
         # Add it
         self.trace_cen = np.hstack((self.trace_cen, new_trace[:,None]))
+
+        # Append to the book-keeping vectors *after* locating and adding the trace
+        self.ntrace += 1
+        self.good = np.append(self.good, [True])
+        self.side = np.append(self.side, [side])
+        self.add = np.append(self.add, [True])
+        self.remove = np.append(self.remove, [False])
+        self.offset = np.append(self.offset, [0.])
+
         # Plot it
         color = self._trace_color(side)
         self.trace_plot += [self.image_plot.axes.plot(new_trace, self.spec_pix,
