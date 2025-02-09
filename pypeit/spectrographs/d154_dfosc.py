@@ -329,7 +329,8 @@ class DFOSCSpectrographVert(DFOSCSpectrograph):
     Child to handle Vertical slits for d154 DFOSC spectrograph
     """
     name = 'd154_dfosc_vert'
-    comment = 'Grisms 3, 5, 6, 7, 8, 14, 15. For vertical slits only'
+    comment = 'Grism 15 is the only one tested so far. For vertical slits only'
+    #comment = 'Grisms 3, 5, 6, 7, 8, 14, 15. For vertical slits only'
 
     def get_detector_par(self, det, hdu=None):
         """
