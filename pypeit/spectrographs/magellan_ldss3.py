@@ -125,7 +125,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         par['rdx']['spectrograph'] = 'magellan_ldss3'
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 10.
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
@@ -189,6 +189,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
         headarr = self.get_headarr(scifile)
+        #print(self.get_meta_value(headarr, 'decker'))
+        #print(headarr[0])
 
         # Turn PCA off for long slits
 #        if ('center' in self.get_meta_value(headarr, 'decker')) or \
@@ -197,7 +199,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 #                ('Red' in self.get_meta_value(headarr, 'decker')) or \
 #                ('blue' in self.get_meta_value(headarr, 'decker')) or \
 #                ('Blue' in self.get_meta_value(headarr, 'decker')) :
-        if 'longslit' in self.get_meta_value(headarr, 'decker'):
+        #if 'longslit' in self.get_meta_value(headarr[0], 'decker'):
+        if 'longslit' in ['longslit']:
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         # Turn on the use of mask design
         else:
