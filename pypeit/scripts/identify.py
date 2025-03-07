@@ -304,7 +304,7 @@ class Identify(scriptbase.ScriptBase):
 
             fits_dicts = None
             specdata = None
-            slits = None 
+            #slits = None 
             lines_pix_arr = None
             lines_wav_arr = None
             lines_fit_ord = None 
@@ -318,7 +318,7 @@ class Identify(scriptbase.ScriptBase):
                                 rmstol=args.rmstol,
                                 force_save=args.force_save, 
                                 multi = args.multi, fits_dicts = fits_dicts,
-                                specdata = np.array(specdata),
+                                specdata = specdata,
                                 slits = slits,
                                 lines_pix_arr = lines_pix_arr,
                                 lines_wav_arr = lines_wav_arr,

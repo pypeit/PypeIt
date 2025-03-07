@@ -782,7 +782,7 @@ class Identify:
             if ans == 'y':
                 # Arxiv solution
                 # prompt the user to give the orders that were used here
-                if '"echelle": true' in wvcalib.strpar:
+                if wvcalib is not None and '"echelle": true' in wvcalib.strpar:
                     while True:
                         try:
                             print('')
@@ -858,8 +858,16 @@ class Identify:
                             wvarxiv_name = wvarxiv_name_new
 
                     # Write the wvarxiv file
+                    #print(specdata, self.specdata)
+                    #specdata = None
+                    #if specdata is not None:
+                    #    print(specdata)
+                    #else:
+                    #    _specdata = self.specdata
                     _specdata = specdata if specdata is not None else self.specdata
                     order_vec = np.flip(order_vec, axis=0) if order_vec is not None else None
+                    print(_specdata)
+                    input('here')
                     wvutils.write_template(wavelengths, _specdata, binspec, './',
                                         wvarxiv_name, to_cache=True, order = order_vec,
                                         lines_pix_arr = lines_pix_arr, lines_wav_arr = lines_wav_arr,
