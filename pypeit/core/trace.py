@@ -1457,7 +1457,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         peak, _, _cen, _, _, best, _, _ \
                 = arc.detect_lines(s*flux_smash_mean, cont_subtract=False, fwhm=fwhm_gaussian,
                                    input_thresh=peak_thresh, max_frac_fwhm=4.0,
-                                   min_pkdist_frac_fwhm=5.0, debug=debug)
+                                   min_pkdist_frac_fwhm=3.0, debug=debug)
 
         if len(_cen) == 0 or not np.any(best):
             msgs.warn('No good {0}s found!'.format(l))
