@@ -1,6 +1,6 @@
 """
 Module for DK1.54m DFOSC spectrograph
-
+NOTE: Currently only vertical slits are installed!
 .. include:: ../include/links.rst
 """
 from IPython import embed
@@ -111,7 +111,7 @@ class DFOSCSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        par['reduce']['findobj']['snr_thresh'] = 40.0  # Some CCD features will be picked out as objects if SNR is too low
+        par['reduce']['findobj']['snr_thresh'] = 30.0  # Some CCD features will be picked out as objects if SNR is too low
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
@@ -134,14 +134,6 @@ class DFOSCSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
         par['calibrations']['standardframe']['exprng'] = [None, 300]
         par['scienceframe']['exprng'] = [10, None]
-
-        # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
-        par['calibrations']['arcframe']['process']['clip'] = False
-        par['calibrations']['arcframe']['process']['combine'] = 'mean'
-        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
-        par['calibrations']['tiltframe']['process']['clip'] = False
-        par['calibrations']['tiltframe']['process']['combine'] = 'mean'
-        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
 
         # No overscan region!
         turn_off = dict(use_overscan=False)
@@ -300,9 +292,6 @@ class DFOSCSpectrograph(spectrograph.Spectrograph):
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'Grism_3':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'd154_dfosc_grism3.fits'
-        #elif self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
-        #    par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
-        #    par['calibrations']['wavelengths']['lamps'] = ['HgI']
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_5':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'd154_dfosc_grism5.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_6':
@@ -314,7 +303,7 @@ class DFOSCSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_14':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'd154_dfosc_grism14.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_15':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'd154_dfosc_grism15_1.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'd154_dfosc_grism15.fits'
         else:
             msgs.warn('d154_dfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
 
@@ -364,8 +353,6 @@ class DFOSCSpectrographVert(DFOSCSpectrograph):
             ronoise = None
         else:
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-            #gain = np.atleast_1d(hdu[1].header['GAIN'])  # e-/ADU
-            #ronoise = np.atleast_1d(hdu[1].header['RDNOISE'])  # e-
             gain = np.atleast_1d(0.16)  # e-/ADU
             ronoise = np.atleast_1d(9.1)
 
