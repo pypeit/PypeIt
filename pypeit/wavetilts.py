@@ -1065,7 +1065,7 @@ def show_tilts_mpl(tilt_img, tilt_traces, show_traces=False, left_edges=None,
 
     lcolors = ['cyan', 'red', 'yellow', 'blue'] if show_traces else ['red', 'yellow', 'blue']
     legend = plt.legend(handles=handles, labelcolor=lcolors, loc=3, markerscale=2, frameon=False)
-    for h in legend.legendHandles:
+    for h in legend.legend_handles:
         h.set_alpha(1)
     
     plt.ylabel('Spectral pixel index')
