@@ -1,7 +1,7 @@
-pypeit.display.ginga\_plugins module
+pypeit.display.slitwavelength module
 ====================================
 
-.. automodule:: pypeit.display.ginga_plugins
+.. automodule:: pypeit.display.slitwavelength
    :members:
    :private-members:
    :undoc-members:

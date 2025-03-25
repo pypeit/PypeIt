@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+
+"""
+Check that the installation of python is C enabled.
+"""
+
+from pypeit.scripts import scriptbase
+
+class CEnabled(scriptbase.ScriptBase):
+
+    @staticmethod
+    def main(args):
+
+        # Try to load the bspline C utils
+        try:
+            from pypeit.bspline import utilc
+        except:
+            pass
+        else:
+            print('Successfully imported bspline C utilities.')
+
+        try:
+    
+            # Check for whether OpenMP support is enabled, by seeing if the bspline
+            # extension was compiled with it.
+            #
+            # The extension_helpers code that is run to figure out OMP support runs
+            # multiple tests to determine compiler version, some of which output to stderr.
+            # To make the output pretty we redirect those to /dev/null (or equivalent)
+            import os
+            import sys
+            devnull_fd = os.open(os.devnull,os.O_WRONLY)
+            os.dup2(devnull_fd,sys.stderr.fileno())
+
+            from pypeit.bspline.setup_package import get_extensions
+            bspline_extension = get_extensions()[0]
+        except:
+            print("Can't check status of OpenMP support")
+        else:
+            # Windows uses -openmp, other environments use -fopenmp
+            if any(['openmp' in arg for arg in bspline_extension.extra_compile_args]):
+                print('OpenMP compiler support detected.')
+            else:
+                print('OpenMP compiler support not detected. Bspline utilities single-threaded.')
+

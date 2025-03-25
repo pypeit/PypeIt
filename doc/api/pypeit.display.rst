@@ -8,8 +8,8 @@ Submodules
    :maxdepth: 4
 
    pypeit.display.display
-   pypeit.display.ginga_plugins
-   pypeit.display.ginga_spec1dview
+   pypeit.display.slitwavelength
+   pypeit.display.spec1dview
 
 Module contents
 ---------------

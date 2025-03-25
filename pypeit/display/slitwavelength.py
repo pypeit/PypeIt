@@ -1,5 +1,5 @@
 """
-Pluging for ginga that allows the value of a wavelength map to be
+Plug-in for ginga that allows the value of a wavelength map to be
 displayed for any image.
 
 .. include common links, assuming primary doc root is up one directory
@@ -12,6 +12,7 @@ import numpy as np
 
 from ginga import GingaPlugin
 from ginga.AstroImage import AstroImage
+
 
 class SlitImage(AstroImage):
     """
