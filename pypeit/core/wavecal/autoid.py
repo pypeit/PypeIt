@@ -1439,6 +1439,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
     for iord in range(norders):
+        # Skip?
         if redo_slits is not None and orders[iord] not in redo_slits:
             continue
         # ToDO should we still be populating wave_calib with an empty dict here?
@@ -1447,6 +1448,14 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             wv_calib[str(iord)] = None
             all_patt_dict[str(iord)] = None
             continue
+        # ################################
+        # REMOVE THIS!!!
+        if (orders[iord] > 95) or (orders[iord] < 90):
+            msgs.warn(f"Skipping order = {orders[iord]} ({iord+1}/{norders}) because masked")
+            wv_calib[str(iord)] = None
+            all_patt_dict[str(iord)] = None
+            continue
+        # ################################
         if np.all(spec_arxiv[:, iord] == 0.0):
             msgs.warn(f"Order = {orders[iord]} ({iord+1}/{norders}) cannot be reidentified "
                       f"because this order is not present in the arxiv")
@@ -1462,9 +1471,23 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         # get rms threshold for this slit
         rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
         msgs.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {par['rms_thresh_frac_fwhm']}")
+
+        embed(header='1465 of autoid')
+        debug_all = True
+        #
+        from matplotlib import pyplot as plt
+        fig = plt.figure(figsize=(12, 8))
+        plt.clf()
+        ax = plt.gca()
+        ax.plot(spec_arxiv[:,iord])
+        ax.plot(spec[:,iord])
+        plt.show()
+
         detections[str(iord)], spec_cont_sub[:, iord], all_patt_dict[str(iord)] = reidentify(
             spec[:, iord], spec_arxiv[:, iord], wave_arxiv[:, iord], tot_line_list, par['nreid_min'],
-            cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'], cc_shift_range=par['cc_shift_range'],
+            cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'], 
+            #cc_shift_range=par['cc_shift_range'],
+            cc_shift_range=(-200., 200.),
             cc_thresh=cc_thresh, cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
             nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
             percent_ceil=par['cc_percent_ceil'], max_lag_frac=par['cc_offset_minmax'],

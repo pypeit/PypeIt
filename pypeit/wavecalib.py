@@ -654,6 +654,7 @@ class BuildWaveCalib:
         '''
 
         # Save for redo's
+        measured_fwhms[:] = 3. # REMOVE THIS!!
         self.measured_fwhms = measured_fwhms
 
         # Obtain calibration for all slits
@@ -725,7 +726,6 @@ class BuildWaveCalib:
 
             # Identify the echelle orders
             msgs.info("Finding the echelle orders")
-            embed(header='line 707 wavecalib.py')
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
                     arccen, self.meta_dict['echangle'],
                     self.meta_dict['xdangle'],
@@ -733,11 +733,14 @@ class BuildWaveCalib:
                     angle_fits_file,
                     composite_arc_file,
                     pad=self.par['echelle_pad'],
-                    cc_percent_ceil = self.par['cc_percent_ceil'], debug=False)
+                    cc_percent_ceil = self.par['cc_percent_ceil'], 
+                    debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             msgs.info(f"The observation covers the following orders: {order_vec}")
 
+            embed(header='line 741 wavecalib.py')
+            reload(autoid)
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
                 self.lamps, self.par, ok_mask=ok_mask_idx,

@@ -101,7 +101,8 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
     return wave_soln_guess
 
 
-def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, xdisp, nspec, norders, pad=3):
+def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, 
+                        xdangle, xdisp, nspec, norders, pad=3):
     """
     Predict the echelle arc spectrum using the fits to wavelength solution vs echangle and xdangle  and the archived
     composite arcs.
@@ -152,10 +153,16 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     gpm_composite = (hdu[4].data).astype(bool)
 
     order_vec_guess = predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, xdisp, xdangle, norders, pad=pad)
+
+    # Remove this hack by X
+    order_vec_guess += 2
+
     norders_guess = order_vec_guess.size
     wave_soln_guess = predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, echangle, order_vec_guess, nspec)
 
     order_min, order_max = angle_fits_params['order_min'], angle_fits_params['order_max']
+
+    #embed(header='165 of echelle')
 
     arcspec_guess = np.zeros_like(wave_soln_guess)
     #embed(header='predict_ech_arcspec 161 of echelle.py')
@@ -174,6 +181,7 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
         # wave_composite[igood, indx] and the corresponding arcspec_guess[:, iord] is all zeros
         # here we try to deal with this case, by using wave_composite[igood, indx] but we need make some padding
         if np.all(arcspec_guess[:, iord] == 0):
+            msgs.warn("All wavelengths are outside the order")
             # this is adapted from pypeit.core.wavecal.autoid.full_template
             npad = nspec - np.sum(igood)
             if npad > 0:
@@ -234,12 +242,6 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     """
     nspec, norders = arcspec.shape
 
-    fig = plt.figure(figsize=(12, 8))
-    plt.clf()
-    ax = plt.gca()
-    ax.plot(arcspec[:,-16])
-    ax.plot(np.roll(arc_composite[:,2],-100))
-    plt.show()
 
     # Predict the echelle order coverage and wavelength solution
     order_vec_guess, wave_soln_guess_pad, arcspec_guess_pad = predict_ech_arcspec(
@@ -250,12 +252,27 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     # Since we padded the guess we need to pad the data to the same size
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
+
+    if debug and False:
+        from matplotlib import pyplot as plt
+        fig = plt.figure(figsize=(12, 8))
+        plt.clf()
+        ax = plt.gca()
+        ii = -40
+        ax.plot(arcspec[:,ii])
+        ax.set_ylim(0., 4000)
+        ax.plot(np.roll(arcspec_guess_pad[:,ii],-115))
+        plt.show()
+        embed(header='246 of echelle')
+        # -40 of X's data is Order 95 centered at ~6000Ang
+
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
-    embed(header='identify_ech_orders 247 of echelle.py')
     shift_cc, corr_cc = wvutils.xcorr_shift(
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
-        percent_ceil=cc_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
+        percent_ceil=cc_percent_ceil, 
+        do_xcorr_arc=False, # JXP ADDED THIS FOR SPEED; iter_continuum in arc_detect_lines is super slow-- Make it optional!
+        sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
 
     if debug:
         msgs.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')

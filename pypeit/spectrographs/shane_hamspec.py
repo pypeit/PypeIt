@@ -77,7 +77,7 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['match_toler'] = 1.5
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'echelle'
-        par['calibrations']['wavelengths']['cc_shift_range'] = (-80.,80.)
+        par['calibrations']['wavelengths']['cc_shift_range'] = (-200.,200.)
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.25
         par['calibrations']['wavelengths']['reid_cont_sub'] = False
