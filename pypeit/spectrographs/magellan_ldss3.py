@@ -136,7 +136,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spec_order'] = 6
 
         # edges
-        par['calibrations']['slitedges']['edge_thresh'] = 300.
+        par['calibrations']['slitedges']['edge_thresh'] = 20.
 
         # Processing steps
         turn_off = dict(use_biasimage=False, use_darkimage=False)
@@ -165,7 +165,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 7
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         return par
 
@@ -220,6 +220,10 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_ldss3_vphred.fits'
+        elif self.get_meta_value(headarr, 'dispname') == 'VPH-ALL':
+            par['calibrations']['wavelengths']['lamps'] = ['HeNeAr']
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_ldss3_VPH-ALL_7100.fits'
         else:
             #par['calibrations']['wavelengths']['method'] = 'full_template'
             #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
