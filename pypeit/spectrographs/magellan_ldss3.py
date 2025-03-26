@@ -87,7 +87,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         meta['airmass'] = dict(ext=0, card='AIRMASS')
 
         meta['dispname'] = dict(ext=0, card='GRISM')
-        meta['idname'] = dict(ext=0, card='EXPTYPE')
+        #meta['idname'] = dict(ext=0, card='EXPTYPE')
+        meta['idname'] = dict(ext=0, card='OBJECT')
         meta['amp'] = dict(ext=0, card='OPAMP') # used for distinguish different amplifiers
 
         # Ingest
@@ -220,7 +221,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_ldss3_vphred.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'VPH-ALL':
+        elif self.get_meta_value(headarr, 'dispname') == 'VPH-All':
             par['calibrations']['wavelengths']['lamps'] = ['HeNeAr']
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_ldss3_VPH-ALL_7100.fits'
@@ -300,17 +301,17 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
         if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'Object') #& (fitstbl['amp'] == '1')
+            return good_exp & (fitstbl['idname'] != 'HeNeAr') & (fitstbl['idname'] != 'FlatQH') & (fitstbl['exptime'] > 100.0)#& (fitstbl['amp'] == '1')
         if ftype == 'standard':
-            return good_exp & (fitstbl['idname'] == 'Object') #& (fitstbl['amp'] == '1')
+            return good_exp & (fitstbl['idname'] != 'HeNeAr') & (fitstbl['idname'] != 'FlatQH') & (fitstbl['exptime'] < 100.0)
         if ftype in ['arc', 'tilt']:
-            arc1 = good_exp & (fitstbl['idname'] == 'Object')
+            arc1 = good_exp & (fitstbl['idname'] == 'HeNeAr')
             #arc2 = (fitstbl['dispname'] == 'VPH-Red') & (fitstbl['idname'] == 'Object') &  (fitstbl['exptime'] >600)
-            arc = (fitstbl['dispname'] == 'VPH-Red') & (fitstbl['idname'] == 'Object') &  (fitstbl['exptime'] >600)
+            #arc = (fitstbl['dispname'] == 'VPH-Red') & (fitstbl['idname'] == 'Object') &  (fitstbl['exptime'] >600)
             #return (arc1 | arc2) #& (fitstbl['amp'] == '1')
             return arc1
         if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (fitstbl['idname'] == 'Flat') #& (fitstbl['amp'] == '1')
+            return good_exp & (fitstbl['idname'] == 'FlatQH') #& (fitstbl['amp'] == '1')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
