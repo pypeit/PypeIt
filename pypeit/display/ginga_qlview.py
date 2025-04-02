@@ -104,7 +104,7 @@ class QLView(GingaPlugin.LocalPlugin):
 
         self.raw_filepath = None
         self.reduced_filepath = None
-        self.redux_path = "/Users/mbrodheim/drp/QLViewer/redux_test"
+        self.redux_path = "/hqdrpdata/DRP_TESTING/outputs"
         self.reduction_control_elements = {}
         # self.data_source = LocalDataSource(self.logger, "DEIMOS")
 
@@ -242,8 +242,16 @@ class QLView(GingaPlugin.LocalPlugin):
         self.display_slits_box = Widgets.CheckBox("Display Slits")
         self.display_slits_box.set_state(True)
         self.display_slits_box.add_callback('activated', self.display_slits_box_cb)
-
         self.vbox_redux.add_widget(self.display_slits_box, stretch=0)
+
+        self.redux_path_box = Widgets.HBox()
+        self.redux_path_entry = Widgets.TextEntry()
+        self.redux_path_entry.set_text("Path to the reduction directory")
+        self.redux_path_entry.set_tooltip("Path to the reduction directory")
+        self.redux_path_box.add_widget(Widgets.Label("Reduction Path:"), stretch=0)
+        self.redux_path_box.add_widget(self.redux_path_entry, stretch=1)
+        self.vbox_redux.add_widget(self.redux_path_box, stretch=0)
+
 
         fr.set_widget(self.vbox_redux)
         vbox.add_widget(fr, stretch=0)
@@ -315,7 +323,7 @@ class QLView(GingaPlugin.LocalPlugin):
         command.append("--slitspatnum")
         command.append(f"{msc}:{self.slit_list_box.get_text()[1:]}")
         command.append("--redux_path")
-        command.append(self.redux_path)
+        command.append(self.redux_path_entry.get_text())
         command.append("--skip_display")
         self.logger.info("Launching command: {0}".format(" ".join(command)))
 
@@ -862,7 +870,7 @@ class QLView(GingaPlugin.LocalPlugin):
     def dir_change(self, path):
         print("Directory changed: ", path)
         p = Path(path)
-        if path == self.redux_path:
+        if path == self.redux_path_entry.get_text():
             self.logger.info("New directory detected in redux path, adding to watcher")
             for child in p.iterdir():
                 self.add_dirs_to_watcher([str(child.absolute())])
@@ -972,7 +980,7 @@ class QLView(GingaPlugin.LocalPlugin):
 
     def redux_path_from_filename(self, filename):
         p = Path(filename)
-        return os.path.join(self.redux_path,  p.name.split(".fits")[0])
+        return os.path.join(self.redux_path_entry.get_text(),  p.name.split(".fits")[0])
 
     def __str__(self):
         # necessary to identify the plugin and provide correct operation in Ginga
