@@ -228,6 +228,7 @@ class QLView(GingaPlugin.LocalPlugin):
         # Reduction Control #
         # # # # # # # # # # #
         fr = Widgets.Frame("Reduction Control")
+        self.vbox_redux = Widgets.VBox()
 
         hbox = Widgets.HBox()
         self.redux_path_entry = Widgets.TextEntry()
@@ -238,7 +239,6 @@ class QLView(GingaPlugin.LocalPlugin):
         self.vbox_redux.add_widget(hbox, stretch=0)
 
         hbox = Widgets.HBox()
-        self.vbox_redux = Widgets.VBox()
         self.slit_list_box = Widgets.ComboBox()
         self.slit_list_box.add_callback('activated', self.slit_list_box_cb)
         hbox.add_widget(self.slit_list_box)
