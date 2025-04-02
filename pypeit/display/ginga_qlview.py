@@ -889,7 +889,7 @@ class QLView(GingaPlugin.LocalPlugin):
             self.logger.info("Reduced spectrum found.")
             science_file = None
             for file in science_files:
-                if file.name.startswith("spec1D"):
+                if file.name.startswith("spec1d"):
                     science_file = file
             if not science_file:
                 self.logger.error("No spec1D file found in Science directory.")
