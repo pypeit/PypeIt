@@ -514,14 +514,14 @@ class QLView(GingaPlugin.LocalPlugin):
         self.slittracesets = self.open_slits_files(os.path.join(self.reduced_filepath, "Calibrations"))
         self.slit_canvas = self.construct_slits(self.slittracesets)
         
-        # TODO: Check to see if an image has been rendered yet
         if self.fitsimage.get_canvas() is not None:
             if self.display_slits_box.get_state():
                 try:
+                    self.logger.info("Removing old slits")
                     tag = self.fitsimage.get_canvas().lookup_object_tag(self.slit_canvas)
                     self.fitsimage.get_canvas().delete_object_by_tag(tag)
                 except KeyError:
-                    self.logger.debug("No slits to remove")
+                    self.logger.info("No slits found to remove")
                 self.fitsimage.get_canvas().add(self.slit_canvas)
         else:
             self.logger.error("No image has been rendered yet. Cannot add slits.")
