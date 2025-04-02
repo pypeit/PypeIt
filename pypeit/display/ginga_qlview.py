@@ -302,9 +302,11 @@ class QLView(GingaPlugin.LocalPlugin):
                 self.redux_path_entry.set_text(config["DEFAULT"]["redux_path"])
                 self.redux_path = config["DEFAULT"]["redux_path"]
                 self.logger.info(f"Redux path set to {self.redux_path}")
+
                 self.raw_text_entry.set_text(config["DEFAULT"]["raw_path"])
                 self.raw_filepath = config["DEFAULT"]["raw_path"]
                 self.logger.info(f"Raw path set to {self.raw_filepath}")
+
                 self.reduced_text_entry.set_text(config["DEFAULT"]["reduced_path"])
                 self.reduced_filepath = config["DEFAULT"]["reduced_path"]
                 self.logger.info(f"Reduced path set to {self.reduced_filepath}")
@@ -569,10 +571,10 @@ class QLView(GingaPlugin.LocalPlugin):
             self.browse(self.reduced_text_entry.get_text(), "raw")
         elif os.path.isfile(self.reduced_text_entry.get_text()):
             self.logger.info("File path entered. Loading file.")
-            self.open_raw_file(self.reduced_text_entry.get_text())
+            self.open_raw_file(self.raw_text_entry.get_text())
         else:
             self.logger.error("Invalid path entered.")
-            self.reduced_text_entry.set_text("Invalid path")
+            self.raw_text_entry.set_text("Invalid path")
     
 
     def instrument_combo_cb(self, w):
