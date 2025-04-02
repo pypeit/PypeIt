@@ -518,6 +518,7 @@ class QLView(GingaPlugin.LocalPlugin):
                 try:
                     self.logger.info("Trying to remove old slits")
                     tag = self.fitsimage.get_canvas().lookup_object_tag(self.slit_canvas)
+                    self.logger.info(f"Tag: {tag}")
                     self.fitsimage.get_canvas().delete_object_by_tag(tag)
                     self.logger.info("Removed old slits (I think...)")
                 except KeyError:
