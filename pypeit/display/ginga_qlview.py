@@ -309,8 +309,15 @@ class QLView(GingaPlugin.LocalPlugin):
                 self.reduced_filepath = config["DEFAULT"]["reduced_path"]
                 self.logger.info(f"Reduced path set to {self.reduced_filepath}")
 
-                self.browse(self.reduced_text_entry.get_text(), "raw")
-                self.browse(self.reduced_text_entry.get_text(), "reduced")
+                if os.path.isdir(self.raw_filepath):
+                    self.browse(self.raw_filepath, "raw")
+                else:
+                    self.logger.error(f"Raw path does not exist: {self.raw_filepath}")
+                if os.path.isdir(self.reduced_filepath):
+                    self.browse(self.reduced_filepath, "reduced")
+                else:
+                    self.logger.error(f"Reduced path does not exist: {self.reduced_filepath}")
+                
             except KeyError as e:
                 self.logger.error(f"Error reading config file: {e}")
         else:
