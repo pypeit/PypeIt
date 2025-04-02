@@ -323,14 +323,16 @@ class QLView(GingaPlugin.LocalPlugin):
         command.append("--setup_calib_dir")
         command.append(f"{Path(self.reduced_filepath).absolute()}/Calibrations")
         command.append("--slitspatnum")
-        command.append(f"{msc}:{self.slit_list_box.get_text()[1:]}")
+        slitspatnum = f"{msc}:{self.slit_list_box.get_text()[1:]}"
+        command.append(slitspatnum)
         command.append("--redux_path")
         command.append(self.redux_path_entry.get_text())
         command.append("--skip_display")
         self.logger.info("Launching command: {0}".format(" ".join(command)))
 
         # popen_w_cb(self.show_reduced_spec, command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        logfile = open(os.path.join(self.redux_path_entry.get_text(), f"{slitspatnum}.log"), "w")
+        p = subprocess.Popen(command, stdout=logfile, stderr=logfile)
 
         # asyncio.run(self.monitor_reduction(p))
         print("Launched reduction")
@@ -885,11 +887,18 @@ class QLView(GingaPlugin.LocalPlugin):
         science_files = list(p.glob("*.fits"))
         if len(science_files) > 0:
             self.logger.info("Reduced spectrum found.")
+            science_file = None
+            for file in science_files:
+                if file.name.startswith("spec1D"):
+                    science_file = file
+            if not science_file:
+                self.logger.error("No spec1D file found in Science directory.")
+                return
             reduction_control = self.reduction_control_elements.get(self.slit_list_box.get_text(), None)
             if reduction_control:
                 elements = reduction_control["elements"]
                 elements['button'].set_enabled(True)
-                elements['button'].add_callback('activated', lambda x: self.show_reduced_spec())
+                elements['button'].add_callback('activated', lambda x: self.show_reduced_spec(science_file))
                 old_text = elements['name'].get_text()
                 elements['name'].set_text(old_text.replace("Reducing", "Reduced").replace("...", ""))
             else:
@@ -936,7 +945,7 @@ class QLView(GingaPlugin.LocalPlugin):
         """
         pass
 
-    def show_reduced_spec(self):
+    def show_reduced_spec(self, args):
         """Show the reduced spectrum in a new channel"""
         print("Reduction completed, showing spec")
         # subprocess.Popen(["pypeit_show_1dspec",
@@ -946,7 +955,8 @@ class QLView(GingaPlugin.LocalPlugin):
         self.logger.info("Showing reduced spectrum")
         new_ch_name = 'Spec1D' + self.slit_list_box.get_text()
         self.fv.start_local_plugin(new_ch_name, 'Spec1dView')
-        self.fv.load_file("/Users/mbrodheim/drp/QLViewer/redux_test/DE.20170425.51771/Science/spec1d_DE.20170425.51771-dra11_DEIMOS_20170425T142245.350.fits", chname=new_ch_name)
+
+        self.fv.load_file(args, chname=new_ch_name)
     
     def make_reduced_slit_hbox(self):
 
