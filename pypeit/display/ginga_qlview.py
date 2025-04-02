@@ -228,6 +228,15 @@ class QLView(GingaPlugin.LocalPlugin):
         # Reduction Control #
         # # # # # # # # # # #
         fr = Widgets.Frame("Reduction Control")
+
+        hbox = Widgets.HBox()
+        self.redux_path_entry = Widgets.TextEntry()
+        self.redux_path_entry.set_text(self.redux_path)
+        self.redux_path_entry.set_tooltip("Path to the reduction directory")
+        hbox.add_widget(Widgets.Label("Reduction Path:"), stretch=0)
+        hbox.add_widget(self.redux_path_entry, stretch=1)
+        self.vbox_redux.add_widget(hbox, stretch=0)
+
         hbox = Widgets.HBox()
         self.vbox_redux = Widgets.VBox()
         self.slit_list_box = Widgets.ComboBox()
@@ -244,13 +253,6 @@ class QLView(GingaPlugin.LocalPlugin):
         self.display_slits_box.add_callback('activated', self.display_slits_box_cb)
         self.vbox_redux.add_widget(self.display_slits_box, stretch=0)
 
-        self.redux_path_box = Widgets.HBox()
-        self.redux_path_entry = Widgets.TextEntry()
-        self.redux_path_entry.set_text("Path to the reduction directory")
-        self.redux_path_entry.set_tooltip("Path to the reduction directory")
-        self.redux_path_box.add_widget(Widgets.Label("Reduction Path:"), stretch=0)
-        self.redux_path_box.add_widget(self.redux_path_entry, stretch=1)
-        self.vbox_redux.add_widget(self.redux_path_box, stretch=0)
 
 
         fr.set_widget(self.vbox_redux)
