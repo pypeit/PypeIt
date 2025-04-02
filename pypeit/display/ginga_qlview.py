@@ -246,6 +246,15 @@ class QLView(GingaPlugin.LocalPlugin):
         self.btn_reduce.set_tooltip("Reduce the selected slit")
         self.btn_reduce.add_callback('activated', self.reduce_slit_cb)
         hbox.add_widget(self.btn_reduce, stretch=0)
+
+        self.SNR_box = Widgets.TextEntry()
+        self.SNR_box.set_text("25")
+        self.SNR_box.set_tooltip("SNR Threshold for object extraction")
+        label = Widgets.Label("SNR Threshold:")
+        label.set_tooltip("SNR Threshold for object extraction")
+        hbox.add_widget(label, stretch=0)
+        hbox.add_widget(self.SNR_box, stretch=0)
+
         self.vbox_redux.add_widget(hbox, stretch=0)
 
         self.display_slits_box = Widgets.CheckBox("Display Slits")
@@ -257,11 +266,6 @@ class QLView(GingaPlugin.LocalPlugin):
 
         fr.set_widget(self.vbox_redux)
         vbox.add_widget(fr, stretch=0)
-
-
-
-
-
 
         top.add_widget(vbox, stretch=0)
 
@@ -328,7 +332,10 @@ class QLView(GingaPlugin.LocalPlugin):
         command.append("--redux_path")
         command.append(self.redux_path_entry.get_text())
         command.append("--skip_display")
+        command.append("--snr_thresh")
+        command.append(self.SNR_box.get_text())
         self.logger.info("Launching command: {0}".format(" ".join(command)))
+
 
         # popen_w_cb(self.show_reduced_spec, command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         logfile = open(os.path.join(self.redux_path_entry.get_text(), f"{slitspatnum}.log"), "w")
