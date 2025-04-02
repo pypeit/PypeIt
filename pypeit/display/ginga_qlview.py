@@ -281,15 +281,63 @@ class QLView(GingaPlugin.LocalPlugin):
         btn = Widgets.Button("Help")
         btn.add_callback('activated', lambda w: self.help())
         btns.add_widget(btn, stretch=0)
+        btn = Widgets.Button("Save Default Config")
+        btn.set_tooltip("Create a config file with the current settings")
+        btn.add_callback('activated', lambda w: self.create_config_cb())
+        btns.add_widget(btn, stretch=0)
         btns.add_widget(Widgets.Label(''), stretch=1)
         top.add_widget(btns, stretch=0)
 
         container.add_widget(top, stretch=1)
+
+# Load config, if there is one
+        config_file = Path.home() / ".quicklook.cfg"
+        if config_file.exists():
+            self.logger.info(f"Loading config file: {config_file}")
+            import configparser
+            config = configparser.ConfigParser()
+            try:
+                config.read(Path.home() / ".quicklook.cfg")
+
+                self.redux_path_entry.set_text(config["DEFAULT"]["redux_path"])
+                self.redux_path = config["DEFAULT"]["redux_path"]
+                self.logger.info(f"Redux path set to {self.redux_path}")
+                self.raw_text_entry.set_text(config["DEFAULT"]["raw_path"])
+                self.raw_filepath = config["DEFAULT"]["raw_path"]
+                self.logger.info(f"Raw path set to {self.raw_filepath}")
+                self.reduced_text_entry.set_text(config["DEFAULT"]["reduced_path"])
+                self.reduced_filepath = config["DEFAULT"]["reduced_path"]
+                self.logger.info(f"Reduced path set to {self.reduced_filepath}")
+            except KeyError as e:
+                self.logger.error(f"Error reading config file: {e}")
+        else:
+            self.logger.info("No config file found. Using defaults.")
+
+
         self.gui_up = True
 
     # # # # # # #
     # Callbacks #
     # # # # # # #
+
+    def create_config_cb(self):
+        """Callback for the "Create Config" button.
+        
+        This method is called when the user clicks the "Create Config" button.
+        It creates a configuration file with the current settings and saves it
+        to the user's home directory.
+        """
+        config_file = Path.home() / ".quicklook.cfg"
+        self.logger.info(f"Creating config file: {config_file}")
+        import configparser
+        config = configparser.ConfigParser()
+        config["DEFAULT"] = {
+            "redux_path": self.redux_path_entry.get_text(),
+            "raw_path": self.raw_text_entry.get_text(),
+            "reduced_path": self.reduced_text_entry.get_text()
+        }
+        with open(config_file, 'w') as f:
+            config.write(f)
 
     def hide_reduced_tree_cb(self, w, val):
         if val:
