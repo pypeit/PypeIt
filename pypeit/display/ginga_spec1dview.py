@@ -68,7 +68,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         prefs = self.fv.get_preferences()
         self.settings = prefs.create_category('plugin_Spec1dView')
         self.settings.add_defaults(lines="error", start_ext=0,
-                                   extraction='OPT', fluxed=False, masked=False,
+                                   extraction='BOX', fluxed=False, masked=False,
                                    plot_error=True, autozoom=True)
         self.settings.load(onError='silent')
 
@@ -92,7 +92,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.start_ext = self.settings.get('start_ext', 0)
 
         self.extraction_types = ('OPT', 'BOX')
-        self.extraction = self.settings.get('extraction', 'OPT')
+        self.extraction = self.settings.get('extraction', 'BOX')
 
         self.fluxed_options = (True, False)
         self.fluxed = self.settings.get('fluxed', False)
@@ -371,9 +371,10 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         """
         specobj = self.sobjs[self.exten]
         if specobj['OPT_WAVE'] is None:
-            self.fv.show_error("Spectrum not extracted with OPT.  Try --extract BOX")
+            specobj['OPT_WAVE'] = specobj['BOX_WAVE']
+            # self.fv.show_error("Spectrum not extracted with OPT.  Try --extract BOX")
             return
-
+       
         wave, flux, ivar, gpm = specobj.to_arrays(extraction=self.extraction,
                                                   fluxed=self.fluxed)
         sig = np.sqrt(utils.inverse(ivar))
