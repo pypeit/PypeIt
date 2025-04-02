@@ -145,6 +145,18 @@ class QLView(GingaPlugin.LocalPlugin):
         self.instrument_combo.append_text("DEIMOS")
         self.instrument_combo.add_callback('activated', self.instrument_combo_cb)
         config_hbox.add_widget(self.instrument_combo, stretch=0)
+
+        vbox_show = Widgets.VBox()
+        self.hide_reduced_tree = Widgets.CheckBox("Show Reduced Tree")
+        self.hide_reduced_tree.set_state(True)
+        self.hide_reduced_tree.add_callback('activated', self.hide_reduced_tree_cb)
+        self.hide_raw_tree = Widgets.CheckBox("Show Raw Tree")
+        self.hide_raw_tree.set_state(True)
+        self.hide_raw_tree.add_callback('activated', self.hide_raw_tree_cb)
+        vbox_show.add_widget(self.hide_raw_tree, stretch=0)
+        vbox_show.add_widget(self.hide_reduced_tree, stretch=0)
+
+        config_hbox.add_widget(vbox_show, stretch=0)
         vbox.add_widget(config_hbox, stretch=0)
 
         # # # # # # # # # #
@@ -265,6 +277,18 @@ class QLView(GingaPlugin.LocalPlugin):
     # Callbacks #
     # # # # # # #
 
+    def hide_reduced_tree_cb(self, w, val):
+        if val:
+            self.reduced_treeview.show()
+        else:
+            self.reduced_treeview.hide()
+    
+    def hide_raw_tree_cb(self, w, val):
+        if val:
+            self.raw_treeview.show()
+        else:
+            self.raw_treeview.hide()
+
     def reduce_slit_cb(self, w):
         # Launch the reduction using popen:
 
@@ -302,6 +326,7 @@ class QLView(GingaPlugin.LocalPlugin):
         print("Launched reduction")
 
         hbox, elements = self.make_reduced_slit_hbox()
+        elements['name'].set_text(f"Reducing {self.slit_list_box.get_text()}...")
 
         self.vbox_redux.add_widget(hbox, stretch=0)
         self.reduction_control_elements[self.slit_list_box.get_text()] = {"elements": elements, "hbox": hbox}
@@ -448,6 +473,11 @@ class QLView(GingaPlugin.LocalPlugin):
         # TODO: Check to see if an image has been rendered yet
         if self.fitsimage.get_canvas() is not None:
             if self.display_slits_box.get_state():
+                try:
+                    tag = self.fitsimage.get_canvas().lookup_object_tag(self.slit_canvas)
+                    self.fitsimage.get_canvas().delete_object_by_tag(tag)
+                except KeyError:
+                    self.logger.debug("No slits to remove")
                 self.fitsimage.get_canvas().add(self.slit_canvas)
         else:
             self.logger.error("No image has been rendered yet. Cannot add slits.")
@@ -835,7 +865,7 @@ class QLView(GingaPlugin.LocalPlugin):
         if path == self.redux_path:
             self.logger.info("New directory detected in redux path, adding to watcher")
             for child in p.iterdir():
-                self.add_dirs_to_watcher([child])
+                self.add_dirs_to_watcher([str(child.absolute())])
         
         p = p / "Science"
         if not p.exists():
@@ -850,6 +880,8 @@ class QLView(GingaPlugin.LocalPlugin):
                 elements = reduction_control["elements"]
                 elements['button'].set_enabled(True)
                 elements['button'].add_callback('activated', lambda x: self.show_reduced_spec())
+                old_text = elements['name'].get_text()
+                elements['name'].set_text(old_text.replace("Reducing", "Reduced").replace("...", ""))
             else:
                 self.logger.error("No Reduction slits to enable!")
 
@@ -903,8 +935,8 @@ class QLView(GingaPlugin.LocalPlugin):
         #                   "/Users/mbrodheim/drp/QLViewer/redux_test/DE.20170425.51771/Science/spec1d_DE.20170425.51771-dra11_DEIMOS_20170425T142245.350.fits"])
         self.logger.info("Showing reduced spectrum")
         new_ch_name = 'Spec1D' + self.slit_list_box.get_text()
-        self.fv.load_file("/Users/mbrodheim/drp/QLViewer/redux_test/DE.20170425.51771/Science/spec1d_DE.20170425.51771-dra11_DEIMOS_20170425T142245.350.fits", chname=new_ch_name)
         self.fv.start_local_plugin(new_ch_name, 'Spec1dView')
+        self.fv.load_file("/Users/mbrodheim/drp/QLViewer/redux_test/DE.20170425.51771/Science/spec1d_DE.20170425.51771-dra11_DEIMOS_20170425T142245.350.fits", chname=new_ch_name)
     
     def make_reduced_slit_hbox(self):
 
@@ -917,14 +949,14 @@ class QLView(GingaPlugin.LocalPlugin):
         elements['button'] = Widgets.Button("Show")
         elements['button'].set_enabled(False)
 
-        elements['timer_left'] = Widgets.Label("Time Remainig:")
+        # elements['timer_left'] = Widgets.Label("Time Remainig:")
         
         # elements['timer'] = QtCore.QTimer()
         # elements['timer'].timeout.connect(timer_cb)
 
-        hbox.add_widget(elements['name'], stretch=0)
-        hbox.add_widget(elements['button'], stretch=1)
-        hbox.add_widget(elements['timer_left'], stretch=0)
+        hbox.add_widget(elements['name'], stretch=1)
+        hbox.add_widget(elements['button'], stretch=0)
+        # hbox.add_widget(elements['timer_left'], stretch=0)
         return hbox, elements
     
     def add_dirs_to_watcher(self, paths):
