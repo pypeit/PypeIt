@@ -283,7 +283,7 @@ class QLView(GingaPlugin.LocalPlugin):
         btns.add_widget(btn, stretch=0)
         btn = Widgets.Button("Save Default Config")
         btn.set_tooltip("Create a config file with the current settings")
-        btn.add_callback('activated', lambda w: self.create_config_cb())
+        btn.add_callback('activated', lambda w: self.create_config_cb)
         btns.add_widget(btn, stretch=0)
         btns.add_widget(Widgets.Label(''), stretch=1)
         top.add_widget(btns, stretch=0)
@@ -308,6 +308,9 @@ class QLView(GingaPlugin.LocalPlugin):
                 self.reduced_text_entry.set_text(config["DEFAULT"]["reduced_path"])
                 self.reduced_filepath = config["DEFAULT"]["reduced_path"]
                 self.logger.info(f"Reduced path set to {self.reduced_filepath}")
+
+                self.browse(self.reduced_text_entry.get_text(), "raw")
+                self.browse(self.reduced_text_entry.get_text(), "reduced")
             except KeyError as e:
                 self.logger.error(f"Error reading config file: {e}")
         else:
