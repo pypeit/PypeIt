@@ -283,47 +283,12 @@ class QLView(GingaPlugin.LocalPlugin):
         btns.add_widget(btn, stretch=0)
         btn = Widgets.Button("Save Default Config")
         btn.set_tooltip("Create a config file with the current settings")
-        btn.add_callback('activated', lambda w: self.create_config_cb)
+        btn.add_callback('activated', lambda w: self.create_config_cb())
         btns.add_widget(btn, stretch=0)
         btns.add_widget(Widgets.Label(''), stretch=1)
         top.add_widget(btns, stretch=0)
 
         container.add_widget(top, stretch=1)
-
-# Load config, if there is one
-        config_file = Path.home() / ".quicklook.cfg"
-        if config_file.exists():
-            self.logger.info(f"Loading config file: {config_file}")
-            import configparser
-            config = configparser.ConfigParser()
-            try:
-                config.read(Path.home() / ".quicklook.cfg")
-
-                self.redux_path_entry.set_text(config["DEFAULT"]["redux_path"])
-                self.redux_path = config["DEFAULT"]["redux_path"]
-                self.logger.info(f"Redux path set to {self.redux_path}")
-
-                self.raw_text_entry.set_text(config["DEFAULT"]["raw_path"])
-                self.raw_filepath = config["DEFAULT"]["raw_path"]
-                self.logger.info(f"Raw path set to {self.raw_filepath}")
-
-                self.reduced_text_entry.set_text(config["DEFAULT"]["reduced_path"])
-                self.reduced_filepath = config["DEFAULT"]["reduced_path"]
-                self.logger.info(f"Reduced path set to {self.reduced_filepath}")
-
-                if os.path.isdir(self.raw_filepath):
-                    self.browse(self.raw_filepath, "raw")
-                else:
-                    self.logger.error(f"Raw path does not exist: {self.raw_filepath}")
-                if os.path.isdir(self.reduced_filepath):
-                    self.browse(self.reduced_filepath, "reduced")
-                else:
-                    self.logger.error(f"Reduced path does not exist: {self.reduced_filepath}")
-                
-            except KeyError as e:
-                self.logger.error(f"Error reading config file: {e}")
-        else:
-            self.logger.info("No config file found. Using defaults.")
 
 
         self.gui_up = True
@@ -567,9 +532,9 @@ class QLView(GingaPlugin.LocalPlugin):
         This method is called when the user enters text into a text entry widget.
         """
         self.logger.debug(f"text_entry: {w}")
-        if os.path.isdir(self.reduced_text_entry.get_text()):
-            self.browse(self.reduced_text_entry.get_text(), "raw")
-        elif os.path.isfile(self.reduced_text_entry.get_text()):
+        if os.path.isdir(self.raw_text_entry.get_text()):
+            self.browse(self.raw_text_entry.get_text(), "raw")
+        elif os.path.isfile(self.raw_text_entry.get_text()):
             self.logger.info("File path entered. Loading file.")
             self.open_raw_file(self.raw_text_entry.get_text())
         else:
@@ -930,7 +895,44 @@ class QLView(GingaPlugin.LocalPlugin):
         # Set the instrument based on the combobox selection
         self.instrument_combo.make_callback('activated')
 
-        self.fitsimage.add_callback('cursor-down', self.canvas_clicked_cb) 
+        self.fitsimage.add_callback('cursor-down', self.canvas_clicked_cb)
+
+        # Load config, if there is one
+        config_file = Path.home() / ".quicklook.cfg"
+        if config_file.exists():
+            self.logger.info(f"Loading config file: {config_file}")
+            import configparser
+            config = configparser.ConfigParser()
+            try:
+                config.read(Path.home() / ".quicklook.cfg")
+
+                self.redux_path_entry.set_text(config["DEFAULT"]["redux_path"])
+                self.redux_path = config["DEFAULT"]["redux_path"]
+                self.logger.info(f"Redux path set to {self.redux_path}")
+
+                self.raw_text_entry.set_text(config["DEFAULT"]["raw_path"])
+                self.raw_filepath = config["DEFAULT"]["raw_path"]
+                self.logger.info(f"Raw path set to {self.raw_filepath}")
+
+                self.reduced_text_entry.set_text(config["DEFAULT"]["reduced_path"])
+                self.reduced_filepath = config["DEFAULT"]["reduced_path"]
+                self.logger.info(f"Reduced path set to {self.reduced_filepath}")
+
+                if os.path.isdir(self.raw_filepath):
+                    self.logger.info(f"Raw path exists: {self.raw_filepath}")
+                    self.browse(self.raw_filepath, "raw")
+                else:
+                    self.logger.error(f"Raw path does not exist: {self.raw_filepath}")
+                if os.path.isdir(self.reduced_filepath):
+                    self.logger.info(f"Reduced path exists: {self.raw_filepath}")
+                    self.browse(self.reduced_filepath, "reduced")
+                else:
+                    self.logger.error(f"Reduced path does not exist: {self.reduced_filepath}")
+                
+            except KeyError as e:
+                self.logger.error(f"Error reading config file: {e}")
+        else:
+            self.logger.info("No config file found. Using defaults.")
 
         self.watcher = QtCore.QFileSystemWatcher()
         self.watcher.addPath(self.redux_path)
