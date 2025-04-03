@@ -1018,14 +1018,9 @@ class QLView(GingaPlugin.LocalPlugin):
 
     def show_reduced_spec(self, args):
         """Show the reduced spectrum in a new channel"""
-        print("Reduction completed, showing spec")
-        # subprocess.Popen(["pypeit_show_1dspec",
-        #                   "--extract",
-        #                   "BOX",
-        #                   "/Users/mbrodheim/drp/QLViewer/redux_test/DE.20170425.51771/Science/spec1d_DE.20170425.51771-dra11_DEIMOS_20170425T142245.350.fits"])
         self.logger.info(f"Showing reduced spectrum: {args}")
         new_ch_name = 'Spec1D' + self.slit_list_box.get_text()
-        self.fv.load_file(args, chname=new_ch_name)
+        self.fv.load_file(str(args), chname=new_ch_name)
         self.fv.start_local_plugin(new_ch_name, 'Spec1dView')
 
         
