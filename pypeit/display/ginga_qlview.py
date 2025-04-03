@@ -355,7 +355,8 @@ class QLView(GingaPlugin.LocalPlugin):
         slitspatnum = f"{msc}:{self.slit_list_box.get_text()[1:]}"
         command.append(slitspatnum)
         command.append("--redux_path")
-        command.append(self.redux_path_entry.get_text())
+        rpath = self.redux_path_entry.get_text() + "/" + slitspatnum
+        command.append(rpath)
         command.append("--skip_display")
         command.append("--snr_thresh")
         command.append(self.SNR_box.get_text())
