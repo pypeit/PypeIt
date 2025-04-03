@@ -979,6 +979,8 @@ class QLView(GingaPlugin.LocalPlugin):
             # monitor the science directory for changes
             self.logger.info("No reduced spectrum found. Adding Science directory to watcher")
             self.add_dirs_to_watcher([str(p.absolute())])
+            # For good measure, re-check the science directory
+            self.dir_change(path)
 
         # for directory in p.iterdir():
         #     if directory.is_dir():
