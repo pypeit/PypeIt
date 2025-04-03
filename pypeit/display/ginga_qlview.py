@@ -939,6 +939,7 @@ class QLView(GingaPlugin.LocalPlugin):
         self.watcher = QtCore.QFileSystemWatcher()
         self.watcher.addPath(self.redux_path)
         self.watcher.directoryChanged.connect(self.dir_change)
+        self.watcher.fileChanged.connect(self.dir_change)
 
         self.redo()
     
