@@ -975,7 +975,10 @@ class QLView(GingaPlugin.LocalPlugin):
                 elements['name'].set_text(old_text.replace("Reducing", "Reduced").replace("...", ""))
             else:
                 self.logger.error("No Reduction slits to enable!")
-
+        else:
+            # monitor the science directory for changes
+            self.logger.info("No reduced spectrum found. Adding Science directory to watcher")
+            self.add_dirs_to_watcher([str(Path(path).absolute())])
 
         # for directory in p.iterdir():
         #     if directory.is_dir():
@@ -1054,7 +1057,9 @@ class QLView(GingaPlugin.LocalPlugin):
                 return
             self.logger.info(f"Adding {path} to watcher")
             if Path(path).exists():
-                self.watcher.addPath(path)
+                watching = self.watcher.addPath(path)
+                if not watching:
+                    self.logger.error(f"Failed to add {path} to watcher!")
             else:
                 self.logger.error(f"Path {path} does not exist. Cannot add to watcher.")
 
