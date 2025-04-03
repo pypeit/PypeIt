@@ -1,9 +1,10 @@
 .. code-block:: console
 
     $ pypeit_setup_coadd2d -h
-    usage: pypeit_setup_coadd2d [-h] (-f PYPEIT_FILE |
-                                -d SCIENCE_DIR [SCIENCE_DIR ...]) [--keep_par]
-                                [--obj OBJ [OBJ ...]] [--det DET [DET ...]]
+    usage: pypeit_setup_coadd2d [-h]
+                                (-f PYPEIT_FILE | -d SCIENCE_DIR [SCIENCE_DIR ...])
+                                [--keep_par] [--obj OBJ [OBJ ...]]
+                                [--det DET [DET ...]]
                                 [--only_slits ONLY_SLITS [ONLY_SLITS ...]]
                                 [--exclude_slits EXCLUDE_SLITS [EXCLUDE_SLITS ...]]
                                 [--spat_toler SPAT_TOLER] [--offsets OFFSETS]
@@ -15,9 +16,9 @@
     
     options:
       -h, --help            show this help message and exit
-      -f, --pypeit_file PYPEIT_FILE
+      -f PYPEIT_FILE, --pypeit_file PYPEIT_FILE
                             PypeIt reduction file (default: None)
-      -d, --science_dir SCIENCE_DIR [SCIENCE_DIR ...]
+      -d SCIENCE_DIR [SCIENCE_DIR ...], --science_dir SCIENCE_DIR [SCIENCE_DIR ...]
                             One or more directories with spec2d files to stack (use
                             wildcard to specify multiple directories). (default:
                             None)

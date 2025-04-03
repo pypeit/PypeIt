@@ -13,16 +13,16 @@
     
     options:
       -h, --help            show this help message and exit
-      -e, --ext_file EXT_FILE
+      -e EXT_FILE, --ext_file EXT_FILE
                             Configuration file with extraction parameters (default:
                             None)
-      -s, --save SAVE       Output spec1d filename (default: None)
+      -s SAVE, --save SAVE  Output spec1d filename (default: None)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
-      -b, --boxcar_radius BOXCAR_RADIUS
+      -b BOXCAR_RADIUS, --boxcar_radius BOXCAR_RADIUS
                             Radius of the circular boxcar (in arcseconds) to use for
                             the extraction. (default: None)
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             extract_datacube_YYYYMMDD-HHMM.log (default: 1)

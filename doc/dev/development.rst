@@ -498,6 +498,8 @@ branch.  The tagging process is as follows:
           ``1.14.1.rst`` or ``1.15.0.rst``).  The ``doc/whatsnew.rst`` should
           also be updated to reflect the file name change.
 
+        * Update the list of supported versions in the ``SECURITY.md`` file.
+
         * Update the documentation by executing ``cd doc ; make clean ; make
           html``, add any updated files, and correct all errors/warnings.
 

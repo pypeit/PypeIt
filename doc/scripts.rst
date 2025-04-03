@@ -308,6 +308,8 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_sensfunc.rst
 
+.. _pypeit_flux_setup:
+
 pypeit_flux_setup
 -----------------
 
@@ -606,7 +608,7 @@ pypeit_show_pixflat
 -------------------
 
 Inspect in a Ginga window the (slitless) pixel flat produced by PypeIt and stored
-in the PypeIt cache (see ref:`data_installation`).  It displays each detector separately
+in the PypeIt cache (see :ref:`data_installation`).  It displays each detector separately
 in different channels. The script is useful for assessing the quality of the pixel-to-pixel
 response of the detector. Typical call is:
 

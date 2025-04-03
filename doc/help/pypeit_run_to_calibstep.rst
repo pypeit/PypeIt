@@ -24,9 +24,9 @@
                             Calibration group ID to reduce. Either this or the frame
                             must be provided
       --det DET             Detector to reduce
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]
-      -r, --redux_path REDUX_PATH
+      -r REDUX_PATH, --redux_path REDUX_PATH
                             Path to directory for the reduction. Only advised for
                             testing
       -s, --show            Show reduction steps via plots (which will block further
