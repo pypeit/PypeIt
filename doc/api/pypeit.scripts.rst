@@ -8,6 +8,7 @@ Submodules
    :maxdepth: 4
 
    pypeit.scripts.arxiv_solution
+   pypeit.scripts.c_enabled
    pypeit.scripts.cache_github_data
    pypeit.scripts.chk_alignments
    pypeit.scripts.chk_edges
@@ -16,6 +17,7 @@ Submodules
    pypeit.scripts.chk_for_calibs
    pypeit.scripts.chk_noise_1dspec
    pypeit.scripts.chk_noise_2dspec
+   pypeit.scripts.chk_plugins
    pypeit.scripts.chk_scattlight
    pypeit.scripts.chk_tilts
    pypeit.scripts.chk_wavecalib
@@ -57,6 +59,7 @@ Submodules
    pypeit.scripts.skysub_regions
    pypeit.scripts.tellfit
    pypeit.scripts.trace_edges
+   pypeit.scripts.version
    pypeit.scripts.view_fits
 
 Module contents

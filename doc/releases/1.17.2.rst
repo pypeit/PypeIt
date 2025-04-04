@@ -2,5 +2,5 @@ Version 1.17.2
 ==============
 
 - Hotfix for typo in ``wavetilts.py``, changing ``legend.legendHandles`` to
-``legend.legend_handles`` in use of ``matplotlib``.
+  ``legend.legend_handles`` in use of ``matplotlib``.
 
