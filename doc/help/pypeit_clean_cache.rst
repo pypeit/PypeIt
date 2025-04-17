@@ -8,13 +8,13 @@
     
     options:
       -h, --help            show this help message and exit
-      -p PATTERN [PATTERN ...], --pattern PATTERN [PATTERN ...]
+      -p, --pattern PATTERN [PATTERN ...]
                             Remove any files matching the provided pattern. If
                             combined with --version, this selects only files
                             downloaded from the identified GitHub versoin. If the
                             version is not specified, any file matching the provided
                             pattern(s) are removed. (default: None)
-      -v VERSION [VERSION ...], --version VERSION [VERSION ...]
+      -v, --version VERSION [VERSION ...]
                             Remove files associated one or more provided tags,
                             branches, or commit references on GitHub. These must be
                             an exact match to the relevant GitHub reference. If

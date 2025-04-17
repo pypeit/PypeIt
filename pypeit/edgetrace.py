@@ -16,87 +16,12 @@ With a :ref:`pypeit_file`, a typical execution of the script would be:
 
     $ pypeit_trace_edges -f my_pypeit_file.pypeit
 
-To show the trace results after completing each stage and/or to run
-in debugging mode, use the `--show` and/or `--debug` options:
+To show the trace results after completing each stage, use the ``--debug``
+option:
 
 .. code-block:: bash
 
-    $ pypeit_trace_edges -f my_pypeit_file.pypeit --debug --show
-
-Programmatically, if you have a :ref:`pypeit_file` and a path for the reductions
-(`redux_path`), an example of how to trace the slits in a single
-detector is as follows:
-
-.. code-block:: python
-
-    # Imports
-    from pypeit.pypeit import PypeIt
-    from pypeit import edgetrace
-    from pypeit.images import buildimage
-
-    # Instantiate the PypeIt class to perform the necessary setup
-    rdx = PypeIt(pypeit_file, redux_path=redux_path)
-
-    # Find the trace frames files for a specific calibration group
-    group = 0
-    tbl_rows = rdx.fitstbl.find_frames('trace', calib_ID=group, index=True)
-    files = rdx.fitstbl.frame_paths(tbl_rows)
-
-    # Select a detector to trace
-    det = 1
-
-    # Setup the output paths for the trace file; these can be anything but
-    # the defaults are below
-    calib_dir = rdx.par['calibrations']['caldir']
-    setup = rdx.fitstbl['setup'][tbl_rows[0]]
-    calib_id = rdx.fitstbl['calib'][tbl_rows[0]]
-
-    # Skip the bias subtraction, if reasonable; see
-    # pypeit.biasframe.BiasFrame to construct a bias to subtract from
-    # the TraceImage
-    rdx.par['calibrations']['traceframe']['process']['bias'] = 'skip'
-
-    # Construct the TraceImage
-    traceImage = buildimage.buildimage_fromlist(rdx.spectrograph, det,
-                                                rdx.par['calibrations']['traceframe'],
-                                                files, calib_dir=self.calib_dir,
-                                                setup=setup, calib_id=calib_id)
-
-    # Then run the edge tracing.  This performs the automatic tracing.
-    edges = edgetrace.EdgeTraceSet(traceImage, rdx.spectrograph,
-                                   rdx.par['calibrations']['slitedges'], auto=True)
-    # You can look at the results using the show method:
-    edges.show()
-    # Or in ginga viewer
-    edges.show(in_ginga=True)
-    # And you can save the results to a file
-    edges.to_file()
-
-If you want to instead start without a pypeit file, you could do the
-following for, e.g., a single unbinned Keck DEIMOS flat-field
-exposure in a fits file called `trace_file`:
-
-.. code-block:: python
-
-    import os
-    from pypeit import edgetrace
-    from pypeit.images import buildimage
-    from pypeit.spectrographs.util import load_spectrograph
-
-    spec = load_spectrograph('keck_deimos')
-    par = spec.default_pypeit_par()
-    par['calibrations']['traceframe']['process']['bias'] = 'skip'
-    # Make any desired changes to the parameters here
-    det = 3
-    calib_dir = par['calibrations']['caldir']
-
-    # Construct the TraceImage
-    traceImage = buildimage.buildimage_fromlist(spec, det, par['calibrations']['traceframe'],
-                                                [trace_file], calib_dir=self.calib_dir,
-                                                setup='A', calib_id=1)
-
-    edges = edgetrace.EdgeTraceSet(traceImage, spec, par['calibrations']['slitedges'], auto=True)
-    edges.to_file()
+    $ pypeit_trace_edges -f my_pypeit_file.pypeit --debug 1
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -275,12 +200,15 @@ class EdgeTraceSet(calibframe.CalibFrame):
             Find the edge traces using :func:`auto_trace`. If False,
             the trace data will only be the result of running
             :func:`initial_trace`.
-        debug (:obj:`bool`, optional):
-            Run in debug mode.
-        show_stages (:obj:`bool`, optional):
-            After ever stage of the auto trace prescription
-            (`auto=True`), show the traces against the image using
-            :func:`show`.
+        debug (:obj:`int`, optional):
+            Show debugging plots.  Integer indicates debugging depth:
+
+                - 0: No debugging plots will be shown.
+                - 1: Show the result of each stage of the tracing procedure.
+                - 2: Also show summary plots related to the PCA decomposition
+                  and the slit and order matching.
+                - 3: Also show the individual polynomial fits to the detected
+                  edges.
 
     Attributes:
         traceimg
@@ -490,8 +418,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                        'the PCA (center or fit)')}
     """DataContainer datamodel."""
 
-    def __init__(self, traceimg, spectrograph, par, qa_path=None, auto=False, debug=False,
-                 show_stages=False):
+    def __init__(self, traceimg, spectrograph, par, qa_path=None, auto=False, debug=0):
 
         # Instantiate as an empty DataContainer
         super().__init__()
@@ -524,7 +451,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.success = False
         if auto:
             # Run the automatic tracing
-            self.auto_trace(debug=debug, show_stages=show_stages)
+            self.auto_trace(debug=debug)
         else:
             # Only get the initial trace
             self.initial_trace()
@@ -731,7 +658,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                       max_ocol=self.nspat-1, extract_width=extract_width,
                                       mask_threshold=mask_threshold)
 
-    def auto_trace(self, bpm=None, debug=False, show_stages=False):
+    def auto_trace(self, bpm=None, debug=0):
         r"""
         Execute a fixed series of methods to automatically identify
         and trace slit edges.
@@ -778,19 +705,20 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 Bad-pixel mask for the trace image. Must have the
                 same shape as `img`. If None, all pixels are assumed
                 to be valid.
-            debug (:obj:`bool`, optional):
-                Run in debug mode.
-            show_stages (:obj:`bool`, optional):
-                After ever stage of the auto trace, execute
-                :func:`show` to show the results. These calls to show
-                are always::
+            debug (:obj:`int`, optional):
+                Show debugging plots.  Integer indicates debugging depth:
 
-                    self.show()
+                    - 0: No debugging plots will be shown.
+                    - 1: Show the result of each stage of the tracing procedure.
+                    - 2: Also show summary plots related to the PCA
+                      decomposition and the slit and order matching.
+                    - 3: Also show the individual polynomial fits to the
+                      detected edges.
 
         """
         # Perform the initial edge detection and trace identification
         self.initial_trace(bpm=bpm)
-        if show_stages:
+        if debug > 0:
             self.show(title='Initial identification and tracing of slit edges')
 
         # Initial trace can result in no edges found
@@ -798,19 +726,19 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Refine the locations of the trace using centroids of the
             # features in the Sobel-filtered image.
             self.centroid_refine()
-            if show_stages:
+            if debug > 0:
                 self.show(title='Refinement of edge locations')
 
         # Initial trace can result in no edges found, or centroid
         # refinement could have removed all traces (via `check_traces`)
         if not self.is_empty:
             # Fit the trace locations with a polynomial
-            self.fit_refine(debug=debug)
+            self.fit_refine(debug=debug > 2)
             # Use the fits to determine if there are any discontinous
             # trace centroid measurements that are actually components
             # of the same slit edge
-            self.merge_traces(debug=debug)
-            if show_stages:
+            self.merge_traces(debug=debug > 2)
+            if debug > 0:
                 self.show(title='Polynomial fit to the edge locations')
 
         # Check if the PCA decomposition is possible; this should catch
@@ -818,16 +746,16 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if self.par['auto_pca'] and self.can_pca():
             # Use a PCA decomposition to parameterize the trace
             # functional forms
-            self.pca_refine(debug=debug)
-            if show_stages:
+            self.pca_refine(debug=debug > 1)
+            if debug > 0:
                 self.show(title='PCA refinement of the trace models')
 
             # Use the results of the PCA decomposition to rectify and
             # detect peaks/troughs in the spectrally collapsed
             # Sobel-filtered image, then use those peaks to further
             # refine the edge traces
-            self.peak_refine(rebuild_pca=True, debug=debug)
-            if show_stages:
+            self.peak_refine(rebuild_pca=True, show_fits=debug>2, show_peaks=debug>1)
+            if debug > 0:
                 self.show(title='Result after re-identifying slit edges from a spectrally '
                                 'collapsed image.')
 
@@ -838,8 +766,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
             msgs.info('-' * 50)
             msgs.info('{0:^50}'.format('Matching traces to the slit-mask design'))
             msgs.info('-' * 50)
-            self.maskdesign_matching(debug=debug)
-            if show_stages:
+            self.maskdesign_matching(debug=debug > 1)
+            if debug > 0:
                 self.show(title='After matching to slit-mask design metadata.')
             if np.all(self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)):
                 msgs.error('All traces masked!  Problem with mask-design matching, which may be '
@@ -868,15 +796,19 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # like a long-slit observation. At best, that will lead to a lot of
             # wasted time in the reductions; at worst, it will just cause the code
             # to fault later on.
-            self.success = self.sync()
+            # NOTE: Debug in sync means that it will show the traces *before*
+            # cleaning them, so we only show this when requesting more
+            # significant debugging than just showing the stages of the
+            # algorithm.  I.e., I set debug > 1 below, not debug > 0.
+            self.success = self.sync(debug=debug > 1)
             if not self.success:
                 return
-            if show_stages:
+            if debug > 0:
                 self.show(title='After synchronizing left-right traces into slits')
 
         if not self.is_empty and self.par['add_missed_orders']:
             # Refine the order traces
-            self.order_refine(debug=debug)
+            self.order_refine(debug=debug > 1)
             # Check that the edges are still synced
             if not self.is_synced:
                 msgs.error('Traces are no longer synced after adding in missed orders.')
@@ -892,7 +824,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 #            if not self.success:
 #                return
 
-            if show_stages:
+            if debug > 0:
                 self.show(title='After adding in missing orders')
 
         # First manually remove some traces, just in case a user
@@ -902,11 +834,16 @@ class EdgeTraceSet(calibframe.CalibFrame):
         ad_rm = False
         if self.par['rm_slits'] is not None:
             ad_rm = self.rm_user_traces(self.par['rm_slits'])
+            # WARNING: If this removes all the slits, this will set the
+            # "success" flag to False.  This is why it is reset to True below
+            # when adding a slit, if the add was successful.
         # Add user traces
         if self.par['add_slits'] is not None:
             ad_rm = self.add_user_traces(self.par['add_slits'], method=self.par['add_predict'])
+            if ad_rm and not self.success:
+                self.success = True
         # Show the result, if any traces were added or removed
-        if show_stages and ad_rm:
+        if debug > 0 and ad_rm:
             self.show(title='After user-dictated adding/removing slits')
 
         # TODO: If slits are added/removed, should the code check again if the
@@ -961,6 +898,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
         msgs.info('-'*50)
         msgs.info('{0:^50}'.format('Initialize Edge Tracing'))
         msgs.info('-'*50)
+
+        if self.traceid is not None:
+            # Clear all pre-existing trace data
+            self._reinit_trace_data()
 
         # TODO: Put in some checks that makes sure the relevant image
         # attributes are not None?
@@ -2799,7 +2740,11 @@ class EdgeTraceSet(calibframe.CalibFrame):
             self.edge_fit = self.edge_fit[:,keep]
         self.traceid = self.traceid[keep]
         if self.maskdef_id is not None:
-            self.maskdef_id = self.maskdef_id[keep]
+            try:
+                self.maskdef_id = self.maskdef_id[keep]
+            except:
+                embed()
+                exit()
 
         if resort:
             # Resort by the spatial dimension
@@ -3438,7 +3383,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 been performed, the function will automatically use
                 the center measurements.
             debug (:obj:`bool`, optional):
-                Run in debug mode.
+                Run :func:`build_pca` in debug mode.
             force (:obj:`bool`, optional):
                 Force the recalculation of the PCA even if it has
                 already been done.
@@ -3468,7 +3413,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Log what was done
         self.log += [inspect.stack()[0][3]]
 
-    def peak_refine(self, rebuild_pca=False, debug=False):
+    def peak_refine(self, rebuild_pca=False, show_fits=False, show_peaks=False):
         """
         Refine the trace by isolating peaks and troughs in the Sobel-filtered
         image.
@@ -3511,8 +3456,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 used to reset the fitted trace data; i.e.,
                 :attr:`edge_fit` remains based on the output of
                 :func:`~pypeit.core.trace.peak_trace`.
-            debug (:obj:`bool`, optional):
-                Run in debug mode.
+            show_fits (:obj:`bool`, optional):
+                Show (re)fits to edge traces.
+            show_peaks (:obj:`bool`, optional):
+                Show peaks detected in rectified and collapsed trace image.
 
         Raises:
             PypeItError:
@@ -3589,7 +3536,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                            order=order, maxdev=maxdev, maxiter=maxiter,
                                            niter_uniform=niter_uniform,
                                            niter_gaussian=niter_gaussian, bitmask=self.bitmask,
-                                           debug=debug)
+                                           show_fits=show_fits, show_peaks=show_peaks)
                 fit = np.hstack((fit,_fit))
                 cen = np.hstack((cen,_cen))
                 err = np.hstack((err,_err))
@@ -3614,7 +3561,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                        fwhm_gaussian=fwhm_gaussian, function=function, order=order,
                                        maxdev=maxdev, maxiter=maxiter, niter_uniform=niter_uniform,
                                        niter_gaussian=niter_gaussian, bitmask=self.bitmask,
-                                       debug=debug)
+                                       show_fits=show_fits, show_peaks=show_peaks)
 
         # Assess the output
         ntrace = fit.shape[1]
@@ -3992,7 +3939,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 inserted traces are *not* included in the PCA
                 decomposition.
             debug (:obj:`bool`, optional):
-                Run in debug mode.
+                Use :func:`show` to show the result of the trace syncing.
 
         Returns:
             :obj:`bool`: Returns the status of the syncing. True means
@@ -4469,28 +4416,33 @@ class EdgeTraceSet(calibframe.CalibFrame):
             bpm &= np.logical_not(np.any(self.bitmask.flagged(self.edge_msk, flag=exclude), axis=0))
         return bpm
     
+    # TODO - break up this method (too long)
     def maskdesign_matching(self, debug=False):
         """
-        # TODO - break up this method (too long)
         Match slit info from the mask design data to the traced slits.
 
         Use of this method requires:
-            - a PCA decomposition is available,
-            - :attr:`spectrograph` has a viable `get_maskdef_slitedges` method
-              to read edge trace locations predicted by the slitmask design. This data can be pulled
-              from one of the files used to construct the trace image.
 
-        The method uses a collection of scripts in pypeit.core.slitdesign_matching
-        which are taken from DEEP2 IDL-based pipeline for DEIMOS data.
+            - a PCA decomposition must be available,
 
-        NOTE this method was first written to deal with edge traces predicted by DEIMOS optical model, but
-        subsequently adapted to be used with other spectrographs that don't use optical models.
+            - :attr:`spectrograph` must have a viable ``get_maskdef_slitedges``
+              method to read edge trace locations predicted by the slitmask
+              design.  This data can be pulled from one of the files used to
+              construct the trace image.
 
+        The method uses a collection of scripts in
+        :mod:`pypeit.core.slitdesign_matching`, which are adapted from the DEEP2
+        IDL-based pipeline for DEIMOS data.
 
+        .. note::
+
+            This method was first written to deal with edge traces predicted by
+            DEIMOS optical model, but subsequently adapted to be used with other
+            spectrographs that don't use optical models.
 
         Args:
             debug (:obj:`bool`, optional):
-                Run in debug mode.
+                Show QA plots for the design matching.
         """
 
         # Remove any fully masked traces. Keeps any inserted or
@@ -4743,6 +4695,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
             self.edge_msk[:, 0] = self.bitmask.turn_on(self.edge_msk[:, 0], 'OFFDETECTOR')
 
         # sync
+        # NOTE: debug is not passed here.  The main calling function
+        # (auto_trace) will show the result of the syncing if requested.
         self.sync()
 
         # remove traces with a mismatch in the maskdef_id (it's better to remove the traces

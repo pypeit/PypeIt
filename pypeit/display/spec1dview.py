@@ -79,8 +79,6 @@ from ginga.canvas.CanvasObject import get_canvas_types
 
 from pypeit import specobjs
 from pypeit import utils
-# TODO: need to make PypeIt LineList class to deprecate linetools
-from linetools.lists.linelist import LineList
 
 __all__ = ['Spec1dView']
 
@@ -110,8 +108,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         # selected line list
         self.line_list = 'None'
         # allowed line lists
-        self.line_lists = ['None', 'ISM', 'Strong', 'HI', 'H2', 'CO',
-                           'EUV', 'Galaxy', 'AGN']
+        self.line_lists = ['None'] + utils.get_line_list_names()
         self.llist = None   # the actual line list object
         self.ext_name = ''
 
@@ -255,7 +252,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         if self.line_list == 'None':
             self.llist = None
         else:
-            self.llist = LineList(self.line_list)
+            self.llist = utils.get_line_list(self.line_list)
         self.logger.info(f"Loaded line list: '{self.line_list}'")
 
         self.fv.gui_do(self.plot_lines)
@@ -303,14 +300,14 @@ class Spec1dView(GingaPlugin.LocalPlugin):
             y_min, y_max = self.data.y_min, self.data.y_max
 
             z = self.z
-            wvobs = np.array((1 + z) * self.llist.wrest)
+            wvobs = np.array((1 + z) * self.llist['wrest'])
             ylbl_pos = y_max - 0.2 * (y_max - y_min)
             gdwv = np.where((wvobs > x_min) & (wvobs < x_max))[0]
 
             for kk in range(len(gdwv)):
                 jj = gdwv[kk]
-                wrest = self.llist.wrest[jj].value
-                lbl = self.llist.name[jj]
+                wrest = self.llist['wrest'][jj]
+                lbl = self.llist['name'][jj]
                 # Plot
                 x_data = wrest * np.array([z + 1, z + 1])
                 y_data = (y_min, y_max)

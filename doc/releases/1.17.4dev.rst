@@ -43,6 +43,8 @@ Script Changes
   step. This script is useful to re-generate calibration files for a given
   configuration without running the full reduction.
 
+- Added finer debugging control for ``pypeit_trace_edges``
+
 
 Datamodel Changes
 -----------------
@@ -56,7 +58,8 @@ Under-the-hood Improvements
    provided by the pypeit file passed to the script.
  - Moved ``deprecated``, ``paper``, ``presentations``, and ``proposals``
    directories into a new repository ``PypeIt-misc``.
-
+ - Abstracted generation of GitHub remote paths in the cache system to make sure
+   functionality works when working in a fork of the code.
 
 Bug Fixes
 ---------

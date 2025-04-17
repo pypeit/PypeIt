@@ -13,8 +13,8 @@
     
     options:
       -h, --help            show this help message and exit
-      -s SLIT, --slit SLIT  Slit number to use (default: 0)
-      -v VERBOSITY, --verbosity VERBOSITY
+      -s, --slit SLIT       Slit number to use (default: 0)
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             make_arxiv_solution_YYYYMMDD-HHMM.log (default: 1)
