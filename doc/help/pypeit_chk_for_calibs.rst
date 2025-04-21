@@ -12,7 +12,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
+      -s, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: aat_uhrf, bok_bc,
                             gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
@@ -34,7 +34,7 @@
                             soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red (default: None)
-      -e EXTENSION, --extension EXTENSION
+      -e, --extension EXTENSION
                             File extension to use. Must include the period (e.g.,
                             ".fits") and it must be one of the allowed extensions
                             for this spectrograph. If None, root directory will be

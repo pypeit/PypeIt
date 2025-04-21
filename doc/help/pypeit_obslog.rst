@@ -34,7 +34,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -r ROOT, --root ROOT  Root to search for data files. You can provide the top-
+      -r, --root ROOT       Root to search for data files. You can provide the top-
                             level directory (e.g., /data/Kast) or the search string
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
@@ -44,7 +44,7 @@
                             associated header cards. Metadata keys with header cards
                             that are None have no simple mapping between keyword and
                             header card. (default: False)
-      -c COLUMNS, --columns COLUMNS
+      -c, --columns COLUMNS
                             A comma-separated list of columns to include in the
                             output table. Each column must be a valid pypeit
                             metadata keyword specific to this spectrograph (run
@@ -57,7 +57,7 @@
                             (default: pypeit)
       -b, --bad_frames      Clean the output of bad frames that cannot be reduced by
                             pypeit. (default: False)
-      -t BAD_TYPES, --bad_types BAD_TYPES
+      -t, --bad_types BAD_TYPES
                             Dictates how frames that could not be given a valid type
                             should be treated. Options are: "keep" to include them
                             in the output, "rm" to remove them from the output,
@@ -72,20 +72,20 @@
                             IPython session that you can use to interact with the
                             table (an Astropy.Table called fitstbl) directly.
                             (default: False)
-      -s SORT, --sort SORT  Metadata keyword (pypeit-specific) to use to sort the
+      -s, --sort SORT       Metadata keyword (pypeit-specific) to use to sort the
                             output table. (default: mjd)
-      -e EXTENSION, --extension EXTENSION
+      -e, --extension EXTENSION
                             File extension to use. Must include the period (e.g.,
                             ".fits") and it must be one of the allowed extensions
                             for this spectrograph. If None, root directory will be
                             searched for all files with any of the allowed
                             extensions. (default: None)
-      -d OUTPUT_PATH, --output_path OUTPUT_PATH
+      -d, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default: current
                             working directory)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
-      -f FILE, --file FILE  Name for the ascii output file. Any leading directory
+      -f, --file FILE       Name for the ascii output file. Any leading directory
                             path is stripped; use -d to set the output directory. If
                             None, the table is just printed to stdout. If set to
                             'default', the file is set to [spectrograph].obslog.

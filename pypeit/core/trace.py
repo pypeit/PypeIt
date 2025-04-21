@@ -1227,7 +1227,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
                peak_thresh=100.0, peak_clip=None, trough=False, trace_median_frac=0.01,
                trace_thresh=10.0, fwhm_uniform=3.0, fwhm_gaussian=3.0, maxshift=None,
                maxerror=None, function='legendre', order=5, maxdev=5.0, maxiter=25,
-               niter_uniform=9, niter_gaussian=6, bitmask=None, debug=False):
+               niter_uniform=9, niter_gaussian=6, bitmask=None, show_fits=False, show_peaks=False):
     """
     Find and trace features in an image by identifying peaks/troughs
     after collapsing along the spectral axis.
@@ -1364,8 +1364,10 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         bitmask (:class:`~pypeit.bitmask.BitMask`, optional):
             Object used to toggle the returned bit masks in edge
             centroid measurements; see :func:`masked_centroid`.
-        debug (:obj:`bool`, optional):
-            Show plots useful for debugging.
+        show_fits (:obj:`bool`, optional):
+            Show (re)fits to edge traces.
+        show_peaks (:obj:`bool`, optional):
+            Show peaks detected in rectified and collapsed trace image.
 
     Returns:
         :obj:`tuple`: Returns four `numpy.ndarray`_ objects and the
@@ -1421,8 +1423,6 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         # since that is the width of the sobel filter
         flux_extract = sampling.rectify_image(flux, trace_map, bpm=bpm, extract_width=fwhm_gaussian 
                                                 if extract_width is None else extract_width)[0]
-#        if debug:
-#            ginga.show_image(flux_extract, chname ='rectified image')
 
     # Collapse the image along the spectral direction to isolate peaks/troughs
     start, end = np.clip(np.asarray(smash_range)*nspec, 0, nspec).astype(int)
@@ -1459,7 +1459,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         peak, _, _cen, _, _, best, _, _ \
                 = arc.detect_lines(s*flux_smash_mean, cont_subtract=False, fwhm=fwhm_gaussian,
                                    input_thresh=peak_thresh, max_frac_fwhm=4.0,
-                                   min_pkdist_frac_fwhm=5.0, debug=debug)
+                                   min_pkdist_frac_fwhm=5.0, debug=show_peaks)
 
         if len(_cen) == 0 or not np.any(best):
             msgs.warn('No good {0}s found!'.format(l))
@@ -1508,7 +1508,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, bpm=bpm,
                             trace_bpm=trace_peak_bpm, fwhm=fwhm_uniform, maxshift=maxshift,
                             maxerror=maxerror, function=function, maxdev=maxdev, maxiter=maxiter,
-                            niter=niter_uniform, bitmask=bitmask, debug=debug)
+                            niter=niter_uniform, bitmask=bitmask, debug=show_fits)
 
         # Reset the mask
         # TODO: Use or include `bad` resulting from fit_trace()?
@@ -1522,7 +1522,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, bpm=bpm, trace_bpm=trace_peak_bpm,
                             weighting='gaussian', fwhm=fwhm_gaussian, maxshift=maxshift,
                             maxerror=maxerror, function=function, maxdev=maxdev, maxiter=maxiter,
-                            niter=niter_gaussian, bitmask=bitmask, debug=debug)
+                            niter=niter_gaussian, bitmask=bitmask, debug=show_fits)
 
         # Save the results
         fit = np.append(fit, trace_peak, axis=1)

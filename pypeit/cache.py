@@ -41,12 +41,17 @@ import astropy.utils.data
 import github
 import requests
 
+
 # NOTE: pygit2 is only used for testing purposes.  It is not a requirement for a
 # general user.  Hence the try block below.
 try:
     from pygit2 import Repository
 except ImportError:
     Repository = None
+    GitError = None
+else:
+    from pygit2 import GitError
+
 
 # NOTE: To avoid circular imports, avoid (if possible) importing anything from
 # pypeit into this module!  Objects created or available in pypeit/__init__.py
@@ -57,6 +62,21 @@ from pypeit import __version__
 
 
 __PYPEIT_DATA__ = resources.files('pypeit') / 'data'
+__PYPEIT_REPO_PATH__ = 'pypeit/PypeIt'
+
+
+def git_repo():
+    """
+    Get a reference to the local repository, if possible.
+    """
+    if Repository is None:
+        # pygit2 not available
+        return None
+    try:
+        return Repository(resources.files('pypeit'))
+    except GitError:
+        # PypeIt not in a git repo
+        return None
 
 
 # For development versions, try to get the branch name
@@ -65,21 +85,33 @@ def git_branch():
     Return the name/hash of the currently checked out branch
     
     Returns:
-        :obj:`str`: Branch name or hash. Defaults to "develop" if PypeIt is not currently in a repository
-        or pygit2 is inot installed.
-    
+        :obj:`str`: Branch name or hash. Defaults to "develop" if PypeIt is not
+        currently in a repository or pygit2 is not installed.
     """
-    if Repository is not None:
-        try:
-            repo = Repository(resources.files('pypeit'))
-        except Exception as e:
-            # PypeIt not in a git repo
-            repo = None
-
-    if Repository is None or repo is None:
+    repo = git_repo()
+    if repo is None:
         return 'develop' if '.dev' in __version__ else __version__
-
     return str(repo.head.target) if repo.head_is_detached else str(repo.head.shorthand)
+
+
+def git_remote_path():
+    """
+    The main path to the GitHub repository.
+
+    This defaults to the main repository if the repository cannot be defined
+    (see :func:`git_repo`) or if the "origin" remote URL cannot be determined.
+
+    Returns:
+        :obj:`str`: Remote path
+    """
+    repo = git_repo()
+    if repo is None:
+        return __PYPEIT_REPO_PATH__
+    try:
+        url = repo.remotes['origin'].url
+    except KeyError:
+        return __PYPEIT_REPO_PATH__
+    return urlparse(url).path.replace('.git','').removeprefix('/')
 
 
 def github_contents(repo, branch, path, recursive=True):
@@ -379,44 +411,68 @@ def parse_cache_url(url):
     """
     Parse a URL from the cache into its relevant components.
 
-    Args:
-        url (:obj:`str`):
-            URL of a file in the pypeit cache. A valid cache URL must include
-            either ``'github'`` or ``'s3.cloud'`` in its address.
+    Parameters
+    ----------
+    url : :obj:`str`
+        URL of a file in the pypeit cache. A valid cache URL must include either
+        ``'github'`` or ``'s3.cloud'`` in its address.
 
-    Returns:
-        :obj:`tuple`: A tuple of four strings parsed from the URL.  If the URL
-        is not considered a valid cache URL, all elements of the tuple are None.
-        The parsed elements of the url are: (1) the host name, which will be
-        either ``'github'`` or ``'s3_cloud'``, (2) the branch name, which will
-        be None when the host is ``'s3_cloud'``, (3) the subdirectory of
-        ``pypeit/data/`` in which to find the file (e.g.,
-        ``arc_lines/reid_arxiv`` or ``sensfuncs``), and (4) the file name.
+    Returns
+    -------
+    host : :obj:`str`
+        Host name, either ``'github'`` or ``'s3_cloud'``.  None if the ``url``
+        is not valid.
+    fork : :obj:`str`
+        Fork name.  None if the ``url`` is not valid or if the host is
+        ``'s3_cloud'``.
+    branch : :obj:`str`
+        Branch name.  None if the ``url`` is not valid or if the host is
+        ``'s3_cloud'``.
+    dir : :obj:`str`
+        Directory name.  None if the ``url`` is not valid.
+    file : :obj:`str`
+        File name.  None if the ``url`` is not valid.
     """
     url_parts = urlparse(url)
 
     # Get the host
     if 'github' in url_parts.netloc:
-        host = 'github'
-    # NOTE: I'm assuming "s3.cloud" will always be in the url ...
-    elif 's3.cloud' in url_parts.netloc:
-        host = 's3_cloud'
-    else:
-        msgs.warn(f'URL not recognized as a pypeit cache url:\n\t{url}')
-        return None, None, None, None
+        _path = pathlib.PurePosixPath(url_parts.path)
+        root_tuple = _path.parts[:3] if _path.is_absolute() else ('/', *_path.parts[:2])
+        fork = pathlib.PurePosixPath(*root_tuple)
+        sub_path = pathlib.PurePosixPath(url_parts.path).relative_to(fork)
+        branch = sub_path.parts[0]
+        f_type = str(sub_path.parent.relative_to(pathlib.PurePosixPath(f'{branch}/pypeit/data')))
+        return 'github', str(fork), branch, f_type, sub_path.name
 
-    if host == 'github':
-        # Get the branch name
-        github_root = pathlib.PurePosixPath('/pypeit/PypeIt')
-        p = pathlib.PurePosixPath(url_parts.path).relative_to(github_root)
-        branch = p.parts[0]
-        f_type = str(p.parent.relative_to(pathlib.PurePosixPath(f'{branch}/pypeit/data')))
-        return host, branch, f_type, p.name
-    
-    # If we make it here, the host *must* be s3_cloud
-    s3_root = pathlib.PurePosixPath('/pypeit')
-    p = pathlib.PurePosixPath(url_parts.path).relative_to(s3_root)
-    return host, None, str(p.parent), p.name
+    elif 's3.cloud' in url_parts.netloc:
+        # NOTE: I'm assuming "s3.cloud" will always be in the url ...
+        s3_root = pathlib.PurePosixPath('/pypeit')
+        sub_path = pathlib.PurePosixPath(url_parts.path).relative_to(s3_root)
+        return 's3_cloud', None, None, str(sub_path.parent), sub_path.name
+
+    # Unknown host
+    msgs.warn(f'URL not recognized as a pypeit cache url:\n\t{url}')
+    return None, None, None, None, None
+
+
+def list_cache_contents(contents):
+    """
+    Print the list of cache contents
+
+    Parameters
+    ----------
+    contents : :obj:`dict`
+        A dictionary with key-value pairs that provide the original source url
+        (key) and the path to the local file (value).  This can be generated
+        using :func:`search_cache`.
+    """
+    print(f' {"HOST":>10} {"FORK":>20} {"BRANCH":>15} {"SUBDIR":>15} {"FILE":<20}')
+    for url in contents.keys():
+        head, fork, branch, subdir, f = parse_cache_url(url)
+        print(f' {head:>10} {"..." if fork is None else fork:>20}'
+              f'{"..." if branch is None else branch:>20}'
+              f' {subdir:>20} {f:<30}')
 
 
 def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):
@@ -452,7 +508,7 @@ def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):
         (above) is what controls the download.
     """
     if remote_host == "github":
-        parts = ['https://raw.githubusercontent.com/pypeit/PypeIt/', f'{git_branch()}/',
+        parts = ['https://raw.githubusercontent.com', f'/{git_remote_path()}/', f'{git_branch()}/',
                  'pypeit/', 'data/'] + [f'{p}/' for p in pathlib.Path(f_type).parts] + [f'{f_name}']
         return reduce(lambda a, b: urljoin(a, b), parts), None
 
