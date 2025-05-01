@@ -1,0 +1,922 @@
+"""
+Module for VLT/UVES
+
+.. include:: ../include/links.rst
+"""
+import os
+
+from IPython import embed
+
+
+
+import numpy as np
+from scipy.io import readsav
+
+from astropy.table import Table
+from astropy import time
+
+from pypeit import msgs
+from pypeit import telescopes
+from pypeit import io
+from pypeit.core import parse
+from pypeit.core import framematch
+from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
+from pypeit.par import pypeitpar
+from pypeit.images.mosaic import Mosaic
+from pypeit.core.mosaic import build_image_mosaic_transform
+
+
+class UVESMosaicLookUp:
+    """
+    Provides the geometry required to mosaic VLT/UVES data.
+    Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
+
+    """
+    # Original
+    geometry = {
+        # blue
+        'MSC01': {'default_shape': (2048, 4096),
+                  'det1': {'shift': (0., 0.), 'rotation': 0.},},
+        # red
+        'MSC02': {'default_shape': (2048 * 2 + 67.0, 4096),
+                  'det1': {'shift': (0., 0.), 'rotation': 0.},
+                  'det2': {'shift': (2048.0 + 67.0, 0.), 'rotation': 0.}},
+    }
+
+
+class KECKHIRESSpectrograph(spectrograph.Spectrograph):
+    """
+    Child to handle KECK/HIRES specific code.
+
+    This spectrograph is not yet supported.
+    """
+
+    ndet = 3
+    name = 'keck_hires'
+    telescope = telescopes.KeckTelescopePar()
+    camera = 'HIRES'
+    url = 'https://www2.keck.hawaii.edu/inst/hires/'
+    header_name = 'HIRES'
+    url = 'https://www2.keck.hawaii.edu/inst/hires/'
+    pypeline = 'Echelle'
+    ech_fixed_format = False
+    supported = False
+    # TODO before support = True
+    # 1. Implement flat fielding - DONE
+    # 2. Test on several different setups - DONE
+    # 3. Implement PCA extrapolation into the blue
+
+    comment = 'Post detector upgrade (~ August 2004). See :doc:`keck_hires`'
+
+
+    # TODO: Place holder parameter set taken from X-shooter VIS for now.
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        par['rdx']['detnum'] = [(1,2,3)]
+
+        # Adjustments to parameters for Keck HIRES
+        turn_off_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median')
+        par.reset_all_processimages_par(**turn_off_on)
+        # Right now we are using the overscan and not biases becuase the
+        # standards are read with a different read mode and we don't yet have
+        # the option to use different sets of biases for different standards,
+        # or use the overscan for standards but not for science frames
+
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
+        #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
+        par['calibrations']['traceframe']['exprng'] = [None, 60]
+        par['calibrations']['illumflatframe']['exprng'] = [None, 60]
+        par['calibrations']['standardframe']['exprng'] = [1, 600]
+        par['scienceframe']['exprng'] = [601, None]
+
+        # Set default processing for slitless_pixflat
+        par['calibrations']['slitless_pixflatframe']['process']['scale_to_mean'] = True
+
+        # Slit tracing
+        par['calibrations']['slitedges']['edge_thresh'] = 8.0
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
+        par['calibrations']['slitedges']['max_nudge'] = 0.
+        par['calibrations']['slitedges']['overlap'] = True
+        par['calibrations']['slitedges']['dlength_range'] = 0.25
+        par['calibrations']['slitedges']['mask_off_detector'] = True
+
+        par['calibrations']['slitedges']['add_missed_orders'] = True
+        par['calibrations']['slitedges']['order_width_poly'] = 2
+        par['calibrations']['slitedges']['order_gap_poly'] = 3
+
+        # These are the defaults
+        par['calibrations']['tilts']['tracethresh'] = 15
+        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spec_order'] = 5  # [5, 5, 5] + 12*[7] # + [5]
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['n_final'] = 4
+
+        par['calibrations']['wavelengths']['match_toler'] = 1.5
+        # Reidentification parameters
+        par['calibrations']['wavelengths']['method'] = 'echelle'
+        par['calibrations']['wavelengths']['cc_shift_range'] = (-80.,80.)
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.25
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
+
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
+        par['calibrations']['wavelengths']['ech_sigrej'] = 2.0
+        par['calibrations']['wavelengths']['ech_separate_2d'] = True
+        par['calibrations']['wavelengths']['bad_orders_maxfrac'] = 0.5
+
+        # Flats
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+
+        # Extraction
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
+        par['reduce']['skysub']['global_sky_std'] = False
+        # local sky subtraction operates on entire slit
+        par['reduce']['extraction']['model_full_slit'] = True
+        # Mask 3 edges pixels since the slit is short, insted of default (5,5)
+        par['reduce']['findobj']['find_trim_edge'] = [3, 3]
+        # number of objects
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is max two object in each order.
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 5 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_10500_R120000.fits'
+        par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0,40.0)
+        
+        # Telluric parameters
+        # HIRES is usually oversampled, so the helio shift can be large
+        par['telluric']['pix_shift_bounds'] = (-40.0,40.0)
+        # Similarly, the resolution guess is higher than it should be
+        par['telluric']['resln_frac_bounds'] = (0.25,1.25)
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        headarr = self.get_headarr(scifile)
+
+        bin_spec, bin_spat = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
+
+        # slit edges
+        # NOTE: With add_missed_orders set to True and order_spat_range set to the
+        # default (None), the code will try to add missing orders over the full
+        # range of the detector mosaic!
+        par['calibrations']['slitedges']['order_spat_range'] = [10., 6200./bin_spat]
+
+        # wavelength
+        par['calibrations']['wavelengths']['fwhm'] = 8.0/bin_spec
+
+        # Return
+        return par
+
+    def init_meta(self):
+        """
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the PypeIt-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
+        """
+        self.meta = {}
+        # Required (core)
+        self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])
+        self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
+        self.meta['decker'] = dict(ext=0, card='DECKNAME')
+        self.meta['binning'] = dict(card=None, compound=True)
+        self.meta['mjd'] = dict(card=None, compound=True)
+        # This may depend on the old/new detector
+        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+
+        # Extras for config and frametyping
+        self.meta['hatch'] = dict(ext=0, card='HATOPEN')
+        self.meta['dispname'] = dict(ext=0, card='XDISPERS')
+        self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
+        self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
+        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
+        self.meta['object'] = dict(ext=0, card='OBJECT')
+        self.meta['idname'] = dict(card=None, compound=True)
+        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        self.meta['lampstat01'] = dict(card=None, compound=True)
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'binning':
+            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
+            binning = parse.binning2string(binspec, binspatial)
+            return binning
+        elif meta_key == 'mjd':
+            if headarr[0].get('MJD', None) is not None:
+                return headarr[0]['MJD']
+            else:
+                return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
+        elif meta_key == 'lampstat01':
+            if headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2'):
+                return 'ThAr1' if headarr[0].get('LAMPCAT1') else 'ThAr2'
+            elif headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1'):
+                # LAMPNAME is a configurable keyword, so there is no guarantee that the values are correct,
+                # so we use LAMPQTZ2, but LAMPQTZ1 keyword doesn't exist, so we use LAMPNAME and hope for the best
+                return 'on'
+            else:
+                return 'off'
+
+        elif meta_key == 'idname':
+            xcovopen = headarr[0].get('XCOVOPEN')
+            collcoveropen = (headarr[0].get('XDISPERS') == 'RED' and headarr[0].get('RCCVOPEN')) or \
+                        (headarr[0].get('XDISPERS') == 'UV' and headarr[0].get('BCCVOPEN'))
+
+            if xcovopen and collcoveropen and \
+                    not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
+                    not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
+                if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
+                    return 'Object'
+                elif not headarr[0].get('HATOPEN'):
+                    return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
+            elif xcovopen and collcoveropen and \
+                    headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
+                return 'Line'
+            elif collcoveropen and \
+                    headarr[0].get('AUTOSHUT') and \
+                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) and \
+                    not headarr[0].get('HATOPEN'):
+                if not xcovopen:
+                    return 'slitlessFlat'
+                else:
+                    return 'IntFlat'
+
+        else:
+            msgs.error("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'decker', 'filter1', 'echangle', 'xdangle', 'binning']
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        Bias and dark frames are considered independent of a configuration,
+        but the DATE-OBS keyword is used to assign each to the most-relevant
+        configuration frame group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': ['dispname', 'binning'], 'dark': ['dispname', 'binning'],
+                'slitless_pixflat': ['dispname', 'binning']}
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['FIL1NAME', 'ECHANGL', 'XDANGL']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'frameno']
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        # TODO: Allow for 'sky' frame type, for now include sky in
+        # 'science' category
+        if ftype in ['science', 'standard']:
+            return good_exp & (fitstbl['idname'] == 'Object')
+        if ftype == 'bias':
+            return good_exp & (fitstbl['idname'] == 'Bias')
+        if ftype == 'dark':
+            return good_exp & (fitstbl['idname'] == 'Dark')
+        if ftype == 'slitless_pixflat':
+            return good_exp & (fitstbl['idname'] == 'slitlessFlat')
+        if ftype in ['illumflat', 'pixelflat', 'trace']:
+            # Flats and trace frames are typed together
+            return good_exp & (fitstbl['idname'] == 'IntFlat')
+        if ftype in ['arc', 'tilt']:
+            # Arc and tilt frames are typed together
+            return good_exp & (fitstbl['idname'] == 'Line')
+
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+
+    def vet_assigned_ftypes(self, type_bits, fitstbl):
+        """
+
+        NOTE: this function should only be called when running pypeit_setup,
+        in order to not overwrite any user-provided frame types.
+
+        This method checks the assigned frame types for consistency.
+        For frames that are assigned both the science and standard types,
+        this method chooses the one that is most likely, by checking if the
+        frames are within 10 arcmin of a listed standard star.
+
+        In addition, for this instrument, if a frame is assigned both a
+        pixelflat and slitless_pixflat type, the pixelflat type is removed.
+        NOTE: if the same frame is assigned to multiple configurations, this
+        method will remove the pixelflat type for all configurations, i.e.,
+        it is not possible to use slitless_pixflat type for one calibration group
+        and pixelflat for another.
+
+        Args:
+            type_bits (`numpy.ndarray`_):
+                Array with the frame types assigned to each frame.
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
+
+        Returns:
+            `numpy.ndarray`_: The updated frame types.
+
+        """
+        type_bits = super().vet_assigned_ftypes(type_bits, fitstbl)
+
+        # If both pixelflat and slitless_pixflat are assigned to the same frame, remove pixelflat
+
+        # where slitless_pixflat is assigned
+        slitless_idx = fitstbl.type_bitmask.flagged(type_bits, flag='slitless_pixflat')
+        # where pixelflat is assigned
+        pixelflat_idx = fitstbl.type_bitmask.flagged(type_bits, flag='pixelflat')
+
+        # find configurations where both pixelflat and slitless_pixflat are assigned
+        pixflat_match = np.zeros(len(fitstbl), dtype=bool)
+
+        for f, frame in enumerate(fitstbl):
+            if pixelflat_idx[f]:
+                match_config_values = []
+                for slitless in fitstbl[slitless_idx]:
+                    match_config_values.append(np.all([frame[c] == slitless[c]
+                                                       for c in self.config_independent_frames()['slitless_pixflat']]))
+                pixflat_match[f] = np.any(match_config_values)
+
+        # remove pixelflat from the type_bits
+        type_bits[pixflat_match] = fitstbl.type_bitmask.turn_off(type_bits[pixflat_match], 'pixelflat')
+
+        return type_bits
+
+    def parse_raw_files(self, fitstbl, det=1, ftype=None):
+        """
+        Parse the list of raw files with given frame type and detector.
+        This is spectrograph-specific, and it is not defined for all
+        spectrographs.
+        Since different slitless_pixflat frames are usually taken for
+        each of the three detectors, this method parses the slitless_pixflat
+        frames and returns the correct one for the requested detector.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                Table with metadata of the raw files to parse.
+            det (:obj:`int`, optional):
+                1-indexed detector number to parse.
+            ftype (:obj:`str`, optional):
+                Frame type to parse. If None, no frames are parsed
+                and the indices of all frames are returned.
+
+        Returns:
+            `numpy.ndarray`_: The indices of the raw files in the fitstbl that are parsed.
+
+        """
+
+        if ftype == 'slitless_pixflat':
+            # Check for the required info
+            if len(fitstbl) == 0:
+                msgs.warn('Fitstbl provided is emtpy. No parsing done.')
+                # return empty array
+                return np.array([], dtype=int)
+            elif det is None:
+                msgs.warn('Detector number must be provided to parse slitless_pixflat frames.  No parsing done.')
+                # return index array of length of fitstbl
+                return np.arange(len(fitstbl))
+
+            # how many unique xdangle values are there?
+            # If they are 3, then we have a different slitless flat file per detector
+            xdangles = np.unique(np.int32(fitstbl['xdangle'].value))
+            if len(xdangles) == 3:
+                sort_xdagles = np.argsort(xdangles)
+                # xdagles: -5 for red(det=3), -4 for green (det=2), -3 for blue (det=1) dets
+                # select the corresponding files for the requested detector
+                if det == 1:
+                    # blue detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -3)[0]
+                elif det == 2:
+                    # green detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -4)[0]
+                elif det == 3:
+                    # red detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -5)[0]
+            else:
+                msgs.warn('The provided list of slitless_pixflat frames does not have exactly 3 unique XDANGLE values. '
+                          'Pypeit cannot determine which slitless_pixflat frame corresponds to the requested detector. '
+                          'All frames will be used.')
+                return np.arange(len(fitstbl))
+
+        else:
+            return super().parse_raw_files(fitstbl, det=det, ftype=ftype)
+
+    def get_rawimage(self, raw_file, det, spectrim=20):
+        """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
+        Based on readmhdufits.pro
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
+
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        """
+        # TODO -- Put a check in here to avoid data using the
+        #  original CCD (1 chip)
+
+
+        # Check for file; allow for extra .gz, etc. suffix
+        if not os.path.isfile(raw_file):
+            msgs.error(f'{raw_file} not found!')
+        hdu = io.fits_open(raw_file)
+
+        head0 = hdu[0].header
+
+        # Get post, pre-pix values
+        precol = head0['PRECOL']
+        postpix = head0['POSTPIX']
+        preline = head0['PRELINE']
+        postline = head0['POSTLINE']
+        detlsize = head0['DETLSIZE']
+        x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
+
+        # get the x and y binning factors...
+        #binning = head0['BINNING']
+
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+#        # TODO: JFH I think this works fine
+#        if binning != '3,1':
+#            msgs.warn("This binning for HIRES might not work.  But it might..")
+
+        # We are flipping this because HIRES stores the binning oppostire of the (binspec, binspat) pypeit convention.
+        binspatial, binspec = parse.parse_binning(head0['BINNING'])
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
+
+        # Grab the detector or mosaic parameters
+        mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
+        detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
+
+        # get the chips to read in
+        # DP: I don't know if this needs to still exist. I believe det is never None
+        if det is None:
+            chips = range(self.ndet)
+        else:
+            chips = [d-1 for d in _det]  # Indexing starts at 0 here
+
+        # get final datasec and oscan size (it's the same for every chip so
+        # it's safe to determine it outsize the loop)
+
+        # Create final image
+        if det is None:
+            # JFH: TODO is this a good idea?
+            image = np.zeros((x_npix, y_npix + 4 * postpix))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+        else:
+            data, oscan = hires_read_1chip(hdu, chips[0] + 1)
+            image = np.zeros((nimg, data.shape[0], data.shape[1] + oscan.shape[1]))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+
+
+        # Loop over the chips
+        for ii, tt in enumerate(chips):
+            image_ii, oscan_ii = hires_read_1chip(hdu, tt + 1)
+
+            # Indexing
+            x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det, xbin=binspatial, ybin=binspec)
+
+            # Fill
+            image[ii, y1:y2, x1:x2] = image_ii
+            image[ii, o_y1:o_y2, o_x1:o_x2] = oscan_ii
+            rawdatasec_img[ii, y1:y2-spectrim//binspec, x1:x2] = 1  # Amp
+            oscansec_img[ii, o_y1:o_y2-spectrim//binspec, o_x1:o_x2] = 1  # Amp
+
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+
+        # Return
+        # Handle returning both single and multiple images
+        if nimg == 1:
+            return detectors[0], image[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
+        return mosaic, image, hdu, exptime, rawdatasec_img, oscansec_img
+
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_ord (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters.
+        """
+
+        # Validate the entered (list of) detector(s)
+        nimg, _ = self.validate_det(mosaic)
+
+        # Index of mosaic in list of allowed detector combinations
+        mosaic_id = self.allowed_mosaics.index(mosaic)+1
+        detid = f'MSC0{mosaic_id}'
+
+        # Get the detectors
+        detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
+        # Binning *must* be consistent for all detectors
+        if any(d.binning != detectors[0].binning for d in detectors[1:]):
+            msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+
+        # Collect the offsets and rotations for *all unbinned* detectors in the
+        # full instrument, ordered by the number of the detector.  Detector
+        # numbers must be sequential and 1-indexed.
+        # See the mosaic documentattion.
+        msc_geometry = HIRESMosaicLookUp.geometry
+        expected_shape = msc_geometry[detid]['default_shape']
+        shift = np.array([(msc_geometry[detid]['blue_det']['shift'][0], msc_geometry[detid]['blue_det']['shift'][1]),
+                          (msc_geometry[detid]['green_det']['shift'][0], msc_geometry[detid]['green_det']['shift'][1]),
+                          (msc_geometry[detid]['red_det']['shift'][0], msc_geometry[detid]['red_det']['shift'][1])])
+
+        rotation = np.array([msc_geometry[detid]['blue_det']['rotation'], msc_geometry[detid]['green_det']['rotation'],
+                             msc_geometry[detid]['red_det']['rotation']])
+
+        # The binning and process image shape must be the same for all images in
+        # the mosaic
+        binning = tuple(int(b) for b in detectors[0].binning.split(','))
+        shape = tuple(n // b for n, b in zip(expected_shape, binning))
+
+        msc_sft = [None]*nimg
+        msc_rot = [None]*nimg
+        msc_tfm = [None]*nimg
+
+        for i in range(nimg):
+            msc_sft[i] = shift[i]
+            msc_rot[i] = rotation[i]
+            # binning is here in the PypeIt convention of (binspec, binspat), but the mosaic tranformations
+            # occur in the raw data frame, which flips spectral and spatial
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
+
+        return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
+                      np.array(msc_tfm), msc_ord)
+
+
+    @property
+    def allowed_mosaics(self):
+        """
+        Return the list of allowed detector mosaics.
+
+        Keck/HIRES only allows for mosaicing all three detectors.
+
+        Returns:
+            :obj:`list`: List of tuples, where each tuple provides the 1-indexed
+            detector numbers that can be combined into a mosaic and processed by
+            PypeIt.
+        """
+        return [(1,2,3)]
+
+    @property
+    def default_mosaic(self):
+        return self.allowed_mosaics[0]
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        # Binning
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+
+        # Detector 1
+
+        detector_dict1 = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 1,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.135,
+            darkcurr        = 0.0,  # e-/pixel/hour
+            saturation      = 65535.,
+            nonlinear       = 0.7, # Website says 0.6, but we'll push it a bit
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            ronoise         = np.atleast_1d([2.8]),
+            )
+
+        # Detector 2. 
+        detector_dict2 = detector_dict1.copy()
+        detector_dict2.update(dict(
+            det=2,
+            dataext=2,
+            ronoise=np.atleast_1d([3.1])
+        ))
+
+
+        # Detector 3,. 
+        detector_dict3 = detector_dict1.copy()
+        detector_dict3.update(dict(
+            det=3,
+            dataext=3,
+            ronoise=np.atleast_1d([3.1])
+        ))
+
+        # Set gain 
+        # https://www2.keck.hawaii.edu/inst/hires/instrument_specifications.html
+        if hdu is None or hdu[0].header['CCDGAIN'].strip() == 'low':
+            detector_dict1['gain'] = np.atleast_1d([1.9])
+            detector_dict2['gain'] = np.atleast_1d([2.1])
+            detector_dict3['gain'] = np.atleast_1d([2.1])
+        elif hdu[0].header['CCDGAIN'].strip() == 'high':
+            detector_dict1['gain'] = np.atleast_1d([0.78])
+            detector_dict2['gain'] = np.atleast_1d([0.86])
+            detector_dict3['gain'] = np.atleast_1d([0.84])
+        else:
+            msgs.error("Bad CCDGAIN mode for HIRES")
+            
+        # Instantiate
+        detector_dicts = [detector_dict1, detector_dict2, detector_dict3]
+        return detector_container.DetectorContainer( **detector_dicts[det-1])
+
+    def get_echelle_angle_files(self):
+        """ Pass back the files required
+        to run the echelle method of wavecalib
+
+        Returns:
+            list: List of files
+        """
+        angle_fits_file = 'keck_hires_angle_fits.fits'
+        composite_arc_file = 'keck_hires_composite_arc.fits'
+
+        return [angle_fits_file, composite_arc_file]
+        
+
+    def order_platescale(self, order_vec, binning=None):
+        """
+        Return the platescale for each echelle order.
+
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
+
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
+
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
+        """
+        det = self.get_detector_par(1)
+        binspectral, binspatial = parse.parse_binning(binning)
+
+        # Assume no significant variation (which is likely true)
+        return np.ones_like(order_vec)*det.platescale*binspatial
+
+def indexing(itt, postpix, det=None,xbin=1,ybin=1):
+    """
+    Some annoying book-keeping for instrument placement.
+
+    Parameters
+    ----------
+    itt : int
+    postpix : int
+    det : int, optional
+
+    Returns
+    -------
+
+    """
+    # Deal with single chip
+    if det is not None:
+        tt = 0
+    else:
+        tt = itt
+    ii = int(np.round(2048/xbin))
+    jj = int(np.round(4096/ybin))
+    # y indices
+    y1, y2 = 0, jj
+    o_y1, o_y2 = y1, y2
+
+    # x
+    x1, x2 = (tt%4)*ii, (tt%4 + 1)*ii
+    if det is None:
+        o_x1 = 4*ii + (tt%4)*postpix
+    else:
+        o_x1 = ii + (tt%4)*postpix
+    o_x2 = o_x1 + postpix
+
+    # Return
+    return x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2
+
+def hires_read_1chip(hdu,chipno):
+    """ Read one of the HIRES detectors
+
+    Parameters
+    ----------
+    hdu : HDUList
+    chipno : int
+
+    Returns
+    -------
+    data : ndarray
+    oscan : ndarray
+    """
+
+    # Extract datasec from header
+    datsec = hdu[chipno].header['DATASEC']
+    detsec = hdu[chipno].header['DETSEC']
+    postpix = hdu[0].header['POSTPIX']
+    precol = hdu[0].header['PRECOL']
+
+    x1_dat, x2_dat, y1_dat, y2_dat = np.array(parse.load_sections(datsec)).flatten()
+    x1_det, x2_det, y1_det, y2_det = np.array(parse.load_sections(detsec)).flatten()
+
+    # This rotates the image to be increasing wavelength to the top
+    #data = np.rot90((hdu[chipno].data).T, k=2)
+    #nx=data.shape[0]
+    #ny=data.shape[1]
+
+    # Science data
+    fullimage = hdu[chipno].data
+    data = fullimage[x1_dat:x2_dat,y1_dat:y2_dat]
+
+    # Overscan
+    oscan = fullimage[:,y2_dat:]
+
+    # Flip as needed
+    if x1_det > x2_det:
+        data = np.flipud(data)
+        oscan = np.flipud(oscan)
+    if y1_det > y2_det:
+        data = np.fliplr(data)
+        oscan = np.fliplr(oscan)
+
+    # Return
+    return data, oscan
