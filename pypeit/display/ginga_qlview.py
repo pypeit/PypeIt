@@ -89,10 +89,12 @@ class QLView(GingaPlugin.LocalPlugin):
         #            ('Last Changed', 'st_mtime_str')]
         columns = [
             ('Type', 'icon'),
+            ('Frame No', 'FRAMENO'),
             ('Name', 'name'),
             ('Object', 'OBJECT'),
-            ('Frame No', 'FRAMENO'),
             ('Type', 'IMTYPE'),
+            ('Mask Name', 'MASKNAME'),
+            ('Obs Mode', 'OBSMODE'),
             ('Exposure Time', 'EXPTIME'),
             ('Last Changed', 'st_mtime_str')
         ]
@@ -714,6 +716,8 @@ class QLView(GingaPlugin.LocalPlugin):
                 header_dict['OBJECT'] = header.get('OBJECT', 'N/A')
                 header_dict['FRAMENO'] = header.get('FRAMENO', 'N/A')
                 header_dict['IMTYPE'] = header.get('KOAIMTYP', 'N/A') # Just use KOA, since that's the only consistent one
+                header_dict['MASKNAME'] = header.get('MASKNAME', 'N/A')
+                header_dict['OBSMODE'] = header.get('OBSMODE', 'N/A')
                 header_dict['EXPTIME'] = header.get('EXPTIME', None)
                 if header_dict['EXPTIME'] is None:
                     header_dict['EXPTIME'] = header.get('TTIME', None)
@@ -741,7 +745,10 @@ class QLView(GingaPlugin.LocalPlugin):
                             OBJECT=header_dict['OBJECT'],
                             FRAMENO=header_dict['FRAMENO'],
                             IMTYPE=header_dict['IMTYPE'],
-                            EXPTIME=header_dict['EXPTIME'],))
+                            EXPTIME=header_dict['EXPTIME'],
+                            MASKNAME=header_dict['MASKNAME'],
+                            OBSMODE=header_dict['OBSMODE'],
+                            ))
             except KeyError as e:
                 bnch.update(dict(path=path, name=filename, type=ftype,
                             st_mode=filestat.st_mode,
