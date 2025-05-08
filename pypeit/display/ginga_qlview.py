@@ -554,13 +554,13 @@ class QLView(GingaPlugin.LocalPlugin):
             self.raw_text_entry.set_text("Invalid path")
     
 
-    def instrument_combo_cb(self, w):
+    def instrument_combo_cb(self, w, v):
         selected_inst_str = self.instrument_combo.get_text()
         match selected_inst_str:
             case "DEIMOS":
                     self.instrument = DEIMOS(self.logger)
             case "MOSFIRE":
-                    self.logger.error("MOSFIRE not yet implemented.")
+                    self.instrument = MOSFIRE(self.logger)
             case _:
                     self.logger.error(f"Instrument not recognized: {selected_inst_str}")
 
