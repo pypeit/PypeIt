@@ -554,7 +554,7 @@ class QLView(GingaPlugin.LocalPlugin):
             self.raw_text_entry.set_text("Invalid path")
     
 
-    def instrument_combo_cb(self):
+    def instrument_combo_cb(self, w, v):
         selected_inst_str = self.instrument_combo.get_text()
         match selected_inst_str:
             case "DEIMOS":
@@ -713,7 +713,7 @@ class QLView(GingaPlugin.LocalPlugin):
                 # And, if they exist, ITIME, TTIME, EXPTIME, and ETIME
                 header_dict['OBJECT'] = header.get('OBJECT', 'N/A')
                 header_dict['FRAMENO'] = header.get('FRAMENO', 'N/A')
-                header_dict['IMTYPE'] = header.get('IMTYPE', 'N/A')
+                header_dict['IMTYPE'] = header.get('KOAIMTYP', 'N/A') # Just use KOA, since that's the only consistent one
                 header_dict['EXPTIME'] = header.get('EXPTIME', None)
                 if header_dict['EXPTIME'] is None:
                     header_dict['EXPTIME'] = header.get('TTIME', None)
@@ -722,7 +722,8 @@ class QLView(GingaPlugin.LocalPlugin):
                 if header_dict['EXPTIME'] is None:
                     header_dict['EXPTIME'] = header.get('ETIME', None)
                 if header_dict['EXPTIME'] is None:
-                    header_dict['EXPTIME'] = "N/A"
+                    header_dict['EXPTIME'] = header.get('ELAPTIME', "N/A")
+
 
 
         na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
@@ -1237,7 +1238,8 @@ class MOSFIRE(Instrument):
         """
         
         fulldata = hdul[0].data
-        return fulldata
+        
+        return np.rot90(fulldata)
 
 # class popen_w_cb():
 #     """Mirrors Popen, but with a callback for when the process finishes.
