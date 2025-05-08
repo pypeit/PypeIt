@@ -152,6 +152,7 @@ class QLView(GingaPlugin.LocalPlugin):
         config_hbox.add_widget(Widgets.Label("Instrument:"), stretch=0)
         self.instrument_combo = Widgets.ComboBox()
         self.instrument_combo.append_text("DEIMOS")
+        self.instrument_combo.append_text("MOSFIRE")
         self.instrument_combo.add_callback('activated', self.instrument_combo_cb)
         config_hbox.add_widget(self.instrument_combo, stretch=0)
 
@@ -1215,21 +1216,44 @@ class DEIMOS(Instrument):
         
         return fulldata
 
-class popen_w_cb():
-    """Mirrors Popen, but with a callback for when the process finishes.
-    This doesn't actually work since the callback is executed in the thread, though
-    """
+class MOSFIRE(Instrument):
 
-    def __init__(self, onExit, *popenArgs, **popenKWArgs):
-        thread = threading.Thread(target=self.runInThread, args=(onExit, popenArgs, popenKWArgs))
-        thread.start()
+    def __init__(self, logger) -> None:
+        super().__init__(logger)
+        self.pypeit_name = "keck_mosfire"
 
-    def runInThread(self, onExit, popenArgs, popenKWArgs):
-        self.proc = subprocess.Popen(*popenArgs, **popenKWArgs)
-        self.proc.wait()
-        self.proc = None
-        onExit()
+    def get_mosaic(self, hdul) -> np.ndarray:
+        """Return a mosaiced image from the MOSFIRE HDUList.
 
-    def stop(self):
-        if self.proc:
-            self.proc.kill()
+        Parameters
+        ----------
+        HDUList : astropy.io.fits.HDUList
+            The HDUList object containing the raw data.
+
+        Returns
+        -------
+        np.ndarray
+            image, in coordinates that are appropriate for the viewer.
+        """
+        
+        fulldata = hdul[0].data
+        return fulldata
+
+# class popen_w_cb():
+#     """Mirrors Popen, but with a callback for when the process finishes.
+#     This doesn't actually work since the callback is executed in the thread, though
+#     """
+
+#     def __init__(self, onExit, *popenArgs, **popenKWArgs):
+#         thread = threading.Thread(target=self.runInThread, args=(onExit, popenArgs, popenKWArgs))
+#         thread.start()
+
+#     def runInThread(self, onExit, popenArgs, popenKWArgs):
+#         self.proc = subprocess.Popen(*popenArgs, **popenKWArgs)
+#         self.proc.wait()
+#         self.proc = None
+#         onExit()
+
+#     def stop(self):
+#         if self.proc:
+#             self.proc.kill()
