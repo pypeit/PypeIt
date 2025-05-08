@@ -82,11 +82,20 @@ class QLView(GingaPlugin.LocalPlugin):
         keywords = [('Object', 'OBJECT'),
                     ('Date', 'DATE-OBS'),
                     ('Time UT', 'UT')]
-        columns = [('Type', 'icon'),
-                   ('Name', 'name'),
-                   ('Size', 'st_size_str'),
-                   ('Mode', 'st_mode_oct'),
-                   ('Last Changed', 'st_mtime_str')]
+        # columns = [('Type', 'icon'),
+        #            ('Name', 'name'),
+        #            ('Size', 'st_size_str'),
+        #            ('Mode', 'st_mode_oct'),
+        #            ('Last Changed', 'st_mtime_str')]
+        columns = [
+            ('Type', 'icon'),
+            ('Name', 'name'),
+            ('Object', 'OBJECT'),
+            ('Frame No', 'FRAMENO'),
+            ('Type', 'IMTYPE'),
+            ('Exposure Time', 'EXPTIME'),
+            ('Last Changed', 'st_mtime_str')
+        ]
         
         prefs = self.fv.get_preferences()
         self.settings = prefs.create_category('plugin_QLView')
@@ -676,7 +685,7 @@ class QLView(GingaPlugin.LocalPlugin):
 
                 if not os.path.isdir(child_path):
                     if "fits" not in item.text(1):
-                        item.setDisabled(True)
+                        item.setHidden(True)
                 tree_iterator += 1
             if resize:
                 self.raw_treeview.set_optimal_column_widths()
@@ -694,17 +703,51 @@ class QLView(GingaPlugin.LocalPlugin):
         elif ext.lower() == '.fits':
             ftype = 'fits'
         
+        header_dict = {}
+        if ftype == 'fits':
+            with fits.open(path) as hdul:
+                header = hdul[0].header
+                # pull out the following keywords:
+                # OBJECT, FRAMENO, IMTYPE
+                # And, if they exist, ITIME, TTIME, EXPTIME, and ETIME
+                header_dict['OBJECT'] = header.get('OBJECT', 'N/A')
+                header_dict['FRAMENO'] = header.get('FRAMENO', 'N/A')
+                header_dict['IMTYPE'] = header.get('IMTYPE', 'N/A')
+                header_dict['EXPTIME'] = header.get('EXPTIME', None)
+                if header_dict['EXPTIME'] is None:
+                    header_dict['EXPTIME'] = header.get('TTIME', None)
+                if header_dict['EXPTIME'] is None:
+                    header_dict['EXPTIME'] = header.get('ITIME', None)
+                if header_dict['EXPTIME'] is None:
+                    header_dict['EXPTIME'] = header.get('ETIME', None)
+                if header_dict['EXPTIME'] is None:
+                    header_dict['EXPTIME'] = "N/A"
+
+
         na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
         bnch = Bunch.Bunch(na_dict)
         try:
             filestat = os.stat(path)
-            bnch.update(dict(path=path, name=filename, type=ftype,
+            try:
+                bnch.update(dict(path=path, name=filename, type=ftype,
                             st_mode=filestat.st_mode,
                             st_mode_oct=oct(filestat.st_mode),
                             st_size=filestat.st_size,
                             st_size_str=str(filestat.st_size),
                             st_mtime=filestat.st_mtime,
-                            st_mtime_str=time.ctime(filestat.st_mtime)))
+                            st_mtime_str=time.ctime(filestat.st_mtime),
+                            OBJECT=header_dict['OBJECT'],
+                            FRAMENO=header_dict['FRAMENO'],
+                            IMTYPE=header_dict['IMTYPE'],
+                            EXPTIME=header_dict['EXPTIME'],))
+            except KeyError as e:
+                bnch.update(dict(path=path, name=filename, type=ftype,
+                            st_mode=filestat.st_mode,
+                            st_mode_oct=oct(filestat.st_mode),
+                            st_size=filestat.st_size,
+                            st_size_str=str(filestat.st_size),
+                            st_mtime=filestat.st_mtime,
+                            st_mtime_str=time.ctime(filestat.st_mtime),))
         except OSError as e:
             # TODO: identify some kind of error with this path
             bnch.update(dict(path=path, name=filename, type=ftype,
