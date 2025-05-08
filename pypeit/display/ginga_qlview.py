@@ -554,7 +554,7 @@ class QLView(GingaPlugin.LocalPlugin):
             self.raw_text_entry.set_text("Invalid path")
     
 
-    def instrument_combo_cb(self, w, v):
+    def instrument_combo_cb(self):
         selected_inst_str = self.instrument_combo.get_text()
         match selected_inst_str:
             case "DEIMOS":
