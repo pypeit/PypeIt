@@ -710,9 +710,6 @@ class QLView(GingaPlugin.LocalPlugin):
         if ftype == 'fits':
             with fits.open(path) as hdul:
                 header = hdul[0].header
-                # pull out the following keywords:
-                # OBJECT, FRAMENO, IMTYPE
-                # And, if they exist, ITIME, TTIME, EXPTIME, and ETIME
                 header_dict['OBJECT'] = header.get('OBJECT', 'N/A')
                 header_dict['FRAMENO'] = header.get('FRAMENO', 'N/A')
                 header_dict['IMTYPE'] = header.get('KOAIMTYP', 'N/A') # Just use KOA, since that's the only consistent one
