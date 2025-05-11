@@ -141,7 +141,6 @@ class Show2DSpec(scriptbase.ScriptBase):
 
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('show_2dspec', args.verbosity)
-
         # Parse the detector name
         if args.det is None: 
             allspec2d_det = fits.getval(args.file,'HIERARCH ALLSPEC2D_DETS')

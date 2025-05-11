@@ -1053,7 +1053,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         canvas.add('constructedcanvas', canvas_list)
 
     return skyimage[thismask], bkg_redux_skyimage[thismask] if bkg_redux_skyimage is not None else None, \
-        objimage[thismask], modelivar[thismask], outmask[thismask]
+        objimage[thismask], modelivar[thismask], outmask_extract[thismask]
+    # JFH Changed outmask to outmask_extract here. This is the mask that was used fort the extraction, so it should be
+    # the quantity returned. 
+    
 
 
 def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
