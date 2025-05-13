@@ -67,7 +67,7 @@ PypeIt BibTeX Entries
    codeconduct
    installing
    whatsnew
-   known_failure_modes
+   trouble
 
 .. toctree::
    :caption: Quickstart & Tutorials
