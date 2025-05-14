@@ -107,7 +107,7 @@
       --show                show QA during coadding process
       --par_outfile PAR_OUTFILE
                             Output to save the parameters
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             coadd_1dspec_YYYYMMDD-HHMM.log

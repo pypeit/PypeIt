@@ -26,7 +26,6 @@ from pypeit import msgs
 from pypeit import dataPaths
 from pypeit import utils
 from pypeit.core import fitting
-from pypeit import specobjs
 from pypeit.core import combine
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl

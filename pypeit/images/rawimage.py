@@ -20,11 +20,13 @@ from pypeit.core import procimg
 from pypeit.core import flat
 from pypeit.core import flexure
 from pypeit.core import scattlight
+from pypeit.core import qa
 from pypeit.core.mosaic import build_image_mosaic
 from pypeit.images import pypeitimage
 from pypeit import utils
 from pypeit.display import display
-
+from pypeit import io
+from pathlib import Path
 
 # TODO: I don't understand why we have some of these attributes.  E.g., why do
 # we need both hdu and headarr?
@@ -667,7 +669,7 @@ class RawImage:
         # bias and dark subtraction) and before field flattening.  Also the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag = self.par['spat_flexure_maxlag']) \
+        self.spat_flexure_shift = self.spatial_flexure_shift(slits, debug=debug) \
                                     if self.par['spat_flexure_correct'] else None
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
@@ -761,7 +763,7 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, force=False, maxlag = 20):
+    def spatial_flexure_shift(self, slits, force=False, debug=False):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
@@ -774,8 +776,8 @@ class RawImage:
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
-            maxlag (:obj:'float', optional):
-                Maximum range of lag values over which to compute the CCF.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
 
         Return:
             float: The calculated flexure correction
@@ -789,7 +791,17 @@ class RawImage:
         if self.nimg > 1:
             msgs.error('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, maxlag = maxlag)
+
+        # get filename for QA
+        basename = f'{io.remove_suffix(self.filename)}_{self.spectrograph.get_det_name(self.det)}'
+        outdir = str(Path(slits.calib_dir).parent) if slits.calib_dir is not None else None
+        qa_outfile = qa.set_qa_filename(basename, 'spat_flexure_qa_corr', out_dir=outdir)
+
+        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
+                                                             maxlag=self.par['spat_flexure_maxlag'],
+                                                             sigdetect=self.par['spat_flexure_sigdetect'],
+                                                             debug=debug, qa_outfile=qa_outfile,
+                                                             qa_vrange=self.par['spat_flexure_vrange'])
         self.steps[step] = True
         # Return
         return self.spat_flexure_shift

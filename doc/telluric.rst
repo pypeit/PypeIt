@@ -41,7 +41,7 @@ follows:
 .. code-block:: ini
 
     # User-defined tellfit parameters for a quasar at redshift seven
-    [tellfit]
+    [telluric]
         objmodel = qso
         redshift = 7.0
         bal_wv_min_max = 10825,12060
@@ -51,7 +51,7 @@ or
 .. code-block:: ini
 
     # User-defined tellfit parameters for a A0 type star
-    [tellfit]
+    [telluric]
         objmodel = star
         star_type = A0
         star_mag = 8.0
@@ -61,7 +61,7 @@ or
 .. code-block:: ini
 
     # User-defined tellfit parameters for other type target
-    [tellfit]
+    [telluric]
         objmodel = poly
         polyorder = 3
         fit_wv_min_max = 17000, 22000

@@ -201,6 +201,40 @@ run_pypeit
 This is the main executable for PypeIt for its core end-to-end data processing.
 See :ref:`run-pypeit` for details.
 
+pypeit_run_to_calibstep
+-----------------------
+
+This runs PypeIt to a given calibration step for a given frame.
+This is primarily provided to re-run a single calibration step after 
+the user has modified their ``pypeit`` file.  It is expected that
+the user has already attempted a full reduction with ``run_pypeit``.
+following the details in :ref:`run-pypeit`.
+
+The user provides: (1) the PypeIt file, (2) the calibration step
+to re-run to, and
+(3) either the raw science file whose 
+calibration file(s) you wish to re-run or the calib_group ID. 
+All steps up to and including the requested step will be
+run, although previous steps will be skipped if the calibration files
+are already present (these will be loaded, as appropriate).
+
+Users are strongly advised to use this script until you are happy
+with the calibration of this single step.  Once you are, you should
+re-run the full reduction with ``run_pypeit`` after first removing
+*all* previously generated calibration and science files.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_run_to_calibstep.rst
+
+An example call is:
+
+.. code-block:: console
+
+    pypeit_run_to_calibstep shane_kast_blue_A.pypeit wv_calib --science_frame b28.fits.gz 
+
+
 pypeit_trace_edges
 ------------------
 
@@ -273,6 +307,8 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_sensfunc.rst
+
+.. _pypeit_flux_setup:
 
 pypeit_flux_setup
 -----------------
@@ -572,7 +608,7 @@ pypeit_show_pixflat
 -------------------
 
 Inspect in a Ginga window the (slitless) pixel flat produced by PypeIt and stored
-in the PypeIt cache (see ref:`data_installation`).  It displays each detector separately
+in the PypeIt cache (see :ref:`data_installation`).  It displays each detector separately
 in different channels. The script is useful for assessing the quality of the pixel-to-pixel
 response of the detector. Typical call is:
 
@@ -585,6 +621,30 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_pixflat.rst
+
+.. _pypeit_chk_flexure:
+
+pypeit_chk_flexure
+--------------------
+
+This script takes as input one or multiple `spec2d*.fits` or `spec1d*.fits` files
+and print to screen the spatial or spectral flexure correction applied to each file.
+Standard command-line calls are:
+
+.. code-block:: console
+
+    pypeit_chk_flexure Science/spec2d_r230417_01033-frb22022_LRISr_20230417T082242.672.fits --spat
+
+or:
+
+.. code-block:: console
+
+    pypeit_chk_flexure Science/spec1d_r230417_01033-frb22022_LRISr_20230417T082242.672.fits --spec
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_flexure.rst
 
 pypeit_show_2dspec
 ------------------

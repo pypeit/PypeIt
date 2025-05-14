@@ -94,7 +94,7 @@
                             to crash or lead to erroneous results. I.e., you really
                             need to know what you are doing if you set this to
                             False!
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             collate_1d_YYYYMMDD-HHMM.log

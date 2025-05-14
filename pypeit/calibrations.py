@@ -347,9 +347,15 @@ class Calibrations:
         if par is not None:
             self.par = par
 
-    def get_arc(self):
+    def get_arc(self, force:str=None):
         """
         Load or generate the arc calibration frame.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
 
         Returns:
             :class:`~pypeit.images.buildimage.ArcImage`: The processed
@@ -371,8 +377,8 @@ class Calibrations:
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
-        if cal_file.exists() and self.reuse_calibs:
-            self.msarc = frame['class'].from_file(cal_file, chk_version=self.chk_version)
+        self.msarc = self.process_load_selection(frame, cal_file, force)
+        if not self.success or self.msarc is not None:
             return self.msarc
 
         # Reset the BPM
@@ -393,9 +399,15 @@ class Calibrations:
         # Return it
         return self.msarc
 
-    def get_tiltimg(self):
+    def get_tiltimg(self, force:str=None):
         """
         Load or generate the tilt calibration frame.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
 
         Returns:
             :class:`~pypeit.images.buildimage.TiltImage`: The processed
@@ -417,8 +429,8 @@ class Calibrations:
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
-        if cal_file.exists() and self.reuse_calibs:
-            self.mstilt = frame['class'].from_file(cal_file, chk_version=self.chk_version)
+        self.mstilt = self.process_load_selection(frame, cal_file, force)
+        if not self.success or self.mstilt is not None:
             return self.mstilt
 
         # Reset the BPM
@@ -440,9 +452,15 @@ class Calibrations:
         # Return it
         return self.mstilt
 
-    def get_align(self):
+    def get_align(self, force:str=None):
         """
         Load or generate the alignment calibration frame.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
 
         Returns:
             :class:`~pypeit.alignframe.Alignments`: The processed alignment
@@ -468,8 +486,10 @@ class Calibrations:
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
-        if cal_file.exists() and self.reuse_calibs:
-            self.alignments = frame['class'].from_file(cal_file, chk_version=self.chk_version)
+        self.alignments = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.alignments is not None:
             self.alignments.is_synced(self.slits)
             return self.alignments
 
@@ -498,9 +518,15 @@ class Calibrations:
         self.alignments.to_file()
         return self.alignments
 
-    def get_bias(self):
+    def get_bias(self, force:str=None):
         """
         Load or generate the bias calibration frame.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
 
         Returns:
             :class:`~pypeit.images.buildimage.BiasImage`: The processed
@@ -514,16 +540,17 @@ class Calibrations:
         raw_files, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
+        # If no raw files are available and no processed calibration frame
         if len(raw_files) == 0 and cal_file is None:
             msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
-                      'processed calibration frame.  Continuing...')
+                      'processed calibration frame.  Continuing without a bias...')
             self.msbias = None
             return self.msbias
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
-        if cal_file.exists() and self.reuse_calibs:
-            self.msbias = frame['class'].from_file(cal_file, chk_version=self.chk_version)
+        self.msbias = self.process_load_selection(frame, cal_file, force)
+        if not self.success or self.msbias is not None:
             return self.msbias
 
         # Perform a check on the files
@@ -540,9 +567,15 @@ class Calibrations:
         # Return it
         return self.msbias
 
-    def get_dark(self):
+    def get_dark(self, force:str=None):
         """
         Load or generate the dark calibration frame.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
 
         Returns:
             :class:`~pypeit.images.buildimage.DarkImage`: The processed
@@ -564,8 +597,8 @@ class Calibrations:
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
-        if cal_file.exists() and self.reuse_calibs:
-            self.msdark = frame['class'].from_file(cal_file, chk_version=self.chk_version)
+        self.msdark = self.process_load_selection(frame, cal_file, force)
+        if not self.success or self.msdark is not None:
             return self.msdark
 
         # TODO: If a bias has been constructed and it will be subtracted from
@@ -592,12 +625,18 @@ class Calibrations:
         # Return it
         return self.msdark
 
-    def get_bpm(self, frame=None):
+    def get_bpm(self, frame=None, force:str=None):
         """
         Load or generate the bad pixel mask.
 
         This is primarily a wrapper for
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm`.
+
+        Args:
+            force (:obj:`str`, optional):
+                Currently ignored
+            frame (:obj:`int`, optional):
+                The row index in :attr:`fitstbl`
 
         Returns:
             `numpy.ndarray`_: The bad pixel mask, which should match the shape
@@ -614,9 +653,15 @@ class Calibrations:
         # Return
         return self.msbpm
 
-    def get_scattlight(self):
+    def get_scattlight(self, force:str=None):
         """
         Load or generate the scattered light model.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
 
         Returns:
             :class:`~pypeit.scattlight.ScatteredLight`: The processed calibration image including the model.
@@ -643,8 +688,8 @@ class Calibrations:
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
-        if cal_file.exists() and self.reuse_calibs:
-            self.msscattlight = frame['class'].from_file(cal_file, chk_version=self.chk_version)
+        self.msscattlight = self.process_load_selection(frame, cal_file, force)
+        if not self.success or self.msscattlight is not None:
             return self.msscattlight
 
         # Scattered light model does not exist or we're not reusing it.
@@ -707,9 +752,15 @@ class Calibrations:
 
         return self.msscattlight
 
-    def get_flats(self):
+    def get_flats(self, force:str=None):
         """
         Load or generate the flat-field calibration images.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
 
         Returns:
             :class:`~pypeit.flatfield.FlatImages`: The processed calibration
@@ -793,7 +844,8 @@ class Calibrations:
         calib_key = illum_calib_key if pixel_calib_key is None else pixel_calib_key
         setup = illum_setup if pixel_setup is None else pixel_setup
         calib_id = illum_calib_id if pixel_calib_id is None else pixel_calib_id
-        if cal_file.exists() and self.reuse_calibs:
+
+        if cal_file.exists() and self.reuse_calibs and not force == 'remake':
             self.flatimages = flatfield.FlatImages.from_file(cal_file,
                                                              chk_version=self.chk_version)
             self.flatimages.is_synced(self.slits)
@@ -936,7 +988,7 @@ class Calibrations:
 
         return self.flatimages
 
-    def get_slits(self):
+    def get_slits(self, force:str=None):
         """
         Load or generate the definition of the slit boundaries.
 
@@ -965,8 +1017,10 @@ class Calibrations:
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
-        if cal_file.exists() and self.reuse_calibs:
-            self.slits = frame['class'].from_file(cal_file, chk_version=self.chk_version)
+        self.slits = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.slits is not None:
             self.slits.mask = self.slits.mask_init.copy()
             if self.user_slits is not None:
                 self.slits.user_mask(detname, self.user_slits)
@@ -977,7 +1031,7 @@ class Calibrations:
         edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).absolute()
         # If so, reuse it?
-        if edges_file.exists() and self.reuse_calibs:
+        if edges_file.exists() and self.reuse_calibs and force != 'remake':
             # Yep!  Load it and parse it into slits.
             self.slits = edgetrace.EdgeTraceSet.from_file(edges_file,
                                                           chk_version=self.chk_version).get_slits()
@@ -998,10 +1052,12 @@ class Calibrations:
         # Perform a check on the files
         self.check_calibrations(raw_trace_files)
 
+        # NOTE: self.msscattlight is *always* created after identifying the
+        # slits, meaning that it is redundant to pass the scattlight argument
+        # here.
         traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['traceframe'], raw_trace_files,
                                                     bias=self.msbias, bpm=self.msbpm,
-                                                    scattlight=self.msscattlight,
                                                     dark=self.msdark, calib_dir=self.calib_dir,
                                                     setup=setup, calib_id=calib_id)
         if len(raw_lampoff_files) > 0:
@@ -1018,8 +1074,7 @@ class Calibrations:
             lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                           self.par['lampoffflatsframe'],
                                                           raw_lampoff_files, dark=self.msdark,
-                                                          bias=self.msbias, scattlight=self.msscattlight,
-                                                          bpm=self.msbpm)
+                                                          bias=self.msbias, bpm=self.msbpm)
             traceImage = traceImage.sub(lampoff_flat)
 
         edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
@@ -1050,9 +1105,15 @@ class Calibrations:
             self.slits.user_mask(detname, self.user_slits)
         return self.slits
 
-    def get_wv_calib(self):
+    def get_wv_calib(self, force:str=None):
         """
         Load or generate the 1D wavelength calibrations
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
 
         Returns:
             :class:`~pypeit.wavecalib.WaveCalib`: Object containing wavelength
@@ -1066,9 +1127,10 @@ class Calibrations:
             return self.wv_calib
 
         # Check for existing data
-        if not self._chk_objs(['msarc', 'msbpm', 'slits']):
+        req_objs = ['msarc', 'msbpm', 'slits']
+        if not self._chk_objs(req_objs):
             msgs.warn('Not enough information to load/generate the wavelength calibration. '
-                      'Skipping and may crash down the line')
+                    'Skipping and may crash down the line')
             return None
 
         # Check internals
@@ -1087,9 +1149,10 @@ class Calibrations:
 
         # If a processed calibration frame exists and 
         # we want to reuse it, do so (or just load it):
-        if cal_file.exists() and self.reuse_calibs: 
-            # Load the file
-            self.wv_calib = wavecalib.WaveCalib.from_file(cal_file, chk_version=self.chk_version)
+        self.wv_calib = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.wv_calib is not None:
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
             if self.par['wavelengths']['method'] == 'echelle':
@@ -1135,9 +1198,15 @@ class Calibrations:
         # Return
         return self.wv_calib
 
-    def get_tilts(self):
+    def get_tilts(self, force:str=None):
         """
         Load or generate the wavelength tilts calibration frame
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
 
         Returns:
             :class:`~pypeit.wavetilts.WaveTilts`: Object containing the
@@ -1166,8 +1235,10 @@ class Calibrations:
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
-        if cal_file.exists() and self.reuse_calibs:
-            self.wavetilts = wavetilts.WaveTilts.from_file(cal_file, chk_version=self.chk_version)
+        self.wavetilts = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.wavetilts is not None:
             self.wavetilts.is_synced(self.slits)
             self.slits.mask_wavetilts(self.wavetilts)
             return self.wavetilts
@@ -1190,15 +1261,67 @@ class Calibrations:
         self.wavetilts.to_file()
         return self.wavetilts
 
-    def run_the_steps(self):
+    def process_load_selection(self, frame, cal_file, force):
+        """
+        Process how pypeit should use any pre-existing calibration files.
+
+        If loading is requested but the calibration file (``cal_file``) does
+        not exist, ``self.success`` is set to False, and None is returned.
+
+        Parameters
+        ----------
+        frame : :obj:`dict`
+            A dictionary with two elements: ``type`` is the string
+            defining the frame type and ``class`` is the pypeit class
+            used to load the pre-existing calibration file.
+        cal_file : :obj:`str`, `Path`_
+            Path to the calibration file.
+        force : :obj:`str`
+            Defines how to treat a pre-existing calibration file.  Must be one
+            of the following options:
+                    
+                - ``'remake'``: Force the calibration be remade.
+
+                - ``'reload'``: Reload the frame if it exists.
+
+                - ``None``: Load the existing frame if it exists and
+                  ``self.reuse_calibs=True``.
+
+        Returns
+        -------
+        :obj:`object`
+            Either the loaded calibration object or None.
+        """
+        if force not in [None, 'remake', 'reload']:
+            msgs.error(f'`force` keyword must be None, remake, or reload, not {force}')
+        if force == 'remake':
+            return None
+        _cal_file = Path(cal_file).absolute()
+        if force == 'reload' and not _cal_file.exists():
+            msgs.warn(f"{_cal_file} does not exist; cannot reload "
+                    f"{frame['class'].__name__} calibration.")
+            self.success = False
+            return None
+        if force == 'reload' or (self.reuse_calibs and _cal_file.exists()): 
+            return frame['class'].from_file(_cal_file, chk_version=self.chk_version)
+
+    def run_the_steps(self, stop_at_step:str=None):
         """
         Run full the full recipe of calibration steps.
         """
         self.success = True
         for step in self.steps:
-            getattr(self, f'get_{step}')()
+            if stop_at_step is not None and step == stop_at_step:
+                force = 'remake'
+                msgs.info(f"Calibrations will stop at {stop_at_step}") 
+            else:
+                force = None
+            getattr(self, f'get_{step}')(force=force)
             if not self.success:
                 self.failed_step = f'get_{step}'
+                return
+            if stop_at_step is not None and step == stop_at_step:
+                msgs.info(f"Calibrations stopping at {stop_at_step}") 
                 return
         msgs.info("Calibration complete and/or fully loaded!")
         msgs.info("#######################################################################")
@@ -1222,16 +1345,17 @@ class Calibrations:
 
         Args:
             items (list):
+                List of required items for the calibration step
 
         Returns:
-            bool: True if all exist
+            bool: True if all exist or if all were successfully loaded, False
 
         """
         for obj in items:
             if getattr(self, obj) is None:
-                msgs.warn("You need to generate {:s} prior to this calibration..".format(obj))
                 # Strip ms
                 iobj = obj[2:] if obj[0:2] == 'ms' else obj
+                msgs.warn("You need to generate {:s} prior to this calibration..".format(obj))
                 msgs.warn("Use get_{:s}".format(iobj))
                 return False
         return True
@@ -1471,6 +1595,16 @@ class Calibrations:
             ff.write(yaml.dump(utils.yamlify(asn)))
         msgs.info(f'Calibration association file written to: {_ofile}')
 
+    @staticmethod
+    def default_steps():
+        """
+        This defines the steps for calibrations and their order
+         Note that the order matters!
+
+        Returns:
+            list: Calibration steps, in order of execution
+        """
+        return []
 
 class MultiSlitCalibrations(Calibrations):
     """
@@ -1495,7 +1629,8 @@ class MultiSlitCalibrations(Calibrations):
         # Order matters!  And the name must match a viable "get_{step}" method
         # in Calibrations.
         # TODO: Does the bpm need to be done after the dark?
-        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'scattlight', 'flats']
+        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 
+                'wv_calib', 'tilts', 'scattlight', 'flats']
 
 
 class IFUCalibrations(Calibrations):

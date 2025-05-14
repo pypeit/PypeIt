@@ -7,16 +7,9 @@
 Installation
 ============
 
-.. warning::
-
-    **Apple Silicon users** who are having issues installing PypeIt may need
-    to set up an environment configured for x86-64.  See :ref:`m1_macs` for detailed
-    steps.  If that also fails, please `Submit an issue`_ and/or reach out to
-    our user :ref:`community`.
-
-Below, we provide detailed instructions for installing PypeIt.  For
-troubleshooting, please consult the PypeIt :ref:`community` and/or `submit
-an issue <https://github.com/pypeit/PypeIt/issues>`__ on GitHub.
+This page provides detailed instructions for installing PypeIt.  For additional
+troubleshooting, please consult the PypeIt :ref:`community` and/or `submit an
+issue <https://github.com/pypeit/PypeIt/issues>`__ on GitHub.
 
 .. contents:: Table of Contents
     :depth: 1
@@ -105,12 +98,46 @@ PypeIt has a few optional dependencies that improve and/or expand functionality.
     marks may not be correct, leading to errors when they are directly pasted
     into a terminal window.
 
+Development or pre-release versions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The developers may occasionally ask users to jump on specific branches of the
+code to help them more quickly have their issue addressed.  **This is done on a
+shared-risk basis!**  I.e., development versions are intrinsically more unstable
+and, by definition, transient.
+
+If you find yourself working in branches frequently, you should instead perform
+a :ref:`developer_install`.
+
+To install development versions of PypeIt directly from `GitHub
+<https://github.com/pypeit/PypeIt>`_, use ``pip``.  First, **as always**, make
+sure you are working in a python environment (this also works within a conda
+environment).  Then run:
+
+.. code-block:: console
+
+    pip install --upgrade "pypeit[dev]@git+https://github.com/pypeit/PypeIt.git"
+
+This will install the default branch, ``release``.  To install, e.g., 
+the ``develop`` branch, run:
+
+.. code-block:: console
+
+    pip install --upgrade "pypeit[dev]@git+https://github.com/pypeit/PypeIt.git@develop"
+
+To install a different branch, use the branch name instead of ``develop`` in the
+command above.  Commit hashes, tag names, or git refs can also be specified; see
+the `VCS Support documentation
+<https://pip.pypa.io/en/stable/cli/pip_install/>`_ for details and examples.
+
+Note that these installations include all the development dependencies (as
+indicated by the ``pypeit[dev]`` part of the command).
+
 Install via ``conda``
 ---------------------
 
-`conda`_ is a popular and widely-used package and environment manager.  We
-provide a YAML file that can be used to set up the virtual environment for
-you.  This file creates a conda environment called ``pypeit``, and then
+We provide a YAML file that can be used to setup a virtual environment using
+`conda`_.  This file creates a conda environment called ``pypeit``, and then
 installs ``pypeit``, all of the required dependencies, and the optional
 dependency ``specutils`` via ``pip``.  To use this:
 
@@ -137,13 +164,13 @@ dependency ``specutils`` via ``pip``.  To use this:
 
         Most of the packages listed will show as coming from the ``pypi`` channel.
 
-This environment should now be ready to use and contain the latest official
-``pypeit`` release.
+This environment should now be ready to use, and it will contain the latest
+official ``pypeit`` release.
 
 .. _upgrade:
 
-Upgrading to a new version of PypeIt
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Upgrading to a new version
+--------------------------
 
 Since either installation method above ultimately uses ``pip`` to install
 PypeIt, upgrading the package should simply be a matter of executing:
@@ -163,22 +190,27 @@ upgrading:
    to a new version.  **The best approach is to always re-reduce data you're
    still working with anytime you update PypeIt.**
 
- - As opposed to earlier versions of PypeIt, the cached files are now
-   version-specific.  **Every time you upgrade pypeit, we recommend deleting
-   your existing cache and starting fresh!**  The only caveat to this is if you
-   are actively using multiple versions of PypeIt, meaning you will still be
-   using old versions of the cached files.  Otherwise, you will end up with
-   multiple versions of the same file on disk.  **Importantly**, the code also
-   considers local files you have installed (using, e.g.,
-   ``pypeit_install_linelist``) to be version specific.  If you have installed
-   such files, you will need to re-install them *after* upgrading.
+ - **Cached files are version-specific.**  Every time you upgrade pypeit, we
+   recommend deleting your existing cache and starting fresh!  See
+   :ref:`view-cache`.  The only caveat to this is if you are actively using
+   multiple versions of PypeIt, meaning you will still be using old versions of
+   the cached files.  Otherwise, you will end up with multiple versions of the
+   same file on disk.  **Importantly**, the code also considers local files you
+   have installed (using, e.g., ``pypeit_install_linelist``) to be version
+   specific.  If you have installed such files, you will need to re-install them
+   *after* upgrading.
 
 If you have locally installed files, your upgrade may look something like this:
 
 .. code-block:: console
 
-    pypeit_clean_cache --remove_all
+    # Check the cache contents
+    pypeit_clean_cache -l
+    # Delete everything
+    pypeit_clean_cache --clear
+    # Upgrade pypeit
     pip install pypeit --upgrade
+    # Reinstall your local line lists
     pypeit_install_linelist /path/to/my/linelists/*_lines.dat
 
 .. note::
@@ -190,40 +222,28 @@ If you have locally installed files, your upgrade may look something like this:
     
 .. _m1_macs:
 
-User Installation on Apple Silicon-based Macs
----------------------------------------------
+Installation on Apple Silicon-based Macs
+----------------------------------------
 
 Both the `pip`_ and `conda`_ installation methods should be successful for Macs
-that uses Apple Silicon processors.  The full Anaconda installers also now
-include support for Apple Silicon.
-
-If the above does not work, you may need to set up a virtual environment configured
-for x86-64:
-
-    #. Install `miniconda <https://docs.conda.io/en/main/miniconda.html>`_.
-    #. Use ``conda`` to create an environment configured for x86-64:
-
-        .. code-block:: console
-
-            conda create -n pypeit -y
-            conda activate pypeit
-            conda config --env --set subdir osx-64
-
-    #. Install whichever version of Python you want (*e.g.*):
-
-        .. code-block:: console
-
-            conda install python=3.11
-
-    #. Install PypeIt via ``pip`` as above.
-
-Solutions/Recommendations/Feedback for these installation options are welcome;
-please `Submit an issue`_.
+that use Apple Silicon processors.  The full Anaconda installers also now
+include support for Apple Silicon.  Solutions/Recommendations/Feedback for these
+installation options are welcome; please `Submit an issue`_.
 
 .. _install_windows:
 
-User Installation on Windows
----------------------------------------------
+Installation on Windows
+-----------------------
+
+Generally speaking, we encounter most installation issues on Windows users.
+
+An alternative for running under Windows is to install the `Windows Subsystem
+for Linux (WSL) <https://learn.microsoft.com/en-us/windows/wsl/install>`_.  This
+in effect allows you to run PypeIt on a Windows computer as if it was running
+under Linux.
+
+For a pure Windows installation, our recommended installation procedure is as
+follows.  Please post questions on our Users Slack if you have difficulties!
 
 #. Download `Python for Windows <https://www.python.org/downloads/windows/>`_.
 
@@ -251,10 +271,6 @@ App execution aliases`` on Windows 10 and ``Settings -> Apps -> Advanced app
 settings -> App execution aliases`` on Windows 11. Disable the ``App Installer``
 options for the ``python.exe`` and ``python3.exe`` executables.
  
-An alternative for running under Windows is to install the `Windows Subsystem
-for Linux (WSL) <https://learn.microsoft.com/en-us/windows/wsl/install>`_.  This
-in effect allows you to run PypeIt under Linux under Windows.
-
 ----
 
 .. _data_installation:
@@ -269,7 +285,7 @@ PypeIt uses the generalized cache system `provided by Astropy
 remote data, which maintains copies of the data files in a user-writeable
 location that is independent of the PypeIt installation.  For most users, this
 will be ``~/.pypeit/cache``, but the exact location can be set directly using
-``astropy``'s `configuration system
+Astropy's `configuration system
 <https://docs.astropy.org/en/stable/config/index.html#astropy-config>`__.  By
 default, PypeIt will download necessary files at runtime if they are not already
 cached.  Regardless of their location, remote or local, PypeIt essentially
@@ -283,7 +299,7 @@ name, subdirectory, and remote host for data in this directory tree:
 
 Although most cached files are hosted on GitHub, a few particularly large files
 are hosted on Amazon S3 cloud storage.  Note that a host of ``...`` means that
-all files should be distributed with your package installation for these
+the files should be distributed with your package installation for these
 directories.
 
 As stated above, PypeIt will download remote files and store them in your cache
@@ -291,8 +307,8 @@ as they're needed to reduce your data.  I.e., you should mostly be able to
 ignore the fact that the relevant files are remote, as long as you're running
 the reductions while connected to the internet.  However, if you're preparing to
 run a set of reductions and you would prefer to pre-load data that you expect to
-need, we provide a few specific scripts for interacting the cache, as described
-below.
+need, we provide a few specific scripts for interacting with the cache, as
+described below.
 
 .. _view-cache:
 
@@ -334,7 +350,7 @@ Some example uses for removing files include:
 
  - To remove your entire cache: ``pypeit_clean_cache --remove_all``.
 
- - To remove cached files for a specific version: ``pypeit_clean_cache -v 1.15.0``
+ - To remove cached files for a specific version: ``pypeit_clean_cache -p 1.15.0``
 
  - To remove a specific file: ``pypeit_clean_cache -p gemini_gnirs_32_1_spat_fit.npz``
 
@@ -504,7 +520,7 @@ Important Package Notes
 Interactive Tools
 -----------------
 
-Interactive tools in PypeIt are built using the `QT
+Interactive tools in PypeIt are generally built using the `QT
 <https://www.qt.io/>`_ windowing toolkit. The ``qtpy`` package is used to
 provide an abstract interface to the two most widely used QT bindings for
 Python (see :ref:`dependencies`):
@@ -531,6 +547,7 @@ you should see is:
 
     $ pypeit_c_enabled
     Successfully imported bspline C utilities.
+    OpenMP compiler support detected.
 
 If no message is printed, the C code could not be imported.
 
@@ -546,21 +563,23 @@ Some notes if you have problems installing the C code:
       particularly old version (*e.g.*, 10.10 Yosemite)
 
 Some of the C code uses `OpenMP <https://www.openmp.org/>`_ to parallelize loops
-and take advantage of multiple cores/threads. This support is transparent and the code
-will work single-threaded if OpenMP is not available. GCC supports OpenMP
-out of the box, however the ``clang`` compiler that Apple's XCode provides does not. So
-for optimal performance on Apple hardware, you will want to install GCC via ``homebrew``
-or ``macports`` and specify its use when installing ``pypeit``. For example, if you installed
-GCC via ``homebrew``, you would get ``pypeit`` to use it by doing, for example:
+and take advantage of multiple cores/threads. This support is transparent and
+the code will work single-threaded if OpenMP is not available. GCC supports
+OpenMP out of the box, however the ``clang`` compiler that Apple's XCode
+provides does not. So for optimal performance on Apple hardware, you will want
+to install GCC via `homebrew <https://brew.sh/>`__ and specify its use when
+installing ``pypeit``. For example, if you installed GCC via ``homebrew``, you
+would get ``pypeit`` to use it by doing, for example:
 
 .. code-block:: console
 
     $ export CC=/opt/homebrew/bin/gcc
     $ pip install pypeit
 
-Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler to use so configure
-that as needed to use your desired compiler. The ``pypeit_c_enabled`` script can be used to check if
-your compiler has OpenMP support.
+Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler
+to use so configure that as needed to use your desired compiler. The
+``pypeit_c_enabled`` script can be used to check if your compiler has OpenMP
+support.
 
 ginga Plugins
 -------------
@@ -571,7 +590,7 @@ to have these plugins installed; however, you can check that they're enabled by
 running the following script with the following result::
 
     $ pypeit_chk_plugins
-    [INFO]    :: All required plugins found: SlitWavelength
+    [INFO]    :: All required plugins found: SlitWavelength, Spec1dView
 
 If the check is unsuccessful, you will see an error message listing
 the missing plugins. If you have a problem, please `submit an issue
@@ -586,8 +605,8 @@ Package Dependencies
 
 All PypeIt dependencies are installed along with the installation of
 PypeIt itself.  Beware this means that packages in your current environment
-may be updated depending on the PypeIt version requirements (which is why we
-recommend you :ref:`environment` for PypeIt).  The current version
+may be updated depending on the PypeIt version requirements, which is why we
+recommend you :ref:`environment` for PypeIt!  The current version
 requirements for both users and developers are:
 
 .. include:: include/dependencies_table.rst
@@ -601,87 +620,8 @@ PypeIt dependencies.  If you run into any more, please `submit an issue
 
 .. TODO: IS THIS FIRST ITEM STILL TRUE?
 
-- At the moment, an implicit dependency on QT bindings remains because of our dependence on ``linetools``.
-
-----
-
-.. _developer_install:
-
-Developer Installation
-======================
-
-We, of course, welcome and encourage community development of PypeIt.
-Please see our :ref:`codeconduct` and the :ref:`development`.
-
-Developer install via ``pip``
------------------------------
-
-Install pre-release or development versions of PypeIt directly from `GitHub
-<https://github.com/pypeit/PypeIt>`_ using ``pip`` as follows. If you already
-have a ``pypeit`` environment set up, run:
-
-.. code-block:: console
-
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit"
-
-If you're installing in a clean environment, be sure to include the optional
-dependencies as well:
-
-.. code-block:: console
-
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit"
-
-These commands will install the default branch, ``release``. You can also
-specify a different branch, such as the main ``develop`` branch:
-
-.. code-block:: console
-
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit"
-
-Commit hashes, tag names, or git refs can also be specified; see the `VCS
-Support documentation
-<https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_ for details
-and examples.
-
-Developer install from source
------------------------------
-
-Developers doing code development will likely want to set up an "editable"
-install that points to a locally checked out copy of the GitHub repository.  We
-highly recommended using ``pip`` to install the repository and to
-:ref:`environment` for code development.
-
-To install from source (after setting up the python environment), first clone
-(your fork of) the repository:
-
-.. code-block:: console
-
-    git clone https://github.com/pypeit/PypeIt.git
-
-Then install the code, include the development dependencies:
-
-.. code-block:: console
-
-    cd PypeIt
-    pip install -e ".[dev]"
-
-An "editable" install means that any changes you make in the repository
-directory tree will become immediately available the next time the code is
-imported. Including the ``[dev]`` set of optional dependencies ensures that all
-of the tools you need to test and build PypeIt are installed. (Again, note that
-you may or may not need the quotes above depending on your shell, and that you
-should avoid cutting and pasting these commands into a terminal window.)
-
-Finally, you may want to add lines to your relevant shell configuration file
-(*e.g.*, ``.zshrc`` or ``.bashrc``) that activate the relevant environment
-whenever you start up a new shell.  For example:
-
-.. code-block:: console
-
-    conda activate pypeit
-
-Otherwise you will need to always type this command at the terminal prompt to
-activate the pypeit environment.
+- At the moment, an implicit dependency on QT bindings remains because of our
+  dependence on ``linetools``.
 
 ----
 
@@ -693,9 +633,6 @@ Test Your Installation
 Tagged versions of PypeIt are extensively tested before distribution.
 However, it is worth testing that your installation has been successful, as
 follows.
-
-User Tests
-----------
 
 The most basic tests that PypeIt has been properly installed is to get the
 help dialog for one of its main executables.  I.e., from a terminal widow, type:
@@ -720,45 +657,10 @@ same in bash) that will locate a test spec1D file and attempt to use
 
 .. code-block:: console
 
-    python -c "from importlib import resources; print(resources.files('pypeit') / 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits')" | xargs -I {} pypeit_show_1dspec {}
+    python -c "from pypeit import dataPaths; print(dataPaths.tests.get_file_path('spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
 
 If ``pyqt6`` or another Qt backend is correctly installed, this should show a test
-spectrum from the Shane/KAST spectrograph.
-
-Developer Tests
----------------
-
-If you performed a developer installation by cloning the repository into a local
-directory (*e.g.*, ``~/PypeIt``), you can run the standard unit tests within the
-PypeIt environment by executing:
-
-.. code-block:: console
-
-    cd ~/PypeIt
-    pytest
-
-.. TODO: WHO AMONG THE CORE DEVELOPERS USE TOX?  WE USE IT FOR CI TESTS, BUT
-.. SHOULD WE BE RECOMMENDING IT FOR USERS?
-
-To test within isolated environments and against different versions of various
-dependencies, we recommend using ``tox``:
-
-.. code-block:: console
-
-    cd PypeIt
-    tox -e test
-
-or, *e.g.*:
-
-.. code-block:: console
-
-    tox -e test-astropydev
-
-Run ``tox -a`` to see a list of available test environments.
-
-In either case, over 100 tests should pass, nearly 100 will be skipped and none
-should fail. The skipped tests only run if the PypeIt development is installed
-and configured; see :ref:`dev-suite`.
+spectrum from the Shane/KAST spectrograph at Lick Observatory.
 
 ----
 
@@ -770,10 +672,12 @@ Troubleshooting
 If you have trouble installing pypeit, you're encouraged to `join
 <https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__
 our `PypeIt Users Slack <https://pypeit-users.slack.com>`__ and post your issue
-to the #installing channel.  Here is an incomplete list of issues that users
+to the ``#installing`` channel.  Below is an incomplete list of issues that users
 have reported in the past.  In addition to posting to the Users Slack if your
 issue isn't among those listed below, *please let us know if these suggestions
 do not work for you.*
+
+----
 
 **I am trying to install pypeit for the first time and it fails!**:  The root
 problem of this can be system dependent:
@@ -788,10 +692,12 @@ problem of this can be system dependent:
 
  - Occasionally, the installation may fail because of incompatible dependencies.
    This may be because of recent releases of one of PypeIt's dependencies; i.e.,
-   updates to packages since the most recent PypeIt release.  Please let us know
-   if this happens, and we will try to issue a new release asap that corrects
-   the incompatibility.  In the short-term, we may ask you to install old
-   versions of packages that we know work.
+   updates to packages since the most recent PypeIt release.  **Please let us
+   know if this happens!**  Once notified, we will try to issue a new release
+   asap that corrects the incompatibility.  In the short-term, we may ask you to
+   install old versions of packages that we know work.
+
+----
 
 **I am trying to upgrade pypeit and it fails!**:  First try uninstalling your
 current pypeit version:
@@ -803,6 +709,8 @@ current pypeit version:
 Then reinstall it.  If that also fails, try creating a fresh environment and
 reinstalling pypeit in that new environment.
  
+----
+
 **The installation process succeeded, but the code is faulting!**:  This could
 be for a few reasons:
 
@@ -813,11 +721,13 @@ be for a few reasons:
 
  - This may be because of dependency changes.  A tell-tale signature of this is
    if you get errors associate with missing or unknown keywords or arguments.
-   This is may be because of recent releases of one of PypeIt's dependencies; i.e.,
-   updates to packages since the most recent PypeIt release.  Please let us know
-   if this happens, and we will try to issue a new release asap that corrects
-   the incompatibility.  In the short-term, we may ask you to install old
-   versions of packages that we know work.
+   This is may be because of recent releases of one of PypeIt's dependencies;
+   i.e., updates to packages since the most recent PypeIt release.  **Please let
+   us know if this happens!**  Once notified, we will try to issue a new release
+   asap that corrects the incompatibility.  In the short-term, we may ask you to
+   install old versions of packages that we know work.
+
+----
 
 **The installation process succeeded and the code completes without faulting,
 but the output looks wrong!**:  This could happen for any number of reasons.
@@ -840,5 +750,6 @@ Slack.  However, here are a few things to note and/or try:
  - And, of course, the code will have bugs.  If you find one, the more
    information you provide the developers, the easier it will be for us to track
    down the issue.  Valuable information includes your OS, OS version, python
-   version, and pypeit version, as well as QA plots and ``ginga`` screen grabs
-   that illustrate the issue.
+   version, pypeit version, and the full Traceback provided with the error.  QA
+   plots and ``ginga`` screen grabs that illustrate the issue are also very
+   helpful!

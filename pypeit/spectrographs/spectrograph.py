@@ -1735,28 +1735,6 @@ class Spectrograph:
 
         return type_bits
 
-    def idname(self, ftype):
-        """
-        Return the ``idname`` for the selected frame type for this
-        instrument.
-
-        Args:
-            ftype (:obj:`str`):
-                Frame type, which should be one of the keys in
-                :class:`~pypeit.core.framematch.FrameTypeBitMask`.
-
-        Returns:
-            :obj:`str`: The value of ``idname`` that should be available in
-            the :class:`~pypeit.metadata.PypeItMetaData` instance that
-            identifies frames of this type.
-
-        Raises:
-            NotImplementedError:
-                Raised by the base class to denote that any derived class has
-                not been properly defined.
-        """
-        raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
-                                  self.name))
 
 #    JXP says -- LEAVE THIS HERE FOR NOW. WE MAY NEED IT
 #    def mm_per_pix(self, det=1):

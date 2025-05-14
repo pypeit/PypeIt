@@ -114,6 +114,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['max_nudge'] = 0.
         par['calibrations']['slitedges']['overlap'] = True
         par['calibrations']['slitedges']['dlength_range'] = 0.25
+        par['calibrations']['slitedges']['mask_off_detector'] = True
 
         par['calibrations']['slitedges']['add_missed_orders'] = True
         par['calibrations']['slitedges']['order_width_poly'] = 2

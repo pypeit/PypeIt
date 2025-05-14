@@ -2,9 +2,14 @@
 Module to run tests on arparse
 """
 from IPython import embed
+
+import pytest
+
 import numpy as np
 
+from pypeit.pypmsgs import PypeItError
 from pypeit.core import parse
+from pypeit.spectrographs.util import load_spectrograph
 
 def test_parse_binning():
     """ Test parse binning algorithm
@@ -55,4 +60,62 @@ def test_parse_slitspatnum():
     assert [x.tolist() for x in parse.parse_slitspatnum(['DET01:224,DET02:331', 'DET03:442'])] \
         == [['DET01', 'DET02', 'DET03'], [224, 331, 442]], 'Bad mixed parsing'
 
-    
+
+def test_parse_image_location():
+    # keck_nires just used as an example of a single detector spectrograph
+    spec = load_spectrograph('keck_nires')
+
+    p = parse.parse_image_location('-1:34.5:400.1:4', spec)
+    assert len(p) == 5, 'Incorrect number of returned objects'
+    assert p[0], 'Should return that the detector integer is negative'
+    assert p[1] == 'DET01', 'Wrong detector identifier'
+
+    p = parse.parse_image_location('1:34.5:400.1:4', spec)
+    assert len(p) == 5, 'Incorrect number of returned objects'
+    assert not p[0], 'Should return that the detector integer is positive'
+    assert p[1] == 'DET01', 'Wrong detector identifier'
+
+    # This should fail because keck_nires does not have this mosaic
+    with pytest.raises(PypeItError):
+        p = parse.parse_image_location('(1,2,3):34.5:400.1:4', spec)
+
+    spec = load_spectrograph('gemini_gmos_south_ham')
+    p = parse.parse_image_location('(1,2,3):34.5:400.1:4', spec)
+    assert len(p) == 5, 'Incorrect number of returned objects'
+    assert not p[0], 'Should return that the detector integer is positive'
+    assert p[1] == 'MSC01', 'Wrong mosaic identifier'
+
+    p = parse.parse_image_location('(-1,-2,-3):34.5:400.1:4', spec)
+    assert len(p) == 5, 'Incorrect number of returned objects'
+    assert p[0], 'Should return that the detector integer is negative'
+    assert p[1] == 'MSC01', 'Wrong mosaic identifier'
+
+    p = parse.parse_image_location('2:34.5:400.1', spec)
+    assert len(p) == 4, 'Incorrect number of returned objects'
+    assert not p[0], 'Should return that the detector integer is positive'
+    assert p[1] == 'DET02', 'Wrong mosaic identifier'
+
+
+def test_join_image_location():
+    # Fix without parentheses
+    par = ['3:1500:331; 3:1500:635']
+    list_fixed_par = parse.fix_config_par_image_location(par)
+
+    par = '3:1500:331; 3:1500:635'
+    fixed_par = parse.fix_config_par_image_location(par)
+    assert fixed_par[0] == par.split(';')[0], 'Incorrect parsing of the 1st element'
+    assert fixed_par[1] == par.split(';')[1].strip(), 'Incorrect parsing of the 2nd element'
+    assert list_fixed_par == fixed_par, 'str and one-item list entry should yield identical result'
+
+    # Fix with parentheses
+    par = ['(1', '2', '3):1500:331; (1', '2', '3):1500:635']
+    fixed_par = parse.fix_config_par_image_location(par)
+    assert fixed_par[0] == (','.join(par[:3])).split(';')[0], '1st element fix is wrong'
+    assert fixed_par[1] == (','.join(par[2:])).split(';')[1].strip(), '2nd element fix is wrong'
+
+    # Mix mosaics and single detectors
+    par = ['(1', '2', '3):1500:331; 3:1500:635']
+    fixed_par = parse.fix_config_par_image_location(par)
+    assert fixed_par[0] == (','.join(par[:3])).split(';')[0], '1st element fix is wrong'
+    assert fixed_par[1] == (','.join(par[2:])).split(';')[1].strip(), '2nd element fix is wrong'
+

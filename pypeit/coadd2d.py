@@ -1416,6 +1416,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                     inmask=inmask[iexp,:,:], fwhm=self.par['reduce']['findobj']['find_fwhm'],
                     trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
                     maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                    numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
                     ncoeff=3, snr_thresh=self.par['reduce']['findobj']['snr_thresh'], nperslit=1,
                     find_min_max=self.par['reduce']['findobj']['find_min_max'],
                     show_trace=self.debug_offsets, show_peaks=self.debug_offsets)

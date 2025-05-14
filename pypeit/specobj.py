@@ -513,8 +513,10 @@ class SpecObj(datamodel.DataContainer):
                 zeropoint array
             exptime (float):
                 Exposure time
-            tellmodel (?):
-                Telluric correction. Note: This is deprecated and will be removed in a future version.
+            tellmodel (`numpy.ndarray`_, optional):
+                Telluric model. To be applied to the sensitivity function. Only used to
+                generate the std fluxed QA plot. It should be None otherwise. To telluric
+                correct the data, use the telluric correct method.
             extinct_correct (bool, optional):
                 If True, extinction correct
             airmass (float, optional):

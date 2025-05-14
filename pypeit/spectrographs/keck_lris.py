@@ -150,6 +150,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Arc lamps list from header
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
+        # spatial flexure maxshift for non-longslit
+        if 'long' not in self.get_meta_value(scifile, 'decker'):
+            par['scienceframe']['process']['spat_flexure_maxlag'] = 10
+
         return par
 
     def init_meta(self):

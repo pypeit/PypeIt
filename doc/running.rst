@@ -35,7 +35,7 @@ Before executing ``run_pypeit``, you must have
     #. Edited the :doc:`pypeit_file` in that directory as recommended for a
        successful reduction.
 
-    #. (optional) Removed any calibration files in the ``Calibrations/`` folder.
+    #. (optional) Remove any calibration files in the ``Calibrations/`` folder.
        This is particularly necessary if you're re-reducing data that was
        previously reduced by an older PypeIt version.  However, when in doubt,
        it's good practice to perform a fresh reduction by removing these files

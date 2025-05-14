@@ -69,10 +69,14 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial = headarr[0]['CCDBIN1']
-            binspec = headarr[0]['CCDBIN2']
+            if 'CCDBIN1' in headarr[0]:  # Current files
+                binspatial = headarr[0]['CCDBIN1']
+                binspec = headarr[0]['CCDBIN2']
+            elif 'CCDSUM' in headarr[0]:  # For really old files
+                binspatial, binspec = headarr[0]['CCDSUM'].split()
+            else: 
+                msgs.error("Could not find a header keyword for the binning")
             return parse.binning2string(binspatial, binspec)
-            #return parse.binning2string(binspec, binspatial)
         elif meta_key == 'mjd':
             """
             Need to combine 'DATE-OBS' and 'UT' headers and then use astropy to make an mjd.

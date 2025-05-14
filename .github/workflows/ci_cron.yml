@@ -15,8 +15,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: ['3.11', '3.12']
-        toxenv: [test-alldeps, test-numpydev, test-linetoolsdev, test-gingadev, test-astropydev]
+        python: ['3.11', '3.12', '3.13']
+        toxenv: [test, test-alldeps-cov, test-numpydev, test-linetoolsdev, test-gingadev, test-astropydev]
     steps:
     - name: Check out repository
       uses: actions/checkout@v3

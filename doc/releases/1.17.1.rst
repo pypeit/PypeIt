@@ -1,0 +1,5 @@
+Version 1.17.1
+==============
+
+- Bumped to ``numpy>=1.26``
+- Lifts restriction from ``python<3.13`` to ``python<3.14``

@@ -9,7 +9,9 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import datamodel, msgs
+from pypeit import msgs
+from pypeit import datamodel
+from pypeit.core import parse
 
 class ManualExtractionObj(datamodel.DataContainer):
     """
@@ -84,32 +86,19 @@ class ManualExtractionObj(datamodel.DataContainer):
         idict = dict(spat=[], spec=[], detname=[], fwhm=[], neg=[], boxcar_rad=[])
         m_es = inp.split(';')
         for m_e in m_es:
-            parse = m_e.split(':')
-            # det_strip will be a list of a single number (no mosaic) or >= 2 numbers (mosaic)
-            det_strip = [int(d) for d in parse[0].strip('()').split(',')]
-            # check if it's negative object (i.e., if the det number is negative)
-            if np.all([item < 0 for item in det_strip]):
-                idict['neg'] += [True]
-                det_strip = [item * -1 for item in det_strip]
-            else:
-                idict['neg'] += [False]
-            if len(det_strip) >= 2 and tuple(det_strip) in spectrograph.allowed_mosaics:
-                # we use detname, which is a string (e.g., 'DET01', 'MSC01')
-                idict['detname'] += [spectrograph.get_det_name(tuple(det_strip))]
-            elif len(det_strip) == 1:
-                idict['detname'] += [spectrograph.get_det_name(det_strip[0])]
-            else:
-                msgs.error(f'Wrong input for detectors in the manual extraction parameters: {parse[0]}')
-            idict['spat'] += [float(parse[1])]
-            idict['spec'] += [float(parse[2])]
-            idict['fwhm'] += [float(parse[3])]
+            loc = parse.parse_image_location(m_e, spectrograph)
+            if len(loc) not in [5,6]:
+                msgs.error('Definition of manual extraction aperture does not have the correct '
+                           f'number of parameters: {m_e}.')
 
-            # Boxcar?
-            if len(parse) >= 5:
-                idict['boxcar_rad'] += [float(parse[4])]
-            else:
-                idict['boxcar_rad'] += [-1.]
-
+            # TODO: Why is this spat:spec and not spec:spat like everything else??
+            idict['neg'] += [loc[0]]
+            idict['detname'] += [loc[1]]
+            idict['spat'] += [loc[2]]
+            idict['spec'] += [loc[3]]
+            idict['fwhm'] += [loc[4]]
+            idict['boxcar_rad'] += [loc[5] if len(loc) == 6 else -1.]
+                
         # Build me
         return cls(frame=frame, spat=np.array(idict['spat']), 
                    spec=np.array(idict['spec']),

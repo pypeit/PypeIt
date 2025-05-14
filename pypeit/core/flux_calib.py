@@ -768,8 +768,10 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta
             Zeropoint, i.e. sensitivity function
         exptime (float):
             Exposure time in seconds
-        tellmodel (float, `numpy.ndarray`_, optional):
-            Apply telluric correction if it is passed it (shape = (nspec,)). Note this is deprecated.
+        tellmodel (float `numpy.ndarray`_, optional):
+            Apply telluric correction if it is passed it (shape = (nspec,)).
+            Note this is only used to generate the std fluxed QA plot. It should be None otherwise.
+            To telluric correct the data, use the telluric correct method.
         delta_wave (float, `numpy.ndarray`_, optional):
             The wavelength sampling of the spectrum to be flux calibrated.
         extinct_correct (bool, optional)
@@ -836,11 +838,11 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta
     # F_lam = 1e-17 erg/s/cm^2/Ang, i.e.  F_lam = S_lam*N_lam
     sensfunc_obs = Nlam_to_Flam(wave, zeropoint_obs)
 
-    # TODO Telluric corrections via this method are deprecated
+    # Telluric corrections used here only to generate the std fluxed QA plot
     # Did the user request a telluric correction?
     if tellmodel is not None:
         # This assumes there is a separate telluric key in this dict.
-        msgs.warn("Telluric corrections via this method are deprecated")
+        #msgs.warn("Telluric corrections via this method are deprecated")
         msgs.info('Applying telluric correction')
         sensfunc_obs = sensfunc_obs * (tellmodel > 1e-10) / (tellmodel + (tellmodel < 1e-10))
 

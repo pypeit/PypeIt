@@ -62,9 +62,14 @@ Examples
 --------
 
 In addition to the :ref:`pypeit_show_1dspec` GUI, these `specutils`_ loaders
-allow you to interact with your spectra using `jdaviz`_.  To do so, use the
-following lines in a `jupyter notebook`_ (you currently *must* do this from
-within a notebook):
+allow you to interact with your spectra using `jdaviz`_. `jdaviz`_ is intended
+to be run within a `jupyter notebook`_, or directly from the command line
+as a stand-alone application. In order to use `jdaviz`_ with PypeIt 1D output files,
+`jdaviz`_ must currently be run from within a `jupyter notebook`_, so that we can properly
+register the PypeIt-specific loaders with `specutils`_.
+
+Here is an example of how to display a PypeIt spec1d file in the `jdaviz`_ GUI
+within a `jupyter notebook`_:
 
 .. code-block:: python
 
@@ -75,7 +80,7 @@ within a notebook):
     spec = SpectrumList.read(file)
 
     specviz = Specviz()
-    specviz.load_spectrum(spec)
+    specviz.load_data(spec)
     specviz.show()
 
 

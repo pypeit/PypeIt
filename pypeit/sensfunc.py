@@ -405,7 +405,7 @@ class SensFunc(datamodel.DataContainer):
 
         """
         # Now flux the standard star
-        self.sobjs_std.apply_flux_calib(self.par_fluxcalib, self.spectrograph, self)
+        self.sobjs_std.apply_flux_calib(self.par_fluxcalib, self.spectrograph, self, tell=self.algorithm=='IR')
         # TODO assign this to the data model
 
         # Unpack the fluxed standard

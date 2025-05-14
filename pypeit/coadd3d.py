@@ -261,7 +261,7 @@ class DARcorrection:
             parangle (:obj:`float`):
                 The parallactic angle of the observations (units=radians, relative to North, towards East is postive)
             pressure (:obj:`float`):
-                The atmospheric pressure during the observations in Pascal. Valid range is from 10kPa - 140 kPa.
+                The atmospheric pressure during the observations in mbar. Valid range is from 100 mbar - 1400 mbar.
             temperature (:obj:`float`):
                 Temperature in degree Celsius. Valid temperate range is -40 to
                 100 degree Celsius.

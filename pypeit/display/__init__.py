@@ -7,7 +7,7 @@ import numpy
 
 from ginga.misc.Bunch import Bunch
 
-required_plugins = ['SlitWavelength']
+required_plugins = ['SlitWavelength', 'Spec1dView']
 
 def plugins_available(return_report=False):
     available_plugins = []
@@ -26,13 +26,13 @@ def plugins_available(return_report=False):
     return result
 
 def setup_SlitWavelength():
-    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'ginga_plugins.py'),
-                 module='ginga_plugins', klass='SlitWavelength',
+    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'slitwavelength.py'),
+                 module='slitwavelength', klass='SlitWavelength',
                  ptype='global', workspace='right', start=False,
                  category='PypeIt', menu='SlitWavelength', tab='SlitWavelength')
 
 def setup_Spec1dView():
-    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'ginga_spec1dview.py'),
-                 module='ginga_spec1dview', klass='Spec1dView',
+    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'spec1dview.py'),
+                 module='spec1dview', klass='Spec1dView',
                  ptype='local', workspace='right', start=False,
                  category='PypeIt', menu='Spec1dView', tab='Spec1dView')
