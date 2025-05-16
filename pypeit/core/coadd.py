@@ -2174,6 +2174,10 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         wave_grid_input=wave_grid_input,
         dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
+    # TODO There should be a step here rebinning the spectra to a common wavelength grid before computing the S/N weights. The point is that
+    # if one is combining spectra with different wavelength sampling, the S/N ratio per pixel will be different. What one actually wants 
+    # to compute here for the weights is the S/N ratio for each spectrum at the same pixel sampling. 
+
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(_fluxes, _ivars, gpms, sn_smooth_npix=sn_smooth_npix, weight_method=weight_method, verbose=verbose)
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
