@@ -1,18 +1,17 @@
 
 .. include:: include/links.rst
 
-.. _known_failure_modes:
+.. _troubleshooting:
 
-===================
-Known Failure Modes
-===================
+================================
+Troubleshooting and Known Issues
+================================
 
 Overview
 ========
 
-This doc attempts to capture known failure modes of
-PypeIt and potential mitigation strategies.  These are intended to be 
-distinct from common user error.
+Although incomplete, this doc provides some troubleshooting advice and a list of
+known known failure modes.
 
 .. _upgrade-faults:
 
@@ -59,5 +58,16 @@ Note that PypeIt always uses the entries in your data block
 (often slurped from the headers) as the *true* values, i.e.
 you can modify those by hand to over-come aspects of your
 corrupt header.
+
+.. _sig-clip:
+
+Error in ``astropy.stats.sigma_clipped_stats``
+==============================================
+
+An error in `astropy.stats.sigma_clipped_stats`_ for Astropy version 6.1.6 can
+lead to data being overly masked; see the `Astropy Changelog
+<https://docs.astropy.org/en/v6.1.7/changelog.html>`__.  If you see odd masking
+behavior, check your Astropy version.  Note that PypeIt currently requires a
+version where this error has been corrected.
 
 
