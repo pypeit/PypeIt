@@ -128,10 +128,21 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         grating = self.get_meta_value(scifile, 'dispname')
+        decker = self.get_meta_value(scifile, 'decker')
         if grating == 'blue' :
-            par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_blue.fits"
+            if 'high' in decker : 
+                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_blue_high.fits"
+            elif 'lo' in decker : 
+                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_blue_low.fits"
+            else :
+                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_blue.fits"
         elif grating == 'red' :
-            par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red.fits"
+            if 'high' in decker : 
+                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red_high.fits"
+            elif 'lo' in decker : 
+                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red_low.fits"
+            else :
+                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red.fits"
         else:
             msgs.error("NEED TO ADD YOUR GRISM HERE!")
 
