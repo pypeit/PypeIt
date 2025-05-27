@@ -881,9 +881,6 @@ def xc_trace(x_trace, x_design, pix_per_mm):
     pyplot.scatter(max_xc, xc[max_xc], marker='x', color='C3')
     pyplot.show()
 
-    import pdb
-    pdb.set_trace()
-
 def slit_function_length(edges, oversample=1):
     offset = -int(numpy.floor(numpy.amin(edges)))
     return offset, (int(numpy.ceil(numpy.amax(edges)))+1+offset)*int(oversample)
