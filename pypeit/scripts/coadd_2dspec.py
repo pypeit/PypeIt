@@ -44,7 +44,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
     def main(args):
         """ Executes 2d coadding
         """
-
+        import time
         from pathlib import Path
         import os
         import glob
@@ -58,12 +58,14 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         from astropy.io import fits
 
         from pypeit import msgs
+        from pypeit import utils
         from pypeit import coadd2d
         from pypeit import inputfiles
         from pypeit import specobjs
         from pypeit import spec2dobj
         from pypeit.spectrographs.util import load_spectrograph
 
+        tstart = time.time()
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
 
@@ -251,5 +253,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                redux_path=None)
         # Write spec2d
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr)
+        msgs.info(utils.get_time_string(time.time()-tstart))
+
 
 
