@@ -118,13 +118,17 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
             # Add CdI
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI']
+        elif self.get_meta_value(scifile, 'dispname') == 'LR-R':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-R_arx.fits'
+            # Add CdI
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI']
         else:
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             msgs.warn('Check wavelength calibration file.')
 
         # Return
         return par
-    
 
     def init_meta(self):
         """
