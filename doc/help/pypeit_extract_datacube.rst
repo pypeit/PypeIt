@@ -2,7 +2,7 @@
 
     $ pypeit_extract_datacube -h
     usage: pypeit_extract_datacube [-h] [-e EXT_FILE] [-s SAVE] [-o]
-                                   [-b BOXCAR_RADIUS] [-v VERBOSITY]
+                                   [-b BOXCAR_RADIUS] [-v VERBOSITY] [--debug]
                                    file
     
     Read in a datacube, extract a spectrum of a point source,and save it as a spec1d
@@ -16,7 +16,9 @@
       -e, --ext_file EXT_FILE
                             Configuration file with extraction parameters (default:
                             None)
-      -s, --save SAVE       Output spec1d filename (default: None)
+      -s, --save SAVE       Basename for output files, i.e. outputs will be written
+                            tospec1d_basename.fits and spec2d_basename.fits
+                            (default: None)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -b, --boxcar_radius BOXCAR_RADIUS
@@ -26,4 +28,5 @@
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             extract_datacube_YYYYMMDD-HHMM.log (default: 1)
+      --debug               show debug plots? (default: False)
     

@@ -1,7 +1,7 @@
 .. code-block:: console
 
     $ pypeit_coadd_datacube -h
-    usage: pypeit_coadd_datacube [-h] [--det DET] [-o] [-v VERBOSITY] file
+    usage: pypeit_coadd_datacube [-h] [--det DET] [-o] [-v VERBOSITY] [--debug] file
     
     Read in an array of spec2D files and convert them into a datacube
     
@@ -17,4 +17,5 @@
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             coadd_datacube_YYYYMMDD-HHMM.log (default: 1)
+      --debug               show debug plots? (default: False)
     

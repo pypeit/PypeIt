@@ -1795,6 +1795,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
 
             - ``'ivar'``: Use inverse variance weighting. This is not well
                 tested and should probably be deprecated.
+
         fwhm : float, optional
             FWHM of the PSF in arcseconds. Use to determine the degree of smoothing of the whitelight image, the
             kernel size for the initial object finding, and the bounds of the parameters for the 2D Gaussian fit. 
@@ -1917,80 +1918,80 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 
     Parameters
     ----------
-    image_wcs (`astropy.wcs.WCS`_):
+    image_wcs : `astropy.wcs.WCS`_
         World coordinate system to use for the white light images.
-    bins (tuple):
+    bins : tuple
         A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
         and z wavelength coordinates
-    sciImg (`numpy.ndarray`_, list):
+    sciImg : `numpy.ndarray`_, list
         A list of 2D science images, or a single 2D image containing the
         science data.
-    ivarImg (`numpy.ndarray`_, list):
+    ivarImg : `numpy.ndarray`_, list
         A list of 2D inverse variance images, or a single 2D image
         containing the inverse variance data.
-    waveImg (`numpy.ndarray`_, list):
+    waveImg : `numpy.ndarray`_, list
         A list of 2D wavelength images, or a single 2D image containing the
         wavelength data.
-    slitid_img_gpm (`numpy.ndarray`_, list):
+    slitid_img_gpm : `numpy.ndarray`_, list
         A list of 2D slit ID images, or a single 2D image containing the
         slit ID data.
-    wghtImg (`numpy.ndarray`_, list):
+    wghtImg : `numpy.ndarray`_, list
         A list of 2D weight images, or a single 2D image containing the
         weight data.
-    all_wcs (`astropy.wcs.WCS`_, list):
+    all_wcs : `astropy.wcs.WCS`_, list
         A list of WCS objects, or a single WCS object containing the WCS
         information of each image.
-    tilts (`numpy.ndarray`_, list):
+    tilts : `numpy.ndarray`_, list
         2D wavelength tilts frame, or a list of tilt frames (see all_idx)
-    slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`, list
         Information stored about the slits, or a list of SlitTraceSet (see
         all_idx)
-    astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
+    astrom_trans : :class:`~pypeit.alignframe.AlignmentSplines`, list
         A Class containing the transformation between detector pixel
         coordinates and WCS pixel coordinates, or a list of Alignment
         Splines (see all_idx)
-    all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+    all_dar : :class:`~pypeit.coadd3d.DARcorrection`, list
         A Class containing the DAR correction information, or a list of DARcorrection
         classes. If a list, it must be the same length as astrom_trans.
-    ra_offset (:obj:`float`, list):
+    ra_offset : :obj:`float`, list
         The RA offset to apply to each image, or a list of RA offsets.
-    dec_offset (:obj:`float`, list):
+    dec_offset : :obj:`float`, list
         The DEC offset to apply to each image, or a list of DEC offsets.
-    spec_subpixel (:obj:`int`, optional):
+    spec_subpixel : :obj:`int`, optional
         What is the subpixellation factor in the spectral direction. Higher
         values give more reliable results, but note that the time required
         goes as (``spec_subpixel * spat_subpixel * slice_subpixel``). The
         default value is 5, which divides each detector pixel into 5 subpixels
         in the spectral direction.
-    spat_subpixel (:obj:`int`, optional):
+    spat_subpixel : :obj:`int`, optional
         What is the subpixellation factor in the spatial direction. Higher
         values give more reliable results, but note that the time required
         goes as (``spec_subpixel * spat_subpixel * slice_subpixel``). The
         default value is 5, which divides each detector pixel into 5 subpixels
         in the spatial direction.
-    slice_subpixel (:obj:`int`, optional):
+    slice_subpixel : :obj:`int`, optional
         What is the subpixellation factor in the slice direction. Higher
         values give more reliable results, but note that the time required
         goes as (``spec_subpixel * spat_subpixel * slice_subpixel``). The
         default value is 5, which divides each IFU slice into 5 subpixels
         in the slice direction.
-    combine (:obj:`bool`, optional):
+    combine : :obj:`bool`, optional
         If True, all of the input frames will be combined into a single
         output. Otherwise, individual images will be generated.
-    correct_dar (:obj:`bool`, optional):
+    correct_dar : :obj:`bool`, optional
         If True, the DAR correction will be applied to the input images
         before generating the white light images. If False, the DAR
         correction will not be applied.
 
     Returns
     -------
-    wl_imgs (`numpy.ndarray`_):
+    wl_imgs : `numpy.ndarray`_
         The white light images for all frames. If combine=True, this will be a single 2D image. 
         Otherwise, it will be a 3D array with dimensions (numra, numdec, numframes).
-    sig_imgs (`numpy.ndarray`_):
+    sig_imgs : `numpy.ndarray`_
         The standard deviation images for all frames. If combine=True, this will be a single 2D image.
         Otherwise, it will be a 3D array with dimensions (numra, numdec, numframes).
-    bpm_imgs (`numpy.ndarray`_, type=bool):
+    bpm_imgs : `numpy.ndarray`_, type=bool
         The bad pixel mask images for all frames. If combine=True, this will be a single 2D image.
         Otherwise, it will be a 3D array with dimensions (numra, numdec, numframes).
     """

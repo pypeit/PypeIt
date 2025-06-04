@@ -171,7 +171,7 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
 
     The datamodel attributes are:
 
-    .. include:: ../include/class_datamodel_manual_cube_extractionobj.rst
+    .. include:: ../include/class_datamodel_manualcubeextractionobj.rst
 
     Args:
         spatx (`numpy.ndarray`_): Array of spatial positions to hand extract
