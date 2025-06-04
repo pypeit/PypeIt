@@ -71,7 +71,7 @@ class CoAddDataCube(scriptbase.ScriptBase):
                 CoAdd3D.output_paths(coadd3dfile.filenames, parset, coadd_dir=parset['rdx']['redux_path']))
 
         # Write the par to disk
-        par_outfile = coadd_scidir.parent / f'{parset['reduce']['cube']['output_filename']}_datacube.par'
+        par_outfile = coadd_scidir.parent / f"{parset['reduce']['cube']['output_filename']}_datacube.par"
         print(f'Writing full parameter set to {par_outfile}.')
         parset.to_config(par_outfile, exclude_defaults=True, include_descr=False)
 
