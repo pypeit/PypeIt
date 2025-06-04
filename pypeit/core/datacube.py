@@ -22,9 +22,11 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.display import display
 
 from astropy.stats import sigma_clipped_stats, SigmaClip
-from photutils.detection import DAOStarFinder
-
-
+# NOTE: photutils is an optional dependency
+try:
+    from photutils.detection import DAOStarFinder
+except ModuleNotFoundError:
+    DAOStarFinder = None
 
 
 # Use a fast histogram for speed!
@@ -158,6 +160,10 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     totmask = edgemask | np.logical_not(_gpm)
 
     if init_obj_position is None: 
+        if DAOStarFinder is None:
+            msgs.error('Requires optional photutils dependency to proceed.  Try to reinstall ' \
+                       'pypeit including the datacube dependencies; e.g., ' \
+                       'pip install "pypeit[datacube]".')
         if median_filter:
             int_kernel = np.clip(round(fwhm), 3, None)
             if int_kernel % 2 == 0:

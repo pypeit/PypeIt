@@ -53,8 +53,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-scikit-image = [
+datacube = [
     "scikit-image>=0.23",
+    "photutils>=2.0",
 ]
 specutils = [
     "specutils>=1.13",
@@ -79,6 +80,7 @@ devsuite = [
 ]
 dev = [
     "scikit-image>=0.23",
+    "photutils>=2.0",
     "specutils>=1.13",
     "pygit2",
     "pytest>=7.0.0",
