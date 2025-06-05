@@ -48,9 +48,9 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='FPA')
+        self.meta['dispname'] = dict(ext=0, card='OBSMODE')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
-        self.meta['instrument'] = dict(ext=0, card='FPA')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -86,7 +86,7 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname']
+        return []#'dispname']
 
     def raw_header_cards(self):
         """
@@ -128,8 +128,8 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
             binning='1,1',
             det=1,
             dataext         = 0,
-            specaxis        = 1,
-            specflip        = True,
+            specaxis        = 0,
+            specflip        = False,
             spatflip=False,
             platescale      = 0.37,
             darkcurr        = 306.0,  # e-/pixel/hour  (=0.085 e-/pixel/s)
@@ -262,15 +262,15 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
             # No pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'dark':
-            return good_exp & (fitstbl['target'] == 'lamp_off')
+            return good_exp & ((fitstbl['idname'] == 'LAMPFLAT') & (fitstbl['target'] == 'DFLAT_OFF'))
         if ftype == 'standard':
-            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
+            return good_exp & (fitstbl['idname'] == 'STANDARD')
         if ftype in ['pixelflat', 'trace']:
-            return good_exp & (fitstbl['target'] == 'lamp_on')
+            return good_exp & ((fitstbl['idname'] == 'LAMPFLAT') & (fitstbl['target'] == 'DFLAT_ON'))
         if ftype in 'science':
-            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
+            return good_exp & (fitstbl['idname'] == 'SPECTRUM')
         if ftype in ['arc', 'tilt']:
-            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
+            return good_exp & (fitstbl['idname'] == 'ARC')
         return np.zeros(len(fitstbl), dtype=bool)
 
 
