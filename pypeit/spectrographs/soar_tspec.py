@@ -23,7 +23,7 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.SOARTelescopePar()
     camera = 'TSPEC'
     url = 'https://noirlab.edu/science/programs/ctio/instruments/triplespec41-nir-imaging-spectrograph/instrument-characteristics/instrument-overview'
-    #header_name = 'TSPEC_SPEC'
+    header_name = 'TSPEC'
     pypeline = 'Echelle'
     ech_fixed_format = True
     supported = True
@@ -206,8 +206,8 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
-        par['calibrations']['arcframe']['exprng'] = [100, None]
-        par['calibrations']['tiltframe']['exprng'] = [100, None]
+        par['calibrations']['arcframe']['exprng'] = [1, None]
+        par['calibrations']['tiltframe']['exprng'] = [1, None]
         par['calibrations']['darkframe']['exprng'] = [0, None]
         par['scienceframe']['exprng'] = [60, None]
 
