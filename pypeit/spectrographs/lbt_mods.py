@@ -20,7 +20,7 @@ from pypeit.images.detector_container import DetectorContainer
 
 class LBTMODSSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Shane/Kast specific code
+    Child to handle LBT/MODS specific code
     """
     ndet = 1
     telescope = telescopes.LBTTelescopePar()
@@ -293,7 +293,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         detector_dict = dict(
             binning= binning,
             det=1,
-            dataext         = 0,
+            dataexm         = 0,
             specaxis        = 0,
             specflip        = False,
             spatflip        = False,
