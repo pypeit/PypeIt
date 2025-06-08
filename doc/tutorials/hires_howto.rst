@@ -16,11 +16,11 @@ dataset, which are observations of the quasar J0100+2802 at z=6.29 taken with th
 cross-disperser, echelle angle of -0.82°, cross-disperser angle of 1.62°, and 1x2
 (spectral x spatial) binning.  See :ref:`here <dev-suite>` to find this example dataset.
 
-If you're having trouble reducing your data, we encourage you to try going through this tutorial
-using this example dataset first.  Please join our `PypeIt Users Slack <pypeit-users.slack.com>`__
-(using `this invitation link
-<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
-to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
+If you're having trouble reducing your data, we encourage you to try going
+through this tutorial using this example dataset first.  Please join our `PypeIt
+Users Slack <https://pypeit-users.slack.com>`__ using `this invitation link
+<invite_>`_ to ask for help, and/or `Submit an issue`_ to Github if you find a
+bug!
 
 The following was performed on a Macbook Pro with 16 GB RAM. The main reduction took
 a little over 1 hour, and the fluxing took an additional 15-20 minutes.

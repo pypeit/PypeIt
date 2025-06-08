@@ -983,7 +983,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                 if iiter == niter:
                     msgs.warn('WARNING: LOCAL SKY SUBTRACTION NOT PERFORMED')
 
-        outmask_extract = outmask if use_2dmodel_mask else inmask
+        outmask_extract = outmask.copy() if use_2dmodel_mask else inmask.copy()
 
         # Now that the iterations of profile fitting and sky subtraction are completed,
         # loop over the objwork objects in this grouping and perform the final extractions.
@@ -1053,7 +1053,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         canvas.add('constructedcanvas', canvas_list)
 
     return skyimage[thismask], bkg_redux_skyimage[thismask] if bkg_redux_skyimage is not None else None, \
-        objimage[thismask], modelivar[thismask], outmask[thismask]
+        objimage[thismask], modelivar[thismask], outmask_extract[thismask]
 
 
 def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,

@@ -269,8 +269,9 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, chk_version=True, *
 
     flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if spec.fluxed else "ct/s")
     wave = spec.wave_grid_mid if grid else spec.wave
-    wave, flux, sigma = _enforce_monotonic_wavelengths(wave, spec.flux, spec.sigma, strict=strict)
-
+    _gpm = spec.mask.astype(bool) if spec.mask is not None else np.ones_like(spec.wave, dtype=bool)
+    wave, flux, sigma = _enforce_monotonic_wavelengths(wave[_gpm], spec.flux[_gpm],
+                                                       None if spec.sigma is None else spec.sigma[_gpm], strict=strict)
     # If the input filename is actually a string, assign it as the spectrum
     # name.  Otherwise, try assuming it's a _io.FileIO object, and if that
     # doesn't work assign an empty string as the name.
