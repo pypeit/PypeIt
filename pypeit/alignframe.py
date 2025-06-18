@@ -202,7 +202,7 @@ class TraceAlignment:
                 specobj_dict=specobj_dict, snr_thresh=self.alignpar['snr_thresh'],
                 show_peaks=show_peaks, show_fits=False,
                 trim_edg=self.alignpar['trim_edge'],
-                nperslit=len(self.alignpar['locations']), debug_all=False)
+                nperslit=len(self.alignpar['locations']))
             if len(align_traces) != len(self.alignpar['locations']):
                 # Align tracing has failed for this slit
                 msgs.error("Alignment tracing has failed on slit {0:d}/{1:d}".format(slit_idx+1,self.slits.nslits))
