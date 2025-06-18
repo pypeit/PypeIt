@@ -1004,7 +1004,7 @@ class AlignPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, snr_thresh=None):
+    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, snr_thresh=None, grow_slit_edge=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1040,6 +1040,15 @@ class AlignPar(ParSet):
                               'then only use the N most significant detections, where N is the number ' \
                               'of elements specified in the "locations" keyword argument'
 
+        defaults['grow_slit_edge'] = 0.0  
+        dtypes['grow_slit_edge'] = [int, float]
+        descr['grow_slit_edge'] = 'Grow the slit edges by this number of pixels when searching' \
+                                  'for alignnment traces. This parameter should typically be invoked' \
+                                  'when alignment fails because an alignment trace is falling off the edge of the' \
+                                  'slit. Both the left and right edges will be expaned by this number of pixels for' \
+                                  'the purpose of alignment grace finding.' 
+        
+
         # Instantiate the parameter set
         super(AlignPar, self).__init__(list(pars.keys()),
                                             values=list(pars.values()),
@@ -1052,7 +1061,7 @@ class AlignPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'snr_thresh']
+        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'snr_thresh', 'grow_slit_edge']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1345,12 +1354,7 @@ class Coadd1DPar(ParSet):
                         "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
 
 
-        defaults['sn_smooth_npix'] = None
-        dtypes['sn_smooth_npix'] = [int, float]
-        descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
-                                  'and weight spectra. If set to None (default), the code will determine the effective ' \
-                                  'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
-                                  'this neff.'
+
 
         defaults['maxiter_reject'] = 5
         dtypes['maxiter_reject'] = int
@@ -1656,7 +1660,7 @@ class CubePar(ParSet):
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
-                 correct_dar=None, weights_init_obj_pos=None):
+                 correct_dar=None, weights_init_obj_pos=None, sn_smooth_npix=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1877,7 +1881,13 @@ class CubePar(ParSet):
                                      'and fwhm is optional and is in arcsec.' \
                                      'Currently only the use of spatx:spaty is supported. Default is None.'
 
-                                
+        defaults['sn_smooth_npix'] = None
+        dtypes['sn_smooth_npix'] = [int, float]
+        descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
+                                  'and weight spectra. If set to None (default), the code will determine the effective ' \
+                                  'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
+                                  'this neff.'                                
+
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -1896,7 +1906,7 @@ class CubePar(ParSet):
         parkeys = ['slit_spec', 'output_filename', 'sensfile', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
-                   'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar', 'weights_init_obj_pos']
+                   'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar', 'weights_init_obj_pos', 'sn_smooth_npix']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
