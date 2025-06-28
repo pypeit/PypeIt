@@ -4,7 +4,7 @@
     usage: run_pypeit [-h] [-v VERBOSITY] [-r REDUX_PATH] [-m] [-s] [-o] [-c]
                       pypeit_file
     
-    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.17.4.dev290+g77cb49b5e[0m
+    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.17.4[0m
     ##  
     ##  Available spectrographs include:
     ##   aat_uhrf, bok_bc, gemini_flamingos1, gemini_flamingos2,
@@ -19,10 +19,11 @@
     ##   magellan_fire, magellan_fire_long, magellan_mage, mdm_modspec,
     ##   mdm_osmos_mdm4k, mdm_osmos_r4k, mmt_binospec, mmt_bluechannel,
     ##   mmt_mmirs, not_alfosc, not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
-    ##   p200_dbsp_red, p200_tspec, shane_kast_blue, shane_kast_red,
-    ##   shane_kast_red_ret, soar_goodman_blue, soar_goodman_red, tng_dolores,
-    ##   vlt_fors2, vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
-    ##   vlt_xshooter_vis, wht_isis_blue, wht_isis_red
+    ##   p200_dbsp_red, p200_ngps_i, p200_ngps_r, p200_tspec, shane_kast_blue,
+    ##   shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
+    ##   soar_goodman_red, subaru_focas, tng_dolores, vlt_fors2, vlt_sinfoni,
+    ##   vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
+    ##   wht_isis_red
     
     positional arguments:
       pypeit_file           PypeIt reduction file (must have .pypeit extension)

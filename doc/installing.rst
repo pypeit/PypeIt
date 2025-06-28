@@ -669,13 +669,12 @@ spectrum from the Shane/KAST spectrograph at Lick Observatory.
 Troubleshooting
 ===============
 
-If you have trouble installing pypeit, you're encouraged to `join
-<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__
-our `PypeIt Users Slack <https://pypeit-users.slack.com>`__ and post your issue
-to the ``#installing`` channel.  Below is an incomplete list of issues that users
-have reported in the past.  In addition to posting to the Users Slack if your
-issue isn't among those listed below, *please let us know if these suggestions
-do not work for you.*
+If you have trouble installing pypeit, you're encouraged to join our `PypeIt
+Users Slack <https://pypeit-users.slack.com>`__ using `this invitation
+link <invite_>`_ and post your issue to the ``#installing`` channel.  Below is an
+incomplete list of issues that users have reported in the past.  In addition to
+posting to the Users Slack if your issue isn't among those listed below, *please
+let us know if these suggestions do not work for you.*
 
 ----
 

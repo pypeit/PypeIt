@@ -1909,7 +1909,8 @@ class Spectrograph:
         """
         msgs.error(f'Method to match slits across detectors not defined for {self.name}')
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                       trim_std_pixs=None, log10_blaze_function=None):
         """
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
         function fits will be well behaved. For example, masking second order light. For instruments that don't
@@ -1927,9 +1928,13 @@ class Spectrograph:
         gpm_in: `numpy.ndarray`_
             Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
         meta_table: :obj:`dict`
-            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            Table containing metadata that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
         log10_blaze_function: `numpy.ndarray`_ or None
             Input blaze function to be tweaked, optional. Default=None.
 
@@ -1946,7 +1951,32 @@ class Spectrograph:
         log10_blaze_function_out: `numpy.ndarray`_ or None
             Output blaze function after being tweaked.
         """
-        return wave_in, counts_in, counts_ivar_in, gpm_in, log10_blaze_function
+        wave_out = wave_in.copy()
+        counts_out = counts_in.copy()
+        counts_ivar_out = counts_ivar_in.copy()
+        gpm_out = gpm_in.copy()
+        log10_blaze_function_out = log10_blaze_function.copy() if log10_blaze_function is not None else None
+
+        if trim_std_pixs is not None:
+            # make sure that the trim_pixs is a list of 2 integers
+            if not isinstance(trim_std_pixs, (list, tuple)) or len(trim_std_pixs) != 2:
+                msgs.error("trim_std_pixs must be a list or tuple of two integers.")
+            # Mask the first and last trim_std_pixs pixels
+            s = int(trim_std_pixs[0])
+            e = int(trim_std_pixs[1])
+            trim_gpm = np.zeros_like(wave_out, dtype=bool)
+            trim_gpm[s:-e] = True
+
+            # Set the wave, counts, gpm, inverse variance and log10 blaze to zero in the masked pixels
+            msgs.info('Trimming standard star spectrum by {:d} pixels at the start and {:d} pixels at the end.'.format(s, e))
+            wave_out = wave_out* trim_gpm
+            counts_out = counts_out * trim_gpm
+            counts_ivar_out = counts_ivar_out * trim_gpm
+            gpm_out = gpm_out & trim_gpm
+            if log10_blaze_function_out is not None:
+                log10_blaze_function_out = log10_blaze_function_out * trim_gpm
+
+        return wave_out, counts_out, counts_ivar_out, gpm_out, log10_blaze_function_out
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
         """

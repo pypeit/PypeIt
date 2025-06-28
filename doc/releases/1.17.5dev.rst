@@ -37,6 +37,10 @@ Functionality/Performance Improvements and Additions
   parameter.
 - Added `EdgeTracePar` parameter `mask_off_detector` to allow the user to mask spectral
   regions in each slit/order where more than 50% of the slit falls off the detector
+- Adds Subaru/FOCAS to the instrument suite
+- Added `SensfuncPar` parameter `trim_std_pixs` to allow the user to "trim" the
+  standard star 1D spectrum by a user-defined number of pixels before computing the
+  sensitivity function.
 
 Instrument-specific Updates
 ---------------------------

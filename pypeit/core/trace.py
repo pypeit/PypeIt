@@ -1225,8 +1225,8 @@ def build_trace_bpm(flux, trace_cen, bpm=None, boxcar=None, thresh=None, median_
 # so it takes only the highest peaks from detect_lines
 def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, smash_range=None,
                peak_thresh=100.0, peak_clip=None, trough=False, trace_median_frac=0.01,
-               trace_thresh=10.0, fwhm_uniform=3.0, fwhm_gaussian=3.0, maxshift=None,
-               maxerror=None, function='legendre', order=5, maxdev=5.0, maxiter=25,
+               trace_thresh=10.0, fwhm_uniform=3.0, fwhm_gaussian=3.0, min_pkdist_frac_fwhm=5.0,
+               maxshift=None, maxerror=None, function='legendre', order=5, maxdev=5.0, maxiter=25,
                niter_uniform=9, niter_gaussian=6, bitmask=None, show_fits=False, show_peaks=False):
     """
     Find and trace features in an image by identifying peaks/troughs
@@ -1334,6 +1334,10 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             The ``fwhm`` parameter to use when using Gaussian
             weighting in the calls to :func:`fit_trace`. See
             description of the algorithm above.
+        min_pkdist_frac_fwhm (:obj:`float`, optional):
+            Minimum allowed separation between same-side edge detections
+            expressed relative to fwhm_gaussian.  See
+            :func:`~pypeit.core.arc.detect_lines`.
         maxshift (:obj:`float`, optional):
             Maximum shift allowed between the input and recalculated
             centroid (see :func:`fit_trace`).
@@ -1459,7 +1463,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         peak, _, _cen, _, _, best, _, _ \
                 = arc.detect_lines(s*flux_smash_mean, cont_subtract=False, fwhm=fwhm_gaussian,
                                    input_thresh=peak_thresh, max_frac_fwhm=4.0,
-                                   min_pkdist_frac_fwhm=5.0, debug=show_peaks)
+                                   min_pkdist_frac_fwhm=min_pkdist_frac_fwhm, debug=show_peaks)
 
         if len(_cen) == 0 or not np.any(best):
             msgs.warn('No good {0}s found!'.format(l))

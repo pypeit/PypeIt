@@ -2740,11 +2740,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             self.edge_fit = self.edge_fit[:,keep]
         self.traceid = self.traceid[keep]
         if self.maskdef_id is not None:
-            try:
-                self.maskdef_id = self.maskdef_id[keep]
-            except:
-                embed()
-                exit()
+            self.maskdef_id = self.maskdef_id[keep]
 
         if resort:
             # Resort by the spatial dimension
@@ -3485,6 +3481,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         niter_uniform = self.par['niter_uniform']
         fwhm_gaussian = self.par['fwhm_gaussian']
         niter_gaussian = self.par['niter_gaussian']
+        min_edge_side_sep = self.par['min_edge_side_sep']
         maxdev = self.par['fit_maxdev']
         maxiter = self.par['fit_maxiter']
 
@@ -3501,6 +3498,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         msgs.info('Number of uniform-weighted iterations: {0:.1f}'.format(niter_uniform))
         msgs.info('FWHM parameter for Gaussian-weighted centroids: {0:.1f}'.format(fwhm_gaussian))
         msgs.info('Number of Gaussian-weighted iterations: {0:.1f}'.format(niter_gaussian))
+        msgs.info('Minimum separation between any two subsequent edges of the same side: '
+                  f'{fwhm_gaussian * min_edge_side_sep:.1f} pixels')
         msgs.info('Maximum deviation for fitted data: {0:.1f}'.format(maxdev))
         msgs.info('Maximum number of rejection iterations: {0}'.format(maxiter))
 
@@ -3532,9 +3531,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                            smash_range=smash_range, peak_thresh=peak_thresh,
                                            peak_clip=peak_clip, trace_median_frac=trace_median_frac,
                                            trace_thresh=trace_thresh, fwhm_uniform=fwhm_uniform,
-                                           fwhm_gaussian=fwhm_gaussian, function=function,
-                                           order=order, maxdev=maxdev, maxiter=maxiter,
-                                           niter_uniform=niter_uniform,
+                                           fwhm_gaussian=fwhm_gaussian, 
+                                           min_pkdist_frac_fwhm=min_edge_side_sep,
+                                           function=function, order=order, maxdev=maxdev,
+                                           maxiter=maxiter, niter_uniform=niter_uniform,
                                            niter_gaussian=niter_gaussian, bitmask=self.bitmask,
                                            show_fits=show_fits, show_peaks=show_peaks)
                 fit = np.hstack((fit,_fit))
@@ -3558,10 +3558,12 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                        peak_clip=peak_clip, trough=True,
                                        trace_median_frac=trace_median_frac,
                                        trace_thresh=trace_thresh, fwhm_uniform=fwhm_uniform,
-                                       fwhm_gaussian=fwhm_gaussian, function=function, order=order,
-                                       maxdev=maxdev, maxiter=maxiter, niter_uniform=niter_uniform,
-                                       niter_gaussian=niter_gaussian, bitmask=self.bitmask,
-                                       show_fits=show_fits, show_peaks=show_peaks)
+                                       fwhm_gaussian=fwhm_gaussian, 
+                                       min_pkdist_frac_fwhm=min_edge_side_sep, function=function,
+                                       order=order, maxdev=maxdev, maxiter=maxiter,
+                                       niter_uniform=niter_uniform, niter_gaussian=niter_gaussian,
+                                       bitmask=self.bitmask, show_fits=show_fits,
+                                       show_peaks=show_peaks)
 
         # Assess the output
         ntrace = fit.shape[1]

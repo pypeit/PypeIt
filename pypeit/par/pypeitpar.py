@@ -212,7 +212,7 @@ class ProcessImagesPar(ParSet):
                  combine=None, satpix=None,
                  mask_cr=None, clip=None,
                  scale_to_mean=None,
-                 #cr_sigrej=None, 
+                 #cr_sigrej=None,
                  n_lohi=None, #replace=None,
                  lamaxiter=None, grow=None,
                  comb_sigrej=None,
@@ -1576,14 +1576,14 @@ class Coadd2DPar(ParSet):
                                   "* 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity." \
                                   "* 'linear' -- Grid is uniform in wavelength" \
 
-        
+
         defaults['spec_samp_fact'] = 1.0
         dtypes['spec_samp_fact'] = float
         descr['spec_samp_fact'] = "Make the wavelength grid sampling finer (``spec_samp_fact`` less than 1.0)" \
                                   "or coarser (``spec_samp_fact`` greater than 1.0) by this sampling factor." \
                                   "This  multiples the 'native' spectral pixel size by ``spec_samp_fact``," \
                                   "i.e. the units of ``spec_samp_fact`` are pixels."
-        
+
 
         defaults['spat_samp_fact'] = 1.0
         dtypes['spat_samp_fact'] = float
@@ -1991,7 +1991,8 @@ class SensFuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, use_flat=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
+    def __init__(self, use_flat=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None,
+                 trim_std_pixs=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
                  star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
@@ -2041,6 +2042,13 @@ class SensFuncPar(ParSet):
                                   'wavelength across detectors (might be ok if there is).  If ' \
                                   'entered as a list of integers, they should be converted to ' \
                                   'the detector name.  **Cannot be used with detector mosaics.**'
+
+        defaults['trim_std_pixs'] = None
+        dtypes['trim_std_pixs'] = [list, tuple]
+        descr['trim_std_pixs'] = 'List or tuple of two integers specifying the number of pixels to trim' \
+                                 'from the start and end of the 1D standard star spectrum. ' \
+                                 'Example: [10, 5] will trim 10 pixels from the start (blue side)' \
+                                 'and 5 pixels from the end (red side) of the spectrum. '
 
         defaults['algorithm'] = 'UVIS'
         dtypes['algorithm'] = str
@@ -2109,9 +2117,10 @@ class SensFuncPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Single element parameters
-        parkeys = ['use_flat', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
-                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'extr',
-                   'mask_hydrogen_lines', 'mask_helium_lines', 'hydrogen_mask_wid']
+        parkeys = ['use_flat', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det',
+                   'trim_std_pixs', 'algorithm', 'polyorder', 'star_type', 'star_mag',
+                   'star_ra', 'star_dec', 'extr',   'mask_hydrogen_lines', 'mask_helium_lines',
+                   'hydrogen_mask_wid']
 
         # All parameters, including nested ParSets
         allkeys = parkeys + ['UVIS', 'IR']
@@ -2139,6 +2148,11 @@ class SensFuncPar(ParSet):
         allowed_extractions = ['BOX', 'OPT']
         if self.data['extr'] not in allowed_extractions:
             msgs.error("'extr' must be one of:\n" + ", ".join(allowed_extractions))
+
+        # check trim_std_pixs format
+        if self.data['trim_std_pixs'] is not None:
+            if not isinstance(self.data['trim_std_pixs'], (list, tuple)) or len(self.data['trim_std_pixs']) != 2:
+                msgs.error("`trim_std_pixs` must be a list or tuple of two integers.")
 
     @staticmethod
     def valid_algorithms():
@@ -2428,11 +2442,11 @@ class TelluricPar(ParSet):
                                'must be downloaded from the GoogleDrive and installed in your PypeIt installation via ' \
                                'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
                                'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
-        
+
         defaults['tell_npca'] = 5
         dtypes['tell_npca'] = int
         descr['tell_npca'] = 'Number of telluric PCA components used. Can be set to any number from 1 to 10.'
-        
+
         defaults['teltype'] = 'pca'
         options['teltype'] = TelluricPar.valid_teltype()
         dtypes['teltype'] = str
@@ -2685,7 +2699,7 @@ class TelluricPar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
-        
+
     @staticmethod
     def valid_teltype():
         """
@@ -2700,12 +2714,12 @@ class TelluricPar(ParSet):
         if self.data['tell_npca'] < 1 or self.data['tell_npca'] > 10:
             raise ValueError('Invalid value {:d} for tell_npca '.format(self.data['tell_npca'])+
                              '(must be between 1 and 10).')
-                             
+
         self.data['teltype'] = self.data['teltype'].lower()
         if self.data['teltype'] not in TelluricPar.valid_teltype():
             raise ValueError('Invalid teltype "{}"'.format(self.data['teltype'])+
                              ', valid options are: {}.'.format(TelluricPar.valid_teltype()))
-        
+
         # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
         # scipy.optimize.differential_evoluiton probalby checks this.
 
@@ -2767,7 +2781,7 @@ class ReduxPar(ParSet):
         dtypes['slitspatnum'] = [str, list]
         descr['slitspatnum'] = 'Restrict reduction to a set of slit DET:SPAT values (closest slit is used). ' \
                                'Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, ' \
-                               '(i.e. modifying one slit) you *must* have the precise SPAT_ID index.' 
+                               '(i.e. modifying one slit) you *must* have the precise SPAT_ID index.'
 
         dtypes['maskIDs'] = [str, int, list]
         descr['maskIDs'] = 'Restrict reduction to a set of slitmask IDs ' \
@@ -3166,13 +3180,13 @@ class WavelengthSolutionPar(ParSet):
         descr['cc_percent_ceil'] = 'Determines the percentile at which to cap lines used in cross correlation, '  \
                                    'to prevent large lines from dominating. If 100, all lines are allowed at their '  \
                                    'maximum heights. May produce spurious peaks in xcorr'
-        
+
         defaults['echelle_pad'] = 3
         dtypes['echelle_pad'] = int
         descr['echelle_pad'] = 'Number of orders by which to pad the echellogram reference in the echelle '  \
                                 'method. Values > 0 allow for some error in the reddest order guess, '  \
                                 'but require sufficient reference orders.'
-        
+
         defaults['cc_offset_minmax'] = 1.0
         dtypes['cc_offset_minmax'] = float
         descr['cc_offset_minmax'] = 'Fraction of the total spectral pixels used to determine the range of '  \
@@ -3180,7 +3194,7 @@ class WavelengthSolutionPar(ParSet):
                                      'the archive spectrum. Restricting this can be crucial if there are few '  \
                                      'reference lines and the cross correlation can get confused. '  \
                                      'This parameter is only used if ``cc_shift_range`` is None.'
-        
+
         defaults['stretch_func'] = 'quadratic'
         dtypes['stretch_func'] = str
         options['stretch_func'] = WavelengthSolutionPar.valid_stretch_func_methods()
@@ -3188,8 +3202,8 @@ class WavelengthSolutionPar(ParSet):
                                 'the extracted arcs when identifying emission lines with reidentify. For NIRSPEC, ' \
                                 'the quadratic mode tends to do better because the wavelength solution ' \
                                 'is typically at least 2nd or 3rd order.'
-                
-        
+
+
 
 
 
@@ -3211,7 +3225,7 @@ class WavelengthSolutionPar(ParSet):
                    'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
-                   'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
+                   'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv',
                    'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -3259,11 +3273,11 @@ class WavelengthSolutionPar(ParSet):
         """
         return ['observed', 'heliocentric', 'barycentric']
 
-    @staticmethod  
-    def valid_stretch_func_methods():  
+    @staticmethod
+    def valid_stretch_func_methods():
         """ Return the valid options for the stretch_func methods.
         """
-        return ['linear', 'quadratic']  
+        return ['linear', 'quadratic']
 
     def validate(self):
         pass
@@ -3286,13 +3300,14 @@ class EdgeTracePar(ParSet):
                  pca_order=None, pca_sigrej=None, pca_maxrej=None, pca_maxiter=None,
                  smash_range=None, edge_detect_clip=None, trace_median_frac=None, trace_thresh=None,
                  trace_rms_tol=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
-                 niter_gaussian=None, det_buffer=None, max_nudge=None, sync_predict=None,
-                 sync_center=None, gap_offset=None, sync_to_edge=None, bound_detector=None,
-                 minimum_slit_dlength=None, dlength_range=None, minimum_slit_length=None,
-                 minimum_slit_length_sci=None, length_range=None, minimum_slit_gap=None, clip=None,
-                 order_match=None, order_offset=None, add_missed_orders=None, order_width_poly=None,
-                 order_gap_poly=None, order_fitrej=None, order_outlier=None, order_spat_range=None,
-                 overlap=None, max_overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
+                 niter_gaussian=None, min_edge_side_sep=None, det_buffer=None, max_nudge=None,
+                 sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
+                 bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
+                 minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
+                 minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
+                 add_missed_orders=None, order_width_poly=None, order_gap_poly=None,
+                 order_fitrej=None, order_outlier=None, order_spat_range=None, overlap=None,
+                 max_overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
                  maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
                  add_predict=None, rm_slits=None, maskdesign_filename=None, mask_off_detector=None):
 
@@ -3354,7 +3369,7 @@ class EdgeTracePar(ParSet):
                                        'measurements of the detector data (as opposed to what ' \
                                        'should be included in any modeling approach; see ' \
                                        'fit_min_spec_length).'
-                                       
+
         defaults['trim_spec'] = None
         dtypes['trim_spec'] = list
         descr['trim_spec'] = 'User-defined truncation of all slits in the spectral direction.' \
@@ -3366,7 +3381,7 @@ class EdgeTracePar(ParSet):
         dtypes['mask_off_detector'] = bool
         descr['mask_off_detector'] =  'Mask spectral regions in each slit/order where more than ' \
                                         '50% of the slit spatial coverage falls off the detector. ' \
-        
+
         defaults['max_shift_abs'] = 0.5
         dtypes['max_shift_abs'] = [int, float]
         descr['max_shift_abs'] = 'Maximum spatial shift in pixels between an input edge ' \
@@ -3503,7 +3518,7 @@ class EdgeTracePar(ParSet):
                                 'image (see `trace_median_frac`), values in the median-filtered ' \
                                 'image *below* this threshold are masked in the refitting of ' \
                                 'the edge trace data.  If None, no masking applied.'
-        
+
         dtypes['trace_rms_tol'] = [int, float]
         descr['trace_rms_tol'] = 'After retracing edges using peaks detected in the rectified ' \
                                  'and collapsed image, the RMS difference (in pixels) between ' \
@@ -3528,7 +3543,7 @@ class EdgeTracePar(ParSet):
         dtypes['fwhm_gaussian'] = [int, float]
         descr['fwhm_gaussian'] = 'The `fwhm` parameter to use when using Gaussian weighting in ' \
                                  ':func:`~pypeit.core.trace.fit_trace` when refining the PCA ' \
-                                 'predictions of edges.  See description ' \
+                                 'predictions of edges.  See description of ' \
                                  ':func:`~pypeit.core.trace.peak_trace`.'
 
         defaults['niter_gaussian'] = 6
@@ -3536,6 +3551,15 @@ class EdgeTracePar(ParSet):
         descr['niter_gaussian'] = 'The number of iterations of ' \
                                   ':func:`~pypeit.core.trace.fit_trace` to use when using ' \
                                   'Gaussian weighting.'
+        
+        defaults['min_edge_side_sep'] = 5.0
+        dtypes['min_edge_side_sep'] = [int, float]
+        descr['min_edge_side_sep'] = 'Minimum separation between same-side edges (e.g., the ' \
+                                     'minimum separation between two subsequent right-edge ' \
+                                     'detections) in units of ``fwhm_gaussian``.  For example, ' \
+                                     'if ``fwhm_gaussian = 3.0`` and ``min_edge_sid_sep = 5.``, ' \
+                                     'the separation between subsequent right edges must be at ' \
+                                     'least 15 pixels.'
 
         defaults['det_buffer'] = 5
         dtypes['det_buffer'] = int
@@ -3690,7 +3714,7 @@ class EdgeTracePar(ParSet):
                                      '``order_width_poly``, ``order_gap_poly``, ' \
                                      '``order_fitrej``, ``order_outlier``, and ' \
                                      '``order_spat_range``.'
-        
+
         defaults['order_width_poly'] = 2
         dtypes['order_width_poly'] = int
         descr['order_width_poly'] = 'Order of the Legendre polynomial used to model the ' \
@@ -3702,7 +3726,7 @@ class EdgeTracePar(ParSet):
         descr['order_gap_poly'] = 'Order of the Legendre polynomial used to model the spatial ' \
                                   'gap between orders as a function of the order spatial ' \
                                   'position.  See ``add_missed_orders``.'
-        
+
         defaults['order_fitrej'] = 3.
         dtypes['order_fitrej'] = [int, float]
         descr['order_fitrej'] = 'When fitting the width of and gap beteween echelle orders with ' \
@@ -3815,7 +3839,7 @@ class EdgeTracePar(ParSet):
                              '\'(1,2,3):1537:297.2:353.5\', adds a slit that passes through ' \
                              '(1537,297.2) on the left and (1537,353.5) on the right in the ' \
                              'mosaic made up of detectors 1, 2, and 3.'
-                             
+
         defaults['add_predict'] = 'nearest'
         dtypes['add_predict'] = str
         descr['add_predict'] = 'Sets the method used to predict the shape of the left and right ' \
@@ -3880,15 +3904,16 @@ class EdgeTracePar(ParSet):
                    'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent', 'pca_function',
                    'pca_order', 'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range',
                    'edge_detect_clip', 'trace_median_frac', 'trace_thresh', 'trace_rms_tol',
-                   'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian', 'det_buffer',
-                   'max_nudge', 'sync_predict', 'sync_center', 'gap_offset', 'sync_to_edge',
-                   'bound_detector', 'minimum_slit_dlength', 'dlength_range', 'minimum_slit_length',
-                   'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
-                   'order_match', 'order_offset',  'add_missed_orders', 'order_width_poly',
-                   'order_gap_poly', 'order_fitrej', 'order_outlier', 'order_spat_range','overlap',
-                   'max_overlap', 'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step',
-                   'maskdesign_sigrej', 'maskdesign_filename', 'pad', 'add_slits', 'add_predict',
-                   'rm_slits', 'mask_off_detector']
+                   'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
+                   'min_edge_side_sep', 'det_buffer', 'max_nudge', 'sync_predict', 'sync_center',
+                   'gap_offset', 'sync_to_edge', 'bound_detector', 'minimum_slit_dlength',
+                   'dlength_range', 'minimum_slit_length', 'minimum_slit_length_sci',
+                   'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
+                   'add_missed_orders', 'order_width_poly', 'order_gap_poly', 'order_fitrej',
+                   'order_outlier', 'order_spat_range','overlap', 'max_overlap', 'use_maskdesign',
+                   'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
+                   'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits',
+                   'mask_off_detector']
 
         # Find the list of keywords provded in `cfg` that are *not* valid
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -5119,7 +5144,7 @@ class PypeItPar(ParSet):
                 The order of the lists in the tuple is important, as
                 it sets the order in which the lines are merged.
                 Last in line has *highest* priority.
-                Or the input may be a list which will be taken 
+                Or the input may be a list which will be taken
                 as a single item described above.
             evaluate (:obj:`bool`, optional):
                 Evaluate the values in the config object before
@@ -5433,7 +5458,7 @@ class TelescopePar(ParSet):
         """
         return ['AAT', 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT',
                 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT',
-                'LDT', 'JWST', 'HILTNER']
+                'LDT', 'JWST', 'HILTNER', 'SUBARU']
 
     def validate(self):
         pass
@@ -5579,4 +5604,3 @@ class Collate1DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
-

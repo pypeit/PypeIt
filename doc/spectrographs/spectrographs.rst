@@ -56,6 +56,7 @@ instrument-specific details for running PypeIt.
    ntt_efosc2
    shane_kast
    soar_goodman
+   subaru_focas
    xshooter
 
 

@@ -24,7 +24,7 @@ from pypeit.core.moment import moment1d
 
 
 def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
-                    spec, min_frac_use=0.05, fwhmimg=None, flatimg=None,
+                    spec, min_frac_use=0.9, fwhmimg=None, flatimg=None,
                     base_var=None, count_scale=None, noise_floor=None):
 
     r"""
@@ -187,6 +187,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
 
     tot_weight = np.nansum(mask_sub*ivar_sub*oprof_sub, axis=1)
     prof_norm = np.nansum(oprof_sub, axis=1)
+    # NOTE: Frac_use is also equal to np.nansum(mask_sub * oprof_sub, axis=1)
     frac_use = (prof_norm > 0.0)*np.nansum((mask_sub*ivar_sub > 0.0)*oprof_sub, axis=1)/(prof_norm + (prof_norm == 0.0))
 
     # Use the same weights = oprof^2*mivar for the wavelenghts as the flux.
