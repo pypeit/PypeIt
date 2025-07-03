@@ -37,11 +37,13 @@ Submodules
    pypeit.spectrographs.ntt_efosc2
    pypeit.spectrographs.opticalmodel
    pypeit.spectrographs.p200_dbsp
+   pypeit.spectrographs.p200_ngps
    pypeit.spectrographs.p200_tspec
    pypeit.spectrographs.shane_kast
    pypeit.spectrographs.slitmask
    pypeit.spectrographs.soar_goodman
    pypeit.spectrographs.spectrograph
+   pypeit.spectrographs.subaru_focas
    pypeit.spectrographs.tng_dolores
    pypeit.spectrographs.util
    pypeit.spectrographs.vlt_fors

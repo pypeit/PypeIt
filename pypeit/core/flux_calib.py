@@ -38,6 +38,7 @@ SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 BB_SCALE_FACTOR = 1.0E-23  # Scale factor used for the tabulated blackbody dimensionless flux scale factor.
 
+
 def zp_unit_const():
     """
     This constant defines the units for the spectroscopic zeropoint. See
@@ -747,7 +748,6 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     out_table['SENS_ZEROPOINT_FIT_GPM'] = zeropoint_fit_gpm.T
     out_table['WAVE_MIN'] = wave_min
     out_table['WAVE_MAX'] = wave_max
-
     return meta_table, out_table
 
 
@@ -992,7 +992,7 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
             plt.show()
 
     # Get masks from observed star spectrum. True = Good pixels
-    mask_bad, mask_recomb, mask_tell = get_mask(wave, Nlam_star, Nlam_ivar_star, gpm_star,
+    mask_star, mask_recomb, mask_tell = get_mask(wave, Nlam_star, Nlam_ivar_star, gpm_star,
                                               mask_hydrogen_lines=mask_hydrogen_lines,
                                               mask_helium_lines=mask_helium_lines,
                                               mask_telluric=True, hydrogen_mask_wid=hydrogen_mask_wid,
@@ -1000,7 +1000,7 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
 
     # Get zeropoint
     zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm = standard_zeropoint(
-        wave, Nlam_star, Nlam_ivar_star, mask_bad, flux_true, mask_recomb=mask_recomb,
+        wave, Nlam_star, Nlam_ivar_star, mask_star, flux_true, mask_recomb=mask_recomb,
         mask_tell=mask_tell, maxiter=35, upper=3, lower=3, polyorder=polyorder,
         balm_mask_wid=hydrogen_mask_wid, nresln=nresln, resolution=resolution,
         polycorrect=polycorrect, polyfunc=polyfunc, debug=debug)
@@ -1054,11 +1054,11 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
 
     Returns
     -------
-    msk_bad: bool `numpy.ndarray`_
-        mask for bad pixels.
-    msk_star: bool `numpy.ndarray`_
+    gpm_star: bool `numpy.ndarray`_
+        mask for good pixels (True = good pixel).
+    mask_recomb: bool `numpy.ndarray`_
         mask for recombination lines in star spectrum.
-    msk_tell: bool `numpy.ndarray`_
+    mask_tell: bool `numpy.ndarray`_
         mask for telluric regions.
     """
 
@@ -1070,16 +1070,16 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
 
     # masking bad entries
     msgs.info(" Masking bad pixels")
-    mask_bad = mask_star.copy()
-    mask_bad[ivar_star <= 0.] = False
-    mask_bad[flux_star <= 0.] = False
+    gpm_star = mask_star.copy()
+    gpm_star[ivar_star <= 0.] = False
+    gpm_star[flux_star <= 0.] = False
     # Mask edges
     msgs.info(" Masking edges")
-    mask_bad[[0, -1]] = False
+    gpm_star[[0, -1]] = False
     # Mask Atm. cutoff
     msgs.info(" Masking Below the atmospheric cutoff")
     atms_cutoff = wave_star <= 3000.0
-    mask_bad[atms_cutoff] = False
+    gpm_star[atms_cutoff] = False
 
     if mask_hydrogen_lines:
         mask_recomb = mask_stellar_hydrogen(
@@ -1116,21 +1116,21 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
             skytrans_file = dataPaths.skisim.get_file_path('mktrans_zm_10_10.dat')
             skytrans = ascii.read(skytrans_file)
             wave_trans, trans = skytrans['wave'].data*10000.0, skytrans['trans'].data
-            trans_use = (wave_trans>=np.min(wave_star)-100.0) & (wave_trans<=np.max(wave_star)+100.0)
+            trans_use = (wave_trans >= np.min(wave_star[gpm_star])-100.0) & (wave_trans <= np.max(wave_star[gpm_star])+100.0)
             # Estimate the resolution of your spectra.
             # I assumed 3 pixels per resolution. This gives an approximate right resolution at the middle point.
-            resolution = np.median(wave_star) / np.median(wave_star - np.roll(wave_star, 1)) / 3
+            resolution = np.median(wave_star[gpm_star] / (wave_star[gpm_star] - np.roll(wave_star[gpm_star], 1))) / 3
             trans_convolved, px_sigma, px_bin = conv2res(wave_trans[trans_use], trans[trans_use], resolution,
                                                          central_wl='midpt', debug=False)
             trans_final = interpolate.interp1d(wave_trans[trans_use], trans_convolved,
                                                bounds_error=False,
                                                fill_value='extrapolate')(wave_star)
-            tell_nir = (trans_final<trans_thresh) & (wave_star>9100.0)
+            tell_nir = (trans_final < trans_thresh) & (wave_star > 9100.0)
             mask_tell[tell_nir] = False
         else:
             msgs.info('Your spectrum is bluer than 9100A, only optical telluric regions are masked.')
 
-    return mask_bad, mask_recomb, mask_tell
+    return gpm_star, mask_recomb, mask_tell
 
 
 def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
@@ -1448,9 +1448,9 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
     rejmask = zeropoint_data_gpm[wv_gpm] & np.logical_not(zeropoint_fit_gpm[wv_gpm])
     axis.plot(wave[wv_gpm], zeropoint_data[wv_gpm], label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5, linewidth=1.0)
     axis.plot(wave[wv_gpm], zeropoint_fit[wv_gpm], label='Zeropoint fit', color='red', linewidth=2.0, zorder=7, alpha=0.7)
-    axis.plot(wave[wv_gpm][rejmask], zeropoint_data[wv_gpm][rejmask], 's', zorder=10, mfc='None', mec='blue', mew=0.7, label='rejected pixels from fit')
+    axis.plot(wave[wv_gpm][rejmask], zeropoint_data[wv_gpm][rejmask], 's', zorder=2, mfc='None', mec='blue', mew=0.7, label='rejected pixels from fit')
     axis.plot(wave[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], zeropoint_data[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], 'v',
-             zorder=11, mfc='None', mec='orange', mew=0.7, label='originally masked')
+             zorder=1, mfc='None', mec='orange', mew=0.7, label='originally masked')
     med_filt_mask = zeropoint_data_gpm[wv_gpm] & np.isfinite(zeropoint_data[wv_gpm])
     zp_med_filter = utils.fast_running_median(zeropoint_data[wv_gpm][med_filt_mask], 11)
     axis.set_ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
@@ -1577,8 +1577,8 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     msgs.work("Should pull resolution from arc line analysis")
     msgs.work("At the moment the resolution is taken as the PixelScale")
     msgs.work("This needs to be changed!")
-    std_pix = np.median(np.abs(wave - np.roll(wave, 1)))
-    std_res = np.median(wave/resolution) # median resolution in units of Angstrom.
+    std_pix = np.median(np.abs(wave[zeropoint_data_gpm] - np.roll(wave[zeropoint_data_gpm], 1)))
+    std_res = np.median(wave[zeropoint_data_gpm]/resolution) # median resolution in units of Angstrom.
     if (nresln * std_res) < std_pix:
         msgs.warn("Bspline breakpoints spacing shoud be larger than 1pixel")
         msgs.warn("Changing input nresln to fix this")
@@ -1594,11 +1594,11 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     kwargs_bspline = {'bkspace': std_res * nresln}
     kwargs_reject = {'maxrej': 5}
     msgs.info("Initialize bspline for flux calibration")
-    init_bspline = bspline.bspline(wave, bkspace=kwargs_bspline['bkspace'])
+    init_bspline = bspline.bspline(wave[zeropoint_data_gpm], bkspace=kwargs_bspline['bkspace'])
     fullbkpt = init_bspline.breakpoints
 
     # remove masked regions from breakpoints
-    msk_bkpt = interpolate.interp1d(wave, zeropoint_fitmask, kind='nearest', fill_value='extrapolate')(fullbkpt)
+    msk_bkpt = interpolate.interp1d(wave[zeropoint_data_gpm], zeropoint_fitmask[zeropoint_data_gpm], kind='nearest', fill_value='extrapolate')(fullbkpt)
     init_breakpoints = fullbkpt[msk_bkpt > 0.999]
 
     # init_breakpoints = fullbkpt
@@ -1608,7 +1608,6 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
                                 kwargs_reject=kwargs_reject)
     zeropoint_bspl, zeropoint_fit_gpm = bset1.value(wave)
     zeropoint_bspl_bkpt, _ = bset1.value(init_breakpoints)
-
     if debug:
         # Check for calibration
         plt.figure(1)

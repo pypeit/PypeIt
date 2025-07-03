@@ -2478,7 +2478,9 @@ class Telluric(datamodel.DataContainer):
         self.arg_dict_list = [None]*self.norders
         self.max_ntheta_obj = 0
         for counter, iord in enumerate(self.srt_order_tell):
-            msgs.info(f'Initializing object model for order: {iord}, {counter}/{self.norders}'
+            _ord = self.ech_orders[iord] if self.ech_orders is not None and \
+                                            len(self.ech_orders) == self.norders else iord
+            msgs.info(f'Initializing object model for order: {_ord}, {counter+1}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             tellmodel = eval_telluric(self.tell_guess, self.tell_dict,
                                         ind_lower=self.ind_lower[iord],
@@ -2530,7 +2532,22 @@ class Telluric(datamodel.DataContainer):
         only_orders = [only_orders] if (only_orders is not None and
                                         isinstance(only_orders, (int, np.integer))) \
                                     else only_orders
-        good_orders = self.srt_order_tell if only_orders is None else only_orders
+        # by default, we use all orders
+        good_orders = self.srt_order_tell
+        # only if self.ech_orders is defined and its length matches self.norders, we find the only_orders (if exist)
+        if self.ech_orders is not None and len(self.ech_orders) == self.norders:
+            indx_only = np.where(np.isin(self.ech_orders, only_orders))[0]
+            if (indx_only.size == 0) and (only_orders is not None):
+                msgs.warn(f'All the orders provided in `only_orders` are not among the expected orders. '
+                          f'Using all orders available in the data.')
+            elif indx_only.size > 0:
+                good_orders = indx_only
+                msgs.info(f'Working only on the following orders: {self.ech_orders[indx_only]}')
+                if len(indx_only) != len(only_orders):
+                    missing_orders = list(set(only_orders) - set(self.ech_orders[indx_only]))
+                    msgs.warn(f'Some orders provided in `only_orders` are not among the expected orders. '
+                              f'Ignoring orders: {missing_orders}')
+
         # Run the fits
         self.result_list = [None]*self.norders
         self.outmask_list = [None]*self.norders
@@ -2541,7 +2558,9 @@ class Telluric(datamodel.DataContainer):
         for counter, iord in enumerate(self.srt_order_tell):
             if iord not in good_orders:
                 continue
-            msgs.info(f'Fitting object + telluric model for order: {iord}, {counter}/{self.norders}'
+            _ord = self.ech_orders[iord] if self.ech_orders is not None and \
+                                            len(self.ech_orders) == self.norders else iord
+            msgs.info(f'Fitting object + telluric model for order: {_ord}, {counter+1}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] \
                     = fitting.robust_optimize(self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],

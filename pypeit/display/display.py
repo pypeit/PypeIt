@@ -141,6 +141,9 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     if clear:
         clear_all()
 
+    sh = viewer.shell()
+    sh.get_channel_on_demand(chname)
+
     ch = viewer.channel(chname)
     # Header
     header = {}
@@ -150,7 +153,6 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     # Giddy up
 #    waveimg = None
     if waveimg is not None:
-        sh = viewer.shell()
         args = [chname, chname, grc.Blob(img.tobytes()), img.shape, img.dtype.name, header,
                 grc.Blob(waveimg.tobytes()), waveimg.dtype.name, {}]
         sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})

@@ -374,7 +374,7 @@ Key                          Type              Options                          
 ``fit_niter``                int               ..                                           1               Number of iterations of re-measuring and re-fitting the edge data; see :func:`~pypeit.core.trace.fit_trace`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
 ``fit_order``                int               ..                                           5               Order of the function fit to edge measurements.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
 ``follow_span``              int               ..                                           20              In the initial connection of spectrally adjacent edge detections, this sets the number of previous spectral rows to consider when following slits forward.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
-``fwhm_gaussian``            int, float        ..                                           3.0             The `fwhm` parameter to use when using Gaussian weighting in :func:`~pypeit.core.trace.fit_trace` when refining the PCA predictions of edges.  See description :func:`~pypeit.core.trace.peak_trace`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+``fwhm_gaussian``            int, float        ..                                           3.0             The `fwhm` parameter to use when using Gaussian weighting in :func:`~pypeit.core.trace.fit_trace` when refining the PCA predictions of edges.  See description of :func:`~pypeit.core.trace.peak_trace`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ``fwhm_uniform``             int, float        ..                                           3.0             The `fwhm` parameter to use when using uniform weighting in :func:`~pypeit.core.trace.fit_trace` when refining the PCA predictions of edges.  See description of :func:`~pypeit.core.trace.peak_trace`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ``gap_offset``               int, float        ..                                           5.0             Offset (pixels) used for the slit edge gap width when inserting slit edges (see `sync_center`) or when nudging predicted slit edges to avoid slit overlaps.  This should be larger than `minimum_slit_gap` when converted to arcseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ``left_right_pca``           bool              ..                                           False           Construct a PCA decomposition for the left and right traces separately.  This can be important for cross-dispersed echelle spectrographs (e.g., Keck-NIRES)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
@@ -390,6 +390,7 @@ Key                          Type              Options                          
 ``max_shift_abs``            int, float        ..                                           0.5             Maximum spatial shift in pixels between an input edge location and the recentroided value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``max_shift_adj``            int, float        ..                                           0.15            Maximum spatial shift in pixels between the edges in adjacent spectral positions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 ``max_spat_error``           int, float        ..                                           ..              Maximum error in the spatial position of edges in pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``min_edge_side_sep``        int, float        ..                                           5.0             Minimum separation between same-side edges (e.g., the minimum separation between two subsequent right-edge detections) in units of ``fwhm_gaussian``.  For example, if ``fwhm_gaussian = 3.0`` and ``min_edge_sid_sep = 5.``, the separation between subsequent right edges must be at least 15 pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ``minimum_slit_dlength``     int, float        ..                                           ..              Minimum *change* in the slit length (arcsec) as a function of wavelength in arcsec.  This is mostly meant to catch cases when the polynomial fit to the detected edges becomes ill-conditioned (e.g., when the slits run off the edge of the detector) and leads to wild traces.  If reducing the order of the polynomial (``fit_order``) does not help, try using this to remove poorly constrained slits.                                                                                                                                                                                                                                                                                                                                                                
 ``minimum_slit_gap``         int, float        ..                                           ..              Minimum slit gap in arcsec.  Gaps between slits are determined by the median difference between the right and left edge locations of adjacent slits.  Slits with small gaps are merged by removing the intervening traces.If None, no minimum slit gap is applied.  This should be smaller than `gap_offset` when converted to pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``minimum_slit_length``      int, float        ..                                           ..              Minimum slit length in arcsec.  Slit lengths are determined by the median difference between the left and right edge locations for the unmasked trace locations.  This is used to identify traces that are *erroneously* matched together to form slits.  Short slits are expected to be ignored or removed (see  ``clip``).  If None, no minimum slit length applied.                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -993,6 +994,7 @@ Key                      Type                                            Options
 ``star_mag``             float                                           ..                ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                                         
 ``star_ra``              float                                           ..                ..                           RA of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)                                                                                                                                                                                                                                                                                      
 ``star_type``            str                                             ..                ..                           Spectral type of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                                     
+``trim_std_pixs``        list, tuple                                     ..                ..                           List or tuple of two integers specifying the number of pixels to trimfrom the start and end of the 1D standard star spectrum. Example: [10, 5] will trim 10 pixels from the start (blue side)and 5 pixels from the end (red side) of the spectrum.                                                                                                                                          
 ``use_flat``             bool                                            ..                False                        If True, the flatfield spectrum will be used when computing the sensitivity function.                                                                                                                                                                                                                                                                                                       
 =======================  ==============================================  ================  ===========================  ============================================================================================================================================================================================================================================================================================================================================================================================
 
@@ -2394,9 +2396,17 @@ Alterations to the default parameters are:
           skip_extraction = True
   [flexure]
       spec_maxshift = 3
+  [fluxcalib]
+      extrap_sens = True
   [sensfunc]
+      extrap_blu = 0.0
+      extrap_red = 0.0
+      algorithm = IR
+      polyorder = 13
       [[UVIS]]
           extinct_correct = False
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-gtc_osiris:
 
@@ -2502,6 +2512,15 @@ Alterations to the default parameters are:
           maxnumber_std = 1
       [[skysub]]
           no_poly = True
+  [fluxcalib]
+      extrap_sens = True
+  [sensfunc]
+      extrap_blu = 0.0
+      extrap_red = 0.0
+      algorithm = IR
+      polyorder = 13
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-gtc_osiris_plus:
 
@@ -2607,6 +2626,15 @@ Alterations to the default parameters are:
           maxnumber_std = 1
       [[skysub]]
           no_poly = True
+  [fluxcalib]
+      extrap_sens = True
+  [sensfunc]
+      extrap_blu = 0.0
+      extrap_red = 0.0
+      algorithm = IR
+      polyorder = 13
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-jwst_nircam:
 
@@ -3198,10 +3226,17 @@ Alterations to the default parameters are:
           global_sky_std = False
       [[extraction]]
           model_full_slit = True
+  [fluxcalib]
+      extrap_sens = True
   [coadd1d]
       wave_method = log10
   [sensfunc]
+      extrap_blu = 0.01
+      extrap_red = 0.01
+      trim_std_pixs = 4, 40,
       algorithm = IR
+      polyorder = 7
+      mask_hydrogen_lines = False
       [[IR]]
           telgridfile = TellPCA_3000_10500_R120000.fits
           pix_shift_bounds = (-40.0, 40.0)
@@ -7367,6 +7402,203 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 
+.. _instr_par-p200_ngps_i:
+
+P200 NGPS_i (``p200_ngps_i``)
+-----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = p200_ngps_i
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 120,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              combine = median
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          method = full_template
+          lamps = ThAr,
+          reid_arxiv = wvarxiv_p200_ngps_20250131T1354.fits
+          rms_thresh_frac_fwhm = 1.0
+      [[slitedges]]
+          edge_thresh = 50.0
+          min_edge_side_sep = 1.0
+          sync_predict = nearest
+          minimum_slit_length = 100
+  [scienceframe]
+      exprng = 90, None,
+      [[process]]
+          combine = median
+          mask_cr = True
+          sigclip = 4.0
+          objlim = 5.0
+          noise_floor = 0.01
+
+.. _instr_par-p200_ngps_r:
+
+P200 NGPS_r (``p200_ngps_r``)
+-----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = p200_ngps_r
+  [calibrations]
+      bpm_usebias = True
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 120,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              combine = median
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          method = full_template
+          lamps = ThAr,
+          reid_arxiv = wvarxiv_p200_ngps_20250131T1227.fits
+          rms_thresh_frac_fwhm = 1.0
+      [[slitedges]]
+          edge_thresh = 50.0
+          min_edge_side_sep = 1.0
+          sync_predict = nearest
+          minimum_slit_length = 100
+  [scienceframe]
+      exprng = 90, None,
+      [[process]]
+          combine = median
+          mask_cr = True
+          sigclip = 4.0
+          objlim = 5.0
+          noise_floor = 0.01
+
 .. _instr_par-p200_tspec:
 
 P200 TSPEC (``p200_tspec``)
@@ -8047,6 +8279,126 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
+
+.. _instr_par-subaru_focas:
+
+SUBARU FOCAS (``subaru_focas``)
+-------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = subaru_focas
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = 1, None,
+          [[[process]]]
+              overscan_method = median
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              overscan_method = median
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = 0, None,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              overscan_method = median
+      [[alignframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = 0, None,
+          [[[process]]]
+              overscan_method = median
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 61,
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+      [[wavelengths]]
+          lamps = ThAr,
+          sigdetect = 10.0
+      [[slitedges]]
+          edge_thresh = 50.0
+          max_shift_adj = 0.5
+          fit_order = 3
+          sync_predict = nearest
+      [[tilts]]
+          tracethresh = 25.0
+  [scienceframe]
+      exprng = 61, None,
+      [[process]]
+          overscan_method = median
+          mask_cr = True
+          noise_floor = 0.01
+  [flexure]
+      spec_method = boxcar
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_10500_R120000.fits
 
 .. _instr_par-tng_dolores:
 
