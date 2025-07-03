@@ -71,7 +71,8 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         # Required (core)
         self.meta["ra"] = dict(ext=0, card="RA")
         self.meta["dec"] = dict(ext=0, card="DEC")
-        self.meta["target"] = dict(card=None, compound=True)
+        self.meta["target"] = dict(ext=0, card="OBJNAME")
+        self.meta["dispname"] = dict(card=None, compound=True)
         self.meta["decker"] = dict(ext=0, card="FILTER4")  # SLIT filter wheel
         self.meta["binning"] = dict(card=None, compound=True)
         self.meta["mjd"] = dict(card=None, compound=True)
@@ -81,9 +82,11 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         # Extras for config and frametyping
         # NOTE: `rtol` is _relative_ tolerance (e.g. 1 part in 1,000)
+        self.meta["arm"] = dict(card=None, compound=True)
         self.meta["idname"] = dict(ext=0, card="OBJTYPE")
         self.meta["filter1"] = dict(ext=0, card="FILTER3")  # AUX filter wheel
         self.meta["lampstat01"] = dict(card=None, compound=True)
+        self.meta["slitwid"] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr: list, meta_key: str) -> object:
         """
@@ -113,68 +116,35 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             #  if no lamps are on, then this string is blank.  Return either the
             #  populated `LAMPCAL` string, or 'off' to ensure a positive entry for
             #  `lampstat01`.
-            lampcal = headarr[0]["LAMPCAL"].strip()
+            lampcal = ""
             return "off" if lampcal == "" else lampcal
 
+        if meta_key == "arm":
+            # Return the ARM name from the filename
+            # TODO: Have the RIMAS folks add a FITS keyword indicating the arm
+            return "YJ" if "YJ" in headarr[0]["ASDFNAME"] else "HK"
+
         if meta_key == "dispname":
-            # Convert older FITS keyword GRATING (gpmm/blaze) into the newer
-            #  Grating ID names (DVx) for easier identification of disperser.
-            gratings = {
-                "150/5000": "DV1",
-                "300/4000": "DV2",
-                "300/6750": "DV3",
-                "400/8500": "DV4",
-                "500/5500": "DV5",
-                "600/4900": "DV6",
-                "600/6750": "DV7",
-                "831/8000": "DV8",
-                "1200/5000": "DV9",
-                "2160/5000": "DV10",
-                "UNKNOWN": "DVxx",
-            }
-            if (grating_kwd := headarr[0]["GRATING"]) not in gratings:
-                msgs.error(f"Grating value {grating_kwd} not recognized.")
-            if grating_kwd == "UNKNOWN":
-                msgs.warn(
-                    f"Grating not selected in the LOUI; {msgs.newline()}"
-                    "Fix the header keyword GRATING before proceeding."
-                )
-            return f"{gratings[grating_kwd]} ({grating_kwd})"
-
-        if meta_key == "decker":
-            # Provide a stub for future inclusion of a decker on LDT/DeVeny.
-            return headarr[0]["DECKER"] if "DECKER" in headarr[0].keys() else "None"
-
-        if meta_key == "cenwave":
-            # The central wavelength is more descriptive of the grating angle position
-            #  than just the angle value.  Use the DeVeny grating angle formula to
-            #  return the central wavelength of the configuration.
-
-            # Extract lines/mm, catch 'UNKNOWN' grating
-            if (grating_kwd := headarr[0]["GRATING"]) == "UNKNOWN":
-                lpmm = np.inf
-                msgs.warn(
-                    f"Grating angle not selected in the LOUI; {msgs.newline()}"
-                    "Fix the header keyword GRANGLE before proceeding."
-                )
-            else:
-                lpmm = float(grating_kwd.split("/")[0])
-
-            # DeVeny Fixed Optical Angles in radians
-            col_grat = np.deg2rad(10.00)  # Collimator-to-Grating Angle
-            cam_col = np.deg2rad(55.00)  # Camera-to-Collimator Angle
-            # Grating angle in radians
-            theta = np.deg2rad(float(headarr[0]["GRANGLE"]))
-            # Wavelength in Angstroms
-            wavelen = (
-                (
-                    np.sin(col_grat + theta) + np.sin(col_grat + theta - cam_col)
-                )  # Angles
-                * 1.0e7  # Angstroms/mm
-                / lpmm  # lines / mm
+            # Return FILTER1 (Filter Wheel Name FW YJ) for YJ frames and
+            #   FILTER2 (Filter Wheel Name FW HK) for HK frames
+            # TODO: Have the RIMAS folks add a FITS keyword indicating the arm
+            return (
+                headarr[0]["FILTER1"]
+                if "YJ" in headarr[0]["ASDFNAME"]
+                else headarr[0]["FILTER2"]
             )
-            # Round the wavelength to the nearest 5A
-            return np.around(wavelen / 5, decimals=0) * 5
+
+        if meta_key == "slitwid":
+            # Convert the decker into a slitwidth in arcseconds
+            match headarr[0]["FILTER4"].strip():
+                case "250 um":
+                    return 2.5
+                case "130 um":
+                    return 1.2
+                case "80 um":
+                    return 0.6
+                case _:
+                    return 0
 
         if meta_key == "target":
             # Revert to TCS's SCITARG if target not set in LOUI for OBJECT frames
@@ -203,7 +173,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ["dispname", "decker", "filter1"]
+        return ["arm", "dispname", "filter1"]
 
     def raw_header_cards(self):
         """
@@ -235,7 +205,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ["lampstat01"]
+        return super().pypeit_file_keys() + ["slitwid", "lampstat01"]
 
     def check_frame_type(self, ftype: str, fitstbl: astropy.table.Table, exprng=None):
         """
@@ -376,11 +346,6 @@ class LDTRIMASYJSpectrograph(LDTRIMASSpectrograph):
     ndet = 1
     camera = "RIMAS_YJ"
 
-    def init_meta(self):
-        """Initialize YJ-Arm-specific metadata"""
-        super().init_meta()
-        self.meta["dispname"] = dict(ext=0, card="FILTER1")  # Filter Wheel Name FW YJ
-
     def get_detector_par(self, _, hdu=None):
         """
         Return metadata for the LDT/RIMAS YJ detector.
@@ -445,11 +410,6 @@ class LDTRIMASHKSpectrograph(LDTRIMASSpectrograph):
 
     ndet = 1
     camera = "RIMAS_HK"
-
-    def init_meta(self):
-        """Initialize YJ-Arm-specific metadata"""
-        super().init_meta()
-        self.meta["dispname"] = dict(ext=0, card="FILTER2")  # Filter Wheel Name FW HK
 
     def get_detector_par(self, _, hdu=None):
         """
@@ -690,109 +650,6 @@ class LDTRIMASLowYJSpectrograph(LDTRIMASYJSpectrograph):
         return par
 
 
-class LDTRIMASEchelleYJSpectrograph(LDTRIMASYJSpectrograph):
-    """
-    Child to handle LDT/RIMAS YJ Arm, echelle-specific code
-    """
-
-    name = "ldt_rimas_yj_med"
-    comment = "LDT Rapid infrared IMAger Spectrometer, YJ Arm Med-Res Echelle Grism"
-    pypeline = "Echelle"
-
-    @classmethod
-    def default_pypeit_par(cls):
-        """
-        Return the default parameters to use for this instrument.
-
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of PypeIt methods.
-        """
-        par = super().default_pypeit_par()
-
-        # Turn off illumflat unless/until we can deal properly with flexure in
-        #   the spatial direction.  All other defaults OK (as of v1.7.0)
-        #   Also, use an order=1 chebyshev polynomial for fitting the overscan
-        #   rather a SavGol filter -- more appropriate for this CCD.
-        set_procpars = {
-            "use_illumflat": False,
-            "overscan_method": "chebyshev",
-            "overscan_par": 1,
-        }
-        par.reset_all_processimages_par(**set_procpars)
-
-        # For processing the arc frame, these settings allow for the combination of
-        #   of frames from different lamps into a comprehensible Master
-        par["calibrations"]["arcframe"]["process"]["clip"] = False
-        par["calibrations"]["arcframe"]["process"]["combine"] = "mean"
-        # par['calibrations']['arcframe']['process']['subtract_continuum'] = True
-        par["calibrations"]["tiltframe"]["process"]["clip"] = False
-        par["calibrations"]["tiltframe"]["process"]["combine"] = "mean"
-        # par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
-
-        # Make a bad pixel mask
-        par["calibrations"]["bpm_usebias"] = True
-
-        # Wavelength Calibration Parameters
-        # Arc lamps list from header -- instead of defining the full list here
-        par["calibrations"]["wavelengths"]["lamps"] = ["use_header"]
-        # Set this as default... but use `holy-grail` for DV4, DV8
-        par["calibrations"]["wavelengths"][
-            "method"
-        ] = "full_template"  # Default: 'holy-grail'
-        # The DeVeny arc line FWHM varies based on slitwidth used
-        par["calibrations"]["wavelengths"]["fwhm"] = 3.0  # Default: 4.0
-        par["calibrations"]["wavelengths"]["nsnippet"] = 1  # Default: 2
-
-        # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
-        par["calibrations"]["slitedges"]["bound_detector"] = True  # Defualt: False
-        par["calibrations"]["slitedges"]["sync_predict"] = "nearest"  # Default: 'pca'
-        par["calibrations"]["slitedges"]["minimum_slit_length"] = 170.0  # Default: None
-        par["calibrations"]["slitedges"]["max_nudge"] = 5  # Default: None
-
-        # Flat-field parameter modification
-        par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0  # Default: None
-        par["calibrations"]["flatfield"]["slit_illum_finecorr"] = False  # Default: True
-        par["calibrations"]["flatfield"]["spec_samp_fine"] = 30  # Default: 1.2
-        par["calibrations"]["flatfield"]["tweak_slits"] = False  # Default: True
-
-        # For the tilts, our lines are not as well-behaved as others',
-        #   possibly due to the Wynne version E camera.
-        par["calibrations"]["tilts"]["spat_order"] = 4  # Default: 3
-        par["calibrations"]["tilts"]["spec_order"] = 5  # Default: 4
-
-        # Cosmic ray rejection parameters for science frames
-        par["scienceframe"]["process"]["sigclip"] = 5.0  # Default: 4.5
-        par["scienceframe"]["process"]["objlim"] = 2.0  # Default: 3.0
-
-        # Object Finding, Extraction, and Sky Subtraction Parameters
-        assumed_seeing = 1.5  # arcsec
-        par["reduce"]["findobj"]["trace_npoly"] = 3  # Default: 5
-        par["reduce"]["findobj"]["snr_thresh"] = 50.0  # Default: 10.0
-        par["reduce"]["findobj"]["maxnumber_std"] = 1  # Default: 5
-        par["reduce"]["findobj"]["maxnumber_sci"] = 5  # Default: 10
-        par["reduce"]["findobj"]["find_fwhm"] = np.round(
-            assumed_seeing / 0.34, 1
-        )  # Default: 5.0 pix
-        par["reduce"]["findobj"]["find_trim_edge"] = [0, 0]  # Default: [5, 5]
-        # Boxcar width = ±3σ of Gaussian profile = >99% enclosed flux; radius = 1.28 * seeing
-        par["reduce"]["extraction"]["boxcar_radius"] = np.round(
-            assumed_seeing * 1.28, 1
-        )  # Default: 1.5"
-        par["reduce"]["extraction"]["use_2dmodel_mask"] = False  # Default: True
-        par["reduce"]["skysub"]["sky_sigrej"] = 4.0  # Default: 3.0
-
-        # Flexure Correction Parameters
-        par["flexure"]["spec_method"] = "boxcar"  # Default: 'skip'
-        par["flexure"]["spec_maxshift"] = 30  # Default: 20
-
-        # Sensitivity Function Parameters
-        par["sensfunc"]["UVIS"]["nresln"] = 15  # Default: 20
-        par["sensfunc"]["UVIS"]["polycorrect"] = False  # Default: True
-
-        return par
-
-
 class LDTRIMASLowHKSpectrograph(LDTRIMASHKSpectrograph):
     """
     Child to handle LDT/RIMAS HK Arm, lowres-specific code
@@ -965,6 +822,110 @@ class LDTRIMASLowHKSpectrograph(LDTRIMASHKSpectrograph):
         return par
 
 
+class LDTRIMASEchelleYJSpectrograph(LDTRIMASYJSpectrograph):
+    """
+    Child to handle LDT/RIMAS YJ Arm, echelle-specific code
+    """
+
+    name = "ldt_rimas_yj_med"
+    comment = "LDT Rapid infrared IMAger Spectrometer, YJ Arm Med-Res Echelle Grism"
+    pypeline = "Echelle"
+    ech_fixed_format = True
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Turn off illumflat unless/until we can deal properly with flexure in
+        #   the spatial direction.  All other defaults OK (as of v1.7.0)
+        #   Also, use an order=1 chebyshev polynomial for fitting the overscan
+        #   rather a SavGol filter -- more appropriate for this CCD.
+        set_procpars = {
+            "use_illumflat": False,
+            "overscan_method": "chebyshev",
+            "overscan_par": 1,
+        }
+        par.reset_all_processimages_par(**set_procpars)
+
+        # For processing the arc frame, these settings allow for the combination of
+        #   of frames from different lamps into a comprehensible Master
+        par["calibrations"]["arcframe"]["process"]["clip"] = False
+        par["calibrations"]["arcframe"]["process"]["combine"] = "mean"
+        # par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        par["calibrations"]["tiltframe"]["process"]["clip"] = False
+        par["calibrations"]["tiltframe"]["process"]["combine"] = "mean"
+        # par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+
+        # Make a bad pixel mask
+        par["calibrations"]["bpm_usebias"] = True
+
+        # Wavelength Calibration Parameters
+        # Arc lamps list from header -- instead of defining the full list here
+        par["calibrations"]["wavelengths"]["lamps"] = ["use_header"]
+        # Set this as default... but use `holy-grail` for DV4, DV8
+        par["calibrations"]["wavelengths"][
+            "method"
+        ] = "full_template"  # Default: 'holy-grail'
+        # The DeVeny arc line FWHM varies based on slitwidth used
+        par["calibrations"]["wavelengths"]["fwhm"] = 3.0  # Default: 4.0
+        par["calibrations"]["wavelengths"]["nsnippet"] = 1  # Default: 2
+
+        # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
+        par["calibrations"]["slitedges"]["bound_detector"] = True  # Defualt: False
+        par["calibrations"]["slitedges"]["sync_predict"] = "nearest"  # Default: 'pca'
+        par["calibrations"]["slitedges"]["minimum_slit_length"] = 170.0  # Default: None
+        par["calibrations"]["slitedges"]["max_nudge"] = 5  # Default: None
+
+        # Flat-field parameter modification
+        par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0  # Default: None
+        par["calibrations"]["flatfield"]["slit_illum_finecorr"] = False  # Default: True
+        par["calibrations"]["flatfield"]["spec_samp_fine"] = 30  # Default: 1.2
+        par["calibrations"]["flatfield"]["tweak_slits"] = False  # Default: True
+
+        # For the tilts, our lines are not as well-behaved as others',
+        #   possibly due to the Wynne version E camera.
+        par["calibrations"]["tilts"]["spat_order"] = 4  # Default: 3
+        par["calibrations"]["tilts"]["spec_order"] = 5  # Default: 4
+
+        # Cosmic ray rejection parameters for science frames
+        par["scienceframe"]["process"]["sigclip"] = 5.0  # Default: 4.5
+        par["scienceframe"]["process"]["objlim"] = 2.0  # Default: 3.0
+
+        # Object Finding, Extraction, and Sky Subtraction Parameters
+        assumed_seeing = 1.5  # arcsec
+        par["reduce"]["findobj"]["trace_npoly"] = 3  # Default: 5
+        par["reduce"]["findobj"]["snr_thresh"] = 50.0  # Default: 10.0
+        par["reduce"]["findobj"]["maxnumber_std"] = 1  # Default: 5
+        par["reduce"]["findobj"]["maxnumber_sci"] = 5  # Default: 10
+        par["reduce"]["findobj"]["find_fwhm"] = np.round(
+            assumed_seeing / 0.34, 1
+        )  # Default: 5.0 pix
+        par["reduce"]["findobj"]["find_trim_edge"] = [0, 0]  # Default: [5, 5]
+        # Boxcar width = ±3σ of Gaussian profile = >99% enclosed flux; radius = 1.28 * seeing
+        par["reduce"]["extraction"]["boxcar_radius"] = np.round(
+            assumed_seeing * 1.28, 1
+        )  # Default: 1.5"
+        par["reduce"]["extraction"]["use_2dmodel_mask"] = False  # Default: True
+        par["reduce"]["skysub"]["sky_sigrej"] = 4.0  # Default: 3.0
+
+        # Flexure Correction Parameters
+        par["flexure"]["spec_method"] = "boxcar"  # Default: 'skip'
+        par["flexure"]["spec_maxshift"] = 30  # Default: 20
+
+        # Sensitivity Function Parameters
+        par["sensfunc"]["UVIS"]["nresln"] = 15  # Default: 20
+        par["sensfunc"]["UVIS"]["polycorrect"] = False  # Default: True
+
+        return par
+
+
 class LDTRIMASEchelleHKSpectrograph(LDTRIMASHKSpectrograph):
     """
     Child to handle LDT/RIMAS HK Arm, echelle-specific code
@@ -973,6 +934,7 @@ class LDTRIMASEchelleHKSpectrograph(LDTRIMASHKSpectrograph):
     name = "ldt_rimas_hk_med"
     comment = "LDT Rapid infrared IMAger Spectrometer, HK Arm Med-Res Echelle Grism"
     pypeline = "Echelle"
+    ech_fixed_format = True
 
     @classmethod
     def default_pypeit_par(cls):
