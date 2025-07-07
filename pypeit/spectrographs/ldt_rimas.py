@@ -194,7 +194,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ["FILTER1", "FILTER2", "FILTER3", "FILTER4"]
+        return ["ASDFNAME", "FILTER1", "FILTER2", "FILTER3", "FILTER4"]
 
     def pypeit_file_keys(self):
         """
@@ -205,7 +205,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ["slitwid", "lampstat01"]
+        return super().pypeit_file_keys() + ["slitwid", "lampstat01", "dither"]
 
     def check_frame_type(self, ftype: str, fitstbl: astropy.table.Table, exprng=None):
         """
