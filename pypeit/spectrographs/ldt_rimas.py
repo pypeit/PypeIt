@@ -27,7 +27,7 @@ The beam is then passed through RIMAS's dewar window, after which all optics
 are cooled to ~70 K.  Once the beam has been collimated a dichroic mirror is
 used to divide the wavelength coverage into two optical arms, “YJ” (0.9 -
 1.4 μm) and “HK” (1.4 - 2.4 μm).  Before being refocused by the cameras, the
-beams are either filtered or dispersed by additional optics located on wheels.  
+beams are either filtered or dispersed by additional optics located on wheels.
 A Teledyne H4RG-10 HgCdTe detector (4096 x 4096 pixels) is positioned at each
 arm's focal plane.
 
@@ -83,7 +83,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         # NOTE: `rtol` is _relative_ tolerance (e.g. 1 part in 1,000)
         self.meta["arm"] = dict(card=None, compound=True)
-        self.meta["idname"] = dict(ext=0, card="OBJTYPE")
+        self.meta["idname"] = dict(card=None, compound=True)
         self.meta["filter1"] = dict(ext=0, card="FILTER3")  # AUX filter wheel
         self.meta["lampstat01"] = dict(card=None, compound=True)
         self.meta["slitwid"] = dict(card=None, compound=True)
@@ -102,6 +102,10 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`object`: Metadata value read from the header(s).
         """
+        if meta_key == "idname":
+            # Force uppercase to match other LDT instruments
+            return headarr[0]["OBJTYPE"].upper()
+
         if meta_key == "binning":
             # Binning in RIMAS headers given as separate values
             return parse.binning2string(headarr[0]["BINX"], headarr[0]["BINY"])
@@ -173,7 +177,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ["arm", "dispname", "filter1"]
+        return ["arm", "dispname", "decker", "filter1"]
 
     def raw_header_cards(self):
         """
@@ -207,6 +211,112 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         """
         return super().pypeit_file_keys() + ["slitwid", "lampstat01", "dither"]
 
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for all of RIMAS.
+
+        ..note ::
+
+            Each of the child classes will have modifications on top of these,
+            but some parameters are instrument-wide.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Turn off illumflat
+        turn_off = {
+            "use_illumflat": False,
+            "use_biasimage": False,
+            "use_overscan": False,
+            "use_darkimage": False,
+        }
+        par.reset_all_processimages_par(**turn_off)
+
+        # Is this needed below?
+        par["scienceframe"]["process"]["sigclip"] = 20.0
+        par["scienceframe"]["process"]["satpix"] = "nothing"
+        # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
+
+        # Adjustments to slit and tilts for NIR
+        par["calibrations"]["slitedges"]["edge_thresh"] = 50.0
+        par["calibrations"]["slitedges"]["fit_order"] = 8
+        par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
+        par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
+        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.5
+        par["calibrations"]["slitedges"]["left_right_pca"] = True
+        par["calibrations"]["slitedges"]["length_range"] = 0.3
+
+        # Tilt parameters
+        par["calibrations"]["tilts"]["rm_continuum"] = True
+        par["calibrations"]["tilts"]["tracethresh"] = 25.0
+        par["calibrations"]["tilts"]["maxdev_tracefit"] = 0.04
+        par["calibrations"]["tilts"]["maxdev2d"] = 0.04
+        par["calibrations"]["tilts"]["spat_order"] = 3
+        par["calibrations"]["tilts"]["spec_order"] = 4
+
+        # 1D wavelength solution
+        par["calibrations"]["wavelengths"]["lamps"] = ["OH_XSHOOTER"]
+        par["calibrations"]["wavelengths"]["rms_thresh_frac_fwhm"] = 0.15
+        par["calibrations"]["wavelengths"]["sigdetect"] = 10.0
+        par["calibrations"]["wavelengths"]["fwhm"] = 4.0
+        par["calibrations"]["wavelengths"]["n_final"] = 4
+        # Reidentification parameters
+        par["calibrations"]["wavelengths"]["method"] = "reidentify"
+        par["calibrations"]["wavelengths"]["reid_arxiv"] = "vlt_xshooter_nir.fits"
+        par["calibrations"]["wavelengths"]["cc_thresh"] = 0.50
+        par["calibrations"]["wavelengths"]["cc_local_thresh"] = 0.50
+        # Echelle parameters
+        par["calibrations"]["wavelengths"]["echelle"] = True
+        par["calibrations"]["wavelengths"]["ech_nspec_coeff"] = 5
+        par["calibrations"]["wavelengths"]["ech_norder_coeff"] = 5
+        par["calibrations"]["wavelengths"]["ech_sigrej"] = 3.0
+        par["calibrations"]["wavelengths"]["qa_log"] = False
+        # Measured FWHM is correct, but resulting wavelength solution is poor.
+        # This should be explored further, but for now, turning off fwhm_fromlines helps.
+        par["calibrations"]["wavelengths"]["fwhm_fromlines"] = False
+
+        # Flats
+        par["calibrations"]["flatfield"]["tweak_slits_thresh"] = 0.90
+        par["calibrations"]["flatfield"]["tweak_slits_maxfrac"] = 0.10
+
+        # Standards
+        par["calibrations"]["standardframe"]["process"]["mask_cr"] = False
+
+        # Extraction
+        par["reduce"]["skysub"]["bspline_spacing"] = 0.8
+        par["reduce"]["skysub"][
+            "global_sky_std"
+        ] = False  # Do not perform global sky subtraction for standard stars
+        par["reduce"]["extraction"][
+            "model_full_slit"
+        ] = True  # local sky subtraction operates on entire slit
+        par["reduce"]["findobj"]["trace_npoly"] = 10
+        par["reduce"]["findobj"][
+            "maxnumber_sci"
+        ] = 2  # Assume that there is only one object on the slit.
+        par["reduce"]["findobj"][
+            "maxnumber_std"
+        ] = 1  # Assume that there is only one object on the slit.
+
+        # Sensitivity function parameters
+        par["sensfunc"]["algorithm"] = "IR"
+        par["sensfunc"]["polyorder"] = 8
+        par["sensfunc"]["IR"]["telgridfile"] = "TellPCA_3000_26000_R25000.fits"
+        par["sensfunc"]["IR"]["pix_shift_bounds"] = (-10.0, 10.0)
+
+        # Telluric parameters
+        par["telluric"]["pix_shift_bounds"] = (-10.0, 10.0)
+        par["telluric"]["resln_frac_bounds"] = (0.4, 2.0)
+
+        # Coadding
+        par["coadd1d"]["wave_method"] = "log10"
+
+        return par
+
     def check_frame_type(self, ftype: str, fitstbl: astropy.table.Table, exprng=None):
         """
         Check for frames of the provided type.
@@ -227,15 +337,12 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl["exptime"], exprng)
-        if ftype == "bias":
-            return fitstbl["idname"] == "BIAS"
         if ftype in ["arc", "tilt"]:
             # FOCUS frames should have frametype None, BIAS is bias regardless of lamp status
             return (
                 good_exp
                 & (fitstbl["lampstat01"] != "off")
                 & (fitstbl["idname"] != "FOCUS")
-                & (fitstbl["idname"] != "BIAS")
             )
         if ftype in ["trace", "pixelflat"]:
             return (
@@ -267,7 +374,15 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 & (fitstbl["idname"] == "DARK")
                 & (fitstbl["lampstat01"] == "off")
             )
-        if ftype in ["pinhole", "align", "sky", "lampoffflats", "scattlight"]:
+        if ftype in [
+            "bias",
+            "pinhole",
+            "align",
+            "sky",
+            "lampoffflats",
+            "scattlight",
+            "slitless_pixflat",
+        ]:
             # DeVeny doesn't have any of these types of frames
             return np.zeros(len(fitstbl), dtype=bool)
         msgs.warn(f"Cannot determine if frames are of type {ftype}")
@@ -338,13 +453,14 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             return astropy.time.Time(f"{date}T{time}", format="isot")
 
 
-class LDTRIMASYJSpectrograph(LDTRIMASSpectrograph):
+class LDTRIMASYJArm(LDTRIMASSpectrograph):
     """
     Child to handle common aspects of the LDT/RIMAS YJ Arm
     """
 
     ndet = 1
     camera = "RIMAS_YJ"
+    allowed_extensions = [".YJ.fits"]
 
     def get_detector_par(self, _, hdu=None):
         """
@@ -403,13 +519,14 @@ class LDTRIMASYJSpectrograph(LDTRIMASSpectrograph):
         return detector_container.DetectorContainer(**detector_dict)
 
 
-class LDTRIMASHKSpectrograph(LDTRIMASSpectrograph):
+class LDTRIMASHKArm(LDTRIMASSpectrograph):
     """
     Child to handle common aspects of the LDT/RIMAS HK Arm
     """
 
     ndet = 1
     camera = "RIMAS_HK"
+    allowed_extensions = [".HK.fits"]
 
     def get_detector_par(self, _, hdu=None):
         """
@@ -471,15 +588,71 @@ class LDTRIMASHKSpectrograph(LDTRIMASSpectrograph):
         return detector_container.DetectorContainer(**detector_dict)
 
 
+class LDTRIMASLowresMixin:
+    """
+    Mix-in Class to handle common aspects of the LDT/RIMAS Low-Res Modes
+    """
+
+    pypeline = "MultiSlit"
+
+    def validate_fitstbl(self, fitstbl: astropy.table.Table) -> astropy.table.Table:
+        """Validate the metadata table
+
+        Because of the multiple arms and modes of RIMAS, this method removes
+        from the metadata table frames not associated with this mode,
+        namely removes frames that are not low-res (Vph) gratings.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The metadata table to be validated
+
+        Returns:
+            `astropy.table.Table`_: The validated metadata table
+        """
+        msgs.warn("Do we not do this???")
+        # Only keep frames with one of the VPH gratings
+        vph_idx = (fitstbl["dispname"] == "Vph300") | (fitstbl["dispname"] == "Vph30")
+        # Return the corrected table
+        return fitstbl[vph_idx]
+
+
+class LDTRIMASEchelleMixin:
+    """
+    Mix-in Class to handle common aspects of the LDT/RIMAS Echelle Modes
+    """
+
+    pypeline = "Echelle"
+    ech_fixed_format = True
+
+    def validate_fitstbl(self, fitstbl: astropy.table.Table) -> astropy.table.Table:
+        """Validate the metadata table
+
+        Because of the multiple arms and modes of RIMAS, this method removes
+        from the metadata table frames not associated with this mode,
+        namely removes frames that are not the med-res echelle grism.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The metadata table to be validated
+
+        Returns:
+            `astropy.table.Table`_: The validated metadata table
+        """
+        msgs.warn("Do we not do this???")
+        # Only keep frames with the echelle grism
+        grism_idx = fitstbl["dispname"] == "Grism"
+        # Return the corrected table
+        return fitstbl[grism_idx]
+
+
 # Actual Operational Modes ===================================================#
-class LDTRIMASLowYJSpectrograph(LDTRIMASYJSpectrograph):
+class LDTRIMASLowYJSpectrograph(LDTRIMASLowresMixin, LDTRIMASYJArm):
     """
     Child to handle LDT/RIMAS YJ Arm, lowres-specific code
     """
 
     name = "ldt_rimas_yj_low"
     comment = "LDT Rapid infrared IMAger Spectrometer, YJ Arm Low-Res Gratings"
-    pypeline = "MultiSlit"
 
     @classmethod
     def default_pypeit_par(cls):
@@ -606,7 +779,7 @@ class LDTRIMASLowYJSpectrograph(LDTRIMASYJSpectrograph):
         # Adjust parameters based on DeVeny grating used
         grating = self.get_meta_value(scifile, "dispname")
 
-        if grating == "DV1 (150/5000)":
+        if grating == "Vph30":
             # Use this `reid_arxiv` with the `full-template` method:
             par["calibrations"]["wavelengths"][
                 "reid_arxiv"
@@ -619,7 +792,7 @@ class LDTRIMASLowYJSpectrograph(LDTRIMASYJSpectrograph):
             # The approximate resolution of this grating
             par["sensfunc"]["UVIS"]["resolution"] = 400
 
-        elif grating == "DV2 (300/4000)":
+        elif grating == "Vph300":
             # Use this `reid_arxiv` with the `full-template` method:
             par["calibrations"]["wavelengths"][
                 "reid_arxiv"
@@ -650,14 +823,13 @@ class LDTRIMASLowYJSpectrograph(LDTRIMASYJSpectrograph):
         return par
 
 
-class LDTRIMASLowHKSpectrograph(LDTRIMASHKSpectrograph):
+class LDTRIMASLowHKSpectrograph(LDTRIMASLowresMixin, LDTRIMASHKArm):
     """
     Child to handle LDT/RIMAS HK Arm, lowres-specific code
     """
 
     name = "ldt_rimas_hk_low"
     comment = "LDT Rapid infrared IMAger Spectrometer, HK Arm Low-Res Gratings"
-    pypeline = "MultiSlit"
 
     @classmethod
     def default_pypeit_par(cls):
@@ -778,7 +950,7 @@ class LDTRIMASLowHKSpectrograph(LDTRIMASHKSpectrograph):
         # Adjust parameters based on DeVeny grating used
         grating = self.get_meta_value(scifile, "dispname")
 
-        if grating == "DV1 (150/5000)":
+        if grating == "Vph30":
             # Use this `reid_arxiv` with the `full-template` method:
             par["calibrations"]["wavelengths"][
                 "reid_arxiv"
@@ -791,7 +963,7 @@ class LDTRIMASLowHKSpectrograph(LDTRIMASHKSpectrograph):
             # The approximate resolution of this grating
             par["sensfunc"]["UVIS"]["resolution"] = 400
 
-        elif grating == "DV2 (300/4000)":
+        elif grating == "Vph300":
             # Use this `reid_arxiv` with the `full-template` method:
             par["calibrations"]["wavelengths"][
                 "reid_arxiv"
@@ -822,15 +994,13 @@ class LDTRIMASLowHKSpectrograph(LDTRIMASHKSpectrograph):
         return par
 
 
-class LDTRIMASEchelleYJSpectrograph(LDTRIMASYJSpectrograph):
+class LDTRIMASEchelleYJSpectrograph(LDTRIMASEchelleMixin, LDTRIMASYJArm):
     """
     Child to handle LDT/RIMAS YJ Arm, echelle-specific code
     """
 
-    name = "ldt_rimas_yj_med"
+    name = "ldt_rimas_yj_echelle"
     comment = "LDT Rapid infrared IMAger Spectrometer, YJ Arm Med-Res Echelle Grism"
-    pypeline = "Echelle"
-    ech_fixed_format = True
 
     @classmethod
     def default_pypeit_par(cls):
@@ -925,16 +1095,126 @@ class LDTRIMASEchelleYJSpectrograph(LDTRIMASYJSpectrograph):
 
         return par
 
+    @property
+    def norders(self):
+        """
+        Number of orders for this spectograph. Should only defined for
+        echelle spectrographs, and it is undefined for the base class.
+        """
+        return 16
 
-class LDTRIMASEchelleHKSpectrograph(LDTRIMASHKSpectrograph):
+    @property
+    def order_spat_pos(self):
+        """
+        Return the expected spatial position of each echelle order.
+        """
+        return np.array(
+            [
+                0.08284662,
+                0.1483813,
+                0.21158701,
+                0.27261607,
+                0.33141317,
+                0.38813936,
+                0.44310197,
+                0.49637422,
+                0.54839496,
+                0.59948157,
+                0.65005956,
+                0.70074477,
+                0.75240745,
+                0.80622583,
+                0.86391259,
+                0.9280528,
+            ]
+        )
+
+    @property
+    def orders(self):
+        """
+        Return the order number for each echelle order.
+        """
+        return np.arange(26, 10, -1, dtype=int)
+
+    @property
+    def spec_min_max(self):
+        """
+        Return the minimum and maximum spectral pixel expected for the
+        spectral range of each order.
+        """
+        spec_max = np.asarray(
+            [
+                1477,
+                1513,
+                1547,
+                1588,
+                1628,
+                1682,
+                1733,
+                1795,
+                1855,
+                1930,
+                2005,
+                2040,
+                2040,
+                2040,
+                2040,
+                2040,
+            ]
+        )
+        spec_min = np.asarray(
+            [420, 390, 370, 345, 315, 285, 248, 210, 165, 115, 58, 5, 0, 0, 0, 0]
+        )
+        return np.vstack((spec_min, spec_max))
+
+    def order_platescale(self, order_vec, binning=None):
+        """
+        Return the platescale for each echelle order.
+
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
+
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
+
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
+        """
+        # TODO: Figure out the order-dependence of the updated plate scale
+        # From the X-Shooter P113 manual, average over all orders. No order-dependent values given.
+        plate_scale = 0.245 * np.ones_like(order_vec)
+        return plate_scale
+
+    @property
+    def dloglam(self):
+        """
+        Return the logarithmic step in wavelength for output spectra.
+        """
+        # This number was computed by taking the mean of the dloglam for all
+        # the X-shooter orders. The specific loglam across the orders deviates
+        # from this value by +-6% from this first to final order
+        return 1.93724e-5
+
+    @property
+    def loglam_minmax(self):
+        """
+        Return the base-10 logarithm of the first and last wavelength for
+        ouput spectra.
+        """
+        return np.log10(9500.0), np.log10(26000)
+
+
+class LDTRIMASEchelleHKSpectrograph(LDTRIMASEchelleMixin, LDTRIMASHKArm):
     """
     Child to handle LDT/RIMAS HK Arm, echelle-specific code
     """
 
-    name = "ldt_rimas_hk_med"
+    name = "ldt_rimas_hk_echelle"
     comment = "LDT Rapid infrared IMAger Spectrometer, HK Arm Med-Res Echelle Grism"
-    pypeline = "Echelle"
-    ech_fixed_format = True
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1028,3 +1308,115 @@ class LDTRIMASEchelleHKSpectrograph(LDTRIMASHKSpectrograph):
         par["sensfunc"]["UVIS"]["polycorrect"] = False  # Default: True
 
         return par
+
+    @property
+    def norders(self):
+        """
+        Number of orders for this spectograph. Should only defined for
+        echelle spectrographs, and it is undefined for the base class.
+        """
+        return 16
+
+    @property
+    def order_spat_pos(self):
+        """
+        Return the expected spatial position of each echelle order.
+        """
+        return np.array(
+            [
+                0.08284662,
+                0.1483813,
+                0.21158701,
+                0.27261607,
+                0.33141317,
+                0.38813936,
+                0.44310197,
+                0.49637422,
+                0.54839496,
+                0.59948157,
+                0.65005956,
+                0.70074477,
+                0.75240745,
+                0.80622583,
+                0.86391259,
+                0.9280528,
+            ]
+        )
+
+    @property
+    def orders(self):
+        """
+        Return the order number for each echelle order.
+        """
+        return np.arange(26, 10, -1, dtype=int)
+
+    @property
+    def spec_min_max(self):
+        """
+        Return the minimum and maximum spectral pixel expected for the
+        spectral range of each order.
+        """
+        spec_max = np.asarray(
+            [
+                1477,
+                1513,
+                1547,
+                1588,
+                1628,
+                1682,
+                1733,
+                1795,
+                1855,
+                1930,
+                2005,
+                2040,
+                2040,
+                2040,
+                2040,
+                2040,
+            ]
+        )
+        spec_min = np.asarray(
+            [420, 390, 370, 345, 315, 285, 248, 210, 165, 115, 58, 5, 0, 0, 0, 0]
+        )
+        return np.vstack((spec_min, spec_max))
+
+    def order_platescale(self, order_vec, binning=None):
+        """
+        Return the platescale for each echelle order.
+
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
+
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
+
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
+        """
+        # TODO: Figure out the order-dependence of the updated plate scale
+        # From the X-Shooter P113 manual, average over all orders. No order-dependent values given.
+        plate_scale = 0.245 * np.ones_like(order_vec)
+        return plate_scale
+
+    @property
+    def dloglam(self):
+        """
+        Return the logarithmic step in wavelength for output spectra.
+        """
+        # This number was computed by taking the mean of the dloglam for all
+        # the X-shooter orders. The specific loglam across the orders deviates
+        # from this value by +-6% from this first to final order
+        return 1.93724e-5
+
+    @property
+    def loglam_minmax(self):
+        """
+        Return the base-10 logarithm of the first and last wavelength for
+        ouput spectra.
+        """
+        return np.log10(9500.0), np.log10(26000)
