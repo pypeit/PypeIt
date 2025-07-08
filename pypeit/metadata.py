@@ -1330,8 +1330,8 @@ class PypeItMetaData:
             `astropy.table.Table`_: Table with two columns, the frame
             type name and bits.
         """
-        # Making Columns to pad string array
-        ftype_colmA = table.Column(self.type_bitmask.type_names(type_bits), name='frametype')
+        # Making Columns to pad string array (force dtype=str)
+        ftype_colmA = table.Column(self.type_bitmask.type_names(type_bits), name='frametype', dtype=str)
 
         # KLUDGE ME
         #
