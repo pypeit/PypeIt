@@ -580,8 +580,8 @@ def build_parameters(args):
     if args.match_using is not None:
         params['collate1d']['match_using'] = args.match_using
 
-    if args.exclude_slit_bm is not None and len(args.exclude_slit_bm) > 0:
-        params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_bm.split(',')
+    if args.exclude_slit_trace_bm is not None and len(args.exclude_slit_trace_bm) > 0:
+        params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_trace_bm.split(',')
 
     if args.exclude_serendip:
         params['collate1d']['exclude_serendip'] = True
@@ -712,7 +712,7 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
         parser.add_argument('--ignore_flux', default=False, action='store_true', help=blank_par.descr['ignore_flux'])
         parser.add_argument('--flux', default=False, action = 'store_true', help=blank_par.descr['flux'])
-        parser.add_argument('--exclude_slit_bm', type=str, # nargs='*',
+        parser.add_argument('--exclude_slit_trace_bm', type=str, # nargs='*',
                             help=blank_par.descr['exclude_slit_trace_bm']+' Comma separated.')
         parser.add_argument('--exclude_serendip', action='store_true',
                             help=blank_par.descr['exclude_serendip'])
