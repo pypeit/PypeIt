@@ -24,7 +24,7 @@ from pypeit.core.moment import moment1d
 
 
 def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
-                    spec, min_frac_use=0.9, fwhmimg=None, flatimg=None,
+                    spec, min_frac_use=0.05, fwhmimg=None, flatimg=None,
                     base_var=None, count_scale=None, noise_floor=None):
 
     r"""
