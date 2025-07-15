@@ -118,7 +118,7 @@ environment).  Then run:
 
     pip install --upgrade "pypeit[dev]@git+https://github.com/pypeit/PypeIt.git"
 
-This will install the default branch, ``release``.  To install, e.g., 
+This will install the default branch, ``release``.  To install, e.g.,
 the ``develop`` branch, run:
 
 .. code-block:: console
@@ -162,7 +162,8 @@ dependency ``specutils`` via ``pip``.  To use this:
 
             conda list
 
-        Most of the packages listed will show as coming from the ``pypi`` channel.
+        Most of the packages listed will show as coming from the ``pypi`` channel, the rest
+        from ``conda-forge``.
 
 This environment should now be ready to use, and it will contain the latest
 official ``pypeit`` release.
@@ -219,7 +220,7 @@ If you have locally installed files, your upgrade may look something like this:
     consider issuing a PR to include them file in the PypeIt repository.  This
     helps the community, and it means you'll avoid these upgrading
     complications.
-    
+
 .. _m1_macs:
 
 Installation on Apple Silicon-based Macs
@@ -248,7 +249,7 @@ follows.  Please post questions on our Users Slack if you have difficulties!
 #. Download `Python for Windows <https://www.python.org/downloads/windows/>`_.
 
 #. Run the installer.
-    
+
     * Make sure "Add python.exe to Path" or "Add Python to environment
       variables" is selected before installing.
 
@@ -270,7 +271,7 @@ may want to change the application alias.  This is under ``Settings -> Apps ->
 App execution aliases`` on Windows 10 and ``Settings -> Apps -> Advanced app
 settings -> App execution aliases`` on Windows 11. Disable the ``App Installer``
 options for the ``python.exe`` and ``python3.exe`` executables.
- 
+
 ----
 
 .. _data_installation:
@@ -335,17 +336,17 @@ cache and starting fresh!**
 ``pypeit_install_linelist``) will appear as being hosted on GitHub and be
 specific to the version of the code used to install it.  When you install local
 files, keep two things in mind:
- 
+
 #. The current cache system *does not* keep track of the original on-disk
    location of these files.  When you install these local files into the cache,
    the original file will remain (as long as you don't move/delete it yourself),
    and they will not be removed by ``pypeit_clean_cache``.
- 
+
 #. However, as far as the cache is concerned, these files are specific to a
    given PypeIt version.  This means **you'll need to re-install them** when you
    upgrade PypeIt; otherwise, PypeIt will not recognize their existence in the
    cache.  We discuss upgrading :ref:`above<upgrade>`.
-   
+
 Some example uses for removing files include:
 
  - To remove your entire cache: ``pypeit_clean_cache --remove_all``.
@@ -566,19 +567,38 @@ Some of the C code uses `OpenMP <https://www.openmp.org/>`_ to parallelize loops
 and take advantage of multiple cores/threads. This support is transparent and
 the code will work single-threaded if OpenMP is not available. GCC supports
 OpenMP out of the box, however the ``clang`` compiler that Apple's XCode
-provides does not. So for optimal performance on Apple hardware, you will want
-to install GCC via `homebrew <https://brew.sh/>`__ and specify its use when
-installing ``pypeit``. For example, if you installed GCC via ``homebrew``, you
-would get ``pypeit`` to use it by doing, for example:
+provides does not. For optimal performance on Apple hardware, there are the following options:
 
-.. code-block:: console
+#. Install ``pypeit`` using ``conda`` and the `conda-forge
+   <https://conda-forge.org/>`__ channel.
 
-    $ export CC=/opt/homebrew/bin/gcc
-    $ pip install pypeit
+   .. code-block:: console
 
-Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler
-to use so configure that as needed to use your desired compiler. The
-``pypeit_c_enabled`` script can be used to check if your compiler has OpenMP
+       $ conda install -c conda-forge pypeit
+
+#. For a developer's installation, install ``pypeit`` using ``conda`` and the
+   provided ``environment.yml`` file. This will install the ``llvm-openmp`` package,
+   which provides OpenMP support libraries for the ``clang`` compiler that comes with XCode.
+
+   .. code-block:: console
+
+        $ conda env create -f environment.yml
+        $ conda activate pypeit
+        $ pip install -e .
+
+#. Install GCC via `homebrew <https://brew.sh/>`__ and specify its use when
+   installing ``pypeit``. For example, if you installed GCC via ``homebrew``, you
+   would get ``pypeit`` to use it by doing, for example:
+
+   .. code-block:: console
+
+       $ export CC=/opt/homebrew/bin/gcc
+       $ pip install pypeit
+
+   Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler
+   to use so configure that as needed to use your desired compiler.
+
+The ``pypeit_c_enabled`` script can be used to check if your compiler has OpenMP
 support.
 
 ginga Plugins
@@ -707,7 +727,7 @@ current pypeit version:
 
 Then reinstall it.  If that also fails, try creating a fresh environment and
 reinstalling pypeit in that new environment.
- 
+
 ----
 
 **The installation process succeeded, but the code is faulting!**:  This could
