@@ -1150,7 +1150,6 @@ def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
             width to mask on either side of each line center in Angstroms
         mask_star (`numpy.ndarray`_, optional):
             Incoming star mask to which to add the hydrogen lines
-            (Default: None)
 
     Returns:
         `numpy.ndarray`_:  boolean mask.  Same shape as ``wave_star``, True=Good
@@ -1222,7 +1221,6 @@ def mask_stellar_helium(wave_star, mask_width=5.0, mask_star=None):
             width to mask on either side of each line center in Angstroms
         mask_star (`numpy.ndarray`_, optional):
             Incoming star mask to which to add the ionized helium lines
-            (Default: None)
 
     Returns:
         `numpy.ndarray`_:  boolean mask.  Same shape as ``wave_star``, True=Good

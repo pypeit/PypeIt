@@ -222,6 +222,7 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None, correct_nonlinear=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
+                 skip_write_2d=None,
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
                  spat_flexure_correct=None, spat_flexure_maxlag=None,
                  spat_flexure_sigdetect=None, spat_flexure_vrange=None):
@@ -357,6 +358,13 @@ class ProcessImagesPar(ParSet):
                                  'primarily used for slicer IFUs.  To use this, you must set ' \
                                  '``slit_illum_relative=True`` in the ``flatfield`` parameter set!'
 
+        defaults['skip_write_2d'] = False
+        dtypes['skip_write_2d'] = bool
+        descr['skip_write_2d'] = 'Skip writing the 2D spectrum for science frames.  WARNING: ' \
+                                 'This option should only be considered for reducing the volume ' \
+                                 'of output data when processing large numbers of frames and only ' \
+                                 'after ensuring the quality of the resulting reductions.'
+
         # Flexure
         defaults['spat_flexure_correct'] = False
         dtypes['spat_flexure_correct'] = bool
@@ -477,7 +485,7 @@ class ProcessImagesPar(ParSet):
                    'subtract_scattlight', 'scattlight', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
                    'spat_flexure_correct', 'spat_flexure_maxlag', 'spat_flexure_sigdetect',
-                   'spat_flexure_vrange', 'use_illumflat', 'use_specillum',
+                   'spat_flexure_vrange', 'use_illumflat', 'use_specillum', 'skip_write_2d',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',

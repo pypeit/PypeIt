@@ -10,7 +10,7 @@ def mdm_modspec_echelle(overwrite=True):
 
     Args:
         overwrite: bool, optional
-          Overwrite the existing file? [Default: False]
+          Overwrite the existing file?
     """
 
     binspec = 1
