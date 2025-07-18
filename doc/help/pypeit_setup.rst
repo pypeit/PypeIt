@@ -3,7 +3,7 @@
     $ pypeit_setup -h
     usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT [ROOT ...]] [-e EXTENSION]
                         [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-f] [-m]
-                        [-v VERBOSITY] [-k] [-G]
+                        [-v VERBOSITY] [-k] [-p PARAM_BLOCK_FILE] [-G]
     
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
@@ -74,5 +74,9 @@
                             option in pypeit_obslog; i.e., you have to tell
                             pypeit_setup to keep these frames, whereas you have to
                             tell pypeit_obslog to remove them. (default: False)
+      -p, --param_block_file PARAM_BLOCK_FILE
+                            File containing the additional PypeIt user parameters to
+                            be added to the parameter block of the generated
+                            reduction file (default: None)
       -G, --gui             Run setup in a GUI (default: False)
     

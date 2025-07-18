@@ -300,9 +300,9 @@ def generate_sci_pypeitfile(redux_path:str,
     if len(is_std) > 0 and not clear:
         for i in is_std:
             std_spec1d = pypeit.PypeIt.get_spec_file_name(
-                            str(sci_dir / ps_sci.par['rdx']['scidir']),
+                            sci_dir / ps_sci.par['rdx']['scidir'],
                             ps_sci.fitstbl.construct_basename(i))
-            if Path(std_spec1d).exists():
+            if std_spec1d.exists():
                 break
             # File doesn't exist, so reset
             std_spec1d = None
