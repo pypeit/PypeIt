@@ -50,6 +50,12 @@ from pypeit.core import skysub
 
 from linetools import utils as ltu
 
+try:
+    from jwst import datamodels
+except ModuleNotFoundError:
+    raise ModuleNotFoundError('Unable to import jwst.  Install pypeit with the specutils '
+                              'option to use the pypeit.specutils module.')
+
 
 class PypeIt:
     """
@@ -92,6 +98,31 @@ class PypeIt:
         fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
 
     """
+
+    @classmethod
+    def get_instance(cls, pypeit_file, verbosity=2, overwrite=True, reuse_calibs=False, logname=None,
+                 show=False, redux_path=None, calib_only=False):
+        """
+        Instantiate and return the :class:`PypeIt` subclass appropriate for
+        the provided spectrograph.
+
+        For argument descriptions, see :class:`PypeIt`.
+
+        Returns:
+            :class:`PypeIt`: One of the subclasses with :class:`PypeIt` as its base."""
+
+        spectrograph = inputfiles.PypeItFile.from_file(pypeit_file).get_spectrograph()
+
+        return next(c for c in cls.__subclasses__()
+                    if c.__name__ == (spectrograph.pypeline + 'PypeIt'))(pypeit_file,
+                                                                        verbosity=verbosity,
+                                                                        overwrite=overwrite,
+                                                                        reuse_calibs=reuse_calibs,
+                                                                        logname=logname,
+                                                                        show=show,
+                                                                        redux_path=redux_path,
+                                                                        calib_only=calib_only)
+
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_calibs=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
@@ -360,13 +391,13 @@ class PypeIt:
                 bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0])
                                      & (self.fitstbl['comb_id'] >= 0))[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    # Build history to document what contributed to the reduced
-                    # exposure
-                    history = History(self.fitstbl.frame_paths(frames[0]))
-                    history.add_reduce(calib_ID, self.fitstbl, frames, bg_frames)
-                    std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
-                    # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename, history)
+                    # # Build history to document what contributed to the reduced
+                    # # exposure
+                    # history = History(self.fitstbl.frame_paths(frames[0]))
+                    # history.add_reduce(calib_ID, self.fitstbl, frames, bg_frames)
+                    self.reduce_exposure(frames, bg_frames=bg_frames)
+                    # # TODO come up with sensible naming convention for save_exposure for combined files
+                    # self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename, history)
                 else:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -416,23 +447,22 @@ class PypeIt:
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
 
-                    # Build history to document what contributd to the reduced
-                    # exposure
-                    history = History(self.fitstbl.frame_paths(frames[0]))
-                    history.add_reduce(calib_ID, self.fitstbl, frames, bg_frames)
+                    # # Build history to document what contributd to the reduced
+                    # # exposure
+                    # history = History(self.fitstbl.frame_paths(frames[0]))
+                    # history.add_reduce(calib_ID, self.fitstbl, frames, bg_frames)
 
                     # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
-                    sci_spec2d, sci_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames,
-                                                                 std_outfile=std_outfile)
+                    self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
                     science_basename[j] = self.basename
 
-                    # TODO: come up with sensible naming convention for
-                    # save_exposure for combined files
-                    if len(sci_spec2d.detectors) > 0:
-                        self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
-                    else:
-                        msgs.warn('No spec2d and spec1d saved to file because the '
-                                  'calibration/reduction was not successful for all the detectors')
+                    # # TODO: come up with sensible naming convention for
+                    # # save_exposure for combined files
+                    # if len(sci_spec2d.detectors) > 0:
+                    #     self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
+                    # else:
+                    #     msgs.warn('No spec2d and spec1d saved to file because the '
+                    #               'calibration/reduction was not successful for all the detectors')
                 else:
                     msgs.warn(f'Output file: {self.fitstbl.construct_basename(frames[0])} already '
                               'exists. Set overwrite=True to recreate and overwrite.')
@@ -481,10 +511,6 @@ class PypeIt:
             std_outfile (:obj:`str`, optional):
                 File with a previously reduced standard spectrum from
                 PypeIt.
-
-        Returns:
-            dict: The dictionary containing the primary outputs of
-            extraction.
 
         """
 
@@ -641,8 +667,16 @@ class PypeIt:
 
             # TODO -- Save here?  Seems like we should.  Would probably need to use update_det=True
 
-        # Return
-        return all_spec2d, all_specobjs_extract
+        if len(all_spec2d.detectors) > 0:
+            # Build history to document what contributd to the reduced
+            # exposure
+            history = History(self.fitstbl.frame_paths(frames[0]))
+            history.add_reduce(self.fitstbl.find_frame_calib_groups(frames[0])[0], self.fitstbl, frames, bg_frames)
+            self.save_exposure(frames[0], all_spec2d, all_specobjs_extract, self.basename, history)
+        else:
+            msgs.warn('No spec2d and spec1d saved to file because the '
+                      'calibration/reduction was not successful for all the detectors')
+
 
     def get_sci_metadata(self, frame, det):
         """
@@ -1274,4 +1308,241 @@ class PypeIt:
         # Generate sets string
         return '<{:s}: pypeit_file={}>'.format(self.__class__.__name__, self.pypeit_file)
 
+
+class NIRSpecSlitPypeIt(PypeIt):
+    """
+    PypeIt class for performing JWST NIRSpec calibration.
+    See :class:`PypeIt` for arguments.
+    """
+
+    def get_sci_metadata(self, frame, det, slit_name=None):
+        """
+        Get the metadata for a science frame
+
+        Args:
+            frame (:obj:`int`):
+                0-indexed row in the metadata table with the frame
+                that has been reduced.
+            det (:obj:`int`):
+                Detector number (1-indexed)
+            slit_name (:obj:`str`, optional):
+                Name of the slit, if applicable.
+
+        Returns:
+            tuple: The object type, setup, obstime, basename, and binning
+            for the science frame.
+        """
+
+        objtype, setup, obstime, basename, binning = super().get_sci_metadata(frame,det)
+        # update basename for NIRSpec
+        basename = basename.replace('_assign_wcs', '')
+        basename = basename.replace('_nrs1', '')
+        basename = basename.replace('_nrs2', '')
+        if slit_name is not None:
+            basename = basename.replace(self.spectrograph.camera, f'{slit_name}_{self.spectrograph.camera}')
+            setup = setup.replace(self.spectrograph.get_det_name(det), f'{slit_name}')
+        return objtype, setup, obstime, basename, binning
+
+
+    def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
+        """
+        Reduce a single exposure
+
+        Args:
+            frames (:obj:`list`):
+                List of 0-indexed rows in :attr:`fitstbl` with the frames to
+                reduce.
+            bg_frames (:obj:`list`, optional):
+                List of frame indices for the background.
+            std_outfile (:obj:`str`, optional):
+                File with a previously reduced standard spectrum from
+                PypeIt.
+
+        """
+
+        # if show is set, clear the ginga channels at the start of each new sci_ID
+        if self.show:
+            # TODO: Put this in a try/except block?
+            display.clear_all(allow_new=True)
+
+        has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
+        if has_bg and len(bg_frames) != len(frames):
+            msgs.error('Background frames must be provided for all science frames. '
+                       'Please provide the same number of background frames as science frames.')
+        # Is this an b/g subtraction reduction?
+        if has_bg:
+            self.bkg_redux = True
+            # The default is to find_negative objects if the bg_frames are
+            # classified as "science", and to not find_negative objects if the
+            # bg_frames are classified as "sky". This can be explicitly
+            # overridden if par['reduce']['findobj']['find_negative'] is set to
+            # something other than the default of None.
+            self.find_negative = (('science' in self.fitstbl['frametype'][bg_frames[0]]) |
+                                  ('standard' in self.fitstbl['frametype'][bg_frames[0]])) \
+                            if self.par['reduce']['findobj']['find_negative'] is None else \
+                                self.par['reduce']['findobj']['find_negative']
+        else:
+            self.bkg_redux = False
+            self.find_negative= False
+
+        # Find the detectors to reduce
+        detectors = self.select_detectors(self.spectrograph, self.par['rdx']['detnum'],
+                                          slitspatnum=self.par['rdx']['slitspatnum'])
+        msgs.info(f'Detectors to work on: {detectors}')
+
+        # book keeping for successful calibrations
+        if len(detectors) == 2:
+            # check that both detectors are present, i.e., both files exist
+            both_exist = np.all(np.any(s in fname for fname in self.fitstbl[frames]['filename'].data) for s in ['_nrs1', '_nrs2'])
+            if not both_exist:
+                msgs.error('Reduction requested for both detectors, but they are not present in the input files.')
+        elif len(detectors) == 1 and detectors[0] == 1:
+            # check that the first detector is present, i.e., the file exists
+            if not np.any('_nrs1' in fname for fname in self.fitstbl[frames]['filename'].data):
+                msgs.error('Reduction requested for detector 1, but it is not present in the input files.')
+        elif len(detectors) == 1 and detectors[0] == 2:
+            # check that the second detector is present, i.e., the file exists
+            if not np.any('_nrs2' in fname for fname in self.fitstbl[frames]['filename'].data):
+                msgs.error('Reduction requested for detector 2, but it is not present in the input files.')
+
+
+        # Create arrays to hold JWST spec2
+        # NOTE: all this implies that the number of frames is the same as the number of detectors, i.e., we are not combining different exposures here
+        sci_data = np.array(datamodels.open(self.fitstbl.frame_paths(frames)))
+        if self.bkg_redux:
+            sci_data_bkg = np.array(datamodels.open(self.fitstbl.frame_paths(bg_frames)))
+        # find the calibration files for this frame
+        # NOTE: we assume that calib_id is the same for all `frames` and `bg_frames`
+        calib_grps = self.fitstbl.find_frame_calib_groups(frames[0])
+        cal_files = self.fitstbl.find_frame_files('trace', calib_ID=calib_grps)
+        if len(cal_files) == 0:
+            msgs.error(f'No _cal file found for frames in calib_ID={calib_grps}')
+        cal_data = np.array(datamodels.open(cal_files))
+        # find the flat field files for this frame
+        flat_files = self.fitstbl.find_frame_files('pixelflat', calib_ID=calib_grps)
+        if len(flat_files) == 0:
+            msgs.error(f'No _flat file found for frames in calib_ID={calib_grps}')
+        flat_data = np.array(datamodels.open(flat_files))
+        # If the flat field files have interpolatedflat_fs slits, append them to the flat_data
+        for i, _flat_data in enumerate(flat_data):
+            fs_path = flat_files[i].replace('_interpolatedflat', '_interpolatedflat_fs')
+            if Path(fs_path).exists():
+                msgs.info(f'Appending interpolatedflat FS slits into MOS output for {Path(flat_files[i]).name}')
+                _flat_data_fs = datamodels.open(fs_path)
+                for slit in _flat_data_fs.slits:
+                    _flat_data.slits.append(slit)
+
+
+        # If the background frames are provided, we need to skip the sky-subtraction
+        if self.bkg_redux:
+            self.par['reduce']['findobj']['skip_skysub'] = True
+            self.par['reduce']['extraction']['skip_optimal'] = True  # Skip local_skysubtraction and profile fitting
+
+        # get slits and sources names
+        slit_names = np.hstack([[slit.name for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
+        source_names = np.hstack([[slit.source_name for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
+        source_ids = np.hstack([[slit.source_id for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
+        source_aliases = np.hstack([[slit.source_alias for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
+        # Find the unique slit names and the unique sources aligned with those slits
+        slit_names_uni, uni_indx = np.unique(slit_names, return_index=True)
+        source_names_uni = source_names[uni_indx]
+        source_ids_uni = source_ids[uni_indx]
+        source_aliases_uni = source_aliases[uni_indx]
+        slit_sources_uni = [(slit, source_name, source_id, source_alias)
+                            for slit, source_name, source_id, source_alias in
+                            zip(slit_names_uni, source_names_uni, source_ids_uni, source_aliases_uni)]
+
+
+        if self.par['rdx']['maskIDs'] is not None:
+            maskIDs = [str(mid).strip() for mid in self.par['rdx']['maskIDs']]
+            gd_slits_sources = [(slt, src_n, src_id, src_alias)
+                                for slt, src_n, src_id, src_alias in slit_sources_uni
+                                if str(slt).strip() in maskIDs or str(src_id) in maskIDs or str(src_alias) in maskIDs]
+            if not gd_slits_sources:
+                msgs.warn(f'No slits or sources found for maskIDs={self.par["rdx"]["maskIDs"]}. '
+                          'Reduction will be performed on all slits.')
+                gd_slits_sources = slit_sources_uni
+            # find if there are maskIDs that are not present in the slit_sources_uni
+            elif len(gd_slits_sources) < len(maskIDs):
+                missing_maskIDs = [mid for mid in maskIDs if mid not in [slt for slt, _, _, _ in gd_slits_sources] and
+                                  mid not in [src_id for _, _, src_id, _ in gd_slits_sources] and
+                                  mid not in [src_alias for _, _, _, src_alias in gd_slits_sources]]
+                msgs.warn(f'The following maskIDs were not found: {", ".join(missing_maskIDs)}. '
+                          'Reduction will be performed on the available slits and sources.')
+        else:
+            gd_slits_sources = slit_sources_uni
+
+        # MSGS info on which slits and sources are being reduced
+        msgs.info(f'Reducing the following (slit_name, src_name): '
+                  f'{", ".join([f"({slt}, {src_n})" for slt, src_n, _, _ in gd_slits_sources])}')
+
+        for ii, (islit, isource, isource_id, isource_alias) in enumerate(gd_slits_sources):
+            # Print status message
+            add_to_msgs = f'Slit name: {islit}' if isource is None else f'SRC name: {isource}'
+            msgs_string = f'Reducing target {self.fitstbl['target'][frames[0]]} - {add_to_msgs}' + msgs.newline()
+
+            msgs_string += 'Combining frames:' + msgs.newline()
+            for iframe in frames:
+                msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
+            msgs.info(msgs_string)
+            if has_bg:
+                bg_msgs_string = ''
+                for iframe in bg_frames:
+                    bg_msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
+                bg_msgs_string = msgs.newline() + 'Using background from frames:' + msgs.newline() + bg_msgs_string
+                msgs.info(bg_msgs_string)
+
+            self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], 1, slit_name=islit)
+
+            # Loop on detectors to get the calibrations
+            from pypeitdev.jwst.jwst_utils import NIRSpecSlitCalibrations, jwst_mosaic, jwst_reduce
+            from pypeit.images import combineimage
+            _calibrate = []
+            for d, _det in enumerate(detectors):
+                _calibrate.append(NIRSpecSlitCalibrations(self.spectrograph.get_detector_par(_det), cal_data[d], flat_data[d],
+                                                islit, f070_f100_rescale=None))
+            # THIS IS JUST TO NOT MAKE THE CODE COMPLAIN
+            self.caliBrate = calibrations.Calibrations.get_instance(self.fitstbl, self.par['calibrations'],
+                                                                    self.spectrograph,self.calibrations_path,
+                                                                    qadir=self.qa_path)
+            # self.caliBrate = self.calib_one(frames, 1)
+            # Container for all the Spec2DObj
+            all_spec2d = spec2dobj.AllSpec2DObj()
+            all_spec2d['meta']['bkg_redux'] = self.bkg_redux
+            all_spec2d['meta']['find_negative'] = self.find_negative
+            # Container for the specobjs
+            all_specobjs = specobjs.SpecObjs()
+
+            # Create the image mosaic
+            sciImg, slits, waveimg, tilts, ndet = jwst_mosaic(sci_data, _calibrate, kludge_err=1.5,
+                noise_floor=self.par['scienceframe']['process']['noise_floor'], show=False)
+
+            if self.bkg_redux:
+                bkgImg_list = []
+                bkgImg_i, _, _, _, _=  jwst_mosaic(sci_data_bkg, _calibrate, kludge_err=1.5,
+                                                   noise_floor=self.par['scienceframe']['process']['noise_floor'])
+                bkgImg_list.append(bkgImg_i)
+
+                # TODO the parset label here may change in Pypeit to bkgframe
+                combineImage = combineimage.CombineImage(bkgImg_list, self.par['scienceframe']['process'])
+                bkgImg = combineImage.run(ignore_saturation=True)
+                sciImg = sciImg.sub(bkgImg)
+
+            all_spec2d[sciImg.detector.name], tmp_sobjs = jwst_reduce(sciImg, slits, waveimg, tilts, self.spectrograph, self.par,
+                                                                    show=self.show, find_negative=self.bkg_redux, bkg_redux=self.bkg_redux,
+                                                                    clear_ginga=False, show_peaks=self.show, show_skysub_fit=self.show,
+                                                                    basename=self.fitstbl[frames]['filename'][0].split('_nrs')[0])
+            # Hold em
+            if tmp_sobjs.nobj > 0:
+                all_specobjs.add_sobj(tmp_sobjs)
+
+            if len(all_spec2d.detectors) > 0:
+                # Build history to document what contributd to the reduced
+                # exposure
+                history = History(self.fitstbl.frame_paths(frames[0]))
+                history.add_reduce(self.fitstbl.find_frame_calib_groups(frames[0])[0], self.fitstbl, frames, bg_frames)
+                self.save_exposure(frames[0], all_spec2d, all_specobjs, self.basename, history)
+            else:
+                msgs.warn('No spec2d and spec1d saved to file because the '
+                          'calibration/reduction was not successful for all the detectors')
 

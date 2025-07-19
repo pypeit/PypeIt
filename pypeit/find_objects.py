@@ -1261,3 +1261,15 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         if np.any(_bpm):
             self.sciImg.update_mask('BADSCALE', indx=_bpm)
         self.sciImg.ivar = utils.inverse(varImg)
+
+
+class NIRSpecSlitFindObjects(MultiSlitFindObjects):
+    """
+    Child of Reduce for NIRSpec Slit reductions
+
+    See parent doc string for Args and Attributes
+
+    """
+
+    def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
+        super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)

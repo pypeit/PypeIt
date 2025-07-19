@@ -66,7 +66,7 @@ class CoAdd2D:
             :class:`CoAdd2D` as its base.
         """
 
-        return next(c for c in cls.__subclasses__()
+        return next(c for c in utils.all_subclasses(cls)
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
                         spec2dfiles, spectrograph, par, det=det, offsets=offsets, weights=weights,
                         only_slits=only_slits, exclude_slits=exclude_slits,
@@ -1674,6 +1674,26 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         return dict(maskdef_id=imaskdef_id, maskdef_objpos=imaskdef_objpos_dspat,
                     maskdef_slitcen=imaskdef_slitcen_dspat, maskdef_designtab=this_maskdef_designtab)
+
+
+class NIRSpecSlitCoAdd2D(MultiSlitCoAdd2D):
+    """
+    Child of CoAdd2D for NIRSpec Slit reductions. For documentation see CoAdd2D parent class above.
+
+    NIRSpec Slit can coadd with:
+        - input offsets or if offsets is None, it will find the brightest trace and compute them
+        - specified weights, or if weights is None and auto_weights=True, it will compute weights using the brightest object
+    """
+    def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
+                 only_slits=None, exclude_slits=None,
+                 spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
+                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False):
+        super().__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
+                         only_slits=only_slits, exclude_slits=exclude_slits,
+                         spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
+                         sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
+                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
+                         debug=debug)
 
 
 class EchelleCoAdd2D(CoAdd2D):

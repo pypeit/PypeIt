@@ -303,7 +303,7 @@ class SpecObjs:
         meta_spec['DET'] = np.array(detector)
         meta_spec['DISPNAME'] = self.header['DISPNAME']
         # Return
-        if self[0].PYPELINE in ['MultiSlit', 'SlicerIFU'] and self.nobj == 1:
+        if self[0].PYPELINE in ['MultiSlit', 'SlicerIFU', 'NIRSpecSlit'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
             blaze_ret = blaze_function.reshape(nspec) if blaze_function is not None else None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
@@ -329,7 +329,7 @@ class SpecObjs:
         """
         # Is this MultiSlit or Echelle
         pypeline = (self.PYPELINE)[0]
-        if 'MultiSlit' in pypeline or 'SlicerIFU' in pypeline:
+        if 'MultiSlit' in pypeline or 'SlicerIFU' in pypeline or 'NIRSpecSlit' in pypeline:
             # Have to do a loop to extract the counts for all objects
             if self.OPT_COUNTS[0] is not None:
                 SNR = np.median(self.OPT_COUNTS * np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
@@ -411,6 +411,8 @@ class SpecObjs:
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         elif sobjs_neg[0].PYPELINE == 'MultiSlit':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
+        elif sobjs_neg[0].PYPELINE == 'NIRSpecSlit':
+            sobjs_neg.OBJID = -sobjs_neg.OBJID
         elif sobjs_neg[0].PYPELINE == 'SlicerIFU':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
@@ -432,6 +434,8 @@ class SpecObjs:
                 index = self.ECH_OBJID < 0
             elif self[0].PYPELINE == 'MultiSlit':
                 index = self.OBJID < 0
+            elif self[0].PYPELINE == 'NIRSpecSlit':
+                index = self.OBJID < 0
             elif self[0].PYPELINE == 'SlicerIFU':
                 index = self.OBJID < 0
             else:
@@ -449,6 +453,8 @@ class SpecObjs:
             if self[0].PYPELINE == 'Echelle':
                 index = self.ECH_OBJID < 0
             elif self[0].PYPELINE == 'MultiSlit':
+                index = self.OBJID < 0
+            elif self[0].PYPELINE == 'NIRSpecSlit':
                 index = self.OBJID < 0
             elif self[0].PYPELINE == 'SlicerIFU':
                 index = self.OBJID < 0
@@ -476,6 +482,8 @@ class SpecObjs:
             indx = self.ECH_ORDER == slitorder
         elif self[0].PYPELINE == 'MultiSlit':
             indx = self.SLITID == slitorder
+        elif self[0].PYPELINE == 'NIRSpecSlit':
+            indx = self.SLITID == slitorder
         elif self[0].PYPELINE == 'SlicerIFU':
             indx = self.SLITID == slitorder
         else:
@@ -497,6 +505,8 @@ class SpecObjs:
         if self[0].PYPELINE == 'Echelle':
             indx = self.ECH_NAME == name
         elif self[0].PYPELINE == 'MultiSlit':
+            indx = self.NAME == name
+        elif self[0].PYPELINE == 'NIRSpecSlit':
             indx = self.NAME == name
         elif self[0].PYPELINE == 'SlicerIFU':
             indx = self.NAME == name
@@ -527,6 +537,8 @@ class SpecObjs:
         if self[0].PYPELINE == 'Echelle':
             indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
         elif self[0].PYPELINE == 'MultiSlit':
+            indx = (np.abs(self.SLITID - slitorder) <= toler) & (self.OBJID == objid)
+        elif self[0].PYPELINE == 'NIRSpecSlit':
             indx = (np.abs(self.SLITID - slitorder) <= toler) & (self.OBJID == objid)
         elif self[0].PYPELINE == 'SlicerIFU':
             indx = (self.SLITID == slitorder) & (self.OBJID == objid)
@@ -942,6 +954,10 @@ class SpecObjs:
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
+            elif pypeline == 'NIRSpecSlit':
+                spat_fracpos.append(specobj.SPAT_FRACPOS)
+                slits.append(specobj.SLITID)
+                names.append(specobj.NAME)
             elif pypeline == 'Echelle':
                 spat_fracpos.append(specobj.ECH_FRACPOS)
                 slits.append(specobj.ECH_ORDER)
@@ -985,6 +1001,9 @@ class SpecObjs:
                 obj_tbl['slit'] = slits
                 obj_tbl['slit'].format = 'd'
             elif pypeline == 'SlicerIFU':
+                obj_tbl['slit'] = slits
+                obj_tbl['slit'].format = 'd'
+            elif pypeline == 'NIRSpecSlit':
                 obj_tbl['slit'] = slits
                 obj_tbl['slit'].format = 'd'
             elif pypeline == 'Echelle':
@@ -1135,6 +1154,8 @@ def get_std_trace(detname, std_outfile, chk_version=True):
         std_tab = Table()
         # flatten the array if this multislit
         if 'MultiSlit' in pypeline:
+            std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
+        elif 'NIRSpecSlit' in pypeline:
             std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
         elif 'Echelle' in pypeline:
             std_tab['ECH_ORDER'] = sobjs_std.ECH_ORDER

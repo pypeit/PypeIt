@@ -278,7 +278,7 @@ class SpecObj(datamodel.DataContainer):
         """
         Validate the object.
         """
-        pypelines = ['MultiSlit', 'SlicerIFU', 'Echelle']
+        pypelines = ['MultiSlit', 'SlicerIFU', 'Echelle', 'NIRSpecSlit']
         if self.PYPELINE not in pypelines:
             msgs.error(f'{self.PYPELINE} is not a known pipeline procedure.  Options are: '
                        f"{', '.join(pypelines)}")
@@ -325,6 +325,8 @@ class SpecObj(datamodel.DataContainer):
             return self.SLITID
         elif self.PYPELINE == 'SlicerIFU':
             return self.SLITID
+        elif self.PYPELINE == 'NIRSpecSlit':
+            return self.SLITID
         else:
             msgs.error("Bad PYPELINE")
 
@@ -336,6 +338,8 @@ class SpecObj(datamodel.DataContainer):
         elif self.PYPELINE == 'MultiSlit':
             return self.SLITID
         elif self.PYPELINE == 'SlicerIFU':
+            return self.SLITID
+        elif self.PYPELINE == 'NIRSpecSlit':
             return self.SLITID
         else:
             msgs.error("Bad PYPELINE")
@@ -427,7 +431,7 @@ class SpecObj(datamodel.DataContainer):
             name += '{:04d}'.format(self.ECH_ORDER)
             self.ECH_NAME = ech_name
             self.NAME = name
-        elif self.PYPELINE in ['MultiSlit', 'SlicerIFU']:
+        elif self.PYPELINE in ['MultiSlit', 'SlicerIFU', 'NIRSpecSlit']:
             # Spat
             name = naming_model['spat']
             if self['SPAT_PIXPOS'] is None:

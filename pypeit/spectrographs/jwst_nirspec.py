@@ -22,11 +22,12 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 2
     name = 'jwst_nirspec'
-    header_name = 'jwst_nirspec'
+    header_name = 'NIRSPEC'
     telescope = telescopes.JWSTTelescopePar()
     camera = 'NIRSPEC'
     url = 'https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph'
-    supported = True
+    pypeline = 'NIRSpecSlit'
+    #supported = True
     allowed_extensions = ['rate.fits','rate.fits.gz' , 'uncal.fits.gz', 'uncal.fits', '.fits', '.fits.gz']
 
     def get_detector_par(self, det, hdu=None):
@@ -65,7 +66,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             numamplifiers=1,
             gain=np.atleast_1d(0.996),
             ronoise=np.atleast_1d(5.17),
-            datasec=None,
+            datasec=np.atleast_1d('[:,:]'),
             oscansec=None
         )
 
@@ -93,6 +94,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
+        # turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False, use_illumflat=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                  use_pixelflat=False, use_specillum=False, apply_gain=False, trim=False)
+        par.reset_all_processimages_par(**turn_off)
 
         # Reduce
         par['reduce']['trim_edge'] = [0,0]
@@ -123,6 +128,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 2.0
         par['scienceframe']['process']['mask_cr'] = False # Turn off for now since we coadd.
 
+        # identify science frames
+        par['scienceframe']['exprng'] = [0.1, None]
+
         # Skip reference frame correction for now.
         par['calibrations']['wavelengths']['refframe'] = 'observed'
 
@@ -139,7 +147,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Required (core)
         self.meta['ra'] = dict(ext=0, card='TARG_RA')
         self.meta['dec'] = dict(ext=0, card='TARG_DEC')
-        self.meta['target'] = dict(ext=0, card='TARGPROP')
+        self.meta['target'] = dict(ext=0, card=None, compound=True)
         self.meta['mode'] = dict(ext=0, card='EXP_TYPE')
         self.meta['decker'] = dict(ext=0, card='APERNAME')
 
@@ -153,10 +161,11 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         self.meta['filter1'] = dict(ext=0, card='FILTER')
         self.meta['idname'] = dict(ext=0, card=None, compound=True)
         self.meta['dithpat'] = dict(ext=0, card=None, compound=True)
-        self.meta['dithpos'] = dict(ext=0, card='YOFFSET')
+        self.meta['dithpos'] = dict(ext=0, card=None, compound=True)
+        self.meta['dithoff'] = dict(ext=0, card=None, compound=True)
 
         # used for arc and continuum lamps
-        self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
+        # self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
 
@@ -175,14 +184,57 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
+        # get the filename if available, it is used in several cases
+        fname = headarr[0].get('FILENAME')
+
+        if meta_key == 'airmass':
+            return 0.
+
+        if meta_key == 'dithpos':
+            # the dither information is stored in all frame type, but we want it only for science frames
+            if fname is not None and '_assign_wcs' not in fname:
+                return None
+            return headarr[0].get('PATT_NUM')
+
+        elif meta_key == 'dithoff':
+            # the dither information is stored in all frame type, but we want it only for science frames
+            if fname is not None and '_assign_wcs' not in fname:
+                return 0
+            return round(headarr[0].get('YOFFSET'), 3) if headarr[0].get('YOFFSET') is not None else 0.0
 
         if meta_key == 'dithpat':
+            # the dither information is stored in all frame type, but we want it only for science frames
+            if fname is not None and '_assign_wcs' not in fname:
+                return None
             exp_type = headarr[0].get('EXP_TYPE')
             if exp_type == 'NRS_MSASPEC':
                 return headarr[0].get('NOD_TYPE')
             elif exp_type == 'NRS_FIXEDSLIT':
                 return headarr[0].get('PATTTYPE')
-
+            else:
+                msgs.warn(f'Cannot determine dithering pattern for EXP_TYPE={exp_type}.')
+                return None
+        elif meta_key == 'target':
+            # The target name is stored in the TARGPROP header card
+            # for all NIRSpec modes.
+            return headarr[0].get('TARGNAME') if headarr[0].get('TARGNAME') is not None and \
+                                                 len(headarr[0].get('TARGNAME').strip()) > 0 \
+                                             else headarr[0].get('TARGPROP')
+        elif meta_key == 'idname':
+            if fname is not None:
+                if '_assign_wcs' in fname:
+                    return 'science'
+                elif '_interpolatedflat' in fname:
+                    return 'interpolatedflat'
+                elif '_cal' in fname:
+                    return 'calib'
+                else:
+                    return None
+            else:
+                msgs.warn("Cannot determine idname from header. Setting to None.")
+                return None
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -198,7 +250,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'filter1', 'decker']
+        return ['dispname', 'filter1', 'decker', 'target']
 
     def pypeit_file_keys(self):
         """
@@ -212,7 +264,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         pypeit_keys.remove('airmass')
         pypeit_keys.remove('binning')
-        return pypeit_keys
+        return pypeit_keys + ['dithpat', 'dithpos', 'dithoff']
 
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -234,9 +286,14 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
         if ftype == 'science':
-            return np.ones(len(fitstbl), dtype=bool)
+            return good_exp & (fitstbl['idname'] == 'science')
+        if ftype in ['pixelflat']:
+            return good_exp & (fitstbl['idname'] == 'interpolatedflat')
+        if ftype in ['arc', 'tilt', 'trace']:
+            return good_exp & (fitstbl['idname'] == 'calib')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
@@ -293,14 +350,17 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info(f'Reading JWST/NIRSpec file: {fil}')
-        hdu = io.fits_open(fil)
-        head0 = hdu[0].header
 
-        detector = self.get_detector_par(det if det is not None else 1, hdu=hdu)
-        raw_img = hdu[detector['dataext']].data.astype(float)
+        return super().get_rawimage(fil, det, sec_includes_binning=True)
 
-        # Need the exposure time
-        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
-
-        # Return
-        return detector, raw_img.T, hdu, exptime, None, None
+        # hdu = io.fits_open(fil)
+        # head0 = hdu[0].header
+        #
+        # detector = self.get_detector_par(det if det is not None else 1, hdu=hdu)
+        # raw_img = hdu[detector['dataext']].data.astype(float)
+        #
+        # # Need the exposure time
+        # exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+        #
+        # # Return
+        # return detector, raw_img.T, hdu, exptime, None, None

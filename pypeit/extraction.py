@@ -938,3 +938,15 @@ class SlicerIFUExtract(MultiSlitExtract):
     #def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
     #    # IFU doesn't extract, and there's no need for a super call here.
     #    return
+
+
+class NIRSpecSlitExtract(MultiSlitExtract):
+    """
+    Child of Extract for NIRSpec slit reductions
+
+    See parent doc string for Args and Attributes
+
+    """
+    def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
+        super().__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
+

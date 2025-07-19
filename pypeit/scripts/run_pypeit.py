@@ -94,10 +94,15 @@ class RunPypeIt(scriptbase.ScriptBase):
         logname = splitnm[0] + ".log"
 
         # Instantiate the main pipeline reduction object
-        pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
+        pypeIt = pypeit.PypeIt.get_instance(args.pypeit_file, verbosity=args.verbosity,
                                reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
                                redux_path=args.redux_path, calib_only=args.calib_only,
                                logname=logname, show=args.show)
+
+        # pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
+        #                        reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
+        #                        redux_path=args.redux_path, calib_only=args.calib_only,
+        #                        logname=logname, show=args.show)
 
         if args.calib_only:
             pypeIt.calib_all()

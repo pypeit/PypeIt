@@ -147,6 +147,7 @@ class Calibrations:
         descriptions, see :class:`Calibrations`.
         """
         calibclass = MultiSlitCalibrations if spectrograph.pypeline in ['MultiSlit', 'Echelle'] \
+                        else NIRSpecSlitCalibrations if spectrograph.pypeline == 'NIRSpecSlit' \
                         else IFUCalibrations
         return calibclass(fitstbl, par, spectrograph, caldir, **kwargs)
 
@@ -1650,6 +1651,24 @@ class IFUCalibrations(Calibrations):
         return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align',
                 'scattlight', 'flats']
 
+class NIRSpecSlitCalibrations(Calibrations):
+    """
+    Calibration class for performing JWST NIRSpec calibration.
+    See :class:`Calibrations` for arguments.
+
+    """
+    @staticmethod
+    def default_steps():
+        """
+        This defines the calibration steps and their order.
+
+        Returns:
+            :obj:`list`: Calibration steps, in order of execution.
+        """
+        # Order matters!  And the name must match a viable "get_{step}" method
+        # in Calibrations.
+
+        return []  #['bpm', 'slits', 'wv_calib', 'flats']
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     """

@@ -59,6 +59,10 @@ scikit-image = [
 specutils = [
     "specutils>=1.13",
 ]
+
+jwst = [
+    "jwst>=1.19",
+]
 test = [
     "pygit2",
     "pytest>=7.0.0",
