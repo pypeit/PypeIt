@@ -23,6 +23,7 @@ except AttributeError as e:
 from IPython import embed
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from pypeit import __version__
 from pypeit import msgs
@@ -39,6 +40,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import scattlight as core_scattlight
+from pypeit.core import fitting
 from pypeit.core.mosaic import build_image_mosaic
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
@@ -1657,6 +1659,294 @@ class NIRSpecSlitCalibrations(Calibrations):
     See :class:`Calibrations` for arguments.
 
     """
+
+    def __init__(self, fitstbl, par, spectrograph, caldir, qadir=None,
+                 reuse_calibs=False, show=False, user_slits=None, chk_version=True, cal_data=None,
+                    flat_data=None, slit_slices=None):
+        super().__init__(fitstbl, par, spectrograph, caldir, qadir=qadir,
+                         reuse_calibs=reuse_calibs, show=show, user_slits=user_slits,
+                         chk_version=chk_version)
+
+        # make sure that cal_data, flat_data, and slit_slices are set
+        if cal_data is None:
+            msgs.error('_cal must be provided for NIRSpecSlitCalibrations')
+        if flat_data is None:
+            msgs.error('_flat must be provided for NIRSpecSlitCalibrations')
+        if slit_slices is None:
+            msgs.error('slit_slices must be provided for NIRSpecSlitCalibrations')
+
+        # input attributes
+        self.cal_data = cal_data
+        self.flat_data = flat_data
+        self.slit_slices = slit_slices
+        # get the index of this slit in cal_data and flat_data
+        self.slit_index_cal = np.array([], dtype=int)
+        self.slit_index_flat = np.array([], dtype=int)
+        for _cal in self.cal_data:
+            slit_names = np.array([s.name for s in _cal.slits])
+            indx = np.where(slit_names == self.user_slits)[0]
+            if indx.size == 0:
+                msgs.error(f'User slit {self.user_slits} not found in _cal data {_cal.meta.filename}')
+            self.slit_index_cal = np.append(self.slit_index_cal, indx)
+        for _flat in self.flat_data:
+            slit_names = np.array([s.name for s in _flat.slits])
+            indx = np.where(slit_names == self.user_slits)[0]
+            if indx.size == 0:
+                msgs.error(f'User slit {self.user_slits} not found in _flat data. {_flat.meta.filename}')
+            self.slit_index_flat = np.append(self.slit_index_flat, indx)
+
+        # output attributes
+        self.waveimg = None
+        self.tilts = None
+
+    def get_nimg(self, force:str=None):
+        """
+        Get the number of images in the calibration data.
+
+        Returns:
+            int: The number of images in the calibration data.
+        """
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+        self.nimg, _ = self.spectrograph.validate_det(self.det)
+        return self.nimg
+
+    def get_waveimg(self, force:str=None):
+        """
+        Load the wavelength image calibration frame.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
+
+        Returns:
+            `numpy.ndarray`_: The wavelength image calibration frame for current slit.
+        """
+        # Check for existing data
+        if not self._chk_objs(['flat_data']):
+            msgs.warn('flat_data must be loaded before getting the wavelength image')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        if self.nimg == 1:
+            self.waveimg = 1e4*self.flat_data[0].slits[self.slit_index_flat[0]].wavelength.T
+        else:
+            flat_data_list = [fd.slits[idx].wavelength.T for fd, idx in zip(self.flat_data, self.slit_index_flat)]
+            self.waveimg = self.make_mosaic(flat_data_list)
+
+    def get_tilts(self, force:str=None):
+        """
+        Create a wavelength tilts calibration frame.
+
+        Returns:
+            `numpy.ndarray`_: The wavelength tilts calibration frame for current slit.
+        """
+        # Check for existing data
+        if not self._chk_objs(['waveimg', 'msbpm']):
+            msgs.error('waveimg and msbpm must be loaded before getting the tilts')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # get gpm
+        gpm = np.logical_not(self.msbpm)
+
+
+        wave_min, wave_max = np.min(self.waveimg[gpm]), np.max(self.waveimg[gpm])
+
+        self.tilts = np.zeros_like(self.waveimg)
+        self.tilts[gpm] = (self.waveimg[gpm] - wave_min) / (wave_max - wave_min)
+
+    def get_bpm(self, frame=None, force:str=None):
+        """
+        Load or generate the bad pixel mask.
+
+        Args:
+            force (:obj:`str`, optional):
+                Currently ignored
+            frame (:obj:`int`, optional):
+                The row index in :attr:`fitstbl`
+
+        Returns:
+            `numpy.ndarray`_: The bad pixel mask, which should match the shape
+            and orientation of a *trimmed* and PypeIt-oriented science image!
+        """
+
+        # Check for existing data
+        if not self._chk_objs(['waveimg']):
+            msgs.error('waveimg must be loaded before getting the bpm')
+
+        # Check internals
+        self._chk_set(['par', 'det'])
+        # Build it
+        self.msbpm = self.waveimg == 0.
+        # Return
+        return self.msbpm
+
+    def get_slits(self, force:str=None):
+        """
+        Load or generate the slit mask.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
+
+        Returns:
+            :class:`~pypeit.slittrace.SlitTraceSet`: Object containing the
+            slit mask and the updated slit mask array.
+        """
+        # Check for existing data
+        if not self._chk_objs(['msbpm', 'waveimg']):
+            msgs.error('waveimg must be loaded before getting the slits')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Get the slit mask
+        thismask = np.logical_not(self.msbpm)
+
+        edges = []
+
+        for side in ['left', 'right']:
+            slit_width = np.sum(thismask, axis=1)
+            med_slit_width = np.median(slit_width[slit_width > 0])
+            nspec, nspat = thismask.shape
+            spec_vec = np.arange(nspec, dtype=float)
+            spat_vec = np.arange(nspat, dtype=float)
+            spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+
+            dummy_spat_img = spat_img.copy()
+            bad_value = +np.inf if 'left' in side else -np.inf
+            dummy_spat_img[np.logical_not(thismask)] = bad_value
+            slit_mask = np.min(dummy_spat_img, axis=1) if 'left' in side else np.max(dummy_spat_img, axis=1)
+            good_for_slit = (slit_width > 0.5 * med_slit_width) & (slit_mask != bad_value)
+            bad_for_slit = np.logical_not(good_for_slit)
+
+            pypeitFit = fitting.robust_fit(spec_vec[good_for_slit], slit_mask[good_for_slit], 2,
+                                           function='legendre',
+                                           maxiter=25, lower=3.0, upper=3.0, maxrej=1, sticky=True, verbose=False,
+                                           minx=0.0, maxx=float(nspec - 1))
+            slit = pypeitFit.eval(spec_vec)
+            if self.show:
+                plt.title('{:s} slit trace'.format(side))
+                plt.plot(spec_vec[good_for_slit], slit_mask[good_for_slit], 'k.')
+                plt.plot(spec_vec[bad_for_slit], slit_mask[bad_for_slit], 'r.')
+                plt.plot(spec_vec, slit, 'b')
+                plt.show()
+            edges.append(slit)
+
+
+        self.slits = slittrace.SlitTraceSet(edges[0], edges[1], self.spectrograph.pypeline,
+                                            detname=self.spectrograph.get_det_name(self.det),
+                                            nspat=int(thismask.shape[1]), PYP_SPEC=self.spectrograph.name)
+    def get_flats(self, force:str=None):
+        """
+        Load the flat field calibration frame.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and reuse_calibs=True
+
+        Returns:
+            `class:`~pypeit.flatfield.FlatImages`: Object containing the
+            flat field calibration frame for current slit.
+        """
+        # Check for existing data
+        if not self._chk_objs(['flat_data', 'cal_data']):
+            msgs.warn('flat_data must be loaded before getting the wavelength image')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        if self.nimg == 1:
+            flat_data_slit = self.flat_data[0].slits[self.slit_index_flat[0]]
+            cal_data_slit = self.cal_data[0].slits[self.slit_index_cal[0]]
+            exptime = cal_data_slit.meta.exposure.effective_exposure_time
+            flat = flat_data_slit.data.T/cal_data_slit.meta.photometry.conversion_megajanskys
+            pathloss = cal_data_slit.pathloss_uniform.T if cal_data_slit.source_type == 'EXTENDED' else \
+                       cal_data_slit.pathloss_point.T
+            if pathloss.shape == (0, 0):
+                msgs.warn('No pathloss for slit {0}'.format(self.user_slits) + ', setting to 1.0')
+                pathloss = np.ones_like(flat)
+            barshadow = cal_data_slit.barshadow.T
+            if barshadow.shape == (0, 0):
+                msgs.warn('No barshadow for slit {0}'.format(self.user_slits) + ', setting to 1.0')
+                barshadow = np.ones_like(flat)
+            tot_flat = exptime * flat * pathloss * barshadow
+            tot_flat[np.isnan(tot_flat)] = 1.
+        else:
+            # For a mosaic, we need to combine the flat fields from each detector
+            tot_flat_list = []
+            for fd, fidx, cd, cidx in zip(self.flat_data, self.slit_index_flat, self.cal_data, self.slit_index_cal):
+                flat_data_slit = fd.slits[fidx]
+                cal_data_slit = cd.slits[cidx]
+                exptime = cal_data_slit.meta.exposure.effective_exposure_time
+                flat = flat_data_slit.data.T/cal_data_slit.meta.photometry.conversion_megajanskys
+                pathloss = cal_data_slit.pathloss_uniform.T if cal_data_slit.source_type == 'EXTENDED' else \
+                           cal_data_slit.pathloss_point.T
+                if pathloss.shape == (0, 0):
+                    msgs.warn('No pathloss for slit {0}'.format(self.user_slits) + ', setting to 1.0')
+                    pathloss = np.ones_like(flat)
+                barshadow = cal_data_slit.barshadow.T
+                if barshadow.shape == (0, 0):
+                    msgs.warn('No barshadow for slit {0}'.format(self.user_slits) + ', setting to 1.0')
+                    barshadow = np.ones_like(flat)
+                _tot_flat = exptime * flat * pathloss * barshadow
+                _tot_flat[np.isnan(_tot_flat)] = 1.
+                tot_flat_list.append(_tot_flat)
+
+            tot_flat = self.make_mosaic(tot_flat_list)
+
+        self.flatimages = flatfield.FlatImages(PYP_SPEC=self.spectrograph.name,
+                                               pixelflat_norm=tot_flat, pixelflat_bpm=(tot_flat == 1).astype(int))
+
+    def make_mosaic(self, img_list):
+
+        # Check internals
+        self._chk_set(['det', 'spectrograph', 'slit_slices'])
+
+        if self.nimg == 1:
+            msgs.error('Mosaic cannot be made with only one detector!')
+        else:
+            if len(img_list) != 2:
+                msgs.error('Mosaic can only be made with two detectors!')
+
+        detector_gap = int(self.spectrograph.get_detector_par(1).xgap)
+        spat_offset = (self.slit_slices[1][1].start - self.slit_slices[0][1].start)
+        spec_lo1, spec_hi1 = 0, img_list[0].shape[0]
+        spec_lo2, spec_hi2 = img_list[0].shape[0] + detector_gap, \
+                             img_list[0].shape[0] + detector_gap + img_list[1].shape[0]
+        shape = (img_list[0].shape[0] + img_list[1].shape[0] + detector_gap,
+                 np.max([img_list[0].shape[1], img_list[1].shape[1]]) + np.abs(spat_offset))
+
+        if spat_offset >= 0:
+            # Detector nrs2 starts at a larger spat value than detector nrs1
+            spat_lo1, spat_hi1 = 0, img_list[0].shape[1]  # nrs1 not shifted spatially
+            spat_lo2, spat_hi2 = spat_offset, spat_offset + img_list[1].shape[1] # nrs2 shifted spatiallly
+        else:
+            # Detector nrs1 starts at larger spat value than detector nrs1
+            spat_lo1, spat_hi1 = np.abs(spat_offset), img_list[0].shape[1] + np.abs(spat_offset)
+            spat_lo2, spat_hi2 = 0, img_list[1].shape[1]
+
+
+        nrs1_slice = np.s_[spec_lo1: spec_hi1, spat_lo1: spat_hi1]
+        nrs2_slice = np.s_[spec_lo2: spec_hi2, spat_lo2: spat_hi2]
+
+        # Create the mosaic
+        mosaic = np.zeros(shape, dtype=img_list[0].dtype)
+        mosaic[nrs1_slice] = img_list[0]
+        mosaic[nrs2_slice] = img_list[1]
+
+        return mosaic
+
     @staticmethod
     def default_steps():
         """
@@ -1668,7 +1958,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         # Order matters!  And the name must match a viable "get_{step}" method
         # in Calibrations.
 
-        return []  #['bpm', 'slits', 'wv_calib', 'flats']
+        return ['nimg','waveimg','bpm', 'tilts', 'slits', 'flats']  #['bpm', 'slits', 'wv_calib', 'flats']
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     """

@@ -364,3 +364,5 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         #
         # # Return
         # return detector, raw_img.T, hdu, exptime, None, None
+
+

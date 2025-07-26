@@ -1340,9 +1340,38 @@ class NIRSpecSlitPypeIt(PypeIt):
         basename = basename.replace('_nrs2', '')
         if slit_name is not None:
             basename = basename.replace(self.spectrograph.camera, f'{slit_name}_{self.spectrograph.camera}')
-            setup = setup.replace(self.spectrograph.get_det_name(det), f'{slit_name}')
+            setup = setup + f'_{slit_name}'
         return objtype, setup, obstime, basename, binning
 
+    @staticmethod
+    def get_slit_slice(cal_data, slit_name):
+        """
+        Get the slice for a slit from the provided calibration data.
+
+        Args:
+            cal_data (:class:`~jwst.datamodels.MultiSlitModel`):
+                The input NIRSpec MultiSlit data model from the _cal.fits output file
+            slit_name (:obj:`str'):
+                The name of the slit to get the slice for, e.g. 'S200A1' or 'S200B1'.
+
+        Returns:
+            :obj:`slice`: The slice for the specified slit.
+        """
+        # Check if the slit name is present in the cal_data
+        slit_names = np.array([slit.name for slit in cal_data.slits])
+        if slit_name not in slit_names:
+            msgs.error(f'Slit name {slit_name} not found in the calibration data {cal_data.meta.filename}')
+
+        # Get the index of the slit
+        indx = np.where(slit_names == slit_name)[0][0]
+
+        # get the slice for the slit
+        this_slit = cal_data.slits[indx]
+        spec_lo = this_slit.xstart -1
+        spec_hi = spec_lo + this_slit.xsize
+        spat_lo = this_slit.ystart - 1
+        spat_hi = spat_lo + this_slit.ysize
+        return slice(spec_lo, spec_hi), slice(spat_lo, spat_hi)
 
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
@@ -1386,21 +1415,20 @@ class NIRSpecSlitPypeIt(PypeIt):
             self.find_negative= False
 
         # Find the detectors to reduce
-        detectors = self.select_detectors(self.spectrograph, self.par['rdx']['detnum'],
-                                          slitspatnum=self.par['rdx']['slitspatnum'])
-        msgs.info(f'Detectors to work on: {detectors}')
+        detnums = self.par['rdx']['detnum']
+        msgs.info(f'Detectors to work on: {detnums}')
 
         # book keeping for successful calibrations
-        if len(detectors) == 2:
+        if len(detnums) == 2:
             # check that both detectors are present, i.e., both files exist
             both_exist = np.all(np.any(s in fname for fname in self.fitstbl[frames]['filename'].data) for s in ['_nrs1', '_nrs2'])
             if not both_exist:
-                msgs.error('Reduction requested for both detectors, but they are not present in the input files.')
-        elif len(detectors) == 1 and detectors[0] == 1:
+                msgs.error('Reduction requested for both detectors, but they are not both present in the input files.')
+        elif len(detnums) == 1 and detnums[0] == 1:
             # check that the first detector is present, i.e., the file exists
             if not np.any('_nrs1' in fname for fname in self.fitstbl[frames]['filename'].data):
                 msgs.error('Reduction requested for detector 1, but it is not present in the input files.')
-        elif len(detectors) == 1 and detectors[0] == 2:
+        elif len(detnums) == 1 and detnums[0] == 2:
             # check that the second detector is present, i.e., the file exists
             if not np.any('_nrs2' in fname for fname in self.fitstbl[frames]['filename'].data):
                 msgs.error('Reduction requested for detector 2, but it is not present in the input files.')
@@ -1415,13 +1443,13 @@ class NIRSpecSlitPypeIt(PypeIt):
         # NOTE: we assume that calib_id is the same for all `frames` and `bg_frames`
         calib_grps = self.fitstbl.find_frame_calib_groups(frames[0])
         cal_files = self.fitstbl.find_frame_files('trace', calib_ID=calib_grps)
-        if len(cal_files) == 0:
-            msgs.error(f'No _cal file found for frames in calib_ID={calib_grps}')
+        if len(cal_files) != frames.size:
+            msgs.error(f'Number of _cal files ({len(cal_files)}) does not match number of science frames ({frames.size}) for calib_ID={calib_grps}.')
         cal_data = np.array(datamodels.open(cal_files))
         # find the flat field files for this frame
         flat_files = self.fitstbl.find_frame_files('pixelflat', calib_ID=calib_grps)
-        if len(flat_files) == 0:
-            msgs.error(f'No _flat file found for frames in calib_ID={calib_grps}')
+        if len(flat_files) != frames.size:
+            msgs.error(f'Number of _flat files ({len(flat_files)}) does not match number of science frames ({frames.size}) for calib_ID={calib_grps}.')
         flat_data = np.array(datamodels.open(flat_files))
         # If the flat field files have interpolatedflat_fs slits, append them to the flat_data
         for i, _flat_data in enumerate(flat_data):
@@ -1439,7 +1467,13 @@ class NIRSpecSlitPypeIt(PypeIt):
             self.par['reduce']['extraction']['skip_optimal'] = True  # Skip local_skysubtraction and profile fitting
 
         # get slits and sources names
-        slit_names = np.hstack([[slit.name for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
+        # we slit slit_names between NRS1 and NRS2 because we need them later to determine which detector to use,
+        # but we don't need to do that for the sources
+        slit_names_nrs1 = np.array([[slit.name for slit in cal_data[i].slits] for i in range(cal_data.size) if
+                                    cal_data[i] is not None and cal_data[i].meta.instrument.detector == 'NRS1']).flatten()
+        slit_names_nrs2 = np.array([[slit.name for slit in cal_data[i].slits] for i in range(cal_data.size) if
+                                    cal_data[i] is not None and cal_data[i].meta.instrument.detector == 'NRS2']).flatten()
+        slit_names = np.hstack([slit_names_nrs1, slit_names_nrs2])
         source_names = np.hstack([[slit.source_name for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
         source_ids = np.hstack([[slit.source_id for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
         source_aliases = np.hstack([[slit.source_alias for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
@@ -1492,19 +1526,65 @@ class NIRSpecSlitPypeIt(PypeIt):
                 bg_msgs_string = msgs.newline() + 'Using background from frames:' + msgs.newline() + bg_msgs_string
                 msgs.info(bg_msgs_string)
 
-            self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], 1, slit_name=islit)
+            # Get the detector, cal, flat, science data, and slit slices
+            if islit in slit_names_nrs1 and islit in slit_names_nrs2:
+                # this is a mosaic
+                _det = (1, 2)
+                _cal_data = np.array([cal_data[[cal_d.meta.instrument.detector == 'NRS1' for cal_d in cal_data]][0],
+                             cal_data[[cal_d.meta.instrument.detector == 'NRS2' for cal_d in cal_data]][0]])
+                _slit_slices = np.array([self.get_slit_slice(_cal_data[0], islit),
+                                        self.get_slit_slice(_cal_data[1], islit)])
+                _flat_data = np.array([flat_data[[flat_d.meta.instrument.detector == 'NRS1' for flat_d in flat_data]][0],
+                                flat_data[[flat_d.meta.instrument.detector == 'NRS2' for flat_d in flat_data]][0]])
+                _sci_data = np.array([sci_data[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data]][0],
+                                sci_data[[sci_d.meta.instrument.detector == 'NRS2' for sci_d in sci_data]][0]])
+                if self.bkg_redux:
+                    _sci_data_bkg = np.array([sci_data_bkg[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data_bkg]][0],
+                                    sci_data_bkg[[sci_d.meta.instrument.detector == 'NRS2' for sci_d in sci_data_bkg]][0]])
+            elif islit in slit_names_nrs1:
+                # this is NRS1
+                _det = 1
+                _cal_data = cal_data[[cal_d.meta.instrument.detector == 'NRS1' for cal_d in cal_data]]
+                _slit_slices = np.array([self.get_slit_slice(_cal_data[0], islit)])
+                _flat_data = flat_data[[flat_d.meta.instrument.detector == 'NRS1' for flat_d in flat_data]]
+                _sci_data = sci_data[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data]]
+                if self.bkg_redux:
+                    _sci_data_bkg = sci_data_bkg[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data_bkg]]
+            elif islit in slit_names_nrs2:
+                # this is NRS2
+                _det = 2
+                _cal_data = cal_data[[cal_d.meta.instrument.detector == 'NRS2' for cal_d in cal_data]]
+                _slit_slices = np.array([self.get_slit_slice(_cal_data[0], islit)])
+                _flat_data = flat_data[[flat_d.meta.instrument.detector == 'NRS2' for flat_d in flat_data]]
+                _sci_data = sci_data[[sci_d.meta.instrument.detector == 'NRS2' for sci_d in sci_data]]
+                if self.bkg_redux:
+                    _sci_data_bkg = sci_data_bkg[[sci_d.meta.instrument.detector == 'NRS2' for sci_d in sci_data_bkg]]
+            else:
+                msgs.error(f'Slit {islit} not found in the slit names of the calibration files. '
+                           'Please check the slit names in the calibration files or the maskIDs provided.')
+            msgs.info(f'Reducing detector {_det}')
+
+            self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], _det, slit_name=islit)
 
             # Loop on detectors to get the calibrations
             from pypeitdev.jwst.jwst_utils import NIRSpecSlitCalibrations, jwst_mosaic, jwst_reduce
             from pypeit.images import combineimage
             _calibrate = []
-            for d, _det in enumerate(detectors):
-                _calibrate.append(NIRSpecSlitCalibrations(self.spectrograph.get_detector_par(_det), cal_data[d], flat_data[d],
-                                                islit, f070_f100_rescale=None))
+            # for d, _det in enumerate(detectors):
+            #     _calibrate.append(NIRSpecSlitCalibrations(self.spectrograph.get_detector_par(_det), cal_data[d], flat_data[d],
+            #                                     islit, f070_f100_rescale=None))
             # THIS IS JUST TO NOT MAKE THE CODE COMPLAIN
             self.caliBrate = calibrations.Calibrations.get_instance(self.fitstbl, self.par['calibrations'],
                                                                     self.spectrograph,self.calibrations_path,
-                                                                    qadir=self.qa_path)
+                                                                    qadir=self.qa_path, reuse_calibs=self.reuse_calibs,
+                                                                    show=self.show, user_slits=islit,
+                                                                    chk_version=self.par['rdx']['chk_version'],
+                                                                    cal_data=_cal_data, flat_data=_flat_data,
+                                                                    slit_slices=_slit_slices)
+            self.caliBrate.set_config(frames[0], _det, self.par['calibrations'])
+            self.caliBrate.run_the_steps()
+            embed()
+
             # self.caliBrate = self.calib_one(frames, 1)
             # Container for all the Spec2DObj
             all_spec2d = spec2dobj.AllSpec2DObj()
