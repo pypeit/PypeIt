@@ -55,7 +55,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.11'
+    version = '1.1.12'
     """
     Current datamodel version number.
     """
@@ -167,6 +167,9 @@ class SpecObj(datamodel.DataContainer):
                  'OBJTYPE': dict(otype=str, descr='Object type (e.g., standard, science)'),
                  'SPAT_PIXPOS': dict(otype=(float, np.floating),
                                      descr='Spatial location of the trace on detector (pixel) at half-way'),
+                 'SPAT_PIXPOS_ID': dict(otype=(int, np.integer),
+                                     descr='Nearest integer spatial location of the trace on detector (pixel) at half-way '
+                                           'used as a unique identifier for the naming model'),                 
                  'SPAT_FRACPOS': dict(otype=(float, np.floating),
                                       descr='Fractional location of the object on the slit'),
                  'trace_spec': dict(otype=np.ndarray, atype=(int,np.integer),
@@ -207,6 +210,9 @@ class SpecObj(datamodel.DataContainer):
                  'ECH_FRACPOS': dict(otype=(float, np.floating),
                                      descr='Synced echelle fractional location of the object on '
                                            'the slit'),
+                 'ECH_FRACPOS_ID': dict(otype=(int, np.integer),
+                                     descr='Echelle fractional location of the object on the slit multiplied '
+                                     'by 1000 used as a unique identifier for the naming model'), 
                  'ECH_ORDER': dict(otype=(int, np.integer), descr='Physical echelle order'),
                  'ECH_NAME': dict(otype=str,
                                   descr='Name of the object for echelle data. Same as NAME above '
@@ -414,12 +420,12 @@ class SpecObj(datamodel.DataContainer):
             # ObjID
             name = naming_model['obj']
             ech_name = naming_model['obj']
-            if self['ECH_FRACPOS'] is None:
+            if self['ECH_FRACPOS_ID'] is None:
                 name += '----'
             else:
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
-                name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
-                ech_name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
+                name += '{:04d}'.format(self.ECH_FRACPOS_ID)
+                ech_name += '{:04d}'.format(self.ECH_FRACPOS_ID)
             name += f'-{self.DET}'
             ech_name += f'-{self.DET}'
             # Order number
@@ -430,10 +436,12 @@ class SpecObj(datamodel.DataContainer):
         elif self.PYPELINE in ['MultiSlit', 'SlicerIFU']:
             # Spat
             name = naming_model['spat']
-            if self['SPAT_PIXPOS'] is None:
+            if self['SPAT_PIXPOS_ID'] is None:
                 name += '----'
             else:
-                name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
+                name += '{:04d}'.format(self.SPAT_PIXPOS_ID)
+                #name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
+
             # Slit
             name += '-'+naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
@@ -648,7 +656,7 @@ class SpecObj(datamodel.DataContainer):
         Returns:
             bool: True if all checks have passed
         """
-        required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
+        required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_PIXPOS_ID', 'SPAT_FRACPOS',
             'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
             'smash_peakflux', 'smash_snr',
             'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
@@ -676,7 +684,7 @@ class SpecObj(datamodel.DataContainer):
         for attr in self.datamodel.keys():
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 # Special ones
-                if attr in ['DET', 'SLITID', 'SPAT_PIXPOS', 'NAME', 'RA', 
+                if attr in ['DET', 'SLITID', 'SPAT_PIXPOS', 'SPAT_PIXPOS_ID', 'NAME', 'RA', 
                             'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME', 'MASKDEF_EXTRACT',
                             'MASKDEF_OBJMAG', 'MASKDEF_OBJMAG_BAND']:
                     rdict[attr] = getattr(self,attr)

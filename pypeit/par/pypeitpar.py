@@ -1500,7 +1500,7 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, only_slits=None, exclude_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
+    def __init__(self, only_slits=None, exclude_slits=None, offsets=None, spat_toler=None, weights=None, user_obj_ids=None,
                  use_slits4wvgrid=None, manual=None, wave_method=None, spec_samp_fact=None, spat_samp_fact=None):
 
         # Grab the parameter names and values from the function
@@ -1534,7 +1534,7 @@ class Coadd2DPar(ParSet):
                            '(currently available for these :ref:`slitmask_info_instruments` only). If equal ' \
                            'to ``header``, the dither offsets recorded in the header, when available, will be used. ' \
                            'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object ' \
-                           'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
+                           'with the highest S/N, or using a list of object ids selected by the user (see ``user_obj_ids``). ' \
                            'If a list of offsets is provided, PypeIt will use it.'
 
         defaults['spat_toler'] = 5
@@ -1553,22 +1553,25 @@ class Coadd2DPar(ParSet):
         descr['weights'] = 'Mode for the weights used to coadd images. Options are: ' \
                            '``auto``, ``uniform``, or a list of weights. If ``auto`` is used, ' \
                            'PypeIt will try to compute the weights using a reference object ' \
-                           'with the highest S/N, or an object selected by the user (see ``user_obj``), ' \
+                           'with the highest S/N, or using a list of object ids selected by the user indicating the reference object in each ' \
+                           'exposure (see ``user_obj_ids``), ' \
                            'if ``uniform`` is used, uniform weights will be applied. If a list of weights ' \
                            'is provided, PypeIt will use it.'
 
         # object to use for weights and offsets
-        defaults['user_obj'] = None
-        dtypes['user_obj'] = [int, list]
-        descr['user_obj'] = 'Object that the user wants to use to compute the weights and/or the ' \
+        defaults['user_obj_ids'] = None
+        dtypes['user_obj_ids'] = list
+        descr['user_obj_ids'] = 'Unique object id identifier that the user wants to use to compute the weights and/or the ' \
                             'offsets for coadding images. For longslit/multislit spectroscopy, provide the ' \
-                            '``SLITID`` and the ``OBJID``, separated by comma, of the selected object. ' \
-                            'For echelle spectroscopy, provide the ``ECH_OBJID`` of the selected object. ' \
-                            'See :doc:`out_spec1D` for more info about ``SLITID``, ``OBJID`` and ``ECH_OBJID``. ' \
+                            '``SPAT_PIXPOS_ID`` of the object in each of the exposures. ' \
+                            'For echelle spectroscopy, provide the ``ECH_FRACPOS_ID`` of the object in each exposure. ' \
+                            'These unique object identifiers can be found in the spec1d*.txt files for each exposure. ' \
+                            'See :doc:`out_spec1D` for more info about ``SPAT_PIXPOS_ID`` and ``ECH_FRACPOS_ID``. ' \
+                            'This parameter must have the same length as the number of exposures being coadded. ' \
                             'If this parameter is not ``None``, it will be used to compute the offsets ' \
                             'only if ``offsets = auto``, and it will used to compute ' \
                             'the weights only if ``weights = auto``.'
-        # TODO For echelle coadds this should just default to 1
+
 
         # TODO: Why is this spat:spec and not spec:spat like everything else??
         # manual extraction
@@ -1627,7 +1630,7 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler', 'weights', 'user_obj',
+        parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler', 'weights', 'user_obj_ids',
                    'use_slits4wvgrid', 'manual', 'wave_method', 'spec_samp_fact', 'spat_samp_fact']
 
         badkeys = np.array([pk not in parkeys for pk in k])

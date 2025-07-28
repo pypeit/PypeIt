@@ -480,8 +480,10 @@ class SpecObjs:
             indx = self.SLITID == slitorder
         else:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
-        #
+
         return indx
+
+        
 
     def name_indices(self, name):
         """
@@ -504,36 +506,67 @@ class SpecObjs:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         return indx
 
-    def slitorder_objid_indices(self, slitorder, objid, toler=5):
+
+    def slitorder_uniq_id_indices(self, uniq_id, order=None):
         """
-        Return the set of indices matching the input slit/order and the input
-        objid
+        Return the set of indices matching the unique object identifier. 
+        For MultiSlit this is the SPAT_PIXPOS_ID, for Echelle it is the ECH_FRACPOS_ID
+        but the order must also be specified.
         
-        Args:
-            slitorder (int):
-                Order/Spatial pixel value for slit of interest.
-            objid (int):
-                ID value for object of interest.
-            toler (int, optional):
-                Tolerance for slit spatial pixel values used for slit
-                identification. Default = 5
-
-        Returns:
-            :obj:`int`: Index value for input slit/order and object ID values
-            for specobjs object.
-
+        Parameters
+        ----------
+        object_id : int
+            The unique object identifier for the slit/order of interest.
+        order : int, optional
+            The order for Echelle data. Required for Echelle data. 
+            
+        Returns
+        -------
+        `numpy.ndarray`_
+            Array of indices with the corresponding object ID. Shape is (nobj,).
+        
         """
-
         if self[0].PYPELINE == 'Echelle':
-            indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
+            indx = (self.ECH_ORDER == order) & (self.ECH_FRACPOS_ID == uniq_id)
         elif self[0].PYPELINE == 'MultiSlit':
-            indx = (np.abs(self.SLITID - slitorder) <= toler) & (self.OBJID == objid)
+            indx = self.SPAT_PIXPOS_ID == uniq_id
         elif self[0].PYPELINE == 'SlicerIFU':
-            indx = (self.SLITID == slitorder) & (self.OBJID == objid)
-        else:
+            indx = self.SPAT_PIXPOS_ID == uniq_id
+        else: 
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
-        #
+        
         return indx
+
+    # def slitorder_objid_indices(self, slitorder, objid, toler=5):
+    #     """
+    #     Return the set of indices matching the input slit/order and the input
+    #     objid
+        
+    #     Args:
+    #         slitorder (int):
+    #             Order/Spatial pixel value for slit of interest.
+    #         objid (int):
+    #             ID value for object of interest.
+    #         toler (int, optional):
+    #             Tolerance for slit spatial pixel values used for slit
+    #             identification. Default = 5
+
+    #     Returns:
+    #         :obj:`int`: Index value for input slit/order and object ID values
+    #         for specobjs object.
+
+    #     """
+
+    #     if self[0].PYPELINE == 'Echelle':
+    #         indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
+    #     elif self[0].PYPELINE == 'MultiSlit':
+    #         indx = (np.abs(self.SLITID - slitorder) <= toler) & (self.OBJID == objid)
+    #     elif self[0].PYPELINE == 'SlicerIFU':
+    #         indx = (self.SLITID == slitorder) & (self.OBJID == objid)
+    #     else:
+    #         msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+    #     #
+    #     return indx
 
     def set_names(self):
         """
