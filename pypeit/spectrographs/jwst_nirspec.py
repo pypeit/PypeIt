@@ -27,7 +27,14 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     camera = 'NIRSPEC'
     url = 'https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph'
     supported = True
-    allowed_extensions = ['rate.fits','rate.fits.gz' , 'uncal.fits.gz', 'uncal.fits', '.fits', '.fits.gz']
+    allowed_extensions = ['.fits', '.fits.gz', 
+                          'rate.fits','rate.fits.gz' , 
+                          'nrs1_rate.fits','nrs1_rate.fits.gz', 
+                          'nrs2_rate.fits','nrs2_rate.fits.gz', 
+                          'uncal.fits.gz', 'uncal.fits',                          
+                          'nrs1_uncal.fits.gz', 'nrs1_uncal.fits', 
+                          'nrs2_uncal.fits.gz', 'nrs2_uncal.fits']
+                          
 
     def get_detector_par(self, det, hdu=None):
         """
