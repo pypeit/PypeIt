@@ -14,6 +14,7 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.images.mosaic import Mosaic
 from IPython import embed
 
 class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
@@ -82,6 +83,76 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         ))
         detector_dicts = [detector_dict1, detector_dict2]
         return detector_container.DetectorContainer(**detector_dicts[det-1])
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_ord (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters.
+        """
+
+        # Validate the entered (list of) detector(s)
+        nimg, _ = self.validate_det(mosaic)
+
+        # Index of mosaic in list of allowed detector combinations
+        mosaic_id = self.allowed_mosaics.index(mosaic)+1
+
+        # Get the detectors
+        detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
+        # # Binning *must* be consistent for all detectors
+        # if any(d.binning != detectors[0].binning for d in detectors[1:]):
+        #     msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+        #
+        # # Collect the offsets and rotations for *all unbinned* detectors in the
+        # # full instrument, ordered by the number of the detector.  Detector
+        # # numbers must be sequential and 1-indexed.
+        # # See the mosaic documentattion.
+        # msc_geometry = DEIMOSMosaicLookUp.geometry
+        # expected_shape = msc_geometry[detid]['default_shape']
+        # shift = np.array([(msc_geometry[detid]['blue_det']['shift'][0], msc_geometry[detid]['blue_det']['shift'][1]),
+        #                   (msc_geometry[detid]['red_det']['shift'][0],  msc_geometry[detid]['red_det']['shift'][1])])
+        #
+        # rotation = np.array([msc_geometry[detid]['blue_det']['rotation'], msc_geometry[detid]['red_det']['rotation']])
+        #
+        # # The binning and process image shape must be the same for all images in
+        # # the mosaic
+        # binning = tuple(int(b) for b in detectors[0].binning.split(','))
+        # shape = tuple(n // b for n, b in zip(expected_shape, binning))
+        #
+        # msc_sft = [None]*nimg
+        # msc_rot = [None]*nimg
+        # msc_tfm = [None]*nimg
+        #
+        # for i in range(nimg):
+        #     msc_sft[i] = shift[i]
+        #     msc_rot[i] = rotation[i]
+        #     msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
+        #
+        # return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
+        #               np.array(msc_tfm), msc_ord)
+        return Mosaic(mosaic_id, detectors, None, np.array(0.0), np.array(0.0), np.array(0.0), msc_ord)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -312,6 +383,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             ``PypeIt``.
         """
         return [(1,2)]
+
+    @property
+    def default_mosaic(self):
+        return self.allowed_mosaics[0]
     
     def get_rawimage(self, raw_file, det):
         """
@@ -365,4 +440,69 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # # Return
         # return detector, raw_img.T, hdu, exptime, None, None
 
+    def make_mosaic(self, img_list, det, slit_slices):
+        """
+        Create a mosaic image from the provided list of images.
+        The images are assumed to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.
+
+        Args:
+            img_list (:obj:`list` or `numpy.ndarray`_):
+                List of images to be combined into a mosaic.  The images must
+                be trimmed and oriented to follow the PypeIt shape
+                convention of ``(nspec,nspat)``.
+            det (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            slit_slices (:obj:`list`):
+                List of slices for the slit in the form
+                ``[(spec_lo, spec_hi), (spat_lo, spat_hi)]`` for each detector
+                in the mosaic.  The slices are used to determine the spatial
+                offset between the two detectors in the mosaic.
+        Returns:
+            `numpy.ndarray`_: The mosaic image constructed from the provided
+            list of images.  The image is trimmed and oriented to
+            follow the PypeIt shape convention of ``(nspec,nspat)``.
+        """
+
+
+        nimg, _ = self.validate_det(det)
+
+        if nimg == 1:
+            msgs.error('Mosaic cannot be made with only one detector!')
+        else:
+            if len(img_list) != 2:
+                msgs.error('Mosaic can only be made with two images!')
+            if det not in self.allowed_mosaics:
+                msgs.error(f'Mosaic with detectors {det} is not allowed! '
+                           f'Allowed mosaics are: {self.allowed_mosaics}')
+
+        detector_gap = int(self.get_detector_par(1).xgap)
+        spat_offset = (slit_slices[1][1].start - slit_slices[0][1].start)
+        spec_lo1, spec_hi1 = 0, img_list[0].shape[0]
+        spec_lo2, spec_hi2 = img_list[0].shape[0] + detector_gap, \
+                             img_list[0].shape[0] + detector_gap + img_list[1].shape[0]
+        shape = (img_list[0].shape[0] + img_list[1].shape[0] + detector_gap,
+                 np.max([img_list[0].shape[1], img_list[1].shape[1]]) + np.abs(spat_offset))
+
+        if spat_offset >= 0:
+            # Detector nrs2 starts at a larger spat value than detector nrs1
+            spat_lo1, spat_hi1 = 0, img_list[0].shape[1]  # nrs1 not shifted spatially
+            spat_lo2, spat_hi2 = spat_offset, spat_offset + img_list[1].shape[1] # nrs2 shifted spatially
+        else:
+            # Detector nrs1 starts at larger spat value than detector nrs1
+            spat_lo1, spat_hi1 = np.abs(spat_offset), img_list[0].shape[1] + np.abs(spat_offset)
+            spat_lo2, spat_hi2 = 0, img_list[1].shape[1]
+
+
+        nrs1_slice = np.s_[spec_lo1: spec_hi1, spat_lo1: spat_hi1]
+        nrs2_slice = np.s_[spec_lo2: spec_hi2, spat_lo2: spat_hi2]
+
+        # Create the mosaic
+        mosaic = np.zeros(shape, dtype=img_list[0].dtype)
+        mosaic[nrs1_slice] = img_list[0]
+        mosaic[nrs2_slice] = img_list[1]
+
+        return mosaic
 

@@ -33,6 +33,7 @@ from pypeit.core import parse, wave, qa
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
+from pypeit.images import pypeitimage
 from pypeit.display import display
 from pypeit import find_objects
 from pypeit import extraction
@@ -47,6 +48,8 @@ from pypeit.history import History
 from pypeit.metadata import PypeItMetaData
 from pypeit.manual_extract import ManualExtractionObj
 from pypeit.core import skysub
+from pypeit.core import procimg
+from pypeit.core import flat
 
 from linetools import utils as ltu
 
@@ -1373,6 +1376,77 @@ class NIRSpecSlitPypeIt(PypeIt):
         spat_hi = spat_lo + this_slit.ysize
         return slice(spec_lo, spec_hi), slice(spat_lo, spat_hi)
 
+    def build_image(self, frames, _det, _detectors, _sci_data, _slit_slices):
+        # ronoise = np.array([copy.deepcopy(d['ronoise']) for d in _detectors])
+        # # Get the non-linear count level
+        # if self.rawflatimg.is_mosaic:
+        #     # if this is a mosaic we take the maximum value among all the detectors
+        #     nonlinear_counts = np.max(
+        #         [rawdets.nonlinear_counts() for rawdets in self.rawflatimg.detector.detectors])
+        # else:
+        #     nonlinear_counts = self.rawflatimg.detector.nonlinear_counts()
+
+        headarr = copy.deepcopy(self.spectrograph.get_headarr(fits.open(self.fitstbl.frame_paths(frames)[0])))
+        ronoise = np.array([copy.deepcopy(d['ronoise']) for d in _detectors])
+        exptime = _sci_data[0].meta.exposure.effective_exposure_time
+        # dark = np.array([np.prod(parse.parse_binning(d.binning)) * d.darkcurr* exptime / 3600. for d in _detectors])
+        bpm = self.caliBrate.msbpm
+        nimg = self.caliBrate.nimg
+        img_scale = utils.inverse(self.caliBrate.flatimages.pixelflat_norm)
+
+        if nimg == 1:
+            sci = _sci_data[0].data.T[_slit_slices[0]] * exptime
+            var_rnoise = _sci_data[0].var_rnoise.T[_slit_slices[0]] * exptime ** 2
+            var_poisson = _sci_data[0].var_poisson.T[_slit_slices[0]] * exptime ** 2
+            datasec = np.full_like(sci, 1, dtype=int)
+            rn2img = procimg.rn2_frame(datasec, ronoise[0], units='e-', gain=1.)
+            # darkim = np.repeat(dark, np.prod(sci.shape)).reshape(sci.shape)
+
+        else:
+            sci_list = [_sci_data[d].data.T[_slit_slices[d]] * exptime for d in range(_sci_data.size)]
+            sci = self.spectrograph.make_mosaic(sci_list, _det, _slit_slices)
+            var_rnoise_list = [_sci_data[d].var_rnoise.T[_slit_slices[d]] * exptime ** 2 for d in range(_sci_data.size)]
+            var_rnoise = self.spectrograph.make_mosaic(var_rnoise_list, _det, _slit_slices)
+            var_poisson_list = [_sci_data[d].var_poisson.T[_slit_slices[d]] * exptime ** 2 for d in
+                                range(_sci_data.size)]
+            var_poisson = self.spectrograph.make_mosaic(var_poisson_list, _det, _slit_slices)
+            datasec_list = [np.full_like(sci_list[d], 1, dtype=int) for d in range(_sci_data.size)]
+            datasec = self.spectrograph.make_mosaic(datasec_list, _det, _slit_slices)
+            rn2img_list = [procimg.rn2_frame(datasec_list[d], ronoise[d], units='e-', gain=1.) for d in
+                           range(_sci_data.size)]
+            rn2img = self.spectrograph.make_mosaic(rn2img_list, _det, _slit_slices)
+            # darkim_list = [np.repeat(dark[d], np.prod(sci_list[d])).reshape(sci_list[d].shape) for d in range(_sci_data.size)]
+            # darkim = self.spectrograph.make_mosaic(darkim_list, _det, _slit_slices)
+
+        sci2, flat_bpm = flat.flatfield(sci, self.caliBrate.flatimages.pixelflat_norm)
+        var_rnoise2, _ = flat.flatfield(var_rnoise, self.caliBrate.flatimages.pixelflat_norm ** 2)
+        var_poisson2, _ = flat.flatfield(var_poisson, self.caliBrate.flatimages.pixelflat_norm ** 2)
+        # bpm |= flat_bpm
+        base_var = procimg.base_variance(var_rnoise2, count_scale=None)
+        var = procimg.variance_model(base_var, counts=var_poisson2, count_scale=None,
+                                     noise_floor=self.par['scienceframe']['process']['noise_floor'])
+        # make zero the values outside the slit and the nans
+        sci2[(self.caliBrate.flatimages.pixelflat_norm==1) | np.logical_not(np.isfinite(sci2))] = 0.
+        var[(self.caliBrate.flatimages.pixelflat_norm==1) | np.logical_not(np.isfinite(var))] = 0.
+        base_var[(self.caliBrate.flatimages.pixelflat_norm==1) | np.logical_not(np.isfinite(base_var))] = 0.
+        img_scale[(self.caliBrate.flatimages.pixelflat_norm==1) | np.logical_not(np.isfinite(img_scale))] = 0.
+        bpm[(self.caliBrate.flatimages.pixelflat_norm==1) | np.logical_not(np.isfinite(sci2))] = 1
+
+        pypeitImage = pypeitimage.PypeItImage(sci2, ivar=utils.inverse(var), amp_img=datasec,
+                                              det_img=datasec, rn2img=rn2img, base_var=base_var,
+                                              img_scale=img_scale,
+                                              detector=self.spectrograph.get_mosaic_par(_det) if nimg == 2 else
+                                              _detectors[0],
+                                              PYP_SPEC=self.spectrograph.name,
+                                              units='e-', exptime=exptime,
+                                              noise_floor=self.par['scienceframe']['process']['noise_floor'],
+                                              shot_noise=self.par['scienceframe']['process']['shot_noise'],
+                                              bpm=bpm.astype(bool),
+                                              filename=None)
+        pypeitImage.rawheadlist = headarr
+
+        return pypeitImage
+
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
         Reduce a single exposure
@@ -1433,7 +1507,7 @@ class NIRSpecSlitPypeIt(PypeIt):
             if not np.any('_nrs2' in fname for fname in self.fitstbl[frames]['filename'].data):
                 msgs.error('Reduction requested for detector 2, but it is not present in the input files.')
 
-
+        # TODO: use jwst.exp_to_source.exp_to_source to parse the jwst models
         # Create arrays to hold JWST spec2
         # NOTE: all this implies that the number of frames is the same as the number of detectors, i.e., we are not combining different exposures here
         sci_data = np.array(datamodels.open(self.fitstbl.frame_paths(frames)))
@@ -1530,10 +1604,10 @@ class NIRSpecSlitPypeIt(PypeIt):
             if islit in slit_names_nrs1 and islit in slit_names_nrs2:
                 # this is a mosaic
                 _det = (1, 2)
+                _detectors = self.spectrograph.get_mosaic_par(_det).detectors
                 _cal_data = np.array([cal_data[[cal_d.meta.instrument.detector == 'NRS1' for cal_d in cal_data]][0],
                              cal_data[[cal_d.meta.instrument.detector == 'NRS2' for cal_d in cal_data]][0]])
-                _slit_slices = np.array([self.get_slit_slice(_cal_data[0], islit),
-                                        self.get_slit_slice(_cal_data[1], islit)])
+                _slit_slices = [self.get_slit_slice(_cal_data[0], islit), self.get_slit_slice(_cal_data[1], islit)]
                 _flat_data = np.array([flat_data[[flat_d.meta.instrument.detector == 'NRS1' for flat_d in flat_data]][0],
                                 flat_data[[flat_d.meta.instrument.detector == 'NRS2' for flat_d in flat_data]][0]])
                 _sci_data = np.array([sci_data[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data]][0],
@@ -1544,8 +1618,9 @@ class NIRSpecSlitPypeIt(PypeIt):
             elif islit in slit_names_nrs1:
                 # this is NRS1
                 _det = 1
+                _detectors = np.array([self.spectrograph.get_detector_par(_det)])
                 _cal_data = cal_data[[cal_d.meta.instrument.detector == 'NRS1' for cal_d in cal_data]]
-                _slit_slices = np.array([self.get_slit_slice(_cal_data[0], islit)])
+                _slit_slices = [self.get_slit_slice(_cal_data[0], islit)]
                 _flat_data = flat_data[[flat_d.meta.instrument.detector == 'NRS1' for flat_d in flat_data]]
                 _sci_data = sci_data[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data]]
                 if self.bkg_redux:
@@ -1553,8 +1628,9 @@ class NIRSpecSlitPypeIt(PypeIt):
             elif islit in slit_names_nrs2:
                 # this is NRS2
                 _det = 2
+                _detectors = np.array([self.spectrograph.get_detector_par(_det)])
                 _cal_data = cal_data[[cal_d.meta.instrument.detector == 'NRS2' for cal_d in cal_data]]
-                _slit_slices = np.array([self.get_slit_slice(_cal_data[0], islit)])
+                _slit_slices = [self.get_slit_slice(_cal_data[0], islit)]
                 _flat_data = flat_data[[flat_d.meta.instrument.detector == 'NRS2' for flat_d in flat_data]]
                 _sci_data = sci_data[[sci_d.meta.instrument.detector == 'NRS2' for sci_d in sci_data]]
                 if self.bkg_redux:
@@ -1567,7 +1643,7 @@ class NIRSpecSlitPypeIt(PypeIt):
             self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], _det, slit_name=islit)
 
             # Loop on detectors to get the calibrations
-            from pypeitdev.jwst.jwst_utils import NIRSpecSlitCalibrations, jwst_mosaic, jwst_reduce
+            # from pypeitdev.jwst.jwst_utils import NIRSpecSlitCalibrations, jwst_mosaic, jwst_reduce
             from pypeit.images import combineimage
             _calibrate = []
             # for d, _det in enumerate(detectors):
@@ -1583,9 +1659,137 @@ class NIRSpecSlitPypeIt(PypeIt):
                                                                     slit_slices=_slit_slices)
             self.caliBrate.set_config(frames[0], _det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
-            embed()
 
-            # self.caliBrate = self.calib_one(frames, 1)
+            # build the science PypeItImage
+            sciImg = self.build_image(frames, _det, _detectors, _sci_data, _slit_slices)
+            if self.bkg_redux:
+                sciImg_bkg = self.build_image(bg_frames, _det, _detectors, _sci_data_bkg, _slit_slices)
+                sciImg = sciImg.sub(sciImg_bkg)
+
+            # REDUCE
+            # Is this a standard star?
+            self.std_redux = self.objtype == 'standard'
+            frame_par = self.par['calibrations']['standardframe'] \
+                if self.std_redux else self.par['scienceframe']
+
+            # NO FLEXURE FOR JWST (?)
+            # Build the initial sky mask
+            initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'SlicerIFU',
+                                                   scifile=None, frame=frames[0], spat_flexure=None)
+
+            # Deal with manual extraction
+            row = self.fitstbl[frames[0]]
+            manual_obj = ManualExtractionObj.by_fitstbl_input(
+                row['filename'], row['manual'], self.spectrograph) if len(row['manual'].strip()) > 0 else None
+
+            # Instantiate Reduce object
+            # Required for pypeline specific object
+            # At instantiaton, the fullmask in self.sciImg is modified
+            objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits,
+                                                            self.spectrograph, self.par, self.objtype,
+                                                            tilts=self.caliBrate.tilts,
+                                                            initial_skymask=initial_skymask,
+                                                            bkg_redux=self.bkg_redux,
+                                                            manual=manual_obj,
+                                                            find_negative=self.find_negative,
+                                                            std_redux=self.std_redux,
+                                                            show=self.show,
+                                                            basename=self.basename)
+
+            # Do it
+            initial_sky, sobjs_obj = objFind.run(std_trace=None, show_peaks=self.show)
+
+            if 'standard' in self.fitstbl['frametype'][frames[0]] or \
+                    self.par['reduce']['findobj']['skip_skysub'] or \
+                    self.par['reduce']['findobj']['skip_final_global'] or \
+                    self.par['reduce']['skysub']['user_regions'] is not None:
+                final_global_sky = initial_sky
+            else:
+                # Update the skymask
+                skymask = objFind.create_skymask(sobjs_obj)
+                final_global_sky = objFind.global_skysub(previous_sky=initial_sky,
+                                                         skymask=skymask, show=self.show,
+                                                         reinit_bpm=False)
+            scaleImg = objFind.scaleimg
+
+            # Each spec2d file includes the slits object with unique flagging
+            #  for extraction failures.  So we make a copy here before those flags
+            #  are modified.
+            maskdef_designtab = self.caliBrate.slits.maskdef_designtab
+            slits = copy.deepcopy(self.caliBrate.slits)
+            slits.maskdef_designtab = None
+
+            # update here slits.mask since global_skysub modify reduce_bpm and we need to propagate it into extraction
+            flagged_slits = np.where(objFind.reduce_bpm)[0]
+            if len(flagged_slits) > 0:
+                slits.mask[flagged_slits] = \
+                    slits.bitmask.turn_on(slits.mask[flagged_slits], 'BADSKYSUB')
+
+            if not self.par['reduce']['extraction']['skip_extraction']:
+                msgs.info(f"Extraction begins for {self.basename} on det={_det}")
+                # Instantiate Reduce object
+                # Required for pipeline specific object
+                # At instantiation, the fullmask in self.sciImg is modified
+                # TODO Are we repeating steps in the init for FindObjects and Extract??
+                self.exTract = extraction.Extract.get_instance(
+                    sciImg, slits, sobjs_obj, self.spectrograph,
+                    self.par, self.objtype, global_sky=final_global_sky, bkg_redux_global_sky=None,
+                    tilts=self.caliBrate.tilts, waveimg=self.caliBrate.waveimg,
+                    flatimages=self.caliBrate.flatimages,
+                    bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
+                    std_redux=self.std_redux, basename=self.basename, show=self.show)
+                # Perform the extraction
+                skymodel, bkg_redux_skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts, slits = self.exTract.run()
+                slitshift = self.exTract.slitshift
+            else:
+                msgs.info(f"Extraction skipped for {self.basename} on det={_det}")
+                # Since the extraction was not performed, fill the arrays with the best available information
+                skymodel, bkg_redux_skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = \
+                    final_global_sky, \
+                        None, \
+                        np.zeros_like(objFind.sciImg.image), \
+                        np.copy(objFind.sciImg.ivar), \
+                        objFind.sciImg.fullmask, \
+                        sobjs_obj, \
+                        objFind.waveimg, \
+                        objFind.tilts
+                slitshift = objFind.slitshift
+
+            # Construct table of spectral flexure
+            spec_flex_table = Table()
+            spec_flex_table['spat_id'] = slits.spat_id
+            spec_flex_table['sci_spec_flexure'] = slitshift
+
+            # Construct the Spec2DObj
+            spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
+                                            ivarraw=sciImg.ivar,
+                                            skymodel=skymodel,
+                                            bkg_redux_skymodel=bkg_redux_skymodel,
+                                            objmodel=objmodel,
+                                            ivarmodel=ivarmodel,
+                                            scaleimg=scaleImg,
+                                            waveimg=waveImg,
+                                            bpmmask=outmask,
+                                            detector=sciImg.detector,
+                                            sci_spat_flexure=sciImg.spat_flexure,
+                                            sci_spec_flexure=spec_flex_table,
+                                            vel_corr=None,
+                                            vel_type=self.par['calibrations']['wavelengths']['refframe'],
+                                            tilts=tilts,
+                                            slits=slits,
+                                            wavesol=None,
+                                            maskdef_designtab=maskdef_designtab)
+            spec2DObj.process_steps = sciImg.process_steps
+
+            spec2DObj.calibs = calibrations.Calibrations.get_association(
+                self.fitstbl, self.spectrograph, self.calibrations_path,
+                self.fitstbl[frames[0]]['setup'],
+                self.fitstbl.find_frame_calib_groups(frames[0])[0], _det,
+                must_exist=True, proc_only=True)
+
+            # QA
+            spec2DObj.gen_qa()
+
             # Container for all the Spec2DObj
             all_spec2d = spec2dobj.AllSpec2DObj()
             all_spec2d['meta']['bkg_redux'] = self.bkg_redux
@@ -1593,28 +1797,11 @@ class NIRSpecSlitPypeIt(PypeIt):
             # Container for the specobjs
             all_specobjs = specobjs.SpecObjs()
 
-            # Create the image mosaic
-            sciImg, slits, waveimg, tilts, ndet = jwst_mosaic(sci_data, _calibrate, kludge_err=1.5,
-                noise_floor=self.par['scienceframe']['process']['noise_floor'], show=False)
-
-            if self.bkg_redux:
-                bkgImg_list = []
-                bkgImg_i, _, _, _, _=  jwst_mosaic(sci_data_bkg, _calibrate, kludge_err=1.5,
-                                                   noise_floor=self.par['scienceframe']['process']['noise_floor'])
-                bkgImg_list.append(bkgImg_i)
-
-                # TODO the parset label here may change in Pypeit to bkgframe
-                combineImage = combineimage.CombineImage(bkgImg_list, self.par['scienceframe']['process'])
-                bkgImg = combineImage.run(ignore_saturation=True)
-                sciImg = sciImg.sub(bkgImg)
-
-            all_spec2d[sciImg.detector.name], tmp_sobjs = jwst_reduce(sciImg, slits, waveimg, tilts, self.spectrograph, self.par,
-                                                                    show=self.show, find_negative=self.bkg_redux, bkg_redux=self.bkg_redux,
-                                                                    clear_ginga=False, show_peaks=self.show, show_skysub_fit=self.show,
-                                                                    basename=self.fitstbl[frames]['filename'][0].split('_nrs')[0])
-            # Hold em
-            if tmp_sobjs.nobj > 0:
-                all_specobjs.add_sobj(tmp_sobjs)
+            # fill the spec2DObj
+            all_spec2d[sciImg.detector.name] = spec2DObj
+            # fill the specobjs
+            if sobjs.nobj > 0:
+                all_specobjs.add_sobj(sobjs)
 
             if len(all_spec2d.detectors) > 0:
                 # Build history to document what contributd to the reduced

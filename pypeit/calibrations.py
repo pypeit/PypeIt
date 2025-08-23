@@ -1726,17 +1726,17 @@ class NIRSpecSlitCalibrations(Calibrations):
             `numpy.ndarray`_: The wavelength image calibration frame for current slit.
         """
         # Check for existing data
-        if not self._chk_objs(['flat_data']):
+        if not self._chk_objs(['flat_data', 'slit_slices']):
             msgs.warn('flat_data must be loaded before getting the wavelength image')
 
         # Check internals
-        self._chk_set(['det', 'calib_ID', 'par'])
+        self._chk_set(['det', 'calib_ID', 'par', 'spectrograph'])
 
         if self.nimg == 1:
             self.waveimg = 1e4*self.flat_data[0].slits[self.slit_index_flat[0]].wavelength.T
         else:
             flat_data_list = [fd.slits[idx].wavelength.T for fd, idx in zip(self.flat_data, self.slit_index_flat)]
-            self.waveimg = self.make_mosaic(flat_data_list)
+            self.waveimg = self.spectrograph.make_mosaic(flat_data_list, self.det, self.slit_slices)
 
     def get_tilts(self, force:str=None):
         """
@@ -1867,10 +1867,11 @@ class NIRSpecSlitCalibrations(Calibrations):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         if self.nimg == 1:
-            flat_data_slit = self.flat_data[0].slits[self.slit_index_flat[0]]
+            flat_data_slit = self.flat_data[0].slits[self.slit_index_flat[0]].data.T
             cal_data_slit = self.cal_data[0].slits[self.slit_index_cal[0]]
             exptime = cal_data_slit.meta.exposure.effective_exposure_time
-            flat = flat_data_slit.data.T/cal_data_slit.meta.photometry.conversion_megajanskys
+            flat = np.ones_like(flat_data_slit)
+            flat[flat_data_slit != 1] = flat_data_slit[flat_data_slit != 1]/cal_data_slit.meta.photometry.conversion_megajanskys
             pathloss = cal_data_slit.pathloss_uniform.T if cal_data_slit.source_type == 'EXTENDED' else \
                        cal_data_slit.pathloss_point.T
             if pathloss.shape == (0, 0):
@@ -1880,16 +1881,18 @@ class NIRSpecSlitCalibrations(Calibrations):
             if barshadow.shape == (0, 0):
                 msgs.warn('No barshadow for slit {0}'.format(self.user_slits) + ', setting to 1.0')
                 barshadow = np.ones_like(flat)
-            tot_flat = exptime * flat * pathloss * barshadow
+            tot_flat = np.ones_like(flat)
+            tot_flat[flat !=1] = exptime * flat[flat !=1] * pathloss[flat !=1] * barshadow[flat !=1]
             tot_flat[np.isnan(tot_flat)] = 1.
         else:
             # For a mosaic, we need to combine the flat fields from each detector
             tot_flat_list = []
             for fd, fidx, cd, cidx in zip(self.flat_data, self.slit_index_flat, self.cal_data, self.slit_index_cal):
-                flat_data_slit = fd.slits[fidx]
+                flat_data_slit = fd.slits[fidx].data.T
                 cal_data_slit = cd.slits[cidx]
                 exptime = cal_data_slit.meta.exposure.effective_exposure_time
-                flat = flat_data_slit.data.T/cal_data_slit.meta.photometry.conversion_megajanskys
+                flat = np.ones_like(flat_data_slit)
+                flat[flat_data_slit != 1] = flat_data_slit[flat_data_slit != 1]/cal_data_slit.meta.photometry.conversion_megajanskys
                 pathloss = cal_data_slit.pathloss_uniform.T if cal_data_slit.source_type == 'EXTENDED' else \
                            cal_data_slit.pathloss_point.T
                 if pathloss.shape == (0, 0):
@@ -1899,53 +1902,16 @@ class NIRSpecSlitCalibrations(Calibrations):
                 if barshadow.shape == (0, 0):
                     msgs.warn('No barshadow for slit {0}'.format(self.user_slits) + ', setting to 1.0')
                     barshadow = np.ones_like(flat)
-                _tot_flat = exptime * flat * pathloss * barshadow
+                _tot_flat = np.ones_like(flat)
+                _tot_flat[flat != 1] = exptime * flat[flat != 1] * pathloss[flat != 1] * barshadow[flat != 1]
                 _tot_flat[np.isnan(_tot_flat)] = 1.
                 tot_flat_list.append(_tot_flat)
 
-            tot_flat = self.make_mosaic(tot_flat_list)
+            tot_flat = self.spectrograph.make_mosaic(tot_flat_list, self.det,  self.slit_slices)
+            tot_flat[tot_flat == 0] = 1.0  # mosaic images can have zero values
 
         self.flatimages = flatfield.FlatImages(PYP_SPEC=self.spectrograph.name,
                                                pixelflat_norm=tot_flat, pixelflat_bpm=(tot_flat == 1).astype(int))
-
-    def make_mosaic(self, img_list):
-
-        # Check internals
-        self._chk_set(['det', 'spectrograph', 'slit_slices'])
-
-        if self.nimg == 1:
-            msgs.error('Mosaic cannot be made with only one detector!')
-        else:
-            if len(img_list) != 2:
-                msgs.error('Mosaic can only be made with two detectors!')
-
-        detector_gap = int(self.spectrograph.get_detector_par(1).xgap)
-        spat_offset = (self.slit_slices[1][1].start - self.slit_slices[0][1].start)
-        spec_lo1, spec_hi1 = 0, img_list[0].shape[0]
-        spec_lo2, spec_hi2 = img_list[0].shape[0] + detector_gap, \
-                             img_list[0].shape[0] + detector_gap + img_list[1].shape[0]
-        shape = (img_list[0].shape[0] + img_list[1].shape[0] + detector_gap,
-                 np.max([img_list[0].shape[1], img_list[1].shape[1]]) + np.abs(spat_offset))
-
-        if spat_offset >= 0:
-            # Detector nrs2 starts at a larger spat value than detector nrs1
-            spat_lo1, spat_hi1 = 0, img_list[0].shape[1]  # nrs1 not shifted spatially
-            spat_lo2, spat_hi2 = spat_offset, spat_offset + img_list[1].shape[1] # nrs2 shifted spatiallly
-        else:
-            # Detector nrs1 starts at larger spat value than detector nrs1
-            spat_lo1, spat_hi1 = np.abs(spat_offset), img_list[0].shape[1] + np.abs(spat_offset)
-            spat_lo2, spat_hi2 = 0, img_list[1].shape[1]
-
-
-        nrs1_slice = np.s_[spec_lo1: spec_hi1, spat_lo1: spat_hi1]
-        nrs2_slice = np.s_[spec_lo2: spec_hi2, spat_lo2: spat_hi2]
-
-        # Create the mosaic
-        mosaic = np.zeros(shape, dtype=img_list[0].dtype)
-        mosaic[nrs1_slice] = img_list[0]
-        mosaic[nrs2_slice] = img_list[1]
-
-        return mosaic
 
     @staticmethod
     def default_steps():
