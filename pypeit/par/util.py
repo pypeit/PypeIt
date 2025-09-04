@@ -4,18 +4,14 @@ Utility functions for PypeIt parameter sets
 
 .. include:: ../include/links.rst
 """
-import os
-import time
-import glob
 from IPython import embed
 
 import numpy as np
 
-from astropy.table import Table
-
 from configobj import ConfigObj
 
 from pypeit import msgs, __version__
+from pypeit.pypmsgs import PypeItError
 
 
 #-----------------------------------------------------------------------
@@ -51,7 +47,7 @@ def eval_tuple(inp):
     except:
         msgs.error(f'Cannot evaluate {joined} into a valid tuple.')
 
-    # If any element of the basic evaulation is also a tuple, assume the result
+    # If any element of the basic evaluation is also a tuple, assume the result
     # of the evaluation is a tuple of tuples.  This is converted to a list.
     return list(basic) if any([isinstance(e, tuple) for e in basic]) else [basic]
 
@@ -98,8 +94,13 @@ def recursive_dict_evaluate(d):
             continue
 
         if isinstance(d[k], list) and any(['(' in e for e in d[k]]):
-            # NOTE: This enables syntax for constructing one or more tuples.  
-            d[k] = eval_tuple(d[k])
+            # NOTE: This enables syntax for constructing one or more tuples.
+            try:
+                d[k] = eval_tuple(d[k])
+            except PypeItError as e:
+                # The tuple evaluation failed.  Assume that this can be handled
+                # later in the code and leave the dictionary element unaltered.
+                pass
             continue
 
         if isinstance(d[k], list):

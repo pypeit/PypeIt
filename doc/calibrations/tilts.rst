@@ -60,6 +60,8 @@ To avoid ginga, use the `--mpl` flag:
 
     pypeit_chk_tilts Calibrations/Tilts_A_0_DET01.fits --mpl
 
+.. _tilts_qa_all:
+
 QA PNG files
 ------------
 

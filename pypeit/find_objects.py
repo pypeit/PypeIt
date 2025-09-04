@@ -819,6 +819,7 @@ class MultiSlitFindObjects(FindObjects):
                                 use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
                                 boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                                numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 extract_maskwidth=self.par['reduce']['skysub']['local_maskwidth'],
                                 qa_title=qa_title, nperslit=maxnumber,
@@ -959,6 +960,7 @@ class EchelleFindObjects(FindObjects):
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
             fof_link = self.par['reduce']['findobj']['fof_link'],
             maxdev=self.par['reduce']['findobj']['find_maxdev'],
+            numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
             nperorder=nperorder,
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
@@ -1184,7 +1186,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             The flexure in pixels
         """
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
-        box_rad = self.par['reduce']['extraction']['boxcar_radius']
+        box_rad = self.par['reduce']['extraction']['boxcar_radius']/ self.get_platescale()
         trace_spat = 0.5 * (self.slits_left + self.slits_right)
         iwv = np.where(self.wv_calib.spat_ids == self.slits.spat_id[sl_ref])[0][0]
         ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm

@@ -1,0 +1,6 @@
+Version 1.17.3
+==============
+
+- Hotfix for file name typo in ``data/standards/xshooter/xshooter_info.txt``.
+  See issue #1903.
+

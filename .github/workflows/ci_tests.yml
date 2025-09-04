@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: ['3.11', '3.12']
+        python: ['3.11', '3.12', '3.13']
         toxenv: [test, test-alldeps-cov, test-numpydev, test-linetoolsdev, test-gingadev, test-astropydev]
     steps:
     - name: Check out repository
@@ -32,13 +32,13 @@ jobs:
     - name: Test with tox
       run: |
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
-    - name: Upload coverage to codecov
-      if: "contains(matrix.toxenv, '-cov')"
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV }}
-        file: ./coverage.xml
-        fail_ci_if_error: true
+#    - name: Upload coverage to codecov
+#      if: "contains(matrix.toxenv, '-cov')"
+#      uses: codecov/codecov-action@v3
+#      with:
+#        token: ${{ secrets.CODECOV }}
+#        file: ./coverage.xml
+#        fail_ci_if_error: true
 
   os-tests:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
@@ -48,7 +48,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest]
-        python: ['3.11', '3.12']
+        python: ['3.11', '3.12', '3.13']
         toxenv: [test-alldeps]
     steps:
     - name: Check out repository

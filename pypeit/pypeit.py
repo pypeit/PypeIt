@@ -145,8 +145,7 @@ class PypeIt:
         self.show = show
 
         # Set paths
-        self.calibrations_path = os.path.join(self.par['rdx']['redux_path'],
-                                              self.par['calibrations']['calib_dir'])
+        self.calibrations_path = Path(self.par['rdx']['redux_path']) / self.par['calibrations']['calib_dir']
 
         # Check for calibrations
         if not self.calib_only:
@@ -172,12 +171,12 @@ class PypeIt:
         self.obstime = None
 
     @property
-    def science_path(self):
+    def science_path(self) -> Path:
         """Return the path to the science directory."""
-        return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
+        return Path(self.par['rdx']['redux_path']) / self.par['rdx']['scidir']
 
     @property
-    def qa_path(self):
+    def qa_path(self) -> str:
         """Return the path to the top-level QA directory."""
         return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
 
@@ -191,37 +190,51 @@ class PypeIt:
         qa.gen_exp_html()
 
     # TODO: This should go in a more relevant place
-    def spec_output_file(self, frame, twod=False):
+    def spec_output_file(self, frame:int, twod:bool=False) -> Path:
         """
         Return the path to the spectral output data file.
         
         Args:
             frame (:obj:`int`):
                 Frame index from :attr:`fitstbl`.
-            twod (:obj:`bool`):
+            twod (:obj:`bool`), optional:
                 Name for the 2D output file; 1D file otherwise.
         
         Returns:
-            :obj:`str`: The path for the output file
+            `Path`_: The path for the output file
         """
         return self.get_spec_file_name(self.science_path, self.fitstbl.construct_basename(frame),
                                        twod=twod)
 
     @staticmethod
-    def get_spec_file_name(science_path, basename, twod=False):
-        return os.path.join(science_path, f'spec{"2" if twod else "1"}d_{basename}.fits')
+    def get_spec_file_name(science_path:Path, basename:str, twod:bool=False) -> Path:
+        """
+        Get the spectrum filename
 
-    def outfile_exists(self, frame):
+        Args:
+            science_path (`Path`_):
+                Path to the science files
+            basename (:obj:`str`):
+                Base name for this frame
+            twod (:obj:`bool`), optional:
+                Is this a 2D science frame?
+
+        Returns:
+            `Path`_: The spectrum filename
+        """
+        return science_path / f'spec{"2" if twod else "1"}d_{basename}.fits'
+
+    def outfile_exists(self, frame:int) -> bool:
         """
         Check whether the 2D outfile of a given frame already exists
 
         Args:
-            frame (int): Frame index from fitstbl
+            frame (:obj:`int`): Frame index from fitstbl
 
         Returns:
-            bool: True if the 2d file exists, False if it does not exist
+            :obj:`bool`: True if the 2d file exists, False if it does not exist
         """
-        return os.path.isfile(self.spec_output_file(frame, twod=True))
+        return self.spec_output_file(frame, twod=True).is_file()
 
     def get_std_outfile(self, standard_frames):
         """
@@ -262,8 +275,8 @@ class PypeIt:
         if std_frame is not None:
             std_outfile = self.spec_output_file(std_frame) \
                             if isinstance(std_frame, (int,np.integer)) else None
-        if std_outfile is not None and not os.path.isfile(std_outfile):
-            msgs.error('Could not find standard file: {0}'.format(std_outfile))
+        if std_outfile is not None and not std_outfile.is_file():
+            msgs.error(f'Could not find standard file: {std_outfile}')
         return std_outfile
 
     def calib_all(self):
@@ -292,19 +305,8 @@ class PypeIt:
             # Loop on Detectors
             for self.det in detectors:
                 msgs.info(f'Working on detector {self.det}')
-                # Instantiate Calibrations class
-                user_slits = slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
-                                                       self.par['rdx']['maskIDs'])
-                self.caliBrate = calibrations.Calibrations.get_instance(
-                    self.fitstbl, self.par['calibrations'], self.spectrograph,
-                    self.calibrations_path, qadir=self.qa_path, reuse_calibs=self.reuse_calibs,
-                    show=self.show, user_slits=user_slits,
-                    chk_version=self.par['rdx']['chk_version'])
-                # Do it
-                # These need to be separate to accommodate COADD2D
-                self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
 
-                self.caliBrate.run_the_steps()
+                self.caliBrate = self.calib_one(grp_frames, self.det)
                 if not self.caliBrate.success:
                     msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
                               f'that failed was {self.caliBrate.failed_step}.  Continuing to next '
@@ -440,7 +442,8 @@ class PypeIt:
                     # TODO: come up with sensible naming convention for
                     # save_exposure for combined files
                     if len(sci_spec2d.detectors) > 0:
-                        self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
+                        self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history,
+                                           skip_write_2d=self.par['scienceframe']['process']['skip_write_2d'])
                     else:
                         msgs.warn('No spec2d and spec1d saved to file because the '
                                   'calibration/reduction was not successful for all the detectors')
@@ -690,16 +693,19 @@ class PypeIt:
                                                    self.spectrograph.get_det_name(det))
         return objtype_out, calib_key, obstime, basename, binning
 
-    def calib_one(self, frames, det):
+    def calib_one(self, frames, det, stop_at_step:str=None):
         """
         Run Calibration for a single exposure/detector pair
 
         Args:
             frames (:obj:`list`):
-                List of frames to extract; stacked if more than one
-                is provided
+                List of frames (rows) to calibrate
+                Only used to idetify the setup and calibration group
             det (:obj:`int`):
                 Detector number (1-indexed)
+            stop_at_step (:obj:`str`, optional):
+                Run only up to this calibration step.
+                
 
         Returns:
             caliBrate (:class:`pypeit.calibrations.Calibrations`)
@@ -715,9 +721,16 @@ class PypeIt:
             self.calibrations_path, qadir=self.qa_path,
             reuse_calibs=self.reuse_calibs, show=self.show, user_slits=user_slits,
             chk_version=self.par['rdx']['chk_version'])
+
+        # Check
+        if stop_at_step is not None and stop_at_step not in caliBrate.steps:
+            msgs.error(f"Requested stop_at_step={stop_at_step} is not a valid calibration step.\n Allowed steps are: {caliBrate.steps}")
+            
         # These need to be separate to accomodate COADD2D
         caliBrate.set_config(frames[0], det, self.par['calibrations'])
-        caliBrate.run_the_steps()
+
+        # Run
+        caliBrate.run_the_steps(stop_at_step=stop_at_step)
 
         return caliBrate
 
@@ -1029,10 +1042,6 @@ class PypeIt:
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             msgs.info(f"Extraction begins for {self.basename} on det={det}")
-            # set the flatimg, if it exists
-            flatimg = None if self.caliBrate.flatimages is None else self.caliBrate.flatimages.pixelflat_model
-            if flatimg is None:
-                msgs.warn("No flat image was found. A spectrum of the flatfield will not be extracted!")
             # Instantiate Reduce object
             # Required for pipeline specific object
             # At instantiation, the fullmask in self.sciImg is modified
@@ -1040,7 +1049,7 @@ class PypeIt:
             self.exTract = extraction.Extract.get_instance(
                 sciImg, slits, sobjs_obj, self.spectrograph,
                 self.par, self.objtype, global_sky=final_global_sky, bkg_redux_global_sky=bkg_redux_global_sky,
-                waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib, flatimg=flatimg,
+                waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib, flatimages=self.caliBrate.flatimages,
                 bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
                 std_redux=self.std_redux, basename=self.basename, show=self.show)
             # Perform the extraction
@@ -1172,7 +1181,9 @@ class PypeIt:
         # Return the value of the correction and the corrected wavelength image
         return vel_corr, waveimg
 
-    def save_exposure(self, frame, all_spec2d, all_specobjs, basename, history=None):
+    def save_exposure(self, frame:int, all_spec2d:spec2dobj.AllSpec2DObj,
+                      all_specobjs:specobjs.SpecObjs, basename:str, history:History=None,
+                      skip_write_2d:bool=False):
         """
         Save the outputs from extraction for a given exposure
 
@@ -1180,17 +1191,16 @@ class PypeIt:
             frame (:obj:`int`):
                 0-indexed row in the metadata table with the frame
                 that has been reduced.
-            all_spec2d(:class:`pypeit.spec2dobj.AllSpec2DObj`):
-            sci_dict (:obj:`dict`):
-                Dictionary containing the primary outputs of
-                extraction
+            all_spec2d(:class:`~pypeit.spec2dobj.AllSpec2DObj`):
+                The 2D reduced spectrum objects.
+            all_specobjs (:class:`~pypeit.specobjs.SpecObjs`):
+                The 1D spectral extraction objects.
             basename (:obj:`str`):
                 The root name for the output file.
-            history (:obj:`pypeit.history.History`):
+            history (:class:`~pypeit.history.History`), optional:
                 History entries to be added to fits header
-        Returns:
-            None or SpecObjs:  All of the objects saved to disk
-
+            skip_write_2d (:obj:`bool`), optional:
+                Skip writing the 2D spectrum to disk
         """
         # TODO: Need some checks here that the exposure has been reduced?
 
@@ -1201,8 +1211,8 @@ class PypeIt:
         head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
 
         # Check for the directory
-        if not os.path.isdir(self.science_path):
-            os.makedirs(self.science_path)
+        if not self.science_path.is_dir():
+            self.science_path.mkdir()
 
         # NOTE: There are some gymnastics here to keep from altering
         # self.par['rdx']['detnum'].  I.e., I can't just set update_det =
@@ -1220,7 +1230,7 @@ class PypeIt:
         # 1D spectra
         if all_specobjs.nobj > 0 and not self.par['reduce']['extraction']['skip_extraction']:
             # Spectra
-            outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
+            outfile1d = self.science_path / f'spec1d_{basename}.fits'
             # TODO
             #embed(header='deal with the following for maskIDs;  713 of pypeit')
             all_specobjs.write_to_fits(subheader, outfile1d,
@@ -1228,7 +1238,7 @@ class PypeIt:
                                        slitspatnum=self.par['rdx']['slitspatnum'],
                                        history=history)
             # Info
-            outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
+            outfiletxt = self.science_path / f'spec1d_{basename}.txt'
             # TODO: Note we re-read in the specobjs from disk to deal with situations where
             # only a single detector is run in a second pass but in the same reduction directory.
             # Thiw was to address Issue #1116 in PR #1154. Slightly inefficient, but only other
@@ -1237,8 +1247,11 @@ class PypeIt:
             sobjs.write_info(outfiletxt, self.spectrograph.pypeline)
             #all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
+        if skip_write_2d:
+            return
+
         # 2D spectra
-        outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
+        outfile2d = self.science_path / f'spec2d_{basename}.fits'
         # Build header
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
                                                redux_path=self.par['rdx']['redux_path'],

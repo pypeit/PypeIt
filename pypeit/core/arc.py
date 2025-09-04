@@ -1001,10 +1001,10 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
         (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], 
                                                         sigma_lower=3.0, sigma_upper=3.0, cenfunc= np.nanmedian,
                                                         stdfunc = np.nanstd)
-        thresh = med + sigdetect*stddev
         if stddev == 0.0:
-            msgs.warn('stddev = 0.0, so resetting to 1.0')
-            stddev = 1.0
+            msgs.warn('stddev = 0.0, so resetting to 0.1')
+            stddev = 0.1
+        thresh = med + sigdetect * stddev
     else:
         med = 0.0
         if isinstance(input_thresh,(float, int)):
@@ -1055,6 +1055,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
             tampl_true = tampl_true[ikeep]
             tampl = tampl[ikeep]
             tcent = tcent[ikeep]
+            pixt = pixt[ikeep]
             twid = twid[ikeep]
             centerr = centerr[ikeep]
             ww = np.where(good[ikeep])[0]

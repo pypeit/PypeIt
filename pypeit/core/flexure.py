@@ -12,12 +12,14 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
+from matplotlib.lines import Line2D
 import matplotlib
 
 from astropy import stats
 from astropy import units
 from astropy.io import ascii
 from astropy.table import Table
+from astropy.stats import sigma_clipped_stats
 import scipy.signal
 import scipy.optimize as opt
 from scipy import interpolate
@@ -27,23 +29,23 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit import dataPaths
 from pypeit import io
-from pypeit import utils
-from pypeit.display import display
 from pypeit.core.wavecal import autoid
 from pypeit.core import arc
 from pypeit.core import extract
 from pypeit.core import fitting
 from pypeit.core import qa
+from pypeit.core import trace
+from pypeit.core import parse
 from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from pypeit import specobj, specobjs, spec2dobj
+from pypeit import specobj, specobjs
 from pypeit import wavemodel
 
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
+def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=False, qa_outfile=None, qa_vrange=None):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -55,68 +57,235 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
 
     Args:
         sciimg (`numpy.ndarray`_):
+            Science image
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            Slits object
+        bpm (`numpy.ndarray`_, optional):
+            Bad pixel mask (True = Bad)
         maxlag (:obj:`int`, optional):
             Maximum flexure searched for
+        sigdetect (:obj:`float`, optional):
+            Sigma threshold above fluctuations for the slit detection
+            in the collapsed sobel image
+        debug (:obj:`bool`, optional):
+            Run in debug mode
+        qa_outfile (:obj:`str`, optional):
+            Path to the output file where the QA is saved.  If None, the QA is not generated.
+        qa_vrange (:obj:`tuple`, optional):
+            Tuple with the vmin and vmax values for the imshow plot in the QA. If None, the
+            vmin and vmax values are calculated from the data.
 
     Returns:
         float:  The spatial flexure shift relative to the initial slits
 
     """
+    msgs.info("Measuring spatial flexure")
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
     slitmask = slits.slit_img(initial=True, exclude_flag=slits.bitmask.exclude_for_flexure)
 
     _sciimg = sciimg if slitmask.shape == sciimg.shape \
-                else arc.resize_mask2arc(slitmask.shape, sciimg) 
-    onslits = slitmask > -1
-    corr_slits = onslits.astype(float).flatten()
+                else arc.resize_mask2arc(slitmask.shape, sciimg)
 
-    # Compute
-    mean_sci, med_sci, stddev_sci = stats.sigma_clipped_stats(_sciimg[onslits])
-    thresh =  med_sci + 5.0*stddev_sci
-    corr_sci = np.fmin(_sciimg.flatten(), thresh)
-    lags, xcorr = utils.cross_correlate(corr_sci, corr_slits, maxlag)
-    xcorr_denom = np.sqrt(np.sum(corr_sci*corr_sci)*np.sum(corr_slits*corr_slits))
-    xcorr_norm = xcorr / xcorr_denom
-    # TODO -- Generate a QA plot
+    # mask (as much as possible) the objects on the slits to help the cross-correlation
+    # need to copy the bpm to avoid changing the input bpm
+    _bpm = np.zeros_like(_sciimg, dtype=int) if bpm is None else copy.deepcopy(bpm)
+    for i in range(slits.nslits):
+        left_edge = np.round(slits.left_init[:, i]).astype(int)
+        right_edge = np.round(slits.right_init[:, i]).astype(int)
+        for j in range(_sciimg.shape[0]):
+            # mask the region between the left and right edges leaving a margin of maxlag pixels
+            if left_edge[j]+maxlag < right_edge[j]-maxlag:
+                _bpm[j, left_edge[j]+maxlag:right_edge[j]-maxlag] = 1
 
-    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
-            = arc.detect_lines(xcorr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
-                               cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
+    # # create sobel images of both slitmask and the science image
+    sci_sobel, sci_edges = trace.detect_slit_edges(_sciimg, bpm=_bpm, sigdetect=sigdetect)
+    slits_sobel, slits_edges = trace.detect_slit_edges(slitmask, bpm=bpm, sigdetect=1.)
+    corr = scipy.signal.fftconvolve(sci_edges, np.fliplr(slits_edges), mode='same', axes=1)
+    xcorr = np.sum(corr, axis=0)
+    lags = scipy.signal.correlation_lags(sci_edges.shape[1], slits_edges.shape[1], mode='same')
+    lag0 = np.where(lags == 0)[0][0]
+    xcorr_max = xcorr[lag0 - maxlag:lag0 + maxlag]
+    lags_max = lags[lag0 - maxlag:lag0 + maxlag]
+
+    # detect the highest peak in the cross-correlation
+    _, _, pix_max, _, _, _, _, _ = arc.detect_lines(xcorr_max, cont_subtract=False, input_thresh=0., nfind=1, debug=debug)
     # No peak? -- e.g. data fills the entire detector
-    if len(tampl) == 0:
-        msgs.warn('No peak found in spatial flexure.  Assuming there is none...')
-        
+    if (len(pix_max) == 0) or pix_max[0] == -999.0:
+        msgs.warn('No peak found in the x-correlation between the traced slits and the science/calib image.'
+                  '  Assuming there is NO SPATIAL FLEXURE.'+msgs.newline() + 'If a flexure is expected, '
+                  'consider either changing the maximum lag for the cross-correlation, '
+                  'or the "spat_flexure_sigdetect" parameter, or use the manual flexure correction.')
+
         return 0.
-    
-    # Find the peak
-    xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
-    lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
-    msgs.info('Spatial flexure measured: {}'.format(lag_max[0]))
+
+    lag0_max = np.where(lags_max == 0)[0][0]
+    shift = round(pix_max[0] - lag0_max, 3)
+    msgs.info('Spatial flexure measured: {}'.format(shift))
 
     if debug:
-        plt.figure(figsize=(14, 6))
-        plt.plot(lags, xcorr_norm, color='black', drawstyle='steps-mid', lw=3, label='x-corr')
-        plt.plot(lag_max[0], xcorr_max[0], 'g+', markersize=6.0, label='peak')
-        plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(xcorr_max[0]))
+        # 1D plot of the cross-correlation
+        plt.figure(figsize=(10, 6))
+        plt.minorticks_on()
+        plt.tick_params(axis='both', direction='in', top=True, right=True, which='both')
+        # plot xcorr_max but add a buffer of 20 pixels on each side
+        pad = 20
+        _xcorr_max = xcorr[lag0 - (maxlag+pad):lag0 + (maxlag+pad)]
+        _lags_max = lags[lag0 - (maxlag+pad):lag0 + (maxlag+pad)]
+        plt.plot(_lags_max, _xcorr_max, 'k-', lw=1)
+        plt.axvline(shift, color='r', linestyle='--', label=f'Measured shift = {shift:.1f} pixels')
+        plt.axvline(maxlag, color='g', linestyle='--', label='Max lag')
+        plt.axvline(-maxlag, color='g', linestyle='--')
+        plt.xlabel('Lag (pixels)')
+        plt.ylabel('Cross-correlation')
+        plt.title('Spatial Flexure Cross-correlation')
         plt.legend()
+        plt.tight_layout()
         plt.show()
 
-    #tslits_shift = trace_slits.shift_slits(tslits_dict, lag_max)
-    # Now translate the tilts
+        # 2D plot
+        spat_flexure_qa(sciimg, slits, shift, gpm=np.logical_not(bpm), vrange=qa_vrange)
 
-    #slitmask_shift = pixels.tslits2mask(tslits_shift)
-    #slitmask_shift = slits.slit_img(flexure=lag_max[0])
+    if qa_outfile is not None:
+        # Generate the QA plot
+        msgs.info("Generating QA plot for spatial flexure")
+        spat_flexure_qa(sciimg, slits, shift, gpm=np.logical_not(bpm), vrange=qa_vrange, outfile=qa_outfile)
+
+    return shift
+
+
+def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
+    """
+    Generate QA for the spatial flexure
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image of the detector
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            Slits object
+        shift (:obj:`float`):
+            Shift in pixels
+        gpm (`numpy.ndarray`_, optional):
+            Good pixel mask (True = Bad)
+        vrange (:obj:`tuple`, optional):
+            Tuple with the min and max values for the imshow plot
+        outfile (:obj:`str`, optional):
+            Path to the output file where the QA is saved.  If None, the QA is
+            shown on screen and not saved.
+
+
+    """
+    debug = True if outfile is None else False
+
+    # check that vrange is a tuple
+    if vrange is not None and not isinstance(vrange, tuple):
+        msgs.warn('vrange must be a tuple with the min and max values for the imshow plot. Ignoring vrange.')
+        vrange = None
+
+    # TODO: should we use initial or tweaked slits in this plot?
+    left_slits, right_slits, mask_slits = slits.select_edges(initial=True, flexure=None)
+    left_flex, right_flex, mask = slits.select_edges(initial=True, flexure=shift)
 
     if debug:
-        # Now translate the slits in the tslits_dict
-        all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
-        gpm = mask == 0
-        viewer, ch = display.show_image(_sciimg)
-        #display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
-        #embed(header='83 of flexure.py')
+        # where to start and end the plot in the spatial&spectral direction
+        nxsnip = 1
+        spat_starts = [0]
+        spat_ends = [img.shape[1]]
+        upper_ystart = 0
+        upper_yend = img.shape[0]
 
-    return lag_max[0]
+    else:
+        # where to start and end the plot in the spatial direction
+        xstart = int(np.floor(np.min([left_slits, left_flex]) - 20))
+        xend = int(np.ceil(np.max([right_slits, right_flex]) + 20))
+
+        # how many snippets to plot in the spatial direction
+        if slits.nslits == 1:
+            # if longslit plot 2 snippets, one for the left edge and one for the right edge
+            nxsnip = 2
+            snippet = int((xend - xstart) // nxsnip)
+            spat_starts = [xstart, xstart + snippet]
+            spat_ends = [xend - snippet, xend]
+        elif slits.nslits <= 12:
+            # if 12 or less slits plot 3-4 snippets equally spaced
+            nxsnip = 3 if slits.nslits <= 6 else 4
+            snippet = int((xend - xstart) // nxsnip)
+            spat_starts = [xstart, xstart + snippet, xstart + 2*snippet]
+            spat_ends = [xend - 2*snippet, xend - snippet, xend]
+            if slits.nslits > 6:
+                # add the 4th snippet
+                spat_starts.append(xstart + 3*snippet)
+                spat_ends.insert(0, xend - 3*snippet)
+        else:
+            # if more than 12 slits plot 4 snippets
+            nxsnip = 4
+            # approximately, we want 3 slits in each snippet
+            snippet = int(3 * (xend - xstart)/slits.nslits)
+            # this would give nx many snippets
+            nx = int((xend - xstart) // snippet)
+            # but we want to plot only nxsnip of those snippets
+            spat_starts = [xstart + i * snippet for i in np.linspace(0, nx - 1, nxsnip, dtype=int)]
+            spat_ends = [xstart + i * snippet for i in np.linspace(1, nx, nxsnip, dtype=int)]
+
+        # where to start and end the plot in the spectral direction for both the upper and lower sections
+        lower_ystart = 0
+        lower_yend = int(snippet)
+        upper_ystart = int(img.shape[0] - snippet)
+        upper_yend = img.shape[0]
+
+    # plot the spatial flexure
+    rows = 1 if debug else 2
+    fig = plt.figure(figsize=(9, 8) if debug else (nxsnip*4, 8))
+    gs = gridspec.GridSpec(rows, nxsnip, figure=fig)
+    # spectral vector for plotting the slits
+    spec = np.tile(np.arange(slits.nspec), (slits.nslits, 1)).T
+    thin = 10
+    # legend elements
+    legend_elements = [Line2D([0], [0], color='C3', lw=1, ls='--', label='initial left edges'),
+                       Line2D([0], [0], color='C1', lw=1, ls='--', label='initial right edges'),
+                       Line2D([0], [0], color='C3', lw=1, label='shifted left edges'),
+                       Line2D([0], [0], color='C1', lw=1, label='shifted right edges')]
+    # loop over the 2 rows if we save the plot in the output directory, otherwise plot the whole detector
+    for r in range(rows):
+        _ystar, _yend = (upper_ystart, upper_yend) if r == 0 else (lower_ystart, lower_yend)
+        # loop over the snippets
+        for s in range(nxsnip):
+            ax = fig.add_subplot(gs[r, s])
+            if vrange is None:
+                # get vmin and vmax for imshow
+                _xstart = spat_starts[s] if spat_starts[s] >= 0 else 0
+                _xend = spat_ends[s] if spat_ends[s] <= img.shape[1] else img.shape[1]
+                _img = img[_ystar:_yend, _xstart:_xend]
+                _gpm = gpm[_ystar:_yend, _xstart:_xend] if gpm is not None else np.ones_like(_img, dtype=bool)
+                m, med, sig = sigma_clipped_stats(_img[_gpm], sigma_lower=5.0, sigma_upper=5.0)
+                vmin = m - 1.0 * sig
+                vmax = m + 4.0 * sig
+            else:
+                vmin, vmax = vrange
+            # imshow img instead of _img to show the actual pixel values in each snippet
+            ax.imshow(img, origin='lower', vmin=vmin, vmax=vmax)
+            ax.set_ylim(_ystar, _yend)
+            ax.set_xlim(spat_starts[s], spat_ends[s])
+
+            # plot the slits
+            for i in range(slits.nslits):
+                plt.plot(left_slits[::thin, i], spec[::thin, i], color='C3', lw=1, ls='--', zorder=5)
+                plt.plot(right_slits[::thin, i], spec[::thin, i], color='C1', lw=1, ls='--', zorder=5)
+                plt.plot(left_flex[::thin, i], spec[::thin, i], color='C3', lw=1, zorder=6)
+                plt.plot(right_flex[::thin, i], spec[::thin, i], color='C1', lw=1, zorder=6)
+            ax.tick_params(axis='both', labelsize=6)
+            if r == 0 and s == 0:
+                plt.suptitle(f'Shift={shift:.1f} pixels', fontsize=18)
+                ax.legend(handles=legend_elements, fontsize=7)
+                if not debug:
+                    ax.set_ylabel('Upper snippets', fontsize=18)
+            elif r == 1 and s == 0:
+                ax.set_ylabel('Lower snippets', fontsize=18)
+    plt.tight_layout()
+    if debug:
+        plt.show()
+    else:
+        fig.savefig(outfile, dpi=200)
+        plt.close(fig)
 
 
 def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,
@@ -863,8 +1032,10 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, 
     """
     # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
     slit_specs = []
-    # get boxcar radius
-    box_radius = par['reduce']['extraction']['boxcar_radius']
+    # get boxcar radius. Needs to be in pixels
+    _, binspat = parse.parse_binning(sciImg.detector.binning)
+    box_radius = par['reduce']['extraction']['boxcar_radius'] * sciImg.detector.platescale * binspat
+
     for ss in range(slits.nslits):
         if not gd_slits[ss]:
             slit_specs.append(None)
@@ -978,7 +1149,7 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
     spec = specobj.SpecObj(PYPELINE=pypeline, SLITID=-1, DET=str(det))
     spec.trace_spec = np.arange(slits.nspec)
     spec.TRACE_SPAT = trace_spat
-    spec.BOX_RADIUS = box_radius
+    spec.BOX_R_PIX = box_radius
     # Extract
     extract.extract_boxcar(sciimg, ivar, thismask, waveimg, global_sky, spec)
     slit_wave, slit_sky = spec.BOX_WAVE[spec.BOX_MASK], spec.BOX_COUNTS_SKY[spec.BOX_MASK]
@@ -1393,83 +1564,6 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     m=(diff_err < 0.1) & (diff_err > 0.0)
     # Return
     return dwave[m], diff[m], diff_err[m], los[m], los_err[m]
-
-
-def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_version=False):
-    """
-    Print the spectral or spatial flexure of a spec2d or spec1d file
-
-    Args:
-        file (:obj:`str`, `Path`_):
-            Filename of the spec2d or spec1d file to check
-        file_type (:obj:`str`, optional):
-            Type of the file to check. Options are 'spec2d' or 'spec1d'. Default
-            is 'spec2d'.
-        flexure_type (:obj:`str`, optional):
-            Type of flexure to check. Options are 'spec' or 'spat'. Default is
-            'spec'.
-        chk_version (:obj:`bool`, optional):
-            If True, raise an error if the datamodel version or type check
-            failed.  If False, throw a warning only. Default is False.
-
-    Returns:
-        :obj:`astropy.table.Table`, :obj:`float`: If file_type is 'spec2d' and
-        flexure_type is 'spec', return a table with the spectral flexure.  If
-        file_type is 'spec2d' and flexure_type is 'spat', return the spatial
-        flexure.  If file_type is 'spec1d', return a table with the spectral
-        flexure.
-    """
-
-    # value to return
-    return_flex = None
-
-    if file_type == 'spec2d':
-        # load the spec2d file
-        allspec2D = spec2dobj.AllSpec2DObj.from_fits(file, chk_version=chk_version)
-        # Loop on Detectors
-        for det in allspec2D.detectors:
-            print('')
-            print('=' * 50 + f'{det:^7}' + '=' * 51)
-            # get and print the spectral flexure
-            if flexure_type == 'spec':
-                spec_flex = allspec2D[det].sci_spec_flexure
-                spec_flex.rename_column('sci_spec_flexure', 'global_spec_shift')
-                if np.all(spec_flex['global_spec_shift'] != None):
-                    spec_flex['global_spec_shift'].format = '0.3f'
-                # print the table
-                spec_flex.pprint_all()
-                # return the table
-                return_flex = spec_flex
-            # get and print the spatial flexure
-            if flexure_type == 'spat':
-                spat_flex = allspec2D[det].sci_spat_flexure
-                # print the value
-                print(f'Spat shift: {spat_flex}')
-                # return the value
-                return_flex = spat_flex
-    elif file_type == 'spec1d':
-        # no spat flexure in spec1d file
-        if flexure_type == 'spat':
-            msgs.error("Spat flexure not available in the spec1d file, try with a spec2d file")
-        # load the spec1d file
-        sobjs = specobjs.SpecObjs.from_fitsfile(file, chk_version=chk_version)
-        spec_flex = Table()
-        spec_flex['NAME'] = sobjs.NAME
-        spec_flex['global_spec_shift'] = sobjs.FLEX_SHIFT_GLOBAL
-        if np.all(spec_flex['global_spec_shift'] != None):
-            spec_flex['global_spec_shift'].format = '0.3f'
-        spec_flex['local_spec_shift'] = sobjs.FLEX_SHIFT_LOCAL
-        if np.all(spec_flex['local_spec_shift'] != None):
-            spec_flex['local_spec_shift'].format = '0.3f'
-        spec_flex['total_spec_shift'] = sobjs.FLEX_SHIFT_TOTAL
-        if np.all(spec_flex['total_spec_shift'] != None):
-            spec_flex['total_spec_shift'].format = '0.3f'
-        # print the table
-        spec_flex.pprint_all()
-        # return the table
-        return_flex = spec_flex
-
-    return return_flex
 
 
 # TODO -- Consider separating the methods from the DataContainer as per calibrations

@@ -50,6 +50,7 @@ def multi_caliBrate(fitstbl):
 
     multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph,
                                                          data_output_path('Calibrations'))
+    multi_caliBrate.success = True
     return reset_calib(multi_caliBrate)
 
 

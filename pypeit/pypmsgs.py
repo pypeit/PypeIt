@@ -8,7 +8,6 @@ Module for terminal and file logging.
 from datetime import datetime
 import sys
 import os
-import getpass
 import inspect
 import io
 
@@ -27,6 +26,7 @@ import astropy
 import pypeit
 
 from pypeit.core.qa import close_qa
+from pypeit import pypeit_user
 
 #pypeit_logger = None
 
@@ -73,13 +73,7 @@ class Messages:
         # Initialize other variables
         self._defverb = 1
 
-        try:
-            user = getpass.getuser()
-        except ModuleNotFoundError:
-            # there appears to be a bug in getpass in windows systems where the pwd module doesn't load
-            user = os.getlogin()
-
-        if user in developers:
+        if pypeit_user in developers:
             self._defverb = 2
         self._verbosity = self._defverb if verbosity is None else verbosity
 

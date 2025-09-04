@@ -720,7 +720,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             when constructing a histogram of the spec2d files. The elements
             are :math:`(x,y,\lambda)`.
         """
-        xbins = np.arange(1 + 24) - 24/2 - 0.5
+        xbins = np.arange(1 + 24) - 0.5
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins

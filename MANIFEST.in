@@ -3,11 +3,7 @@
 prune .github
 prune build
 prune dist
-prune deprecated
 prune doc
-prune proposals
-prune presentations
-prune paper
 
 # Remove file types
 global-exclude *.pyc *.o *.so *.DS_Store *.ipynb
@@ -17,6 +13,7 @@ global-exclude *.pyc *.o *.so *.DS_Store *.ipynb
 # update the defined_paths dictionary in pypeit.pypeitdata.PypeItDataPaths!
 recursive-exclude pypeit/data/arc_lines/reid_arxiv *.fits *.json *.pdf *.tar.gz
 recursive-exclude pypeit/data/arc_lines/NIST *.ascii
+recursive-exclude pypeit/data/pixelflats *.fits.gz
 recursive-exclude pypeit/data/sensfuncs *.fits
 recursive-exclude pypeit/data/skisim *.dat
 recursive-exclude pypeit/data/standards *.gz *.fits *.dat

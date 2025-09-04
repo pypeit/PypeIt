@@ -98,7 +98,7 @@ offsets
 This parameter defines the offsets in spatial pixels between the frames to be coadded.
 Here are the options:
 
-- ``offsets = auto``: PypeIt will compute the offsets. If the parameter ``user_obj``
+- ``offsets = auto``: PypeIt will compute the offsets. If the parameter ``user_obj_ids``
   (see :ref:`coadd2dpar`) is also set, PypeIt will use the 1D extracted spectrum
   chosen by the user to compute the offsets, otherwise it will use the 1D extracted spectrum with
   the highest S/N. If such spectrum is not found in each frame that the user wants to coadd,
@@ -127,7 +127,7 @@ weights
 
 This parameter defines the weights to be used in the 2D coadding.
 
-- ``weights = auto``: PypeIt will try to compute the (S/N)^2 weights. If the parameter ``user_obj``
+- ``weights = auto``: PypeIt will try to compute the (S/N)^2 weights. If the parameter ``user_obj_ids``
   (see :ref:`coadd2dpar`) is also set, PypeIt will use the 1D extracted spectrum
   chosen by the user to compute the weights, otherwise it will use the 1D extracted spectrum with
   the highest S/N. If such spectrum is not found in each frame that the user wants to coadd,
@@ -346,7 +346,7 @@ Our coadd2d file is called ``keck_deimos_1200g_m_7750_dra11.coadd2d`` and looks 
     [coadd2d]
         offsets = maskdef_offsets
         weights = auto
-        user_obj = 1037,1
+        user_obj_ids = 1032, 1032, 1031
 
     # Data block
     spec2d read
@@ -360,9 +360,12 @@ In this example we 2D coadd only one detector (det 7); however, note that ``Pype
 uses, as default, a mosaic approach for the reduction of Keck/DEIMOS, for which a mosaic
 is constructed for each blue-red detector pair. See :doc:`../spectrographs/deimos` for more detail.
 
-Because ``weights = auto``, the parameter ``user_obj`` in this example instructs ``PypeIt``
-to use the 1D extracted spectrum with ``OBJID`` equal to 1 and ``SLITID`` equal to 1037
-to compute the weights. See :doc:`../out_spec1D` for more info about ``SLITID`` and ``OBJID``.
+Because ``weights = auto``, the parameter ``user_obj_ids`` in this example instructs ``PypeIt``
+to use the 1D extracted spectrum with unique object identifier equal to ``1032`` in the first frame,
+``1032`` in the second frame, and ``1031`` in the third frame, to compute the weights. Each value of
+``user_obj_ids`` can be found in the spec1d*.txt file (under ``obj_id``) and corresponds to
+the ``SPAT_PIXPOS_ID`` or ``ECH_FRACPOS_ID`` attribute (for slit or echelle spectroscopy, respectively)
+of the spec1d object. See :doc:`../out_spec1D` for more info about ``SPAT_PIXPOS_ID`` and ``ECH_FRACPOS_ID``.
 
 .. note::
 

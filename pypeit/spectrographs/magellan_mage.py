@@ -96,7 +96,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         # The following is for 1x1 binning
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.133
-        par['calibrations']['wavelengths']['fwhm'] = 3.0  
+        par['calibrations']['wavelengths']['fwhm'] = 3.0
         #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE']

@@ -4,8 +4,6 @@
 
 """
 import os
-import datetime
-import getpass
 import glob
 import numpy as np
 import yaml
@@ -81,6 +79,8 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
         outfile = 'QA/PNGs/{:s}_{:s}_obj_trace.png'.format(root, det)
     elif method == 'obj_profile_qa':
         outfile = 'PNGs/{:s}_{:s}_S{:04d}_obj_prof.png'.format(root, det, slit)
+    elif method == 'spat_flexure_qa_corr':
+        outfile = 'QA/PNGs/{:s}_spat_flex_corr.png'.format(root)
     elif method == 'spec_flexure_qa_corr':
 #        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_corr.png'.format(root, det, slit)
         outfile = 'PNGs/{:s}_S{:04d}_spec_flex_corr.png'.format(root, slit)
@@ -130,24 +130,6 @@ def get_dimen(x, maxp=25):
         npp.append(int(xt))
         xr -= xt
     return pages, npp
-
-
-def gen_timestamp():
-    """ Generate a simple time stamp including the current user
-
-    Returns
-    -------
-    timestamp : str
-      user_datetime
-    """
-    tstamp = datetime.datetime.today().strftime('%Y-%m-%d-T%Hh%Mm%Ss')
-    try:
-        user = getpass.getuser()
-    except ModuleNotFoundError:
-        # there appears to be a bug in getpass in windows systems where the pwd module doesn't load
-        user = os.getlogin()
-    # Return
-    return '{:s}_{:s}'.format(user, tstamp)
 
 
 def html_header(title):

@@ -81,7 +81,7 @@ class InputFile:
         self.data = data_table
         self.file_paths = file_paths
         self.setup = setup
-        self.preserve_comments=preserve_comments
+        self.preserve_comments = preserve_comments
         self.config = None if config is None else configobj.ConfigObj(config)
 
         # Vet

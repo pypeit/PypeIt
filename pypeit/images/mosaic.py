@@ -53,7 +53,8 @@ class Mosaic(datamodel.DataContainer):
                  'tform': dict(otype=np.ndarray, atype=float,
                                descr='The full transformation matrix for each detector used to '
                                      'construct the mosaic.'),
-                 'msc_ord': dict(otype=int, descr='Order of the interpolation used to construct the mosaic.')}
+                 'msc_ord': dict(otype=int,
+                                 descr='Order of the interpolation used to construct the mosaic.')}
 
     name_prefix = 'MSC'
     """
@@ -159,10 +160,18 @@ class Mosaic(datamodel.DataContainer):
         hdr = fits.Header()
         hdr['DMODCLS'] = DetectorContainer.__name__
         hdr['DMODVER'] = _hdu.header['DETMODV']
-        d['detectors'] = np.array([DetectorContainer.from_hdu(
-                                        fits.BinTableHDU(data=table.Table(tbl[i]),
-                                                         name='DETECTOR', header=hdr))
-                                    for i in range(ndet)])
+        d['detectors'] = []
+        for i in range(ndet):
+            _hdu = fits.BinTableHDU(data=table.Table(tbl[i]), name='DETECTOR', header=hdr)
+            # NOTE: I'm using _parse() to ensure that I keep the result of the
+            # version and type checking.
+            _d, vp, tp, ph = DetectorContainer._parse(_hdu)
+            if not vp:
+                msgs.warn('Detector datamodel version is incorrect.  May cause a fault.')
+            version_passed &= vp
+            d['detectors'] += [DetectorContainer.from_dict(d=_d) if tp else None]
+            type_passed &= tp
+        d['detectors'] = np.array(d['detectors'], dtype=object)
 
         return d, version_passed, type_passed, parsed_hdus
 
@@ -213,5 +222,7 @@ class Mosaic(datamodel.DataContainer):
         """
         Return a (deep) copy of the object.
         """
-        return Mosaic(id=self.id, detectors=np.array([det.copy() for det in self.detectors]), shape=self.shape, shift=self.shift.copy(), rot=self.rot.copy(), tform=self.tform.copy(), msc_ord=self.msc_ord)
+        return Mosaic(id=self.id, detectors=np.array([det.copy() for det in self.detectors]),
+                      shape=self.shape, shift=self.shift.copy(), rot=self.rot.copy(),
+                      tform=self.tform.copy(), msc_ord=self.msc_ord)
 

@@ -3,7 +3,7 @@
 .. include:: ../include/links.rst
 
 """
-import copy
+from IPython import embed
 
 import numpy as np
 import scipy.interpolate
@@ -26,8 +26,6 @@ from pypeit.core import arc
 from pypeit.display import display
 from pypeit.core import pixels
 from pypeit.core import extract
-from pypeit.utils import fast_running_median
-from IPython import embed
 
 
 def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim_edg=(5,5),
@@ -168,7 +166,7 @@ def ech_findobj_ineach_order(
     det='DET01', inmask=None, std_trace=None, ncoeff=5, 
     hand_extract_dict=None,
     box_radius=2.0, fwhm=3.0,
-    use_user_fwhm=False, maxdev=2.0, nperorder=2,
+    use_user_fwhm=False, maxdev=2.0, nperorder=2, numiterfit=9,
     extract_maskwidth=3.0, snr_thresh=10.0,
     specobj_dict=None, trim_edg=(5,5),
     show_peaks=False, show_single_fits=False,
@@ -260,6 +258,8 @@ def ech_findobj_ineach_order(
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
+        numiterfit (:obj:`int`, optional):
+            Number of iterations to use when fitting the object traces.
         nperorder (:obj:`int`, optional):
             Maximum number of objects allowed per order.  If there are more
             detections than this number, the code will select the ``nperorder``
@@ -331,7 +331,7 @@ def ech_findobj_ineach_order(
                 spec_min_max=spec_min_max[:,iord],
                 inmask=inmask_iord,std_trace=std_in, 
                 ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
-                hand_extract_dict=hand_extract_dict,  
+                numiterfit=numiterfit, hand_extract_dict=hand_extract_dict,
                 nperslit=nperorder, extract_maskwidth=extract_maskwidth,
                 snr_thresh=snr_thresh, trim_edg=trim_edg, 
                 boxcar_rad=box_radius/plate_scale_ord[iord],
@@ -542,6 +542,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
         for iord in order_vec:
             on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDER == iord)
             sobjs_align[on_order].ECH_FRACPOS = uni_frac[iobj]
+            sobjs_align[on_order].ECH_FRACPOS_ID = int(np.rint(1000*uni_frac[iobj]))
             sobjs_align[on_order].ECH_OBJID = uni_obj_id[iobj]
             sobjs_align[on_order].OBJID = uni_obj_id[iobj]
             sobjs_align[on_order].ech_frac_was_fit = False
@@ -611,8 +612,6 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                                              OBJTYPE=sobjs_align[0].OBJTYPE,
                                              ECH_ORDERINDX=iord,
                                              ECH_ORDER=this_order)
-                #thisobj.ECH_ORDERINDX = iord
-                #thisobj.ech_order = order_vec[iord]
                 thisobj.SPAT_FRACPOS = uni_frac[iobj]
                 # Assign traces using the fractional position fit above
                 if std_trace is not None and 'ECH_ORDER' in std_trace.keys() and \
@@ -629,17 +628,23 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                     thisobj.TRACE_SPAT = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
                 thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
+                thisobj.SPAT_PIXPOS_ID = int(np.rint(thisobj.SPAT_PIXPOS))
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
+                this_salign = sobjs_align[this_obj_id]
                 # Assign to the fwhm of the nearest detected order
-                imin = np.argmin(np.abs(sobjs_align[this_obj_id].ECH_ORDER - this_order))
-                thisobj.FWHM = sobjs_align[imin].FWHM
-                thisobj.hand_extract_flag = sobjs_align[imin].hand_extract_flag
-                thisobj.maskwidth = sobjs_align[imin].maskwidth
-                thisobj.smash_peakflux = sobjs_align[imin].smash_peakflux
-                thisobj.smash_snr = sobjs_align[imin].smash_snr
-                thisobj.BOX_RADIUS = sobjs_align[imin].BOX_RADIUS
+                imin = np.argmin(np.abs(this_salign.ECH_ORDER - this_order))
+                # NOTE: when assigning FWHM, maskwidth, and BOX_R_PIX (in pixels) using the values
+                # from the nearest detected order, for spectrographs with different platescale per order,
+                # these values will be different in arcseconds (which may not be a desirable approach).
+                thisobj.FWHM = this_salign[imin].FWHM
+                thisobj.hand_extract_flag = this_salign[imin].hand_extract_flag
+                thisobj.maskwidth = this_salign[imin].maskwidth
+                thisobj.smash_peakflux = this_salign[imin].smash_peakflux
+                thisobj.smash_snr = this_salign[imin].smash_snr
+                thisobj.BOX_R_PIX = this_salign[imin].BOX_R_PIX
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
+                thisobj.ECH_FRACPOS_ID = int(np.rint(1000*uni_frac[iobj]))
                 thisobj.ECH_OBJID = uni_obj_id[iobj]
                 thisobj.OBJID = uni_obj_id[iobj]
                 thisobj.SLITID = slit_spat_id[iord]
@@ -757,9 +762,7 @@ def ech_cutobj_on_snr(
         # SNR
         for iord in range(norders):
             iorder_vec = order_vec[iord]
-            indx = sobjs_align.slitorder_objid_indices(
-                iorder_vec, uni_obj_id[iobj])
-            #indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
+            indx = (sobjs_align.ECH_ORDER == iorder_vec) & (sobjs_align.ECH_OBJID == uni_obj_id[iobj])
             #spec = sobjs_align[indx][0]
             inmask_iord = inmask & (slitmask == sobjs_align[indx].SLITID)# gdslit_spat[iord])
             # TODO make the snippet below its own function quick_extraction()
@@ -975,6 +978,7 @@ def ech_pca_traces(
             if spec.ech_frac_was_fit and (spec.ech_snr > 1.0):
                     spec.TRACE_SPAT = xfit_gweight[:,iord]
                     spec.SPAT_PIXPOS = spec.TRACE_SPAT[specmid]
+                    spec.SPAT_PIXPOS_ID = int(np.rint(spec.SPAT_PIXPOS))
 
     #TODO Put in some criterion here that does not let the fractional position change too much during the iterative
     # tracefitting. The problem is spurious apertures identified on one slit can be pulled over to the center of flux
@@ -1038,7 +1042,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
                 nabove_min_snr=2, pca_explained_var=99.0, 
                 box_radius=2.0, fwhm=3.0,
                 use_user_fwhm=False, maxdev=2.0, 
-                nperorder=2,
+                nperorder=2, numiterfit=9,
                 extract_maskwidth=3.0, snr_thresh=10.0,
                 specobj_dict=None, trim_edg=(5,5),
                 show_peaks=False, show_fits=False, 
@@ -1181,6 +1185,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
+        numiterfit (:obj:`int`, optional):
+            Number of iterations to perform when building the trace fits.
         hand_extract_dict (:obj:`dict`, optional):
             Dictionary with info on manual extraction; see
             :class:`~pypeit.manual_extract.ManualExtractionObj`.
@@ -1290,6 +1296,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         use_user_fwhm=use_user_fwhm,
         nperorder=nperorder,
         maxdev=maxdev,
+        numiterfit=numiterfit,
         box_radius=box_radius,
         objfindQA_filename=objfindQA_filename,
         hand_extract_dict=manual_extract_dict)
@@ -1500,7 +1507,7 @@ def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
 def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, 
                  inmask=None, fwhm=3.0,
                  sigclip_smash=5.0, use_user_fwhm=False, boxcar_rad=7.,
-                 maxdev=2.0, spec_min_max=None, hand_extract_dict=None, std_trace=None,
+                 maxdev=2.0, numiterfit=9, spec_min_max=None, hand_extract_dict=None, std_trace=None,
                  ncoeff=5, nperslit=None, snr_thresh=10.0, trim_edg=(5,5),
                  extract_maskwidth=4.0, specobj_dict=None, find_min_max=None,
                  show_peaks=False, show_fits=False, show_trace=False,
@@ -1588,6 +1595,8 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
+        numiterfit (:obj:`int`, optional):
+            Number of iterations to use in the iterative trace fitting.
         spec_min_max (:obj:`tuple`, optional):
             2-tuple defining the minimum and maximum pixel in the spectral
             direction with useable data for this slit/order.  If None, the
@@ -1667,9 +1676,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         detected.
     """
 
-    #debug_all=True
+    debug_all = False
     if debug_all:
-        show_peaks=True
+        show_peaks = True
         show_fits = True
         show_trace = True
 
@@ -1767,6 +1776,10 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         flux_smash, mask=np.logical_not(gpm_smash), sigma_lower=3.0, sigma_upper=3.0)
     flux_smash_recen = flux_smash - flux_smash_med
 
+    # Computing the flux_smash_smth here since it is needed for the case of hand_extract_dict is not None and nobj_reg = 0
+    gauss_smth_sigma = (fwhm/2.3548)
+    flux_smash_smth = scipy.ndimage.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
+
     # Return if none found and no hand extraction
     if not np.any(gpm_smash): 
         sobjs = specobjs.SpecObjs()
@@ -1775,8 +1788,10 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             msgs.info('No objects found automatically.  Consider manual extraction.')
             return sobjs
         else:
+            nobj_reg = 0
+            # Cannot define the SNR if gpm_smash is all False
+            snr_smash_smth = np.zeros_like(flux_smash_smth)
             msgs.info('No objects found automatically.')
-            
     else:
         # Compute the formal corresponding variance over the set of pixels that are not masked by gpm_sigclip
         var_rect = utils.inverse(ivar_rect)
@@ -1786,9 +1801,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         snr_smash = flux_smash_recen*np.sqrt(ivar_smash)
 
         # Smooth this SNR image with a Gaussian set by the input fwhm
-        gauss_smth_sigma = (fwhm/2.3548)
         snr_smash_smth = scipy.ndimage.gaussian_filter1d(snr_smash, gauss_smth_sigma, mode='nearest')
-        flux_smash_smth = scipy.ndimage.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
         # Search for spatial direction peaks in the smoothed snr image
         _, _, x_peaks_out, x_width, x_err, igood, _, _ = arc.detect_lines(
             snr_smash_smth, input_thresh=snr_thresh, fit_frac_fwhm=1.5, fwhm=fwhm, min_pkdist_frac_fwhm=0.75,
@@ -1882,6 +1895,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
 
             sobjs[iobj].trace_spec = spec_vec
             sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
+            sobjs[iobj].SPAT_PIXPOS_ID = int(np.rint(sobjs[iobj].SPAT_PIXPOS))
             # Set the idx for any prelminary outputs we print out. These will be updated shortly
             sobjs[iobj].set_name()
 
@@ -1892,7 +1906,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 sobjs[iobj].FWHM = get_fwhm(fwhm, nsamp, sobjs[iobj].smash_peakflux, sobjs[iobj].SPAT_FRACPOS, flux_smash_smth)
 
             # assign BOX_RADIUS
-            sobjs[iobj].BOX_RADIUS = boxcar_rad
+            sobjs[iobj].BOX_R_PIX = boxcar_rad
 
         if len(sobjs) == 0 and hand_extract_dict is None:
             # TODO: Why is this not done way above?
@@ -1905,16 +1919,16 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
 
     # Fit the object traces
     if len(sobjs) > 0:
-        msgs.info('Fitting the object traces')
+        msgs.info('Fitting the traces')
         # Note the transpose is here to pass in the TRACE_SPAT correctly.
         xinit_fweight = np.copy(sobjs.TRACE_SPAT.T).astype(float)
         spec_mask = (spec_vec >= spec_min_max_out[0]) & (spec_vec <= spec_min_max_out[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
-        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask), maxshift=1.,
+        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask), maxshift=1., niter=numiterfit,
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
                                  idx=sobjs.NAME, debug=show_fits)[0]
         xinit_gweight = np.copy(xfit_fweight)
-        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask), maxshift=1.,
+        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask), maxshift=1., niter=numiterfit,
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
                                  weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
 
@@ -1922,6 +1936,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         for iobj in range(nobj_reg):
             sobjs[iobj].TRACE_SPAT = xfit_gweight[:, iobj]
             sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
+            sobjs[iobj].SPAT_PIXPOS_ID = int(np.rint(sobjs[iobj].SPAT_PIXPOS))
             sobjs[iobj].set_name()
 
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
@@ -1966,7 +1981,11 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             thisobj.hand_extract_flag = True
             # SPAT_FRACPOS
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
-            thisobj.SPAT_FRACPOS = float(f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False)) # interpolate from ximg
+            # NOTE: scipy.interpolate.RectBivariateSpline.__call__ requires
+            # array-like arguments.  Set the inputs to lists and then select the
+            # only entry that is returned.
+            thisobj.SPAT_FRACPOS = f_ximg([thisobj.hand_extract_spec], [thisobj.hand_extract_spat],
+                                          grid=False)[0]
             thisobj.smash_peakflux = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp), flux_smash_smth) # interpolate from fluxconv
             thisobj.smash_snr = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp), snr_smash_smth) # interpolate from fluxconv
             # assign the trace
@@ -1975,6 +1994,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             thisobj.TRACE_SPAT = trace_model + shift
             thisobj.trace_spec = spec_vec
             thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
+            thisobj.SPAT_PIXPOS_ID = int(np.rint(thisobj.SPAT_PIXPOS))
             thisobj.set_name()
             # assign FWHM
             # TODO -- I think FWHM *has* to be input
@@ -1986,9 +2006,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 thisobj.FWHM = fwhm
             # assign BOX_RADIUS (pixels!)
             if hand_extract_boxcar[iobj] > 0.:
-                thisobj.BOX_RADIUS = hand_extract_boxcar[iobj]
+                thisobj.BOX_R_PIX = hand_extract_boxcar[iobj]
             else:
-                thisobj.BOX_RADIUS = boxcar_rad
+                thisobj.BOX_R_PIX = boxcar_rad
             # Finish
             sobjs.add_sobj(thisobj)
 

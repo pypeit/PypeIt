@@ -100,7 +100,7 @@ class RunPypeIt(scriptbase.ScriptBase):
                                logname=logname, show=args.show)
 
         if args.calib_only:
-            calib_dict = pypeIt.calib_all()
+            pypeIt.calib_all()
         else:
             pypeIt.reduce_all()
         msgs.info('Data reduction complete')

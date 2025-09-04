@@ -36,6 +36,7 @@ def parse_param(par, key, slit):
 
     return param
 
+
 # TODO: Should this code allow the user to skip the smoothing steps and just
 # provide the raw delta_wave vector? I would think there are cases where you
 # want the *exact* pixel width, as opposed to the smoothed version.
@@ -82,16 +83,18 @@ def get_delta_wave(wave, wave_gpm, frac_spec_med_filter=0.03):
     nspec = wave.size
     # This needs to be an odd number
     nspec_med_filter = 2*int(np.round(nspec*frac_spec_med_filter/2.0)) + 1
-    delta_wave = np.zeros_like(wave)
-    wave_diff = np.diff(wave[wave_gpm])
+    wave_bpm = np.logical_not(wave_gpm)
+    wave_diff = np.diff(wave)
     wave_diff = np.append(wave_diff, wave_diff[-1])
+    # Set any regions with wave_diff = 0 to the median value of the data
+    wave_diff[wave_bpm] = np.median(wave_diff[wave_gpm])
+    # Filter out edge effects
     wave_diff_filt = utils.fast_running_median(wave_diff, nspec_med_filter)
 
     # Smooth with a Gaussian kernel
     sig_res = np.fmax(nspec_med_filter/10.0, 3.0)
     gauss_kernel = convolution.Gaussian1DKernel(sig_res)
-    wave_diff_smooth = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
-    delta_wave[wave_gpm] = wave_diff_smooth
+    delta_wave = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
     return delta_wave
 
 
@@ -285,6 +288,9 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
             wave_grid = np.power(10.0,newloglam)
 
         elif wave_method == 'iref': # Use the iref index wavelength array
+            msgs.info(f'iref for the list is set to {iref}')
+            msgs.info(f'The shape of the list is: {np.shape(waves)}')
+            msgs.info(f'shape of the first wave_grid in the list is: {np.shape(waves[iref])}')
             wave_tmp = waves[iref]
             wave_grid = wave_tmp[wave_tmp > 1.0]
             if spec_samp_fact != 1: # adjust sampling via internal interpolation
@@ -455,8 +461,8 @@ def zerolag_shift_stretch(theta, y1, y2, stretch_func = 'quadratic'):
     return -corr_norm
 
 
-
-def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0, debug=False):
+def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False,
+                  fwhm=4.0, cont_sub=True, debug=False):
     """
     Utility routine to create a synthetic arc spectrum for cross-correlation
     using the location of the peaks in the input spectrum.
@@ -465,7 +471,10 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
         inspec1 (`numpy.ndarray`_):
             Input spectrum, shape = (nspec,)
         sigdetect (float, optional, default=3.0):
-            Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
+            Sigma threshold above fluctuations for finding peaks that will be used to create the synthetic xcorr_arc
+        input_thresh (float, optional):
+            Input threshold  for finding peaks that will be used to create the synthetic xcorr_arc. If set, sigdetect
+            will be ignored.
         sig_ceil (float, optional, default = 10.0):
             Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
             For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
@@ -477,6 +486,8 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
             If True, use amplitudes from the raw arc, i.e. do not continuum subtract. Default = False
         fwhm (float, optional):
             Fwhm of arc lines. Used for peak finding and to assign a fwhm in the xcorr_arc.
+        cont_sub (bool, optional):
+            Perform a simple continuum subtraction when detecting the peaks. Default is True.
         debug (bool, optional):
              Show plots for line detection debugging. Default = False
 
@@ -489,7 +500,9 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
 
     # Run line detection to get the locations and amplitudes of the lines
     tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect,
-                                                                                     fwhm=fwhm, debug=debug)
+                                                                                     input_thresh=input_thresh,
+                                                                                     fwhm=fwhm, cont_subtract=cont_sub,
+                                                                                     debug=debug)
 
     ampl = tampl1 if use_raw_arc else tampl1_cont
 
@@ -503,7 +516,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
     ampl_clip = np.clip(ampl, None, ceil_upper)
     if ampl_clip.size == 0:
         msgs.warn('No lines were detected in the arc spectrum. Cannot create a synthetic arc spectrum for cross-correlation.')
-        return None
+        return np.zeros_like(inspec1)
 
     # Make a fake arc by plopping down Gaussians at the location of every centroided line we found
     xcorr_arc = np.zeros_like(inspec1)
@@ -515,7 +528,6 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
         if tcent1[ind] == -999.0:
             continue
         xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/sigma)**2)
-
 
     return xcorr_arc
 
@@ -747,7 +759,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
                        sig_ceil=sig_ceil, fwhm=fwhm)
 
-    if y1 is None or y2 is None:
+    if np.all(y1 == 0) or np.all(y2 == 0):
         msgs.warn('No lines detected punting on shift/stretch')
         return 0, None, None, None, None, None, None
 
@@ -766,10 +778,14 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         if stretch_func == 'quadratic':
             bounds = [lag_range, stretch_mnmx, (-1.0e-6, 1.0e-6)]
             x0_guess = np.array([shift_cc, 1.0, 0.0])
-        if stretch_func == 'linear':
+        elif stretch_func == 'linear':
             bounds = [lag_range, stretch_mnmx, (0.0,0.0)]
             x0_guess = np.array([shift_cc, 1.0, 0.0])        
-        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
+        else:
+            msgs.error('Unrecognized stretch_func')
+        result = scipy.optimize.differential_evolution(
+                zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, 
+                bounds=bounds, disp=False, polish=True, seed=seed)
     except PypeItError:
         msgs.warn("Differential evolution failed.")
         return 0, None, None, None, None, None, None

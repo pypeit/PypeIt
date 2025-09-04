@@ -2,7 +2,7 @@
 
     $ pypeit_show_1dspec -h
     usage: pypeit_show_1dspec [-h] [--list] [--exten EXTEN] [--obj OBJ]
-                              [--extract EXTRACT] [--flux] [-m]
+                              [--extract EXTRACT] [--flux] [-m] [--ginga]
                               file
     
     Show a 1D spectrum
@@ -20,4 +20,5 @@
                          OPT)
       --flux             Show fluxed spectrum? (default: False)
       -m, --unmasked     Only show unmasked data. (default: True)
+      --ginga            Open the spectrum in ginga (default: False)
     

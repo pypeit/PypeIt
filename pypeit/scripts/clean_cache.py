@@ -18,27 +18,20 @@ class CleanCache(scriptbase.ScriptBase):
                                  'with --version, this selects only files downloaded from the '
                                  'identified GitHub versoin.  If the version is not specified, '
                                  'any file matching the provided pattern(s) are removed.')
-        parser.add_argument('-v', '--version', type=str, nargs='+',
-                            help='Remove files associated one or more provided tags, branches, '
-                                 'or commit references on GitHub.  These must be an exact match '
-                                 'to the relevant GitHub reference.  If combined with --pattern, '
-                                 'this selects the GitHub reference for the files found.  If no '
-                                 'files are specified, all files associated with the given '
-                                 'reference are removed.  Note this is only relevant for the '
-                                 'files on GitHub, not s3.  For files on s3, do not specify the '
-                                 'version.')
-        parser.add_argument('--remove_all', default=False, action='store_true',
+        parser.add_argument('--all', default=False, action='store_true',
+                            help='By default, the presence of any of the listed patterns yields '
+                                 'a match.  This flag requires all patterns to be present for a '
+                                 'match.')
+        parser.add_argument('--clear', default=False, action='store_true',
                             help='BEWARE: Removes all data from the pypeit cache.  Use of this '
-                                 'option ignores the --pattern and --version options.')
+                                 'option ignores the --pattern options.')
         parser.add_argument('-l', '--list', default=False, action='store_true',
                             help='Only list the contents of the cache.')
-
         return parser
 
     @staticmethod
     def main(args):
         from IPython import embed
-        import numpy as np
         import astropy.utils.data
 
         from pypeit import msgs
@@ -47,28 +40,35 @@ class CleanCache(scriptbase.ScriptBase):
         if args.list:
             # Print the full contents
             contents = cache.search_cache(None, path_only=False)
-            print(f' {"HOST":>10} {"BRANCH":>20} {"SUBDIR":>20} {"FILE":<30}')
-            for url in contents.keys():
-                head, branch, subdir, f = cache.parse_cache_url(url)
-                print(f' {head:>10} {"..." if branch is None else branch:>20}'
-                      f' {subdir:>20} {f:<30}')
+            if len(contents) == 0:
+                msgs.info('Cache is empty!')
+                return
+            cache.list_cache_contents(contents)
             return
 
-        if args.pattern is None and args.version is None and not args.remove_all:
+        if args.pattern is None and not args.clear:
             msgs.error('Arguments provided not sufficient to find files for deletion.')
 
-        if args.remove_all:
+        if args.clear:
             # Removes the entire cache
+            msgs.info('Clearing the cache!')
             astropy.utils.data.clear_download_cache(pkgname='pypeit')
             return
         
-        # Get *all* of the contents of the cache
         if args.pattern is None:
+            # Get *all* of the contents of the cache
             contents = cache.search_cache(None, path_only=False)
         else:
-            contents = {}
-            for p in args.pattern:
-                contents.update(cache.search_cache(pattern=p, path_only=False))
+            # Match cache contents to multiple patterns
+            for i, p in enumerate(args.pattern):
+                new_contents = cache.search_cache(pattern=p, path_only=False)
+                if i == 0:
+                    contents = new_contents
+                    continue
+                if args.all:
+                    contents = {k:v for k, v in contents.items() if k in new_contents}
+                else:
+                    contents.update(new_contents)
 
         # TODO: For symlinked files, is there a way to follow the symlinks?  Or
         # should we search for broken symlinks in the package directory
@@ -76,12 +76,6 @@ class CleanCache(scriptbase.ScriptBase):
 
         # For now, we only need the urls.
         contents = list(contents.keys())
-
-        # If versions are set, down select to files on github *and* in the selected versions
-        if args.version is not None:
-            versions = np.array([cache.parse_cache_url(c)[1] for c in contents])
-            contents = np.array(contents)[np.isin(versions, args.version)].tolist()
-
         if len(contents) == 0:
             msgs.warn('No files to remove.')
             return
@@ -90,6 +84,7 @@ class CleanCache(scriptbase.ScriptBase):
         msgs.info('Removing the following files from the cache:')
         for c in contents:
             msgs.info(f'    {c}')
+        # TODO: Require confirmation?
 
         # Remove the selected contents.  cache_url argument must be a list
         cache.remove_from_cache(cache_url=contents, allow_multiple=True)

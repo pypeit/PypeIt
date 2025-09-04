@@ -24,7 +24,9 @@ from astropy.stats import sigma_clipped_stats, sigma_clip
 from pypeit import msgs
 from pypeit import utils
 from pypeit import sampling
-from pypeit.core import moment, pydl, arc
+from pypeit.core import arc
+from pypeit.core import moment
+from pypeit.core import pydl
 
 # TODO: Some of these functions could probably just live in pypeit.edges
 
@@ -1223,9 +1225,9 @@ def build_trace_bpm(flux, trace_cen, bpm=None, boxcar=None, thresh=None, median_
 # so it takes only the highest peaks from detect_lines
 def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, smash_range=None,
                peak_thresh=100.0, peak_clip=None, trough=False, trace_median_frac=0.01,
-               trace_thresh=10.0, fwhm_uniform=3.0, fwhm_gaussian=3.0, maxshift=None,
-               maxerror=None, function='legendre', order=5, maxdev=5.0, maxiter=25,
-               niter_uniform=9, niter_gaussian=6, bitmask=None, debug=False):
+               trace_thresh=10.0, fwhm_uniform=3.0, fwhm_gaussian=3.0, min_pkdist_frac_fwhm=5.0,
+               maxshift=None, maxerror=None, function='legendre', order=5, maxdev=5.0, maxiter=25,
+               niter_uniform=9, niter_gaussian=6, bitmask=None, show_fits=False, show_peaks=False):
     """
     Find and trace features in an image by identifying peaks/troughs
     after collapsing along the spectral axis.
@@ -1332,6 +1334,10 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             The ``fwhm`` parameter to use when using Gaussian
             weighting in the calls to :func:`fit_trace`. See
             description of the algorithm above.
+        min_pkdist_frac_fwhm (:obj:`float`, optional):
+            Minimum allowed separation between same-side edge detections
+            expressed relative to fwhm_gaussian.  See
+            :func:`~pypeit.core.arc.detect_lines`.
         maxshift (:obj:`float`, optional):
             Maximum shift allowed between the input and recalculated
             centroid (see :func:`fit_trace`).
@@ -1362,8 +1368,10 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         bitmask (:class:`~pypeit.bitmask.BitMask`, optional):
             Object used to toggle the returned bit masks in edge
             centroid measurements; see :func:`masked_centroid`.
-        debug (:obj:`bool`, optional):
-            Show plots useful for debugging.
+        show_fits (:obj:`bool`, optional):
+            Show (re)fits to edge traces.
+        show_peaks (:obj:`bool`, optional):
+            Show peaks detected in rectified and collapsed trace image.
 
     Returns:
         :obj:`tuple`: Returns four `numpy.ndarray`_ objects and the
@@ -1419,8 +1427,6 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         # since that is the width of the sobel filter
         flux_extract = sampling.rectify_image(flux, trace_map, bpm=bpm, extract_width=fwhm_gaussian 
                                                 if extract_width is None else extract_width)[0]
-#        if debug:
-#            ginga.show_image(flux_extract, chname ='rectified image')
 
     # Collapse the image along the spectral direction to isolate peaks/troughs
     start, end = np.clip(np.asarray(smash_range)*nspec, 0, nspec).astype(int)
@@ -1457,7 +1463,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         peak, _, _cen, _, _, best, _, _ \
                 = arc.detect_lines(s*flux_smash_mean, cont_subtract=False, fwhm=fwhm_gaussian,
                                    input_thresh=peak_thresh, max_frac_fwhm=4.0,
-                                   min_pkdist_frac_fwhm=5.0, debug=debug)
+                                   min_pkdist_frac_fwhm=min_pkdist_frac_fwhm, debug=show_peaks)
 
         if len(_cen) == 0 or not np.any(best):
             msgs.warn('No good {0}s found!'.format(l))
@@ -1506,7 +1512,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, bpm=bpm,
                             trace_bpm=trace_peak_bpm, fwhm=fwhm_uniform, maxshift=maxshift,
                             maxerror=maxerror, function=function, maxdev=maxdev, maxiter=maxiter,
-                            niter=niter_uniform, bitmask=bitmask, debug=debug)
+                            niter=niter_uniform, bitmask=bitmask, debug=show_fits)
 
         # Reset the mask
         # TODO: Use or include `bad` resulting from fit_trace()?
@@ -1520,7 +1526,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, bpm=bpm, trace_bpm=trace_peak_bpm,
                             weighting='gaussian', fwhm=fwhm_gaussian, maxshift=maxshift,
                             maxerror=maxerror, function=function, maxdev=maxdev, maxiter=maxiter,
-                            niter=niter_gaussian, bitmask=bitmask, debug=debug)
+                            niter=niter_gaussian, bitmask=bitmask, debug=show_fits)
 
         # Save the results
         fit = np.append(fit, trace_peak, axis=1)
@@ -1647,7 +1653,41 @@ def predicted_center_difference(lower_spat, spat, width_fit, gap_fit):
     return np.absolute(spat - test_spat)
 
 
-def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
+def extrapolate_prev_order(cen, width_fit, gap_fit, tol=0.01):
+    """
+    Predict the location of the order to the spatial left (lower spatial pixel
+    numbers) of the order center provided.
+
+    This is largely a support function for :func:`extrapolate_orders`.
+
+    Args:
+        cen (:obj:`float`):
+            Center of the known order.
+        width_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order width as a function of the order center.
+        gap_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order gap *after* each order as a function of the order
+            center.
+        tol (:obj:`float`, optional):
+            Tolerance used when optimizing the order locations predicted toward
+            lower spatial pixels.
+
+    Returns:
+        :obj:`float`: Predicted center of the previous order.
+    """
+    # Guess the position of the previous order
+    w = width_fit.eval(cen)
+    guess = np.array([cen - w - gap_fit.eval(cen)])
+    # Set the bounds based on this guess and the expected order width
+    bounds = optimize.Bounds(lb=guess - w/2, ub=guess + w/2)
+    # Optimize the spatial position
+    res = optimize.minimize(predicted_center_difference, guess,
+                            args=(cen, width_fit, gap_fit),
+                            method='trust-constr', jac='2-point', bounds=bounds, tol=tol)    
+    return res.x[0]
+
+
+def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01, bracket=False):
     """
     Predict the locations of additional orders by extrapolation.
 
@@ -1676,6 +1716,9 @@ def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
         tol (:obj:`float`, optional):
             Tolerance used when optimizing the order locations predicted toward
             lower spatial pixels.
+        bracket (:obj:`bool`, optional):
+            Bracket the added orders with one additional order on either side.
+            This can be useful for dealing with predicted overlap.
 
     Returns:
         :obj:`tuple`: Two arrays with orders centers (1) below the first and (2)
@@ -1686,16 +1729,7 @@ def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
     # Extrapolate toward lower spatial positions
     lower_spat = [cen[0]]
     while lower_spat[-1] > min_spat:
-        # Guess the position of the previous order
-        l = width_fit.eval(lower_spat[-1])
-        guess = np.array([lower_spat[-1] - l - gap_fit.eval(lower_spat[-1])])
-        # Set the bounds based on this guess and the expected order width
-        bounds = optimize.Bounds(lb=guess - l/2, ub=guess + l/2)
-        # Optimize the spatial position
-        res = optimize.minimize(predicted_center_difference, guess,
-                                args=(lower_spat[-1], width_fit, gap_fit),
-                                method='trust-constr', jac='2-point', bounds=bounds, tol=tol)
-        lower_spat += [res.x[0]]
+        lower_spat += [extrapolate_prev_order(lower_spat[-1], width_fit, gap_fit, tol=tol)]
 
     # Extrapolate toward larger spatial positions
     upper_spat = [cen[-1]]
@@ -1703,8 +1737,12 @@ def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
         upper_spat += [upper_spat[-1] + width_fit.eval(upper_spat[-1]) 
                         + gap_fit.eval(upper_spat[-1])]
 
-    # Return arrays after removing the first and last spatial position (which
-    # are either repeats of values in `cen` or outside the spatial range)
+    # Return arrays after removing the first spatial position because it is a
+    # repeat of the input.  If not bracketting, also remove the last point
+    # because it will be outside the minimum or maximum spatial position (set by
+    # min_spat, max_spat).
+    if bracket:
+        return np.array(lower_spat[-1:0:-1]), np.array(upper_spat[1:])
     return np.array(lower_spat[-2:0:-1]), np.array(upper_spat[1:-1])
     
 

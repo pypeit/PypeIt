@@ -5,7 +5,8 @@
                              [--par_outfile PAR_OUTFILE] [--outdir OUTDIR]
                              [--spec1d_outdir SPEC1D_OUTDIR] [--tolerance TOLERANCE]
                              [--match_using MATCH_USING] [--dry_run] [--ignore_flux]
-                             [--flux] [--exclude_slit_bm EXCLUDE_SLIT_BM]
+                             [--flux]
+                             [--exclude_slit_trace_bm EXCLUDE_SLIT_TRACE_BM]
                              [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
                              [--refframe {observed,heliocentric,barycentric}]
                              [--chk_version] [-v VERBOSITY]
@@ -75,7 +76,7 @@
                             are coadded if all spec1ds have been fluxed calibrated.
       --flux                If set, the script will flux calibrate using archived
                             sensfuncs before coadding.
-      --exclude_slit_bm EXCLUDE_SLIT_BM
+      --exclude_slit_trace_bm EXCLUDE_SLIT_TRACE_BM
                             A list of slit trace bitmask bits that should be
                             excluded. Comma separated.
       --exclude_serendip    Whether to exclude SERENDIP objects from collating.
@@ -94,7 +95,7 @@
                             to crash or lead to erroneous results. I.e., you really
                             need to know what you are doing if you set this to
                             False!
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             collate_1d_YYYYMMDD-HHMM.log

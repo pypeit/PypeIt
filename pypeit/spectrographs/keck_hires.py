@@ -114,6 +114,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['max_nudge'] = 0.
         par['calibrations']['slitedges']['overlap'] = True
         par['calibrations']['slitedges']['dlength_range'] = 0.25
+        par['calibrations']['slitedges']['mask_off_detector'] = True
 
         par['calibrations']['slitedges']['add_missed_orders'] = True
         par['calibrations']['slitedges']['order_width_poly'] = 2
@@ -162,10 +163,17 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # number of objects
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is max two object in each order.
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
+        # Extraction parameters
+        par['reduce']['extraction']['min_frac_prof'] = 0.9  # deals well with masked orders in chip gaps
 
         # Sensitivity function parameters
+        par['sensfunc']['trim_std_pixs'] = [4, 40]  # Trim each side of the standard star spectrum
+        par['sensfunc']['mask_hydrogen_lines'] = False
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 5 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['polyorder'] = 7
+        par['sensfunc']['extrap_blu'] = 0.01
+        par['sensfunc']['extrap_red'] = 0.01
+        par['fluxcalib']['extrap_sens'] = True
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_10500_R120000.fits'
         par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0,40.0)
         
