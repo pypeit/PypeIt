@@ -4,40 +4,68 @@ visualizing and analyzing 1D spectra from FITS files. The plugin allows users
 to plot spectra, identify spectral lines from various line lists, and
 customize the display according to different parameters.
 
-**Plugin Type: Local**
+Plugin Type: Local
+==================
 
 Spec1dView is a local plugin, which means it is associated with a specific
 channel in the Ginga viewer. An instance of the plugin can be opened for
 each channel, allowing for multiple spectra to be analyzed simultaneously.
 
-**Usage**
+Usage
+-----
+
 - Load and visualize 1D spectra from FITS files.
+
 - Customize the display by selecting different line lists, extraction types,
   and flux/mask settings.
+
 - Update the redshift to shift the spectral lines accordingly.
 
-**Editing**
+Editing
+-------
+
 Users can modify the visualization by:
+
 - Choosing from a variety of line lists to identify spectral features.
+
 - Selecting different types of extraction methods (OPT, BOX).
+
 - Applying or removing flux calibration and masking options.
+
 - Updating the redshift value to reflect the observed wavelengths.
 
-**UI**
+UI
+--
+
 The user interface provides controls for:
+
 - Selecting the line list from a combobox.
+
 - Entering a redshift value to shift the spectrum.
-- Choosing the extraction type, flux calibration, and masking options via comboboxes.
+
+- Choosing the extraction type, flux calibration, and masking options via
+  comboboxes.
+
 - Buttons to load a FITS file and clear the current selection.
 
-**Buttons**
+Buttons
+-------
+
 - Update z: Updates the redshift value and refreshes the spectrum plot.
+
 - Enter: Loads the specified FITS file for analysis.
+
 - Clear: Clears the current inputs and resets the UI settings.
 
-**Tips**
-- Use the comboboxes to switch between different line lists and adjust the spectrum display settings.
-- Ensure that the correct FITS file path is entered before attempting to load the data.
+Tips
+----
+
+- Use the comboboxes to switch between different line lists and adjust the
+  spectrum display settings.
+
+- Ensure that the correct FITS file path is entered before attempting to load
+  the data.
+
 """
 import time
 import numpy as np
@@ -48,11 +76,10 @@ from ginga.gw import Widgets
 from ginga.table.AstroTable import AstroTable
 from ginga.plot.Plotable import Plotable
 from ginga.canvas.CanvasObject import get_canvas_types
+from ginga.util.syncops import Shelf
 
 from pypeit import specobjs
 from pypeit import utils
-# TODO: need to make PypeIt LineList class to deprecate linetools
-from linetools.lists.linelist import LineList
 
 __all__ = ['Spec1dView']
 
@@ -68,7 +95,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         prefs = self.fv.get_preferences()
         self.settings = prefs.create_category('plugin_Spec1dView')
         self.settings.add_defaults(lines="error", start_ext=0,
-                                   extraction='BOX', fluxed=False, masked=False,
+                                   extraction='OPT', fluxed=False, masked=False,
                                    plot_error=True, autozoom=True)
         self.settings.load(onError='silent')
 
@@ -82,8 +109,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         # selected line list
         self.line_list = 'None'
         # allowed line lists
-        self.line_lists = ['None', 'ISM', 'Strong', 'HI', 'H2', 'CO',
-                           'EUV', 'Galaxy', 'AGN']
+        self.line_lists = ['None'] + utils.get_line_list_names()
         self.llist = None   # the actual line list object
         self.ext_name = ''
 
@@ -92,7 +118,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.start_ext = self.settings.get('start_ext', 0)
 
         self.extraction_types = ('OPT', 'BOX')
-        self.extraction = self.settings.get('extraction', 'BOX')
+        self.extraction = self.settings.get('extraction', 'OPT')
 
         self.fluxed_options = (True, False)
         self.fluxed = self.settings.get('fluxed', False)
@@ -100,9 +126,30 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.masked_options = (True, False)
         self.masked = self.settings.get('masked', False)
 
+        # Size of window to average over for smoothing, in samples
+        self.avg_window = 0
+
+        # Get spectral feature windows from config file (implement later)
+        # Format is list of tuples: (name, wavelength, window), where the
+        # range will be set to wavelength +/- window
+        self.spectral_features = [
+            ('None', 0.0, 0),
+            ('H I 6563 (Halpha)', 6563.0, 100),
+            ('H I 4861 (Hbeta)', 4861.0, 100),
+            ('H I 4341 (Hgamma)', 4341.0, 100),
+            ('Calcium Triplet', 8500.0, 200),
+            ('Sodium Doublet (5890)', 5892.0, 100),
+            ('O III 5007', 5007.0, 100),
+        ]
+
         # dictionary of plotable types
         self.dc = get_canvas_types()
         self.plot = None
+        self.plot_shelf = Shelf()
+        self.plot_stocker = self.plot_shelf.get_stocker()
+
+        viewer = self.channel.get_viewer('Ginga Plot')
+        viewer.add_callback('range-set', self.range_changed_cb)
         self.gui_up = False
 
     def build_gui(self, container):
@@ -187,6 +234,29 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         fr.set_widget(w)
         vbox.add_widget(fr, stretch=0)
 
+        fr = Widgets.Frame("Window")
+        captions = (("Averaging Window:", 'label', 'avg_window', 'entryset'),
+                    ("Spectral Feature:", 'label', 'features', 'combobox'),
+        )
+        w, b = Widgets.build_info(captions, orientation="vertical")
+        self.w.update(b)
+
+        b.avg_window.set_text(str(self.avg_window))
+        b.avg_window.set_tooltip("Set the size of the averaging window (in samples)")
+        b.avg_window.add_callback('activated', self.set_avg_window_cb)
+
+        combobox = b.features
+        for name, wave, window in self.spectral_features:
+            combobox.append_text(name)
+        combobox.set_index(0)
+        combobox.set_tooltip("Spectral feature to highlight")
+        combobox.add_callback('activated', self.set_spectral_feature_cb)
+
+        fr.set_widget(w)
+        vbox.add_widget(fr, stretch=0)
+
+        # Handle spectral feature selection later
+
         top.add_widget(vbox, stretch=0)
 
         spacer = Widgets.Label('')
@@ -218,6 +288,19 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         self.fv.gui_do(self.plot_lines)
 
+    def set_avg_window_cb(self, w):
+        """Callback for setting the averaging window size in the plugin.
+
+        Replot the spectrum as a result.
+        """
+        window = int(w.get_text())
+        if window < 0:
+            self.fv.show_error("Averaging window must be non-negative")
+            return
+        self.logger.info(f"Averaging window = {window} samples")
+        self.avg_window = window
+        self.recalc()
+
     def set_line_list_cb(self, w, idx):
         """Callback for setting the line list in the plugin.
 
@@ -227,7 +310,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         if self.line_list == 'None':
             self.llist = None
         else:
-            self.llist = LineList(self.line_list)
+            self.llist = utils.get_line_list(self.line_list)
         self.logger.info(f"Loaded line list: '{self.line_list}'")
 
         self.fv.gui_do(self.plot_lines)
@@ -265,6 +348,8 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         Lines are made into a single compound object so that it is easier
         to remove them as a group if the line list is changed.
         """
+        if self.plot is None:
+            return
         canvas = self.plot.get_canvas()
         canvas.delete_object_by_tag('lines', redraw=False)
 
@@ -275,14 +360,27 @@ class Spec1dView(GingaPlugin.LocalPlugin):
             y_min, y_max = self.data.y_min, self.data.y_max
 
             z = self.z
-            wvobs = np.array((1 + z) * self.llist.wrest)
+            wvobs = np.array((1 + z) * self.llist['wrest'])
             ylbl_pos = y_max - 0.2 * (y_max - y_min)
             gdwv = np.where((wvobs > x_min) & (wvobs < x_max))[0]
 
+            viewer = self.channel.get_viewer('Ginga Plot')
+            ranges = viewer.get_ranges()
+            x_lo, x_hi = ranges[0]
+            y_lo, y_hi = ranges[1]
+            # make label always sit about 3/4 up the Y range
+            y_lbl = y_lo + (y_hi - y_lo) * 0.75
+            # line should reach to the label at least
+            y_max = max(y_lbl, y_max)
+
             for kk in range(len(gdwv)):
                 jj = gdwv[kk]
-                wrest = self.llist.wrest[jj].value
-                lbl = self.llist.name[jj]
+                wrest = self.llist['wrest'][jj]
+                x_lbl = wrest * (z + 1)
+                if not (x_lo < x_lbl < x_hi):
+                    # skip plotting lines that are not visible
+                    continue
+
                 # Plot
                 x_data = wrest * np.array([z + 1, z + 1])
                 y_data = (y_min, y_max)
@@ -293,8 +391,9 @@ class Spec1dView(GingaPlugin.LocalPlugin):
                                        linestyle='solid',
                                        color='blue'), redraw=False)
                 # Label
-                x, y = wrest * (z + 1), ylbl_pos
-                lines.add(self.dc.Text(x, y, text=lbl, rot_deg=90,
+                lbl = self.llist['name'][jj]
+                lines.add(self.dc.Text(x_lbl, y_lbl, text=lbl, rot_deg=90,
+                                       bgcolor='white', bgalpha=1.0,
                                        color='blue', fontsize=10),
                           redraw=False)
 
@@ -302,7 +401,8 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         canvas.add(lines, tag='lines', redraw=False)
 
         # this causes the plot viewer to redraw itself
-        self.plot.make_callback('modified')
+        with self.plot_stocker:
+            self.plot.make_callback('modified')
 
     def replot(self):
         """Replot the plot and line list.
@@ -332,6 +432,21 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         self.plot_lines()
 
+    def set_spectral_feature_cb(self, widget, data):
+        """Callback to set the current spectral feature."""
+        index = widget.get_index()
+        if index > 0:
+            self.current_feature = self.spectral_features[index]
+            name, wave, window = self.current_feature
+            self.channel.get_viewer('Ginga Plot').set_ranges(x_range=(wave - window, wave + window))
+        else:
+            # We are at 'None', so scale to the whole spectrum
+            self.current_feature = None
+            self.autozoom_plot()
+
+    def range_changed_cb(self, viewer, ranges):
+        if not self.plot_shelf.is_blocked():
+            self.plot_lines()
 
     def process_file(self, filepath):
         """Process `filepath` creating `SpecObjs` (a series of extensions),
@@ -364,19 +479,42 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.autozoom_plot()
 
     def recalc(self):
-        """Reprocess the chosen extension, based on current choices for extraction
-        method, fluxing and masking.
+        """Reprocess the chosen extension, based on current choices for
+        extraction method, fluxing and masking.
 
         Replot everything as a result.
         """
         specobj = self.sobjs[self.exten]
+
+        # check if we have BOX or OPT extractions and adjust UI
+        # accordingly
         if specobj['OPT_WAVE'] is None:
-            specobj['OPT_WAVE'] = specobj['BOX_WAVE']
-            # self.fv.show_error("Spectrum not extracted with OPT.  Try --extract BOX")
-            return
-       
+            self.w.extraction.set_text('BOX')
+            self.extraction = 'BOX'
+            self.w.extraction.set_enabled(False)
+        elif specobj['BOX_WAVE'] is None:
+            self.w.extraction.set_text('OPT')
+            self.extraction = 'OPT'
+            self.w.extraction.set_enabled(False)
+        else:
+            self.w.extraction.set_enabled(True)
+
+        # look for OPT_FLAM_IVAR or BOX_FLAM_IVAR
+        # if don't have, then fluxed==True cannot be used
+        if specobj[f'{self.extraction}_FLAM_IVAR'] is None:
+            self.w.fluxed.set_text('False')
+            self.fluxed = False
+            self.w.fluxed.set_enabled(False)
+        else:
+            self.w.fluxed.set_enabled(True)
+
         wave, flux, ivar, gpm = specobj.to_arrays(extraction=self.extraction,
                                                   fluxed=self.fluxed)
+        if self.fluxed and ivar is None:
+            # <-- fluxed=True cannot be used
+            self.fv.show_error("fluxed=True cannot be used with this data")
+            return
+
         sig = np.sqrt(utils.inverse(ivar))
         wave_gpm = wave > 1.0
         wave, flux, sig, gpm = (wave[wave_gpm], flux[wave_gpm],
@@ -388,10 +526,15 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.data.x_min, self.data.x_max = np.nanmin(wave), np.nanmax(wave)
         self.data.y_min, self.data.y_max = np.nanmin(flux), np.nanmax(flux)
         self.data.wave = wave
-        self.data.flux = flux
+        if self.avg_window != 0:
+            self.data.flux = np.convolve(flux, np.ones((self.avg_window))/self.avg_window, mode='same')
+        else:
+            self.data.flux = flux
         self.data.sig = sig
 
         self.ext_name = self.sobjs.NAME[self.exten]
+
+
         self.replot()
 
     def close(self):
@@ -411,6 +554,8 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         Clean up instance variables so we don't hang on to any large data
         structures.
         """
+        viewer = self.channel.get_viewer('Ginga Plot')
+        viewer.clear()
         self.sobjs = 0
         self.exten = 0
         self.ext_name = ''
@@ -460,6 +605,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         self.autozoom_plot()
 
+
     def plot_error_cb(self, w, val):
         """Callback for toggling the "Plot Error" checkbox in the UI.
         """
@@ -470,6 +616,21 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         if self.settings.get('autozoom', False):
             viewer = self.channel.get_viewer('Ginga Plot')
             viewer.zoom_fit()
+            # We also set the y-range to something reasonable
+            viewer.set_ranges(y_range=self.guess_y_range())
+
+    def guess_y_range(self):
+        """Estimate a sensible y range for the data. Always sets y_min=0."""
+        # threshold in units of median deviation. This is arbitrary but 4 is good enough
+        m = 4
+
+        deviation = np.abs(self.data.flux - np.median(self.data.flux))
+        median_deviation = np.median(deviation)
+        # avoid zero division
+        s = deviation / (median_deviation if median_deviation else 1.)
+        y_max = np.max(self.data.flux[s < m])
+
+        return 0, y_max
 
     def set_params(self, ext=None, extraction=None, masked=None, fluxed=None):
         """Used to set up defaults from command line args to pypeit_show_1dspec script."""
