@@ -163,6 +163,7 @@ pypeit_show_pixflat = "pypeit.scripts.show_pixflat:ShowPixFlat.entry_point"
 
 SlitWavelength = "pypeit.display:setup_SlitWavelength"
 Spec1dView = "pypeit.display:setup_Spec1dView"
+QLView = "pypeit.display:setup_QLView"
 
 [build-system]
 requires = [
