@@ -45,6 +45,7 @@ import os
 import numpy as np
 from pathlib import Path
 import subprocess
+import multiprocessing
 import threading
 import asyncio
 from ginga import GingaPlugin
@@ -62,6 +63,7 @@ from ginga.qtw.QtHelp import QtGui, QtCore
 from pypeit import specobjs
 from pypeit import utils
 from pypeit.slittrace import SlitTraceSet
+from pypeit.scripts import ql
 
 from astropy.io import fits
 # TODO: need to make PypeIt LineList class to deprecate linetools
@@ -135,6 +137,11 @@ class QLView(GingaPlugin.LocalPlugin):
         self.slittracesets = None
         self.active_slit = None
         self.slit_polys = {}
+
+        # Multiprocessing pool for running reductions
+        self.pool = multiprocessing.Pool(processes=2)
+
+        self.instrument = DEIMOS(self.logger) # Gotta start somewhere
 
     def build_gui(self, container):
         """Construct the UI in the plugin container.
@@ -369,33 +376,41 @@ class QLView(GingaPlugin.LocalPlugin):
         command.append("--skip_display")
         command.append("--snr_thresh")
         command.append(self.SNR_box.get_text())
+
         self.logger.info("Launching command: {0}".format(" ".join(command)))
 
+        old_method = False
+        if old_method:
+            # popen_w_cb(self.show_reduced_spec, command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            logfile = open(os.path.join(self.redux_path_entry.get_text(), f"{slitspatnum}.log"), "w")
+            p = subprocess.Popen(command, stdout=logfile, stderr=logfile)
 
-        # popen_w_cb(self.show_reduced_spec, command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        logfile = open(os.path.join(self.redux_path_entry.get_text(), f"{slitspatnum}.log"), "w")
-        p = subprocess.Popen(command, stdout=logfile, stderr=logfile)
+            print("Launched reduction")
 
-        # asyncio.run(self.monitor_reduction(p))
-        print("Launched reduction")
+            hbox, elements = self.make_reduced_slit_hbox()
+            elements['name'].set_text(f"Reducing {self.slit_list_box.get_text()}...")
 
-        hbox, elements = self.make_reduced_slit_hbox()
-        elements['name'].set_text(f"Reducing {self.slit_list_box.get_text()}...")
+            self.vbox_redux.add_widget(hbox, stretch=0)
+            self.reduction_control_elements[self.slit_list_box.get_text()] = {"elements": elements, "hbox": hbox}
+            
+            # need to sleep for just long enough for the directory to be created
+            # redux_path = self.redux_path_from_filename(self.raw_filepath)
+            # while not os.path.exists(redux_path):
+                # self.logger.info(f"Waiting for {redux_path} to be created...")
+                # time.sleep(.5)
+            # self.add_dirs_to_watcher(self.redux_path_from_filename(self.raw_filepath))
 
-        self.vbox_redux.add_widget(hbox, stretch=0)
-        self.reduction_control_elements[self.slit_list_box.get_text()] = {"elements": elements, "hbox": hbox}
-        
-        # need to sleep for just long enough for the directory to be created
-        # redux_path = self.redux_path_from_filename(self.raw_filepath)
-        # while not os.path.exists(redux_path):
-            # self.logger.info(f"Waiting for {redux_path} to be created...")
-            # time.sleep(.5)
-        # self.add_dirs_to_watcher(self.redux_path_from_filename(self.raw_filepath))
+            # out, err = p.communicate()
 
-        # out, err = p.communicate()
+            # while p.poll() is None:
+            #     time.sleep(0.1)
+        else:
+            args = ql.get_parser().parse_args(command[1:])
+            def a_cool_callback(out):
+                self.logger.info("Reduction complete as seen in callback~!")
+                self.raw_btn.set_enabled(False)
+            self.pool.apply_async(ql.main, args, callback=a_cool_callback)
 
-        # while p.poll() is None:
-        #     time.sleep(0.1)
 
     def slit_list_box_cb(self, w, res_dict):
         self.deactivate_slit()
@@ -554,7 +569,7 @@ class QLView(GingaPlugin.LocalPlugin):
             self.raw_text_entry.set_text("Invalid path")
     
 
-    def instrument_combo_cb(self, w, v):
+    def instrument_combo_cb(self, *args):
         selected_inst_str = self.instrument_combo.get_text()
         match selected_inst_str:
             case "DEIMOS":
@@ -685,7 +700,8 @@ class QLView(GingaPlugin.LocalPlugin):
                 child_path = os.path.join(self.raw_filepath[:-1], item.text(1))
 
                 if not os.path.isdir(child_path):
-                    if "fits" not in item.text(1):
+                    if "fits" not in item.text(2):
+                        print(f"hiding {item.text(2)}")
                         item.setHidden(True)
                 tree_iterator += 1
             if resize:
@@ -703,12 +719,11 @@ class QLView(GingaPlugin.LocalPlugin):
             ftype = 'link'
         elif ext.lower() == '.fits':
             ftype = 'fits'
-        
-        bnch = self.instrument.get_raw_info(ftype, path)
 
-        return bnch
-        # header_dict = {}
-        # if ftype == 'fits':
+        header_dict = {}
+        if ftype == 'fits':
+            self.logger.info(f"Reading FITS header for {path}")
+            header_dict = self.instrument.get_raw_info(path)
         #     with fits.open(path) as hdul:
         #         header = hdul[0].header
         #         header_dict['OBJECT'] = header.get('OBJECT', 'N/A')
@@ -728,40 +743,48 @@ class QLView(GingaPlugin.LocalPlugin):
 
 
 
-        # na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
-        # bnch = Bunch.Bunch(na_dict)
-        # try:
-        #     filestat = os.stat(path)
-        #     try:
-        #         bnch.update(dict(path=path, name=filename, type=ftype,
-        #                     st_mode=filestat.st_mode,
-        #                     st_mode_oct=oct(filestat.st_mode),
-        #                     st_size=filestat.st_size,
-        #                     st_size_str=str(filestat.st_size),
-        #                     st_mtime=filestat.st_mtime,
-        #                     st_mtime_str=time.ctime(filestat.st_mtime),
-        #                     OBJECT=header_dict['OBJECT'],
-        #                     FRAMENO=header_dict['FRAMENO'],
-        #                     IMTYPE=header_dict['IMTYPE'],
-        #                     EXPTIME=header_dict['EXPTIME'],
-        #                     MASKNAME=header_dict['MASKNAME'],
-        #                     OBSMODE=header_dict['OBSMODE'],
-        #                     ))
-        #     except KeyError as e:
-        #         bnch.update(dict(path=path, name=filename, type=ftype,
-        #                     st_mode=filestat.st_mode,
-        #                     st_mode_oct=oct(filestat.st_mode),
-        #                     st_size=filestat.st_size,
-        #                     st_size_str=str(filestat.st_size),
-        #                     st_mtime=filestat.st_mtime,
-        #                     st_mtime_str=time.ctime(filestat.st_mtime),))
-        # except OSError as e:
-        #     # TODO: identify some kind of error with this path
-        #     bnch.update(dict(path=path, name=filename, type=ftype,
-        #                     st_mode=0, st_size=0,
-        #                     st_mtime=0))
+        na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
+        bnch = Bunch.Bunch(na_dict)
+        try:
+            filestat = os.stat(path)
+            if ftype == 'fits':
+                self.logger.info(f"Parsing header dict for {path}")
+                bnch.update(dict(path=path, name=filename, type=ftype,
+                            st_mode=filestat.st_mode,
+                            st_mode_oct=oct(filestat.st_mode),
+                            st_size=filestat.st_size,
+                            st_size_str=str(filestat.st_size),
+                            st_mtime=filestat.st_mtime,
+                            st_mtime_str=time.ctime(filestat.st_mtime),
+                            OBJECT=header_dict['OBJECT'],
+                            FRAMENO=header_dict['FRAMENO'],
+                            IMTYPE=header_dict['IMTYPE'],
+                            EXPTIME=header_dict['EXPTIME'],
+                            MASKNAME=header_dict['MASKNAME'],
+                            OBSMODE=header_dict['OBSMODE'],
+                            ))
+            else:
+                bnch.update(dict(path=path, name=filename, type=ftype,
+                            st_mode=filestat.st_mode,
+                            st_mode_oct=oct(filestat.st_mode),
+                            st_size=filestat.st_size,
+                            st_size_str=str(filestat.st_size),
+                            st_mtime=filestat.st_mtime,
+                            st_mtime_str=time.ctime(filestat.st_mtime),
+                            OBJECT="",
+                            FRAMENO="",
+                            IMTYPE="",
+                            EXPTIME="",
+                            MASKNAME="",
+                            OBSMODE="",))
+        except OSError as e:
+            # TODO: identify some kind of error with this path
+            self.logger.error("Error getting file info for %s: %s" % (path, str(e)))
+            bnch.update(dict(path=path, name=filename, type=ftype,
+                            st_mode=0, st_size=0,
+                            st_mtime=0))
 
-        # return bnch
+        return bnch
 
     def makelisting(self, jumpinfo):
         def file_icon(bnch):
@@ -934,6 +957,7 @@ class QLView(GingaPlugin.LocalPlugin):
 
     def close(self):
         """Method called to close the plugin when the Close button is pressed."""
+        self.pool.close()
         self.fv.stop_local_plugin(self.chname, str(self))
 
     def start(self):
@@ -1241,15 +1265,15 @@ class DEIMOS(Instrument):
     
     def get_raw_info(self, path):
 
-        dirname, filename = os.path.split(path)
-        name, ext = os.path.splitext(filename)
-        ftype = 'file'
-        if os.path.isdir(path):
-            ftype = 'dir'
-        elif os.path.islink(path):
-            ftype = 'link'
-        elif ext.lower() == '.fits':
-            ftype = 'fits'
+        # dirname, filename = os.path.split(path)
+        # name, ext = os.path.splitext(filename)
+        # ftype = 'file'
+        # if os.path.isdir(path):
+        #     ftype = 'dir'
+        # elif os.path.islink(path):
+        #     ftype = 'link'
+        # elif ext.lower() == '.fits':
+        #     ftype = 'fits'
 
         header_dict = {}
         with fits.open(path) as hdul:
@@ -1269,44 +1293,45 @@ class DEIMOS(Instrument):
             if header_dict['EXPTIME'] is None:
                 header_dict['EXPTIME'] = header.get('ELAPTIME', "N/A")
 
+        return header_dict
 
-
-        na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
-        bnch = Bunch.Bunch(na_dict)
-        try:
-            filestat = os.stat(path)
-            try:
-                bnch.update(dict(path=path,
-                            name=filename,
-                            type=ftype,
-                            st_mode=filestat.st_mode,
-                            st_mode_oct=oct(filestat.st_mode),
-                            st_size=filestat.st_size,
-                            st_size_str=str(filestat.st_size),
-                            st_mtime=filestat.st_mtime,
-                            st_mtime_str=time.ctime(filestat.st_mtime),
-                            OBJECT=header_dict['OBJECT'],
-                            FRAMENO=header_dict['FRAMENO'],
-                            IMTYPE=header_dict['IMTYPE'],
-                            EXPTIME=header_dict['EXPTIME'],
-                            MASKNAME=header_dict['MASKNAME'],
-                            OBSMODE=header_dict['OBSMODE'],
-                            ))
-            except KeyError as e:
-                bnch.update(dict(path=path, name=filename, type=ftype,
-                            st_mode=filestat.st_mode,
-                            st_mode_oct=oct(filestat.st_mode),
-                            st_size=filestat.st_size,
-                            st_size_str=str(filestat.st_size),
-                            st_mtime=filestat.st_mtime,
-                            st_mtime_str=time.ctime(filestat.st_mtime),))
-        except OSError as e:
-            # TODO: identify some kind of error with this path
-            bnch.update(dict(path=path, name=filename, type=ftype,
-                            st_mode=0, st_size=0,
-                            st_mtime=0))
+        # # na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
+        # # bnch = Bunch.Bunch(na_dict)
+        # try:
+        #     filestat = os.stat(path)
+        #     try:
+        #         bnch.update(dict(path=path,
+        #                     name=filename,
+        #                     type=ftype,
+        #                     st_mode=filestat.st_mode,
+        #                     st_mode_oct=oct(filestat.st_mode),
+        #                     st_size=filestat.st_size,
+        #                     st_size_str=str(filestat.st_size),
+        #                     st_mtime=filestat.st_mtime,
+        #                     st_mtime_str=time.ctime(filestat.st_mtime),
+        #                     OBJECT=header_dict['OBJECT'],
+        #                     FRAMENO=header_dict['FRAMENO'],
+        #                     IMTYPE=header_dict['IMTYPE'],
+        #                     EXPTIME=header_dict['EXPTIME'],
+        #                     MASKNAME=header_dict['MASKNAME'],
+        #                     OBSMODE=header_dict['OBSMODE'],
+        #                     ))
+        #     except KeyError as e:
+        #         self.logger.error(f"KeyError in DEIMOS get_raw_info: {e}")
+        #         # bnch.update(dict(path=path, name=filename, type=ftype,
+        #         #             st_mode=filestat.st_mode,
+        #         #             st_mode_oct=oct(filestat.st_mode),
+        #         #             st_size=filestat.st_size,
+        #         #             st_size_str=str(filestat.st_size),
+        #         #             st_mtime=filestat.st_mtime,
+        #         #             st_mtime_str=time.ctime(filestat.st_mtime),))
+        # except OSError as e:
+        #     # TODO: identify some kind of error with this path
+        #     bnch.update(dict(path=path, name=filename, type=ftype,
+        #                     st_mode=0, st_size=0,
+        #                     st_mtime=0))
         
-        return bnch
+        # return bnch
 
 class MOSFIRE(Instrument):
 
@@ -1328,15 +1353,15 @@ class MOSFIRE(Instrument):
     
     def get_raw_info(self, path):
 
-        dirname, filename = os.path.split(path)
-        name, ext = os.path.splitext(filename)
-        ftype = 'file'
-        if os.path.isdir(path):
-            ftype = 'dir'
-        elif os.path.islink(path):
-            ftype = 'link'
-        elif ext.lower() == '.fits':
-            ftype = 'fits'
+        # dirname, filename = os.path.split(path)
+        # name, ext = os.path.splitext(filename)
+        # ftype = 'file'
+        # if os.path.isdir(path):
+        #     ftype = 'dir'
+        # elif os.path.islink(path):
+        #     ftype = 'link'
+        # elif ext.lower() == '.fits':
+        #     ftype = 'fits'
 
         header_dict = {}
         with fits.open(path) as hdul:
@@ -1356,42 +1381,42 @@ class MOSFIRE(Instrument):
             if header_dict['EXPTIME'] is None:
                 header_dict['EXPTIME'] = header.get('ELAPTIME', "N/A")
 
+        return header_dict
 
-
-        na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
-        bnch = Bunch.Bunch(na_dict)
-        try:
-            filestat = os.stat(path)
-            try:
-                bnch.update(dict(path=path, name=filename, type=ftype,
-                            st_mode=filestat.st_mode,
-                            st_mode_oct=oct(filestat.st_mode),
-                            st_size=filestat.st_size,
-                            st_size_str=str(filestat.st_size),
-                            st_mtime=filestat.st_mtime,
-                            st_mtime_str=time.ctime(filestat.st_mtime),
-                            OBJECT=header_dict['OBJECT'],
-                            FRAMENO=header_dict['FRAMENO'],
-                            IMTYPE=header_dict['IMTYPE'],
-                            EXPTIME=header_dict['EXPTIME'],
-                            MASKNAME=header_dict['MASKNAME'],
-                            OBSMODE=header_dict['OBSMODE'],
-                            ))
-            except KeyError as e:
-                bnch.update(dict(path=path, name=filename, type=ftype,
-                            st_mode=filestat.st_mode,
-                            st_mode_oct=oct(filestat.st_mode),
-                            st_size=filestat.st_size,
-                            st_size_str=str(filestat.st_size),
-                            st_mtime=filestat.st_mtime,
-                            st_mtime_str=time.ctime(filestat.st_mtime),))
-        except OSError as e:
-            # TODO: identify some kind of error with this path
-            bnch.update(dict(path=path, name=filename, type=ftype,
-                            st_mode=0, st_size=0,
-                            st_mtime=0))
+        # na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
+        # bnch = Bunch.Bunch(na_dict)
+        # try:
+        #     filestat = os.stat(path)
+        #     try:
+        #         bnch.update(dict(path=path, name=filename, type=ftype,
+        #                     st_mode=filestat.st_mode,
+        #                     st_mode_oct=oct(filestat.st_mode),
+        #                     st_size=filestat.st_size,
+        #                     st_size_str=str(filestat.st_size),
+        #                     st_mtime=filestat.st_mtime,
+        #                     st_mtime_str=time.ctime(filestat.st_mtime),
+        #                     OBJECT=header_dict['OBJECT'],
+        #                     FRAMENO=header_dict['FRAMENO'],
+        #                     IMTYPE=header_dict['IMTYPE'],
+        #                     EXPTIME=header_dict['EXPTIME'],
+        #                     MASKNAME=header_dict['MASKNAME'],
+        #                     OBSMODE=header_dict['OBSMODE'],
+        #                     ))
+        #     except KeyError as e:
+        #         bnch.update(dict(path=path, name=filename, type=ftype,
+        #                     st_mode=filestat.st_mode,
+        #                     st_mode_oct=oct(filestat.st_mode),
+        #                     st_size=filestat.st_size,
+        #                     st_size_str=str(filestat.st_size),
+        #                     st_mtime=filestat.st_mtime,
+        #                     st_mtime_str=time.ctime(filestat.st_mtime),))
+        # except OSError as e:
+        #     # TODO: identify some kind of error with this path
+        #     bnch.update(dict(path=path, name=filename, type=ftype,
+        #                     st_mode=0, st_size=0,
+        #                     st_mtime=0))
         
-        return bnch
+        # return bnch
 
     def get_display_image(self, hdul) -> np.ndarray:
         """Return a mosaiced image from the MOSFIRE HDUList.
