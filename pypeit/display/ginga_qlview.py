@@ -352,8 +352,6 @@ class QLView(GingaPlugin.LocalPlugin):
             for idx, spat_id in enumerate(spatial_ids):
                 if self.slit_list_box.get_text() == f"S{spat_id}":
                     msc = f"MSC{msc_idx}"
-                    
-
 
         command = ["pypeit_ql"]
         command.append(self.instrument.pypeit_name)
@@ -706,61 +704,64 @@ class QLView(GingaPlugin.LocalPlugin):
         elif ext.lower() == '.fits':
             ftype = 'fits'
         
-        header_dict = {}
-        if ftype == 'fits':
-            with fits.open(path) as hdul:
-                header = hdul[0].header
-                header_dict['OBJECT'] = header.get('OBJECT', 'N/A')
-                header_dict['FRAMENO'] = header.get('FRAMENO', 'N/A')
-                header_dict['IMTYPE'] = header.get('KOAIMTYP', 'N/A') # Just use KOA, since that's the only consistent one
-                header_dict['MASKNAME'] = header.get('MASKNAME', 'N/A')
-                header_dict['OBSMODE'] = header.get('OBSMODE', 'N/A')
-                header_dict['EXPTIME'] = header.get('EXPTIME', None)
-                if header_dict['EXPTIME'] is None:
-                    header_dict['EXPTIME'] = header.get('TTIME', None)
-                if header_dict['EXPTIME'] is None:
-                    header_dict['EXPTIME'] = header.get('ITIME', None)
-                if header_dict['EXPTIME'] is None:
-                    header_dict['EXPTIME'] = header.get('ETIME', None)
-                if header_dict['EXPTIME'] is None:
-                    header_dict['EXPTIME'] = header.get('ELAPTIME', "N/A")
-
-
-
-        na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
-        bnch = Bunch.Bunch(na_dict)
-        try:
-            filestat = os.stat(path)
-            try:
-                bnch.update(dict(path=path, name=filename, type=ftype,
-                            st_mode=filestat.st_mode,
-                            st_mode_oct=oct(filestat.st_mode),
-                            st_size=filestat.st_size,
-                            st_size_str=str(filestat.st_size),
-                            st_mtime=filestat.st_mtime,
-                            st_mtime_str=time.ctime(filestat.st_mtime),
-                            OBJECT=header_dict['OBJECT'],
-                            FRAMENO=header_dict['FRAMENO'],
-                            IMTYPE=header_dict['IMTYPE'],
-                            EXPTIME=header_dict['EXPTIME'],
-                            MASKNAME=header_dict['MASKNAME'],
-                            OBSMODE=header_dict['OBSMODE'],
-                            ))
-            except KeyError as e:
-                bnch.update(dict(path=path, name=filename, type=ftype,
-                            st_mode=filestat.st_mode,
-                            st_mode_oct=oct(filestat.st_mode),
-                            st_size=filestat.st_size,
-                            st_size_str=str(filestat.st_size),
-                            st_mtime=filestat.st_mtime,
-                            st_mtime_str=time.ctime(filestat.st_mtime),))
-        except OSError as e:
-            # TODO: identify some kind of error with this path
-            bnch.update(dict(path=path, name=filename, type=ftype,
-                            st_mode=0, st_size=0,
-                            st_mtime=0))
+        bnch = self.instrument.get_raw_info(ftype, path)
 
         return bnch
+        # header_dict = {}
+        # if ftype == 'fits':
+        #     with fits.open(path) as hdul:
+        #         header = hdul[0].header
+        #         header_dict['OBJECT'] = header.get('OBJECT', 'N/A')
+        #         header_dict['FRAMENO'] = header.get('FRAMENO', 'N/A')
+        #         header_dict['IMTYPE'] = header.get('KOAIMTYP', 'N/A') # Just use KOA, since that's the only consistent one
+        #         header_dict['MASKNAME'] = header.get('MASKNAME', 'N/A')
+        #         header_dict['OBSMODE'] = header.get('OBSMODE', 'N/A')
+        #         header_dict['EXPTIME'] = header.get('EXPTIME', None)
+        #         if header_dict['EXPTIME'] is None:
+        #             header_dict['EXPTIME'] = header.get('TTIME', None)
+        #         if header_dict['EXPTIME'] is None:
+        #             header_dict['EXPTIME'] = header.get('ITIME', None)
+        #         if header_dict['EXPTIME'] is None:
+        #             header_dict['EXPTIME'] = header.get('ETIME', None)
+        #         if header_dict['EXPTIME'] is None:
+        #             header_dict['EXPTIME'] = header.get('ELAPTIME', "N/A")
+
+
+
+        # na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
+        # bnch = Bunch.Bunch(na_dict)
+        # try:
+        #     filestat = os.stat(path)
+        #     try:
+        #         bnch.update(dict(path=path, name=filename, type=ftype,
+        #                     st_mode=filestat.st_mode,
+        #                     st_mode_oct=oct(filestat.st_mode),
+        #                     st_size=filestat.st_size,
+        #                     st_size_str=str(filestat.st_size),
+        #                     st_mtime=filestat.st_mtime,
+        #                     st_mtime_str=time.ctime(filestat.st_mtime),
+        #                     OBJECT=header_dict['OBJECT'],
+        #                     FRAMENO=header_dict['FRAMENO'],
+        #                     IMTYPE=header_dict['IMTYPE'],
+        #                     EXPTIME=header_dict['EXPTIME'],
+        #                     MASKNAME=header_dict['MASKNAME'],
+        #                     OBSMODE=header_dict['OBSMODE'],
+        #                     ))
+        #     except KeyError as e:
+        #         bnch.update(dict(path=path, name=filename, type=ftype,
+        #                     st_mode=filestat.st_mode,
+        #                     st_mode_oct=oct(filestat.st_mode),
+        #                     st_size=filestat.st_size,
+        #                     st_size_str=str(filestat.st_size),
+        #                     st_mtime=filestat.st_mtime,
+        #                     st_mtime_str=time.ctime(filestat.st_mtime),))
+        # except OSError as e:
+        #     # TODO: identify some kind of error with this path
+        #     bnch.update(dict(path=path, name=filename, type=ftype,
+        #                     st_mode=0, st_size=0,
+        #                     st_mtime=0))
+
+        # return bnch
 
     def makelisting(self, jumpinfo):
         def file_icon(bnch):
@@ -884,7 +885,7 @@ class QLView(GingaPlugin.LocalPlugin):
         if '.fits' in p.name:
             hdul = fits.open(path)
             img_data = None
-            img_data = self.instrument.get_mosaic(hdul)
+            img_data = self.instrument.get_display_image(hdul)
             
             img = AstroImage(logger=self.logger)
             img.load_data(img_data)
@@ -1130,16 +1131,18 @@ class QLView(GingaPlugin.LocalPlugin):
 class Instrument():
     """
     Class that generalizes instrument-specific information for the QL viewer.
+    This includes how to get a single 2D array representation of the entire image
+    (i.e. mosaicing), what columns we want to display in both the raw and reduced
+    filetrees, and how to get that information from raw FITS files.
+
     This could conceivably be part of the Spectrograph class in PypeIt, but
     for now we are keeping it separate.
-
-    The only required method at the moment is `get_mosaic`, which should return
-    a mosaiced image from the HDUList, however the instrument wants it.
     """
     def __init__(self, logger) -> None:
         self.logger = logger
+        self.raw_columns = []
 
-    def get_mosaic(self, hdul) -> np.ndarray:
+    def get_display_image(self, hdul) -> np.ndarray:
         """Abstract method to return a mosaiced image from the HDUList.
 
         Parameters
@@ -1152,7 +1155,22 @@ class Instrument():
         np.ndarray
             mosaiced image, in coordinates that are appropriate for the viewer.
         """
-        pass
+        raise NotImplementedError("get_mosaic method not implemented for this instrument")
+
+    def get_raw_info(self, path):
+        """Get the raw information from the file at the given path.
+
+        Parameters
+        ----------
+        path : str
+            Path to the file.
+
+        Returns
+        -------
+        ginga.misc.Bunch
+            A Bunch object containing the raw column information.
+        """
+        raise NotImplementedError("get_raw_info method not implemented for this instrument")
 
 class DEIMOS(Instrument):
 
@@ -1160,7 +1178,7 @@ class DEIMOS(Instrument):
         super().__init__(logger)
         self.pypeit_name = "keck_deimos"
 
-    def get_mosaic(self, hdul) -> np.ndarray:
+    def get_display_image(self, hdul) -> np.ndarray:
         """Return a mosaiced image from the DEIMOS HDUList.
 
         Parameters
@@ -1220,6 +1238,75 @@ class DEIMOS(Instrument):
         # fulldata = np.rot90(fulldata)
         
         return fulldata
+    
+    def get_raw_info(self, path):
+
+        dirname, filename = os.path.split(path)
+        name, ext = os.path.splitext(filename)
+        ftype = 'file'
+        if os.path.isdir(path):
+            ftype = 'dir'
+        elif os.path.islink(path):
+            ftype = 'link'
+        elif ext.lower() == '.fits':
+            ftype = 'fits'
+
+        header_dict = {}
+        with fits.open(path) as hdul:
+            header = hdul[0].header
+            header_dict['OBJECT'] = header.get('OBJECT', 'N/A')
+            header_dict['FRAMENO'] = header.get('FRAMENO', 'N/A')
+            header_dict['IMTYPE'] = header.get('KOAIMTYP', 'N/A') # Just use KOA, since that's the only consistent one
+            header_dict['MASKNAME'] = header.get('MASKNAME', 'N/A')
+            header_dict['OBSMODE'] = header.get('OBSMODE', 'N/A')
+            header_dict['EXPTIME'] = header.get('EXPTIME', None)
+            if header_dict['EXPTIME'] is None:
+                header_dict['EXPTIME'] = header.get('TTIME', None)
+            if header_dict['EXPTIME'] is None:
+                header_dict['EXPTIME'] = header.get('ITIME', None)
+            if header_dict['EXPTIME'] is None:
+                header_dict['EXPTIME'] = header.get('ETIME', None)
+            if header_dict['EXPTIME'] is None:
+                header_dict['EXPTIME'] = header.get('ELAPTIME', "N/A")
+
+
+
+        na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
+        bnch = Bunch.Bunch(na_dict)
+        try:
+            filestat = os.stat(path)
+            try:
+                bnch.update(dict(path=path,
+                            name=filename,
+                            type=ftype,
+                            st_mode=filestat.st_mode,
+                            st_mode_oct=oct(filestat.st_mode),
+                            st_size=filestat.st_size,
+                            st_size_str=str(filestat.st_size),
+                            st_mtime=filestat.st_mtime,
+                            st_mtime_str=time.ctime(filestat.st_mtime),
+                            OBJECT=header_dict['OBJECT'],
+                            FRAMENO=header_dict['FRAMENO'],
+                            IMTYPE=header_dict['IMTYPE'],
+                            EXPTIME=header_dict['EXPTIME'],
+                            MASKNAME=header_dict['MASKNAME'],
+                            OBSMODE=header_dict['OBSMODE'],
+                            ))
+            except KeyError as e:
+                bnch.update(dict(path=path, name=filename, type=ftype,
+                            st_mode=filestat.st_mode,
+                            st_mode_oct=oct(filestat.st_mode),
+                            st_size=filestat.st_size,
+                            st_size_str=str(filestat.st_size),
+                            st_mtime=filestat.st_mtime,
+                            st_mtime_str=time.ctime(filestat.st_mtime),))
+        except OSError as e:
+            # TODO: identify some kind of error with this path
+            bnch.update(dict(path=path, name=filename, type=ftype,
+                            st_mode=0, st_size=0,
+                            st_mtime=0))
+        
+        return bnch
 
 class MOSFIRE(Instrument):
 
@@ -1227,7 +1314,86 @@ class MOSFIRE(Instrument):
         super().__init__(logger)
         self.pypeit_name = "keck_mosfire"
 
-    def get_mosaic(self, hdul) -> np.ndarray:
+        self.raw_columns = [
+            ('Type', 'icon'),
+            ('Frame No', 'FRAMENO'),
+            ('Name', 'name'),
+            ('Object', 'OBJECT'),
+            ('Type', 'IMTYPE'),
+            ('Mask Name', 'MASKNAME'),
+            ('Obs Mode', 'OBSMODE'),
+            ('Exposure Time', 'EXPTIME'),
+            ('Last Changed', 'st_mtime_str')
+        ]
+    
+    def get_raw_info(self, path):
+
+        dirname, filename = os.path.split(path)
+        name, ext = os.path.splitext(filename)
+        ftype = 'file'
+        if os.path.isdir(path):
+            ftype = 'dir'
+        elif os.path.islink(path):
+            ftype = 'link'
+        elif ext.lower() == '.fits':
+            ftype = 'fits'
+
+        header_dict = {}
+        with fits.open(path) as hdul:
+            header = hdul[0].header
+            header_dict['OBJECT'] = header.get('OBJECT', 'N/A')
+            header_dict['FRAMENO'] = header.get('FRAMENO', 'N/A')
+            header_dict['IMTYPE'] = header.get('KOAIMTYP', 'N/A') # Just use KOA, since that's the only consistent one
+            header_dict['MASKNAME'] = header.get('MASKNAME', 'N/A')
+            header_dict['OBSMODE'] = header.get('OBSMODE', 'N/A')
+            header_dict['EXPTIME'] = header.get('EXPTIME', None)
+            if header_dict['EXPTIME'] is None:
+                header_dict['EXPTIME'] = header.get('TTIME', None)
+            if header_dict['EXPTIME'] is None:
+                header_dict['EXPTIME'] = header.get('ITIME', None)
+            if header_dict['EXPTIME'] is None:
+                header_dict['EXPTIME'] = header.get('ETIME', None)
+            if header_dict['EXPTIME'] is None:
+                header_dict['EXPTIME'] = header.get('ELAPTIME', "N/A")
+
+
+
+        na_dict = {attrname: 'N/A' for colname, attrname in self.settings.get('columns')}
+        bnch = Bunch.Bunch(na_dict)
+        try:
+            filestat = os.stat(path)
+            try:
+                bnch.update(dict(path=path, name=filename, type=ftype,
+                            st_mode=filestat.st_mode,
+                            st_mode_oct=oct(filestat.st_mode),
+                            st_size=filestat.st_size,
+                            st_size_str=str(filestat.st_size),
+                            st_mtime=filestat.st_mtime,
+                            st_mtime_str=time.ctime(filestat.st_mtime),
+                            OBJECT=header_dict['OBJECT'],
+                            FRAMENO=header_dict['FRAMENO'],
+                            IMTYPE=header_dict['IMTYPE'],
+                            EXPTIME=header_dict['EXPTIME'],
+                            MASKNAME=header_dict['MASKNAME'],
+                            OBSMODE=header_dict['OBSMODE'],
+                            ))
+            except KeyError as e:
+                bnch.update(dict(path=path, name=filename, type=ftype,
+                            st_mode=filestat.st_mode,
+                            st_mode_oct=oct(filestat.st_mode),
+                            st_size=filestat.st_size,
+                            st_size_str=str(filestat.st_size),
+                            st_mtime=filestat.st_mtime,
+                            st_mtime_str=time.ctime(filestat.st_mtime),))
+        except OSError as e:
+            # TODO: identify some kind of error with this path
+            bnch.update(dict(path=path, name=filename, type=ftype,
+                            st_mode=0, st_size=0,
+                            st_mtime=0))
+        
+        return bnch
+
+    def get_display_image(self, hdul) -> np.ndarray:
         """Return a mosaiced image from the MOSFIRE HDUList.
 
         Parameters
