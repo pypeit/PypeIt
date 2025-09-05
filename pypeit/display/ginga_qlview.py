@@ -590,8 +590,8 @@ class QLView(GingaPlugin.LocalPlugin):
             if slits is None:
                 continue
             offset = (int(msc_idx) - 1) * slits.nspat
-            left_bound_at_y = slits.left_init[np.round(y).astype(int)] + offset
-            right_bound_at_y = slits.right_init[np.round(y).astype(int)] + offset
+            left_bound_at_y = slits.left_init[np.round(-1 * y + (2048 * 4)).astype(int)] + offset
+            right_bound_at_y = slits.right_init[np.round(-1 * y + (2048 * 4)).astype(int)] + offset
 
             for i in range(slits.nslits):
                 if left_bound_at_y[i] < x < right_bound_at_y[i]:
@@ -865,14 +865,16 @@ class QLView(GingaPlugin.LocalPlugin):
                 self.slit_list_box.append_text(f"S{spat_id}")
 
                 x_vals = np.concatenate((left_init[idx][::sampling], right_init[idx][::-sampling]), axis=0) + ((int(msc_idx) - 1) * slittrace.nspat)
-                y_vals = np.concatenate((y_values_left, y_values_right), axis=0)
+                y_vals = (-1 * np.concatenate((y_values_left, y_values_right), axis=0)) + (2048 * 4)
                 slit_boundard_coords = (x_vals, y_vals)
                 poly = Polygon(list(zip(slit_boundard_coords[0], slit_boundard_coords[1])), color='green', linewidth=1, fill=True, fillalpha=.05)
+                # Ideally we would directly use a polygon callback to handle clicks, but that doesn't seem to be working
+                # poly.add_callback('cursor-down', self.test_cb, slit_id=spat_id)
                 slit_polys.add(poly)
                 self.slit_polys[f"S{spat_id}"] = poly
 
         return slit_polys
-    
+
     def activate_slit(self):
         if self.active_slit is None:
             self.logger.error("No active slit selected.")
