@@ -100,9 +100,9 @@ class Identify:
         specname : str, optional
             The name of the spectrograph
         y_log : bool, optional
-            Scale the Y-axis logarithmically instead of linearly?  (Default: True)
+            Scale the Y-axis logarithmically instead of linearly?
         rescale_resid : bool, optional
-            Rescale the residuals plot to include all points?  (Default: False)
+            Rescale the residuals plot to include all points?
         """
         # Store the axes
         self.axes = axes
@@ -234,9 +234,9 @@ class Identify:
         specname : str, optional
             The name of the spectrograph
         y_log : bool, optional
-            Scale the Y-axis logarithmically instead of linearly?  (Default: True)
+            Scale the Y-axis logarithmically instead of linearly?
         rescale_resid : bool, optional
-            Rescale the residuals plot to include all points?  (Default: False)
+            Rescale the residuals plot to include all points?
 
         Returns
         -------

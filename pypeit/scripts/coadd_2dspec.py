@@ -161,12 +161,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
             # Instantiate Coadd2d
             coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, par, det=det,
-                                                 offsets=par['coadd2d']['offsets'],
-                                                 weights=par['coadd2d']['weights'],
                                                  only_slits=this_only_slits,
                                                  exclude_slits=this_exclude_slits,
-                                                 spec_samp_fact=par['coadd2d']['spec_samp_fact'],
-                                                 spat_samp_fact=par['coadd2d']['spat_samp_fact'],
                                                  bkg_redux=bkg_redux, find_negative=find_negative,
                                                  debug_offsets=args.debug_offsets,
                                                  debug=args.debug)

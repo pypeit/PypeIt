@@ -44,7 +44,7 @@ dependencies = [
     "configobj>=5.0.6",
     "scikit-learn>=1.2",
     "IPython>=8.0.0",
-    "ginga>=5.2.0",
+    "ginga>=5.4.0",
     "linetools>=0.3.2",
     "qtpy>=2.2.0",
     "pygithub",
@@ -57,7 +57,7 @@ scikit-image = [
     "scikit-image>=0.23",
 ]
 specutils = [
-    "specutils>=1.13",
+    "specutils>=2.0",
 ]
 test = [
     "pygit2",
@@ -79,7 +79,7 @@ devsuite = [
 ]
 dev = [
     "scikit-image>=0.23",
-    "specutils>=1.13",
+    "specutils>=2.0",
     "pygit2",
     "pytest>=7.0.0",
     "pytest-astropy",

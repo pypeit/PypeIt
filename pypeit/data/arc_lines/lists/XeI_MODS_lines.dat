@@ -1,0 +1,73 @@
+# Creation Date: 2024-11-16
+| ion |       wave | NIST | Instr | amplitude |       Source |
+| XeI |  3507.7400 |    1 |     0 |         5 | lbt_mods_XeI |
+| XeI |  3614.0900 |    1 |     0 |         8 | lbt_mods_XeI |
+| XeI |  3952.0420 |    1 |     0 |       120 | lbt_mods_XeI |
+| XeI |  3968.6636 |    1 |     0 |       200 | lbt_mods_XeI |
+| XeI |  3975.5410 |    1 |     0 |        40 | lbt_mods_XeI |
+| XeI |  4079.9718 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  4110.8686 |    1 |     0 |        60 | lbt_mods_XeI |
+| XeI |  4117.2760 |    1 |     0 |        80 | lbt_mods_XeI |
+| XeI |  4194.7100 |    1 |     0 |       150 | lbt_mods_XeI |
+| XeI |  4204.8790 |    1 |     0 |           | lbt_mods_XeI |
+| XeI |  4387.0000 |    1 |     0 |        70 | lbt_mods_XeI |
+| XeI |  4525.9493 |    1 |     0 |           | lbt_mods_XeI |
+| XeI |  4584.0314 |    1 |     0 |           | lbt_mods_XeI |
+| XeI |  4613.1801 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  4625.5708 |    1 |     0 |           | lbt_mods_XeI |
+| XeI |  4672.5334 |    1 |     0 |           | lbt_mods_XeI |
+| XeI |  4698.3352 |    1 |     0 |           | lbt_mods_XeI |
+| XeI |  4735.4760 |    1 |     0 |       600 | lbt_mods_XeI |
+| XeI |  4793.9590 |    1 |     0 |       150 | lbt_mods_XeI |
+| XeI |  4808.3625 |    1 |     0 |       500 | lbt_mods_XeI |
+| XeI |  4844.6466 |    1 |     0 |       300 | lbt_mods_XeI |
+| XeI |  4917.8800 |    1 |     0 |       500 | lbt_mods_XeI |
+| XeI |  4924.5260 |    1 |     0 |       500 | lbt_mods_XeI |
+| XeI |  5029.6817 |    1 |     0 |       200 | lbt_mods_XeI |
+| XeI |  5394.2940 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  5441.4350 |    1 |     0 |        30 | lbt_mods_XeI |
+| XeI |  5461.5540 |    1 |     0 |        15 | lbt_mods_XeI |
+| XeI |  5490.0800 |    1 |     0 |        20 | lbt_mods_XeI |
+| XeI |  5896.6220 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  6184.1310 |    1 |     0 |       300 | lbt_mods_XeI |
+| XeI |  6319.8090 |    1 |     0 |       500 | lbt_mods_XeI |
+| XeI |  6670.7610 |    1 |     0 |       150 | lbt_mods_XeI |
+| XeI |  6729.8650 |    1 |     0 |       200 | lbt_mods_XeI |
+| XeI |  6829.1990 |    1 |     0 |       200 | lbt_mods_XeI |
+| XeI |  6848.5020 |    1 |     0 |        60 | lbt_mods_XeI |
+| XeI |  6874.0030 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  6884.0540 |    1 |     0 |       300 | lbt_mods_XeI |
+| XeI |  6927.4400 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  6978.1060 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  7121.5610 |    1 |     0 |       500 | lbt_mods_XeI |
+| XeI |  7318.2880 |    1 |     0 |        70 | lbt_mods_XeI |
+| XeI |  7323.4690 |    1 |     0 |        80 | lbt_mods_XeI |
+| XeI |  7338.5010 |    1 |     0 |        50 | lbt_mods_XeI |
+| XeI |  7388.0380 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  7395.8300 |    1 |     0 |       150 | lbt_mods_XeI |
+| XeI |  7586.7680 |    1 |     0 |       200 | lbt_mods_XeI |
+| XeI |  7644.1280 |    1 |     0 |       500 | lbt_mods_XeI |
+| XeI |  7804.7980 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  7883.4880 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  7889.5630 |    1 |     0 |       300 | lbt_mods_XeI |
+| XeI |  7969.5330 |    1 |     0 |       500 | lbt_mods_XeI |
+| XeI |  8208.5920 |    1 |     0 |       700 | lbt_mods_XeI |
+| XeI |  8233.8964 |    1 |     0 |     10000 | lbt_mods_XeI |
+| XeI |  8349.1157 |    1 |     0 |      2000 | lbt_mods_XeI |
+| XeI |  8411.5002 |    1 |     0 |      2000 | lbt_mods_XeI |
+| XeI |  8578.3700 |    1 |     0 |       200 | lbt_mods_XeI |
+| XeI |  8650.9200 |    1 |     0 |       250 | lbt_mods_XeI |
+| XeI |  8741.7720 |    1 |     0 |       300 | lbt_mods_XeI |
+| XeI |  8760.6100 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  8821.8324 |    1 |     0 |      5000 | lbt_mods_XeI |
+| XeI |  8911.1800 |    1 |     0 |       200 | lbt_mods_XeI |
+| XeI |  8954.7086 |    1 |     0 |      1000 | lbt_mods_XeI |
+| XeI |  8983.5200 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  8990.0400 |    1 |     0 |       200 | lbt_mods_XeI |
+| XeI |  9047.9296 |    1 |     0 |       400 | lbt_mods_XeI |
+| XeI |  9165.1667 |    1 |     0 |       500 | lbt_mods_XeI |
+| XeI |  9515.9870 |    1 |     0 |       200 | lbt_mods_XeI |
+| XeI |  9687.9800 |    1 |     0 |       150 | lbt_mods_XeI |
+| XeI |  9720.8300 |    1 |     0 |       100 | lbt_mods_XeI |
+| XeI |  9802.3840 |    1 |     0 |      2000 | lbt_mods_XeI |
+| XeI |  9925.9190 |    1 |     0 |      3000 | lbt_mods_XeI |
