@@ -6,10 +6,12 @@ Module for the SOAR/Goodman instrument
 import numpy as np
 
 from astropy.time import Time
+from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
+from pypeit.core import flux_calib
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
@@ -185,8 +187,12 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         if ftype in ['science']:
             return good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
         if ftype in ['standard']:
+            std = np.zeros(len(fitstbl), dtype=bool)
             # Don't type pinhole or dark frames
-            return np.zeros(len(fitstbl), dtype=bool) & self.lamps(fitstbl, 'off')
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                std = np.array([flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True)
+                                for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+            return good_exp & std & (fitstbl['idname'] == 'SPECTRUM') & (self.lamps(fitstbl, 'off'))
         if ftype == 'bias':
             # Don't type bias
             return np.zeros(len(fitstbl), dtype=bool)
