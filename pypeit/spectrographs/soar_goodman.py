@@ -188,7 +188,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
         if ftype in ['standard']:
             std = np.zeros(len(fitstbl), dtype=bool)
-            # Don't type pinhole or dark frames
+            # Identify standard stars from flux_calib
             if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
                 std = np.array([flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True)
                                 for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
