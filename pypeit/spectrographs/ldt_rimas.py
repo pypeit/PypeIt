@@ -449,7 +449,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             return astropy.time.Time(f"{date}T{time}", format="isot")
 
 
-class LDTRIMASYJArm(LDTRIMASSpectrograph):
+class RIMASYJArm(LDTRIMASSpectrograph):
     """
     Child to handle common aspects of the LDT/RIMAS YJ Arm
     """
@@ -512,7 +512,7 @@ class LDTRIMASYJArm(LDTRIMASSpectrograph):
         return detector_container.DetectorContainer(**detector_dict)
 
 
-class LDTRIMASHKArm(LDTRIMASSpectrograph):
+class RIMASHKArm(LDTRIMASSpectrograph):
     """
     Child to handle common aspects of the LDT/RIMAS HK Arm
     """
@@ -581,9 +581,9 @@ class LDTRIMASHKArm(LDTRIMASSpectrograph):
         return detector_container.DetectorContainer(**detector_dict)
 
 
-class LDTRIMASLowres:
+class RIMASLowres:
     """
-    Mix-in Class to handle common aspects of the LDT/RIMAS Low-Res Modes
+    Mix-in Class to handle common aspects of the LDT/RIMAS Low-Res (VPH) Modes
     """
 
     pypeline = "MultiSlit"
@@ -610,7 +610,7 @@ class LDTRIMASLowres:
         return fitstbl[vph_idx]
 
 
-class LDTRIMASEchelle:
+class RIMASEchelle:
     """
     Mix-in Class to handle common aspects of the LDT/RIMAS Echelle Modes
     """
@@ -639,7 +639,7 @@ class LDTRIMASEchelle:
 
 
 # Actual Operational Modes ===================================================#
-class LDTRIMASLowYJSpectrograph(LDTRIMASLowres, LDTRIMASYJArm):
+class LDTRIMASLowYJSpectrograph(RIMASLowres, RIMASYJArm):
     """
     Child to handle LDT/RIMAS YJ Arm, lowres-specific code
     """
@@ -811,7 +811,7 @@ class LDTRIMASLowYJSpectrograph(LDTRIMASLowres, LDTRIMASYJArm):
         return par
 
 
-class LDTRIMASLowHKSpectrograph(LDTRIMASLowres, LDTRIMASHKArm):
+class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
     """
     Child to handle LDT/RIMAS HK Arm, lowres-specific code
     """
@@ -975,7 +975,7 @@ class LDTRIMASLowHKSpectrograph(LDTRIMASLowres, LDTRIMASHKArm):
         return par
 
 
-class LDTRIMASEchelleYJSpectrograph(LDTRIMASEchelle, LDTRIMASYJArm):
+class LDTRIMASEchelleYJSpectrograph(RIMASEchelle, RIMASYJArm):
     """
     Child to handle LDT/RIMAS YJ Arm, echelle-specific code
     """
@@ -1182,7 +1182,7 @@ class LDTRIMASEchelleYJSpectrograph(LDTRIMASEchelle, LDTRIMASYJArm):
         return np.log10(9500.0), np.log10(26000)
 
 
-class LDTRIMASEchelleHKSpectrograph(LDTRIMASEchelle, LDTRIMASHKArm):
+class LDTRIMASEchelleHKSpectrograph(RIMASEchelle, RIMASHKArm):
     """
     Child to handle LDT/RIMAS HK Arm, echelle-specific code
     """
