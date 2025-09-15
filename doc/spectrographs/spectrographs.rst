@@ -34,6 +34,7 @@ instrument-specific details for running PypeIt.
    :maxdepth: 1
 
    aat_uhrf
+   apf_levy
    gemini_flamingos2
    gemini_gmos
    gemini_gnirs

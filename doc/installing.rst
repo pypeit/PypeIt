@@ -385,50 +385,36 @@ use the scripts below.
 
 .. _install_atmosphere:
 
-Atmospheric Model Grids
------------------------
+Atmospheric Models
+------------------
 
 Calculation of the sensitivity functions and general fitting of telluric
-absorption uses a grid of model atmosphere spectra.  Files with these
-pre-computed model grids are large (few GB).  Recent updates allow for the use
-of a PCA decomposition of these models to provided smaller (few MB) reference
-files and faster performance; however, both methods are still functional.
-
-For the larger, atmospheric-grid files, note that we provide model spectra for
-atmospheric conditions specific to an observatory; however, a model grid is not
-provided for all observatories with spectrographs supported by PypeIt.  If you
-do not find models for your observatory, you can use the Maunakea model as an
-approximation. It includes a large grid of different parameters and should be
-good enough for most purposes.
+absorption uses a PCA decomposition of a massive grid of model atmosphere spectra
+across many different observatories, with reference files that are only a few MB
+in size. Earlier PypeIt versions used pre-computed model grids which were much
+larger (several GB) and observatory-specific; note that the new PCA
+models are explicitly designed to be observatory-agnostic, and typically only differ
+in their intrinsic spectral resolution (except for experimental Keck/HIRES and Keck/NIRSPEC [high-resolution mode]
+model files) to improve computational efficiency.
 
 .. note::
 
-    Instruments that anticipate needing a telluric grid have its filename
-    already included in the ``telgridfile`` `TelluricPar keyword
+    Instruments that anticipate needing a telluric correction have the filename
+    of a PCA model with sufficient resolution already included in the ``telgridfile``
+    `TelluricPar keyword
     <https://pypeit.readthedocs.io/en/latest/pypeit_par.html#telluricpar-keywords>`__.
-    The needed model grid will download automatically when required by the code,
-    but given the size of these files and your downlink speed, this may take
-    some time.
+    While the ``pypeit_install_telluric`` script can be used to download the files
+    ahead of time, they are light enough that this is no longer necessary.
 
-To install an atmospheric grid or PCA file independent of a reduction, use the
-``pypeit_install_telluric`` script, calling the filename of the grid required.
-For example, if you need the file ``TelFit_MaunaKea_3100_26100_R20000.fits``,
-you would execute:
-
-.. code-block:: console
-
-    $ pypeit_install_telluric TelFit_MaunaKea_3100_26100_R20000.fits
-
-The downloaded file will exist in the PypeIt cache.  Unlike files hosted on
-``github``, these files will persist through upgrades of your installation.  To
-force the update of a telluric model grid file to the latest version, simply run
-``pypeit_install_telluric`` with the ``--force_update`` option.
-
-If you require a telluric grid that is not presently hosted in the cloud, the
-code will instruct you to download the file separately from the `PypeIt
-dev-suite Google Drive`_.  Users may select any of the files in the Google Drive
-for their telluric correction, download them separately, then install them using
-the ``--local`` option to ``pypeit_install_telluric``.
+It is still possible to use the legacy atmospheric grid files by modifying the
+``teltype`` `TelluricPar keyword
+<https://pypeit.readthedocs.io/en/latest/pypeit_par.html#telluricpar-keywords>`__.
+Only a handful of the original observatory-specific grids are still available for
+download on the `PypeIt dev-suite Google Drive`_. Users may select any of the files
+in the Google Drive for their telluric correction, download them separately, then
+install them using the ``--local`` option to ``pypeit_install_telluric``. For access
+to other legacy grids please leave a message in the telluric channel on the
+`PypeIt Users Slack <https://pypeit-users.slack.com>`__.
 
 User-provided atmospheric extinction files and wavelength-calibration line lists
 --------------------------------------------------------------------------------

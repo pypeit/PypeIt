@@ -44,7 +44,7 @@ dependencies = [
     "configobj>=5.0.6",
     "scikit-learn>=1.2",
     "IPython>=8.0.0",
-    "ginga>=5.2.0",
+    "ginga>=5.4.0",
     "linetools>=0.3.2",
     "qtpy>=2.2.0",
     "pygithub",

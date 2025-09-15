@@ -14,12 +14,14 @@ from scipy.io import readsav
 
 from astropy.table import Table
 from astropy import time
+from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import flux_calib
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from pypeit.par import pypeitpar
@@ -163,6 +165,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # number of objects
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is max two object in each order.
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
+        # Extraction parameters
+        par['reduce']['extraction']['min_frac_prof'] = 0.9  # deals well with masked orders in chip gaps
 
         # Sensitivity function parameters
         par['sensfunc']['trim_std_pixs'] = [4, 40]  # Trim each side of the standard star spectrum
@@ -245,7 +249,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
         self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
-        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
+        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2, atol=1e-1)
         self.meta['object'] = dict(ext=0, card='OBJECT')
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
@@ -399,8 +403,19 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
+        # std
+        if ftype == 'standard':
+            std = np.zeros(len(fitstbl), dtype=bool)
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                # std = np.array([flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True)
+                #                 for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+                std = np.array([
+                    flux_calib.find_standard_file(ra, dec, toler=10. * units.arcmin, check=True)
+                    if ra is not None and dec is not None and not np.isnan(ra) and not np.isnan(dec)
+                    else False for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+            return good_exp & (fitstbl['idname'] == 'Object') & std
         # 'science' category
-        if ftype in ['science', 'standard']:
+        if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')

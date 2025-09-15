@@ -14,6 +14,8 @@ from pypeit.core import framematch, parse
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
 
+from IPython import embed
+
 
 class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     """
@@ -47,6 +49,14 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+
+        pscale = 0.15 # arcsec/pixel # this is the value for the short camera position only
+        if hdu:
+            camera_pos = self.get_meta_value(self.get_headarr(hdu), 'camera_pos')
+            if 'Long' in camera_pos:
+                pscale = 0.05
+
+
         # Detector 1
         detector_dict = dict(
             binning         = '1,1',
@@ -55,7 +65,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             specaxis        = 0,
             specflip=True,
             spatflip=True,
-            platescale      = 0.15,
+            platescale      = pscale,
             darkcurr        = 540.0,  # e-/hour/pixel  (=0.15 e-/pixel/s)
             saturation      = 150000.,
             nonlinear       = 0.71,
@@ -93,6 +103,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Extras for config and frametyping
         self.meta['filter1'] = dict(ext=0, card='FILTER2')
+        # long or short camera position (they have different plate-scale)
+        self.meta['camera_pos'] = dict(ext=0, card='CAMERA')
         self.meta['slitwid'] = dict(ext=0, compound=True, card=None)
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['hatch'] = dict(ext=0, card='COVER')
@@ -322,6 +334,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # TODO This is a hack for now until we figure out how to set dispname
         # and other meta information in the spectrograph class itself
         self.dispname = self.get_meta_value(scifile, 'dispname')
+        # this is also a hack for now
+        self.camera_pos = self.get_meta_value(scifile, 'camera_pos')
         # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
         if '32/mm' in self.dispname:
             # Edges
@@ -509,14 +523,12 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        # TODO: Binning is ignored.  Should it be?
-        self.check_disperser()
-        if '10/mmLBSX' in self.dispname:
+        # # TODO: Binning is ignored.  Should it be?
+        # The platescale is different for different camera position, not dispname.
+        if self.camera_pos is not None and 'Long' in self.camera_pos:
             return np.full(order_vec.size, 0.05)
-        elif '32/mm' in self.dispname:
-            return np.full(order_vec.size, 0.15)
         else:
-            msgs.error('Unrecognized disperser')
+            return np.full(order_vec.size, 0.15)
 
     @property
     def norders(self):

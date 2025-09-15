@@ -9,6 +9,9 @@ Documentation Updates
   Apart from a small number of maintainers, code contributions are now expected
   to come from forks.  Also, all the developer-specific installation details
   have been removed from the main installation doc.
+- Cleaned up documentation referring to the telluric atmospheric grids. Much of
+  the old documentation had not been updated to reflect the PCA models, leading
+  to some confusion.
 
 Installation Changes
 --------------------
@@ -43,21 +46,40 @@ Functionality/Performance Improvements and Additions
 - Added ``SensfuncPar`` parameter ``trim_std_pixs`` to allow the user to "trim" the
   standard star 1D spectrum by a user-defined number of pixels before computing the
   sensitivity function.
-- We include new, brighter blackbody standard stars, as reported in Cooke, Suzuki and Prochaska (2025).
+- We include new, brighter blackbody standard stars, as reported in Cooke,
+  Suzuki and Prochaska (2025).
 - We have removed J1255p1924 as a blackbody flux calibration standard star. Based on X-SHOOTER
   observations by Cooke, Suzuki and Prochaska (2025), this white dwarf star has Ca II absorption.
 - Allow the user to skip writing 2D science spectrum files.  Note that this should
   only be invoked after careful inspection of a sample of 2D reduced spectra and
   when the user is completely satisfied of the quality of the extracted 1D spectra.
+- Added ``ExtractionPar`` parameter ``min_frac_prof`` to allow the user to set the minimum
+  fraction of the object spatial profile that is not masked in the optimal extraction.
+- Changed the implementation on how to set the reference objects, used to
+  compute spatial offsets and/or weights when combining 2D spectra (i.e.,
+  ``pypeit_coadd_2dspec``). The user can now provide a list of reference objects
+  (one per spec2d file) using the ``SPAT_PIXPOS_ID`` or ``ECH_FRACPOS_ID`` (for
+  MultiSlit and Echelle data, respectively) attributes in ``SpecObj`` as unique
+  identifiers for reference objects. These identifiers can be provided using the
+  ``user_obj_ids`` parameter in the ``Coadd2DPar`` parsets. The ``user_obj``
+  parameter has been removed.
+- Restricted the range of stretch corrections to the wavelength solution in telluric
+  fits to a more reasonable one to avoid catastrophic edge cases.
+- Passed the `TelluricPar` parameter `resln_frac_bounds` through to the tellfit script
+  functions (qso_telluric, star_telluric, poly_telluric)
 
 Instrument-specific Updates
 ---------------------------
 
+- Added wavelength template for Gemini GMOS-N/GMOS-S R150 grating.
+- Added support for the Levy spectrograph on the Automated Planet Finder at Lick
+  Observatory (APF/Levy)
 
 Script Changes
 --------------
 
-- ``pypeit_setup_gui`` script has been removed. The Setup GUI can be started with ``pypeit_setup -G``.
+- ``pypeit_setup_gui`` script has been removed. The Setup GUI can be started
+  with ``pypeit_setup -G``.
 - Added ``pypeit_run_to_calibstep`` to run PypeIt to an input calibration
   step. This script is useful to re-generate calibration files for a given
   configuration without running the full reduction.
@@ -72,17 +94,29 @@ Script Changes
 Datamodel Changes
 -----------------
 
+- The ``SpecObj`` datamodel has been updated (v1.1.12) to include the ``BOX_R_ASEC``
+  attribute, which contains the information about the size of the boxcar radius in
+  arcsec. In addition, the already existing ``BOX_RADIUS`` attribute, which contains
+  the boxcar radius in pixels, had the name changed to ``BOX_R_PIX``.
+- The ``SpecObj`` datamodel has been updated (v1.1.13) to include the ``SPAT_PIXPOS_ID``
+  and ``ECH_FRACPOS_ID`` attributes, which are unique identifiers for the extracted objects
+  from MultiSlit and Echelle data, respectively.
+
 
 
 Under-the-hood Improvements
 ---------------------------
 
- - Updates the ``pypeit_trace_edges`` script to use ``lampoffflats``, if they're
-   provided by the pypeit file passed to the script.
- - Moved ``deprecated``, ``paper``, ``presentations``, and ``proposals``
-   directories into a new repository ``PypeIt-misc``.
- - Abstracted generation of GitHub remote paths in the cache system to make sure
-   functionality works when working in a fork of the code.
+- Updates the ``pypeit_trace_edges`` script to use ``lampoffflats``, if they're
+  provided by the pypeit file passed to the script.
+- Moved ``deprecated``, ``paper``, ``presentations``, and ``proposals``
+  directories into a new repository ``PypeIt-misc``.
+- Abstracted generation of GitHub remote paths in the cache system to make sure
+  functionality works when working in a fork of the code.
+- Basic maintenance on :class:`~pypeit.bspline.bspline.bspline`: Removed
+  ``*kwargs`` from instantiation call, removed redundant (``placed`` vs.
+  ``bkpts``) arguments, removed unused to/from dict functionality, cleaned up
+  construction of breakpoints, added docs.
 
 Bug Fixes
 ---------
@@ -105,3 +139,10 @@ Bug Fixes
 - For Gemini GMOS, PypeIt now correctly uses mask definition files with tilted
   slits. (Before, it would simply fail with an error message if any slits were
   tilted.)
+- Fix a bug in the ``order_platescale()`` method for the ``keck_esi`` spectrograph,
+  where the wrong binning was used to compute the platescale.
+- Fix a bug in how the ``box_width``, showed in arcsec in the "spec1d*.txt" file, was
+  computed for the echelle data. The value was previously not accounting for the
+  order-specific plate scale.
+- Fix a bug in the ``core.findobj_skymask.ech_fill_in_orders()`` method, where attributes
+  of objects only found on some orders were not properly propagated to the other orders.
