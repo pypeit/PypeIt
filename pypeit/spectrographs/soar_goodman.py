@@ -184,15 +184,15 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science']:
-            return good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
-        if ftype in ['standard']:
+        if ftype in ['science', 'standard']:
             std = np.zeros(len(fitstbl), dtype=bool)
             # Identify standard stars from flux_calib
             if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
                 std = np.array([flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True)
                                 for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
-            return good_exp & std & (fitstbl['idname'] == 'SPECTRUM') & (self.lamps(fitstbl, 'off'))
+            base = good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
+            if ftype == 'science':
+                return base & np.logical_not(std)
         if ftype == 'bias':
             # Don't type bias
             return np.zeros(len(fitstbl), dtype=bool)
