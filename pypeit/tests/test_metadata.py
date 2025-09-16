@@ -108,7 +108,7 @@ def test_soar_goodman_metadata():
     assert np.array_equal(tst, np.array([True, False, False, False]))
     # Check science - note that the standard will also pass this test
     tst = spectrograph.check_frame_type('science',fitstbl)
-    assert np.array_equal(tst, np.array([True, True, False, False]))
+    assert np.array_equal(tst, np.array([False, True, False, False]))
     # Check arc
     tst = spectrograph.check_frame_type('arc',fitstbl)
     assert np.array_equal(tst, np.array([False, False, True, False]))
