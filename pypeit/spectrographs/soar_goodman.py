@@ -193,6 +193,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             base = good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
             if ftype == 'science':
                 return base & np.logical_not(std)
+            return base & std
         if ftype == 'bias':
             # Don't type bias
             return np.zeros(len(fitstbl), dtype=bool)
