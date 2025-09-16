@@ -92,7 +92,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [0, 60]
         par['calibrations']['illumflatframe']['exprng'] = [0, 60]
         par['calibrations']['slitless_pixflatframe']['exprng'] = [0, 60]
-        par['calibrations']['standardframe']['exprng'] = [1, 61]
+        par['calibrations']['standardframe']['exprng'] = [1, 121]
 
         # Set default processing for slitless_pixflat
         par['calibrations']['slitless_pixflatframe']['process']['scale_to_mean'] = True
