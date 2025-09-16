@@ -357,14 +357,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         no_img = np.array([d not in ['Mirror', 'mirror', 'clear'] for d in fitstbl['dispname']])
 
         # Check frame type
-        if ftype == 'science':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
-        if ftype == 'standard':
+        if ftype in ['science','standard']:
             std = np.zeros(len(fitstbl), dtype=bool)
             if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
                 std = np.array([flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True)
                                 for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img & std
+
+            base = good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
+            if ftype == 'science':
+                return base & np.logical_not(std)
+            return base & std
+
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
         if ftype == 'slitless_pixflat':
