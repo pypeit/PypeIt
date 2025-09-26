@@ -1,0 +1,281 @@
+import sys
+from pathlib import Path
+from pypeit import msgs
+
+from qtpy.QtCore import QTimer, QSize, Qt, QMargins
+from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter
+from qtpy.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QGridLayout, QLabel, QProgressBar,QTabWidget, QListWidget, QAbstractItemView
+import qtpy
+
+class FilledBackgroundWidget(QWidget):
+    def __init__(self, color=None):
+        super().__init__()
+        self.color = color
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.color is not None:
+            painter = QPainter(self)
+            painter.fillRect(event.rect(), QColor(self.color))
+    
+
+class ButtonWidget(FilledBackgroundWidget):
+    def __init__(self):
+        super().__init__()#color=QColorConstants.DarkBlue)
+
+        self.test_icons = [(QIcon.ThemeIcon.DocumentOpen, "Open Setup"),
+                           (QIcon.ThemeIcon.InputKeyboard, "Edit Setup"),
+                           (QIcon.ThemeIcon.MediaSeekForward, "Run All"),
+                           (QIcon.ThemeIcon.MediaSkipForward, "Run Next"),
+                           (QIcon.ThemeIcon.HelpFaq, "Help"),
+                           ]
+        layout=QVBoxLayout()
+        for icon, text in self.test_icons:
+            b = QPushButton()
+            b.setStyleSheet(f"text-align:left;")
+
+            b.setText(text)
+            b.setIcon(QIcon.fromTheme(icon))
+            b.setIconSize(QSize(32,32))
+            #b.setAlignment(Qt.AlignmentFlag.AlignLeft)
+            layout.addWidget(b)
+            
+
+        self.setLayout(layout)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.setMaximumWidth(self.fontMetrics().averageCharWidth()*20)
+        self.setMaximumHeight(self.fontMetrics().lineSpacing()*15)
+
+class StatusWidget(FilledBackgroundWidget):
+    def __init__(self):
+        super().__init__()#color=QColorConstants.DarkGreen)
+        fm = self.fontMetrics()       
+        h = fm.lineSpacing() * 8
+        #self.setMinimumHeight(h)
+        self.setMaximumHeight(h)
+        w = fm.averageCharWidth() * 80
+        self.setMaximumWidth(w)
+        msgs.info(f"status height {h} width{w}")
+
+        value_cm = QMargins(fm.averageCharWidth(),0,fm.averageCharWidth(),0)
+        value_style_sheet = "background-color:rgb(80,80,80);"
+        layout = QGridLayout()
+        #l = QLabel(text="Status")
+        #l.setStyleSheet("font: normal 36pt")
+        #layout.addWidget(l, 0, 0, 1, 3,alignment=Qt.AlignmentFlag.AlignLeft)
+
+        l = QLabel(text="Setup File")
+        #l.setStyleSheet("background-color:Blue;")
+        layout.addWidget(l,0,0,1,1)#,alignment=Qt.AlignmentFlag.AlignLeft)
+
+        l = QLabel(text="keck_deimos_830g_m_8500.pypeit")
+        l.setContentsMargins(value_cm)
+        l.setStyleSheet(value_style_sheet)
+        layout.addWidget(l,0,1,1,1)
+
+        l = QLabel(text="Calibration ID")
+        layout.addWidget(l,1,0,1,1)
+
+
+        l = QLabel(text="0")
+        l.setContentsMargins(value_cm)
+        l.setStyleSheet(value_style_sheet)
+        layout.addWidget(l,1,1,1,1)#,alignment=Qt.AlignmentFlag.AlignLeft)
+
+        l = QLabel(text="Detector")
+        layout.addWidget(l,2,0,1,1)
+
+        l = QLabel(text="3")
+        l.setContentsMargins(value_cm)
+        l.setStyleSheet(value_style_sheet)
+        layout.addWidget(l,2,1,1,1)
+
+        l = QLabel(text="Science File")
+        layout.addWidget(l,0,2,1,1)
+
+        l = QLabel(text="DE.20100913.22358.fits.gz")
+        l.setContentsMargins(value_cm)
+        l.setStyleSheet(value_style_sheet)
+        layout.addWidget(l,0,3,1,1)
+
+        l = QLabel(text="Step")
+        layout.addWidget(l,1,2,1,1)
+
+        l = QLabel(text="Calibrations")
+        l.setContentsMargins(value_cm)
+        l.setStyleSheet(value_style_sheet)
+        layout.addWidget(l,1,3,1,1)
+
+        l = QLabel(text="Calibration Step")
+        layout.addWidget(l,2,2,1,1)
+
+        l = QLabel(text="Tilts")
+        l.setContentsMargins(value_cm)
+        l.setStyleSheet(value_style_sheet)
+        layout.addWidget(l,2,3,1,1)
+
+        progress_bar = QProgressBar()
+        progress_bar.setMaximum(100)
+        progress_bar.setValue(33)
+        progress_bar.setTextVisible(True)
+        layout.addWidget(progress_bar,3,0,1,4)
+
+        #layout.addWidget(SpacerWidget(rows=5,cols=40),3,4,3,4)
+        layout.setVerticalSpacing(self.fontMetrics().lineSpacing())
+        layout.setHorizontalSpacing(self.fontMetrics().averageCharWidth())
+        self.setLayout(layout)
+        cm = self.layout().contentsMargins()
+        cm.setTop(0)
+        #self.layout().setContentsMargins(cm)
+
+class TopWidget(FilledBackgroundWidget): 
+    def __init__(self):
+        super().__init__()#color=QColorConstants.DarkRed)
+        fm = self.fontMetrics()       
+        h = fm.lineSpacing() * 12
+        msgs.info(f"top height {h}")
+        self.setMinimumHeight(h)
+
+        layout = QHBoxLayout()
+        layout.addWidget(ButtonWidget(),alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(StatusWidget(),alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, stretch=3)
+
+        contentsMargins = layout.contentsMargins()
+        contentsMargins.setLeft(0)
+        contentsMargins.setTop(0)
+        layout.setContentsMargins(contentsMargins)
+
+        #layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        self.setLayout(layout)
+
+
+class BottomWidget(FilledBackgroundWidget): 
+    def __init__(self):
+        super().__init__(color=QColorConstants.Blue)
+        fm = self.fontMetrics()
+        
+        h = fm.lineSpacing() * 12
+        msgs.info(f"bottom height {h}")
+        self.setMinimumHeight(h)
+
+class SpacerWidget(FilledBackgroundWidget):
+    def __init__(self, cols=None, rows=None):
+        super().__init__(color=QColorConstants.DarkCyan)
+
+        fm = self.fontMetrics()
+        msgs.info(f"fm maxWidth: {fm.maxWidth()} linespacing: {fm.lineSpacing()}")
+        if cols is not None:
+            w = fm.maxWidth() * cols
+            self.setMinimumWidth(w)
+        else:
+            w="-"
+        if rows is not None:
+            h = fm.lineSpacing() * rows
+            self.setMinimumHeight(h)
+        else:
+            h="-"    
+        msgs.info(f"Spacer height {h} width {w}")
+        
+class FileListWidget(QListWidget):
+    def __init__(self):
+        super().__init__()
+        self.addItems(["Arc_A_0_DET03.fits",
+                       "Arc_A_0_DET07.fits",
+                       "Edges_A_0_DET03.fits.gz",
+                       "Edges_A_0_DET07.fits.gz",
+                       "Slits_A_0_DET03.fits.gz",
+                       "Slits_A_0_DET07.fits.gz",
+                       "Tiltimg_A_0_DET03.fits",
+                       "Tiltimg_A_0_DET07.fits",
+                       "Tilts_A_0_DET03.fits",
+                       "WaveCalib_A_0_DET03.fits,"
+                       "WaveCalib_A_0_DET07.fits",
+                       ])
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+
+class DashboardWidget(FilledBackgroundWidget):
+    def __init__(self):
+        super().__init__()
+
+        layout = QVBoxLayout()
+        layout.addWidget(StatusWidget())
+        tab_widget = QTabWidget()
+        tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.Red),"QA")
+        tab_widget.addTab(FileListWidget(),"Calibrations")
+        tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.DarkGreen),"Science")
+
+        layout.addWidget(tab_widget, 3)
+        self.setLayout(layout)
+
+        
+class MainWindow(QWidget):
+    
+    def __init__(self):
+        super().__init__()
+
+        layout = QHBoxLayout()
+        layout.addWidget(ButtonWidget(),alignment=Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(DashboardWidget(),stretch=3)
+
+        #self.bottom_row = QWidget()
+        #self.bottom_row.setStyleSheet("background-color:blue;")
+        #fm = self.bottom_row.fontMetrics()        
+        #h = fm.lineSpacing() * 12
+        #msgs.info(f"bottom height {h}")
+        #self.bottom_row.setMinimumHeight(h)
+
+        
+        self.setLayout(layout)
+
+def main():
+        # Note QT expects the program name as arg 0
+    app = QApplication(sys.argv)
+
+    # Setup application/window icon
+    iconPath = Path(__file__).parent.parent / "setup_gui/images/window_icon.png"
+    if not iconPath.exists():
+        msgs.info("Icon path does not exist")
+    else:
+        app.setWindowIcon(QIcon(str(iconPath)))
+    
+    msgs.reset(verbosity=2, log="dashboard.log", log_to_stderr=True)
+    msgs.info(f"QT Version: {qtpy.QT_VERSION}")
+    msgs.info(f"PySide version: {qtpy.PYSIDE_VERSION}")
+    msgs.info(f"PyQt version: {qtpy.PYQT_VERSION}")
+    msgs.info(f"QtPy API_NAME: {qtpy.API_NAME}")
+
+    defaultFont = app.font()
+    msgs.info(f"Default font pixel size: {defaultFont.pixelSize()}")
+    msgs.info(f"Default font point size: {defaultFont.pointSizeF()}")
+    if defaultFont.pointSizeF() < 18.0:
+        msgs.info(f"Setting font to 18.")
+        defaultFont.setPointSize(18)
+        app.setFont(defaultFont)
+
+
+    main_window = MainWindow()
+    main_window.setWindowTitle(main_window.tr("PypeIt Dashboard"))
+    main_window.resize(1650,900)
+    main_window.show()
+
+    # QT runs it's event loop in C, so the python signal handling mechanism
+    # is never called, or it's only called after you give focus to the
+    # window. To make Ctrl+C handling work immediately in a way that still 
+    # calls the PypeIt CTRL+C handler, we set a timer to run every 500ms in the
+    # python interpreter, which will allow the python signal handling
+    # code to it.
+        
+    # This trck was brought to you by this stack exchange thread:
+    # https://stackoverflow.com/questions/4938723/what-is-the-correct-way-to-make-my-pyqt-application-quit-when-killed-from-the-co
+    timer = QTimer()
+    timer.start(500)
+    timer.timeout.connect(lambda: None)
+
+    # Start the applications event loop
+    sys.exit(app.exec_())
+
+
+
+if __name__ == '__main__':
+    sys.exit(main())
