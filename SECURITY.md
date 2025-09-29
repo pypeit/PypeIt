@@ -8,8 +8,8 @@ supported versions of PypeIt, listed in the table below.
 
 |  Version | Supported          |
 | -------- | ------------------ |
-|  1.17.x  | :white_check_mark: |
-| < 1.17.0 | :x:                |
+|  1.18.x  | :white_check_mark: |
+| < 1.18.0 | :x:                |
 
 ## Reporting a Vulnerability
 

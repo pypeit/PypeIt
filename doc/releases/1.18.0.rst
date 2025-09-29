@@ -1,6 +1,6 @@
 
-Version 1.17.5dev
-=================
+Version 1.18.0   
+==============
 
 Documentation Updates
 ---------------------
@@ -12,10 +12,6 @@ Documentation Updates
 - Cleaned up documentation referring to the telluric atmospheric grids. Much of
   the old documentation had not been updated to reflect the PCA models, leading
   to some confusion.
-
-Installation Changes
---------------------
-
 
 
 Dependency Changes
@@ -68,12 +64,14 @@ Functionality/Performance Improvements and Additions
 - Passed the `TelluricPar` parameter `resln_frac_bounds` through to the tellfit script
   functions (qso_telluric, star_telluric, poly_telluric)
 
+
 Instrument-specific Updates
 ---------------------------
 
 - Added wavelength template for Gemini GMOS-N/GMOS-S R150 grating.
 - Added support for the Levy spectrograph on the Automated Planet Finder at Lick
   Observatory (APF/Levy)
+
 
 Script Changes
 --------------
@@ -103,7 +101,6 @@ Datamodel Changes
   from MultiSlit and Echelle data, respectively.
 
 
-
 Under-the-hood Improvements
 ---------------------------
 
@@ -117,6 +114,7 @@ Under-the-hood Improvements
   ``*kwargs`` from instantiation call, removed redundant (``placed`` vs.
   ``bkpts``) arguments, removed unused to/from dict functionality, cleaned up
   construction of breakpoints, added docs.
+
 
 Bug Fixes
 ---------
@@ -146,3 +144,5 @@ Bug Fixes
   order-specific plate scale.
 - Fix a bug in the ``core.findobj_skymask.ech_fill_in_orders()`` method, where attributes
   of objects only found on some orders were not properly propagated to the other orders.
+- Fixed a bug causing 2D coadding of SOAR/Goodman data to fault based on the
+  extensions of the spec2d files.

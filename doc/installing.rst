@@ -256,13 +256,6 @@ follows.  Please post questions on our Users Slack if you have difficulties!
     * If you have Admin privileges click "Disable path length limit" after the
       installation succeeds.
 
-#. Download and run the `Visual Studio build tools
-   <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`_ installer.
-
-    * Only "Desktop Development with C++" needs to be checked.
-
-    * Click install
-
 #. Create a virtual environment as in `Setup a clean python environment
    <environment_>`__ and install PypeIt as described above.
 
@@ -389,13 +382,14 @@ Atmospheric Models
 ------------------
 
 Calculation of the sensitivity functions and general fitting of telluric
-absorption uses a PCA decomposition of a massive grid of model atmosphere spectra
-across many different observatories, with reference files that are only a few MB
-in size. Earlier PypeIt versions used pre-computed model grids which were much
-larger (several GB) and observatory-specific; note that the new PCA
-models are explicitly designed to be observatory-agnostic, and typically only differ
-in their intrinsic spectral resolution (except for experimental Keck/HIRES and Keck/NIRSPEC [high-resolution mode]
-model files) to improve computational efficiency.
+absorption uses a PCA decomposition of a massive grid of model atmosphere
+spectra across many different observatories, with reference files that are only
+a few MB in size. Earlier PypeIt versions used pre-computed model grids which
+were much larger (several GB) and observatory-specific; note that the new PCA
+models are explicitly designed to be observatory-agnostic, and typically only
+differ in their intrinsic spectral resolution (except for experimental
+Keck/HIRES and Keck/NIRSPEC [high-resolution mode] model files) to improve
+computational efficiency.
 
 .. note::
 
@@ -521,72 +515,6 @@ by installing them manually via ``pip`` or ``conda`` and then setting the ``QT_A
 environment variable. See the `QtPy documentation <https://github.com/spyder-ide/qtpy>`_
 for more details.
 
-C code
-------
-
-Significant speed gains in PypeIt can be enabled via compilation of the C
-versions of the b-spline fitting code. Compilation of the C code should happen
-automatically when you install PypeIt.  However, you can check that the C
-code was compiled successfully by running the ``pypeit_c_enabled`` script. What
-you should see is:
-
-.. code-block:: console
-
-    $ pypeit_c_enabled
-    Successfully imported bspline C utilities.
-    OpenMP compiler support detected.
-
-If no message is printed, the C code could not be imported.
-
-Some notes if you have problems installing the C code:
-
-    - the code will still run successfully by falling back to slower,
-      pure-python implementations
-
-    - to successfully compile the C code, you may need to update ``gcc`` and/or
-      ``Xcode`` for Mac users
-
-    - for some Mac users, you may also need to update your OS if you're using a
-      particularly old version (*e.g.*, 10.10 Yosemite)
-
-Some of the C code uses `OpenMP <https://www.openmp.org/>`_ to parallelize loops
-and take advantage of multiple cores/threads. This support is transparent and
-the code will work single-threaded if OpenMP is not available. GCC supports
-OpenMP out of the box, however the ``clang`` compiler that Apple's XCode
-provides does not. For optimal performance on Apple hardware, there are the following options:
-
-#. Install ``pypeit`` using ``conda`` and the `conda-forge
-   <https://conda-forge.org/>`__ channel.
-
-   .. code-block:: console
-
-       $ conda install -c conda-forge pypeit
-
-#. For a developer's installation, install ``pypeit`` using ``conda`` and the
-   provided ``environment.yml`` file. This will install the ``llvm-openmp`` package,
-   which provides OpenMP support libraries for the ``clang`` compiler that comes with XCode.
-
-   .. code-block:: console
-
-        $ conda env create -f environment.yml
-        $ conda activate pypeit
-        $ pip install -e .
-
-#. Install GCC via `homebrew <https://brew.sh/>`__ and specify its use when
-   installing ``pypeit``. For example, if you installed GCC via ``homebrew``, you
-   would get ``pypeit`` to use it by doing, for example:
-
-   .. code-block:: console
-
-       $ export CC=/opt/homebrew/bin/gcc
-       $ pip install pypeit
-
-   Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler
-   to use so configure that as needed to use your desired compiler.
-
-The ``pypeit_c_enabled`` script can be used to check if your compiler has OpenMP
-support.
-
 ginga Plugins
 -------------
 
@@ -690,10 +618,7 @@ problem of this can be system dependent:
  - First, *always* make sure you install the code into a fresh environment.
 
  - If you're on Windows, make sure you follow the :ref:`install_windows`
-   instructions.  If you're still having trouble, it may be because PypeIt
-   includes some C code to accelerate some computations.  If the issue is
-   because the C compiler is not properly linking, you can try typing ``set
-   CC=help`` at the command prompt before running the ``pip install`` command.
+   instructions.
 
  - Occasionally, the installation may fail because of incompatible dependencies.
    This may be because of recent releases of one of PypeIt's dependencies; i.e.,
