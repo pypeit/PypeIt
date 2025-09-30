@@ -17,15 +17,15 @@ from astropy import table
 
 from pypeit import msgs
 from pypeit import specobjs
+from pypeit import specobj
 from pypeit import utils
+from pypeit import io
 from pypeit.core import coadd
 from pypeit.core import flux_calib
 from pypeit.core import telluric
-from pypeit.core import fitting
 from pypeit.core.wavecal import wvutils
 from pypeit.core import meta
-from pypeit.core import flat
-from pypeit.core.moment import moment1d
+from pypeit.onespec import OneSpec
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
@@ -65,6 +65,10 @@ class SensFunc(datamodel.DataContainer):
             If None, defaults will be used.
         debug (:obj:`bool`, optional):
             Run in debug mode, sending diagnostic information to the screen.
+        chk_version (:obj:`bool`, optional):
+            Check the version of the data model.
+        write_qa (:obj:`bool`, optional):
+            If True, write QA plots to PDF files.
     """
     version = '1.0.2'
     """Datamodel version."""
@@ -130,6 +134,7 @@ class SensFunc(datamodel.DataContainer):
                  'splice_multi_det',
                  'meta_spec',
                  'std_dict',
+                 'write_qa',
                  'chk_version'
                 ]
 
@@ -196,7 +201,7 @@ class SensFunc(datamodel.DataContainer):
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False,
-                     chk_version=True):
+                     write_qa=True, chk_version=True):
         """
         Instantiate the relevant subclass based on the algorithm provided in
         ``par``.
@@ -204,10 +209,10 @@ class SensFunc(datamodel.DataContainer):
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == f"{par['algorithm']}SensFunc")(
                         spec1dfile, sensfile, par, par_fluxcalib=par_fluxcalib, debug=debug,
-                        chk_version=chk_version)
+                        write_qa=write_qa, chk_version=chk_version)
 
     def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False,
-                 chk_version=True):
+                 write_qa=True, chk_version=True):
 
         # Instantiate as an empty DataContainer
         super().__init__()
@@ -218,6 +223,7 @@ class SensFunc(datamodel.DataContainer):
         self.sensfile = sensfile
         self.par = par
         self.chk_version = chk_version
+        self.write_qa = write_qa
         # Spectrograph
         header = fits.getheader(self.spec1df)
         self.PYP_SPEC = header['PYP_SPEC']
@@ -245,18 +251,9 @@ class SensFunc(datamodel.DataContainer):
         # Are we splicing together multiple detectors?
         self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
 
-        # Read in the Standard star data
-        self.sobjs_std = specobjs.SpecObjs.from_fitsfile(
-                                self.spec1df, chk_version=self.chk_version).get_std(
-                                    multi_spec_det=self.par['multi_spec_det'])
-
-        if self.sobjs_std is None:
-            msgs.error(f'There is a problem with your standard star spec1d file: {self.spec1df}')
-
-        # Unpack standard
-        wave, counts, counts_ivar, counts_mask, log10_blaze_function, self.meta_spec, header \
-            = self.sobjs_std.unpack_object(ret_flam=False, log10blaze=True, extract_blaze=par['use_flat'],
-                                           extract_type=self.extr, remove_missing=True)
+        # # Unpack standard star data
+        wave, counts, counts_ivar, counts_mask, log10_blaze_function, self.meta_spec, header, self.sobjs_std = \
+        self.unpack_std()
 
         # Perform any instrument tweaks
         wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
@@ -278,6 +275,90 @@ class SensFunc(datamodel.DataContainer):
         self.std_dict = flux_calib.get_standard_spectrum(star_type=self.par['star_type'],
                                                          star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
+        # check if this is the right standard star for the observation, i.e., if there is overlap in the wavelength
+        # coverage between the archival and observed standard star spectrum
+
+        overlap = (self.wave_cnts[:,0] <= self.std_dict['wave'].value.max()) & \
+                  (self.wave_cnts[:,0] >= self.std_dict['wave'].value.min())
+        if np.sum(overlap) == 0:
+            msgs.error(f'No wavelength overlap between the archival and observed standard star spectrum. '
+                       'This is not the right standard star for your observations.')
+        elif np.sum(overlap)/self.nspec_in < 0.8:
+            msgs.warn(f'Only {np.sum(overlap)/self.nspec_in:.1%} of the observed wavelength range is covered by the '
+                      f'archival standard star. This may not be the right standard star for your observations. ')
+
+    def unpack_std(self):
+        """
+        Unpack the standard star data from a 1D spectrum file with a SpecObj or OneSpec class.
+
+        Returns
+        -------
+        wave_cnts : `numpy.ndarray`_
+            Wavelength array in Angstroms
+        counts : `numpy.ndarray`_
+            Flux array in counts
+        counts_ivar : `numpy.ndarray`_
+            Inverse variance of the flux array in counts
+        counts_mask : `numpy.ndarray`_
+            Boolean Mask array selecting the valid data points
+        log10_blaze_function : `numpy.ndarray`_
+            Log10 of the blaze function array. THIS is always None for OneSpec class.
+        nspec_in : :obj:`int`
+            The number of spectral pixels for the input standard star spectrum.
+        norderdet : :obj:`int`
+            The number of orders/spectra in the input standard star spectrum.
+        meta_spec : :obj:`dict`
+            Dictionary containing the meta data for the standard star spectrum
+        sobjs_std : :class:`~pypeit.specobjs.SpecObjs`
+            The SpecObjs of the standard star spectrum. THIS is always None for OneSpec class.
+        std_dict : :obj:`dict`
+            Dictionary containing the standard star spectrum data. This is
+            returned by :func:`~pypeit.core.flux_calib.get_standard_spectrum`.
+
+        """
+
+        with io.fits_open(self.spec1df) as hdul:
+            if hdul[1].header.get('DMODCLS') == 'SpecObj':
+                sobjs_std = specobjs.SpecObjs.from_fitsfile(self.spec1df,
+                                                            chk_version=self.chk_version).get_std(
+                    multi_spec_det=self.par['multi_spec_det'])
+
+                if sobjs_std is None:
+                    msgs.error(f'There is a problem with your standard star spec1d file: {self.spec1df}')
+
+                # Unpack standard
+                wave, counts, counts_ivar, counts_mask, log10_blaze_function, meta_spec, header \
+                    = sobjs_std.unpack_object(ret_flam=False, log10blaze=True, extract_blaze=self.par['use_flat'],
+                                              extract_type=self.extr, remove_missing=True)
+            elif hdul[1].header.get('DMODCLS') == 'OneSpec':
+                spec = OneSpec.from_file(self.spec1df, chk_version=self.chk_version)
+                if spec.head0['PYPELINE'] == 'Echelle':
+                    msgs.error('Standard star 1D spectrum from OneSpec class cannot be used for Echelle data.')
+                if spec.fluxed:
+                    msgs.error('Standard star 1D spectrum from OneSpec class is already fluxed '
+                               'and cannot be used to generate the sensitivity function.')
+                if self.par['use_flat']:
+                    msgs.error('"use_flat" set to True, but standard star 1D spectrum from OneSpec class '
+                              'does not contain the flat spectrum. The blaze function cannot be estimated.')
+                if spec.ext_mode != self.par['extr']:
+                    msgs.warn(f'Standard star 1D spectrum from OneSpec class was obtained using the {spec.ext_mode} '
+                               f'extraction, while the requested extraction is {self.par["extr"]}. '
+                               f'The available {spec.ext_mode} extraction will be used instead.')
+                    self.extr = spec.ext_mode
+
+                wave, counts, counts_ivar, counts_mask, log10_blaze_function, meta_spec, header = \
+                    spec.wave_grid_mid, spec.flux, spec.ivar, spec.mask.astype(bool), None, spec.spect_meta, spec.head0
+                # add some meta data
+                meta_spec['ECH_ORDERS'] = None
+                # create sobjs_std
+                sobj = specobj.SpecObj.from_arrays(spec.head0['PYPELINE'], wave, counts, counts_ivar, mode=self.extr)
+                # add mask from OneSpec, since `from_arrays` creates a mask based on the flux ivar
+                sobj[f'{self.extr}_MASK'] |= counts_mask
+                sobjs_std = specobjs.SpecObjs(specobjs=np.array([sobj]), header=spec.head0)
+            else:
+                msgs.error('Unrecognized class for the 1D spectrum file. Cannot read in the standard')
+
+        return wave, counts, counts_ivar, counts_mask, log10_blaze_function, meta_spec, header, sobjs_std
 
     def _bundle(self):
         """
@@ -399,7 +480,8 @@ class SensFunc(datamodel.DataContainer):
         self.throughput, self.throughput_splice = self.compute_throughput()
 
         # Write out QA and throughput plots
-        self.write_QA()
+        if self.write_qa:
+            self.write_QA()
 
     def flux_std(self):
         """
@@ -1036,9 +1118,9 @@ class UVISSensFunc(SensFunc):
     """Algorithm used for the sensitivity calculation."""
 
     def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False,
-                 chk_version=True):
+                 write_qa=True, chk_version=True):
         super().__init__(spec1dfile, sensfile, par, par_fluxcalib=par_fluxcalib, debug=debug,
-                         chk_version=chk_version)
+                         write_qa=write_qa, chk_version=chk_version)
 
         # Add some cards to the meta spec. These should maybe just be added
         # already in unpack object

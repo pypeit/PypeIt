@@ -4,25 +4,15 @@ Class for guiding calibration object generation in PypeIt.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-from pathlib import Path
-from datetime import datetime
-from copy import deepcopy
 from abc import ABCMeta
 from collections import Counter
-import yaml
-
-# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
-# to no longer support it.
-try:
-    __UTC__ = datetime.UTC
-except AttributeError as e:
-    from datetime import timezone
-    __UTC__ = timezone.utc
-
-from IPython import embed
+import copy
+import datetime
+import os
+from pathlib import Path
 
 import numpy as np
+import yaml
 
 from pypeit import __version__
 from pypeit import msgs
@@ -39,13 +29,11 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import scattlight as core_scattlight
-from pypeit.core.mosaic import build_image_mosaic
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
-from pypeit import io
 from pypeit import utils
-from pypeit import cache
-from pypeit import dataPaths
+
+from IPython import embed
 
 
 class Calibrations:
@@ -233,7 +221,7 @@ class Calibrations:
         # Loop on the files
         for ii, ifile in enumerate(file_list):
             # Save the lamp status
-            headarr = deepcopy(self.spectrograph.get_headarr(ifile))
+            headarr = [h.copy() for h in self.spectrograph.get_headarr(ifile)]
             lampstat[ii] = self.spectrograph.get_lamps_status(headarr)
 
         # Check that the lamps being combined are all the same
@@ -1569,7 +1557,7 @@ class Calibrations:
         # Iterate through each setup
         for setup in setups.keys():
             asn[setup] = {}
-            asn[setup]['--'] = deepcopy(setups[setup])
+            asn[setup]['--'] = copy.deepcopy(setups[setup])
             in_setup = fitstbl.find_configuration(setup) & subset
             if not any(in_setup):
                 continue
@@ -1589,7 +1577,7 @@ class Calibrations:
         with open(_ofile, 'w') as ff:
             ff.write('# Auto-generated calibration association file using PypeIt version: '
                      f' {__version__}\n')
-            ff.write(f'# UTC {datetime.now(__UTC__).isoformat(timespec="milliseconds")}\n')
+            ff.write(f'# UTC {datetime.datetime.now(datetime.UTC).isoformat(timespec="milliseconds")}\n')
             if det is None:
                 ff.write(f'# NOTE: {detname} is a placeholder for the reduced detectors/mosaics\n')
             ff.write(yaml.dump(utils.yamlify(asn)))

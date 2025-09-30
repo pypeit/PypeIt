@@ -42,7 +42,9 @@ class ChkForCalibs(scriptbase.ScriptBase):
 
         """
 
+        from pathlib import Path
         import os
+        import time
 
         from IPython import embed
 
@@ -167,7 +169,7 @@ class ChkForCalibs(scriptbase.ScriptBase):
             # the calib file,
             calib_file = sorted_file.with_suffix('.calib')
             caldir = calib_file.parent / ps.par['calibrations']['calib_dir']
-            Calibrations.association_summary(calib_file, ps.fitstbl, ps.spectrograph, caldir,
+            calibrations.Calibrations.association_summary(calib_file, ps.fitstbl, ps.spectrograph, caldir,
                                              overwrite=True)
             # and the obslog file
             obslog_file = sorted_file.with_suffix('.obslog')
