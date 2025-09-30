@@ -147,7 +147,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                                 else [f.name.split('-')[1].split('_')[0] for f in spec2d_files])
         if args.obj is not None:
             # Limit to the selected objects
-            _objects = [o for o in objects if o == args.obj]
+            _objects = [o for o in objects if o in args.obj]
             # Check some were found
             if len(_objects) == 0:
                 msgs.error('Unable to find relevant objects.  Unique objects are '

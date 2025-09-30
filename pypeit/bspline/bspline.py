@@ -18,24 +18,10 @@ import numpy as np
 from pypeit.core import basis
 from pypeit import datamodel
 
-try:
-    from pypeit.bspline.utilc import cholesky_band, cholesky_solve, solution_arrays, intrv, \
-                                     bspline_model
-except:
-    warnings.warn('Unable to load bspline C extension.  Try rebuilding pypeit.  In the '
-                  'meantime, falling back to pure python code.')
-    from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays, intrv, \
-                                        bspline_model
+from pypeit.bspline.util import (
+    cholesky_band, cholesky_solve, solution_arrays, intrv, bspline_model
+)
 
-# TODO: Used for testing.  Keep around for now.
-#from pypeit.bspline.utilpy import bspline_model
-#from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays, intrv, \
-#                                    bspline_model
-
-# TODO: Types are important for the C extension. Types should be
-# limited to int, float, bool!
-# TODO: May need to add hooks to utilc.py that do the type conversion,
-# but that should be a last resort for stability.
 # TODO: This whole module needs to be cleaned up.
 
 

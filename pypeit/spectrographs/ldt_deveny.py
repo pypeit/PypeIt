@@ -2,16 +2,19 @@
 Module for LDT/DeVeny specific methods.
 
 The DeVeny spectrograph was built at Kitt Peak National Observatory (KPNO)
-and known as the White Spectrograph. It had a long career at the #1 36-inch
-and 84-inch telescopes there before being retired; Lowell Observatory acquired
-the spectrograph from KPNO on indefinite loan in 1998. A new CCD camera was
-built for it, and the instrument was further modified for installation on the
-72-inch Perkins telescope in 2005. Following 8 years of service there, it was
-removed in 2013 for upgrades for installation on the Lowell Discovery Telescope
-(LDT) instrument cube. It has been in service since February 2015. The
-spectrograph was designed for f/7.5 telescope optics, and new re-imaging
-optics were designed and fabricated to match the spectrograph with LDT's
-f/6.1 beam.
+and was known as the White Spectrograph. It had a long career at the #1 36-inch
+and 84-inch telescopes there before being retired. Lowell Observatory acquired
+the spectrograph from KPNO on indefinite loan in 1998 and renamed the
+instrument in honor of the longtime KPNO Instrument Support Scientist Jim
+DeVeny (see `a photo of DeVeny with the spectrograph
+<https://noirlab.edu/public/images/noao-02617/>`__ on the 84-inch telescope).
+A new CCD camera was built for it, and the spectrograph was further modified
+for installation on the 72-inch Perkins telescope in 2005. Following 8 years of
+service there, it was removed in 2013 for upgrades for installation on the
+Lowell Discovery Telescope (LDT) instrument cube. DeVeny has
+been in service at LDT since February 2015. The spectrograph was designed for
+and operates internally with f/7.5 optics; new re-imaging optics were designed
+and fabricated to match the spectrograph with LDT's f/6.1 beam.
 
 .. include:: ../include/links.rst
 """
@@ -20,7 +23,6 @@ import numpy as np
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import io
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch

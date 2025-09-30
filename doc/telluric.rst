@@ -1,7 +1,9 @@
 .. include:: include/links.rst
 
+.. _telluric_correction:
+
 ===================
-Telluric correction
+Telluric Correction
 ===================
 
 Overview
