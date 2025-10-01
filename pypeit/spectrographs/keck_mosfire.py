@@ -123,7 +123,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['extrap_blu'] = 0.0  # Y-band contaminated by higher order so don't extrap much
         par['sensfunc']['extrap_red'] = 0.0
         par['fluxcalib']['extrap_sens'] = True
-        par['sensfunc']['extrap_red'] = 0.0
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 13
         par['sensfunc']['IR']['maxiter'] = 2
@@ -842,11 +841,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             #counts_ivar[apo_pix] = utils.inverse(sigma_apo**2)
             #counts_ivar[apo_pix] = utils.clip_ivar(counts[apo_pix], counts_ivar_in[apo_pix], 10.0, mask=gpm_in[apo_pix])
             wave_blue = 9520.0  # blue wavelength below which there is contamination
-            wave_red = 11256.0  # red wavelength above which the spectrum is containated
+            wave_red = 11256.0  # red wavelength above which the spectrum is contaminated
 
         elif 'J2-spectroscopy' in meta_table['DISPNAME']:
             wave_blue = 11170.0  # blue wavelength below which there is contamination
-            wave_red = 12600.0  # red wavelength above which the spectrum is containated
+            wave_red = 12600.0  # red wavelength above which the spectrum is contaminated
 
         else:
             # keep everything the same

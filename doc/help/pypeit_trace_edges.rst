@@ -25,7 +25,7 @@
                             default mosaic. (default: None)
       -s, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier, which is only used if
-                            providing files directly: aat_uhrf, bok_bc,
+                            providing files directly: aat_uhrf, apf_levy, bok_bc,
                             gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
@@ -36,17 +36,19 @@
                             keck_lris_red_mark4, keck_lris_red_orig, keck_mosfire,
                             keck_nires, keck_nirspec_high, keck_nirspec_high_old,
                             keck_nirspec_low, lbt_luci1, lbt_luci2, lbt_mods1b,
-                            lbt_mods1r, lbt_mods2b, lbt_mods2r, ldt_deveny,
-                            magellan_fire, magellan_fire_long, magellan_mage,
-                            mdm_modspec, mdm_osmos_mdm4k, mdm_osmos_r4k,
-                            mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
-                            not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
-                            p200_dbsp_red, p200_ngps_i, p200_ngps_r, p200_tspec,
-                            shane_kast_blue, shane_kast_red, shane_kast_red_ret,
-                            soar_goodman_blue, soar_goodman_red, subaru_focas,
-                            tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
-                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
-                            wht_isis_red (default: None)
+                            lbt_mods1b_proc, lbt_mods1r, lbt_mods1r_proc,
+                            lbt_mods2b, lbt_mods2b_proc, lbt_mods2r,
+                            lbt_mods2r_proc, ldt_deveny, magellan_fire,
+                            magellan_fire_long, magellan_mage, mdm_modspec,
+                            mdm_osmos_mdm4k, mdm_osmos_r4k, mmt_binospec,
+                            mmt_bluechannel, mmt_mmirs, not_alfosc, not_alfosc_vert,
+                            ntt_efosc2, p200_dbsp_blue, p200_dbsp_red, p200_ngps_i,
+                            p200_ngps_r, p200_tspec, shane_kast_blue,
+                            shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
+                            soar_goodman_red, subaru_focas, tng_dolores, vlt_fors2,
+                            vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
+                            vlt_xshooter_vis, wht_isis_blue, wht_isis_red (default:
+                            None)
       -b, --binning BINNING
                             Image binning in spectral and spatial directions. Only
                             used if providing files directly; default is 1,1.

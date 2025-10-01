@@ -17,15 +17,15 @@ from astropy import table
 
 from pypeit import msgs
 from pypeit import specobjs
+from pypeit import specobj
 from pypeit import utils
+from pypeit import io
 from pypeit.core import coadd
 from pypeit.core import flux_calib
 from pypeit.core import telluric
-from pypeit.core import fitting
 from pypeit.core.wavecal import wvutils
 from pypeit.core import meta
-from pypeit.core import flat
-from pypeit.core.moment import moment1d
+from pypeit.onespec import OneSpec
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
@@ -65,6 +65,10 @@ class SensFunc(datamodel.DataContainer):
             If None, defaults will be used.
         debug (:obj:`bool`, optional):
             Run in debug mode, sending diagnostic information to the screen.
+        chk_version (:obj:`bool`, optional):
+            Check the version of the data model.
+        write_qa (:obj:`bool`, optional):
+            If True, write QA plots to PDF files.
     """
     version = '1.0.2'
     """Datamodel version."""
@@ -130,6 +134,7 @@ class SensFunc(datamodel.DataContainer):
                  'splice_multi_det',
                  'meta_spec',
                  'std_dict',
+                 'write_qa',
                  'chk_version'
                 ]
 
@@ -196,7 +201,7 @@ class SensFunc(datamodel.DataContainer):
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False,
-                     chk_version=True):
+                     write_qa=True, chk_version=True):
         """
         Instantiate the relevant subclass based on the algorithm provided in
         ``par``.
@@ -204,10 +209,10 @@ class SensFunc(datamodel.DataContainer):
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == f"{par['algorithm']}SensFunc")(
                         spec1dfile, sensfile, par, par_fluxcalib=par_fluxcalib, debug=debug,
-                        chk_version=chk_version)
+                        write_qa=write_qa, chk_version=chk_version)
 
     def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False,
-                 chk_version=True):
+                 write_qa=True, chk_version=True):
 
         # Instantiate as an empty DataContainer
         super().__init__()
@@ -218,6 +223,7 @@ class SensFunc(datamodel.DataContainer):
         self.sensfile = sensfile
         self.par = par
         self.chk_version = chk_version
+        self.write_qa = write_qa
         # Spectrograph
         header = fits.getheader(self.spec1df)
         self.PYP_SPEC = header['PYP_SPEC']
@@ -245,18 +251,9 @@ class SensFunc(datamodel.DataContainer):
         # Are we splicing together multiple detectors?
         self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
 
-        # Read in the Standard star data
-        self.sobjs_std = specobjs.SpecObjs.from_fitsfile(
-                                self.spec1df, chk_version=self.chk_version).get_std(
-                                    multi_spec_det=self.par['multi_spec_det'])
-
-        if self.sobjs_std is None:
-            msgs.error(f'There is a problem with your standard star spec1d file: {self.spec1df}')
-
-        # Unpack standard
-        wave, counts, counts_ivar, counts_mask, log10_blaze_function, self.meta_spec, header \
-            = self.sobjs_std.unpack_object(ret_flam=False, log10blaze=True, extract_blaze=par['use_flat'],
-                                           extract_type=self.extr, remove_missing=True)
+        # # Unpack standard star data
+        wave, counts, counts_ivar, counts_mask, log10_blaze_function, self.meta_spec, header, self.sobjs_std = \
+        self.unpack_std()
 
         # Perform any instrument tweaks
         wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
@@ -278,6 +275,90 @@ class SensFunc(datamodel.DataContainer):
         self.std_dict = flux_calib.get_standard_spectrum(star_type=self.par['star_type'],
                                                          star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
+        # check if this is the right standard star for the observation, i.e., if there is overlap in the wavelength
+        # coverage between the archival and observed standard star spectrum
+
+        overlap = (self.wave_cnts[:,0] <= self.std_dict['wave'].value.max()) & \
+                  (self.wave_cnts[:,0] >= self.std_dict['wave'].value.min())
+        if np.sum(overlap) == 0:
+            msgs.error(f'No wavelength overlap between the archival and observed standard star spectrum. '
+                       'This is not the right standard star for your observations.')
+        elif np.sum(overlap)/self.nspec_in < 0.8:
+            msgs.warn(f'Only {np.sum(overlap)/self.nspec_in:.1%} of the observed wavelength range is covered by the '
+                      f'archival standard star. This may not be the right standard star for your observations. ')
+
+    def unpack_std(self):
+        """
+        Unpack the standard star data from a 1D spectrum file with a SpecObj or OneSpec class.
+
+        Returns
+        -------
+        wave_cnts : `numpy.ndarray`_
+            Wavelength array in Angstroms
+        counts : `numpy.ndarray`_
+            Flux array in counts
+        counts_ivar : `numpy.ndarray`_
+            Inverse variance of the flux array in counts
+        counts_mask : `numpy.ndarray`_
+            Boolean Mask array selecting the valid data points
+        log10_blaze_function : `numpy.ndarray`_
+            Log10 of the blaze function array. THIS is always None for OneSpec class.
+        nspec_in : :obj:`int`
+            The number of spectral pixels for the input standard star spectrum.
+        norderdet : :obj:`int`
+            The number of orders/spectra in the input standard star spectrum.
+        meta_spec : :obj:`dict`
+            Dictionary containing the meta data for the standard star spectrum
+        sobjs_std : :class:`~pypeit.specobjs.SpecObjs`
+            The SpecObjs of the standard star spectrum. THIS is always None for OneSpec class.
+        std_dict : :obj:`dict`
+            Dictionary containing the standard star spectrum data. This is
+            returned by :func:`~pypeit.core.flux_calib.get_standard_spectrum`.
+
+        """
+
+        with io.fits_open(self.spec1df) as hdul:
+            if hdul[1].header.get('DMODCLS') == 'SpecObj':
+                sobjs_std = specobjs.SpecObjs.from_fitsfile(self.spec1df,
+                                                            chk_version=self.chk_version).get_std(
+                    multi_spec_det=self.par['multi_spec_det'])
+
+                if sobjs_std is None:
+                    msgs.error(f'There is a problem with your standard star spec1d file: {self.spec1df}')
+
+                # Unpack standard
+                wave, counts, counts_ivar, counts_mask, log10_blaze_function, meta_spec, header \
+                    = sobjs_std.unpack_object(ret_flam=False, log10blaze=True, extract_blaze=self.par['use_flat'],
+                                              extract_type=self.extr, remove_missing=True)
+            elif hdul[1].header.get('DMODCLS') == 'OneSpec':
+                spec = OneSpec.from_file(self.spec1df, chk_version=self.chk_version)
+                if spec.head0['PYPELINE'] == 'Echelle':
+                    msgs.error('Standard star 1D spectrum from OneSpec class cannot be used for Echelle data.')
+                if spec.fluxed:
+                    msgs.error('Standard star 1D spectrum from OneSpec class is already fluxed '
+                               'and cannot be used to generate the sensitivity function.')
+                if self.par['use_flat']:
+                    msgs.error('"use_flat" set to True, but standard star 1D spectrum from OneSpec class '
+                              'does not contain the flat spectrum. The blaze function cannot be estimated.')
+                if spec.ext_mode != self.par['extr']:
+                    msgs.warn(f'Standard star 1D spectrum from OneSpec class was obtained using the {spec.ext_mode} '
+                               f'extraction, while the requested extraction is {self.par["extr"]}. '
+                               f'The available {spec.ext_mode} extraction will be used instead.')
+                    self.extr = spec.ext_mode
+
+                wave, counts, counts_ivar, counts_mask, log10_blaze_function, meta_spec, header = \
+                    spec.wave_grid_mid, spec.flux, spec.ivar, spec.mask.astype(bool), None, spec.spect_meta, spec.head0
+                # add some meta data
+                meta_spec['ECH_ORDERS'] = None
+                # create sobjs_std
+                sobj = specobj.SpecObj.from_arrays(spec.head0['PYPELINE'], wave, counts, counts_ivar, mode=self.extr)
+                # add mask from OneSpec, since `from_arrays` creates a mask based on the flux ivar
+                sobj[f'{self.extr}_MASK'] |= counts_mask
+                sobjs_std = specobjs.SpecObjs(specobjs=np.array([sobj]), header=spec.head0)
+            else:
+                msgs.error('Unrecognized class for the 1D spectrum file. Cannot read in the standard')
+
+        return wave, counts, counts_ivar, counts_mask, log10_blaze_function, meta_spec, header, sobjs_std
 
     def _bundle(self):
         """
@@ -399,7 +480,8 @@ class SensFunc(datamodel.DataContainer):
         self.throughput, self.throughput_splice = self.compute_throughput()
 
         # Write out QA and throughput plots
-        self.write_QA()
+        if self.write_qa:
+            self.write_QA()
 
     def flux_std(self):
         """
@@ -492,7 +574,7 @@ class SensFunc(datamodel.DataContainer):
                       + np.outer(np.ones(nspec_extrap), wave_extrap_min)
         zeropoint_extrap = np.zeros_like(wave_extrap)
 
-        # Evaluate extrapolated zerpoint for all orders detectors
+        # Evaluate extrapolated zeropoint for all orders detectors
         for iorddet in range(self.norderdet):
             zeropoint_extrap[:, iorddet] = self.eval_zeropoint(wave_extrap[:,iorddet], iorddet)
 
@@ -660,6 +742,8 @@ class SensFunc(datamodel.DataContainer):
                     else:
                         axis=ax1
                         ax2.remove()
+                    # Initialise these variables to None values
+                    _wave_min, _wave_max, tmin, tmax = None, None, None, None
                     for idet in range(self.norderdet):
                         # define the color
                         rr = (np.max(order_or_det) - order_or_det[idet]) \
@@ -667,14 +751,23 @@ class SensFunc(datamodel.DataContainer):
                         gg = 0.0
                         bb = (order_or_det[idet] - np.min(order_or_det)) \
                                 / np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
-                        wave_gpm = self.sens['SENS_WAVE'][idet] > 1.0
-                        axis.plot(self.sens['SENS_WAVE'][idet,wave_gpm],
-                                  self.sens['SENS_ZEROPOINT_FIT'][idet,wave_gpm],
+                        sens_wave_gpm = self.sens['SENS_WAVE'][idet] > 1.0
+                        axis.plot(self.sens['SENS_WAVE'][idet,sens_wave_gpm],
+                                  self.sens['SENS_ZEROPOINT_FIT'][idet,sens_wave_gpm],
                                   color=(rr, gg, bb), linestyle='-', linewidth=2.5,
                                   label=thru_title[idet], zorder=5 * idet)
 
-                    _wave_min = np.amin(self.sens['WAVE_MIN'])
-                    _wave_max = np.amax(self.sens['WAVE_MAX'])
+                        wave_gpm = (self.wave[:, idet] >= self.sens['WAVE_MIN'][idet]) \
+                                   & (self.wave[:, idet] <= self.sens['WAVE_MAX'][idet]) \
+                                   & (self.wave[:, idet] > 1.0)
+                        if (_wave_min is None) or (np.min(self.wave[wave_gpm, idet]) < _wave_min):
+                            _wave_min = np.min(self.wave[wave_gpm, idet])
+                        if (_wave_max is None) or (np.max(self.wave[wave_gpm, idet]) > _wave_max):
+                            _wave_max = np.max(self.wave[wave_gpm, idet])
+                        if (tmin is None) or (np.min(self.sens['SENS_ZEROPOINT_FIT'][idet,sens_wave_gpm]) < tmin):
+                            tmin = np.min(self.sens['SENS_ZEROPOINT_FIT'][idet,sens_wave_gpm])
+                        if (tmax is None) or (np.max(self.sens['SENS_ZEROPOINT_FIT'][idet,sens_wave_gpm]) > tmax):
+                            tmax = np.max(self.sens['SENS_ZEROPOINT_FIT'][idet,sens_wave_gpm])
 
                     # If we are splicing, overplot the spliced zeropoint
                     if self.splice_multi_det:
@@ -686,10 +779,8 @@ class SensFunc(datamodel.DataContainer):
                                   linestyle='-', linewidth=2.5, label='Spliced Zeropoint',
                                   zorder=30, alpha=0.3)
 
-                    wave_gpm = self.sens['SENS_WAVE'] > 1.0
                     axis.set_xlim((0.98 * _wave_min, 1.02 * _wave_max))
-                    axis.set_ylim((0.95 * np.amin(self.sens['SENS_ZEROPOINT_FIT'][wave_gpm]),
-                                   1.05 * np.amax(self.sens['SENS_ZEROPOINT_FIT'][wave_gpm])))
+                    axis.set_ylim((0.95 * tmin, 1.05 * tmax))
                     axis.legend(fontsize=14)
                     axis.set_xlabel('Wavelength (Angstroms)')
                     axis.set_ylabel('Zeropoint (AB mag)')
@@ -701,6 +792,8 @@ class SensFunc(datamodel.DataContainer):
         # Plot throughput curve(s) for all orders/det
         fig = plt.figure(figsize=(12,8))
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        # Initialise these variables to None values
+        _wave_min, _wave_max, tmax = None, None, None
         for idet in range(self.wave.shape[1]):
             # define the color
             rr = (np.max(order_or_det) - order_or_det[idet]) \
@@ -711,15 +804,21 @@ class SensFunc(datamodel.DataContainer):
             gpm = (self.throughput[:, idet] >= 0.0)
             axis.plot(self.wave[gpm,idet], self.throughput[gpm,idet], color=(rr, gg, bb),
                       linestyle='-', linewidth=2.5, label=thru_title[idet], zorder=5*idet)
+            # Determine the wavelength limits for the plot
+            if (_wave_min is None) or (np.min(self.wave[gpm,idet]) < _wave_min):
+                _wave_min = np.min(self.wave[gpm,idet])
+            if (_wave_max is None) or (np.max(self.wave[gpm,idet]) > _wave_max):
+                _wave_max = np.max(self.wave[gpm,idet])
+            if (tmax is None) or (np.max(self.throughput[gpm,idet]) > tmax):
+                tmax = np.max(self.throughput[gpm,idet])
         if self.splice_multi_det:
             axis.plot(self.wave_splice[wave_slice_gpm].flatten(),
                       self.throughput_splice[wave_slice_gpm].flatten(), color='black',
                       linestyle='-', linewidth=2.5, label='Spliced Throughput', zorder=30,
                       alpha=0.3)
 
-        axis.set_xlim((0.98*self.wave[self.throughput >=0.0].min(),
-                       1.02*self.wave[self.throughput >=0.0].max()))
-        axis.set_ylim((0.0, 1.05*self.throughput[self.throughput >=0.0].max()))
+        axis.set_xlim((0.98*_wave_min, 1.02*_wave_max))
+        axis.set_ylim((0.0, 1.05*tmax))
         axis.legend()
         axis.set_xlabel('Wavelength (Angstroms)')
         axis.set_ylabel('Throughput')
@@ -738,15 +837,18 @@ class SensFunc(datamodel.DataContainer):
             gg = 0.0
             bb = (order_or_det[iorddet] - np.min(order_or_det)) \
                     / np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
-            wave_gpm = (self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0) & self.sens['SENS_FLUXED_STD_MASK'][iorddet]
-            axis.plot(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][wave_gpm], self.sens['SENS_FLUXED_STD_FLAM'][iorddet][wave_gpm],
+            sens_wave_gpm = (self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0) & self.sens['SENS_FLUXED_STD_MASK'][iorddet]
+            axis.plot(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][sens_wave_gpm], self.sens['SENS_FLUXED_STD_FLAM'][iorddet][sens_wave_gpm],
                       color=(rr, gg, bb), drawstyle='steps-mid', linewidth=1.0,
                       label=thru_title[iorddet], zorder=idet, alpha=0.7)
 
-
-        wave_gpm_global = self.sens['SENS_FLUXED_STD_WAVE'] > 1.0
-        wave_min = 0.98*(self.sens['SENS_FLUXED_STD_WAVE'][wave_gpm_global]).min()
-        wave_max = 1.02*(self.sens['SENS_FLUXED_STD_WAVE'][wave_gpm_global]).max()
+        if _wave_min is None or _wave_max is None:
+            wave_gpm_global = self.sens['SENS_FLUXED_STD_WAVE'] > 1.0
+            wave_min = (self.sens['SENS_FLUXED_STD_WAVE'][wave_gpm_global]).min()
+            wave_max = (self.sens['SENS_FLUXED_STD_WAVE'][wave_gpm_global]).max()
+        else:
+            wave_min = 0.98*_wave_min
+            wave_max = 1.02*_wave_max
         pix_wave_std = (self.std_dict['wave'].value >= wave_min) & (self.std_dict['wave'].value <= wave_max)
         flux_min = -1.0
         flux_max = 1.10*self.std_dict['flux'][pix_wave_std].value.max()
@@ -757,6 +859,7 @@ class SensFunc(datamodel.DataContainer):
         axis.set_ylabel(r'$f_{{\lambda}}~~~(10^{{-17}}~{{\rm erg~s^{-1}~cm^{{-2}}~\AA^{{-1}}}})$')
         axis.set_title('Fluxed Std Compared to True Spectrum:' + spec_str)
         fig.savefig(self.fstdfile)
+
 
     @classmethod
     def sensfunc_weights(cls, sensfile, waves, ech_order_vec=None, debug=False, extrap_sens=True, chk_version=True):
@@ -789,7 +892,7 @@ class SensFunc(datamodel.DataContainer):
 
         if waves.ndim == 2:
             nspec, norder = waves.shape
-            if ech_order_vec.size != norder:
+            if ech_order_vec is not None and ech_order_vec.size != norder:
                 msgs.warn('The number of orders in the wave grid does not match the '
                           'number of orders in the unpacked sobjs. Echelle order vector not used.')
                 ech_order_vec = None
@@ -819,7 +922,7 @@ class SensFunc(datamodel.DataContainer):
             if ech_order_vec is None:
                 isens = iord
             # find the index of the sensfunc for this order
-            elif ech_order_vec is not None and np.any(sens.sens['ECH_ORDERS'].value == this_ord):
+            elif np.any(sens.sens['ECH_ORDERS'].value == this_ord):
                 isens = np.where(sens.sens['ECH_ORDERS'].value == this_ord)[0][0]
             else:
                 # if the order is not in the sensfunc file, skip it
@@ -1015,9 +1118,9 @@ class UVISSensFunc(SensFunc):
     """Algorithm used for the sensitivity calculation."""
 
     def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False,
-                 chk_version=True):
+                 write_qa=True, chk_version=True):
         super().__init__(spec1dfile, sensfile, par, par_fluxcalib=par_fluxcalib, debug=debug,
-                         chk_version=chk_version)
+                         write_qa=write_qa, chk_version=chk_version)
 
         # Add some cards to the meta spec. These should maybe just be added
         # already in unpack object

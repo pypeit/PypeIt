@@ -1186,7 +1186,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             The flexure in pixels
         """
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
-        box_rad = self.par['reduce']['extraction']['boxcar_radius']
+        box_rad = self.par['reduce']['extraction']['boxcar_radius']/ self.get_platescale()
         trace_spat = 0.5 * (self.slits_left + self.slits_right)
         iwv = np.where(self.wv_calib.spat_ids == self.slits.spat_id[sl_ref])[0][0]
         ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm

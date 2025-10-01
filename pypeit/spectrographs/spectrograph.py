@@ -320,6 +320,16 @@ class Spectrograph:
         """
         if self.allowed_extensions is not None:
             _filename = Path(filename).absolute()
+            # Don't check PypeIt spec2d files
+            if _filename.name.startswith("spec2d_"):
+                # Double check that it is a PypeIt spec2d file
+                try:
+                    tsthdr = fits.getheader(_filename, ext=0)
+                except IOError:
+                    msgs.error("Cannot open the file: {0}".format(_filename))
+                if 'PIPELINE' in tsthdr and tsthdr['PIPELINE'] == 'PYPEIT':
+                    return
+            # Perform the extensions check
             if not any([_filename.name.endswith(ext) for ext in self.allowed_extensions]):
                 msgs.error(f'The input file ({_filename.name}) does not have a recognized '
                            f'extension.  The allowed extensions for '
@@ -1373,6 +1383,7 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
+        headarr = None
         if isinstance(inp, (str, Path, fits.HDUList)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
@@ -1381,7 +1392,7 @@ class Spectrograph:
             headarr = [inp]
         else:
             msgs.error(f'Unrecognized type for input: {type(inp)}')
-        
+
         if headarr is None:
             if required:
                 msgs.error(f'Unable to access required metadata value for {meta_key}.  Input is '

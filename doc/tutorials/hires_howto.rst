@@ -518,11 +518,11 @@ The following lines can be used to load and visualize the co-added spectrum of t
 
 .. code-block:: python
 
-    from pypeit.specutils import Spectrum1D
+    from pypeit.specutils import Spectrum
     from jdaviz import Specviz
 
     file = 'J0100+2802_coadded_50kms.fits'
-    spec = Spectrum1D.read(file)
+    spec = Spectrum.read(file)
 
     specviz = Specviz()
     specviz.load_data(spec)

@@ -33,6 +33,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    :caption: Instrument-specific Tutorials
    :maxdepth: 1
 
+   APF Levy <apf_howto>
    Gemini GNIRS <gnirs_howto>
    Keck DEIMOS <deimos_howto>
    Keck HIRES <hires_howto>

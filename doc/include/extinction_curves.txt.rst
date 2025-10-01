@@ -12,5 +12,6 @@
     paranalextinct.dat  -70.4048305 -24.627167  2635.43
     palomarextinct.dat -116.86489    33.35631   1713.
     lasillaextinct.dat  -70.73      -29.2567    2400.
+    lbtoextinct.dat   -109.88906 32.70131   3221.0
 
 

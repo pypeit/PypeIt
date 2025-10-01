@@ -36,6 +36,7 @@ def parse_param(par, key, slit):
 
     return param
 
+
 # TODO: Should this code allow the user to skip the smoothing steps and just
 # provide the raw delta_wave vector? I would think there are cases where you
 # want the *exact* pixel width, as opposed to the smoothed version.
@@ -82,16 +83,18 @@ def get_delta_wave(wave, wave_gpm, frac_spec_med_filter=0.03):
     nspec = wave.size
     # This needs to be an odd number
     nspec_med_filter = 2*int(np.round(nspec*frac_spec_med_filter/2.0)) + 1
-    delta_wave = np.zeros_like(wave)
-    wave_diff = np.diff(wave[wave_gpm])
+    wave_bpm = np.logical_not(wave_gpm)
+    wave_diff = np.diff(wave)
     wave_diff = np.append(wave_diff, wave_diff[-1])
+    # Set any regions with wave_diff = 0 to the median value of the data
+    wave_diff[wave_bpm] = np.median(wave_diff[wave_gpm])
+    # Filter out edge effects
     wave_diff_filt = utils.fast_running_median(wave_diff, nspec_med_filter)
 
     # Smooth with a Gaussian kernel
     sig_res = np.fmax(nspec_med_filter/10.0, 3.0)
     gauss_kernel = convolution.Gaussian1DKernel(sig_res)
-    wave_diff_smooth = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
-    delta_wave[wave_gpm] = wave_diff_smooth
+    delta_wave = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
     return delta_wave
 
 

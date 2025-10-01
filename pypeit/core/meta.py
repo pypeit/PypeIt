@@ -174,6 +174,8 @@ def define_additional_meta(nlamps=20):
                        'mirror': dict(dtype=str, comment='Position of an instrument mirror (e.g. IN or OUT)'),
                        'xd': dict(dtype=float, comment='Cross disperser (e.g. red or blue for HIRES)'),
                        'xdangle':dict(dtype=float, comment='Cross disperser angle'),
+                       'camera_pos':dict(dtype=str, comment='Camera position (e.g. LongRed, ShortBlue, '
+                                                            'etc for Gemini GNIRS)'),
                        }
 
     for kk in range(nlamps):

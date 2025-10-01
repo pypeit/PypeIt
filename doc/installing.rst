@@ -118,7 +118,7 @@ environment).  Then run:
 
     pip install --upgrade "pypeit[dev]@git+https://github.com/pypeit/PypeIt.git"
 
-This will install the default branch, ``release``.  To install, e.g., 
+This will install the default branch, ``release``.  To install, e.g.,
 the ``develop`` branch, run:
 
 .. code-block:: console
@@ -162,7 +162,8 @@ dependency ``specutils`` via ``pip``.  To use this:
 
             conda list
 
-        Most of the packages listed will show as coming from the ``pypi`` channel.
+        Most of the packages listed will show as coming from the ``pypi`` channel, the rest
+        from ``conda-forge``.
 
 This environment should now be ready to use, and it will contain the latest
 official ``pypeit`` release.
@@ -219,7 +220,7 @@ If you have locally installed files, your upgrade may look something like this:
     consider issuing a PR to include them file in the PypeIt repository.  This
     helps the community, and it means you'll avoid these upgrading
     complications.
-    
+
 .. _m1_macs:
 
 Installation on Apple Silicon-based Macs
@@ -248,19 +249,12 @@ follows.  Please post questions on our Users Slack if you have difficulties!
 #. Download `Python for Windows <https://www.python.org/downloads/windows/>`_.
 
 #. Run the installer.
-    
+
     * Make sure "Add python.exe to Path" or "Add Python to environment
       variables" is selected before installing.
 
     * If you have Admin privileges click "Disable path length limit" after the
       installation succeeds.
-
-#. Download and run the `Visual Studio build tools
-   <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`_ installer.
-
-    * Only "Desktop Development with C++" needs to be checked.
-
-    * Click install
 
 #. Create a virtual environment as in `Setup a clean python environment
    <environment_>`__ and install PypeIt as described above.
@@ -270,7 +264,7 @@ may want to change the application alias.  This is under ``Settings -> Apps ->
 App execution aliases`` on Windows 10 and ``Settings -> Apps -> Advanced app
 settings -> App execution aliases`` on Windows 11. Disable the ``App Installer``
 options for the ``python.exe`` and ``python3.exe`` executables.
- 
+
 ----
 
 .. _data_installation:
@@ -335,17 +329,17 @@ cache and starting fresh!**
 ``pypeit_install_linelist``) will appear as being hosted on GitHub and be
 specific to the version of the code used to install it.  When you install local
 files, keep two things in mind:
- 
+
 #. The current cache system *does not* keep track of the original on-disk
    location of these files.  When you install these local files into the cache,
    the original file will remain (as long as you don't move/delete it yourself),
    and they will not be removed by ``pypeit_clean_cache``.
- 
+
 #. However, as far as the cache is concerned, these files are specific to a
    given PypeIt version.  This means **you'll need to re-install them** when you
    upgrade PypeIt; otherwise, PypeIt will not recognize their existence in the
    cache.  We discuss upgrading :ref:`above<upgrade>`.
-   
+
 Some example uses for removing files include:
 
  - To remove your entire cache: ``pypeit_clean_cache --remove_all``.
@@ -384,50 +378,37 @@ use the scripts below.
 
 .. _install_atmosphere:
 
-Atmospheric Model Grids
------------------------
+Atmospheric Models
+------------------
 
 Calculation of the sensitivity functions and general fitting of telluric
-absorption uses a grid of model atmosphere spectra.  Files with these
-pre-computed model grids are large (few GB).  Recent updates allow for the use
-of a PCA decomposition of these models to provided smaller (few MB) reference
-files and faster performance; however, both methods are still functional.
-
-For the larger, atmospheric-grid files, note that we provide model spectra for
-atmospheric conditions specific to an observatory; however, a model grid is not
-provided for all observatories with spectrographs supported by PypeIt.  If you
-do not find models for your observatory, you can use the Maunakea model as an
-approximation. It includes a large grid of different parameters and should be
-good enough for most purposes.
+absorption uses a PCA decomposition of a massive grid of model atmosphere
+spectra across many different observatories, with reference files that are only
+a few MB in size. Earlier PypeIt versions used pre-computed model grids which
+were much larger (several GB) and observatory-specific; note that the new PCA
+models are explicitly designed to be observatory-agnostic, and typically only
+differ in their intrinsic spectral resolution (except for experimental
+Keck/HIRES and Keck/NIRSPEC [high-resolution mode] model files) to improve
+computational efficiency.
 
 .. note::
 
-    Instruments that anticipate needing a telluric grid have its filename
-    already included in the ``telgridfile`` `TelluricPar keyword
+    Instruments that anticipate needing a telluric correction have the filename
+    of a PCA model with sufficient resolution already included in the ``telgridfile``
+    `TelluricPar keyword
     <https://pypeit.readthedocs.io/en/latest/pypeit_par.html#telluricpar-keywords>`__.
-    The needed model grid will download automatically when required by the code,
-    but given the size of these files and your downlink speed, this may take
-    some time.
+    While the ``pypeit_install_telluric`` script can be used to download the files
+    ahead of time, they are light enough that this is no longer necessary.
 
-To install an atmospheric grid or PCA file independent of a reduction, use the
-``pypeit_install_telluric`` script, calling the filename of the grid required.
-For example, if you need the file ``TelFit_MaunaKea_3100_26100_R20000.fits``,
-you would execute:
-
-.. code-block:: console
-
-    $ pypeit_install_telluric TelFit_MaunaKea_3100_26100_R20000.fits
-
-The downloaded file will exist in the PypeIt cache.  Unlike files hosted on
-``github``, these files will persist through upgrades of your installation.  To
-force the update of a telluric model grid file to the latest version, simply run
-``pypeit_install_telluric`` with the ``--force_update`` option.
-
-If you require a telluric grid that is not presently hosted in the cloud, the
-code will instruct you to download the file separately from the `PypeIt
-dev-suite Google Drive`_.  Users may select any of the files in the Google Drive
-for their telluric correction, download them separately, then install them using
-the ``--local`` option to ``pypeit_install_telluric``.
+It is still possible to use the legacy atmospheric grid files by modifying the
+``teltype`` `TelluricPar keyword
+<https://pypeit.readthedocs.io/en/latest/pypeit_par.html#telluricpar-keywords>`__.
+Only a handful of the original observatory-specific grids are still available for
+download on the `PypeIt dev-suite Google Drive`_. Users may select any of the files
+in the Google Drive for their telluric correction, download them separately, then
+install them using the ``--local`` option to ``pypeit_install_telluric``. For access
+to other legacy grids please leave a message in the telluric channel on the
+`PypeIt Users Slack <https://pypeit-users.slack.com>`__.
 
 User-provided atmospheric extinction files and wavelength-calibration line lists
 --------------------------------------------------------------------------------
@@ -534,53 +515,6 @@ by installing them manually via ``pip`` or ``conda`` and then setting the ``QT_A
 environment variable. See the `QtPy documentation <https://github.com/spyder-ide/qtpy>`_
 for more details.
 
-C code
-------
-
-Significant speed gains in PypeIt can be enabled via compilation of the C
-versions of the b-spline fitting code. Compilation of the C code should happen
-automatically when you install PypeIt.  However, you can check that the C
-code was compiled successfully by running the ``pypeit_c_enabled`` script. What
-you should see is:
-
-.. code-block:: console
-
-    $ pypeit_c_enabled
-    Successfully imported bspline C utilities.
-    OpenMP compiler support detected.
-
-If no message is printed, the C code could not be imported.
-
-Some notes if you have problems installing the C code:
-
-    - the code will still run successfully by falling back to slower,
-      pure-python implementations
-
-    - to successfully compile the C code, you may need to update ``gcc`` and/or
-      ``Xcode`` for Mac users
-
-    - for some Mac users, you may also need to update your OS if you're using a
-      particularly old version (*e.g.*, 10.10 Yosemite)
-
-Some of the C code uses `OpenMP <https://www.openmp.org/>`_ to parallelize loops
-and take advantage of multiple cores/threads. This support is transparent and
-the code will work single-threaded if OpenMP is not available. GCC supports
-OpenMP out of the box, however the ``clang`` compiler that Apple's XCode
-provides does not. So for optimal performance on Apple hardware, you will want
-to install GCC via `homebrew <https://brew.sh/>`__ and specify its use when
-installing ``pypeit``. For example, if you installed GCC via ``homebrew``, you
-would get ``pypeit`` to use it by doing, for example:
-
-.. code-block:: console
-
-    $ export CC=/opt/homebrew/bin/gcc
-    $ pip install pypeit
-
-Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler
-to use so configure that as needed to use your desired compiler. The
-``pypeit_c_enabled`` script can be used to check if your compiler has OpenMP
-support.
-
 ginga Plugins
 -------------
 
@@ -684,10 +618,7 @@ problem of this can be system dependent:
  - First, *always* make sure you install the code into a fresh environment.
 
  - If you're on Windows, make sure you follow the :ref:`install_windows`
-   instructions.  If you're still having trouble, it may be because PypeIt
-   includes some C code to accelerate some computations.  If the issue is
-   because the C compiler is not properly linking, you can try typing ``set
-   CC=help`` at the command prompt before running the ``pip install`` command.
+   instructions.
 
  - Occasionally, the installation may fail because of incompatible dependencies.
    This may be because of recent releases of one of PypeIt's dependencies; i.e.,
@@ -707,7 +638,7 @@ current pypeit version:
 
 Then reinstall it.  If that also fails, try creating a fresh environment and
 reinstalling pypeit in that new environment.
- 
+
 ----
 
 **The installation process succeeded, but the code is faulting!**:  This could

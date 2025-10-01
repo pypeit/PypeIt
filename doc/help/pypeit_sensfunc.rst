@@ -10,7 +10,8 @@
     
     positional arguments:
       spec1dfile            spec1d file for the standard that will be used to
-                            compute the sensitivity function
+                            compute the sensitivity function. This can be the output
+                            file of `pypeit_coadd_1dspec` for non Echelle data.
     
     options:
       -h, --help            show this help message and exit
