@@ -174,6 +174,16 @@ def define_additional_meta(nlamps=20):
                        'mirror': dict(dtype=str, comment='Position of an instrument mirror (e.g. IN or OUT)'),
                        'xd': dict(dtype=float, comment='Cross disperser (e.g. red or blue for HIRES)'),
                        'xdangle':dict(dtype=float, comment='Cross disperser angle'),
+                       'readmode': dict(dtype=str,
+                                        comment='Read mode of the image'),
+                       'savemode': dict(dtype=str,
+                                        comment='Save mode of the image'),
+                       'dit': dict(dtype=float,
+                                   comment='Detector integration time'),
+                       'ndit': dict(dtype=int,
+                                    comment='Number of integrations'),
+                       'camera': dict(dtype=str,
+                                      comment='Camera (e.g. N1.8/N3.75/N30 for LUCI)'),
                        'camera_pos':dict(dtype=str, comment='Camera position (e.g. LongRed, ShortBlue, '
                                                             'etc for Gemini GNIRS)'),
                        }
