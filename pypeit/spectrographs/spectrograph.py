@@ -41,6 +41,7 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.core import flux_calib
+from pypeit.core.atmextinction import AtmosphericExtinction
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -715,6 +716,33 @@ class Spectrograph:
         Empty for base class.  See derived classes.
         """
         return None
+    
+    def get_atmospheric_extinction(self, extinct_file):
+        """
+        Return the atmospheric extinction model.
+
+        Parameters
+        ----------
+        extinct_file : str
+            Either (1) one of the extintion files provided by pypeit (see
+            :ref:`extinction_correction`), (2) the path to a local file on disk,
+            or (3) set ``extinct_file='closest'`` to have the code find the most
+            relevant extinction data based on the longitude and latitude of the
+            telescope.
+
+        Returns
+        -------
+        :class:`~pypeit.core.atmextinction.AtmosphericExtinction`
+            Class that provides the interface to the atmospheric extinction data.
+        """
+        if extinct_file == 'closest':
+            # TODO: We shouldn't have to find the closest extinction data every
+            # time.  The lon/lat of the telescopes are hard-coded, so we just
+            # have a default extinct_file.
+            return AtmosphericExtinction.from_coordinates(
+                self.telescope['longitude'], self.telescope['latitude']
+            )
+        return AtmosphericExtinction.from_file(extinct_file)
 
     def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
                                   corners=False):

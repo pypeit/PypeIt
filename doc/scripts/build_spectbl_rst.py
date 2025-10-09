@@ -3,7 +3,6 @@ Dynamically build table listing available spectrographs.
 """
 
 from importlib import resources
-import time
 
 import numpy
 
@@ -37,19 +36,12 @@ def write_spec_table(path):
     lines = string_table(data_table, delimeter='rst')
     with open(ofile, 'w') as f:
         f.write(lines)
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 if __name__ == '__main__':
-    t = time.perf_counter()
-
     output_root = resources.files('pypeit').parent / 'doc' / 'include'
     if not output_root.is_dir():
         output_root.mkdir(parents=True)
 
     write_spec_table(output_root)
-
-    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
-
-
-

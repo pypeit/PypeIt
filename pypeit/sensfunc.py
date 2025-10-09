@@ -264,6 +264,8 @@ class SensFunc(datamodel.DataContainer):
         self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.log10_blaze_function, self.nspec_in, \
             self.norderdet = utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk,
                                                    log10_blaze_function=log10_blaze_function_twk)
+        if self.nspec_in == 0:
+            msgs.error('1D spectra have 0 length!')
 
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
@@ -1131,12 +1133,11 @@ class UVISSensFunc(SensFunc):
         """
         Calls routine to compute the sensitivity function.
         """
+        atmext = self.spectrograph.get_atmospheric_extinction(self.par['UVIS']['extinct_file'])
         meta_table, out_table = flux_calib.sensfunc(self.wave_cnts, self.counts, self.counts_ivar,
                                                     self.counts_mask, self.meta_spec['EXPTIME'],
                                                     self.meta_spec['AIRMASS'], self.std_dict,
-                                                    self.meta_spec['LONGITUDE'],
-                                                    self.meta_spec['LATITUDE'],
-                                                    self.par['UVIS']['extinct_file'],
+                                                    atmext,
                                                     self.meta_spec['ECH_ORDERS'],
                                                     polyorder=self.par['polyorder'],
                                                     hydrogen_mask_wid=self.par['hydrogen_mask_wid'],

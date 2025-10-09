@@ -4952,6 +4952,8 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+              spat_flexure_correct = True
+              spat_flexure_sigdetect = 100
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -5020,13 +5022,15 @@ Alterations to the default parameters are:
               use_overscan = False
               noise_floor = 0.01
               use_illumflat = False
+      [[flatfield]]
+          tweak_slits_thresh = 0.85
       [[wavelengths]]
           lamps = OH_NIRES,
-          fwhm = 4.5
-          rms_thresh_frac_fwhm = 0.05
+          rms_thresh_frac_fwhm = 0.07
       [[slitedges]]
-          edge_thresh = 300.0
+          edge_thresh = 30.0
           sync_predict = nearest
+          minimum_slit_length = 10.0
   [scienceframe]
       [[process]]
           satpix = nothing
@@ -5036,11 +5040,20 @@ Alterations to the default parameters are:
           use_overscan = False
           noise_floor = 0.01
           use_illumflat = False
+          spat_flexure_correct = True
+          spat_flexure_sigdetect = 100
   [reduce]
+      [[findobj]]
+          maxnumber_std = 1
       [[skysub]]
           bspline_spacing = 0.8
+          global_sky_std = False
       [[extraction]]
           std_prof_nsigma = 100.0
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-lbt_luci2:
 
@@ -5080,6 +5093,8 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+              spat_flexure_correct = True
+              spat_flexure_sigdetect = 100
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -5148,14 +5163,15 @@ Alterations to the default parameters are:
               use_overscan = False
               noise_floor = 0.01
               use_illumflat = False
+      [[flatfield]]
+          tweak_slits_thresh = 0.85
       [[wavelengths]]
           lamps = OH_NIRES,
-          fwhm = 5.0
-          rms_thresh_frac_fwhm = 0.04
+          rms_thresh_frac_fwhm = 0.07
       [[slitedges]]
-          edge_thresh = 300
-          fit_order = 8
+          edge_thresh = 30.0
           sync_predict = nearest
+          minimum_slit_length = 10.0
   [scienceframe]
       [[process]]
           satpix = nothing
@@ -5165,13 +5181,19 @@ Alterations to the default parameters are:
           use_overscan = False
           noise_floor = 0.01
           use_illumflat = False
+          spat_flexure_correct = True
+          spat_flexure_sigdetect = 100
   [reduce]
+      [[findobj]]
+          maxnumber_std = 1
       [[skysub]]
           bspline_spacing = 0.8
-          global_sky_std = False
       [[extraction]]
           std_prof_nsigma = 100.0
-          model_full_slit = True
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-lbt_mods1b:
 
