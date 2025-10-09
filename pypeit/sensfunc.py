@@ -1133,12 +1133,11 @@ class UVISSensFunc(SensFunc):
         """
         Calls routine to compute the sensitivity function.
         """
+        atmext = self.spectrograph.get_atmospheric_extinction(self.par['UVIS']['extinct_file'])
         meta_table, out_table = flux_calib.sensfunc(self.wave_cnts, self.counts, self.counts_ivar,
                                                     self.counts_mask, self.meta_spec['EXPTIME'],
                                                     self.meta_spec['AIRMASS'], self.std_dict,
-                                                    self.meta_spec['LONGITUDE'],
-                                                    self.meta_spec['LATITUDE'],
-                                                    self.par['UVIS']['extinct_file'],
+                                                    atmext,
                                                     self.meta_spec['ECH_ORDERS'],
                                                     polyorder=self.par['polyorder'],
                                                     hydrogen_mask_wid=self.par['hydrogen_mask_wid'],

@@ -17,6 +17,7 @@ Submodules
    :maxdepth: 4
 
    pypeit.core.arc
+   pypeit.core.atmextinction
    pypeit.core.basis
    pypeit.core.coadd
    pypeit.core.collate

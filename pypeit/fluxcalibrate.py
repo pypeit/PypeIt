@@ -9,7 +9,6 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import specobjs
 from pypeit import sensfunc
 from pypeit.history import History
-from astropy import table
 from IPython import embed
 
 

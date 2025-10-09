@@ -134,3 +134,18 @@ def test_configs():
         'Configurations should not be the same within tolerance'
 
 
+def test_atmext():
+    
+    spec = load_spectrograph('keck_deimos')
+    atmext = spec.get_atmospheric_extinction('closest')
+    assert atmext.file == 'mkoextinct.dat', 'Found wrong extinction file'
+
+    spec = load_spectrograph('shane_kast_blue')
+    atmext = spec.get_atmospheric_extinction('closest')
+    assert atmext.file == 'mthamextinct.dat', 'Found wrong extinction file'
+
+    # Override the file
+    atmext = spec.get_atmospheric_extinction('mkoextinct.dat')
+    assert atmext.file == 'mkoextinct.dat', 'Used wrong extinction file'
+
+
