@@ -55,8 +55,8 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``keck_nirspec_high``         1    0         True      False     1         3.01                        11.56                   2520.0    -1.0e+10  100000.0      0.9000     0.1300    
 ``keck_nirspec_high_old``     1    1         False     False     1         5.8                         23.0                    0.8       -1.0e+10  1000000.0     0.9000     0.1930    
 ``keck_nirspec_low``          1    0         False     False     1         3.01                        11.56                   2520.0    -1.0e+10  100000.0      0.9000     0.0980    
-``lbt_luci1``                 1    1         False     False     1         2.0                         4.61                    0.0       -1.0e+10  100000000.0   0.8000     0.2500    
-``lbt_luci2``                 1    1         False     False     1         2.0                         4.47                    0.0       -1.0e+10  100000000.0   0.8000     0.2500    
+``lbt_luci1``                 1    1         False     False     1         2.21                        ``None``                108.0     -1.0e+10  100000000.0   0.8000     ``None``  
+``lbt_luci2``                 1    1         False     False     1         2.15                        ``None``                21.6      -1.0e+10  100000000.0   0.8000     ``None``  
 ``lbt_mods1b``                1    0         True      False     4         2.55, 1.91, 2.09, 2.02      3.41, 2.93, 2.92, 2.76  0.5       -1.0e+10  65535.0       0.9900     0.1200    
 ``lbt_mods1b_proc``           1    0         True      False     4         2.55, 1.91, 2.09, 2.02      3.41, 2.93, 2.92, 2.76  0.5       -1.0e+10  65535.0       0.9900     0.1200    
 ``lbt_mods1r``                1    0         False     False     4         2.38, 2.5, 2.46, 2.81       3.78, 4.04, 4.74, 4.14  0.4       -1.0e+10  65535.0       0.9900     0.1230    

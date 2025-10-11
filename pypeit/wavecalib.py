@@ -664,8 +664,12 @@ class BuildWaveCalib:
                 arcfitter = Identify.initialise(arccen, self.lamps, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
                 arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
-                                         specname=self.spectrograph.name,
-                                         gratname="UNKNOWN", dispangl="UNKNOWN")
+                                         # JTS: Commented out as it seems the
+                                         # store solution function does not
+                                         # take these arguments any more.
+                                         # specname=self.spectrograph.name,
+                                         # gratname="UNKNOWN", dispangl="UNKNOWN"
+                                         )
         elif method == 'reidentify':
             # Now preferred
             # Slit positions

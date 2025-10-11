@@ -22,7 +22,7 @@ from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.core import flux_calib
+from pypeit.core import standard
 from pypeit.spectrographs import spectrograph
 from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
@@ -362,8 +362,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if ftype == 'standard':
             std = np.zeros(len(fitstbl), dtype=bool)
             if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
-                std = np.array([flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True)
-                                for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+                std = np.array([
+                    standard.get_archive_standard(ra, dec, tol=10., check=True)
+                    for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])
+                ])
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img & std
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')

@@ -86,34 +86,59 @@ def test_nirspec_lamps():
     tst = spectrograph.lamps(fitstbl, 'dome')
     assert np.array_equal(tst, np.array([False, False, False, False, False,  True,  True,  True]))
 
+
 def test_soar_goodman_metadata():
     # Load the spectrograph
     spectrograph = load_spectrograph("soar_goodman_red")
     # Setup a fake table with information about files
-    names = ('ra','dec','target','decker','binning','exptime','mjd','airmass','dispname','mode','dispangle','idname','lampstat01','lampstat02','lampstat03','lampstat04','lampstat05','lampstat06','lampstat07','lampstat08','directory','filename','manual','shift')
-    dtype = (np.float64, np.float64, str, str, str, np.float64, np.float64, np.float64, str, str, np.float64, str, str, str, str, str, str, str, str, str, str, str, str, np.int32)
+    names = (
+        'ra', 'dec', 'target', 'decker', 'binning', 'exptime', 'mjd', 'airmass', 'dispname',
+        'mode', 'dispangle', 'idname', 'lampstat01', 'lampstat02', 'lampstat03', 'lampstat04',
+        'lampstat05', 'lampstat06', 'lampstat07', 'lampstat08', 'directory', 'filename', 'manual',
+        'shift'
+    )
+    dtype = (
+        np.float64, np.float64, str, str, str, np.float64, np.float64, np.float64, str, str,
+        np.float64, str, str, str, str, str, str, str, str, str, str, str, str, np.int32
+    )
     fitstbl = Table(names=names, dtype=dtype)
     # Add four dummy rows for a standard, science, dome flat, and arc lamp frame
     # Standard
-    fitstbl.add_row((298.6849,0.2755,'hr7596','1.0_LONG_SLIT','2,2',0.4,60930.9714,1.32,'400_SYZY','400_M1',5.7992,'SPECTRUM','FALSE','FALSE','FALSE','FALSE','FALSE','FALSE','FALSE','FALSE','/home','hr7596.fits.fz','',0))
+    fitstbl.add_row((
+        298.6849, 0.2755, 'hr7596', '1.0_LONG_SLIT', '2, 2', 0.4, 60930.9714, 1.32, '400_SYZY',
+        '400_M1', 5.7992, 'SPECTRUM', 'FALSE', 'FALSE', 'FALSE', 'FALSE', 'FALSE', 'FALSE',
+        'FALSE', 'FALSE', '/home', 'hr7596.fits.fz', '', 0
+    ))
     # Science
-    fitstbl.add_row((5.0208,8.5102,'supernova','1.0_LONG_SLIT','2,2',400.0,60931.1597,1.46,'400_SYZY','400_M1',5.7999,'SPECTRUM','FALSE','FALSE','FALSE','FALSE','FALSE','FALSE','FALSE','FALSE','/home','supernova.fits.fz','',0))
+    fitstbl.add_row((
+        5.0208, 8.5102, 'supernova', '1.0_LONG_SLIT', '2, 2', 400.0, 60931.1597, 1.46, '400_SYZY',
+        '400_M1', 5.7999, 'SPECTRUM', 'FALSE', 'FALSE', 'FALSE', 'FALSE', 'FALSE', 'FALSE',
+        'FALSE', 'FALSE', '/home', 'supernova.fits.fz', '', 0
+    ))
     # Arc lamp
-    fitstbl.add_row((5.0212,8.5116,'supernova_comp','1.0_LONG_SLIT','2,2',0.5,60931.1544,1.48,'400_SYZY','400_M1',5.7995,'ARC','TRUE','TRUE','FALSE','FALSE','FALSE','FALSE','FALSE','FALSE','/home','supernova.fits.fz','',0))
+    fitstbl.add_row((
+        5.0212, 8.5116, 'supernova_comp', '1.0_LONG_SLIT', '2, 2', 0.5, 60931.1544, 1.48,
+        '400_SYZY', '400_M1', 5.7995, 'ARC', 'TRUE', 'TRUE', 'FALSE', 'FALSE', 'FALSE', 'FALSE',
+        'FALSE', 'FALSE', '/home', 'supernova.fits.fz', '', 0
+    ))
     # Flat
-    fitstbl.add_row((148.3446,-17.6491,'dflat','1.0_LONG_SLIT','2,2',7.0,60930.7888,1.66,'400_SYZY','400_M1',5.7997,'LAMPFLAT','FALSE','FALSE','FALSE','FALSE','FALSE','FALSE','FALSE','TRUE','/home','dflat.fits.fz','',0))
+    fitstbl.add_row((
+        148.3446, -17.6491, 'dflat', '1.0_LONG_SLIT', '2, 2', 7.0, 60930.7888, 1.66, '400_SYZY',
+        '400_M1', 5.7997, 'LAMPFLAT', 'FALSE', 'FALSE', 'FALSE', 'FALSE', 'FALSE', 'FALSE',
+        'FALSE', 'TRUE', '/home', 'dflat.fits.fz', '', 0
+    ))
 
     # Check standard
-    tst = spectrograph.check_frame_type('standard',fitstbl)
+    tst = spectrograph.check_frame_type('standard', fitstbl)
     assert np.array_equal(tst, np.array([True, False, False, False]))
     # Check science
-    tst = spectrograph.check_frame_type('science',fitstbl)
+    tst = spectrograph.check_frame_type('science', fitstbl)
     assert np.array_equal(tst, np.array([False, True, False, False]))
     # Check arc
-    tst = spectrograph.check_frame_type('arc',fitstbl)
+    tst = spectrograph.check_frame_type('arc', fitstbl)
     assert np.array_equal(tst, np.array([False, False, True, False]))
     # Check flat
-    tst = spectrograph.check_frame_type('pixelflat',fitstbl)
+    tst = spectrograph.check_frame_type('pixelflat', fitstbl)
     assert np.array_equal(tst, np.array([False, False, False, True]))
 
 
