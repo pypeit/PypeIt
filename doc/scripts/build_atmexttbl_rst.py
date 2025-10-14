@@ -4,7 +4,7 @@ Dynamically build table listing available standard stars.
 
 from importlib import resources
 
-import astropy.table
+from astropy import table
 
 from pypeit import dataPaths
 
@@ -18,7 +18,7 @@ def write_tables(path):
 
     # get table data
     file = dataPaths.extinction.get_file_path(f'extinction_curves.txt')
-    tbl = astropy.table.Table.read(file, comment='#', format='ascii')
+    tbl = table.Table.read(file, comment='#', format='ascii')
     tbl.meta = {}
 
     tbl.write(ofile, format="ascii.rst", overwrite=True)
