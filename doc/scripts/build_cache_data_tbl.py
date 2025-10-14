@@ -4,10 +4,9 @@ expected to be hosted by the cache system.
 """
 from importlib import resources
 
-import numpy as np
+import astropy.table
 
 from pypeit.pypeitdata import PypeItDataPaths
-from pypeit.utils import string_table
 
 from IPython import embed
 
@@ -19,23 +18,22 @@ def write_table(ofile):
 
     See ../installing.rst for more description.
     """
-    # Table columns
-    data_table = [['Reference', 'Subdirectory', 'Host']]
+    data_table = []
     # Use the class dictionary to fill the table
     for key, meta in PypeItDataPaths.defined_paths.items():
-        data_table += [[key, meta['path'], '...' if meta['host'] is None else meta['host']]]
 
-    # Convert to a numpy array and sort by the attribute name
-    data_table = np.atleast_1d(data_table)
-    srt = np.argsort(data_table[:,0])
-    data_table = data_table[srt]
+        data_table.append(
+            {
+                'Reference': key,
+                'Subdirectory': meta['path'],
+                'Host': '...' if meta['host'] is None else meta['host'],
+            }
+        )
 
-    # Convert the 2D array of values into text lines of an RST table
-    lines = string_table(data_table, delimeter='rst')
-    # Print the table
-    with open(ofile, 'w') as f:
-        f.write(lines)
-    # Report
+    tbl = astropy.table.Table(data_table)
+    tbl.sort('Reference')
+
+    tbl.write(ofile, format="ascii.rst", overwrite=True)
     print(f'Wrote: {ofile}')
 
 
