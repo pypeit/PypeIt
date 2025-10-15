@@ -405,11 +405,22 @@ class QLView(GingaPlugin.LocalPlugin):
             # while p.poll() is None:
             #     time.sleep(0.1)
         else:
-            args = ql.get_parser().parse_args(command[1:])
-            def a_cool_callback(out):
-                self.logger.info("Reduction complete as seen in callback~!")
-                self.raw_btn.set_enabled(False)
-            self.pool.apply_async(ql.main, args, callback=a_cool_callback)
+            print("Using new method to launch reduction")
+            # args = ql.QL.get_parser().parse_args(command[1:])
+            # print(f"Args to pass to QL.main: {args}")
+            # def a_cool_callback(out):
+            #     self.logger.info("Reduction complete as seen in callback~!")
+            #     self.raw_btn.set_enabled(False)
+            # # self.pool.apply_async(ql.QL.main, args, callback=a_cool_callback)
+            # # ql.QL.main(args)
+            print(self.logger.name)
+            self.pool.apply(sleepy, args=())
+            self.pool.join()
+            hbox, elements = self.make_reduced_slit_hbox()
+            elements['name'].set_text(f"Reducing {self.slit_list_box.get_text()}...")
+
+            self.vbox_redux.add_widget(hbox, stretch=0)
+            self.reduction_control_elements[self.slit_list_box.get_text()] = {"elements": elements, "hbox": hbox}
 
 
     def slit_list_box_cb(self, w, res_dict):
@@ -1437,6 +1448,12 @@ class MOSFIRE(Instrument):
         fulldata = hdul[0].data
         
         return np.rot90(fulldata)
+
+
+def sleepy():
+    print("Starting sleepy...")
+    time.sleep(5)
+    print("Done sleeping, now running")
 
 # class popen_w_cb():
 #     """Mirrors Popen, but with a callback for when the process finishes.
