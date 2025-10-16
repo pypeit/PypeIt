@@ -3,12 +3,13 @@ Dynamically build the rst documentation for the Calibration Images
 """
 
 from importlib import resources
+import io
 
 from IPython import embed
 
-import numpy
+import astropy.table
 
-from pypeit.utils import to_string, string_table
+from pypeit.utils import to_string
 from pypeit import datamodel
 
 def link_string(p):
@@ -31,29 +32,28 @@ def type_names(types):
     return type_name(types)
 
 
-def build_datamodel_tbl(obj):
+def build_datamodel_tbl(obj:datamodel.DataContainer) -> str:
 
     data_model = obj.datamodel
     keys = list(data_model.keys())
     keys.sort()
 
-    data_table = numpy.empty((len(keys)+1, 4), dtype=object)
-    data_table[0,:] = ['Attribute', 'Type', 'Array Type', 'Description']
-    for i,k in enumerate(keys):
-        # Key
-        data_table[i+1,0] = to_string(k, use_repr=False, verbatim=True)
-        # Object Type
-        data_table[i+1,1] = type_names(data_model[k]['otype'])
-        # Array type
-        if 'atype' in data_model[k].keys():
-            data_table[i+1,2] = type_names(data_model[k]['atype'])
-        else:
-            data_table[i+1,2] = ' '
-        # Description
-        data_table[i+1,3] = to_string(data_model[k]['descr'])
 
-    return [string_table(data_table, delimeter='rst')]
-
+    data_table = []
+    for k in keys:
+        data_table.append(
+            {
+                'Attribute': to_string(k, use_repr=False, verbatim=True),
+                'Type': type_names(data_model[k]['otype']),
+                'Array Type': type_names(data_model[k]['atype']) if 'atype' in data_model[k] else ' ',
+                'Description': to_string(data_model[k]['descr'])
+            }
+        )
+    tbl  = astropy.table.Table(data_table)
+    
+    tbl_stream = io.StringIO()
+    tbl.write(tbl_stream, format="ascii.rst")
+    return tbl_stream.getvalue()
 
 if __name__ == '__main__':
 
@@ -96,11 +96,11 @@ if __name__ == '__main__':
         ofile = output_root / f'class_datamodel_{obj.__name__.lower()}.rst'
 
         # Build the Table
-        lines = [''] + [f'**Version**: {obj.version}'] + [''] + build_datamodel_tbl(obj)
+        lines = ['', f'**Version**: {obj.version}', '', build_datamodel_tbl(obj)]
 
         # Finish
-        with open(ofile, 'w') as f:
-            f.write('\n'.join(lines))
+        with open(ofile, 'w', encoding='utf-8') as f_obj:
+            f_obj.write('\n'.join(lines))
 
         print(f'Wrote: {ofile}')
 
