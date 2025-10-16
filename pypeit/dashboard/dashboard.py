@@ -20,6 +20,7 @@ class FilledBackgroundWidget(QWidget):
     
 
 class ButtonWidget(FilledBackgroundWidget):
+    """this widget is the top left corner"""
     def __init__(self):
         super().__init__()#color=QColorConstants.DarkBlue)
 
@@ -47,6 +48,9 @@ class ButtonWidget(FilledBackgroundWidget):
         self.setMaximumHeight(self.fontMetrics().lineSpacing()*15)
 
 class StatusWidget(FilledBackgroundWidget):
+    """this widget is a collection of widgets at the top middle (from setup file to status bar)"""
+    """value_style_sheet is something that makes a little box underneath it"""
+
     def __init__(self):
         super().__init__()#color=QColorConstants.DarkGreen)
         fm = self.fontMetrics()       
@@ -63,57 +67,63 @@ class StatusWidget(FilledBackgroundWidget):
         #l = QLabel(text="Status")
         #l.setStyleSheet("font: normal 36pt")
         #layout.addWidget(l, 0, 0, 1, 3,alignment=Qt.AlignmentFlag.AlignLeft)
+        
 
-        l = QLabel(text="Setup File")
-        #l.setStyleSheet("background-color:Blue;")
-        layout.addWidget(l,0,0,1,1)#,alignment=Qt.AlignmentFlag.AlignLeft)
+        #---------------------- setup file group -------------------
+        setup_file_label = QLabel(text="Setup File")
+        layout.addWidget(setup_file_label,0,0,1,1)#,alignment=Qt.AlignmentFlag.AlignLeft)
 
         l = QLabel(text="keck_deimos_830g_m_8500.pypeit")
         l.setContentsMargins(value_cm)
         l.setStyleSheet(value_style_sheet)
         layout.addWidget(l,0,1,1,1)
-
-        l = QLabel(text="Calibration ID")
-        layout.addWidget(l,1,0,1,1)
-
+        
+        # --------------------- Calibration id group --------------
+        calibration_id_label = QLabel(text="Calibration ID")
+        layout.addWidget(calibration_id_label,1,0,1,1)
 
         l = QLabel(text="0")
         l.setContentsMargins(value_cm)
         l.setStyleSheet(value_style_sheet)
         layout.addWidget(l,1,1,1,1)#,alignment=Qt.AlignmentFlag.AlignLeft)
-
-        l = QLabel(text="Detector")
-        layout.addWidget(l,2,0,1,1)
+        
+        # --------------------- Detector group ---------------------
+        detector_label = QLabel(text="Detector")
+        layout.addWidget(detector_label,2,0,1,1)
 
         l = QLabel(text="3")
         l.setContentsMargins(value_cm)
         l.setStyleSheet(value_style_sheet)
         layout.addWidget(l,2,1,1,1)
-
-        l = QLabel(text="Science File")
-        layout.addWidget(l,0,2,1,1)
+        
+        # ------------------- Science file group ------------------
+        science_file_label = QLabel(text="Science File")
+        layout.addWidget(science_file_label,0,2,1,1)
 
         l = QLabel(text="DE.20100913.22358.fits.gz")
         l.setContentsMargins(value_cm)
         l.setStyleSheet(value_style_sheet)
         layout.addWidget(l,0,3,1,1)
 
-        l = QLabel(text="Step")
-        layout.addWidget(l,1,2,1,1)
+        # ------------------- step group ----------------------
+        step_label = QLabel(text="Step")
+        layout.addWidget(step_label,1,2,1,1)
 
         l = QLabel(text="Calibrations")
         l.setContentsMargins(value_cm)
         l.setStyleSheet(value_style_sheet)
         layout.addWidget(l,1,3,1,1)
 
-        l = QLabel(text="Calibration Step")
-        layout.addWidget(l,2,2,1,1)
+        # ------------------------ calibration step group ----------------
+        calibration_step_label = QLabel(text="Calibration Step")
+        layout.addWidget(calibration_step_label,2,2,1,1)
 
         l = QLabel(text="Tilts")
         l.setContentsMargins(value_cm)
         l.setStyleSheet(value_style_sheet)
         layout.addWidget(l,2,3,1,1)
 
+        # ------------------ progress bar ---------------------
         progress_bar = QProgressBar()
         progress_bar.setMaximum(100)
         progress_bar.setValue(33)
@@ -195,6 +205,7 @@ class FileListWidget(QListWidget):
         self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
 class DashboardWidget(FilledBackgroundWidget):
+    """this widget is the bottom widget"""
     def __init__(self):
         super().__init__()
 
