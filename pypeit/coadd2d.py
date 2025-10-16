@@ -438,7 +438,7 @@ class CoAdd2D:
         # these are the good slit index excluding the slits that are selected by the user
         return np.delete(good_slitindx, exclude_slitindx)
 
-    def optimal_weights(self, uniq_obj_id, order=None, weight_method='auto'):
+    def optimal_weights(self, uniq_obj_id, order=None, weight_method='wave_dependent'):
         """
         Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
         object with specified uniq_obj_id and passes to coadd.sn_weights to determine the optimal weights for

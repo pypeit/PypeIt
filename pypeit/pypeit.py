@@ -444,7 +444,8 @@ class PypeIt:
                 #
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 # Find all frames whose comb_id matches the current frames bkg_id.
-                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0])
+                #TODO TESTING!!!!
+                bg_frames = np.where((np.isin(self.fitstbl['comb_id'], [int(b) for b in self.fitstbl['bkg_id'][frames][0].split(',')]))
                                      & (self.fitstbl['comb_id'] >= 0))[0]
                 # JFH changed the syntax below to that above, which allows
                 # frames to be used more than once as a background image. The
@@ -1386,7 +1387,7 @@ class NIRSpecSlitPypeIt(PypeIt):
         spat_hi = spat_lo + this_slit.ysize
         return slice(spec_lo, spec_hi), slice(spat_lo, spat_hi)
 
-    def build_image(self, frames, _det, _detectors, _sci_data, _slit_slices):
+    def build_image(self, frames, _det, _detectors, _sci_data, _slit_slices, kludge_err=1.2):
         # ronoise = np.array([copy.deepcopy(d['ronoise']) for d in _detectors])
         # # Get the non-linear count level
         # if self.rawflatimg.is_mosaic:
@@ -1406,8 +1407,8 @@ class NIRSpecSlitPypeIt(PypeIt):
 
         if nimg == 1:
             sci = _sci_data[0].data.T[_slit_slices[0]] * exptime
-            var_rnoise = _sci_data[0].var_rnoise.T[_slit_slices[0]] * exptime ** 2
-            var_poisson = _sci_data[0].var_poisson.T[_slit_slices[0]] * exptime ** 2
+            var_rnoise = kludge_err**2 * _sci_data[0].var_rnoise.T[_slit_slices[0]] * exptime ** 2
+            var_poisson = kludge_err**2 * _sci_data[0].var_poisson.T[_slit_slices[0]] * exptime ** 2
             datasec = np.full_like(sci, 1, dtype=int)
             rn2img = procimg.rn2_frame(datasec, ronoise[0], units='e-', gain=1.)
             # darkim = np.repeat(dark, np.prod(sci.shape)).reshape(sci.shape)
@@ -1435,6 +1436,7 @@ class NIRSpecSlitPypeIt(PypeIt):
         base_var = procimg.base_variance(var_rnoise2, count_scale=None)
         var = procimg.variance_model(base_var, counts=var_poisson2, count_scale=None,
                                      noise_floor=self.par['scienceframe']['process']['noise_floor'])
+
         # make zero the values outside the slit and the nans
         sci2[(self.caliBrate.flatimages.pixelflat_norm==1) | np.logical_not(np.isfinite(sci2))] = 0.
         var[(self.caliBrate.flatimages.pixelflat_norm==1) | np.logical_not(np.isfinite(var))] = 0.
@@ -1479,9 +1481,9 @@ class NIRSpecSlitPypeIt(PypeIt):
             display.clear_all(allow_new=True)
 
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
-        if has_bg and len(bg_frames) != len(frames):
+        if has_bg and len(bg_frames) % len(frames) != 0:
             msgs.error('Background frames must be provided for all science frames. '
-                       'Please provide the same number of background frames as science frames.')
+                       'Please provide a number of background frames that is a multiple of the number of science frames.')
         # Is this an b/g subtraction reduction?
         if has_bg:
             self.bkg_redux = True
@@ -1519,7 +1521,8 @@ class NIRSpecSlitPypeIt(PypeIt):
 
         # TODO: use jwst.exp_to_source.exp_to_source to parse the jwst models
         # Create arrays to hold JWST spec2
-        # NOTE: all this implies that the number of frames is the same as the number of detectors, i.e., we are not combining different exposures here
+        # NOTE: all this implies that the number of frames is the same as the number of detectors,
+        # i.e., we are not combining different exposures for the main science frame but we can combine the bg frames
         sci_data = np.array(datamodels.open(self.fitstbl.frame_paths(frames)))
         if self.bkg_redux:
             sci_data_bkg = np.array(datamodels.open(self.fitstbl.frame_paths(bg_frames)))
@@ -1578,8 +1581,8 @@ class NIRSpecSlitPypeIt(PypeIt):
                                 if str(slt).strip() in maskIDs or str(src_id) in maskIDs or str(src_alias) in maskIDs]
             if not gd_slits_sources:
                 msgs.warn(f'No slits or sources found for maskIDs={self.par["rdx"]["maskIDs"]}. '
-                          'Reduction will be performed on all slits.')
-                gd_slits_sources = slit_sources_uni
+                          'Skipping reduction.')
+                return
             # find if there are maskIDs that are not present in the slit_sources_uni
             elif len(gd_slits_sources) < len(maskIDs):
                 missing_maskIDs = [mid for mid in maskIDs if mid not in [slt for slt, _, _, _ in gd_slits_sources] and
@@ -1587,6 +1590,7 @@ class NIRSpecSlitPypeIt(PypeIt):
                                   mid not in [src_alias for _, _, _, src_alias in gd_slits_sources]]
                 msgs.warn(f'The following maskIDs were not found: {", ".join(missing_maskIDs)}. '
                           'Reduction will be performed on the available slits and sources.')
+
         else:
             gd_slits_sources = slit_sources_uni
 
@@ -1612,19 +1616,20 @@ class NIRSpecSlitPypeIt(PypeIt):
 
             # Get the detector, cal, flat, science data, and slit slices
             if islit in slit_names_nrs1 and islit in slit_names_nrs2:
-                # this is a mosaic
-                _det = (1, 2)
-                _detectors = self.spectrograph.get_mosaic_par(_det).detectors
-                _cal_data = np.array([cal_data[[cal_d.meta.instrument.detector == 'NRS1' for cal_d in cal_data]][0],
-                             cal_data[[cal_d.meta.instrument.detector == 'NRS2' for cal_d in cal_data]][0]])
-                _slit_slices = [self.get_slit_slice(_cal_data[0], islit), self.get_slit_slice(_cal_data[1], islit)]
-                _flat_data = np.array([flat_data[[flat_d.meta.instrument.detector == 'NRS1' for flat_d in flat_data]][0],
-                                flat_data[[flat_d.meta.instrument.detector == 'NRS2' for flat_d in flat_data]][0]])
-                _sci_data = np.array([sci_data[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data]][0],
-                                sci_data[[sci_d.meta.instrument.detector == 'NRS2' for sci_d in sci_data]][0]])
-                if self.bkg_redux:
-                    _sci_data_bkg = np.array([sci_data_bkg[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data_bkg]][0],
-                                    sci_data_bkg[[sci_d.meta.instrument.detector == 'NRS2' for sci_d in sci_data_bkg]][0]])
+                msgs.error('Needto fix this part of the code to reduce slits that are on both NRS1 and NRS2 and have multiple background frames.')
+                # # this is a mosaic
+                # _det = (1, 2)
+                # _detectors = self.spectrograph.get_mosaic_par(_det).detectors
+                # _cal_data = np.array([cal_data[[cal_d.meta.instrument.detector == 'NRS1' for cal_d in cal_data]][0],
+                #              cal_data[[cal_d.meta.instrument.detector == 'NRS2' for cal_d in cal_data]][0]])
+                # _slit_slices = [self.get_slit_slice(_cal_data[0], islit), self.get_slit_slice(_cal_data[1], islit)]
+                # _flat_data = np.array([flat_data[[flat_d.meta.instrument.detector == 'NRS1' for flat_d in flat_data]][0],
+                #                 flat_data[[flat_d.meta.instrument.detector == 'NRS2' for flat_d in flat_data]][0]])
+                # _sci_data = np.array([sci_data[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data]][0],
+                #                 sci_data[[sci_d.meta.instrument.detector == 'NRS2' for sci_d in sci_data]][0]])
+                # if self.bkg_redux:
+                #     _sci_data_bkg = np.array([sci_data_bkg[[sci_d.meta.instrument.detector == 'NRS1' for sci_d in sci_data_bkg]][0],
+                #                     sci_data_bkg[[sci_d.meta.instrument.detector == 'NRS2' for sci_d in sci_data_bkg]][0]])
             elif islit in slit_names_nrs1:
                 # this is NRS1
                 _det = 1
@@ -1673,8 +1678,14 @@ class NIRSpecSlitPypeIt(PypeIt):
             # build the science PypeItImage
             sciImg = self.build_image(frames, _det, _detectors, _sci_data, _slit_slices)
             if self.bkg_redux:
-                sciImg_bkg = self.build_image(bg_frames, _det, _detectors, _sci_data_bkg, _slit_slices)
-                sciImg = sciImg.sub(sciImg_bkg)
+                sciImg_bkg_list = []
+                for _bg in _sci_data_bkg:
+                    sciImg_bkg = self.build_image(bg_frames, _det, _detectors, [_bg], _slit_slices)
+                    sciImg_bkg_list.append(sciImg_bkg)
+                # combine the background images
+                combineImage = combineimage.CombineImage(sciImg_bkg_list, self.par['scienceframe']['process'])
+                comb_sciImg_bkg = combineImage.run(ignore_saturation=True)
+                sciImg = sciImg.sub(comb_sciImg_bkg)
 
             # REDUCE
             # Is this a standard star?
