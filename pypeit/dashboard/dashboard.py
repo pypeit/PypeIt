@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from pypeit import msgs
+from pypeit.setup_gui.controller import SetupGUIController
 
 from qtpy.QtCore import QTimer, QSize, Qt, QMargins
 from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter
@@ -138,54 +139,6 @@ class StatusWidget(FilledBackgroundWidget):
         cm.setTop(0)
         #self.layout().setContentsMargins(cm)
 
-class TopWidget(FilledBackgroundWidget): 
-    def __init__(self):
-        super().__init__()#color=QColorConstants.DarkRed)
-        fm = self.fontMetrics()       
-        h = fm.lineSpacing() * 12
-        msgs.info(f"top height {h}")
-        self.setMinimumHeight(h)
-
-        layout = QHBoxLayout()
-        layout.addWidget(ButtonWidget(),alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        layout.addWidget(StatusWidget(),alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, stretch=3)
-
-        contentsMargins = layout.contentsMargins()
-        contentsMargins.setLeft(0)
-        contentsMargins.setTop(0)
-        layout.setContentsMargins(contentsMargins)
-
-        #layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-        self.setLayout(layout)
-
-
-class BottomWidget(FilledBackgroundWidget): 
-    def __init__(self):
-        super().__init__(color=QColorConstants.Blue)
-        fm = self.fontMetrics()
-        
-        h = fm.lineSpacing() * 12
-        msgs.info(f"bottom height {h}")
-        self.setMinimumHeight(h)
-
-class SpacerWidget(FilledBackgroundWidget):
-    def __init__(self, cols=None, rows=None):
-        super().__init__(color=QColorConstants.DarkCyan)
-
-        fm = self.fontMetrics()
-        msgs.info(f"fm maxWidth: {fm.maxWidth()} linespacing: {fm.lineSpacing()}")
-        if cols is not None:
-            w = fm.maxWidth() * cols
-            self.setMinimumWidth(w)
-        else:
-            w="-"
-        if rows is not None:
-            h = fm.lineSpacing() * rows
-            self.setMinimumHeight(h)
-        else:
-            h="-"    
-        msgs.info(f"Spacer height {h} width {w}")
         
 class FileListWidget(QListWidget):
     def __init__(self):
@@ -226,8 +179,10 @@ class MainWindow(QWidget):
         super().__init__()
 
         layout = QHBoxLayout()
-        layout.addWidget(ButtonWidget(),alignment=Qt.AlignmentFlag.AlignTop)
-        layout.addWidget(DashboardWidget(),stretch=3)
+        setup_widget = ButtonWidget()
+        dashboard_widget = DashboardWidget()
+        layout.addWidget(setup_widget,alignment=Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(dashboard_widget,stretch=3)
 
         #self.bottom_row = QWidget()
         #self.bottom_row.setStyleSheet("background-color:blue;")
@@ -290,3 +245,53 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+
+# --------------------- collection of classes that don't seem to be used -----------------------
+# class TopWidget(FilledBackgroundWidget): 
+#     def __init__(self):
+#         super().__init__()#color=QColorConstants.DarkRed)
+#         fm = self.fontMetrics()       
+#         h = fm.lineSpacing() * 12
+#         msgs.info(f"top height {h}")
+#         self.setMinimumHeight(h)
+#
+#         layout = QHBoxLayout()
+#         layout.addWidget(ButtonWidget(),alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+#         layout.addWidget(StatusWidget(),alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, stretch=3)
+#
+#         contentsMargins = layout.contentsMargins()
+#         contentsMargins.setLeft(0)
+#         contentsMargins.setTop(0)
+#         layout.setContentsMargins(contentsMargins)
+#
+#         #layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+#
+#         self.setLayout(layout)
+
+
+# class BottomWidget(FilledBackgroundWidget): 
+#     def __init__(self):
+#         super().__init__(color=QColorConstants.Blue)
+#         fm = self.fontMetrics()
+#
+#         h = fm.lineSpacing() * 12
+#         msgs.info(f"bottom height {h}")
+#         self.setMinimumHeight(h)
+
+# class SpacerWidget(FilledBackgroundWidget):
+#     def __init__(self, cols=None, rows=None):
+#         super().__init__(color=QColorConstants.DarkCyan)
+#
+#         fm = self.fontMetrics()
+#         msgs.info(f"fm maxWidth: {fm.maxWidth()} linespacing: {fm.lineSpacing()}")
+#         if cols is not None:
+#             w = fm.maxWidth() * cols
+#             self.setMinimumWidth(w)
+#         else:
+#             w="-"
+#         if rows is not None:
+#             h = fm.lineSpacing() * rows
+#             self.setMinimumHeight(h)
+#         else:
+#             h="-"    
+#         msgs.info(f"Spacer height {h} width {w}")
