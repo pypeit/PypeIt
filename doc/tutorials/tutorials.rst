@@ -43,6 +43,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    Keck NIRSPEC <nirspec_high_howto>
    Shane Kast <kast_howto>
    Subaru FOCAS <focas_howto>
+   Subaru MOIRCS <moircs_howto>
 
 ----
 
