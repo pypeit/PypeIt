@@ -1111,9 +1111,9 @@ class Spectrograph:
                 - you're selecting a set of detector and spatial pixel coordinate combinations needed
                   to reduce a single slit; see ``slitspatnum`` in the
                   :ref:`pypeitpar`.  The string is parsed into the list of relevant
-                    detectors.
+                  detectors.
                 - you are inputing the detectors/mosaics in string format, 
-                    e.g. "3,(1,5)" 
+                  e.g. "3,(1,5)" 
 
             - If ``subset`` is a list, integer, or tuple, it is parsed into a
               set of single detector or detector mosaics to reduce.

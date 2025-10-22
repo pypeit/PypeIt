@@ -36,6 +36,7 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of PypeIt methods.
