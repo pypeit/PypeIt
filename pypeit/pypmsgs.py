@@ -6,21 +6,19 @@ Module for terminal and file logging.
 
 """
 import datetime
-import sys
-import os
-import getpass
-import glob
-import textwrap
 import inspect
 import io
+import os
+import sys
 
 # Imported for versioning
-import scipy
-import numpy
 import astropy
-import pypeit
+import numpy
+import scipy
 
+import pypeit
 from pypeit.core.qa import close_qa
+from pypeit import pypeit_user
 
 #pypeit_logger = None
 
@@ -31,7 +29,13 @@ developers = ['ema', 'joe', 'milvang', 'rcooke', 'thsyu', 'xavier']
 class PypeItError(Exception):
     pass
 
+class PypeItBitMaskError(PypeItError):
+    pass
+
 class PypeItDataModelError(PypeItError):
+    pass
+
+class PypeItPathError(PypeItError):
     pass
 
 
@@ -61,13 +65,7 @@ class Messages:
         # Initialize other variables
         self._defverb = 1
 
-        try:
-            user = getpass.getuser()
-        except ModuleNotFoundError:
-            # there appears to be a bug in getpass in windows systems where the pwd module doesn't load
-            user = os.getlogin()
-
-        if user in developers:
+        if pypeit_user in developers:
             self._defverb = 2
         self._verbosity = self._defverb if verbosity is None else verbosity
 
@@ -404,7 +402,7 @@ class Messages:
                 Verbosity level between 0 [none] and 2 [all]
         """
         # Create a UT timestamp (to the minute) for the log filename
-        timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
+        timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d-%H%M")
         # Create a logfile only if verbosity == 2
         logname = f"{scriptname}_{timestamp}.log" if verbosity == 2 else None
         # Set the verbosity in msgs

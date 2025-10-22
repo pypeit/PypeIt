@@ -18,15 +18,18 @@ class ChkWaveCalib(scriptbase.ScriptBase):
         parser.add_argument('input_file', type=str, nargs='+',
                             help='One or more PypeIt WaveCalib file [e.g. WaveCalib_A_1_DET01.fits] or '
                                  'spec2d file')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
     def main(args):
 
         from IPython import embed
-        from pypeit import wavecalib, spec2dobj, msgs
-        from pypeit.pypmsgs import PypeItError
         from astropy.io import fits
+        from pypeit import wavecalib, spec2dobj, msgs
+
+        chk_version = not args.try_old
 
         # Loop over the input files
         for in_file in args.input_file:
@@ -44,17 +47,18 @@ class ChkWaveCalib(scriptbase.ScriptBase):
                 msgs.error("Bad file type input!")
 
             if file_type == 'WaveCalib':
-                waveCalib = wavecalib.WaveCalib.from_file(in_file, chk_version=False)
+                waveCalib = wavecalib.WaveCalib.from_file(in_file, chk_version=chk_version)
                 waveCalib.wave_diagnostics(print_diag=True)
                 continue
 
             elif file_type == 'AllSpec2D':
-                allspec2D = spec2dobj.AllSpec2DObj.from_fits(in_file, chk_version=False)
+                allspec2D = spec2dobj.AllSpec2DObj.from_fits(in_file, chk_version=chk_version)
                 for det in allspec2D.detectors:
                     print('')
                     print('='*50 + f'{det:^7}' + '='*51)
                     wave_diag = allspec2D[det].wavesol
-                    for colname in ['minWave', 'Wave_cen', 'maxWave', 'IDs_Wave_cov(%)', 'mesured_fwhm']:
+                    for colname in ['minWave', 'Wave_cen', 'maxWave', 'IDs_Wave_cov(%)',
+                                    'measured_fwhm']:
                         wave_diag[colname].format = '0.1f'
                     for colname in ['dWave', 'RMS']:
                         wave_diag[colname].format = '0.3f'

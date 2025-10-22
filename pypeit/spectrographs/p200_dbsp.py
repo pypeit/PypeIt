@@ -21,9 +21,6 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 
 
-def flip_fits_slice(s: str) -> str:
-    return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
-
 
 class P200DBSPSpectrograph(spectrograph.Spectrograph):
     """
@@ -169,6 +166,20 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw spectrograph image files and return data and relevant metadata
+        needed for image processing.
+
+        For P200/DBSP, the ``DATASEC`` and ``OSCANSEC`` regions are read
+        directly from the file header and are automatically adjusted to account
+        for the on-chip binning.  This is a simple wrapper for
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage` that
+        sets ``sec_includes_binning`` to True.  See the base-class function for
+        the detailed descriptions of the input parameters and returned objects.
+        """
+        return super().get_rawimage(raw_file, det, sec_includes_binning=True)
+
 
 class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
     """
@@ -203,7 +214,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         if meta_key == 'binning':
             binspatial, binspec = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
-        msgs.error("Not ready for this compound meta")
+        msgs.error(f"Not ready for this compound meta: {meta_key}")
 
     def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
         """
@@ -234,8 +245,8 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         else:
             # TODO: Could this be detector dependent??
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
-            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
+            datasec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(
@@ -427,7 +438,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             binspec, binspatial = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
         else:
-            msgs.error("Not ready for this compound meta")
+            msgs.error(f"Not ready for this compound meta: {meta_key}")
 
     def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
         """
@@ -458,8 +469,8 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         else:
             # TODO: Could this be detector dependent??
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
-            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
+            datasec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(
@@ -525,7 +536,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         par['sensfunc']['algorithm'] = 'UVIS'
         par['sensfunc']['UVIS']['polycorrect'] = False
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -575,6 +586,9 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                 'D68': {
                     7600: 'p200_dbsp_red_1200_7100_d68.fits',
                     8200: 'p200_dbsp_red_1200_7100_d68.fits'
+                },
+                'D55': {
+                    6680: 'p200_dbsp_red_1200_7100_d55_6680.fits'
                 }
             },
             '1200/9400': {

@@ -13,6 +13,7 @@
 .. _str.splitlines: https://docs.python.org/3/library/stdtypes.html#str.splitlines
 .. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
 .. _Path: https://docs.python.org/3/library/pathlib.html
+.. _Path.glob: https://docs.python.org/3.9/library/pathlib.html#pathlib.Path.glob
 .. _io.TextIOWrapper: https://docs.python.org/3/library/io.html#io.TextIOWrapper
 
 .. numpy
@@ -36,6 +37,7 @@
 .. _scipy.optimize.curve_fit: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
 .. _scipy.optimize.leastsq: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.leastsq.html
 .. _scipy.optimize.least_squares: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
+.. _scipy.optimize.linear_sum_assignment: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.linear_sum_assignment.html
 .. _scipy.optimize.OptimizeResult: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html
 .. _scipy.optimize.differential_evolution: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html
 .. _scipy.interpolate.interp1d: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
@@ -94,6 +96,8 @@
 .. _astropy.stats.sigma_clipped_stats: https://docs.astropy.org/en/stable/api/astropy.stats.sigma_clipped_stats.html
 .. _astropy.units.Unit: https://docs.astropy.org/en/stable/api/astropy.units.Unit.html
 .. _astropy.units.Quantity: https://docs.astropy.org/en/stable/api/astropy.units.Quantity.html
+.. _astropy.utils.data: https://docs.astropy.org/en/stable/utils/data.html
+.. _astropy.utils.data.download_file: https://docs.astropy.org/en/stable/api/astropy.utils.data.download_file.html
 
 .. scikit
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
@@ -114,13 +118,17 @@
 .. _Google-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html#example-google
 .. _Numpy-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html#example-numpy
 
+.. git/github
+.. _github.Repository: https://pygithub.readthedocs.io/en/latest/examples/Repository.html
+.. _github.ContentFile: https://pygithub.readthedocs.io/en/latest/github_objects/ContentFile.html
+
 .. misc packages
 .. _bumpversion: https://pypi.org/project/bumpversion/
 .. _rclone: https://rclone.org/
 .. _pip: https://pip.pypa.io/en/stable/
 .. _anaconda: https://www.anaconda.com/products/individual
 .. _conda: https://docs.conda.io/projects/conda/en/latest/index.html
-.. _virtualenv: https://virtualenv.pypa.io/en/latest/
+.. _venv: https://docs.python.org/3/library/venv.html
 .. _pdb: https://docs.python.org/3/library/pdb.html
 .. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
 .. _pytest: https://docs.pytest.org/en/latest/
@@ -128,7 +136,7 @@
 .. _scikit-image: https://scikit-image.org/
 .. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
 .. _specutils: https://specutils.readthedocs.io/en/stable/
-.. _specutils.Spectrum1D: https://specutils.readthedocs.io/en/stable/api/specutils.Spectrum1D.html
+.. _specutils.Spectrum: https://specutils.readthedocs.io/en/stable/api/specutils.Spectrum.html
 .. _specutils.SpectrumList: https://specutils.readthedocs.io/en/stable/api/specutils.SpectrumList.html
 .. _jdaviz: https://jdaviz.readthedocs.io/en/latest/
 .. _jupyter notebook: https://jupyter.org/
@@ -147,6 +155,8 @@
 .. _Submit an issue: https://github.com/pypeit/PypeIt/issues
 .. _PypeIt dev-suite Google Drive: https://drive.google.com/drive/folders/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW?usp=sharing
 .. _pypeit.data.filters: https://github.com/pypeit/PypeIt/tree/release/pypeit/data/filters
+.. the invite link below needs to be changed here and in README.rst
+.. _invite: https://join.slack.com/t/pypeit-users/shared_invite/zt-36uxx7isk-pY19si5JzFW4wA7gOaYBBA
 
 .. emails
 .. _Joe Hennawi: joe@physics.ucsb.edu

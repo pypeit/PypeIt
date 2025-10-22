@@ -121,7 +121,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #par['reduce']['findobj']['ech_find_nabove_min_snr'] = 1
         # Require detection in a single order since given only 5 orders and slitlosses for NIRES, often
         # things are only detected in the K-band? Decided not to make this the default.
-
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
@@ -140,7 +140,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['maxiter'] = 2
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'

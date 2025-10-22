@@ -23,6 +23,7 @@ from pypeit import utils
 from pypeit import datamodel
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
+from pypeit.spectrographs.util import load_spectrograph
 
 
 class SpecObj(datamodel.DataContainer):
@@ -55,7 +56,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.10'
+    version = '1.1.14'
     """
     Current datamodel version number.
     """
@@ -70,6 +71,9 @@ class SpecObj(datamodel.DataContainer):
                                         descr='Peak value of the spectral direction collapsed spatial profile'),
                  'smash_snr': dict(otype=float,
                                         descr='Peak S/N ratio of the spectral direction collapsed patial profile'),
+                 'sign': dict(otype=float,
+                                        descr='Sign of the object profile (+1 or -1).  + is a positive '+\
+                                                'profile above the sky background.'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
@@ -87,6 +91,8 @@ class SpecObj(datamodel.DataContainer):
                  'OPT_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                           descr='Optimally extracted noise variance, sky+read '
                                                 'noise only (counts^2)'),
+                 'OPT_FLAT': dict(otype=np.ndarray, atype=float,
+                                  descr='Optimally extracted flatfield spectrum, normalised to the peak value.'),
                  'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for optimally extracted flux. True=good'),
                  'OPT_FWHM': dict(otype=np.ndarray, atype=float,
@@ -120,6 +126,8 @@ class SpecObj(datamodel.DataContainer):
                  'BOX_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                           descr='Boxcar extracted noise variance, sky+read noise '
                                                 'only (counts^2)'),
+                 'BOX_FLAT': dict(otype=np.ndarray, atype=float,
+                                   descr='Boxcar extracted flatfield spectrum, normalized to the peak value.'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for boxcar extracted flux. True=good'),
                  'BOX_FWHM': dict(otype=np.ndarray, atype=float,
@@ -133,7 +141,8 @@ class SpecObj(datamodel.DataContainer):
                                             'used for this extraction'),
                  'BOX_CHI2': dict(otype=np.ndarray, atype=float,
                                   descr='Reduced chi2 of the model fit for this spectral pixel'),
-                 'BOX_RADIUS': dict(otype=float, descr='Size of boxcar radius (pixels)'),
+                 'BOX_R_PIX': dict(otype=float, descr='Size of boxcar radius (pixels)'),
+                 'BOX_R_ASEC': dict(otype=float, descr='Size of boxcar radius (arcsec)'),
                  'S2N': dict(otype=float, descr='Median signal to noise ratio of the extracted spectrum'
                                                 '(OPT if available, otherwise BOX)'),
                  #
@@ -158,11 +167,15 @@ class SpecObj(datamodel.DataContainer):
                  'DETECTOR': dict(otype=(DetectorContainer, Mosaic),
                                   descr='Object with the detector or mosaic metadata'),
                  'PYPELINE': dict(otype=str, descr='Name of the PypeIt pipeline mode'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  # TODO: It's unclear if OBJTYPE has to be one among a set of
                  # specific keywords.
                  'OBJTYPE': dict(otype=str, descr='Object type (e.g., standard, science)'),
                  'SPAT_PIXPOS': dict(otype=(float, np.floating),
                                      descr='Spatial location of the trace on detector (pixel) at half-way'),
+                 'SPAT_PIXPOS_ID': dict(otype=(int, np.integer),
+                                     descr='Nearest integer spatial location of the trace on detector (pixel) at half-way '
+                                           'used as a unique identifier for the naming model'),                 
                  'SPAT_FRACPOS': dict(otype=(float, np.floating),
                                       descr='Fractional location of the object on the slit'),
                  'trace_spec': dict(otype=np.ndarray, atype=(int,np.integer),
@@ -203,6 +216,9 @@ class SpecObj(datamodel.DataContainer):
                  'ECH_FRACPOS': dict(otype=(float, np.floating),
                                      descr='Synced echelle fractional location of the object on '
                                            'the slit'),
+                 'ECH_FRACPOS_ID': dict(otype=(int, np.integer),
+                                     descr='Echelle fractional location of the object on the slit multiplied '
+                                     'by 1000 used as a unique identifier for the naming model'), 
                  'ECH_ORDER': dict(otype=(int, np.integer), descr='Physical echelle order'),
                  'ECH_NAME': dict(otype=str,
                                   descr='Name of the object for echelle data. Same as NAME above '
@@ -223,16 +239,17 @@ class SpecObj(datamodel.DataContainer):
                  'hand_extract_fwhm',
                  # Object profile
                  'prof_nsigma',
-                 'sign',
                  'min_spat',
                  'max_spat',
                  # Echelle
                  'ech_frac_was_fit',
-                 'ech_snr'
+                 'ech_snr',
+                 # spectrograph
+                'spectrograph',
                 ]
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
-                 SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None):
+                 SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None, PYP_SPEC=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -240,7 +257,8 @@ class SpecObj(datamodel.DataContainer):
 
         # Initialize internal values that are not None
         self.hand_extract_flag = False
-        self.sign = 1.
+        if self.sign is None:
+            self.sign = 1.
 
         self.FLEX_SHIFT_GLOBAL = 0.
         self.FLEX_SHIFT_LOCAL = 0.
@@ -251,11 +269,20 @@ class SpecObj(datamodel.DataContainer):
 
     @classmethod
     def from_arrays(cls, PYPELINE:str, wave:np.ndarray, counts:np.ndarray, ivar:np.ndarray,
-                    mode='OPT', DET='DET01', SLITID=0, **kwargs):
+                    flat=None, mode='OPT', DET='DET01', SLITID=0, **kwargs):
         # Instantiate
         slf = cls(PYPELINE, DET, SLITID=SLITID)
+        # Check the type of the flat field if it's not None
+        if flat is not None:
+            if not isinstance(flat, np.ndarray):
+                msgs.error('Flat must be a numpy array')
+            if flat.shape != counts.shape:
+                msgs.error('Flat and counts must have the same shape')
         # Add in arrays
-        for item, attr in zip([wave, counts, ivar], ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
+        for item, attr in zip([wave, counts, ivar, flat], ['_WAVE', '_COUNTS', '_COUNTS_IVAR', '_FLAT']):
+            # Check if any of the arrays are None. If so, skip
+            if item is None:
+                continue
             setattr(slf, mode+attr, item.astype(float))
         # Mask. Watch out for places where ivar is infinite due to a divide by 0
         slf[mode+'_MASK'] = (slf[mode+'_COUNTS_IVAR'] > 0.) & np.isfinite(slf[mode+'_COUNTS_IVAR'])
@@ -363,13 +390,53 @@ class SpecObj(datamodel.DataContainer):
         """Return median spatial FWHM of the spectrum
 
         Returns:
-            float
+            float: Median spatial FWHM in arcsec
         """
         FWHM = 0.
         if self['FWHMFIT'] is not None and self['OPT_COUNTS'] is not None:
-            _, binspatial = parse.parse_binning(self['DETECTOR']['binning'])
-            FWHM = np.median(self['FWHMFIT']) * binspatial * self['DETECTOR']['platescale']
+            FWHM = np.median(self['FWHMFIT']) * self.platescale
         return FWHM
+
+    def boxcar_arcsec(self):
+        """Return the boxcar radius in arcsec
+
+        Returns:
+            float: Boxcar radius in arcsec
+        """
+
+        boxcar_arcsec = 0.
+        if self['BOX_R_PIX'] is not None and self['BOX_COUNTS'] is not None:
+            boxcar_arcsec = self['BOX_R_PIX'] * self.platescale
+        return boxcar_arcsec
+
+    @property
+    def platescale(self):
+        """Return the platescale in arcsec/pixel and includes the binning factor
+
+        Returns:
+            float: Platescale in arcsec/pixel
+        """
+        # make sure we have the spectrograph
+        if self.spectrograph is None:
+            self.get_spectrograph()
+
+        if self.PYPELINE == 'Echelle' and self.spectrograph.orders is not None:
+            idx = np.where(self.spectrograph.orders==self['ECH_ORDER'])[0][0]
+            return self.spectrograph.order_platescale(self.spectrograph.orders, self['DETECTOR']['binning'])[idx]
+
+        _, binspatial = parse.parse_binning(self['DETECTOR']['binning'])
+        return self['DETECTOR']['platescale'] * binspatial
+
+    def get_spectrograph(self):
+        """Set the spectrograph attribute from the PYP_SPEC attribute.
+
+        """
+        # some checks first
+        if self.spectrograph is None and self.PYP_SPEC is None:
+            msgs.error("PYP_SPEC must be set to access the spectrograph")
+        # get it
+        if self.spectrograph is None:
+            self.spectrograph = load_spectrograph(self.PYP_SPEC)
 
     def set_name(self):
         """
@@ -401,12 +468,12 @@ class SpecObj(datamodel.DataContainer):
             # ObjID
             name = naming_model['obj']
             ech_name = naming_model['obj']
-            if self['ECH_FRACPOS'] is None:
+            if self['ECH_FRACPOS_ID'] is None:
                 name += '----'
             else:
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
-                name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
-                ech_name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
+                name += '{:04d}'.format(self.ECH_FRACPOS_ID)
+                ech_name += '{:04d}'.format(self.ECH_FRACPOS_ID)
             name += f'-{self.DET}'
             ech_name += f'-{self.DET}'
             # Order number
@@ -417,10 +484,12 @@ class SpecObj(datamodel.DataContainer):
         elif self.PYPELINE in ['MultiSlit', 'SlicerIFU']:
             # Spat
             name = naming_model['spat']
-            if self['SPAT_PIXPOS'] is None:
+            if self['SPAT_PIXPOS_ID'] is None:
                 name += '----'
             else:
-                name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
+                name += '{:04d}'.format(self.SPAT_PIXPOS_ID)
+                #name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
+
             # Slit
             name += '-'+naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
@@ -485,7 +554,6 @@ class SpecObj(datamodel.DataContainer):
         # Now update the total flexure
         self.FLEX_SHIFT_TOTAL += shift
 
-    # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extinctfilepar=None,
                          extrap_sens=False):
@@ -501,9 +569,11 @@ class SpecObj(datamodel.DataContainer):
                 zeropoint array
             exptime (float):
                 Exposure time
-            tellmodel (?):
-                Telluric correction
-            extinct_correct (?):
+            tellmodel (`numpy.ndarray`_, optional):
+                Telluric model. To be applied to the sensitivity function. Only used to
+                generate the std fluxed QA plot. It should be None otherwise. To telluric
+                correct the data, use the telluric correct method.
+            extinct_correct (bool, optional):
                 If True, extinction correct
             airmass (float, optional):
                 Airmass
@@ -517,7 +587,6 @@ class SpecObj(datamodel.DataContainer):
                 Used for extinction correction
             extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
-
         """
         # Loop on extraction modes
         for attr in ['BOX', 'OPT']:
@@ -578,8 +647,10 @@ class SpecObj(datamodel.DataContainer):
         Convert spectrum into np.ndarray arrays
 
         Args:
-            extraction (str): Extraction method to convert
+            extraction (str):
+               Extraction method to convert
             fluxed:
+               Use the fluxed tags
 
         Returns:
             tuple: wave, flux, ivar, mask arrays
@@ -599,7 +670,7 @@ class SpecObj(datamodel.DataContainer):
         # Return
         return self[swave], self[sflux], self[sivar], self[smask]
 
-    def to_xspec1d(self, masked=False, **kwargs):
+    def to_xspec1d(self, masked=True, extraction='OPT', fluxed=True):
         """
         Create an `XSpectrum1D <linetools.spectra.xspectrum1d.XSpectrum1D>`_
         using this spectrum.
@@ -607,18 +678,22 @@ class SpecObj(datamodel.DataContainer):
         Args:
             masked (:obj:`bool`, optional):
                 If True, only unmasked data are included.
-            kwargs (:obj:`dict`, optional):
-                Passed directly to :func:`to_arrays`.
+            extraction (str):
+                Extraction method to convert
+            fluxed:
+                Use the fluxed tags
 
         Returns:
             `linetools.spectra.xspectrum1d.XSpectrum1D`_: Spectrum object
         """
-        wave, flux, ivar, gpm = self.to_arrays(**kwargs)
+        wave, flux, ivar, gpm = self.to_arrays(extraction=extraction, fluxed=fluxed)
         sig = np.sqrt(utils.inverse(ivar))
+        wave_gpm = wave > 1.0
+        wave, flux, sig, gpm = wave[wave_gpm], flux[wave_gpm], sig[wave_gpm], gpm[wave_gpm]
         if masked:
-            wave = wave[gpm]
-            flux = flux[gpm]
-            sig = sig[gpm]
+            flux = flux*gpm
+            sig = sig*gpm
+
         # Create
         return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 
@@ -629,7 +704,7 @@ class SpecObj(datamodel.DataContainer):
         Returns:
             bool: True if all checks have passed
         """
-        required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
+        required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_PIXPOS_ID', 'SPAT_FRACPOS',
             'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
             'smash_peakflux', 'smash_snr',
             'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
@@ -657,7 +732,7 @@ class SpecObj(datamodel.DataContainer):
         for attr in self.datamodel.keys():
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 # Special ones
-                if attr in ['DET', 'SLITID', 'SPAT_PIXPOS', 'NAME', 'RA', 
+                if attr in ['DET', 'SLITID', 'SPAT_PIXPOS', 'SPAT_PIXPOS_ID', 'NAME', 'RA', 
                             'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME', 'MASKDEF_EXTRACT',
                             'MASKDEF_OBJMAG', 'MASKDEF_OBJMAG_BAND']:
                     rdict[attr] = getattr(self,attr)

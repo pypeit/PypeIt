@@ -6,10 +6,12 @@ Module for the SOAR/Goodman instrument
 import numpy as np
 
 from astropy.time import Time
+from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
+from pypeit.core import flux_calib
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
@@ -44,6 +46,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=1, card='AIRMASS')
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=1, card='GRATING')
+        self.meta['mode'] = dict(ext=1, card='WAVMODE')
         self.meta['dispangle'] = dict(ext=1, card='GRT_ANG', rtol=1e-3)
         self.meta['idname'] = dict(ext=1, card='OBSTYPE')
         # used for arc and continuum lamps
@@ -93,7 +96,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'decker', 'binning', 'dispangle']
+        return ['dispname', 'mode','decker', 'binning', 'dispangle'] 
 
     def raw_header_cards(self):
         """
@@ -113,7 +116,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['GRATING', 'SLIT', 'CCDSUM', 'GRT_ANG']
+        return ['GRATING', 'WAVMODE','SLIT', 'CCDSUM', 'GRT_ANG']
 
 #    def pypeit_file_keys(self):
 #        """
@@ -181,11 +184,16 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science']:
-            return good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
-        if ftype in ['standard']:
-            # Don't type pinhole or dark frames
-            return np.zeros(len(fitstbl), dtype=bool) & self.lamps(fitstbl, 'off')
+        if ftype in ['science', 'standard']:
+            std = np.zeros(len(fitstbl), dtype=bool)
+            # Identify standard stars from flux_calib
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                std = np.array([flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True)
+                                for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+            base = good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
+            if ftype == 'science':
+                return base & np.logical_not(std)
+            return base & std
         if ftype == 'bias':
             # Don't type bias
             return np.zeros(len(fitstbl), dtype=bool)
@@ -330,7 +338,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['scienceframe']['exprng'] = [90, None]
 
         #par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         # TODO: Temporary fix for failure mode.  Remove once Ryan provides a
         # fix.
@@ -527,7 +535,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         par['scienceframe']['exprng'] = [90, None]
 
         # par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         return par
 

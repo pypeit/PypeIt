@@ -21,14 +21,17 @@ class ChkAlignments(scriptbase.ScriptBase):
                             help='PypeIt Alignment file [e.g. Alignment_A_1_DET01.fits]')
         parser.add_argument('--chname', default='Alignments', type=str,
                             help='Channel name for image in Ginga')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
-    def main(pargs):
+    def main(args):
         from pypeit import alignframe
 
         # Load
-        alignments = alignframe.Alignments.from_file(pargs.file)
+        chk_version = not args.try_old
+        alignments = alignframe.Alignments.from_file(args.file, chk_version=chk_version)
         # Show
         alignments.show()
 

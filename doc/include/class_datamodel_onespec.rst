@@ -1,5 +1,5 @@
 
-**Version**: 1.0.1
+**Version**: 1.0.2
 
 =================  ================  =================  ==========================================================================================================================================
 Attribute          Type              Array Type         Description                                                                                                                               
@@ -11,6 +11,7 @@ Attribute          Type              Array Type         Description
 ``ivar``           `numpy.ndarray`_  `numpy.floating`_  Inverse variance array (matches units of flux)                                                                                            
 ``mask``           `numpy.ndarray`_  `numpy.integer`_   Mask array (1=Good,0=Bad)                                                                                                                 
 ``obj_model``      `numpy.ndarray`_  `numpy.floating`_  Object model for tellurics                                                                                                                
+``sigma``          `numpy.ndarray`_  `numpy.floating`_  One sigma noise array, equivalent to 1/sqrt(ivar) (matches units of flux)                                                                 
 ``spect_meta``     dict                                 header dict                                                                                                                               
 ``telluric``       `numpy.ndarray`_  `numpy.floating`_  Telluric model                                                                                                                            
 ``wave``           `numpy.ndarray`_  `numpy.floating`_  Wavelength array (angstroms in vacuum), weighted by pixel contributions                                                                   

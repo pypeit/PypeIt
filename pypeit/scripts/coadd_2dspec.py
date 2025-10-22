@@ -32,18 +32,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
-
-        # TODO: Make spec_samp_fact and spat_samp_fact parameters in CoAdd2DPar,
-        # and then move these to setup_coadd2d.py
-        parser.add_argument('--spec_samp_fact', default=1.0, type=float,
-                            help="Make the wavelength grid finer (spec_samp_fact < 1.0) or "
-                                 "coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. "
-                                 "units of spec_samp_fact are pixels.")
-        parser.add_argument('--spat_samp_fact', default=1.0, type=float,
-                            help="Make the spatial grid finer (spat_samp_fact < 1.0) or coarser "
-                                 "(spat_samp_fact > 1.0) by this sampling factor, i.e. units of "
-                                 "spat_samp_fact are pixels.")
-
         #parser.add_argument("--wave_method", type=str, default=None,
         #                    help="Wavelength method for wavelength grid. If not set, code will "
         #                         "use linear for Multislit and log10 for Echelle")
@@ -103,8 +91,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         spec2d_files = coadd2dFile.filenames
 
         # Get the paths
-        coadd_scidir, qa_path = map(lambda x : Path(x).resolve(),
-                                    coadd2d.CoAdd2D.output_paths(spec2d_files, par, coadd_dir=par['rdx']['redux_path']))
+        coadd_scidir, qa_path = map(lambda x : Path(x).absolute(),
+                coadd2d.CoAdd2D.output_paths(spec2d_files, par, coadd_dir=par['rdx']['redux_path']))
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
@@ -173,12 +161,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
             # Instantiate Coadd2d
             coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, par, det=det,
-                                                 offsets=par['coadd2d']['offsets'],
-                                                 weights=par['coadd2d']['weights'],
                                                  only_slits=this_only_slits,
                                                  exclude_slits=this_exclude_slits,
-                                                 spec_samp_fact=args.spec_samp_fact,
-                                                 spat_samp_fact=args.spat_samp_fact,
                                                  bkg_redux=bkg_redux, find_negative=find_negative,
                                                  debug_offsets=args.debug_offsets,
                                                  debug=args.debug)
@@ -223,6 +207,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             all_spec2d[coadd.detname] = spec2dobj.Spec2DObj(sciimg=sci_dict[coadd.detname]['sciimg'],
                                                           ivarraw=sci_dict[coadd.detname]['sciivar'],
                                                           skymodel=sci_dict[coadd.detname]['skymodel'],
+                                                          bkg_redux_skymodel=None,
                                                           objmodel=sci_dict[coadd.detname]['objmodel'],
                                                           ivarmodel=sci_dict[coadd.detname]['ivarmodel'],
                                                           scaleimg=np.array([1.0], dtype=float),

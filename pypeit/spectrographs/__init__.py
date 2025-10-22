@@ -3,11 +3,13 @@ from pypeit.spectrographs import spectrograph
 
 # The import of all the spectrograph modules here is what enables the dynamic
 # compiling of all the available spectrographs below
-from pypeit.spectrographs import gtc_osiris
+from pypeit.spectrographs import aat_uhrf
 from pypeit.spectrographs import bok_bc
+from pypeit.spectrographs import apf_levy
 from pypeit.spectrographs import gemini_flamingos
 from pypeit.spectrographs import gemini_gmos
 from pypeit.spectrographs import gemini_gnirs
+from pypeit.spectrographs import gtc_osiris
 from pypeit.spectrographs import keck_esi
 from pypeit.spectrographs import keck_deimos
 from pypeit.spectrographs import keck_hires
@@ -41,6 +43,8 @@ from pypeit.spectrographs import jwst_nirspec
 from pypeit.spectrographs import jwst_nircam
 from pypeit.spectrographs import subaru_focas
 from pypeit.spectrographs import subaru_moircs
+from pypeit.spectrographs import p200_ngps 
+
 
 # Build the list of names for the available spectrographs
 

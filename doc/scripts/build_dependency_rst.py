@@ -2,7 +2,7 @@
 Construct an rst table with the dependencies
 """
 
-import configparser
+import tomllib
 from importlib import resources
 
 import numpy
@@ -12,15 +12,15 @@ from pypeit.utils import string_table
 from IPython import embed
 
 
-def write_dependency_table(setup_file, path):
+def write_dependency_table(project_file, path):
     ofile = path / 'dependencies_table.rst'
 
-    setup = configparser.ConfigParser()
-    setup.read(setup_file)
+    with open(project_file, 'rb') as f:
+        project = tomllib.load(f)
 
-    user_requires = numpy.sort(setup['options']['install_requires'].split('\n')[1:])
-    dev_requires = numpy.sort(setup['options.extras_require']['dev'].split('\n')[1:])
-    required_python = setup['options']['python_requires']
+    user_requires = numpy.sort(project['project']['dependencies']) 
+    dev_requires = numpy.sort(project['project']['optional-dependencies']['dev'])
+    required_python = project['project']['requires-python']
 
     data_table = numpy.empty((3, 2), dtype=object)
     data_table[0,:] = ['Python Version', f'``{required_python}``']
@@ -39,10 +39,10 @@ def main():
     if not output_root.is_dir():
         raise NotADirectoryError(f'{output_root} does not exist!')
 
-    setup_file = pypeit_root / 'setup.cfg'
-    if not setup_file.is_file():
-        raise FileNotFoundError(f'{setup_file} does not exist!')
-    write_dependency_table(setup_file, output_root)
+    project_file = pypeit_root / 'pyproject.toml'
+    if not project_file.is_file():
+        raise FileNotFoundError(f'{project_file} does not exist!')
+    write_dependency_table(project_file, output_root)
 
 
 if __name__ == '__main__':

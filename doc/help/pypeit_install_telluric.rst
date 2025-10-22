@@ -7,13 +7,13 @@
     Script to download/install PypeIt telluric files
     
     positional arguments:
-      files           Filename(s) of the TelFits files to be downloaded from the
-                      Cloud and installed in the PypeIt cache
+      files           Exact paths to TelFits files to be downloaded from the Cloud
+                      and installed in the PypeIt cache
     
     options:
       -h, --help      show this help message and exit
       --force_update  Force download of latest version of the telluric grid
                       (default: False)
-      --local_file    This is a local file (downloaded or created) to be installed
-                      in the cache (default: False)
+      --local_file    This is a local file to be installed in the cache (default:
+                      False)
     

@@ -48,7 +48,7 @@ as determined by
 :func:`pypeit.metadata.PypeItMetaData.unique_configurations`. The
 ``AMPMODE`` value is included, even though ``PypeIt`` (currently)
 restricts itself to only attempting to reduce frames read by the B
-amplifier; see
+and A amplifiers; see
 :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.valid_configuration_values`.
 Additionally, ``PypeIt`` requires all frames to have ``MOSMODE ==
 'Spectral'``. Frames that do not match these header keyword
@@ -178,7 +178,7 @@ The algorithm for this test is as follows:
 
     5. Check that "cleaning" the configurations of frames that cannot
        be reduced by ``PypeIt`` (those with ``MOSMODE != 'Spectral'``
-       or ``AMPMODE != SINGLE:B``), using
+       or ``AMPMODE != SINGLE:B`` or ``AMPMODE != SINGLE:A``), using
        :func:`~pypeit.metadata.PypeItMetaData.clean_configurations`
        does not remove any file because all of the dev-suite files
        are valid.

@@ -2,16 +2,19 @@
 Module for LDT/DeVeny specific methods.
 
 The DeVeny spectrograph was built at Kitt Peak National Observatory (KPNO)
-and known as the White Spectrograph. It had a long career at the #1 36-inch
-and 84-inch telescopes there before being retired; Lowell Observatory acquired
-the spectrograph from KPNO on indefinite loan in 1998. A new CCD camera was
-built for it, and the instrument was further modified for installation on the
-72-inch Perkins telescope in 2005. Following 8 years of service there, it was
-removed in 2013 for upgrades for installation on the Lowell Discovery Telescope
-(LDT) instrument cube. It has been in service since February 2015. The
-spectrograph was designed for f/7.5 telescope optics, and new re-imaging
-optics were designed and fabricated to match the spectrograph with LDT's
-f/6.1 beam.
+and was known as the White Spectrograph. It had a long career at the #1 36-inch
+and 84-inch telescopes there before being retired. Lowell Observatory acquired
+the spectrograph from KPNO on indefinite loan in 1998 and renamed the
+instrument in honor of the longtime KPNO Instrument Support Scientist Jim
+DeVeny (see `a photo of DeVeny with the spectrograph
+<https://noirlab.edu/public/images/noao-02617/>`__ on the 84-inch telescope).
+A new CCD camera was built for it, and the spectrograph was further modified
+for installation on the 72-inch Perkins telescope in 2005. Following 8 years of
+service there, it was removed in 2013 for upgrades for installation on the
+Lowell Discovery Telescope (LDT) instrument cube. DeVeny has
+been in service at LDT since February 2015. The spectrograph was designed for
+and operates internally with f/7.5 optics; new re-imaging optics were designed
+and fabricated to match the spectrograph with LDT's f/6.1 beam.
 
 .. include:: ../include/links.rst
 """
@@ -20,7 +23,6 @@ import numpy as np
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import io
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -566,79 +568,17 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Read raw images and generate a few other bits and pieces
-        that are key for image processing.
+        Read raw spectrograph image files and return data and relevant metadata
+        needed for image processing.
 
         For LDT/DeVeny, the LOIS control system automatically adjusts the
-        ``DATASEC`` and ``OSCANSEC`` regions if the CCD is used in a binning other
-        than 1x1.  The :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage`
-        method in the base class assumes these sections are fixed and adjusts
-        them based on the binning -- an incorrect assumption for this instrument.
-
-        This method is a stripped-down version of the base class method and
-        additionally does *NOT* send the binning to :func:`~pypeit.core.parse.sec2slice`.
-
-        Parameters
-        ----------
-        raw_file : :obj:`str`
-            File to read
-        det : :obj:`int`
-            1-indexed detector to read
-
-        Returns
-        -------
-        detector_par : :class:`~pypeit.images.detector_container.DetectorContainer`
-            Detector metadata parameters.
-        raw_img : `numpy.ndarray`_
-            Raw image for this detector.
-        hdu : `astropy.io.fits.HDUList`_
-            Opened fits file
-        exptime : :obj:`float`
-            Exposure time *in seconds*.
-        rawdatasec_img : `numpy.ndarray`_
-            Data (Science) section of the detector as provided by setting the
-            (1-indexed) number of the amplifier used to read each detector
-            pixel. Pixels unassociated with any amplifier are set to 0.
-        oscansec_img : `numpy.ndarray`_
-            Overscan section of the detector as provided by setting the
-            (1-indexed) number of the amplifier used to read each detector
-            pixel. Pixels unassociated with any amplifier are set to 0.
+        ``DATASEC`` and ``OSCANSEC`` regions if the CCD is used in a binning
+        other than 1x1.  This is a simple wrapper for
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage` that
+        sets ``sec_includes_binning`` to True.  See the base-class function for
+        the detailed descriptions of the input parameters and returned objects.
         """
-        # Open
-        hdu = io.fits_open(raw_file)
-
-        # Grab the DetectorContainer and extract the raw image
-        detector = self.get_detector_par(det, hdu=hdu)
-        raw_img = hdu[detector['dataext']].data.astype(float)
-
-        # Exposure time (used by RawImage) from the header
-        headarr = self.get_headarr(hdu)
-        exptime = self.get_meta_value(headarr, 'exptime')
-
-        for section in ['datasec', 'oscansec']:
-            # Get the data section from Detector
-            image_sections = detector[section]
-
-            # Initialize the image (0 means no amplifier)
-            pix_img = np.zeros(raw_img.shape, dtype=int)
-            for i in range(detector['numamplifiers']):
-
-                if image_sections is not None:
-                    # Convert the (FITS) data section from a string to a slice
-                    # DO NOT send the binning (default: None)
-                    datasec = parse.sec2slice(image_sections[i], one_indexed=True,
-                                              include_end=True, require_dim=2)
-                    # Assign the amplifier
-                    pix_img[datasec] = i+1
-
-            # Finish
-            if section == 'datasec':
-                rawdatasec_img = pix_img.copy()
-            else:
-                oscansec_img = pix_img.copy()
-
-        # Return
-        return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+        return super().get_rawimage(raw_file, det, sec_includes_binning=True)
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
         """
@@ -677,13 +617,18 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         msgs.error(f"Pattern noise removal is not yet implemented for spectrograph {self.name}")
         return []
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                       trim_std_pixs=None, log10_blaze_function=None):
         """
         This routine is for performing instrument- and/or disperser-specific
         tweaks to standard stars so that sensitivity function fits will be
         well behaved.
 
         These are tweaks needed by LDT/DeVeny for smooth sensfunc sailing.
+
+        NOTE: if the `trim_std_pixs` parameter is not None, then the standard star spectrum will be only trimmed
+        by the specified number of pixels at the start and end of the spectrum, and no other tweaks will be
+        performed.
 
         Parameters
         ----------
@@ -699,6 +644,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
         log10_blaze_function: `numpy.ndarray`_ or None
             Input blaze function to be tweaked, optional. Default=None.
 
@@ -715,6 +664,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         log10_blaze_function_out: `numpy.ndarray`_ or None
             Output blaze function after being tweaked.
         """
+
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
+
         # First, simply chop off the wavelengths outside physical limits:
         valid_wave = (wave_in >= 2900.0) & (wave_in <= 11000.0)
         wave_out = wave_in[valid_wave]

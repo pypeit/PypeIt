@@ -30,7 +30,7 @@ class Mosaic(datamodel.DataContainer):
     """
 
     # Set the version of this class
-    version = '1.0.0'
+    version = '1.0.1'
 
     # WARNING: `binning` and `platescale` have the same names as datamodel
     # components in pypeit.images.detector_container.DetectorContainer.  This is
@@ -53,14 +53,15 @@ class Mosaic(datamodel.DataContainer):
                  'tform': dict(otype=np.ndarray, atype=float,
                                descr='The full transformation matrix for each detector used to '
                                      'construct the mosaic.'),
-                 'msc_order': dict(otype=int, descr='Order of the interpolation used to construct the mosaic.')}
+                 'msc_ord': dict(otype=int,
+                                 descr='Order of the interpolation used to construct the mosaic.')}
 
     name_prefix = 'MSC'
     """
     Prefix for the name of the mosaic.
     """
 
-    def __init__(self, id, detectors, shape, shift, rot, tform, msc_order):
+    def __init__(self, id, detectors, shape, shift, rot, tform, msc_ord):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -107,8 +108,8 @@ class Mosaic(datamodel.DataContainer):
             tbl['rot'] = self.rot
         if self.tform is not None:
             tbl['tform'] = self.tform
-        if self.msc_order is not None:
-            tbl.meta['msc_order'] = self.msc_order
+        if self.msc_ord is not None:
+            tbl.meta['msc_ord'] = self.msc_ord
         if self.id is not None:
             tbl.meta['id'] = self.id
         if self.shape is not None:
@@ -159,10 +160,18 @@ class Mosaic(datamodel.DataContainer):
         hdr = fits.Header()
         hdr['DMODCLS'] = DetectorContainer.__name__
         hdr['DMODVER'] = _hdu.header['DETMODV']
-        d['detectors'] = np.array([DetectorContainer.from_hdu(
-                                        fits.BinTableHDU(data=table.Table(tbl[i]),
-                                                         name='DETECTOR', header=hdr))
-                                    for i in range(ndet)])
+        d['detectors'] = []
+        for i in range(ndet):
+            _hdu = fits.BinTableHDU(data=table.Table(tbl[i]), name='DETECTOR', header=hdr)
+            # NOTE: I'm using _parse() to ensure that I keep the result of the
+            # version and type checking.
+            _d, vp, tp, ph = DetectorContainer._parse(_hdu)
+            if not vp:
+                msgs.warn('Detector datamodel version is incorrect.  May cause a fault.')
+            version_passed &= vp
+            d['detectors'] += [DetectorContainer.from_dict(d=_d) if tp else None]
+            type_passed &= tp
+        d['detectors'] = np.array(d['detectors'], dtype=object)
 
         return d, version_passed, type_passed, parsed_hdus
 
@@ -209,5 +218,11 @@ class Mosaic(datamodel.DataContainer):
         """
         return int(name[len(Mosaic.name_prefix):])
 
-
+    def copy(self):
+        """
+        Return a (deep) copy of the object.
+        """
+        return Mosaic(id=self.id, detectors=np.array([det.copy() for det in self.detectors]),
+                      shape=self.shape, shift=self.shift.copy(), rot=self.rot.copy(),
+                      tform=self.tform.copy(), msc_ord=self.msc_ord)
 

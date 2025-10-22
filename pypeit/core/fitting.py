@@ -943,7 +943,7 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
         outmask = True
     else:
         outmask = np.ones(invvar.shape, dtype='bool')
-    xsort = xdata.argsort()
+    xsort = xdata.argsort(kind='stable')
     maskwork = (outmask & inmask & (invvar > 0.0))[xsort]  # `maskwork` is in xsort order
     if 'oldset' in kwargs_bspline:
         sset = kwargs_bspline['oldset']

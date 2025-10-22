@@ -67,6 +67,7 @@ if __name__ == '__main__':
     from pypeit.flatfield import FlatImages
     from pypeit.manual_extract import ManualExtractionObj
     from pypeit.onespec import OneSpec
+    from pypeit.orderstack import OrderStack
     from pypeit.scattlight import ScatteredLight
     from pypeit.sensfunc import SensFunc
     from pypeit.slittrace import SlitTraceSet
@@ -87,7 +88,7 @@ if __name__ == '__main__':
 
     from pypeit.images import buildimage
 
-    datacontainers = [Alignments, EdgeTraceSet, FlatImages, ManualExtractionObj, OneSpec, ScatteredLight,
+    datacontainers = [Alignments, EdgeTraceSet, FlatImages, ManualExtractionObj, OneSpec, OrderStack, ScatteredLight,
                       SensFunc, SlitTraceSet, Spec2DObj, SpecObj, TracePCA, WaveCalib, WaveTilts,
                       bspline, DataCube, PypeItFit, MultiSlitFlexure, Telluric, DetectorContainer,
                       Mosaic, PypeItImage, WaveFit]

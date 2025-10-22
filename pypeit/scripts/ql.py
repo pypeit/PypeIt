@@ -54,6 +54,7 @@ from pypeit import pypeitsetup
 from pypeit import metadata
 from pypeit import io
 from pypeit import inputfiles 
+from pypeit import outputfiles
 from pypeit import pypeit
 from pypeit import coadd2d
 from pypeit.par.pypeitpar import PypeItPar
@@ -211,7 +212,8 @@ def generate_sci_pypeitfile(redux_path:str,
                             slitspatnum:str=None,
                             maskID:str=None,
                             boxcar_radius:float=None,
-                            snr_thresh:float=None):
+                            snr_thresh:float=None,
+                            chk_version:bool=True):
     """
     Prepare to reduce the science frames:
 
@@ -268,7 +270,7 @@ def generate_sci_pypeitfile(redux_path:str,
     ps_sci.fitstbl._set_calib_group_bits()
 
     # Set the I/O directories
-    _redux_path = Path(redux_path).resolve()
+    _redux_path = Path(redux_path).absolute()
     sci_dir = _redux_path / folder_name_from_scifiles(ps_sci.fitstbl['filename'].data)
     calib_dir = sci_dir / ps_sci.par['calibrations']['calib_dir']
 
@@ -298,10 +300,10 @@ def generate_sci_pypeitfile(redux_path:str,
     is_std = ps_sci.fitstbl.find_frames('standard', index=True)
     if len(is_std) > 0 and not clear:
         for i in is_std:
-            std_spec1d = pypeit.PypeIt.get_spec_file_name(
-                            str(sci_dir / ps_sci.par['rdx']['scidir']),
-                            ps_sci.fitstbl.construct_basename(i))
-            if Path(std_spec1d).exists():
+            std_spec1d = outputfiles.spec_output_file(
+                    ps_sci.fitstbl, None, i,
+                    sci_path=sci_dir / ps_sci.par['rdx']['scidir'])
+            if std_spec1d.exists():
                 break
             # File doesn't exist, so reset
             std_spec1d = None
@@ -350,7 +352,7 @@ def generate_sci_pypeitfile(redux_path:str,
         # Iterate through each file to find the one with the relevant mask ID.
         detname = None
         for sliittrace_file in slittrace_files:
-            slitTrace = SlitTraceSet.from_file(sliittrace_file)
+            slitTrace = SlitTraceSet.from_file(sliittrace_file, chk_version=chk_version)
             if maskID in slitTrace.maskdef_id:
                 detname = slitTrace.detname
                 # Mosaic?
@@ -430,7 +432,7 @@ def calib_manifest(calib_dir, spectrograph):
         directory with the processed calibrations.
     """
     # Check the calibration directory exists
-    _calib_dir = Path(calib_dir).resolve()
+    _calib_dir = Path(calib_dir).absolute()
     if not _calib_dir.exists():
         return None
 
@@ -580,7 +582,7 @@ def get_setup_calib(calib_dir, calib_grp=None):
     Returns:
         :obj:`tuple`: The setup name and calibration group.
     """
-    _calib_dir = Path(calib_dir).resolve()
+    _calib_dir = Path(calib_dir).absolute()
 
     # Check there are files in the directory
     calib_files = sorted(_calib_dir.glob('*'))
@@ -713,28 +715,17 @@ class QL(scriptbase.ScriptBase):
                             help='If standard star observations are automatically detected, '
                                  'ignore those frames.  Otherwise, they are included with the '
                                  'reduction of the science frames.')
-        parser.add_argument('--skip_display', dest='show', default=True, action='store_false',
-                            help='Run the quicklook without displaying any results.')
+        parser.add_argument('--skip_display', default=False, action='store_true',
+                            help='Run the quicklook without displaying any results. The default skip_display=False will show the results.') 
+        parser.add_argument('--removetrace', default=False, action='store_true',
+                            help='When the image is shown, do not overplot traces in the skysub, sky_resid, and resid '
+                                 'channels')
 
         # TODO: Add fluxing option?
 
         # Coadding options
         parser.add_argument('--coadd2d', default=False, action='store_true',
                             help='Perform default 2D coadding.')
-        # TODO: Consolidate slitspatnum and only_slits!
-        parser.add_argument('--only_slits', type=str, nargs='+',
-                            help='If coadding, only coadd this space-separated set of slits.  If '
-                                 'not provided, all slits are coadded.')
-        parser.add_argument('--offsets', type=str, default=None,
-                            help='If coadding, spatial offsets to apply to each image; see the '
-                                 '[coadd2d][offsets] parameter.  Options are restricted here to '
-                                 'either maskdef_offsets or auto.  If not specified, the '
-                                 '(spectrograph-specific) default is used.')
-        parser.add_argument('--weights', type=str, default=None,
-                            help='If coadding, weights used to coadd images; see the '
-                                 '[coadd2d][weights] parameter.  Options are restricted here to '
-                                 'either uniform or auto.  If not specified, the '
-                                 '(spectrograph-specific) default is used.')
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help='If coadding, adjust the wavelength grid sampling by this '
                                  'factor.  For a finer grid, set value to <1.0; for coarser '
@@ -743,6 +734,23 @@ class QL(scriptbase.ScriptBase):
                             help='If coadding, adjust the spatial grid sampling by this '
                                  'factor.  For a finer grid, set value to <1.0; for coarser '
                                  'sampling, set value to >1.0).')
+        parser.add_argument('--offsets', type=str, default=None,
+                            help='If coadding, spatial offsets to apply to each image; see the '
+                                 '[coadd2d][offsets] parameter.  Options are restricted here to '
+                                 'either maskdef_offsets or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.')                
+        parser.add_argument('--weights', type=str, default=None,
+                            help='If coadding, weights used to coadd images; see the '
+                                 '[coadd2d][weights] parameter.  Options are restricted here to '
+                                 'either uniform or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.')
+        # TODO: Consolidate slitspatnum and only_slits!
+        parser.add_argument('--only_slits', type=str, nargs='+',
+                            help='If coadding, only coadd this space-separated set of slits.  If '
+                                 'not provided, all slits are coadded.')
+
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
 
         return parser
 
@@ -751,6 +759,8 @@ class QL(scriptbase.ScriptBase):
     def main(args):
 
         tstart = time.perf_counter()
+
+        chk_version = not args.try_old
 
         # Parse the raw files
         files = get_files(args.raw_files, args.raw_path)
@@ -761,7 +771,7 @@ class QL(scriptbase.ScriptBase):
         # RawFile that can be edited?
         # from pypeit.inputfiles import RawFiles
         # tbl = Table()
-        # tbl['filename'] = [Path(r).resolve().name for r in files]
+        # tbl['filename'] = [Path(r).absolute().name for r in files]
         # RawFiles(file_paths=[args.raw_path], data_table=tbl).write('test.rawfiles')
 
         # Run PypeIt Setup on all the files
@@ -770,7 +780,7 @@ class QL(scriptbase.ScriptBase):
 
         # Find the raw science files
         sci_idx = ps.fitstbl.find_frames('science') if args.sci_files is None \
-                        else np.in1d(ps.fitstbl['filename'].data, args.sci_files)
+                        else np.isin(ps.fitstbl['filename'].data, args.sci_files)
         # TODO: Allow for standard files to be identified?
 
         # Check for any untyped files (that have not been typed) as science
@@ -791,7 +801,7 @@ class QL(scriptbase.ScriptBase):
 
         # Set the directory with the calibrations
         setup_calib_dir = None if args.setup_calib_dir is None \
-                            else Path(args.setup_calib_dir).resolve()
+                            else Path(args.setup_calib_dir).absolute()
 
         # For any science files, independently prep their meta data and
         # associate them with the correct calibrations, if necessary.
@@ -915,7 +925,7 @@ class QL(scriptbase.ScriptBase):
             # Process them
             for calib_pypeit_file in calib_pypeit_files: 
                 # Path to PypeIt file
-                redux_path = Path(calib_pypeit_file).resolve().parent
+                redux_path = Path(calib_pypeit_file).absolute().parent
 
                 # Path for calibrations.
                 # NOTE: When running with science frames, there will only be one
@@ -960,7 +970,8 @@ class QL(scriptbase.ScriptBase):
                     slitspatnum=args.slitspatnum,
                     maskID=args.maskID, 
                     boxcar_radius=args.boxcar_radius,
-                    snr_thresh=args.snr_thresh)
+                    snr_thresh=args.snr_thresh,
+                    chk_version=chk_version)
 
         # Run it
         pypeIt = pypeit.PypeIt(sci_pypeit_file, reuse_calibs=True)
@@ -983,27 +994,29 @@ class QL(scriptbase.ScriptBase):
                 command_line_args += ['--offsets', args.offsets]
             if args.weights is not None:
                 command_line_args += ['--weights', args.weights]
+            if args.spec_samp_fact != 1.0:
+                command_line_args += ['--spec_samp_fact', str(args.spec_samp_fact)]
+            if args.spat_samp_fact != 1.0:
+                command_line_args += ['--spat_samp_fact', str(args.spat_samp_fact)]
             SetupCoAdd2D.main(SetupCoAdd2D.parse_args(command_line_args))
 
             # Find all the coadd2d scripts
             # NOTE: This should only find *one* coadd2d file because quick-look
             # should be limited to performing reduction for one target at a
             # time.
-            coadd_file = sorted(Path(sci_pypeit_file).resolve().parent.glob('*.coadd2d'))
+            coadd_file = sorted(Path(sci_pypeit_file).absolute().parent.glob('*.coadd2d'))
             if len(coadd_file) != 1:
                 msgs.error('There should be only one 2D coadd file.')
             coadd_file = coadd_file[0]
             
             # Run the coadding
             coadd2dFile = inputfiles.Coadd2DFile.from_file(coadd_file)
-            CoAdd2DSpec.main(CoAdd2DSpec.parse_args([str(coadd_file),
-                                                     '--spec_samp_fact', str(args.spec_samp_fact),
-                                                     '--spat_samp_fact', str(args.spat_samp_fact)]))
+            CoAdd2DSpec.main(CoAdd2DSpec.parse_args([str(coadd_file)]))
 
             # Get the output file name
             spectrograph, par, _ = coadd2dFile.get_pypeitpar()
             spec2d_files = coadd2dFile.filenames
-            coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).resolve()
+            coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).absolute()
             basename = coadd2d.CoAdd2D.default_basename(spec2d_files)
             spec2d_file = str(coadd_scidir / f'spec2d_{basename}.fits')
         else:
@@ -1011,9 +1024,12 @@ class QL(scriptbase.ScriptBase):
             frame = pypeIt.fitstbl.find_frames('science', index=True)[0]
             spec2d_file = pypeIt.spec_output_file(frame, twod=True)
 
-        if args.show:
+        if not args.skip_display:
             # TODO: Need to parse detector here?
-            Show2DSpec.main(Show2DSpec.parse_args([spec2d_file]))
+            show2d_spec_args = [spec2d_file]
+            if args.removetrace:
+                show2d_spec_args += ['--removetrace']
+            Show2DSpec.main(Show2DSpec.parse_args(show2d_spec_args))
 
         # TODO: 
         #   - Print a statement that allows users to copy-paste the correct

@@ -65,6 +65,28 @@ def shane_kastr_300_7500_NoNe(overwrite=False):  # 300/7500
                              outroot, lowredux=False, ifiles=ifiles, chk=True,
                              normalize=True, subtract_conti=True, overwrite=overwrite, shift_wave=False)
 
+# ##############################
+def shane_kastr_1200_5000(overwrite=False):  # 1200/5000
+    """ Warning:  This is *not* the full detector """
+
+    binspec = 1
+    outroot = 'shane_kast_red_1200_5000_new.fits'
+    #
+    wpath = os.path.join(templates.template_path, 'Shane_Kast', '1200_5000')
+    basefiles = ['shane_kast_red_1200_5000_blue.fits',
+                 'wvarxiv_shane_kast_red_20240320T1731.fits']
+    wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
+    slits = [0]*len(wfiles)
+    wvcuts = [5940]
+    #
+    templates.build_template(wfiles, slits, wvcuts, binspec,
+                             outroot, reid_files=True,
+                             chk=True,
+                             normalize=True, subtract_conti=True, 
+                             overwrite=overwrite, shift_wave=False)
+
+
 if __name__ == '__main__':
-    shane_kastr_300_7500_Ne()#overwrite=True)
+    #shane_kastr_300_7500_Ne()#overwrite=True)
     #shane_kastr_300_7500_NoNe()
+    shane_kastr_1200_5000()

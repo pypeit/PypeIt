@@ -65,8 +65,11 @@ class ObsLog(scriptbase.ScriptBase):
         parser.add_argument('-s', '--sort', default='mjd', type=str,
                             help='Metadata keyword (pypeit-specific) to use to sort the output '
                                  'table.')
-        parser.add_argument('-e', '--extension', default='.fits',
-                            help='File extension; compression indicators (e.g. .gz) not required.')
+        parser.add_argument('-e', '--extension', default=None,
+                            help='File extension to use.  Must include the period (e.g., ".fits") '
+                                 'and it must be one of the allowed extensions for this '
+                                 'spectrograph.  If None, root directory will be searched for '
+                                 'all files with any of the allowed extensions.')
         parser.add_argument('-d', '--output_path', default='current working directory',
                             help='Path to top-level output directory.')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
@@ -115,8 +118,7 @@ class ObsLog(scriptbase.ScriptBase):
                              f'argument.')
 
         # Generate the metadata table
-        ps = PypeItSetup.from_file_root(args.root, args.spec, 
-                                        extension=args.extension)
+        ps = PypeItSetup.from_file_root(args.root, args.spec, extension=args.extension)
         ps.run(setup_only=True,  # This allows for bad headers
                groupings=args.groupings,
                clean_config=args.bad_frames)

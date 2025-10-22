@@ -1,7 +1,7 @@
 .. code-block:: console
 
     $ pypeit_edge_inspector -h
-    usage: pypeit_edge_inspector [-h] trace_file
+    usage: pypeit_edge_inspector [-h] [--try_old] trace_file
     
     Interactively inspect/edit slit edge traces
     
@@ -10,4 +10,6 @@
     
     options:
       -h, --help  show this help message and exit
+      --try_old   Attempt to load old datamodel versions. A crash may ensue..
+                  (default: False)
     

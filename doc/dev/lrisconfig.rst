@@ -13,6 +13,7 @@ Version History
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
 1.0         Debora Pelliccia    6 Sep 2023 1.13.1.dev
+1.1         Debora Pelliccia   10 Aug 2024 1.16.1.dev
 =========   ================   =========== ===========
 
 ----
@@ -50,12 +51,15 @@ which finds unique combinations of the following keywords:
 
 The unique configurations are determined by collating the relevant metadata from the headers
 of all frames found by a run of :ref:`pypeit_setup`, *except* those that are designated as
-bias frames. The reason is that bias frames can have header data (e.g., ``dispangle``)
+bias and slitless_pixflat frames. Bias frames can have header data (e.g., ``dispangle``)
 that do not match the instrument configuration that an observer intended for their use;
 e.g., the frames were taken before the instrument was fully configured for the night's
 observations. Therefore, PypeIt uses the ``dateobs``, ``binning``, ``amp`` keys to match
 the bias frames to the configurations with frames taken on the same date, with
-the same binning and on the same amplifier.
+the same binning and on the same amplifier. Similarly, slitless_pixflat frames are taken
+without a slitmask (i.e., ``decker`` is different from the other frames), therefore
+PypeIt uses the ``dateobs``, ``binning``, ``amp``, ``dispname``, ``dichroic`` keys to match
+the slitless_pixflat frames to a specific configuration.
 
 After that, :func:`pypeit.metadata.PypeItMetaData.set_configurations` associates each frame
 to the relevant unique configuration ("setup"), by assigning a setup identifier

@@ -12,6 +12,68 @@ from IPython import embed
 from pypeit import msgs, utils
 
 
+def pad_frame(_frame, detpad=300):
+    """
+    Clean the edges of the input frame and then pad the frame to avoid edge effects.
+
+    Parameters
+    ----------
+    _frame : `numpy.ndarray`_
+        Frame to be padded
+    detpad : int
+        Number of pixels to pad the frame on each side
+
+    Returns
+    -------
+    _frame_pad : `numpy.ndarray`_
+        Padded frame
+    """
+    _frame[0, :] = np.median(_frame[0:10, :], axis=0)
+    _frame[-1, :] = np.median(_frame[-10:, :], axis=0)
+    return np.pad(_frame, detpad, mode='edge')  # Model should be generated on padded data
+
+
+def scattered_light_model_pad(param, img, detpad=300):
+    """
+    Construct a scattered light model for the input image, with the model parameters
+    defined by param. This function is used to generate a model of the scattered light,
+    based on a set of model parameters that have first been optimized using scattered_light().
+    The model is generated on a padded version of the input image, and then trimmed to
+    match the input image size.
+
+    Parameters
+    ----------
+    param : `numpy.ndarray`_
+        Model parameters that determine the scattered light based on the input img.
+        Here is a list of the individual parameter meanings:
+
+        * param[0] = Gaussian kernel width in the spectral direction
+        * param[1] = Gaussian kernel width in the spatial direction
+        * param[2] = Lorentzian kernel width in the spectral direction
+        * param[3] = Lorentzian kernel width in the spatial direction
+        * param[4] = Pixel shift of the scattered light in the spectral direction
+        * param[5] = Pixel shift of the scattered light in the spatial direction
+        * param[6] = Zoom factor of the scattered light (~1)
+        * param[7] = constant offset for scattered light (independent of img)
+        * param[8] = Kernel angle
+        * param[9] = Relative importance of Gaussian vs Lorentzian.
+                        0 < value < 1 means Lorentzian is weighted more
+                        value > 1 means Gaussian is weighted more.
+        * param[10:] = Polynomial scaling coefficients
+    img : `numpy.ndarray`_
+        Image used to generate the scattered light model
+    detpad : int
+        Number of pixels to pad the frame on each side
+
+    Returns
+    -------
+    model : `numpy.ndarray`_
+        Model of the scattered light for the input
+    """
+    _frame_pad = pad_frame(img, detpad=detpad)
+    return scattered_light_model(param, _frame_pad)[detpad:-detpad, detpad:-detpad]
+
+
 def scattered_light_model(param, img):
     """ Model used to calculate the scattered light.
 
@@ -34,11 +96,12 @@ def scattered_light_model(param, img):
         * param[4] = Pixel shift of the scattered light in the spectral direction
         * param[5] = Pixel shift of the scattered light in the spatial direction
         * param[6] = Zoom factor of the scattered light (~1)
-        * param[7] = Kernel angle
-        * param[8] = Relative importance of Gaussian vs Lorentzian.
-                     0 < value < 1 means Lorentzian is weighted more
-                     value > 1 means Gaussian is weighted more.
-        * param[9:] = Polynomial scaling coefficients
+        * param[7] = constant offset for scattered light (independent of img)
+        * param[8] = Kernel angle
+        * param[9] = Relative importance of Gaussian vs Lorentzian.
+                        0 < value < 1 means Lorentzian is weighted more
+                        value > 1 means Gaussian is weighted more.
+        * param[10:] = Polynomial scaling coefficients
     img : `numpy.ndarray`_
         Raw image that you want to compute the scattered light model.
         shape is (nspec, nspat)
@@ -151,9 +214,7 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
     _frame = utils.replace_bad(frame, bpm)
 
     # Pad the edges of the data
-    _frame[0, :] = np.median(_frame[0:10, :], axis=0)
-    _frame[-1, :] = np.median(_frame[-10:, :], axis=0)
-    _frame_pad = np.pad(_frame, detpad, mode='edge')  # Model should be generated on padded data
+    _frame_pad = pad_frame(_frame, detpad)
     offslitmask_pad = np.pad(offslitmask * gpm, detpad, mode='constant', constant_values=0)  # but don't include padded data in the fit
     # Grab the pixels to be included in the fit
     wpix = np.where(offslitmask_pad)
@@ -252,7 +313,7 @@ def mask_slit_regions(offslitmask, centrace, mask_regions=None):
     return offslitmask & np.logical_not(bad_mask)
 
 
-def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
+def fine_correction(frame, bpm, offslitmask, method='median', polyord=2, debug=False):
     """ Calculate a fine correction to the residual scattered light of the input frame.
 
     Parameters
@@ -265,6 +326,11 @@ def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
         2D boolean array indicating the bad pixels (True=bad), same shape as frame
     offslitmask : `numpy.ndarray`_
         A boolean mask indicating the pixels that are on/off the slit (True = off the slit), same shape as frame
+    method : :obj:`str`, optional
+        Method to use to determine the fine correction to the scattered light. Options are:
+            - 'median': Use the median of the off-slit pixels to determine the scattered light
+            - 'poly': Use a polynomial fit to the off-slit pixels to determine the scattered light. If this
+                        option is chosen, the polynomial order must be specified. See `polyord` below.
     polyord : :obj:`int`, optional
         Polynomial order to use for fitting the residual scattered light in the spatial direction.
     debug : :obj:`bool`, optional
@@ -275,25 +341,33 @@ def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
     scatt_img : `numpy.ndarray`_
         A 2D image (nspec, nspat) of the fine correction to the scattered light determined from the input frame.
     """
-    msgs.info("Performing a fine correction to the scattered light")
-    # Convert the BPM to a GPM for convenience
-    gpm = np.logical_not(bpm)
-
-    # Define some useful variables
+    if method not in ['median', 'poly']:
+        msgs.error("Unrecognized method to determine the fine correction to the scattered light: {:s}".format(method))
+    msgs.info("Performing a fine correction to the scattered light using the {:s} method".format(method))
     nspec, nspat = frame.shape
-    xspat = np.linspace(0, 1, nspat)
-    model = np.zeros_like(frame)
+    if method == 'median':
+        # Use the median of the off-slit pixels to determine the scattered light
+        mask = bpm | np.logical_not(offslitmask)
+        frame_msk = np.ma.array(frame, mask=mask)
+        scatt_light_fine = np.repeat(np.ma.median(frame_msk, axis=1).data[:, np.newaxis], nspat, axis=1)
+    elif method == 'poly':
+        # Convert the BPM to a GPM for convenience
+        gpm = np.logical_not(bpm)
 
-    # Loop over the residual scattered light in the spectral direction and perform
-    # a low order polynomial fit to the scattered light in the spatial direction.
-    for yy in range(nspec):
-        ext = frame[yy, :]
-        gd = np.where(offslitmask[yy, :] & gpm[yy, :])
-        coeff = np.polyfit(xspat[gd], ext[gd], polyord)
-        model[yy, :] = np.polyval(coeff, xspat)
-    # Median filter in the spectral direction to smooth out irregularities in the fine correction
-    model_med = ndimage.median_filter(model, size=(50, 1))  # Median filter to get rid of CRs
-    scatt_light_fine = ndimage.gaussian_filter(model_med, sigma=10)  # Gaussian filter to smooth median filter
+        # Define some useful variables
+        xspat = np.linspace(0, 1, nspat)
+        model = np.zeros_like(frame)
+
+        # Loop over the residual scattered light in the spectral direction and perform
+        # a low order polynomial fit to the scattered light in the spatial direction.
+        for yy in range(nspec):
+            ext = frame[yy, :]
+            gd = np.where(offslitmask[yy, :] & gpm[yy, :])
+            coeff = np.polyfit(xspat[gd], ext[gd], polyord)
+            model[yy, :] = np.polyval(coeff, xspat)
+        # Median filter in the spectral direction to smooth out irregularities in the fine correction
+        model_med = ndimage.median_filter(model, size=(50, 1))  # Median filter to get rid of CRs
+        scatt_light_fine = ndimage.gaussian_filter(model_med, sigma=10)  # Gaussian filter to smooth median filter
     if debug:
         from matplotlib import pyplot as plt
         vmin, vmax = -np.max(scatt_light_fine), np.max(scatt_light_fine)

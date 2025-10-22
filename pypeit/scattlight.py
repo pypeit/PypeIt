@@ -105,7 +105,7 @@ class ScatteredLight(calibframe.CalibFrame):
             msgs.warn("No scattered light parameters are available")
             return np.zeros_like(image)
         # Return the model of the scattered light
-        return scattlight.scattered_light_model(self.scattlight_param, image)
+        return scattlight.scattered_light_model_pad(self.scattlight_param, image)
 
     def show(self, image=None, slits=None, mask=False, wcs_match=True):
         """ Display the master scattered light frame, the model, and data-model.
@@ -122,7 +122,7 @@ class ScatteredLight(calibframe.CalibFrame):
         wcs_match : :obj:`bool`, optional
             Use a reference image for the WCS and match all image in other channels to it.
         """
-        offslitmask = slits.slit_img(pad=0, initial=True, flexure=None) == -1 if mask else 1
+        offslitmask = slits.slit_img(pad=0, flexure=None) == -1 if mask else 1
 
         # Prepare the frames
         _data = self.scattlight_raw if image is None else image
@@ -141,3 +141,4 @@ class ScatteredLight(calibframe.CalibFrame):
 
         # Display frames
         display.show_scattered_light(image_list, slits=slits, wcs_match=wcs_match)
+

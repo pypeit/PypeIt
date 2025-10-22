@@ -20,7 +20,7 @@ from pypeit import specobjs
 from pypeit import io
 from pypeit import utils
 from pypeit import __version__
-from pypeit.pypmsgs import PypeItError, PypeItDataModelError
+from pypeit.pypmsgs import PypeItDataModelError, PypeItBitMaskError
 
 from pypeit.display import display
 from pypeit.images.imagebitmask import ImageBitMask
@@ -41,12 +41,17 @@ def show_trace(sobjs, det, viewer, ch):
         det (:obj:`str`):
             The string identifier for the detector or mosaic used to select the
             extractions to show.
-        viewer (?):
-        ch (?):
+        viewer (:class:`~ginga.misc.Bunch.Bunch`):
+            Ginga viewer object.
+        ch (:obj:`str`):
+            The name of the channel in the Ginga viewer to plot the traces.
     """
+   
     if sobjs is None:
         return
     in_det = np.where(sobjs.DET == det)[0]
+    if len(in_det) == 0: 
+        return 
     trace_list = []
     trc_name_list = []
     maskdef_extr_list = []
@@ -64,8 +69,11 @@ def show_trace(sobjs, det, viewer, ch):
         maskdef_extr_list.append(maskdef_extr_flag is True)
         manual_extr_list.append(manual_extr_flag is True)
 
-    display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
-                       maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
+    if len(trace_list) > 0:
+        display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
+                           maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
+    else:
+        msgs.warn('spec1d file found, but no objects were extracted for this detector.')
 
 
 class Show2DSpec(scriptbase.ScriptBase):
@@ -79,17 +87,25 @@ class Show2DSpec(scriptbase.ScriptBase):
         parser.add_argument('file', type=str, default=None, help='Path to a PypeIt spec2d file')
         parser.add_argument('--list', default=False, action='store_true',
                             help='List the extensions only?')
-        parser.add_argument('--det', default='1', type=str,
+        parser.add_argument('--det', default=None, type=str,
                             help='Detector name or number.  If a number, the name is constructed '
                                  'assuming the reduction is for a single detector.  If a string, '
                                  'it must match the name of the detector object (e.g., DET01 for '
-                                 'a detector, MSC01 for a mosaic).')
+                                 'a detector, MSC01 for a mosaic). If not set, the first available detector'
+                                 'in the spec2d file will be shown')
         parser.add_argument('--spat_id', type=int, default=None,
                             help='Restrict plotting to this slit (PypeIt ID notation)')
         parser.add_argument('--maskID', type=int, default=None,
                             help='Restrict plotting to this maskID')
-        parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
-                            action='store_true')
+        parser.add_argument('--showmask', nargs='*', default=None,
+                            help='Include a channel showing the mask.  If no arguments are '
+                                 'provided, the mask bit values are provided directly.  You can '
+                                 'also specify one or more mask flags used to construct an '
+                                 'image identifying which pixels are flagged by any of these '
+                                 'issues.  E.g., to show pixels flagged by the instrument '
+                                 'specific bad-pixel mask or cosmic arrays, use --showmask BPM CR '
+                                 '.  See https://pypeit.readthedocs.io/en/release/out_masks.html '
+                                 'for the list of flags.')
         parser.add_argument('--removetrace', default=False, action='store_true',
                             help='Do not overplot traces in the skysub, sky_resid, and resid '
                                  'channels')
@@ -109,10 +125,14 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Do *not* clear all existing tabs')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
     def main(args):
+
+        chk_version = not args.try_old
 
         # List only?
         if args.list:
@@ -123,33 +143,53 @@ class Show2DSpec(scriptbase.ScriptBase):
         msgs.set_logfile_and_verbosity('show_2dspec', args.verbosity)
 
         # Parse the detector name
-        try:
-            det = int(args.det)
-        except:
-            detname = args.det
-        else:
-            detname = DetectorContainer.get_name(det)
+        if args.det is None: 
+            allspec2d_det = fits.getval(args.file,'HIERARCH ALLSPEC2D_DETS')
+            detname = allspec2d_det.split(',')[0]
+        else: 
+            try: 
+                det = int(args.det)
+            except:
+                detname = args.det
+            else: 
+                detname = DetectorContainer.get_name(det)
 
         # Find the set of channels to show
         show_channels = [0,1,2,3] if args.channels is None \
                             else [int(item) for item in args.channels.split(',')]
 
+        # Need to update clear throughout in case only some channels are being displayed
+        _clear = args.clear
+
         # Try to read the Spec2DObj using the current datamodel, but allowing
         # for the datamodel version to be different
         try:
-            spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=False)
-        except PypeItDataModelError:
+            spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=chk_version)
+        except (PypeItDataModelError, PypeItBitMaskError):
             try:
                 # Try to get the pypeit version used to write this file
                 file_pypeit_version = fits.getval(args.file, 'VERSPYP', 0)
             except KeyError:
                 file_pypeit_version = '*unknown*'
-            msgs.warn(f'Your installed version of PypeIt ({__version__}) cannot be used to parse '
+            if chk_version:
+                msgs_func = msgs.error
+                addendum = 'To allow the script to attempt to read the data anyway, use the ' \
+                           '--try_old command-line option.  This will first try to simply ' \
+                           'ignore the version number.  If the datamodels are incompatible ' \
+                           '(e.g., the new datamodel contains components not in a previous ' \
+                           'version), this may not be enough and the script will continue by ' \
+                           'trying to parse only the components necessary for use by this ' \
+                           'script. In either case, BEWARE that the displayed data may be in ' \
+                           'error!'
+            else:
+                msgs_func = msgs.warn
+                addendum = 'The datamodels are sufficiently different that the script will now ' \
+                           'try to parse only the components necessary for use by this ' \
+                           'script.  BEWARE that the displayed data may be in error!'
+            msgs_func(f'Your installed version of PypeIt ({__version__}) cannot be used to parse '
                       f'{args.file}, which was reduced using version {file_pypeit_version}.  You '
                       'are strongly encouraged to re-reduce your data using this (or, better yet, '
-                      'the most recent) version of PypeIt.  Script will try to parse only the '
-                      'relevant bits from the spec2d file and continue (possibly with more '
-                      'limited functionality).')
+                      'the most recent) version of PypeIt.  ' + addendum)
             spec2DObj = None
 
         if spec2DObj is None:
@@ -221,6 +261,9 @@ class Show2DSpec(scriptbase.ScriptBase):
             waveimg = spec2DObj.waveimg
 
             img_gpm = spec2DObj.select_flag(invert=True)
+            if not np.any(img_gpm):
+                msgs.warn('The full science image is masked!')
+
             model_gpm = img_gpm.copy()
             if args.ignore_extract_mask:
                 model_gpm |= spec2DObj.select_flag(flag='EXTRACT')
@@ -243,7 +286,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                 sobjs = None
                 msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                           '                          No objects were extracted.')
-
+                
         # TODO: This may be too restrictive, i.e. ignore BADFLTCALIB??
         slit_gpm = slit_mask == 0
 
@@ -265,9 +308,12 @@ class Show2DSpec(scriptbase.ScriptBase):
         display.connect_to_ginga(raise_err=True, allow_new=True)
 
         # Show the bitmask?
-        if args.showmask and bpmmask is not None:
-            viewer, ch_mask = display.show_image(bpmmask, chname='MASK', waveimg=waveimg,
-                                                 clear=args.clear)
+        if args.showmask is not None and bpmmask is not None:
+            _mask = bpmmask.mask if len(args.showmask) == 0 \
+                        else bpmmask.flagged(flag=args.showmask)
+            viewer, ch_mask = display.show_image(_mask, chname='MASK', waveimg=waveimg,
+                                                 clear=_clear)
+            _clear = False
 
         channel_names = []
         # SCIIMG
@@ -276,9 +322,11 @@ class Show2DSpec(scriptbase.ScriptBase):
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_sci = args.prefix+f'sciimg-{detname}'
+                
             # Clear all channels at the beginning
             viewer, ch_sci = display.show_image(sciimg, chname=chname_sci, waveimg=waveimg, 
-                                                clear=args.clear, cuts=(cut_min, cut_max))
+                                                clear=_clear, cuts=(cut_min, cut_max))
+            _clear=False
             if sobjs is not None:
                 show_trace(sobjs, detname, viewer, ch_sci)
             display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
@@ -286,7 +334,7 @@ class Show2DSpec(scriptbase.ScriptBase):
             channel_names.append(chname_sci)
 
         # SKYSUB
-        if 1 in show_channels:
+        if 1 in show_channels and skymodel is not None:
             image = (sciimg - skymodel) * model_gpm.astype(float)
             mean, med, sigma = sigma_clipped_stats(image[model_gpm], sigma_lower=5.0,
                                                    sigma_upper=5.0)
@@ -294,8 +342,9 @@ class Show2DSpec(scriptbase.ScriptBase):
             cut_max = mean + 4.0 * sigma
             chname_skysub = args.prefix+f'skysub-{detname}'
             viewer, ch_skysub = display.show_image(image, chname=chname_skysub,
-                                                   waveimg=waveimg, cuts=(cut_min, cut_max),
+                                                   waveimg=waveimg, clear=_clear, cuts=(cut_min, cut_max),
                                                    wcs_match=True)
+            _clear = False
             if not args.removetrace and sobjs is not None:
                 show_trace(sobjs, detname, viewer, ch_skysub)
             display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
@@ -322,13 +371,14 @@ class Show2DSpec(scriptbase.ScriptBase):
         #    imgminsky= pseudo_dict['imgminsky']
 
         # SKRESIDS
-        if 2 in show_channels:
+        if 2 in show_channels and skymodel is not None:
             # the block below is repeated because if showing this channel but
             # not channel 1 it will crash
             chname_skyresids = args.prefix+f'sky_resid-{detname}'
             image = (sciimg - skymodel) * np.sqrt(ivarmodel) * model_gpm.astype(float)
             viewer, ch_sky_resids = display.show_image(image, chname_skyresids, waveimg=waveimg,
-                                                       cuts=(-5.0, 5.0))
+                                                       clear=_clear, cuts=(-5.0, 5.0))
+            _clear = False
             if not args.removetrace and sobjs is not None:
                 show_trace(sobjs, detname, viewer, ch_sky_resids)
             display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
@@ -336,12 +386,13 @@ class Show2DSpec(scriptbase.ScriptBase):
             channel_names.append(chname_skyresids)
 
         # RESIDS
-        if 3 in show_channels:
+        if 3 in show_channels and objmodel is not None:
             chname_resids = args.prefix+f'resid-{detname}'
             # full model residual map
             image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * img_gpm.astype(float)
             viewer, ch_resids = display.show_image(image, chname=chname_resids, waveimg=waveimg,
-                                                   cuts=(-5.0, 5.0), wcs_match=True)
+                                                   clear=_clear, cuts=(-5.0, 5.0), wcs_match=True)
+            _clear = False
             if not args.removetrace and sobjs is not None:
                 show_trace(sobjs, detname, viewer, ch_resids)
             display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,

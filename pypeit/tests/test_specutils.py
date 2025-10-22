@@ -12,12 +12,12 @@ from astropy.io import fits
 from pypeit import onespec
 from pypeit import specobj
 from pypeit import specobjs
-from pypeit.specutils import Spectrum1D, SpectrumList
+from pypeit.specutils import Spectrum, SpectrumList
 from pypeit.tests import tstutils
 from pypeit.pypmsgs import PypeItError
 
 import pytest
-specutils_required = pytest.mark.skipif(Spectrum1D is None or SpectrumList is None,
+specutils_required = pytest.mark.skipif(Spectrum is None or SpectrumList is None,
                                         reason='specutils not installed')
 
 
@@ -29,14 +29,14 @@ def test_onespec_io():
     flux = np.ones(1000, dtype=float)
     # TODO: PYP_SPEC is required if we want to be able to read the file!
     spec = onespec.OneSpec(wave, grid_wave, flux, PYP_SPEC='shane_kast_blue')
-    ofile = Path(tstutils.data_path('tmp.fits')).resolve()
+    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
     spec.to_file(str(ofile), overwrite=True)
 
-    _spec = Spectrum1D.read(ofile)
+    _spec = Spectrum.read(ofile)
     assert np.array_equal(spec.flux, _spec.flux.data), 'Flux munged'
     assert np.array_equal(spec.wave, _spec.spectral_axis.data), 'Wavelengths munged'
 
-    _spec = Spectrum1D.read(ofile, grid=True)
+    _spec = Spectrum.read(ofile, grid=True)
     assert np.array_equal(spec.wave_grid_mid, _spec.spectral_axis.data), 'Wavelengths munged'
 
     ofile.unlink()
@@ -45,7 +45,7 @@ def test_onespec_io():
 @specutils_required
 def test_spec1d_io():
 
-    ofile = Path(tstutils.data_path('tmp.fits')).resolve()
+    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
 
     spec1 = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     npix_spec = 100
@@ -145,20 +145,20 @@ def test_onespec_monotonic():
     flux = np.ones(1000, dtype=float)
     # TODO: PYP_SPEC is required if we want to be able to read the file!
     spec = onespec.OneSpec(wave, grid_wave, flux, PYP_SPEC='shane_kast_blue')
-    ofile = Path(tstutils.data_path('tmp.fits')).resolve()
+    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
     spec.to_file(str(ofile), overwrite=True)
 
     with pytest.raises(PypeItError):
         # Should fault because the wavelength vector is not monotonically
         # increasing
-        _spec = Spectrum1D.read(ofile)
+        _spec = Spectrum.read(ofile)
 
     # This will be fine because the grid *is* monotonically increasing
-    _spec = Spectrum1D.read(ofile, grid=True)
+    _spec = Spectrum.read(ofile, grid=True)
 
     # This should be fine because reader will remove non-monotonically
     # increasing wavelength measurements.
-    __spec = Spectrum1D.read(ofile, strict=False)
+    __spec = Spectrum.read(ofile, strict=False)
 
     assert _spec.shape[0] > __spec.shape[0], 'Strict should remove data'
 

@@ -1,99 +1,92 @@
-"""
-Module to run tests on FlatField class
-Requires files in Development suite and an Environmental variable
-"""
 from pathlib import Path
-import os
 import yaml
 import pytest
 import shutil
 
+from IPython import embed
+
 import numpy as np
 
+from pypeit import dataPaths
 from pypeit import calibrations
+from pypeit import pypeitsetup
 from pypeit.images import buildimage
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from IPython import embed
 
-from pypeit.tests.tstutils import dummy_fitstbl, data_path
+from pypeit.tests.tstutils import data_output_path
+
+det = 1
 
 @pytest.fixture
 def fitstbl():
-    if os.getenv('PYPEIT_DEV') is None:
-        fitstbl = dummy_fitstbl(directory=data_path(''))
-        fitstbl['framebit'][0] = fitstbl.type_bitmask.turn_off(fitstbl['framebit'][0], flag='bias')
-        fitstbl['filename'][1] = 'b1.fits.gz'
-        fitstbl['filename'][5] = 'b27.fits.gz'
-        return fitstbl
 
-    fitstbl = dummy_fitstbl(directory=os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
-                                                   'shane_kast_blue', '600_4310_d55'))
-    # Set the Bias to known
-    fitstbl['framebit'][0] = fitstbl.type_bitmask.turn_off(fitstbl['framebit'][0], flag='bias')
-    fitstbl['filename'][1] = 'b1.fits.gz'
-    for ii in range(2,5):
-        fitstbl['filename'][ii] = 'b{0}.fits.gz'.format(ii)
-    fitstbl['filename'][5] = 'b27.fits.gz'
+    # Get the files
+    file_names = [
+        'b1.fits.gz',    # arc
+        'b11.fits.gz',   # trace
+        'b21.fits.gz',   # bias
+        'b24.fits.gz',   # standard
+        'b27.fits.gz'    # science
+    ]
+    files = [dataPaths.tests.get_file_path(f, to_pkg='symlink') for f in file_names]
 
-    return fitstbl
-
+    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
+    setupc.build_fitstbl(files)
+    setupc.fitstbl.finalize_usr_build(None, 'A')
+    return setupc.fitstbl
 
 @pytest.fixture
 def multi_caliBrate(fitstbl):
     # Grab a science file for configuration specific parameters
-    for idx, row in enumerate(fitstbl):
-        if 'science' in row['frametype']:
-            sci_file = os.path.join(row['directory'], row['filename'])
-            break
+    indx = fitstbl.find_frames('science', index=True)[0]
+    sci_file = fitstbl.frame_paths(indx)
+    calib_ID = fitstbl.calib_groups[0]
     # Par
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.config_specific_par(sci_file)
-    turn_off = dict(use_biasimage=False)
-    par.reset_all_processimages_par(**turn_off)
+    par.reset_all_processimages_par(use_biasimage=False)
     #
     calib_par = par['calibrations']
     calib_par['bpm_usebias'] = False
-    #calib_par['biasframe']['useframe'] = 'none' # Only use overscan
     calib_par['slitedges']['sync_predict'] = 'nearest'
 
-    caldir = data_path('Calibrations')
-
-    multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph, caldir)
-    return reset_calib(multi_caliBrate)
-
-
-def reset_calib(calib):
-    # Find the first science row
-    frame = calib.fitstbl.find_frames('science', index=True)[0]
-    # Set
-    det = 1
-    calib.set_config(frame, det)
-    return calib
-
+    multi_caliBrate = calibrations.MultiSlitCalibrations(
+        fitstbl, calib_par, spectrograph, data_output_path('Calibrations'),
+        calib_ID, indx, det)
+    multi_caliBrate.success = True
+    return multi_caliBrate
 
 ###################################################
 # TESTS BEGIN HERE
 
 def test_abstract_init(fitstbl):
+    frame = fitstbl.find_frames('science', index=True)[0]
     par = pypeitpar.CalibrationsPar()
     spectrograph = load_spectrograph('shane_kast_blue')
-    caldir = data_path('Calibrations')
-    calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
+    caldir = data_output_path('Calibrations')
+    calib_ID = fitstbl.calib_groups[0]
+    calib = calibrations.Calibrations.get_instance(
+        fitstbl, par, spectrograph, caldir,calib_ID,frame,det)
     assert isinstance(calib, calibrations.MultiSlitCalibrations), 'Wrong calibration object type'
     spectrograph = load_spectrograph('keck_nires')
-    calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
+    calib = calibrations.Calibrations.get_instance(
+        fitstbl, par, spectrograph, caldir, calib_ID,frame,det)
     assert isinstance(calib, calibrations.MultiSlitCalibrations), 'Wrong calibration object type'
     spectrograph = load_spectrograph('keck_kcwi')
-    calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
+    calib = calibrations.Calibrations.get_instance(
+        fitstbl, par, spectrograph, caldir, calib_ID,frame,det)
     assert isinstance(calib, calibrations.IFUCalibrations), 'Wrong calibration object type'
 
 
 def test_instantiate(fitstbl):
+    frame = fitstbl.find_frames('science', index=True)[0]
     par = pypeitpar.CalibrationsPar()
     spectrograph = load_spectrograph('shane_kast_blue')
-    caldir = data_path('Calibrations')
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par, spectrograph, caldir)
+    caldir = data_output_path('Calibrations')
+    calib_ID = fitstbl.calib_groups[0]
+    caliBrate = calibrations.MultiSlitCalibrations(
+        fitstbl, par, spectrograph, caldir, calib_ID, frame, det)
 
 
 def test_bias(multi_caliBrate):
@@ -141,7 +134,7 @@ def test_bpm(multi_caliBrate):
 
 
 def test_asn(multi_caliBrate):
-    caldir = Path().resolve()
+    caldir = Path().absolute()
     ofile = caldir / 'test.calib'
     if ofile.exists():
         ofile.unlink()
@@ -170,7 +163,7 @@ def test_asn(multi_caliBrate):
 
 def test_asn_calib_ID_dict(multi_caliBrate):
 
-    caldir = Path().resolve()
+    caldir = Path().absolute()
     setup = 'A'
     calib_ID = 0
     det = 1
@@ -183,7 +176,7 @@ def test_asn_calib_ID_dict(multi_caliBrate):
     assert 'science' not in list(asn.keys()), 'Should not include science frames'
     assert len(asn['arc']['proc']) == 0, 'None of the processed calibration frames should exist'
     assert len(asn['arc']['raw']) == 1, 'Should be 1 raw arc frame'
-    assert len(asn['pixelflat']['raw']) == 2, 'Should be 2 pixelflat frames'
+    assert len(asn['pixelflat']['raw']) == 1, 'Should be 1 pixelflat frames'
 
     # Redo ignoring whether or not the calibration frames exist
     asn = calibrations.Calibrations.get_association(multi_caliBrate.fitstbl,

@@ -9,7 +9,6 @@ Implements the bspline class
 
 """
 
-import copy
 import warnings
 
 from IPython import embed
@@ -18,26 +17,11 @@ import numpy as np
 
 from pypeit.core import basis
 from pypeit import datamodel
-from pypeit import msgs
 
-try:
-    from pypeit.bspline.utilc import cholesky_band, cholesky_solve, solution_arrays, intrv, \
-                                     bspline_model
-except:
-    warnings.warn('Unable to load bspline C extension.  Try rebuilding pypeit.  In the '
-                  'meantime, falling back to pure python code.')
-    from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays, intrv, \
-                                        bspline_model
+from pypeit.bspline.util import (
+    cholesky_band, cholesky_solve, solution_arrays, intrv, bspline_model
+)
 
-# TODO: Used for testing.  Keep around for now.
-#from pypeit.bspline.utilpy import bspline_model
-#from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays, intrv, \
-#                                    bspline_model
-
-# TODO: Types are important for the C extension. Types should be
-# limited to int, float, bool!
-# TODO: May need to add hooks to utilc.py that do the type conversion,
-# but that should be a last resort for stability.
 # TODO: This whole module needs to be cleaned up.
 
 
@@ -58,83 +42,73 @@ class bspline(datamodel.DataContainer):
 
     Parameters
     ----------
-    x : `numpy.ndarray`_
-        The data.
-    nord : :class:`int`, optional
-        To be documented.
-    npoly : :class:`int`, optional
-        To be documented.
+    x : `numpy.ndarray`_, optional
+        Independent variable for the definition of the b-spline.  If None,
+        ``fullbkpt`` must be provided.
+    fullbkpt : `numpy.ndarray`_, optional
+        The full set of breakpoints.  The input vector is sorted and cast as a
+        float.  If the length of the vector is less than twice ``nord``, it is
+        also padded with ``nord-1`` values, as needed for the construction of
+        the b-spline.  If None, ``x`` must be provided.
+    nord : int, optional
+        Order of the b-spline.
+    npoly : int, optional
+        Polynomial order to fit over 2nd variable (when specified using ``x2``;
+        see :func:`~pypeit.bspline.bspline.bspline.fit`).
     bkpt : `numpy.ndarray`_, optional
-        To be documented.
-    bkspread : :class:`float`, optional
-        To be documented.
-    verbose : :class:`bool`, optional.
-        If ``True`` print extra information.
-
-    Attributes
-    ----------
-    breakpoints
-        Breakpoints for bspline, spacing for these breakpoints are determined by keywords inputs;
-    nord
-        Order of bspline; [default=4]
-    npoly
-        Polynomial order to fit over 2nd variable (when specified as x2): [default=1]
-    mask
-        Output mask, set =1 for good points, =0 for bad points;
-    coeff
-        Output coefficient of the bspline;
-    icoeff
-        Cholesky band matrix used to solve for the bspline coefficients;
-    xmin
-        Normalization minimum for x2; [default max(xdata)]
-    xmax
-        Normalization maximum for x2; [default min(xdata)]
-    funcname
-        Function for the second variable; [default 'legendre']
-    from_dict
-        If not None, create a bspline from a dictionary created by to_dict(). [default 'None']
-        It is possible to instantiate a bspline from a dict without the x data:
-        new_bspline = bspline(None, from_dict=dictionary)
+        A precalculated set of breakpoints within the range of ``x``.  The input
+        vector is sorted and any points beyond the range of x are omitted.  If
+        only one breakpoint is provided (or not omitted), one breakpoint is set
+        at each end of ``x``.  If the breakpoints do not cover the full range,
+        the first and last breakpoints are moved such that they do.  If None,
+        the breakpoints are determined using the keywords below.
+    bkspread : float, optional
+        Scale factor for the separation between breakpoints.
+    bkspace : float, optional
+        Defines the separation between breakpoints.  If provided, ``nbkpts`` and
+        ``everyn`` are ignored.
+    nbkpts : int, optional
+        Defines the number of breakpoints used to span the full range of ``x``.
+        Only used if ``bkspace`` is None.  If provided, ``everyn`` is ignored.
+    everyn : int, float, optional
+        Places a breakpoint at every Nth value of ``x``.  Only used if
+        ``bkspace`` and ``nbkpts`` are both None.
+    funcname : str, optional
+        Function for the second variable (when specified using ``x2``; see
+        :func:`~pypeit.bspline.bspline.bspline.fit`).
     """
+
     version = '1.0.0'
+    """
+    Datamodel version
+    """
 
-    # TODO: Fix the description of icoeff
-    datamodel = {'breakpoints':  dict(otype=np.ndarray, atype=np.floating,
-                                      descr='Breakpoint locations'),
-                 'nord': dict(otype=int, descr='Order of the bspline fit'),
-                 'npoly': dict(otype=int, descr='Order of the bspline polynomial'),
-                 'mask': dict(otype=np.ndarray, atype=np.bool_, descr='Mask'),
-                 'coeff': dict(otype=np.ndarray, atype=np.floating, descr='Fit coefficients'),
-                 'icoeff': dict(otype=np.ndarray, atype=np.floating, descr='??'),
-                 'xmin': dict(otype=float, descr='Normalization for input data'),
-                 'xmax': dict(otype=float, descr='Normalization for input data'),
-                 'funcname': dict(otype=str, descr='Function of fit')}
+    datamodel = {
+        'breakpoints': dict(otype=np.ndarray, atype=np.floating, descr='Breakpoint locations'),
+        'nord': dict(otype=int, descr='Order of the bspline fit'),
+        'npoly': dict(otype=int,
+                      descr='Order of polynomial to fit over 2nd variable (when x2 is specified)'),
+        'mask': dict(otype=np.ndarray, atype=np.bool_, descr='Output mask'),
+        'coeff': dict(otype=np.ndarray, atype=np.floating, descr='Output fit coefficients'),
+        'icoeff': dict(otype=np.ndarray, atype=np.floating,
+                       descr='Cholesky band matrix used to solve for the bspline coefficients'),
+        'xmin': dict(otype=float, descr='Normalization minimum for x2'),
+        'xmax': dict(otype=float, descr='Normalization maximum for x2'),
+        'funcname': dict(otype=str,
+                         descr='Function type for the 2nd variable (when x2 is specified)'),
+    }
+    """
+    Datamodel components.
+    """
 
-    # ToDO Consider refactoring the argument list so that there are no kwargs
-    def __init__(self, x, fullbkpt=None, nord=4, npoly=1, bkpt=None, bkspread=1.0, verbose=False,
-                 from_dict=None, **kwargs):
-        """Init creates an object whose attributes are similar to the
-        structure returned by the create_bspline function.
-        """
-        # Setup the DataContainer with everything None
+    def __init__(self, x=None, fullbkpt=None, nord=4, npoly=1, bkpt=None, bkspread=1.0,
+                 bkspace=None, nbkpts=None, everyn=None, funcname='legendre'):
+
+        # Instantiate the base class
         datamodel.DataContainer.__init__(self)
-        # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
-        # as it goes
-        fullbkpt1 = copy.copy(fullbkpt)
-        bkpt1 = copy.copy(bkpt)
-        if from_dict is not None:
-            self.nord=from_dict['nord']
-            self.npoly=from_dict['npoly']
-            self.breakpoints=np.array(from_dict['breakpoints']).astype(float)   # Force type
-            self.mask=np.array(from_dict['mask'])
-            self.coeff=np.array(from_dict['coeff'])
-            self.icoeff=np.array(from_dict['icoeff'])
-            self.xmin=from_dict['xmin']
-            self.xmax=from_dict['xmax']
-            self.funcname=from_dict['funcname']
-            return
+
         # Instantiate empty if neither fullbkpt or x is set
-        elif x is None and fullbkpt is None:
+        if x is None and fullbkpt is None:
             self.nord = None
             self.npoly = None
             self.breakpoints= None
@@ -145,108 +119,158 @@ class bspline(datamodel.DataContainer):
             self.xmax= None
             self.funcname= None
             return
+
+        # Get the breakpoints
+        self.breakpoints = bspline.get_breakpoints(
+            x=x, bkpt=bkpt, fullbkpt=fullbkpt, nord=nord, bkspread=bkspread, bkspace=bkspace,
+            nbkpts=nbkpts, everyn=everyn
+        )
+
+        # Finalize the setup
+        nc = self.breakpoints.size - nord
+        self.nord = nord
+        self.npoly = npoly
+        self.mask = np.ones((self.breakpoints.size,), dtype=bool)
+        if npoly > 1:
+            self.coeff = np.zeros((npoly, nc), dtype=float)
+            self.icoeff = np.zeros((npoly, nc), dtype=float)
         else:
-            #
-            # Set the breakpoints.
-            #
-            if fullbkpt1 is None:
-                if bkpt1 is None:
-                    startx = x.min()
-                    rangex = x.max() - startx
-                    if 'placed' in kwargs:
-                        w = ((kwargs['placed'] >= startx) &
-                             (kwargs['placed'] <= startx+rangex))
-                        if w.sum() < 2:
-                            bkpt1 = np.arange(2, dtype=float) * rangex + startx
-                        else:
-                            bkpt1 = kwargs['placed'][w]
-                    elif 'bkspace' in kwargs:
-                        nbkpts = int(rangex/kwargs['bkspace']) + 1
-                        if nbkpts < 2:
-                            nbkpts = 2
-                        tempbkspace = rangex/float(nbkpts-1)
-                        bkpt1 = np.arange(nbkpts, dtype=float)*tempbkspace + startx
-                    elif 'nbkpts' in kwargs:
-                        nbkpts = kwargs['nbkpts']
-                        if nbkpts < 2:
-                            nbkpts = 2
-                        tempbkspace = rangex/float(nbkpts-1)
-                        bkpt1 = np.arange(nbkpts, dtype=float) * tempbkspace + startx
-                    elif 'everyn' in kwargs:
-                        nx = x.size
-                        nbkpts = max(nx/kwargs['everyn'], 1)
-                        if nbkpts == 1:
-                            xspot = [0]
-                        else:
-                            xspot = (nx/nbkpts)*np.arange(nbkpts)
-                            # JFH This was a bug. Made fixes
-                            #xspot = int(nx/(nbkpts-1)) * np.arange(nbkpts, dtype='i4')
-                        #bkpt = x[xspot].astype('f')
-                        bkpt1 = np.interp(xspot,np.arange(nx),x)
-                    else:
-                        raise ValueError('No information for bkpts.')
-                # JFH added this new code, because bkpt.size = 1 implies fullbkpt has only 2*(nord-1) + 1 elements.
-                # This will cause a crash in action because nbkpt < 2*nord, i.e. for bkpt = 1, nord = 4 fullbkpt has
-                # seven elements which is less than 2*nord = 8. The codes above seem to require nbkpt >=2, so I'm implementing
-                # this requirement. Note that the previous code before this fix simply sets bkpt to bkpt[imax] =x.max()
-                # which is equally arbitrary, but still results in a crash. By requiring at least 2 bkpt, fullbkpt will
-                # have 8 elements preventing action from crashing
-                if (bkpt1.size < 2):
-                    bkpt1 = np.zeros(2, dtype=float)
-                    bkpt1[0] = x.min()
-                    bkpt1[1] = x.max()
+            self.coeff = np.zeros((nc,), dtype=float)
+            self.icoeff = np.zeros((nc,), dtype=float)
+        self.xmin = 0.0
+        self.xmax = 1.0
+        self.funcname = funcname
+
+    @staticmethod
+    def _fill_bkpt(bkpt, nord, bkspread):
+        """
+        Helper function used to pad the breakpoint vector according to the order
+        of the b-spline.
+
+        Parameters
+        ----------
+        bkpt : `numpy.ndarray`_
+            The current set of breakpoints.
+        nord : int
+            Order of the b-spline.
+        bkspread : float
+            Scale factor for the separation between breakpoints.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            The padded set of breakpoints (typically ``fullbkpt`` as used by the class).
+        """
+        bkspace = (bkpt[1] - bkpt[0])*bkspread
+        indx = np.arange(1, nord)
+        return np.concatenate([bkpt[0] - bkspace*indx[::-1], bkpt, bkpt[-1] + bkspace*indx])
+
+    @staticmethod
+    def get_breakpoints(x=None, bkpt=None, fullbkpt=None, nord=4, bkspread=1.0, bkspace=None,
+                        nbkpts=None, everyn=None):
+        """
+        Generate the set of breakpoints for the b-spline.
+
+        Parameters
+        ----------
+        x : `numpy.ndarray`_, optional
+            Independent variable for the definition of the b-spline.  If None,
+            ``fullbkpt`` must be provided.
+        bkpt : `numpy.ndarray`_, optional
+            A precalculated set of breakpoints within the range of ``x``.  The
+            input vector is sorted and any points beyond the range of x are
+            omitted.  If only one breakpoint is provided (or not omitted), one
+            breakpoint is set at each end of ``x``.  If the breakpoints do not
+            cover the full range, the first and last breakpoints are moved such
+            that they do.  If None, the breakpoints are determined using the
+            keywords below.
+        fullbkpt : `numpy.ndarray`_, optional
+            The full set of breakpoints.  The input vector is sorted and cast as
+            a float.  If the length of the vector is less than twice ``nord``,
+            it is also padded with ``nord-1`` values, as needed for the
+            construction of the b-spline.  If None, ``x`` must be provided.
+        nord : int, optional
+            Order of the b-spline.
+        bkspread : float, optional
+            Scale factor for the separation between breakpoints.
+        bkspace : float, optional
+            Defines the separation between breakpoints.  If provided, ``nbkpts``
+            and ``everyn`` are ignored.
+        nbkpts : int, optional
+            Defines the number of breakpoints used to span the full range of
+            ``x``.  Only used if ``bkspace`` is None.  If provided, ``everyn``
+            is ignored.
+        everyn : int, float, optional
+            Places a breakpoint at every Nth value of ``x``.  Only used if
+            ``bkspace`` and ``nbkpts`` are both None.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Vector with the breakpoints
+
+        Raises
+        ------
+        ValueError
+            Raised if neither ``fullbkpt`` nor ``x`` are provided.
+        """
+        if fullbkpt is not None:
+            _fullbkpt = np.sort(fullbkpt, kind='heapsort').astype(float)
+            # JFH added this to fix bug in cases where fullbkpt is passed in but has
+            # < 2*nord elements
+            if _fullbkpt.size < 2*nord:
+                _fullbkpt = bspline._fill_bkpt(_fullbkpt, nord, bkspread)
+            return _fullbkpt
+
+        if x is None:
+            raise ValueError('Must provide `x` to determine breakpoints')
+
+        sx = np.amin(x)
+        ex = np.amax(x)
+        if bkpt is None:
+            if bkspace is not None:
+                if bkspace >= ex - sx:
+                    _bkpt = np.array([sx, ex])
                 else:
-                    imin = bkpt1.argmin()
-                    imax = bkpt1.argmax()
-                    if x.min() < bkpt1[imin]:
-                        if verbose:
-                            print('Lowest breakpoint does not cover lowest x value: changing.')
-                        bkpt1[imin] = x.min()
-                    if x.max() > bkpt1[imax]:
-                        if verbose:
-                            print('Highest breakpoint does not cover highest x value: changing.')
-                        bkpt1[imax] = x.max()
-
-                nshortbkpt = bkpt1.size
-                fullbkpt1 = bkpt1.copy()
-                # Note that with the JFH change above, this nshortbkpt ==1 is never realized beacause above I forced
-                # bkpt to have at least two elements. Not sure why this was even allowed, since bkpt.size = 1
-                #  basically results in action crashing as described above.
-                if nshortbkpt == 1:
-                    bkspace = bkspread
+                    _nbkpts = int((ex-sx)/bkspace) + 1
+                    _bkpt = np.linspace(sx, ex, _nbkpts)
+            elif nbkpts is not None:
+                _bkpt = np.linspace(sx, ex, max(nbkpts,2))
+            elif everyn is not None:
+                # NOTE: There are places in the code where everyn is a float.
+                # Need to continue to allow this.
+                if everyn < x.size:
+                    _nbkpts = max(x.size/everyn, 2.)
+                    indx = (x.size/_nbkpts) * np.arange(_nbkpts)
+                    _bkpt = np.interp(indx, np.arange(x.size, dtype=float), x)
                 else:
-                    bkspace = (bkpt1[1] - bkpt1[0])*bkspread
-                for i in np.arange(1, nord):
-                    fullbkpt1 = np.insert(fullbkpt1, 0, bkpt1[0]-bkspace*i)
-                    fullbkpt1 = np.insert(fullbkpt1, fullbkpt1.shape[0],
-                                         bkpt1[nshortbkpt-1] + bkspace*i)
-
-
-            # JFH added this to fix bug in cases where fullbkpt is passed in but has < 2*nord elements
-            if fullbkpt1.size < 2*nord:
-                fullbkpt_init = fullbkpt1.copy()
-                nshortbkpt = fullbkpt_init.size
-                bkspace = (fullbkpt_init[1] - fullbkpt_init[0])*bkspread
-                for i in np.arange(1, nord):
-                    fullbkpt1 = np.insert(fullbkpt1, 0, fullbkpt_init[0] - bkspace * i)
-                    fullbkpt1 = np.insert(fullbkpt1, fullbkpt1.shape[0],
-                                          fullbkpt_init[nshortbkpt - 1] + bkspace * i)
-
-            nc = fullbkpt1.size - nord
-            self.breakpoints = fullbkpt1.astype(float)      # Ensure type is float for C extension
-            self.nord = nord
-            self.npoly = npoly
-            self.mask = np.ones((fullbkpt1.size,), dtype=bool)
-            if npoly > 1:
-                self.coeff = np.zeros((npoly, nc), dtype=float)
-                self.icoeff = np.zeros((npoly, nc), dtype=float)
+                    _bkpt = np.array([sx, ex])
             else:
-                self.coeff = np.zeros((nc,), dtype=float)
-                self.icoeff = np.zeros((nc,), dtype=float)
-            self.xmin = 0.0
-            self.xmax = 1.0
-            self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
+                raise ValueError('Insufficient information to set bkpts.')
+        else:
+            _bkpt = np.sort(bkpt, kind='heapsort')
+            w = (_bkpt >= sx) & (_bkpt <= ex)
+            _bkpt = np.array([sx, ex]) if np.sum(w) < 2 else _bkpt[w]
 
+        # JFH added this new code, because bkpt.size = 1 implies fullbkpt
+        # has only 2*(nord-1) + 1 elements.  This will cause a crash in
+        # action because nbkpt < 2*nord, i.e. for bkpt = 1, nord = 4
+        # fullbkpt has seven elements which is less than 2*nord = 8. The
+        # codes above seem to require nbkpt >=2, so I'm implementing this
+        # requirement. Note that the previous code before this fix simply
+        # sets bkpt to bkpt[imax] =x.max() which is equally arbitrary, but
+        # still results in a crash. By requiring at least 2 bkpt, fullbkpt
+        # will have 8 elements preventing action from crashing.
+
+        if _bkpt.size < 2:
+            _bkpt = np.array([sx, ex])
+        if _bkpt[0] > sx:
+            _bkpt[0] = sx
+        if _bkpt[-1] < ex:
+            _bkpt[-1] = ex
+
+        return bspline._fill_bkpt(_bkpt, nord, bkspread).astype(float)
+    
     def reinit_coeff(self):
         nc = self.breakpoints.size - self.nord
         self.coeff = np.zeros((self.npoly, nc), dtype=float) if self.npoly > 1 \
@@ -254,14 +278,11 @@ class bspline(datamodel.DataContainer):
 
     def _bundle(self):
         """
-        Overload for the HDU name
-
-        Returns:
-            list:
-
+        Overload the base class method (see
+        :func:`~pypeit.datamodel.DataContainer._bundle`) to set the HDU name
+        explicitly to BSPLINE.
         """
         return super(bspline, self)._bundle(ext='BSPLINE')
-
 
     def copy(self):
         """
@@ -279,38 +300,12 @@ class bspline(datamodel.DataContainer):
         bsp_copy.funcname = self.funcname
         return bsp_copy
 
-    def to_dict(self):
-        """
-        Write bspline attributes to a dict.
-
-        Attributes returned are: :attr:`breakpoints`, :attr:`nord`,
-        :attr:`npoly`, :attr:`mask`, :attr:`coeff`, :attr:`icoeff`,
-        :attr:`xmin`, :attr:`xmax`, and :attr:`funcname`.
-
-        .. note::
-
-            `numpy.ndarray`_ objects are converted to lists in the
-            dictionary to make it JSON compatible.
-
-        Returns:
-            :obj:`dict`: A dictionary with the above keys and items.
-
-        """
-        return dict(breakpoints=self.breakpoints.tolist(),
-                    nord=self.nord,
-                    npoly=self.npoly,
-                    mask=self.mask.tolist(),
-                    coeff=self.coeff.tolist(),
-                    icoeff=self.icoeff.tolist(),
-                    xmin=self.xmin,
-                    xmax=self.xmax,
-                    funcname=self.funcname)
-
     # TODO: C this
     # TODO: Should this be used, or should we effectively replace it
     # with the content of utils.bspline_profile
     def fit(self, xdata, ydata, invvar, x2=None):
-        """Calculate a B-spline in the least-squares sense.
+        """
+        Calculate a B-spline in the least-squares sense.
 
         Fit is based on two variables: x which is sorted and spans a large range
         where bkpts are required y which can be described with a low order
@@ -417,7 +412,6 @@ class bspline(datamodel.DataContainer):
         upper = np.zeros((n - self.nord + 1,), dtype=int) - 1
         indx = intrv(self.nord, self.breakpoints[self.mask], x)
         bf1 = self.bsplvn(x, indx)
-#        print('F_CONTIGUOUS after bsplvn: {0}'.format(bf1.flags['F_CONTIGUOUS']))
         aa = uniq(indx)
         upper[indx[aa]-self.nord+1] = aa
         rindx = indx[::-1]
@@ -425,8 +419,6 @@ class bspline(datamodel.DataContainer):
         lower[rindx[bb]-self.nord+1] = nx - bb - 1
         if x2 is None:
             return bf1, lower, upper
-
-#        print('x2!')
 
         if x2.size != nx:
             raise ValueError('Dimensions of x and x2 do not match.')
@@ -532,7 +524,7 @@ class bspline(datamodel.DataContainer):
             is good).
         """
         # TODO: Is the sorting necessary?
-        xsort = x.argsort()
+        xsort = x.argsort(kind='stable')
         if action is None:
             action, lower, upper = self.action(x[xsort], x2=None if x2 is None else x2[xsort])
         else:
@@ -550,12 +542,12 @@ class bspline(datamodel.DataContainer):
         mask[(x < gb[self.nord-1]) | (x > gb[n])] = False
         hmm = (np.diff(goodbk) > 2).nonzero()[0]
         if hmm.size == 0:
-            return yfit[np.argsort(xsort)], mask
+            return yfit[np.argsort(xsort, kind='stable')], mask
 
         for jj in range(hmm.size):
             mask[(x >= self.breakpoints[goodbk[hmm[jj]]])
                     & (x <= self.breakpoints[goodbk[hmm[jj]+1]-1])] = False
-        return yfit[np.argsort(xsort)], mask
+        return yfit[np.argsort(xsort, kind='stable')], mask
 
     def maskpoints(self, err):
         """Perform simple logic of which breakpoints to mask.

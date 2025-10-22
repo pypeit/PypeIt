@@ -369,7 +369,7 @@ case for low-dispersion data, e.g. LRISb 300 grism spectra
 .. code-block:: ini
 
     [calibrations]
-        [[slits]]
+        [[slitedges]]
             smash_range = 0.5,1.
 
 Algorithm

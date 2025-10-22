@@ -17,7 +17,8 @@ from astropy import convolution
 from astropy import constants
 
 from pypeit import msgs
-from pypeit import utils, data
+from pypeit import cache
+from pypeit import utils
 from pypeit.core import arc
 from pypeit.pypmsgs import PypeItError
 
@@ -34,6 +35,7 @@ def parse_param(par, key, slit):
         raise ValueError('Invalid input for parameter {:s}'.format(key))
 
     return param
+
 
 # TODO: Should this code allow the user to skip the smoothing steps and just
 # provide the raw delta_wave vector? I would think there are cases where you
@@ -81,16 +83,18 @@ def get_delta_wave(wave, wave_gpm, frac_spec_med_filter=0.03):
     nspec = wave.size
     # This needs to be an odd number
     nspec_med_filter = 2*int(np.round(nspec*frac_spec_med_filter/2.0)) + 1
-    delta_wave = np.zeros_like(wave)
-    wave_diff = np.diff(wave[wave_gpm])
+    wave_bpm = np.logical_not(wave_gpm)
+    wave_diff = np.diff(wave)
     wave_diff = np.append(wave_diff, wave_diff[-1])
+    # Set any regions with wave_diff = 0 to the median value of the data
+    wave_diff[wave_bpm] = np.median(wave_diff[wave_gpm])
+    # Filter out edge effects
     wave_diff_filt = utils.fast_running_median(wave_diff, nspec_med_filter)
 
     # Smooth with a Gaussian kernel
     sig_res = np.fmax(nspec_med_filter/10.0, 3.0)
     gauss_kernel = convolution.Gaussian1DKernel(sig_res)
-    wave_diff_smooth = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
-    delta_wave[wave_gpm] = wave_diff_smooth
+    delta_wave = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
     return delta_wave
 
 
@@ -135,9 +139,13 @@ def get_sampling(waves, pix_per_R=3.0):
         wave_diff_flat += np.diff(wave_good).tolist()
         dloglam_flat += np.diff(np.log10(wave_good)).tolist()
 
-
+    # Compute the median wavelength spacing
     dwave = np.median(wave_diff_flat)
     dloglam = np.median(dloglam_flat)
+    # Check that this won't introduce a divide by zero
+    if dloglam == 0.0:
+        msgs.error('The wavelength sampling has zero spacing in log wavelength. This is not supported.')
+    # Compute a guess of the resolution
     resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
     pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
     return dwave, dloglam, resln_guess, pix_per_sigma
@@ -244,7 +252,6 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
                 dloglam_pix = dloglam
             else:
                 dloglam_pix = dloglam_data
-
             # Generate wavelength array
             wave_grid, wave_grid_mid, dsamp = wavegrid(wave_grid_min, wave_grid_max, dloglam_pix,
                                  spec_samp_fact=spec_samp_fact, log10=True)
@@ -281,8 +288,17 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
             wave_grid = np.power(10.0,newloglam)
 
         elif wave_method == 'iref': # Use the iref index wavelength array
+            msgs.info(f'iref for the list is set to {iref}')
+            msgs.info(f'The shape of the list is: {np.shape(waves)}')
+            msgs.info(f'shape of the first wave_grid in the list is: {np.shape(waves[iref])}')
             wave_tmp = waves[iref]
             wave_grid = wave_tmp[wave_tmp > 1.0]
+            if spec_samp_fact != 1: # adjust sampling via internal interpolation
+                nwave = len(wave_grid)
+                indx = np.arange(nwave)
+                indx_new = np.linspace(0,nwave-1,int(nwave/spec_samp_fact))
+                wave_tmp = np.interp(indx_new,indx,wave_grid)
+                wave_grid = wave_tmp
 
         else:
             msgs.error("Bad method for wavelength grid: {:s}".format(wave_method))
@@ -346,7 +362,8 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
     return all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub
 
 
-def shift_and_stretch(spec, shift, stretch):
+
+def shift_and_stretch(spec, shift, stretch, stretch2, stretch_func='quadratic'):
 
     """
     Utility function to shift and stretch a spectrum. This operation is
@@ -362,6 +379,12 @@ def shift_and_stretch(spec, shift, stretch):
         shift to be applied
     stretch: float
         stretch to be applied
+    stretch2: (:obj:`float`, optional):
+        second order stretch to be applied. Default = 0.0
+    stretch_func : str, optional, default = 'quadratic'
+        Use quadratic ('quadratic') or linear ('linear') stretch.
+
+    
 
     Returns
     -------
@@ -369,25 +392,36 @@ def shift_and_stretch(spec, shift, stretch):
         shifted and stretch spectrum. Regions where there is no information are set to zero.
 
     """
+    # TODO: DP: This is the old code that was used to shift and stretch.
+    #  Comparing to the new one, I have seen some differences in spec_out.
+    #  I leave this old code here for now, so that we can investigate this a little more in the future.
+    # nspec = spec.shape[0]
+    # # pad the spectrum on both sizes
+    # x1 = np.arange(nspec)/float(nspec-1)
+    # nspec_stretch = int(nspec*stretch)
+    # x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
+    # spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
+    # # Now create a shifted version
+    # ind_shift = np.arange(nspec_stretch) - shift
+    # spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
+    # # Now interpolate onto the original grid
+    # spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
+    #
+    # return spec_out
+    # ###################################
 
     # Positive value of shift means features shift to larger pixel values
 
     nspec = spec.shape[0]
-    # pad the spectrum on both sizes
-    x1 = np.arange(nspec)/float(nspec-1)
-    nspec_stretch = int(nspec*stretch)
-    x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
-    spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
-    # Now create a shifted version
-    ind_shift = np.arange(nspec_stretch) - shift
-    spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
-    # Now interpolate onto the original grid
-    spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
+    
+    # Can do the stretch and shift in one operation
+    if stretch_func == 'linear': stretch2 = 0.0
 
-    return spec_out
+    return scipy.interpolate.interp1d(np.arange(nspec)**2*stretch2 + np.arange(nspec)*stretch + shift, 
+                                           spec, kind=stretch_func, bounds_error=False, fill_value=0.0)(np.arange(nspec))
 
 
-def zerolag_shift_stretch(theta, y1, y2):
+def zerolag_shift_stretch(theta, y1, y2, stretch_func = 'quadratic'):
 
     """
     Utility function which is run by the differential evolution
@@ -398,11 +432,13 @@ def zerolag_shift_stretch(theta, y1, y2):
     Parameters
     ----------
     theta : float `numpy.ndarray`_
-        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
+        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch, theta[2] = stretch2
     y1 : float `numpy.ndarray`_, shape = (nspec,)
         First spectrum which acts as the refrence
     y2 : float `numpy.ndarray`_, shape = (nspec,)
         Second spectrum which will be transformed by a shift and stretch to match y1
+    stretch_func : str, optional, default = 'quadratic'
+        Use quadratic ('quadratic') or linear ('linear') stretch.
 
     Returns
     -------
@@ -413,8 +449,8 @@ def zerolag_shift_stretch(theta, y1, y2):
 
     """
 
-    shift, stretch = theta
-    y2_corr = shift_and_stretch(y2, shift, stretch)
+    shift, stretch, stretch2 = theta
+    y2_corr = shift_and_stretch(y2, shift, stretch, stretch2, stretch_func= stretch_func)
     # Zero lag correlation
     corr_zero = np.sum(y1*y2_corr)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
@@ -425,7 +461,8 @@ def zerolag_shift_stretch(theta, y1, y2):
     return -corr_norm
 
 
-def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0, debug=False):
+def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False,
+                  fwhm=4.0, cont_sub=True, debug=False):
     """
     Utility routine to create a synthetic arc spectrum for cross-correlation
     using the location of the peaks in the input spectrum.
@@ -434,7 +471,10 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
         inspec1 (`numpy.ndarray`_):
             Input spectrum, shape = (nspec,)
         sigdetect (float, optional, default=3.0):
-            Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
+            Sigma threshold above fluctuations for finding peaks that will be used to create the synthetic xcorr_arc
+        input_thresh (float, optional):
+            Input threshold  for finding peaks that will be used to create the synthetic xcorr_arc. If set, sigdetect
+            will be ignored.
         sig_ceil (float, optional, default = 10.0):
             Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
             For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
@@ -446,6 +486,8 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
             If True, use amplitudes from the raw arc, i.e. do not continuum subtract. Default = False
         fwhm (float, optional):
             Fwhm of arc lines. Used for peak finding and to assign a fwhm in the xcorr_arc.
+        cont_sub (bool, optional):
+            Perform a simple continuum subtraction when detecting the peaks. Default is True.
         debug (bool, optional):
              Show plots for line detection debugging. Default = False
 
@@ -458,7 +500,9 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
 
     # Run line detection to get the locations and amplitudes of the lines
     tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect,
-                                                                                     fwhm=fwhm, debug=debug)
+                                                                                     input_thresh=input_thresh,
+                                                                                     fwhm=fwhm, cont_subtract=cont_sub,
+                                                                                     debug=debug)
 
     ampl = tampl1 if use_raw_arc else tampl1_cont
 
@@ -472,7 +516,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
     ampl_clip = np.clip(ampl, None, ceil_upper)
     if ampl_clip.size == 0:
         msgs.warn('No lines were detected in the arc spectrum. Cannot create a synthetic arc spectrum for cross-correlation.')
-        return None
+        return np.zeros_like(inspec1)
 
     # Make a fake arc by plopping down Gaussians at the location of every centroided line we found
     xcorr_arc = np.zeros_like(inspec1)
@@ -485,14 +529,13 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
             continue
         xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/sigma)**2)
 
-
     return xcorr_arc
 
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
 def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
-                do_xcorr_arc=True, lag_range=None, debug=False):
+                do_xcorr_arc=True, lag_range=None, max_lag_frac=1.0,  debug=False):
 
     """
     Determine the shift inspec2 relative to inspec1.  This routine computes the
@@ -532,7 +575,10 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         to False
     lag_range : tuple, default = None
         A tuple of the form (lag_min, lag_max) which sets the range of lags to
-        search over. If None, the full range of lags will be searched.
+        search over. If None, max_lag_frac will be used to set the range of lags.
+    max_lag_frac : float, default = 1.0
+        Fraction of the total spectral pixels used to determine the range of lags
+        to search over.  The range of lags will be [-nspec*max_lag_frac +1, nspec*max_lag_frac].
     debug: boolean, default = False
         Produce debugging plot
 
@@ -555,16 +601,22 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         return 0.0, 0.0
 
     nspec = y1.shape[0]
-    if lag_range is None:
-        lags = np.arange(-nspec + 1, nspec)
-    else:
-        lags = np.linspace(lag_range[0], lag_range[1], 2*nspec-1)
+    if lag_range is not None:  
+        lagmin = lag_range[0]  
+        lagmax = lag_range[1]  
+    else:  
+        lagmin = int((-nspec + 1) * max_lag_frac)
+        lagmax = int((nspec - 1) * max_lag_frac)
+
+    lags = np.linspace(lagmin, lagmax, 2*nspec-1)
     corr = scipy.signal.correlate(y1, y2, mode='full')
+
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(corr_norm, sigdetect=3.0,
                                                                                      fit_frac_fwhm=1.5, fwhm=5.0,
-                                                                                     cont_frac_fwhm=1.0, cont_samp=30, nfind=1)
+                                                                                     cont_frac_fwhm=1.0, cont_samp=30, 
+                                                                                     nfind=1)
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
     if debug:
@@ -580,8 +632,9 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
-                        lag_range=None, shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05),
-                        sigdetect=5.0, sig_ceil=10.0, fwhm = 4.0, debug=False, toler=1e-5, seed=None):
+                        shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect=5.0, sig_ceil=10.0,
+                        fwhm = 4.0, max_lag_frac=1.0, lag_range=None, debug=False, toler=1e-5, seed=None,
+                        stretch_func='quadratic'):
 
     """
     Determine the shift and stretch of inspec2 relative to inspec1.  This
@@ -644,6 +697,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         may not work well if this range is significantly expanded
         because the linear approximation used to transform the arc
         starts to break down.
+    max_lag_frac: float, default = 1.0
+        Maximum range of lags over which to compute the cross correlation, 
+        expressed as a fraction of the length of the vectors being cross-correlated.
     seed: int or np.random.RandomState, optional, default = None
         Seed for scipy.optimize.differential_evolution optimizer. If not
         specified, the calculation will not be repeatable
@@ -651,6 +707,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         Tolerance for differential evolution optimizaiton.
     debug = False
         Show plots to the screen useful for debugging.
+    stretch_func : str, optional, default = 'quadratic'
+        Use quadratic ('quadratic') or linear ('linear') stretch.
 
     Returns
     -------
@@ -672,6 +730,10 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         the optimal stretch which was determined.  If cc_thresh is set,
         and the initial cross-correlation is < cc_thresh,  then this
         will be just be 1.0
+    stretch2: float
+        the optimal second order stretch which was determined.  If cc_thresh is set,
+        and the initial cross-correlation is < cc_thresh,  then this
+        will be just be 1.0. This is 0.0 if the stretch_func = linear
     cross_corr: float
         the value of the cross-correlation coefficient at the optimal
         shift and stretch. This is a number between zero and unity,
@@ -692,38 +754,46 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
 
     nspec = inspec1.size
-
     y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
                        sig_ceil=sig_ceil, fwhm=fwhm)
     y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
                        sig_ceil=sig_ceil, fwhm=fwhm)
 
-    if y1 is None or y2 is None:
+    if np.all(y1 == 0) or np.all(y2 == 0):
         msgs.warn('No lines detected punting on shift/stretch')
-        return 0, None, None, None, None, None
+        return 0, None, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
     shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil=None, do_xcorr_arc=False, lag_range=lag_range,
-                                    sigdetect=sigdetect, fwhm=fwhm, debug=debug)
+                                    sigdetect=sigdetect, fwhm=fwhm, max_lag_frac=max_lag_frac, debug=debug)
 
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
     #if corr_cc < -np.inf: # < cc_thresh:
     #    return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
 
     if lag_range is None:
-        lag_range = (shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1])
-    bounds = [lag_range, stretch_mnmx]
-    x0_guess = np.array([shift_cc, 1.0])
+        lag_range = (shift_cc + nspec * shift_mnmx[0], shift_cc + nspec * shift_mnmx[1])
     # TODO Can we make the differential evolution run faster?
     try:
-        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
+        if stretch_func == 'quadratic':
+            bounds = [lag_range, stretch_mnmx, (-1.0e-6, 1.0e-6)]
+            x0_guess = np.array([shift_cc, 1.0, 0.0])
+        elif stretch_func == 'linear':
+            bounds = [lag_range, stretch_mnmx, (0.0,0.0)]
+            x0_guess = np.array([shift_cc, 1.0, 0.0])        
+        else:
+            msgs.error('Unrecognized stretch_func')
+        result = scipy.optimize.differential_evolution(
+                zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, 
+                bounds=bounds, disp=False, polish=True, seed=seed)
     except PypeItError:
         msgs.warn("Differential evolution failed.")
-        return 0, None, None, None, None, None
-    else:
-        corr_de = -result.fun
-        shift_de = result.x[0]
-        stretch_de = result.x[1]
+        return 0, None, None, None, None, None, None
+    corr_de = -result.fun
+    shift_de = result.x[0]
+    stretch_de = result.x[1]
+    stretch2_de = result.x[2]
+
 
     if not result.success:
         msgs.warn('Fit for shift and stretch did not converge!')
@@ -737,21 +807,26 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         corr_out = corr_cc
         shift_out = shift_cc
         stretch_out = 1.0
+        stretch2_out = 0.0
         result_out = 1
     else:
         corr_out = corr_de
         shift_out = shift_de
         stretch_out = stretch_de
+        stretch2_out = stretch2_de
         result_out = int(result.success)
 
     if debug:
         x1 = np.arange(nspec)
-        y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
+        y2_trans = shift_and_stretch(y2, shift_out, stretch_out, stretch2_out, stretch_func='quadratic')
         plt.figure(figsize=(14, 6))
         plt.plot(x1,y1/y1.max(), 'k-', drawstyle='steps', label ='inspec1, input spectrum')
-        plt.plot(x1,y2_trans/y2_trans.max(), 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
+        plt.plot(x1,y2/y2.max(), color='grey', drawstyle='steps', label='inspec2, reference original')
+        print('REFERENCE MAX', np.max(y2))
+        plt.plot(x1,y2_trans/y2_trans.max(), 'r-', drawstyle='steps', label='inspec2, reference shift & stretch')
         plt.title('shift= {:5.3f}'.format(shift_out) +
-                  ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
+                  ',  stretch = {:7.5f}'.format(stretch_out) + 
+                                    ',  stretch2 = {:7.5f}'.format(stretch2_out) + ', corr = {:5.3f}'.format(corr_out))
         plt.legend()
         plt.show()
 
@@ -759,8 +834,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     if corr_out < cc_thresh:
         result_out = -1
 
-    return result_out, shift_out, stretch_out, corr_out, shift_cc, corr_cc
-
+    return result_out, shift_out, stretch_out, stretch2_out, corr_out, shift_cc, corr_cc
 
 
 def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
@@ -825,7 +899,8 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
-                   order=None, overwrite=True, cache=False):
+                   order=None, lines_pix_arr=None, lines_wav_arr=None,
+                   lines_fit_ord=None, overwrite=True, to_cache=False):
     """
     Write the template spectrum into a binary FITS table
 
@@ -847,15 +922,24 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
             Echelle order numbers
         overwrite (bool, optional):
             If True, overwrite any existing file
-        cache (bool, optional):
+        to_cache (bool, optional):
             Store the wavelength solution in the pypeit cache?
+        lines_pix_arr (`numpy.ndarray`_, optional):
+            Pixel values of identified arc line centroids
+        lines_wav_arr (`numpy.ndarray`_, optional):
+            Wavelength values of identified arc line centroids
+        lines_fit_ord (`numpy.ndarray`_, optional):
+            Polynomial order of the wavelength solution
     """
     tbl = Table()
     tbl['wave'] = nwwv
     tbl['flux'] = nwspec
     if order is not None:
         tbl['order'] = order
-
+    if lines_pix_arr is not None:
+        tbl['lines_pix'] = lines_pix_arr
+        tbl['lines_wav'] = lines_wav_arr
+        tbl['lines_fit_ord'] = lines_fit_ord
     tbl.meta['BINSPEC'] = binspec
     # Detector snippets??
     if det_cut is not None:
@@ -868,9 +952,9 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
     outfile = os.path.join(outpath, outroot)
     tbl.write(outfile, overwrite=overwrite)
     msgs.info(f"Your arxiv solution has been written to {outfile}\n")
-    if cache:
+    if to_cache:
         # Also copy the file to the cache for direct use
-        data.write_file_to_cache(outroot, outroot, "arc_lines/reid_arxiv")
+        cache.write_file_to_cache(outroot, outroot, "arc_lines/reid_arxiv")
 
         msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
                   f"To utilize this wavelength solution, insert the{msgs.newline()}"
@@ -879,5 +963,8 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
                   f"   [[wavelengths]]{msgs.newline()}"
                   f"     reid_arxiv = {outroot}{msgs.newline()}"
                   f"     method = full_template\n")
+        print("")  # Empty line for clarity
+        msgs.info(f"To use exactly the solutions created above {msgs.newline()}"
+                  f"disable the 2d fitting by adding the keyword ech_2dfit = False")
     print("")  # Empty line for clarity
     msgs.info("Please consider sharing your solution with the PypeIt Developers.")

@@ -98,7 +98,7 @@ def angstroms_per_pixel(wave, log=False, base=10.0, regular=True):
 
 
 def _pixel_centers(xlim, npix, log=False, base=10.0):
-    """
+    r"""
     Determine the centers of pixels in a linearly or geometrically
     sampled vector given first, last and number of pixels
 
@@ -115,7 +115,7 @@ def _pixel_centers(xlim, npix, log=False, base=10.0):
     Returns:
         `numpy.ndarray`_, float: A vector with the npix centres of the
         pixels and the sampling rate.  If logarithmically binned, the
-        sampling is the step in :math`\log x`.
+        sampling is the step in :math:`\log x`.
     """
     if log:
         logRange = numpy.log(xlim)/numpy.log(base)
@@ -128,7 +128,7 @@ def _pixel_centers(xlim, npix, log=False, base=10.0):
 
 
 def _pixel_borders(xlim, npix, log=False, base=10.0):
-    """
+    r"""
     Determine the borders of the pixels in a vector given the first, last and 
     number of pixels
 
@@ -145,7 +145,7 @@ def _pixel_borders(xlim, npix, log=False, base=10.0):
     Returns:
         `numpy.ndarray`_, float: A vector with the (npix+1) borders of the
         pixels and the sampling rate.  If logarithmically binned, the
-        sampling is the step in :math`\log x`.
+        sampling is the step in :math:`\log x`.
     """
     if log:
         logRange = numpy.log(xlim)/numpy.log(base)
@@ -509,7 +509,7 @@ class Resample:
 
         # Combine the input coordinates and the output borders
         combinedX = numpy.append(self.outborders, self.x)
-        srt = numpy.argsort(combinedX)
+        srt = numpy.argsort(combinedX, kind='stable')
         combinedX = combinedX[srt]
 
         # Get the indices where the data should be reduced

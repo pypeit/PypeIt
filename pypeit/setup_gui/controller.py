@@ -1,36 +1,37 @@
 """
-The controller portion of the PypeIt Setup GUI.
+The controller portion of the PypeIt Setup GUI. The classes in this module are responsible for
+acting on user input, running background tasks, and returning information to the user.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
 import traceback
-import signal
 import sys
-import datetime
 import re
 import io
 from pathlib import Path
 from functools import partial
 from contextlib import contextmanager
-from qtpy.QtCore import QCoreApplication, Signal, QMutex
+from qtpy.QtCore import QCoreApplication, Signal, QMutex, QTimer
+from qtpy.QtGui import QIcon
+
+
 from qtpy.QtCore import QObject, Qt, QThread
 from qtpy.QtGui import QKeySequence
-from qtpy.QtWidgets import QAction
+from qtpy.QtWidgets import QAction, QApplication
 
-from pypeit.setup_gui.view import SetupGUIMainWindow, DialogResponses
+from pypeit.setup_gui.view import SetupGUIMainWindow, PypeItFileView, DialogResponses
 from pypeit.setup_gui.text_viewer import TextViewerWindow
 from pypeit.setup_gui.dialog_helpers import prompt_to_save, display_error, FileDialog, FileType
-from pypeit.setup_gui.model import PypeItSetupGUIModel, ModelState
+from pypeit.setup_gui.model import PypeItSetupGUIModel, ModelState, PypeItFileModel
 from pypeit import msgs
-
 from pypeit.display import display
 from pypeit import io as pypeit_io
 
 
-# For using Qt Mutexes and "with"
 @contextmanager
 def lock_qt_mutex(mutex):
+    """Context manager to allow locking Qt :class:`QMutex` objects using 'with'."""
     mutex.lock()
     try:
         yield mutex
@@ -49,17 +50,21 @@ class OperationThread(QThread):
     """Signal send the operation has completed."""
 
 
-    def __init__(self):
+    def __init__(self,main_controller):
         super().__init__()
         self._operation = None
         self._max_progress = None
         self._mutex = QMutex()
+        self._main_window = main_controller.main_window
+        self.completed.connect(self._op_complete, type=Qt.QueuedConnection)
+
 
     def run(self):
         """Runs an operation in a background thread."""
         canceled = False
         exc_info = (None, None, None)
         try:
+            msgs.info("Running operation")
             self._operation.run()            
         except OpCanceledError:
             canceled=True
@@ -89,11 +94,11 @@ class OperationThread(QThread):
         
         if create_progress:
             # If we've just initialized the max progress, create the progress dialog
-            SetupGUIController.main_window.create_progress_dialog(self._operation.name, max_progress, self._cancel_op)
+            self._main_window.create_progress_dialog(self._operation.name, max_progress, self._cancel_op)
             
         # Ignore the progress if there's no max progress yet
         if mp is not None:            
-            SetupGUIController.main_window.show_operation_progress(increase=1, message = progress_message)
+            self._main_window.show_operation_progress(increase=1, message = progress_message)
 
     def _op_complete(self, canceled, exc_info):
         """Signal handler that is notified when a background operation completes.
@@ -113,7 +118,7 @@ class OperationThread(QThread):
 
         if operation is not None:
             operation.progressMade.disconnect(self._op_progress)
-            SetupGUIController.main_window.operation_complete()
+            self._main_window.operation_complete()
             operation.postRun(canceled, exc_info)            
     
 
@@ -124,10 +129,10 @@ class OperationThread(QThread):
         Args:
             operation (MetadataOperation): The MetadataOperation to start in the background thread.
         """
+        msgs.info("Starting operation")
         self._operation = operation
         if operation.preRun():
             operation.progressMade.connect(self._op_progress, type=Qt.QueuedConnection)
-            self.completed.connect(self._op_complete, type=Qt.QueuedConnection)
             self.start()
 
 class MetadataOperation(QObject):
@@ -135,28 +140,32 @@ class MetadataOperation(QObject):
     """Base class for Metadata operations that take long enough that they should take place in a background thread.
     
     Args:
-        model (PypeItSetupGUIModel): The PypeIt Setup GUI's model object.
+        model (PypeItSetupGUIModel): 
+            The PypeIt Setup GUI's model object.
+        main_controller (SetupGUIController): 
+            The PypeIt Setup GUI's controller object.
     """
 
     progressMade = Signal(int, str)
     """Signal emitted emit when progress has been made. This will be reflected in the view's progress dialog."""
 
 
-    def __init__(self, name, model):
+    def __init__(self, name, model, main_controller):
         super().__init__()
         self._model=model
         self.name = name
         self._max_progress = None
+        self._main_window = main_controller.main_window
 
     def preRun(self):
         """
         Perform setup required before running the operation. This involves watching the log
         for files being added to the metadata.
         """
-        building_metadata_re = re.compile("Building metadata for (\d+) ")
+        building_metadata_re = re.compile(r"Building metadata for (\d+) ")
         self._model.log_buffer.watch("building_metadata", building_metadata_re, self._buildingMetadata)
         
-        added_metadata_re = re.compile("Adding metadata for (.*)$")
+        added_metadata_re = re.compile(r"Adding metadata for (.*)$")
         self._model.log_buffer.watch("added_metadata", added_metadata_re, self._addedMetadata)
         self._model.closeAllFiles()
         return True
@@ -187,7 +196,7 @@ class MetadataOperation(QObject):
         if exc_info[0] is not None:
             traceback_string = "".join(traceback.format_exception(*exc_info))
             msgs.warn(f"Failed to {self.name.lower()}:\n" + traceback_string)
-            display_error(SetupGUIController.main_window, f"Failed to {self.name.lower()} {exc_info[0]}: {exc_info[1]}")
+            display_error(self._main_window, f"Failed to {self.name.lower()} {exc_info[0]}: {exc_info[1]}")
             self._model.reset()
         elif canceled:
             self._model.reset()
@@ -201,9 +210,11 @@ class SetupOperation(MetadataOperation):
 
         Args:
             model (PypeItSetupGUIModel): The PypeIt Setup GUI's model object.
+            main_controller (SetupGUIController): 
+                The PypeIt Setup GUI's controller object.
     """
-    def __init__(self, model):
-        super().__init__("Run Setup", model)
+    def __init__(self, model, main_controller):
+        super().__init__("Run Setup", model, main_controller)
 
     def run(self):
         """
@@ -220,10 +231,12 @@ class OpenFileOperation(MetadataOperation):
             The PypeIt Setup GUI's model object.
         file (): 
             The file to open.
+        main_controller (SetupGUIController): 
+            The PypeIt Setup GUI's controller object.
     """
 
-    def __init__(self, model, file):
-        super().__init__("Open File", model)
+    def __init__(self, model, file, main_controller):
+        super().__init__("Open File", model, main_controller)
         self._file = file
 
     def run(self):
@@ -233,18 +246,18 @@ class OpenFileOperation(MetadataOperation):
         self._model.open_pypeit_file(self._file)
 
 class MetadataReadOnlyAction(QAction):
-    """An action (caused by the right click menu in the GUI, a button, or keyboard short cut) that is read only
-    and therefore can be performed on the ObsLog.
+    """An action on a PypeItMetadataModel that is read only and therefore can be performed on the ObsLog.
+    These actions can be triggered by a button, menu, option or keyboard shortcut.
     
     Arguments:
         controller(PypeItMetadataController): 
             The controller for the PypeItMetadataModel/PypeItMetadataView MVC triplet.
         menu_text(str):
             The text name for the menu/button that triggers the action.
-        handler (Callable):
+        handler (:obj:`collections.abc.Callable`):
             The signal handler to enact the action. This receives the "triggered" event
             from the parent class.
-        shortcut (PySide2.QtGui.QKeySequence.StandardKey, Optional):
+        shortcut (QtGui.QKeySequence.StandardKey, Optional):
             The keyboard shortcut to initiate the action.
     """
     def __init__(self, controller, menu_text, handler, shortcut=None):
@@ -256,24 +269,22 @@ class MetadataReadOnlyAction(QAction):
 
     def updateEnabledStatus(self):
         """Enable/disable the action based on whether any metadata rows are selected."""
-        if self._controller._view is not None and len(self._controller._view.selectedRows()) > 0:
-            self.setEnabled(True)
-        else:
-            self.setEnabled(False)
+        self.setEnabled(self._controller._view is not None and len(self._controller._view.selectedRows()) > 0)
 
 class MetadataWriteAction(QAction):
-    """An action (caused by the right click menu in the GUI, a button, or keyboard short cut) that can change
-    the file metadata and therefore can only be performed on a PypeItFileModel.
-    
+    """An action on a PypeItMetadataModel that can change the file metadata and therefore can only be 
+    performed on a PypeItFileModel.
+    These actions can be triggered by a button, menu, option or keyboard shortcut.
+
     Arguments:
         controller(PypeItMetadataController): 
             The controller for the PypeItMetadataModel/PypeItMetadataView MVC triplet.
         menu_text(str):
             The text name for the menu/button that triggers the action.
-        handler (Callable):
+        handler (:obj:`collections.abc.Callable`):
             The signal handler to enact the action. This receives the "triggered" event
             from the parent class.
-        shortcut (PySide2.QtGui.QKeySequence.StandardKey, Optional):
+        shortcut (QtGui.QKeySequence.StandardKey, Optional):
             The keyboard shortcut to initiate the action.
     """
 
@@ -287,27 +298,22 @@ class MetadataWriteAction(QAction):
     def updateEnabledStatus(self):
         """Enable/disable the action based on whether any metadata rows are selected."""
 
-        if self._controller._is_pypeit_file:
-            if self._controller._view is not None and len(self._controller._view.selectedRows()) > 0:
-                self.setEnabled(True)
-            else:
-                self.setEnabled(False)
-        else:
-            self.setEnabled(False)
+        self.setEnabled(self._controller._is_pypeit_file and
+                        self._controller._view is not None and 
+                        len(self._controller._view.selectedRows()) > 0)
 
 class MetadataPasteAction(QAction):
-    """An action (caused by the right click menu in the GUI, a button, or keyboard short cut) for pasting
-    metadata into a PypeItMetadataModel object.
+    """An action for pasting metadata into a PypeItMetadataModel object.
     
     Arguments:
         controller(PypeItMetadataController): 
             The controller for the PypeItMetadataModel/PypeItMetadataView MVC triplet.
         menu_text(str):
             The text name for the menu/button that triggers the action.
-        handler (Callable):
+        handler (:obj:`collections.abc.Callable`):
             The signal handler to enact the action. This receives the "triggered" event
             from the parent class.
-        shortcut (PySide2.QtGui.QKeySequence.StandardKey, Optional):
+        shortcut (QtGui.QKeySequence.StandardKey, Optional):
             The keyboard shortcut to initiate the action.
     """
 
@@ -323,7 +329,7 @@ class MetadataPasteAction(QAction):
         there are rows to paste in the clipboard."""
 
         if self._controller._is_pypeit_file:
-            if SetupGUIController.model.clipboard.rowCount() > 0:
+            if self._controller.clipboard.rowCount() > 0:
                 self.setEnabled(True)
             else:
                 self.setEnabled(False)
@@ -335,22 +341,24 @@ class PypeItMetadataController(QObject):
     Part of a MVC triplet involving PypeItMetadataModel/PypeItMetadataController/PypeItMetadataView.
 
     Args:
-        model (PypeItMetatadataModel): 
+        model (:obj:`pypeit.setup_gui.model.PypeItMetatadataModel`):
             The model this controller acts with.
 
         is_pypeit_file (bool): 
             True if the model is for a PypeItFileModel (that is writeable model), False if it is 
             from a PypeItObsLog model (read only)         
     """
-    def __init__(self, model, is_pypeit_file):
+    def __init__(self, model, is_pypeit_file, main_controller):
         super().__init__()
         self._model = model
+        self._main_controller = main_controller
         self._view = None
         self._is_pypeit_file = is_pypeit_file
         self._windows = {}
         self.next_window_id = 1
 
         # Build actions
+        # Dynamic View File actions are build later in updateEnabledActions
         self._action_list = [MetadataReadOnlyAction(self, "View File",   self.view_file),
                              MetadataReadOnlyAction(self, "View Header", self.view_header),
                              MetadataReadOnlyAction(self, "Copy",        self.copy_metadata_rows,       shortcut=QKeySequence.StandardKey.Copy),
@@ -359,13 +367,18 @@ class PypeItMetadataController(QObject):
                                 MetadataWriteAction(self, "Comment Out", self.comment_out_metadata_rows),
                                 MetadataWriteAction(self, "Uncomment",   self.uncomment_metadata_rows),
                                 MetadataWriteAction(self, "Delete",      self.delete_metadata_rows,     shortcut=QKeySequence.StandardKey.Delete) ]
-        SetupGUIController.model.clipboard.modelReset.connect(self.updatedEnabledActions)
+        self._main_controller.model.clipboard.modelReset.connect(self.updatedEnabledActions)
         self.updatedEnabledActions()
+
+    @property
+    def clipboard(self):
+        return self._main_controller.model.clipboard
 
     def getActions(self, parent):
         """Returns the actions that this controller supports.
         
-        Returns: (list of QAction): List of the actions that can be performed on the PypeItMetadataModel.
+        Returns: 
+            list of QAction: List of the actions that can be performed on the PypeItMetadataModel.
         """
         return self._action_list
             
@@ -381,11 +394,36 @@ class PypeItMetadataController(QObject):
 
     def updatedEnabledActions(self):
         """Updates which actions are enabled/disabled."""
+    
+        spectrograph = self._model.spectrograph
+        
+        # The actions under "View File" depend on the current spectrgraph, and so are dynamically setup here as a nested submenu
+        if spectrograph is not None:
+            num_detector = self._model.spectrograph.ndet
+            view_file_actions = ["View File"] + \
+                                [MetadataReadOnlyAction(self, f"Detector {n+1}", partial(self.view_file, n+1)) for n in range(num_detector)] 
+                                
+        else:
+            view_file_actions = MetadataReadOnlyAction(self, "View File", self.view_file)
+        
+        self._action_list[0] = view_file_actions
+
         for action in self._action_list:
-            action.updateEnabledStatus()
+            if isinstance(action, list):
+                # The nested "View File" sub menu
+                for subaction in action[1:]:
+                    subaction.updateEnabledStatus()
+            else:
+                action.updateEnabledStatus()
                     
-    def view_file(self):
+    def view_file(self, n=None):
         """View the selected files in the metadata using Ginga."""
+        if n == None:
+            # Default to detector 1
+            n = 1
+
+        det_name = f"DET {n}"
+
         row_indices = self._view.selectedRows()
         if len(row_indices) > 0:
 
@@ -393,28 +431,29 @@ class PypeItMetadataController(QObject):
             try:
                 display.connect_to_ginga(raise_err=True, allow_new=True)
             except Exception as e:
-                display_error(SetupGUIController.main_window, f"Could not start ginga to view FITS files: {e}")
+                display_error(self._main_controller.main_window, f"Could not start ginga to view FITS files: {e}")
                 msgs.warn(f"Failed to connect to ginga:\n" + traceback.format_exc())
 
             
             # Display each file in its own ginga tab
             for indx in row_indices:
                 metadata_row = self._model.metadata[indx]
-                file = Path(metadata_row['directory'], metadata_row['filename'])
+                # Make sure to strip comments off commented out files
+                file = Path(metadata_row['directory'], metadata_row['filename'].lstrip('# '))
                 if not file.exists():
-                    display_error(SetupGUIController.main_window, f"Could not find {file.name} in {file.parent}.")
+                    display_error(self._main_controller.main_window, f"Could not find {file.name} in {file.parent}.")
                     return
 
                 try:
-                    img = self._model.spectrograph.get_rawimage(str(file), 1)[1]
+                    img = self._model.spectrograph.get_rawimage(str(file), n)[1]
                 except Exception as e:
-                    display_error(SetupGUIController.main_window, f"Failed to read image {file.name}: {e}")
+                    display_error(self._main_controller.main_window, f"Failed to read image {file.name}: {e}")
                     msgs.warn(f"Failed get raw image:\n" + traceback.format_exc())
 
                 try:
-                    display.show_image(img, chname = f"{file.name}")
+                    display.show_image(img, chname = f"{file.name} {det_name}")
                 except Exception as e:
-                    display_error(SetupGUIController.main_window, f"Failed to send image {file.name} to ginga: {e}")
+                    display_error(self._main_controller.main_window, f"Failed to send image {file.name} to ginga: {e}")
                     msgs.warn(f"Failed send image to ginga:\n" + traceback.format_exc())
 
     def view_header(self):
@@ -425,7 +464,8 @@ class PypeItMetadataController(QObject):
             # Display each file in its window
             for indx in row_indices:
                 metadata_row = self._model.metadata[indx]
-                file = Path(metadata_row['directory'], metadata_row['filename'])
+                # Make sure to strip comments off commented out files
+                file = Path(metadata_row['directory'], metadata_row['filename'].strip('# '))
                 header_string_buffer = io.StringIO()
                 try:
                     with pypeit_io.fits_open(file) as hdul:
@@ -433,7 +473,7 @@ class PypeItMetadataController(QObject):
                             print(f"\n\n# HDU {i} Header from {file.name}\n",file=header_string_buffer)
                             hdu.header.totextfile(header_string_buffer)
                 except Exception as e:
-                    display_error(SetupGUIController.main_window, f"Failed to read header from file {file.name} in {file.parent}: {e}")
+                    display_error(self._main_controller.main_window, f"Failed to read header from file {file.name} in {file.parent}: {e}")
                     msgs.warn(f"Failed to read header from {file}:\n" + traceback.format_exc())
                     return
                 header_string_buffer.seek(0)
@@ -447,21 +487,30 @@ class PypeItMetadataController(QObject):
         """Clean up when a header viewer window is closed"""
         del self._windows[id]
 
-    def copy_metadata_rows(self):
-        """Copy metadata rows into the clipboard."""
-        if self._view is not None:
-            row_indices = self._view.selectedRows()
-            msgs.info(f"Copying {len(row_indices)} rows to the clipboard.")
-            if len(row_indices) > 0:
-                row_model = self._model.createCopyForRows(row_indices)
-                SetupGUIController.model.clipboard = row_model
-                return True
-        else:
-            msgs.warn("Copy from controller with no view")
+    def copy_metadata_rows(self) -> bool:
+        """Copy metadata rows into the clipboard.
+        
+        Return: 
+            True if rows were copied, False if there were no rows to copy
+        """
+        if self._view is None:
+            return False
+
+        row_indices = self._view.selectedRows()
+        msgs.info(f"Copying {len(row_indices)} rows to the clipboard.")
+        if len(row_indices) > 0:
+            row_model = self._model.createCopyForRows(row_indices)
+            self._main_controller.model.clipboard = row_model
+            return True
         return False
 
-    def cut_metadata_rows(self):
-        """Move metadata rows from the PypeItMetadataModel to the clipboard."""
+    def cut_metadata_rows(self) -> bool:
+        """Move metadata rows from the PypeItMetadataModel to the clipboard.
+        
+        Return: 
+            True if rows were removed from the metadata and copied into the
+            clipboard. False if no rows were copied or removed.
+        """
         if self.copy_metadata_rows():
             return self.delete_metadata_rows()
         return False
@@ -469,7 +518,7 @@ class PypeItMetadataController(QObject):
 
     def paste_metadata_rows(self):
         """Insert rows from the clipboard into the PypeItMetadataModel"""
-        clipboard = SetupGUIController.model.clipboard
+        clipboard = self._main_controller.model.clipboard
         if clipboard.rowCount() > 0:
             try:
                 msgs.info(f"Pasting {clipboard.rowCount()} rows")
@@ -477,37 +526,42 @@ class PypeItMetadataController(QObject):
             except Exception as e:
                 traceback_string = "".join(traceback.format_exc())
                 msgs.warn(f"Failed to paste metadata rows:\n" + traceback_string)
-                display_error(SetupGUIController.main_window, f"Could not paste rows to this PypeIt file: {e}")
+                display_error(self._main_controller.main_window, f"Could not paste rows to this PypeIt file: {e}")
 
 
     def comment_out_metadata_rows(self):
         """Comment out one or more selected metadata rows."""
-        if self._view is not None:
-            row_indices = self._view.selectedRows()
-            msgs.info(f"Commenting out {len(row_indices)} rows.")
-            if len(row_indices) > 0:
-                self._model.commentMetadataRows(row_indices)
+        if self._view is None:
+            return
+        row_indices = self._view.selectedRows()
+        msgs.info(f"Commenting out {len(row_indices)} rows.")
+        if len(row_indices) > 0:
+            self._model.commentMetadataRows(row_indices)
     
     def uncomment_metadata_rows(self):
         """Uncomment previously commented out selected metadata rows."""
-        if self._view is not None:
-            row_indices = self._view.selectedRows()
-            msgs.info(f"Unommenting out {len(row_indices)} rows.")
-            if len(row_indices) > 0:
-                self._model.uncommentMetadataRows(row_indices)
+        if self._view is None:
+            return
+        row_indices = self._view.selectedRows()
+        msgs.info(f"Unommenting out {len(row_indices)} rows.")
+        if len(row_indices) > 0:
+            self._model.uncommentMetadataRows(row_indices)
 
-    def delete_metadata_rows(self):
-        """Remove one or more selected rows from the PypeItMetadataModel."""
-        if self._view is not None:
-            row_indices = self._view.selectedRows()
-            msgs.info(f"Removing {len(row_indices)} rows.")
-            if len(row_indices) > 0:               
-                self._model.removeMetadataRows(row_indices)
-                return True
-        else:
-            msgs.warn("Copy from controller with no view")
+    def delete_metadata_rows(self) -> bool:
+        """Remove one or more selected rows from the PypeItMetadataModel.
+        
+        Return: 
+            True if there were metadata rows deleted, False if there
+            weren't any rows to delete.
+        """
+        if self._view is None:
+            return False
+        row_indices = self._view.selectedRows()
+        msgs.info(f"Removing {len(row_indices)} rows.")
+        if len(row_indices) > 0:               
+            self._model.removeMetadataRows(row_indices)
+            return True
         return False
-
 
 
 class PypeItObsLogController(QObject):
@@ -517,30 +571,23 @@ class PypeItObsLogController(QObject):
     Args:
         main_window (:obj:`UserPromptDelegate`): A view object that can prompt the user.
         model (:obj:`PypeItObsLogModel`): The model for the obs log.
-        operation_thread (:obj:`pypeit.setup_gui.controller.SetupGUIController`): The main Setup GUI controller.
+        main_controller (:obj:`pypeit.setup_gui.controller.SetupGUIController`): The main Setup GUI controller.
     """
 
-    def __init__(self, model, setup_gui_controller):
+    def __init__(self, model, main_controller):
         super().__init__()
         self._model = model
-        self.setup_gui_controller = setup_gui_controller
+        self._main_controller = main_controller
 
     def setModel(self, model):
         self._model = model
 
     def getMetadataController(self, model):
-        return PypeItMetadataController(model, is_pypeit_file=False)
+        return PypeItMetadataController(model, is_pypeit_file=False, main_controller=self._main_controller)
 
 
     def setSpectrograph(self, spectrograph_name):
         self._model.set_spectrograph(spectrograph_name)
-
-        if self._model.state != ModelState.NEW:
-            # Re-run setup with the new spectrograph
-            self.setup_gui_controller.run_setup()
-
-        else:
-            self._model.set_spectrograph(spectrograph_name)
 
     def removePaths(self, rows):
         # Remove paths in reverse order, so that indexes don't change when a row is removed
@@ -559,58 +606,68 @@ class PypeItFileController(QObject):
     Args:
         main_window (:obj:`UserPromptDelegate`): A view object that can prompt the user.
         model (:obj:`PypeItFileModel`): The model for the obs log.
+        main_controller (:obj:`pypeit.setup_gui.controller.SetupGUIController`): The main Setup GUI controller.
     """
 
-    def __init__(self, model):
+    def __init__(self, model, main_controller):
         self._model = model
+        self._main_controller = main_controller
 
     def setModel(self, model):
         self._model = model
 
     def getMetadataController(self, model):
-        return PypeItMetadataController(model, is_pypeit_file=True)
+        return PypeItMetadataController(model, is_pypeit_file=True, main_controller=self._main_controller)
 
 
 class SetupGUIController(QObject):
     """Controller for the PypeIt setup gui. It is responsible for initializing the GUI,
-    and performing actions requested by the user.
+    and performing actions requested by the user. On startup, it will process arguments in the same
+    way the non-GUI version of pypeit_setup does.
     
     Args:
-        args (:class:`argparse.Namespace`): The non-QT command line arguments used to start the GUI.
+        app:          QApplication for this Qt app.
+        verbosity:    Verbosity to use when logging.
+        spectrograph: Optional spectrograph to use on startup.
+        root:         Optional root path for raw data on startup.
+        extension:    Optional extension to look for when scanning raw data on startup.
     """
 
-
-    main_window = None
-    model = PypeItSetupGUIModel()
-
-    def __init__(self, args):
+    def __init__(self, app : QApplication, verbosity : int, spectrograph : str|None=None, root : list[str]|str|None=None, extension : str|None=".fits"):
         super().__init__()
 
+        self.app = app
         QCoreApplication.setOrganizationName("PypeIt")
         QCoreApplication.setApplicationName("SetupGUI")
         QCoreApplication.setOrganizationDomain("pypeit.readthedocs.io")
-
-        if args.logfile is not None:
-            logpath = Path(args.logfile)
-            if logpath.exists():
-                timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-                old_log=logpath.parent / (logpath.stem + f".{timestamp}" + logpath.suffix)
-                logpath.rename(old_log)
+        self.model = PypeItSetupGUIModel()
                 
-        self.model.setup_logging(args.logfile, verbosity=args.verbosity)
-        if args.spectrograph is not None:
-            self.model.obslog_model.set_spectrograph(args.spectrograph)
-        if args.root is not None:
-            for root_dir in args.root:
-                self.model.obslog_model.add_raw_data_directory(root_dir)
-        if args.spectrograph is not None and args.root is not None:
+        self.model.setup_logging(verbosity=verbosity)
+        if spectrograph is not None:
+            self.model.obslog_model.set_spectrograph(spectrograph)
+            if isinstance(root,list):
+                for root_dir in root:
+                    self.model.obslog_model.add_raw_data_directory(root_dir)
+            elif root is not None:
+                self.model.obslog_model.add_raw_data_directory(root)
+
+        if spectrograph is not None and root is not None:
             self.run_setup_at_startup = True
         else:
             self.run_setup_at_startup = False
 
-        self.model.obslog_model.default_extension = args.extension
-        SetupGUIController.main_window = SetupGUIMainWindow(self.model, self)
-        self.operation_thread = OperationThread()
+        self.model.obslog_model.default_extension = extension
+
+        defaultFont = self.app.font()
+        msgs.info(f"Default font pixel size: {defaultFont.pixelSize()}")
+        msgs.info(f"Default font point size: {defaultFont.pointSizeF()}")
+        if defaultFont.pointSizeF() < 12.0:
+            msgs.info(f"Setting font to 12.")
+            defaultFont.setPointSize(12)
+            self.app.setFont(defaultFont)
+
+        self.main_window = SetupGUIMainWindow(self.model, self)
+        self.operation_thread = OperationThread(self)
 
 
     def getObsLogController(self, model):
@@ -628,69 +685,98 @@ class SetupGUIController(QObject):
         Args:
             model (:obj:`PypeItFileModel`): The model for the obs log.
         """
-        return PypeItFileController(model)
+        return PypeItFileController(model, self)
 
-    def start(self, app):
+    def start(self):
         """
         Starts the PypeItSetupGUi event loop. Exits the GUI when the GUI is closed.
-
-        Args:
-            app (QApplication): The Qt application object for the GUI. The caller is expected
-                                to pass any Qt specific command line arguments to this object
-                                before calling start(). 
         """
         self.main_window.show()
         if self.run_setup_at_startup:
             self.run_setup()
 
-        # QT Gobbles up the Python Ctrl+C handling, so the default PypeIt Ctrl+C handler won't
-        # be called. So we reset it to the OS default
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-        sys.exit(app.exec_())
+        # QT runs it's event loop in C, so the python signal handling mechanism
+        # is never called, or it's only called after you give focus to the
+        # window. To make Ctrl+C handling work immediately in a way that still 
+        # calls the PypeIt CTRL+C handler, we set a timer to run every 500ms in the
+        # python interpreter, which will allow the python signal handling
+        # code to it.
+            
+        # This trck was brought to you by this stack exchange thread:
+        # https://stackoverflow.com/questions/4938723/what-is-the-correct-way-to-make-my-pyqt-application-quit-when-killed-from-the-co
+        timer = QTimer()
+        timer.start(500)
+        timer.timeout.connect(lambda: None)
+        sys.exit(self.app.exec_())
 
     def save_all(self):
         """"
         Save all unique configurations as pypeit files. Called in response to the user
         clicking the "Save All" button.
         """
-        try:
-            response = DialogResponses.CANCEL
-            location = None
-            for file_model in self.model.pypeit_files.values():
-                if file_model.save_location is None:
-                    if location is None or response != DialogResponses.ACCEPT_FOR_ALL:
-                        dialog = FileDialog.create_save_location_dialog(self.main_window, file_model.name_stem, True)
-                        response = dialog.show()
-                        if response == DialogResponses.CANCEL:
-                            # Cancel was pressed
-                            return
-                        location = dialog.selected_path
+        use_for_all_location = None
+        for file_model in self.model.pypeit_files.values():                   
 
-                file_model.save_location = location
-                file_model.save()
+            # If the user clicked "Use this location for everthing"
+            # Use that location for files that don't already have a location
+            if file_model.save_location is None and use_for_all_location is not None:
+                file_model.save_location = use_for_all_location
 
-        except Exception as e:
-            display_error(self.main_window, str(e))
+            # Save the tab, if neccessary prompting the user for a location to save to
+            response = self._save_file(file_model, prompt_for_all=True)
+
+            if response == DialogResponses.CANCEL:
+                # Cancel was pressed
+                return
+            if response == DialogResponses.ACCEPT_FOR_ALL:
+                # Use the selected location for everything going forward
+                use_for_all_location = file_model.save_location
+
 
     def save_one(self):
         """ Saves the currently selected configuration as a pypeit file. Called in response to the user
         clicking the "Save Tab" button."""
+
+        view_widget = self.main_window.tab_widget.currentWidget()
+        if isinstance(view_widget, PypeItFileView):
+            file_model = view_widget.model
+            self._save_file(file_model)
+        else:
+            # Shouldn't really happen, it would mean the save tab button was enabled
+            # when it shouldn't be. We'll handle this case and log it to prevent a crash
+            # just in case though.
+            msgs.warn(f"Attempt to save a tab that is *not* a PypeItFileView!")
+
+    
+    def _save_file(self, file_model : PypeItFileModel, prompt_for_all : bool=False) -> DialogResponses:
+        """Helper method to save a file prompting the user for a location to save to
+        if needed.
+        
+        Args:
+            file_model:     The file model to save.
+            prompt_for_all: Whether to prompt the user if they want to sue the location for
+                            subsequent files. e.g. for a save_all operation.
+        Return: 
+            The DialogResponse from the user, or DialogResponses.ACCEPT if it wasn't
+            neccessary to prompt the user.
+        """
+        msgs.info(f"Saving config {file_model.name_stem}")
+        if file_model.save_location is None:
+            dialog = FileDialog.create_save_location_dialog(self.main_window, file_model.name_stem, prompt_for_all=prompt_for_all)
+            response = dialog.show()
+            if response == DialogResponses.CANCEL:
+                return response
+            file_model.save_location = dialog.selected_path
+        else:
+            response = DialogResponses.ACCEPT
+
         try:
-            config_name = self.main_window.tab_widget.currentWidget().name
-            self._save_tab(config_name)
+            file_model.save()
         except Exception as e:
             display_error(self.main_window, str(e))
-    
-    def _save_tab(self, config_name):
-        msgs.info(f"Saving config {config_name}")
-        file_model = self.model.pypeit_files[config_name]
-        if file_model.save_location is None:
-            dialog = FileDialog.create_save_location_dialog(self.main_window, config_name)
-            if dialog.show() == DialogResponses.CANCEL:
-                return
-            else:
-                file_model.save_location = dialog.selected_path
-        file_model.save()
+        
+        return response
+
 
     def clear(self):
         """Resets the GUI to it's initial state. Called in response to the user
@@ -707,26 +793,16 @@ class SetupGUIController(QObject):
 
         self.model.reset()
 
-    def createNewFile(self, source_file_name, selectedRows):
-        try:
-            self.model.createNewPypeItFile(source_file_name, selectedRows)
-        except Exception as e:
-            display_error(self.main_window, f"Failed to create new tab {e.__class__.__name__}: {e}")
-            msgs.warn(f"Failed to create new tab.")
-            msgs.warn(traceback.format_exc())
-
     def close(self, file_model):
 
-        try:
-            if file_model.state == ModelState.CHANGED:
-                response = prompt_to_save(self.main_window)
-                if response == DialogResponses.SAVE:
-                    self._save_tab(file_model.name_stem)
-                elif response == DialogResponses.CANCEL:
-                    return False
-        except Exception as e:
-            display_error(self.main_window, str(e))
-            return False
+        if file_model.state == ModelState.CHANGED:
+            # If the file has unsaved data ask the user if they want to save it
+            response = prompt_to_save(self.main_window)
+            if response == DialogResponses.SAVE:
+                # Save the file, prompting for a location to save to if necessary
+                self._save_file(file_model)
+            elif response == DialogResponses.CANCEL:
+                return False
 
         self.model.removeFile(file_model.name_stem)
         return True
@@ -744,7 +820,7 @@ class SetupGUIController(QObject):
             elif response == DialogResponses.CANCEL:
                 return
 
-        sys.exit(0)
+        self.app.quit()
 
     def run_setup(self):
         """Runs setup on the currently selected raw data directories. 
@@ -759,8 +835,8 @@ class SetupGUIController(QObject):
                 self.save_all()
             elif response == DialogResponses.CANCEL:
                 return
-
-        self.operation_thread.startOperation(SetupOperation(self.model))
+        msgs.info("run_setup starting operation")
+        self.operation_thread.startOperation(SetupOperation(self.model, self))
 
     def createNewPypeItFile(self):
         # First figure out the name
@@ -802,4 +878,19 @@ class SetupGUIController(QObject):
         open_dialog = FileDialog.create_open_file_dialog(self.main_window, "Select PypeIt File", file_type=FileType("PypeIt input files",".pypeit"))
         result = open_dialog.show()
         if result != DialogResponses.CANCEL:
-            self.operation_thread.startOperation(OpenFileOperation(self.model, open_dialog.selected_path))
+            msgs.info("open_pypeit_file starting operation")
+            self.operation_thread.startOperation(OpenFileOperation(self.model, open_dialog.selected_path, self))
+
+def start_gui(args):
+    # Note QT expects the program name as arg 0
+    app = QApplication(sys.argv)
+
+    # Setup application/window icon TODO this doesn't work in windows.
+    iconPath = Path(__file__).parent / "images/window_icon.png"
+    if not iconPath.exists():
+        msgs.info("Icon path does not exist")
+    else:
+        app.setWindowIcon(QIcon(str(iconPath)))
+
+    gui = SetupGUIController(app, args.verbosity, args.spectrograph, args.root, args.extension)
+    gui.start()

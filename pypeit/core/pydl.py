@@ -55,7 +55,7 @@ def djs_maskinterp1(yval, mask, xval=None, const=False):
             if igood[ngood-1] != ny-1:
                 ynew[igood[ngood-1]+1:ny] = ynew[igood[ngood-1]]
     else:
-        ii = xval.argsort()
+        ii = xval.argsort(kind='stable')
         ibad = (mask[ii] != 0).nonzero()[0]
         igood = (mask[ii] == 0).nonzero()[0]
         ynew[ii[ibad]] = np.interp(xval[ii[ibad]], xval[ii[igood]],
@@ -882,7 +882,7 @@ def djs_reject(data, model, outmask=None, inmask=None,
                         # Test if too many points rejected in this group.
                         #
                         if np.sum(badness[jj] != 0) > maxrej1[iloop]:
-                            isort = badness[jj].argsort()
+                            isort = badness[jj].argsort(kind='stable')
                             #
                             # Make the following points good again.
                             #
@@ -1656,7 +1656,7 @@ def spherematch(ra1, dec1, ra2, dec2, matchlength, chunksize=None,
     omatch1 = np.array(match1)
     omatch2 = np.array(match2)
     odistance12 = np.array(distance12)
-    s = odistance12.argsort()
+    s = odistance12.argsort(kind='stable')
     #
     # Retain only desired matches
     #

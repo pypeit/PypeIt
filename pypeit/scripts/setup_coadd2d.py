@@ -70,6 +70,14 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                                  'either uniform or auto.  If not specified, the '
                                  '(spectrograph-specific) default is used.  Other options exist '
                                  'but must be entered by directly editing the coadd2d file.')
+        parser.add_argument('--spec_samp_fact', default=1.0, type=float,
+                            help="Make the wavelength grid finer (spec_samp_fact < 1.0) or "
+                                 "coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. "
+                                 "units of spec_samp_fact are pixels.")
+        parser.add_argument('--spat_samp_fact', default=1.0, type=float,
+                            help="Make the spatial grid finer (spat_samp_fact < 1.0) or coarser "
+                                 "(spat_samp_fact > 1.0) by this sampling factor, i.e. units of "
+                                 "spat_samp_fact are pixels.")
 
         return parser
 
@@ -95,7 +103,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             pypeitFile = None
             par = None
             spec_name = None
-            sci_dirs = [Path(sc).resolve() for sc in args.science_dir]
+            sci_dirs = [Path(sc).absolute() for sc in args.science_dir]
         else:
             # Read the pypeit file
             pypeitFile = inputfiles.PypeItFile.from_file(args.pypeit_file)
@@ -110,9 +118,9 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             # based on the parameter value, then try to base it on the parent
             # directory of the provided pypeit file.  The latter is critical to the
             # vet_test in the dev-suite.
-            sci_dirs = [Path(par['rdx']['redux_path']).resolve() / par['rdx']['scidir']]
+            sci_dirs = [Path(par['rdx']['redux_path']).absolute() / par['rdx']['scidir']]
             if not sci_dirs[0].exists():
-                sci_dirs = [Path(args.pypeit_file).resolve().parent / par['rdx']['scidir']]
+                sci_dirs = [Path(args.pypeit_file).absolute().parent / par['rdx']['scidir']]
 
         sci_dirs_exist = [sc.exists() for sc in sci_dirs]
         if not np.all(sci_dirs_exist):
@@ -139,7 +147,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                                 else [f.name.split('-')[1].split('_')[0] for f in spec2d_files])
         if args.obj is not None:
             # Limit to the selected objects
-            _objects = [o for o in objects if o == args.obj]
+            _objects = [o for o in objects if o in args.obj]
             # Check some were found
             if len(_objects) == 0:
                 msgs.error('Unable to find relevant objects.  Unique objects are '
@@ -149,7 +157,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         # Match spec2d files to objects
         object_spec2d_files = {}
         for obj in objects:
-            object_spec2d_files[obj] = [f for f in spec2d_files if obj in f.name]
+            object_spec2d_files[obj] = [f for f in spec2d_files if obj.strip() in f.name]
             if len(object_spec2d_files[obj]) == 0:
                 msgs.warn(f'No spec2d files found for target={obj}.')
                 del object_spec2d_files[obj]
@@ -178,7 +186,12 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                 if args.weights is None else args.weights
         cfg['coadd2d']['spat_toler'] = par['coadd2d']['spat_toler'] \
                 if args.spat_toler is None else args.spat_toler
-
+        cfg['coadd2d']['spec_samp_fact'] = par['coadd2d']['spec_samp_fact'] \
+                if args.spec_samp_fact is None else args.spec_samp_fact
+        cfg['coadd2d']['spat_samp_fact'] = par['coadd2d']['spat_samp_fact'] \
+                if args.spat_samp_fact is None else args.spat_samp_fact
+        
+        # TODO JFH Why are exclude_slits and only_slits set here when they are parameters in the parset?
         # Build the default parameters
         cfg = CoAdd2D.default_par(spec_name, inp_cfg=cfg, det=args.det, only_slits=args.only_slits,
                                   exclude_slits=args.exclude_slits)

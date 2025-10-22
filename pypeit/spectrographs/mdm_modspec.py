@@ -31,6 +31,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
     supported = True
     comment = 'MDM Modspec spectrometer; Only 1200l/mm disperser (so far)'
 
+    allowed_extensions = ['.fit']
+
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.

@@ -32,6 +32,9 @@ of :ref:`processimagespar`.
 We have made our own determinations for which instruments to enable this as the
 default. Inspect the :ref:`instr_par` list to see if your instrument is included
 (search for the value of ``spat_flexure_correct``).
+A QA plot is generated for each frame for which the spatial flexure correction
+is applied. We recommend the user to inspect these plots to ensure the flexure
+correction is reasonable. See :ref:`qa-spat-flex` for more information.
 
 Depending on what frame types you choose to correct, the
 code will behave somewhat differently.  Here we describe
@@ -315,4 +318,29 @@ HDU Name               HDU Type                        Data Type  Description
 ``FLEXURE``            `astropy.io.fits.BinTableHDU`_  ...        All data from the :class:`~pypeit.core.flexure.MultiSlitFlexure` datamodel
 =====================  ==============================  =========  ==========================================================================
 
+Inspecting
+==========
+
+PypeIt provides the ``pypeit_chk_flexure`` script to inspect both the
+spatial and spectral flexure corrections.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: ../help/pypeit_chk_flexure.rst
+
+The script takes as input one or multiple `spec2d*.fits` or `spec1d*.fits` files
+and print to screen the flexure correction applied to each file.
+
+Here is a typical call to print the spatial flexure correction:
+
+.. code-block:: console
+
+    pypeit_chk_flexure Science/spec2d_r230417_01033-frb22022_LRISr_20230417T082242.672.fits --spat
+
+and to print the spectral flexure correction:
+
+.. code-block:: console
+
+    pypeit_chk_flexure Science/spec1d_r230417_01033-frb22022_LRISr_20230417T082242.672.fits --spec
 

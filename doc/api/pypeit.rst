@@ -9,7 +9,6 @@ Subpackages
 
    pypeit.bspline
    pypeit.core
-   pypeit.data
    pypeit.display
    pypeit.images
    pypeit.move_median
@@ -28,6 +27,7 @@ Submodules
    pypeit.alignframe
    pypeit.archive
    pypeit.bitmask
+   pypeit.cache
    pypeit.calibframe
    pypeit.calibrations
    pypeit.coadd1d
@@ -35,6 +35,7 @@ Submodules
    pypeit.coadd3d
    pypeit.datamodel
    pypeit.edgetrace
+   pypeit.exposure
    pypeit.extraction
    pypeit.find_objects
    pypeit.flatfield
@@ -45,14 +46,17 @@ Submodules
    pypeit.manual_extract
    pypeit.metadata
    pypeit.onespec
+   pypeit.orderstack
+   pypeit.outputfiles
    pypeit.pypeit
+   pypeit.pypeit_steps
+   pypeit.pypeitdata
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.sampling
    pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc
-   pypeit.setup_package
    pypeit.slittrace
    pypeit.spec2dobj
    pypeit.specobj

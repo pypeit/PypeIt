@@ -179,13 +179,9 @@ in science spectra for proper flux calibration.  It is generally measured by the
 observatory in a dedicated campaign (sometimes decades ago), and published for use.
 PypeIt includes measured extinction files for many of the observatories
 whose spectrographs are supported by the pipeline.  The list of current extinction
-files is in ``pypeit/data/extinction/README``, and shown below:
+files is in ``pypeit/data/extinction/extinction_curves.txt``, and shown below:
 
-.. TODO: I'm a bit surprised this works on readthedocs.  We might want to
-.. instead copy the README into the doc directory when we build to docs...
-
-.. include:: ../pypeit/data/extinction/README
-   :literal:
+.. include:: include/extinction_curves.txt.rst
 
 The extinction correction is applied twice in the flux calibration process:
 
@@ -203,6 +199,8 @@ further need be done.  If, however, you are working with a telescope situated
 more than 5 deg (geographic coordinates) from one of the listed observatories, the
 code will crash unless you specify a particular extinction file to use or install
 a custom extinction file in the PypeIt cache.
+
+.. _extinct-file:
 
 Specifying an extinction file to use
 ++++++++++++++++++++++++++++++++++++
@@ -268,10 +266,6 @@ The sensitivity function is written to disk as a FITS file. It has units of
 :math:`[10^{-17} {\rm erg/s/cm^2/\mathrm{\mathring{A}}}]/[{\rm
 photons/s/\mathrm{\mathring{A}}}]` or :math:`[10^{-17} {\rm erg/cm^2/photons}]`.
 
-If you are using an IR instrument or choose the IR mode (see below)
-then you will need to have grabbed the telluric files.
-See :ref:`install_atmosphere`.
-
 .. _pypeit_sensfunc:
 
 pypeit_sensfunc
@@ -325,7 +319,7 @@ The algorithm options are:
 
     - IR = Should be used for data with :math:`\lambda > 7000
       \mathrm{\mathring{A}}`.  Performs joint fit for sensitivity function and
-      telluric absorption using HITRAN models.
+      telluric absorption using a PCA decomposition of HITRAN models.
 
 --sens
 ++++++
@@ -343,8 +337,8 @@ This type of :doc:`input_files`
 contains only a :ref:`parameter_block`
 where you specify the ``sensfunc`` parameters.
 
-For example, if you wish to use the MaunaKea telluric grid with your data,
-you would create a sens file containing:
+For example, if you wish to change the number of PCA components
+from 5 (default) to 8, you would create a sens file containing:
 
 .. code-block:: ini
 
@@ -352,7 +346,7 @@ you would create a sens file containing:
     [sensfunc]
         algorithm = IR
         [[IR]]
-            telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
+            tell_npca = 8
 
 
 IR without a Standard
@@ -529,33 +523,6 @@ remove the instrumental response, providing a relative flux calibration up to so
 
 Troubleshooting
 ===============
-
-Problem with Empty filename
----------------------------
-
-If you encounter this error when doing flux calibration with the IR algorithm,
-please do the following steps:
-
-    - Make sure you have installed the relevant atmosphere telluric models.  See
-      the instructions for installing this :ref:`data_installation`. 
-
-    - Write the filename of the corresponding file for your observatory in the
-      parameter telgridfile (i.e. keck_lris_sens.txt), e.g.:
-
-        .. code-block:: ini
-
-            [sensfunc]
-                algorithm = IR
-                polyorder = 8
-                [[IR]]
-                    telgridfile = TelFit_MaunaKea_3100_26100_R20000-006.fits
-
-    - Run pypeit_sensfunc with the --sens_file option, e.g.:
-
-        .. code-block:: console
-
-            pypeit_sensfunc your_spec1dfile -o your_output.fits --sens_file keck_lris_sens.txt
-
 
 Adding a Standard Star
 ----------------------

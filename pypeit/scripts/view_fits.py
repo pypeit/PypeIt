@@ -20,7 +20,7 @@ class ViewFits(scriptbase.ScriptBase):
         parser.add_argument('spectrograph', type=str,
                             help='A valid spectrograph identifier: {0}'.format(
                                  ', '.join(available_spectrographs)))
-        parser.add_argument('file', type=str, default=None, help='FITS file')
+        parser.add_argument('file', type=str, default=None, help='FITS file.  Either a Raw file or an Intermediate PypeIt file')
         parser.add_argument('--list', default=False, action='store_true',
                             help='List the extensions only?')
         parser.add_argument('--proc', default=False, action='store_true',
@@ -29,6 +29,8 @@ class ViewFits(scriptbase.ScriptBase):
         parser.add_argument('--bkg_file', type=str, default=None, help='FITS file to be subtracted from the image in file.'
                             '--proc must be set in order for this option to work.')
 
+        parser.add_argument('--inter', default=False, action='store_true',
+                            help='Input file is an Intermediate SciImage file')
         parser.add_argument('--exten', type=int, default=None,
                             help='Show a FITS extension in the raw file. Note --proc and --mosaic '
                                  'will not work with this option.')
@@ -53,6 +55,7 @@ class ViewFits(scriptbase.ScriptBase):
         from pypeit.spectrographs import util
         from pypeit import io
         from pypeit.images import buildimage
+        from pypeit.images import pypeitimage
 
         # List only?
         if args.list:
@@ -69,7 +72,11 @@ class ViewFits(scriptbase.ScriptBase):
             msgs.error('You cannot specify --exten and --det mosaic, since --mosaic displays '
                        'multiple extensions by definition')
 
-        if args.exten is not None:
+        # Intermediate file?
+        if args.inter:
+            sciImg = pypeitimage.PypeItImage.from_file(args.file)
+            img = sciImg.image
+        elif args.exten is not None:
             hdu = io.fits_open(args.file)
             img = hdu[args.exten].data
             hdu.close()

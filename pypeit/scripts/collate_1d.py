@@ -105,7 +105,7 @@ def find_slits_to_exclude(spec2d_files, par):
     Args:
         spec2d_files (:obj:`list`): 
             List of spec2d files to build the map from.
-        par (:class:`~pypeit.par.pypeitpar.Collate1DPar`):
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             Parameters from a ``.collate1d`` file
 
     Returns:
@@ -124,11 +124,11 @@ def find_slits_to_exclude(spec2d_files, par):
     exclude_map = dict()
     for spec2d_file in spec2d_files:
 
-        allspec2d = AllSpec2DObj.from_fits(spec2d_file, chk_version=par['collate1d']['chk_version'])
+        allspec2d = AllSpec2DObj.from_fits(spec2d_file, chk_version=par['rdx']['chk_version'])
         for sobj2d in [allspec2d[det] for det in allspec2d.detectors]:
             for (slit_id, mask, slit_mask_id) in sobj2d['slits'].slit_info:
                 for flag in exclude_flags:
-                    if bit_mask.flagged(mask, flag):
+                    if bit_mask.flagged(mask, flag=flag):
                         if slit_mask_id not in exclude_map:
                             exclude_map[slit_mask_id] = {flag}
                         else:
@@ -247,7 +247,7 @@ def read_spec1d_files(par, spec1d_files, failure_msgs):
     good_spec1d_files = []
     for spec1d_file in spec1d_files:
         try:
-            sobjs = SpecObjs.from_fitsfile(spec1d_file, chk_version = par['collate1d']['chk_version'])
+            sobjs = SpecObjs.from_fitsfile(spec1d_file, chk_version=par['rdx']['chk_version'])
             specobjs_list.append(sobjs)
             good_spec1d_files.append(spec1d_file)
         except Exception as e:
@@ -301,7 +301,8 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
         # Flux calibrate the spec1d file
         try:
             msgs.info(f"Running flux calibrate on {spec1d_file}")
-            FxCalib = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'], chk_version=par['collate1d']['chk_version'])
+            FxCalib = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'],
+                                                   chk_version=par['rdx']['chk_version'])
             flux_calibrated_files.append(spec1d_file)
 
         except Exception:
@@ -352,7 +353,7 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
     for spec1d in spec1d_files:
         # Get values from the fits header needed to calculate the correction
         try:
-            sobjs = SpecObjs.from_fitsfile(spec1d)
+            sobjs = SpecObjs.from_fitsfile(spec1d, chk_version=par['rdx']['chk_version'])
             hdr_ra = sobjs.header['RA']
             hdr_dec = sobjs.header['DEC']
             hdr_radec = ltu.radec_to_coord((hdr_ra, hdr_dec))
@@ -425,9 +426,6 @@ def coadd(par, coaddfile, source):
     # Set destination file for coadding
     par['coadd1d']['coaddfile'] = coaddfile
     
-    # Whether to be forgiving of data model versions
-    par['coadd1d']['chk_version'] = par['collate1d']['chk_version']
-
     # Determine if we should coadd flux calibrated data
     flux_key = par['coadd1d']['ex_value'] + "_FLAM"
 
@@ -582,8 +580,8 @@ def build_parameters(args):
     if args.match_using is not None:
         params['collate1d']['match_using'] = args.match_using
 
-    if args.exclude_slit_bm is not None and len(args.exclude_slit_bm) > 0:
-        params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_bm.split(',')
+    if args.exclude_slit_trace_bm is not None and len(args.exclude_slit_trace_bm) > 0:
+        params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_trace_bm.split(',')
 
     if args.exclude_serendip:
         params['collate1d']['exclude_serendip'] = True
@@ -610,7 +608,7 @@ def build_parameters(args):
         params['collate1d']['refframe'] = args.refframe
 
     if args.chk_version is True:
-        params['collate1d']['chk_version'] = True
+        params['rdx']['chk_version'] = True
 
     return params, spectrograph, spec1d_files
 
@@ -664,7 +662,8 @@ class Collate1D(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         # A blank Colate1DPar to avoid duplicating the help text.
-        blank_par = pypeitpar.Collate1DPar()
+        blank_pypar = pypeitpar.PypeItPar()
+        blank_par = blank_pypar['collate1d']
 
         parser = super().get_parser(description='Flux/Coadd multiple 1d spectra from multiple '
                                                 'nights and prepare a directory for the KOA.',
@@ -694,8 +693,6 @@ class Collate1D(scriptbase.ScriptBase):
                                  'F|                        value are skipped, else all wavelength rms values are accepted.\n'
                                  'F|  refframe              Perform reference frame correction prior to coadding.\n'
                                 f'F|                        Options are {pypeitpar.WavelengthSolutionPar.valid_reference_frames()}. Defaults to None.\n'
-                                 'F|  chk_version           If true, spec1ds and archival sensfuncs must match the currently\n'
-                                 'F|                        supported versions. If false (the default) version numbers are not checked.\n'
                                  '\n'
                                  'F|spec1d read\n'
                                  'F|<path to spec1d files, wildcards allowed>\n'
@@ -715,14 +712,14 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
         parser.add_argument('--ignore_flux', default=False, action='store_true', help=blank_par.descr['ignore_flux'])
         parser.add_argument('--flux', default=False, action = 'store_true', help=blank_par.descr['flux'])
-        parser.add_argument('--exclude_slit_bm', type=str, # nargs='*',
+        parser.add_argument('--exclude_slit_trace_bm', type=str, # nargs='*',
                             help=blank_par.descr['exclude_slit_trace_bm']+' Comma separated.')
         parser.add_argument('--exclude_serendip', action='store_true',
                             help=blank_par.descr['exclude_serendip'])
         parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.descr['wv_rms_thresh'])
         parser.add_argument("--refframe", type=str, default = None, choices = pypeitpar.WavelengthSolutionPar.valid_reference_frames(),
                             help=blank_par.descr['refframe'])
-        parser.add_argument('--chk_version', action = 'store_true', help=blank_par.descr['chk_version'])
+        parser.add_argument('--chk_version', action = 'store_true', help=blank_pypar['rdx'].descr['chk_version'])
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename collate_1d_YYYYMMDD-HHMM.log')

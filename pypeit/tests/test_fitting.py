@@ -10,13 +10,10 @@ import pytest
 import numpy as np
 
 from pypeit.core import fitting
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
+from pypeit.tests.tstutils import data_output_path
 
 def test_pypeitfit():
-    out_file = data_path('test_fit.fits')
+    out_file = data_output_path('test_fit.fits')
     if os.path.isfile(out_file):
         os.remove(out_file)
     pypeitFit = fitting.PypeItFit(fitc=np.arange(100).astype(float))

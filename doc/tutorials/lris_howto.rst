@@ -23,11 +23,10 @@ to find the example dataset.
 
 
 If you're having trouble reducing your data, we encourage you to try going
-through this tutorial using this example dataset first. Please join our
-`PypeIt Users Slack <pypeit-users.slack.com>`__ (using
-`this invitation link
-<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
-to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
+through this tutorial using this example dataset first. Please join our `PypeIt
+Users Slack <https://pypeit-users.slack.com>`__ using `this invitation link
+<invite_>`_ to ask for help, and/or `Submit an issue`_ to Github if you find a
+bug!
 
 The following was performed on a Macbook Pro with 16 GB RAM and took approximately 30 minutes.
 
@@ -287,13 +286,13 @@ and it prints on screen the following (here truncated) table:
 
 .. code-block:: bash
 
-     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%) mesured_fwhm  RMS
-    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ------------ -----
-      0    212  6835.4   8469.9 10121.3 1.610   43  6931.379 -  9925.919            91.1          2.7 0.027
-      1    265  6038.3   7674.1  9327.6 1.612   45  6336.179 -  9227.030            87.9          2.7 0.025
-      2    335  7169.5   8831.4 10485.5 1.611   39  7427.339 - 10472.923            91.8          2.7 0.348
-      3    384     0.0      0.0     0.0 0.000    0     0.000 -     0.000             0.0          0.0 0.000
-      4    474     0.0      0.0     0.0 0.000    0     0.000 -     0.000             0.0          0.0 0.000
+     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%) measured_fwhm  RMS
+    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ------------- -----
+      0    212  6835.4   8469.9 10121.3 1.610   43  6931.379 -  9925.919            91.1           2.7 0.027
+      1    265  6038.3   7674.1  9327.6 1.612   45  6336.179 -  9227.030            87.9           2.7 0.025
+      2    335  7169.5   8831.4 10485.5 1.611   39  7427.339 - 10472.923            91.8           2.7 0.348
+      3    384     0.0      0.0     0.0 0.000    0     0.000 -     0.000             0.0           0.0 0.000
+      4    474     0.0      0.0     0.0 0.000    0     0.000 -     0.000             0.0           0.0 0.000
 
 See :ref:`pypeit-chk-wavecalib` for a detailed description of all the columns.
 Note that the slits with ``SpatID`` 384 and 474 have all the values set to 0.0. This is because

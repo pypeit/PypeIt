@@ -28,8 +28,11 @@ class Setup(scriptbase.ScriptBase):
                                  'directory  (e.g., /data/Kast) or the search string up through '
                                  'the wildcard (.e.g, /data/Kast/b).  Use the --extension option '
                                  'to set the types of files to search for.')
-        parser.add_argument('-e', '--extension', default='.fits',
-                            help='File extension; compression indicators (e.g. .gz) not required.')
+        parser.add_argument('-e', '--extension', default=None,
+                            help='File extension to use.  Must include the period (e.g., ".fits") '
+                                 'and it must be one of the allowed extensions for this '
+                                 'spectrograph.  If None, root directory will be searched for '
+                                 'all files with any of the allowed extensions.')
         parser.add_argument('-d', '--output_path', default='current working directory',
                             help='Path to top-level output directory.')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
@@ -41,6 +44,8 @@ class Setup(scriptbase.ScriptBase):
                                  '\'A,B\' or \'B,D,E\' or \'E\'.')
         parser.add_argument('-b', '--background', default=False, action='store_true',
                             help='Include the background-pair columns for the user to edit')
+        parser.add_argument('-f', '--flexure', default=False, action='store_true',
+                            help='Include the manual spatial shift (flexure) column for the user to edit')
         parser.add_argument('-m', '--manual_extraction', default=False, action='store_true',
                             help='Include the manual extraction column for the user to edit')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
@@ -53,6 +58,9 @@ class Setup(scriptbase.ScriptBase):
                                  'pypeit_obslog; i.e., you have to tell pypeit_setup to keep '
                                  'these frames, whereas you have to tell pypeit_obslog to remove '
                                  'them.')
+        parser.add_argument('-p', '--param_block_file', default=None, type=str,
+                            help='File containing the additional PypeIt user parameters to be '
+                                 'added to the parameter block of the generated reduction file')
         parser.add_argument('-G', '--gui', default=False, action='store_true',
                             help='Run setup in a GUI')        
 
@@ -75,38 +83,41 @@ class Setup(scriptbase.ScriptBase):
         from pypeit.pypeitsetup import PypeItSetup
         from pypeit.calibrations import Calibrations
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('setup', args.verbosity)
-
         if args.spectrograph is None:
-            raise IOError('spectrograph is a required argument.  Use the -s, --spectrograph '
-                          'command-line option.')
-
-        # Check that input spectrograph is supported
-        if args.spectrograph not in available_spectrographs:
-            raise ValueError(f'Instrument "{args.spectrograph}" unknown to PypeIt.\n'
-                             f'\tOptions are: {", ".join(available_spectrographs)}\n'
-                             '\tSelect an available instrument or consult the documentation '
-                             'on how to add a new instrument.')
+            if args.gui is False:
+                raise IOError('spectrograph is a required argument.  Use the -s, --spectrograph '
+                            'command-line option.')
+        else:
+            # Check that input spectrograph is supported
+            if args.spectrograph not in available_spectrographs:
+                raise ValueError(f'Instrument "{args.spectrograph}" unknown to PypeIt.\n'
+                                 f'\tOptions are: {", ".join(available_spectrographs)}\n'
+                                 '\tSelect an available instrument or consult the documentation '
+                                 'on how to add a new instrument.')
 
         if args.gui:
-            from pypeit.scripts.setup_gui import SetupGUI
-            if isinstance(args.root,list):
-                root_args = args.root
-            else:
-                # If the root argument is a single string, convert it to a lsit.
-                # This can happen when the default for --root is used
-                root_args = [args.root]
-            gui_args = SetupGUI.parse_args(["-s", args.spectrograph, "-e", args.extension, "-r", *root_args])
-            SetupGUI.main(gui_args)
+            # Start the GUI
+            from pypeit.setup_gui.controller import start_gui
+            start_gui(args)
+        else:
+            msgs.set_logfile_and_verbosity("setup", args.verbosity)       
 
         # Initialize PypeItSetup based on the arguments
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
+        # Add any additional user parameters
+        if args.param_block_file is not None:
+            if (user_par_fn := Path(args.param_block_file)).exists():
+                with open(user_par_fn, 'r', encoding='utf-8') as user_par_fobj:
+                    user_cfgs = [l.rstrip() for l in user_par_fobj.readlines()]
+                ps.append_user_cfg(user_cfgs)
+            else:
+                msgs.warn(f"Could not open param_block file {args.param_block_file}. "
+                          "Not adding any additional user parameters to the .pypeit file.")
         # Run the setup
         ps.run(setup_only=True, clean_config=not args.keep_bad_frames)
 
         # Print selected files
-        output_path = Path(args.output_path).resolve()
+        output_path = Path(args.output_path).absolute()
         if args.cfg_split is None:
             # Output directory is hard-coded to be 'setup_files'
             output_path /= 'setup_files'
@@ -135,15 +146,16 @@ class Setup(scriptbase.ScriptBase):
             pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, 
                                                    write_bkg_pairs=args.background,
                                                    write_manual=args.manual_extraction,
+                                                   write_shift = args.flexure,
                                                    configs=configs,
                                                    version_override=args.version_override,
                                                    date_override=args.date_override)
 
             # Write the calib file for each written pypeit file.
-            setups = [Path(p).resolve().name.split('.')[0].split('_')[-1] for p in pypeit_files]
+            setups = [Path(p).absolute().name.split('.')[0].split('_')[-1] for p in pypeit_files]
             for i, setup in enumerate(setups):
                 indx = ps.fitstbl.find_configuration(setup)
-                calib_file = Path(pypeit_files[i]).resolve().with_suffix('.calib')
+                calib_file = Path(pypeit_files[i]).absolute().with_suffix('.calib')
                 caldir = calib_file.parent / ps.par['calibrations']['calib_dir']
                 Calibrations.association_summary(calib_file, ps.fitstbl, ps.spectrograph,
                                                  caldir, subset=indx, overwrite=True)

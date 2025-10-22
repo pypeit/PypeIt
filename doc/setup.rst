@@ -22,6 +22,27 @@ preparatory script, :ref:`pypeit_obslog`, which provides a simple listing of the
 available data files; however, use of this script is optional in terms of setup
 for reducing your data.
 
+.. _setup-file-searching:
+
+Raw File Searches
+=================
+
+PypeIt scripts that search for raw files in a given directory base the search on
+a list of file extensions.  These are generally ``.fits`` and ``.fits.gz``, but
+some spectrographs specify a different set.
+
+Some scripts allow you to specify the extension to use for the search, which
+*must* be one of the allowed extensions for that spectrograph.  E.g.,
+for a spectrograph that allows ``.fits`` and ``.fits.gz`` extension, you can
+specify to only look for the ``.fits`` files, but you *cannot* have it look for
+``.fits.bz2`` files.  If your raw files have extensions that are currently not
+allowed by the code, please `Submit an issue`_.
+
+If you have both compressed and uncompressed files in your directory, the search
+function will generally find both.  You are strongly encouraged to only include
+one version (compressed or uncompressed) of each file in the directory with your
+raw data.
+
 .. _setup-metadata:
 
 Use of Metadata to Identify Instrument Configurations
@@ -168,7 +189,9 @@ to be the same directory that holds the raw data.
 1. First Execution
 ------------------
 
-We recommend you first execute ``pypeit_setup`` like this::
+We recommend you first execute ``pypeit_setup`` like this:
+
+.. code-block:: bash
 
     pypeit_setup -r path_to_your_raw_data/LB -s keck_lris_blue
 
@@ -187,7 +210,9 @@ This execution of ``pypeit_setup`` searches for all `*.fits` and
 `*.fits.gz` files with the provided root directory. Generally, the
 provided path should **not** contain a wild-card and it is best if
 you provide the *full* path; however, you can search through multiple
-directories as follows::
+directories as follows:
+
+.. code-block:: bash
 
     pypeit_setup -r "/Users/xavier/Keck/LRIS/data/2016apr06/Raw/*/LB" -s keck_lris_blue
 

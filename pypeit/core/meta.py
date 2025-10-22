@@ -154,6 +154,7 @@ def define_additional_meta(nlamps=20):
                        'dec_off': dict(dtype=float, comment='Dither offset in DEC'),
                        'echangle':dict(dtype=float, comment='Echelle angle'),
                        'filter1': dict(dtype=str, comment='First filter in optical path'),
+                       'filter2': dict(dtype=str, comment='Second filter in optical path'),
                        'frameno': dict(dtype=str, comment='Frame number provided by instrument software'),
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
                        'humidity': dict(dtype=float, comment='Humidity at observation time (as a percentage, not a fraction)'),
@@ -173,6 +174,18 @@ def define_additional_meta(nlamps=20):
                        'mirror': dict(dtype=str, comment='Position of an instrument mirror (e.g. IN or OUT)'),
                        'xd': dict(dtype=float, comment='Cross disperser (e.g. red or blue for HIRES)'),
                        'xdangle':dict(dtype=float, comment='Cross disperser angle'),
+                       'readmode': dict(dtype=str,
+                                        comment='Read mode of the image'),
+                       'savemode': dict(dtype=str,
+                                        comment='Save mode of the image'),
+                       'dit': dict(dtype=float,
+                                   comment='Detector integration time'),
+                       'ndit': dict(dtype=int,
+                                    comment='Number of integrations'),
+                       'camera': dict(dtype=str,
+                                      comment='Camera (e.g. N1.8/N3.75/N30 for LUCI)'),
+                       'camera_pos':dict(dtype=str, comment='Camera position (e.g. LongRed, ShortBlue, '
+                                                            'etc for Gemini GNIRS)'),
                        }
 
     for kk in range(nlamps):

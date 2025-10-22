@@ -9,8 +9,9 @@ import os
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units
+from astropy import time
 from astropy.wcs import wcs
-from astropy.io import fits 
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
@@ -39,7 +40,7 @@ class GeminiGMOSMosaicLookUp:
     .. code-block:: python
 
         from geminidr.gmos.lookups.geometry_conf import geometry
-    
+
     Updating to any changes made to the DRAGONS version requires by-hand editing
     of the PypeIt code.
     """
@@ -89,6 +90,14 @@ class GeminiGMOSMosaicLookUp:
                                                   (4096, 0): {'shift': (2109., -0.73),
                                                               'rotation': 0.}
                                                   },
+        'BI11-41-4k-2,BI13-19-4k-3,BI12-34-4k-1': {'default_shape': (2048, 4224),
+                                                   (0, 0): {'shift': (-2112.5, -1.1),
+                                                            'rotation': 0.},
+                                                   (2048, 0): {},
+                                                   (4096, 0): {
+                                                      'shift': (2110.8, 1.05),
+                                                      'rotation': 0.}
+                                                   },
     }
 
 
@@ -98,8 +107,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     should not be instantiated.
     """
     ndet = 3
-    detid = None
     url = 'http://www.gemini.edu/instrumentation/gmos'
+    allowed_extensions = ['.fits', '.fits.bz2', '.fits.gz']
+
+    def __init__(self):
+        super().__init__()
+        self.detid = None
 
     def init_meta(self):
         """
@@ -116,7 +129,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card='MASKNAME')
         self.meta['binning'] = dict(card=None, compound=True)  # Uses CCDSUM
 
-        self.meta['mjd'] = dict(ext=0, card='OBSEPOCH')
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
@@ -126,6 +139,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         self.meta['datasec'] = dict(ext=1, card='DATASEC')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        # Dithering
+        self.meta['dithpos'] = dict(ext=0, card='QOFFSET')
+        self.meta['dithoff'] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -141,11 +157,19 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
-        if meta_key == 'binning':
+        # dithoff is the offset (qoffset) used for the dithering. It's common with GMOS to dither
+        # both in the spectral and spatial direction. Therefore, adding the info about the
+        # spatial dither offset in the pypeit file can be helpful to the user.
+        if meta_key == 'dithoff':
+            if headarr[0].get('OBSTYPE') == 'OBJECT':
+                return round(headarr[0].get('QOFFSET'),2)
+            else:
+                return 0.0
+        elif meta_key == 'binning':
             # binning in the raw frames
             ccdsum = headarr[1].get('CCDSUM')
             if ccdsum is not None:
-                binspatial, binspec = parse.parse_binning(ccdsum)
+                binspec, binspatial = parse.parse_binning(ccdsum)
                 binning = parse.binning2string(binspec, binspatial)
             else:
                 # binning in the spec2d file
@@ -153,6 +177,13 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             if binning is None:
                 msgs.error('Binning not found')
             return binning
+        elif meta_key == 'mjd':
+            obsepoch = headarr[0].get('OBSEPOCH')
+            if obsepoch is not None:
+                return time.Time(obsepoch, format='jyear').mjd
+            else:
+                msgs.warn('OBSEPOCH header keyword not found. Using today as the date.')
+                return time.Time.now().mjd
 
     def config_independent_frames(self):
         """
@@ -210,6 +241,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         return ['GRATING', 'FILTER1', 'MASKNAME', 'CENTWAVE', 'CCDSUM', 'OBSEPOCH', 'NODPIX']
 
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['dithoff']
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -248,7 +290,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of PypeIt methods.
@@ -441,7 +483,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             return detectors[0], array[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
         return mosaic, array, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -462,7 +504,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
-            msc_order (:obj:`int`, optional):
+            msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
 
         Returns:
@@ -511,10 +553,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         for i, d in enumerate([det-1 for det in mosaic]):
             msc_sft[i] = shift[d]
             msc_rot[i] = rotation[d]
-            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
+            # binning is here in the PypeIt convention of (binspec, binspat), but the mosaic tranformations
+            # occur in the raw data frame, which has spatial in y and spectral in x
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
 
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-                      np.array(msc_tfm), msc_order)
+                      np.array(msc_tfm), msc_ord)
 
     @property
     def allowed_mosaics(self):
@@ -530,48 +574,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         return [(1,2,3)]
 
-    def list_detectors(self, mosaic=False):
-        """
-        List the *names* of the detectors in this spectrograph.
-
-        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
-        to measure the mean offset between the measured and expected slit
-        locations.
-
-        Detectors separated along the dispersion direction should be ordered
-        along the first axis of the returned array.  For example, Keck/DEIMOS
-        returns:
-        
-        .. code-block:: python
-        
-            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
-                             ['DET05', 'DET06', 'DET07', 'DET08']])
-
-        such that all the bluest detectors are in ``dets[0]``, and the slits
-        found in detectors 1 and 5 are just from the blue and red counterparts
-        of the same slit.
-
-        Args:
-            mosaic (:obj:`bool`, optional):
-                Is this a mosaic reduction?
-                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
-
-        Returns:
-            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
-            the array is 2D, there are detectors separated along the dispersion
-            axis.
-        """
-        if mosaic:
-            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
-
-        return np.array([detector_container.DetectorContainer.get_name(i+1)
-                             for i in range(self.ndet)]).reshape(2,-1)
-
     @property
     def default_mosaic(self):
         return self.allowed_mosaics[0]
 
-    
+
     def get_slitmask(self, filename):
         """
         Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
@@ -596,15 +603,15 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
         slit_length = mask_tbl['slitsize_y'].to('arcsec').value # arcsec
-        topdist = np.round(slit_length/2. - 
+        topdist = np.round(slit_length/2. -
                            mask_tbl['slitpos_y'].to('arcsec').value, 3)
-        botdist = np.round(slit_length/2. + 
+        botdist = np.round(slit_length/2. +
                            mask_tbl['slitpos_y'].to('arcsec').value, 3)
 
         # Coordinates
         # WARNING -- GMOS TABLE IS ONLY IN FLOAT32!!!
-        obj_ra = mask_tbl['RA'].value * 15.  
-        obj_dec = mask_tbl['DEC'].value 
+        obj_ra = mask_tbl['RA'].value * 15.
+        obj_dec = mask_tbl['DEC'].value
         objname = mask_tbl['ID'].value.astype(str)
 
         slitID = mask_tbl['ID'].value # Slit and objects are the same
@@ -620,7 +627,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                            topdist,
                            botdist]).T
         # Mask pointing
-        mask_coord = SkyCoord(mask_tbl.meta['RA_IMAG'], mask_tbl.meta['DEC_IMAG'], 
+        mask_coord = SkyCoord(mask_tbl.meta['RA_IMAG'], mask_tbl.meta['DEC_IMAG'],
                               unit=("hourangle", "deg"))
 
         # PA corresponding to positive x on detector (spatial)
@@ -631,13 +638,10 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Slit positions
         obj_coord = SkyCoord(ra=obj_ra, dec=obj_dec, unit='deg')
         offsets = np.sqrt(
-                mask_tbl['slitpos_x'].to('arcsec').value**2 + 
-                mask_tbl['slitpos_y'].to('arcsec').value**2) 
-        # NOT READY FOR TILTS
-        if np.any(np.invert(np.isclose(mask_tbl['slittilt'].value, 0.))):
-            msgs.error('NOT READY FOR TILTED SLITS')
-        # NOT SURE WE HAVE THE TILT SIGN CORRECT
-        slit_pas = posx_pa + mask_tbl['slittilt'].to('deg').value
+                mask_tbl['slitpos_x'].to('arcsec').value**2 +
+                mask_tbl['slitpos_y'].to('arcsec').value**2)
+        # Sign here checked by Jack O'Donnell
+        slit_pas = posx_pa - mask_tbl['slittilt'].to('deg').value
         off_signs = np.ones_like(slit_pas)
         negy = mask_tbl['slitpos_y'] < 0.
         off_signs[negy] = -1.
@@ -648,7 +652,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 slit_pa*units.deg, off_sign*offset*units.arcsec)
             slit_ra.append(slit_coord.ra.deg)
             slit_dec.append(slit_coord.dec.deg)
-            
+
 
         # Instantiate the slit mask object and return it
         self.slitmask = SlitMask(
@@ -660,12 +664,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
              np.zeros(slitID.size),
              np.zeros(slitID.size),
              np.zeros(slitID.size),
-             np.zeros(slitID.size)]).T.reshape(-1,4,2), 
+             np.zeros(slitID.size)]).T.reshape(-1,4,2),
             slitid=np.array(slitID, dtype=int),
             align=mask_tbl['priority'].value == b'0',
             science=mask_tbl['priority'].value != b'0',
             onsky=np.array([
-                slit_ra, slit_dec, 
+                slit_ra, slit_dec,
                 np.array(mask_tbl['slitsize_y'].to('arcsec').value, dtype=float),
                 np.array(mask_tbl['slitsize_x'].to('arcsec').value, dtype=float),
                 slit_pas]).T,
@@ -684,7 +688,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Args:
             binning (_type_, optional): _description_. Defaults to None.
             binning(str, optional): spec,spat binning of the flat field image
-            filename (:obj:`list`, optional): Names 
+            filename (:obj:`list`, optional): Names
                 the mask design info and wcs_file in that order
             debug (:obj:`bool`, optional): Debug
             ccdnum (:obj:`int`, optional): detector number
@@ -710,10 +714,10 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.get_slitmask(maskfile)
 
         # Binning of flat
-        _, bin_spat= parse.parse_binning(binning) 
+        _, bin_spat = parse.parse_binning(binning)
 
         # Slit center
-        slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0], 
+        slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0],
                                dec=self.slitmask.onsky[:,1], unit='deg')
         mask_coord = SkyCoord(ra=self.slitmask.mask_radec[0],
                               dec=self.slitmask.mask_radec[1], unit='deg')
@@ -721,22 +725,23 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Load up the acquisition image (usually a sciframe)
         hdul_acq = fits.open(wcs_file)
         acq_binning = self.get_meta_value(self.get_headarr(hdul_acq), 'binning')
-        _, bin_spat_acq = parse.parse_binning(acq_binning) 
+        _, bin_spat_acq = parse.parse_binning(acq_binning)
         wcss = [wcs.WCS(hdul_acq[i].header) for i in range(1, len(hdul_acq))]
 
         left_edges = []
         right_edges = []
         for islit in range(self.slitmask.nslits):
-            # DEBUGGING
-            #islit = 14  # 10043
+            # JOD: Need to adjust predicted images by slit tilt (which is
+            # slit PA relative to mask PA)
+            slittilt = self.slitmask.onsky[islit,4] - self.slitmask.posx_pa
             # Left coord
             left_coord = slit_coords[islit].directional_offset_by(
                 self.slitmask.onsky[islit,4]*units.deg - 180.*units.deg,
-                self.slitmask.onsky[islit,2]*units.arcsec/2.)
+                self.slitmask.onsky[islit,2]*units.arcsec/2./np.cos(np.radians(slittilt)))
             right_coord = slit_coords[islit].directional_offset_by(
                 self.slitmask.onsky[islit,4]*units.deg,
-                self.slitmask.onsky[islit,2]*units.arcsec/2.)
-                
+                self.slitmask.onsky[islit,2]*units.arcsec/2./np.cos(np.radians(slittilt)))
+
             got_it = False
             for kk, iwcs in enumerate(wcss):
                 pix_xy = iwcs.world_to_pixel(left_coord)
@@ -753,8 +758,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
 #        DEBUGGING
 #        tbl = Table()
-#        tbl['left'] = left_edges                
-#        tbl['right'] = right_edges                
+#        tbl['left'] = left_edges
+#        tbl['right'] = right_edges
 #        tbl['ID'] = self.slitmask.slitid
 #        tbl.sort('left')
 #        embed(header='641 of gemini_gmos')
@@ -763,6 +768,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         left_edges = np.array(left_edges).astype(float)
         right_edges = np.array(right_edges).astype(float)
         sortindx = np.argsort(left_edges)
+
         return left_edges, right_edges, sortindx, self.slitmask
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
@@ -774,8 +780,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     header_name = 'GMOS-S'
     telescope = telescopes.GeminiSTelescopePar()
     supported = True
-    comment = 'Hamamatsu detector (R400, B600, R831); see :doc:`gemini_gmos`'
-    detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
+    comment = 'Hamamatsu detector (R150, R400, B480, B600, R831); see :doc:`gemini_gmos`'
 
     def hdu_read_order(self):
         """
@@ -821,8 +826,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.83]*4),
-            ronoise         = np.atleast_1d([3.98]*4),
+            gain            = np.atleast_1d([1.86]*4),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([4.19]*4),  # Slow Readout,	Low Gain
             )
         # Detector 2
         detector_dict2 = dict(
@@ -838,8 +843,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.83]*4),
-            ronoise         = np.atleast_1d([3.98]*4),
+            gain            = np.atleast_1d([1.89]*4),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([4.13]*4),  # Slow Readout,	Low Gain
             )
         # Detector 3
         detector_dict3 = dict(
@@ -855,25 +860,89 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.83]*4),
-            ronoise         = np.atleast_1d([3.98]*4),
+            gain            = np.atleast_1d([1.74]*4),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([3.75]*4),  # Slow Readout,	Low Gain
             )
+
+        # account for the CCD upgrade happened on 2023-12-14
+        if hdu is not None:
+            # date upgrade
+            t_upgrade = time.Time("2023-12-14", format='isot')
+            obs_date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd')
+
+            if obs_date >= t_upgrade:
+                # These values are taken from
+                # https://github.com/GeminiDRSoftware/DRAGONS/blob/v3.2.0/gemini_instruments/gmos/lookup.py
+                # For each detector, we use the values averaged over the 4 amps for Slow Readout+Low Gain
+                detector_dict1['gain'] = np.atleast_1d([2.00]*4)
+                detector_dict2['gain'] = np.atleast_1d([1.78]*4)
+                detector_dict3['gain'] = np.atleast_1d([1.69]*4)
+                detector_dict1['ronoise'] = np.atleast_1d([4.19]*4)
+                detector_dict2['ronoise'] = np.atleast_1d([3.82]*4)
+                detector_dict3['ronoise'] = np.atleast_1d([3.50]*4)
+                # TODO: we may need to update the saturation values
+
         detectors = [detector_dict1, detector_dict2, detector_dict3]
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_ord (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters."""
+
+        # get self.detid
+        # Detector ID (it is used to identify the correct mosaic geometry)
+        if hdu is not None:
+            # account for the CCD upgrade happened on 2023-12-14
+            # date upgrade
+            t_upgrade = time.Time("2023-12-14", format='isot')
+            obs_date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd')
+
+            if obs_date >= t_upgrade:
+                self.detid = 'BI11-41-4k-2,BI13-19-4k-3,BI12-34-4k-1'
+                msgs.info(f'Using the detector parameters for GMOS-S Hamamatsu after the upgrade on '
+                          f'{t_upgrade.iso.split(" ")[0]}')
+            else:
+                self.detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
+
+        return super().get_mosaic_par(mosaic, hdu=hdu, msc_ord=msc_ord)
 
     @classmethod
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of PypeIt methods.
         """
         par = super().default_pypeit_par()
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         # Bound the detector with slit edges if no edges are found. These data are often trimmed
         # so we implement this here as the default.
         par['calibrations']['slitedges']['bound_detector'] = True
@@ -921,8 +990,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         # TODO: We're opening the file too many times...
         hdrs = self.get_headarr(filename)
         binning = self.get_meta_value(hdrs, 'binning')
-        obs_epoch = self.get_meta_value(hdrs, 'mjd')
-        bin_spec, bin_spat= parse.parse_binning(binning) 
+        obs_epoch = time.Time(self.get_meta_value(hdrs, 'mjd'), format='mjd').jyear
+        bin_spec, bin_spat= parse.parse_binning(binning)
 
         # Add the detector-specific, hard-coded bad columns
         if 1 in _det:
@@ -943,8 +1012,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             _bpm_img[i,badr,:] = 1
             # Bad amp as of January 28, 2022
             # https://gemini.edu/sciops/instruments/gmos/GMOS-S_badamp5_ops_3.pdf
-            if obs_epoch > 2022.07:
-                badr = (768*2)//bin_spec 
+            if 2022.07 < obs_epoch < time.Time("2023-12-14", format='isot').jyear:
+                badr = (768*2)//bin_spec
                 _bpm_img[i,badr:,:] = 1
         if 3 in _det:
             msgs.info("Using hard-coded BPM for det=3 on GMOSs")
@@ -978,17 +1047,21 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
         elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_south_ham_b600_compiled.fits'
+            par['calibrations']['wavelengths']['method'] = 'reidentify'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B480':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_north_ham_b480.fits'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'R150':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r150_ham.fits'
 
         # The bad amp needs a larger follow_span for slit edge tracing
-        obs_epoch = self.get_meta_value(scifile, 'mjd')
+        obs_epoch = time.Time(self.get_meta_value(scifile, 'mjd'), format='mjd').jyear
         binning = self.get_meta_value(scifile, 'binning')
-        bin_spec, bin_spat= parse.parse_binning(binning) 
-        if obs_epoch > 2022.07:
+        bin_spec, bin_spat= parse.parse_binning(binning)
+        if 2022.07 < obs_epoch < time.Time("2023-12-14", format='isot').jyear:
             par['calibrations']['slitedges']['follow_span'] = 290*bin_spec
         #
         return par
-
 
 
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
@@ -998,6 +1071,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     telescope = telescopes.GeminiNTelescopePar()
     camera = 'GMOS-N'
     header_name = 'GMOS-N'
+    allowed_extensions = ['.fits', '.fits.bz2', '.fits.gz']
 
 
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
@@ -1007,8 +1081,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     """
     name = 'gemini_gmos_north_ham'
     supported = True
-    comment = 'Hamamatsu detector (R400, B600, R831); Used since Feb 2017; see :doc:`gemini_gmos`'
-    detid = 'BI13-20-4k-1,BI12-09-4k-2,BI13-18-4k-2'
+    comment = 'Hamamatsu detector (R150, R400, B600, R831); Used since Feb 2017; see :doc:`gemini_gmos`'
 
     def hdu_read_order(self):
         """
@@ -1092,8 +1165,43 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             ronoise         = np.atleast_1d([4.14]*4),
             )
         detectors = [detector_dict1, detector_dict2, detector_dict3]
+
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_ord (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters."""
+
+        # get self.detid
+        # Detector ID (it is used to identify the correct mosaic geometry)
+        self.detid = 'BI13-20-4k-1,BI12-09-4k-2,BI13-18-4k-2'
+
+        return super().get_mosaic_par(mosaic, hdu=hdu, msc_ord=msc_ord)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -1121,6 +1229,11 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
         elif self.get_meta_value(scifile, 'dispname')[0:4] == 'R831':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r831_ham.fits'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B480':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_north_ham_b480.fits'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'R150':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r150_ham.fits'
+
         return par
 
 
@@ -1159,6 +1272,7 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
         # Slurp the NOD&Shuffle
         headarr = self.get_headarr(scifile)
         self.nod_shuffle_pix = headarr[0]['NODPIX']
+
         #
         return par
 
@@ -1238,8 +1352,6 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
     name = 'gemini_gmos_north_e2v'
     supported = True
     comment = 'E2V detector; see :doc:`gemini_gmos`'
-    # TODO: Check this is correct
-    detid = 'e2v 10031-23-05,10031-01-03,10031-18-04'
 
     def hdu_read_order(self):
         """
@@ -1323,8 +1435,44 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             ronoise         = np.atleast_1d([3.32]*2),
             )
         detectors = [detector_dict1, detector_dict2, detector_dict3]
+
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_ord (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters."""
+
+        # get self.detid
+        # Detector ID (it is used to identify the correct mosaic geometry)
+        # TODO: Check this is correct
+        self.detid = 'e2v 10031-23-05,10031-01-03,10031-18-04'
+
+        return super().get_mosaic_par(mosaic, hdu=hdu, msc_ord=msc_ord)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -1349,7 +1497,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v_mosaic.fits'
             # The blue wavelengths are *faint*
             #   But redder observations may prefer something closer to the default
-            par['calibrations']['wavelengths']['sigdetect'] = 1.  
+            par['calibrations']['wavelengths']['sigdetect'] = 1.
         # Return
         return par
 

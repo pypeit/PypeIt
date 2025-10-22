@@ -50,7 +50,7 @@ def write_detector_table(ofile):
                             else ', '.join([str(r) for r in det.ronoise]),
                        '``None``' if det.darkcurr is None else str(det.darkcurr),
                        f'{det.mincounts:.1e}', str(det.saturation), f'{det.nonlinear:.4f}',
-                       f'{det.platescale:.4f}']
+                       '``None``' if det.platescale is None else f'{det.platescale:.4f}']
             data_table += [dt_row]
         if key == 'vlt_fors2':
             # Get the second detector for VLT-FORS2

@@ -14,6 +14,8 @@ from pypeit.core import framematch, parse
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
 
+from IPython import embed
+
 
 class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     """
@@ -24,6 +26,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.gemini.edu/instrumentation/gnirs'
     header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
+    allowed_extensions = ['.fits', '.fits.bz2']
 
     def __init__(self):
         super().__init__()
@@ -46,6 +49,14 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+
+        pscale = 0.15 # arcsec/pixel # this is the value for the short camera position only
+        if hdu:
+            camera_pos = self.get_meta_value(self.get_headarr(hdu), 'camera_pos')
+            if 'Long' in camera_pos:
+                pscale = 0.05
+
+
         # Detector 1
         detector_dict = dict(
             binning         = '1,1',
@@ -54,7 +65,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             specaxis        = 0,
             specflip=True,
             spatflip=True,
-            platescale      = 0.15,
+            platescale      = pscale,
             darkcurr        = 540.0,  # e-/hour/pixel  (=0.15 e-/pixel/s)
             saturation      = 150000.,
             nonlinear       = 0.71,
@@ -92,6 +103,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Extras for config and frametyping
         self.meta['filter1'] = dict(ext=0, card='FILTER2')
+        # long or short camera position (they have different plate-scale)
+        self.meta['camera_pos'] = dict(ext=0, card='CAMERA')
         self.meta['slitwid'] = dict(ext=0, compound=True, card=None)
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['hatch'] = dict(ext=0, card='COVER')
@@ -297,7 +310,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 6
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -321,6 +334,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # TODO This is a hack for now until we figure out how to set dispname
         # and other meta information in the spectrograph class itself
         self.dispname = self.get_meta_value(scifile, 'dispname')
+        # this is also a hack for now
+        self.camera_pos = self.get_meta_value(scifile, 'camera_pos')
         # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
         if '32/mm' in self.dispname:
             # Edges
@@ -508,14 +523,12 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        # TODO: Binning is ignored.  Should it be?
-        self.check_disperser()
-        if '10/mmLBSX' in self.dispname:
+        # # TODO: Binning is ignored.  Should it be?
+        # The platescale is different for different camera position, not dispname.
+        if self.camera_pos is not None and 'Long' in self.camera_pos:
             return np.full(order_vec.size, 0.05)
-        elif '32/mm' in self.dispname:
-            return np.full(order_vec.size, 0.15)
         else:
-            msgs.error('Unrecognized disperser')
+            return np.full(order_vec.size, 0.15)
 
     @property
     def norders(self):
@@ -612,11 +625,13 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
         par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
 
-        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
+        # Tweak the slit edges using the gradient method for SlicerIFU
+        par['calibrations']['flatfield']['tweak_slits'] = True  # Tweak the slit edges
+        par['calibrations']['flatfield']['tweak_method'] = 'gradient'  # The gradient method is better for SlicerIFU.
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
         par['calibrations']['flatfield']['slit_trim'] = 2  # Trim the slit edges
-        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
+        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
 
         # Decrease the wave tilts order, given the shorter slits of the IFU
         par['calibrations']['tilts']['spat_order'] = 1
@@ -624,7 +639,6 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
-        par['reduce']['cube']['grating_corr'] = False
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
 
         # Sky subtraction parameters
@@ -717,7 +731,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
-        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+        slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
 
         # Get RA/DEC
         raval = self.get_meta_value([hdr], 'ra')

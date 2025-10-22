@@ -11,13 +11,12 @@ Overview
 ========
 
 This doc goes through a full run of PypeIt on one of our example Keck/NIRES
-datasets (specifically the ``ABBA_wstandard`` dataset).  If you're having trouble
-reducing your data, we encourage you to try going through this tutorial using
-this example dataset first.  See :ref:`here <dev-suite>` to find the example
-dataset, please join our `PypeIt Users Slack <pypeit-users.slack.com>`__ (using
-`this invitation link
-<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
-to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
+datasets (specifically the ``ABBA_wstandard`` dataset).  If you're having
+trouble reducing your data, we encourage you to try going through this tutorial
+using this example dataset first.  See :ref:`here <dev-suite>` to find the
+example dataset, please join our `PypeIt Users Slack
+<https://pypeit-users.slack.com>`__ using `this invitation link <invite_>`_ to
+ask for help, and/or `Submit an issue`_ to Github if you find a bug!
 
 ----
 
@@ -236,13 +235,13 @@ terminal to see the full output):
 
 .. code-block:: bash
 
-     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%) mesured_fwhm  RMS
-    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ------------ -----
-      0    234  8131.7   9408.9 10646.5 1.225   30  9793.676 - 10527.657            29.2          2.1 0.085
-      1    416  9496.8  10961.4 12401.6 1.419   91  9793.676 - 12351.597            88.1          2.1 0.078
-      2    574 11380.8  13133.2 14860.1 1.699   95 11439.783 - 14833.093            97.5          2.1 0.129
-      3    720 14203.1  16389.5 18547.8 2.122  106 14227.201 - 18526.181            98.9          2.2 0.106
-      4    885 18895.7  21806.9 24686.8 2.827   84 18914.824 - 24627.748            98.6          2.0 0.165
+     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%) measured_fwhm  RMS
+    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ------------- -----
+      0    234  8131.7   9408.9 10646.5 1.225   30  9793.676 - 10527.657            29.2           2.1 0.085
+      1    416  9496.8  10961.4 12401.6 1.419   91  9793.676 - 12351.597            88.1           2.1 0.078
+      2    574 11380.8  13133.2 14860.1 1.699   95 11439.783 - 14833.093            97.5           2.1 0.129
+      3    720 14203.1  16389.5 18547.8 2.122  106 14227.201 - 18526.181            98.9           2.2 0.106
+      4    885 18895.7  21806.9 24686.8 2.827   84 18914.824 - 24627.748            98.6           2.0 0.165
 
 See :ref:`pypeit-chk-wavecalib` for a detailed description of all the columns.
 
