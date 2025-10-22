@@ -1,5 +1,5 @@
 """
-Module for Subaru FOCAS
+Module for Subaru MOIRCS
 
 .. include:: ../include/links.rst
 """
@@ -22,13 +22,13 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
 
     ndet = 1  # Because each detector is written to a separate FITS file
     telescope = telescopes.SubaruTelescopePar()
-    url = "https://www.naoj.org/Observing/Instruments/MOIRCS/index.html"
+    url = "https://www.naoj.org/Instruments/MOIRCS/index.html"
 
     name = "subaru_moircs"
     camera = "MOIRCS"
     header_name = "MOIRCS"
-    supported = False
-    comment = "just getting started"
+    supported = True
+    comment = "Without using the mask definition files"
 
     @classmethod
     def default_pypeit_par(cls):
@@ -106,44 +106,6 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         par["sensfunc"]["polyorder"] = 13
         par["sensfunc"]["IR"]["maxiter"] = 2
         par["sensfunc"]["IR"]["telgridfile"] = "TelFit_MaunaKea_3100_26100_R20000.fits"
-
-        # # Always correct for flexure, starting with default parameters
-        # par["flexure"]["spec_method"] = "boxcar"
-
-        # # Adjustments to slit and tilts for NIR
-        # par["calibrations"]["slitedges"]["edge_thresh"] = 50.0
-        # par["calibrations"]["slitedges"]["fit_order"] = 3
-        # par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
-
-        # # Tilt parameters
-        # par["calibrations"]["tilts"]["tracethresh"] = 25.0
-        # par["calibrations"]["tilts"]["spat_order"] = 3
-        # par["calibrations"]["tilts"]["spec_order"] = 4
-
-        # # 1D wavelength solution
-        # par["calibrations"]["wavelengths"]["lamps"] = ["ThAr"]
-        # # par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
-        # par["calibrations"]["wavelengths"]["sigdetect"] = 10.0
-        # par["calibrations"]["wavelengths"]["fwhm"] = 4.0  # Good for 2x binning
-        # par["calibrations"]["wavelengths"]["n_final"] = 4
-
-        # # Flats
-        # par["calibrations"]["flatfield"]["tweak_slits_thresh"] = 0.90
-        # par["calibrations"]["flatfield"]["tweak_slits_maxfrac"] = 0.10
-
-        # # Sensitivity function parameters
-        # par["sensfunc"]["algorithm"] = "IR"
-        # par["sensfunc"]["polyorder"] = 5
-        # par["sensfunc"]["IR"]["telgridfile"] = "TelFit_MaunaKea_3100_26100_R20000.fits"
-
-        # # Frame typing
-        # par["calibrations"]["biasframe"]["exprng"] = [None, 0.001]
-        # par["calibrations"]["pixelflatframe"]["exprng"] = [0, None]
-        # par["calibrations"]["traceframe"]["exprng"] = [0, None]
-        # par["calibrations"]["arcframe"]["exprng"] = [None, 1]
-        # par["calibrations"]["standardframe"]["exprng"] = [1, 61]
-        # #
-        # par["scienceframe"]["exprng"] = [61, None]
 
         return par
 
@@ -303,7 +265,7 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             nonlinear=1.0,
             mincounts=-1e10,
             numamplifiers=1,
-            gain=np.atleast_1d(1.99),  # e-/ADU for chip 1
+            gain=np.atleast_1d(1.99),  # e-/ADU for chip 2
             ronoise=np.atleast_1d(5.534),  # for NDR=10 (17.5/sqrt(10))
             datasec=np.atleast_1d("[5:2044,5:2044]"),  # copied from the MOSFIRE config
         )
