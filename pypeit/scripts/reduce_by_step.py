@@ -149,7 +149,7 @@ class ReducebyStep(scriptbase.ScriptBase):
                                                           frame_indx[is_standard])
                 except pypmsgs.PypeItError:
                     msgs.warn('No reduced standard star spec1d file found for this science frame, but one was expected because it is in your PypeIt file.\n'+\
-                        ('Continuing without standard star information.')
+                        'Continuing without standard star information.')
                     std_outfile = None
             else:
                 std_outfile = None                                                    
