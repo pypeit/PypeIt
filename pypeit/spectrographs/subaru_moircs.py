@@ -76,6 +76,11 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         par["calibrations"]["slitedges"]["fit_order"] = 3
         par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
 
+        # lris alignment boxes are typically 4 arcsec
+        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 5.
+        # Remove slits that are too short
+        par['calibrations']['slitedges']['minimum_slit_length'] = 3.
+
         # Tilt parameters
         par["calibrations"]["tilts"]["tracethresh"] = 25.0
         par["calibrations"]["tilts"]["spat_order"] = 3
@@ -329,16 +334,6 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         """
         # Start with instrument wide
         par = super().config_specific_par(scifile, inp_par=inp_par)
-
-        if self.get_meta_value(scifile, "dispname") == "SCFCGRMB01":
-            par["calibrations"]["wavelengths"][
-                "reid_arxiv"
-            ] = "wvarxiv_subaru_focas_SCFCGRMB01.fits"
-            par["calibrations"]["wavelengths"]["method"] = "full_template"
-        else:
-            msgs.error(
-                f'Not ready for this grism {self.get_meta_value(scifile, "dispname")}'
-            )
 
         return par
 
