@@ -1,7 +1,7 @@
 import sys
+import subprocess
 from pathlib import Path
 from pypeit import msgs
-from pypeit.setup_gui.controller import SetupGUIController
 
 from qtpy.QtCore import QTimer, QSize, Qt, QMargins
 from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter
@@ -25,28 +25,38 @@ class ButtonWidget(FilledBackgroundWidget):
     def __init__(self):
         super().__init__()#color=QColorConstants.DarkBlue)
 
-        self.test_icons = [(QIcon.ThemeIcon.DocumentOpen, "Open Setup"),
-                           (QIcon.ThemeIcon.InputKeyboard, "Edit Setup"),
-                           (QIcon.ThemeIcon.MediaSeekForward, "Run All"),
-                           (QIcon.ThemeIcon.MediaSkipForward, "Run Next"),
-                           (QIcon.ThemeIcon.HelpFaq, "Help"),
-                           ]
-        layout=QVBoxLayout()
-        for icon, text in self.test_icons:
-            b = QPushButton()
-            b.setStyleSheet(f"text-align:left;")
+        #----------------- defining the widgets ----------------------
+        self.open_setup_button = QPushButton()
+        self.edit_setup_button = QPushButton()
+        self.run_all_button = QPushButton()
+        self.run_next_button = QPushButton()
+        self.help_button = QPushButton()
 
-            b.setText(text)
-            b.setIcon(QIcon.fromTheme(icon))
-            b.setIconSize(QSize(32,32))
-            #b.setAlignment(Qt.AlignmentFlag.AlignLeft)
-            layout.addWidget(b)
+        self.test_icons = [(QIcon.ThemeIcon.DocumentOpen, "Open Setup", self.open_setup_button),
+                           (QIcon.ThemeIcon.InputKeyboard, "Edit Setup", self.edit_setup_button),
+                           (QIcon.ThemeIcon.MediaSeekForward, "Run All", self.run_all_button),
+                           (QIcon.ThemeIcon.MediaSkipForward, "Run Next", self.run_next_button),
+                           (QIcon.ThemeIcon.HelpFaq, "Help", self.help_button),
+                           ]
+
+        layout=QVBoxLayout()
+
+        for icon, text, widget in self.test_icons:
+            widget.setStyleSheet(f"text-align:left;")
+
+            widget.setText(text)
+            widget.setIcon(QIcon.fromTheme(icon))
+            widget.setIconSize(QSize(32,32))
+            layout.addWidget(widget)
             
 
         self.setLayout(layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.setMaximumWidth(self.fontMetrics().averageCharWidth()*20)
         self.setMaximumHeight(self.fontMetrics().lineSpacing()*15)
+
+
+
 
 class StatusWidget(FilledBackgroundWidget):
     """this widget is a collection of widgets at the top middle (from setup file to status bar)"""
@@ -175,7 +185,7 @@ class DashboardWidget(FilledBackgroundWidget):
         
 class MainWindow(QWidget):
     
-    def __init__(self):
+    def __init__(self,app):
         super().__init__()
 
         layout = QHBoxLayout()
@@ -184,16 +194,16 @@ class MainWindow(QWidget):
         layout.addWidget(setup_widget,alignment=Qt.AlignmentFlag.AlignTop)
         layout.addWidget(dashboard_widget,stretch=3)
 
-        #self.bottom_row = QWidget()
-        #self.bottom_row.setStyleSheet("background-color:blue;")
-        #fm = self.bottom_row.fontMetrics()        
-        #h = fm.lineSpacing() * 12
-        #msgs.info(f"bottom height {h}")
-        #self.bottom_row.setMinimumHeight(h)
+        # -------- connections ---------
+        setup_widget.open_setup_button.clicked.connect(self.start_controller)
 
-        
+
         self.setLayout(layout)
 
+    def start_controller(self):
+        subprocess.Popen([sys.executable, "-m", "controller_runner"])
+
+    
 def main():
         # Note QT expects the program name as arg 0
     app = QApplication(sys.argv)
@@ -220,10 +230,12 @@ def main():
         app.setFont(defaultFont)
 
 
-    main_window = MainWindow()
+    main_window = MainWindow(app)
     main_window.setWindowTitle(main_window.tr("PypeIt Dashboard"))
     main_window.resize(1650,900)
     main_window.show()
+
+    # --------------------- this is for the SetupGUIController ----------------         
 
     # QT runs it's event loop in C, so the python signal handling mechanism
     # is never called, or it's only called after you give focus to the
@@ -239,59 +251,8 @@ def main():
     timer.timeout.connect(lambda: None)
 
     # Start the applications event loop
-    sys.exit(app.exec_())
-
+    app.exec()
 
 
 if __name__ == '__main__':
     sys.exit(main())
-
-# --------------------- collection of classes that don't seem to be used -----------------------
-# class TopWidget(FilledBackgroundWidget): 
-#     def __init__(self):
-#         super().__init__()#color=QColorConstants.DarkRed)
-#         fm = self.fontMetrics()       
-#         h = fm.lineSpacing() * 12
-#         msgs.info(f"top height {h}")
-#         self.setMinimumHeight(h)
-#
-#         layout = QHBoxLayout()
-#         layout.addWidget(ButtonWidget(),alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-#         layout.addWidget(StatusWidget(),alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, stretch=3)
-#
-#         contentsMargins = layout.contentsMargins()
-#         contentsMargins.setLeft(0)
-#         contentsMargins.setTop(0)
-#         layout.setContentsMargins(contentsMargins)
-#
-#         #layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-#
-#         self.setLayout(layout)
-
-
-# class BottomWidget(FilledBackgroundWidget): 
-#     def __init__(self):
-#         super().__init__(color=QColorConstants.Blue)
-#         fm = self.fontMetrics()
-#
-#         h = fm.lineSpacing() * 12
-#         msgs.info(f"bottom height {h}")
-#         self.setMinimumHeight(h)
-
-# class SpacerWidget(FilledBackgroundWidget):
-#     def __init__(self, cols=None, rows=None):
-#         super().__init__(color=QColorConstants.DarkCyan)
-#
-#         fm = self.fontMetrics()
-#         msgs.info(f"fm maxWidth: {fm.maxWidth()} linespacing: {fm.lineSpacing()}")
-#         if cols is not None:
-#             w = fm.maxWidth() * cols
-#             self.setMinimumWidth(w)
-#         else:
-#             w="-"
-#         if rows is not None:
-#             h = fm.lineSpacing() * rows
-#             self.setMinimumHeight(h)
-#         else:
-#             h="-"    
-#         msgs.info(f"Spacer height {h} width {w}")
