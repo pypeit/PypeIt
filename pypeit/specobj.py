@@ -555,8 +555,7 @@ class SpecObj(datamodel.DataContainer):
         self.FLEX_SHIFT_TOTAL += shift
 
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extinctfilepar=None,
-                         extrap_sens=False):
+                         airmass=None, extinct_file=None, extrap_sens=False):
         """
         Apply a sensitivity function to our spectrum
 
@@ -574,17 +573,16 @@ class SpecObj(datamodel.DataContainer):
                 generate the std fluxed QA plot. It should be None otherwise. To telluric
                 correct the data, use the telluric correct method.
             extinct_correct (bool, optional):
-                If True, extinction correct
+                If True, apply atmospheric extinction correction
             airmass (float, optional):
                 Airmass
-            longitude (float, optional):
-                longitude in degree for observatory
-            latitude (float, optional):
-                latitude in degree for observatory
-                Used for extinction correction
-            extinctfilepar (str, optional):
-                [sensfunc][UVIS][extinct_file] parameter
-                Used for extinction correction
+            extinct_file (str, optional):
+                Either (1) one of the extinction files provided by pypeit (see
+                :ref:`extinction_correction`), (2) the path to a local file on
+                disk, or (3) set ``extinct_file='closest'`` to have the code
+                find the most relevant extinction data based on the longitude
+                and latitude of the telescope for the spectrograph used to
+                observe the spectrum.
             extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
         """
@@ -596,9 +594,15 @@ class SpecObj(datamodel.DataContainer):
 
             wave = self[attr+'_WAVE']
             # Interpolate the sensitivity function onto the wavelength grid of the data
+            if extinct_correct:
+                self.get_spectrograph()
+                atmext = self.spectrograph.get_atmospheric_extinction(extinct_file)
+            else:
+                atmext = None
             sens_factor = flux_calib.get_sensfunc_factor(
-                wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, extinct_correct=extinct_correct, airmass=airmass,
-                longitude=longitude, latitude=latitude, extinctfilepar=extinctfilepar, extrap_sens=extrap_sens)
+                wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, atmext=atmext,
+                airmass=airmass, extrap_sens=extrap_sens
+            )
             flam = self[attr+'_COUNTS']*sens_factor
             flam_sig = sens_factor/np.sqrt(self[attr+'_COUNTS_IVAR'])
             flam_ivar = self[attr+'_COUNTS_IVAR']/sens_factor**2
