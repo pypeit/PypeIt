@@ -896,7 +896,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 to be valid.
         """
         msgs.info('-'*50)
-        msgs.info('{0:^50}'.format('Initialize Edge Tracing'))
+        msgs.info(f'{"Initialize Edge Tracing":^50}')
         msgs.info('-'*50)
 
         if self.traceid is not None:

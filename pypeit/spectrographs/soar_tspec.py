@@ -176,8 +176,15 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['slitedges']['edge_thresh'] = 15.
         par['calibrations']['slitedges']['trace_thresh'] = 5.
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3
-        par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['fwhm_gaussian'] = 4.0
+        # This gets rid of the trace at the far right of the detector
+        par['calibrations']['slitedges']['det_buffer'] = 10
+        # The PCA is terrible, but fortunately the polynomial fits are good; so
+        # just skip the PCA
+        par['calibrations']['slitedges']['auto_pca'] = False
+#        par['calibrations']['slitedges']['left_right_pca'] = True
+        # This is needed to remove the traces on either side of each order
+        par['calibrations']['slitedges']['minimum_slit_length'] = 2.0
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] =  10.0
