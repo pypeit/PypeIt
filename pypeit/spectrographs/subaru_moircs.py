@@ -137,13 +137,19 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         self.meta["dispname"] = dict(
             ext=0, card="DISPERSR", required_ftypes=["science", "standard"]
         )
-        # TODO - FIX THIS!!
-        self.meta["dispangle"] = dict(
-            ext=0, card="BZERO", rtol=2.0
-        )  # , required_ftypes=['science', 'standard'])
+        # mosfire doe not have this and it's not needed
+        # # TODO - FIX THIS!!
+        # self.meta["dispangle"] = dict(
+        #     ext=0, card="BZERO", rtol=2.0
+        # )  # , required_ftypes=['science', 'standard'])
         self.meta["idname"] = dict(ext=0, card="DATA-TYP")
         self.meta["detector"] = dict(ext=0, card="DET-ID")
         self.meta["instrument"] = dict(ext=0, card="INSTRUME")
+
+        # Dithering
+        self.meta['dithpat'] = dict(ext=0, card='K_DITPAT')
+        self.meta['dithpos'] = dict(card=None, compound=True)
+        self.meta['dithoff'] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -165,9 +171,23 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         #     # TODO -- CHECK THE FOLLOWING
         #     binning = parse.binning2string(binspec, binspatial)
         #     return binning
-        # else:
-        #     msgs.error("Not ready for this compound meta")
-        return None
+        if meta_key == "dithpos":
+            pos_key = headarr[0].get("K_DITCNT")
+            if pos_key is not None and pos_key in [1.,2.]:
+                return 'A' if pos_key == 1. else 'B'
+            else:
+                return pos_key
+
+        if meta_key == "dithoff":
+            ditwit = headarr[0].get("K_DITWID")
+            ditpos = self.get_meta_value(headarr[0], 'dithpos')
+            if ditpos in ['A', 'B']:
+                return ditwit/2 if ditpos == 'A' else -ditwit/2
+            else:
+                return ditwit/2
+        else:
+            msgs.error("Not ready for this compound meta")
+
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -195,12 +215,18 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl["idname"] == "OBJECT")
         if ftype == "bias":
             return good_exp & (fitstbl["idname"] == "BIAS")
+        if ftype == "lampoffflats":
+            return good_exp & (fitstbl["idname"] == "DOMEFLAT") & (fitstbl["target"] == "DOMEFLAT_OFF")
         if ftype in ["pixelflat", "trace", "illumflat"]:
             # Flats and trace frames are typed together
             # TODO -- Are there internal flats?
-            return good_exp & (fitstbl["idname"] == "DOMEFLAT")
+            return good_exp & (fitstbl["idname"] == "DOMEFLAT") & (fitstbl["target"] == "DOMEFLAT")
         if ftype in ["arc", "tilt"]:
-            return good_exp & (fitstbl["idname"] == "COMPARISON")
+            # can be an arc image
+            is_arc = (fitstbl["idname"] == "COMPARISON")
+            # or a science image
+            is_obj = (fitstbl["idname"] == "OBJECT")
+            return good_exp & (is_arc | is_obj)
 
         msgs.warn("Cannot determine if frames are of type {0}.".format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -337,6 +363,19 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         # TODO -- Consider dispangle
         return ["dispname", "decker", "detector"]
 
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+
+        pypeit_keys = super().pypeit_file_keys()
+        return pypeit_keys + ['dithpat', 'dithpos', 'dithoff']
+
     # TODO -- Convert this into get_comb_group()
     def parse_dither_pattern(self, file_list, ext=None):
         """
@@ -363,54 +402,13 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         """
         nfiles = len(file_list)
         offset_arcsec = np.zeros(nfiles)
-        dither_pattern = None
-        dither_id = None
+        dither_pattern = []
+        dither_id = []
         for ifile, file in enumerate(file_list):
             hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
-            try:
-                ra, dec = meta.convert_radec(
-                    self.get_meta_value(hdr, "ra", no_fussing=True),
-                    self.get_meta_value(hdr, "dec", no_fussing=True),
-                )
-            except:
-                msgs.warn(
-                    "Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets"
-                )
-                ra, dec = 0.0, 0.0
-            if ifile == 0:
-                coord_ref = SkyCoord(ra * units.deg, dec * units.deg)
-                offset_arcsec[ifile] = 0.0
-                # ESOs position angle appears to be the negative of the canonical astronomical convention
-                posang_ref = -(hdr["HIERARCH ESO INS SLIT POSANG"] * units.deg)
-                posang_ref_rad = posang_ref.to("radian").value
-                # Unit vector pointing in direction of slit PA
-                u_hat_slit = np.array(
-                    [np.sin(posang_ref), np.cos(posang_ref)]
-                )  # [u_hat_ra, u_hat_dec]
-            else:
-                coord_this = SkyCoord(ra * units.deg, dec * units.deg)
-                posang_this = coord_ref.position_angle(coord_this).to("deg")
-                separation = coord_ref.separation(coord_this).to("arcsec").value
-                ra_off, dec_off = coord_ref.spherical_offsets_to(coord_this)
-                u_hat_this = np.array(
-                    [
-                        ra_off.to("arcsec").value / separation,
-                        dec_off.to("arcsec").value / separation,
-                    ]
-                )
-                dot_product = np.dot(u_hat_slit, u_hat_this)
-                if not np.isclose(np.abs(dot_product), 1.0, atol=1e-2):
-                    msgs.error(
-                        "The slit appears misaligned with the angle between the coordinates: dot_product={:7.5f}".format(
-                            dot_product
-                        )
-                        + msgs.newline()
-                        + "The position angle in the headers {:5.3f} differs from that computed from the coordinates {:5.3f}".format(
-                            posang_this, posang_ref
-                        )
-                    )
-                offset_arcsec[ifile] = separation * np.sign(dot_product)
+            dither_pattern.append(self.get_meta_value(hdr, 'dithpat'))
+            dither_id.append(self.get_meta_value(hdr, 'dithpos'))
+            offset_arcsec[ifile] = self.get_meta_value(hdr, 'dithoff')
+        return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
-        #            dither_id.append(hdr['FRAMEID'])
-        #            offset_arcsec[ifile] = hdr['YOFFSET']
-        return dither_pattern, dither_id, offset_arcsec
+
