@@ -9,31 +9,47 @@ Provides a set of functions to handle resampling.
 """
 
 import warnings
+from IPython import embed
 import numpy
 from scipy import interpolate
 import astropy.constants
 
 from pypeit.core import moment
 
+#from .covariance import Covariance
+
+
+# TODO: spectral_coordinate_step, spectrum_velocity_scale, and
+# angstroms_per_pixel should all use centers_to_borders
+
 def spectral_coordinate_step(wave, log=False, base=10.0):
     """
-    Return the sampling step for the input wavelength vector.
+    Return the *uniform* sampling step for the input wavelength
+    vector.
 
-    If the sampling is logarithmic, return the change in the logarithm
-    of the wavelength; otherwise, return the linear step in angstroms.
+    If the sampling is logarithmic, return the change in the
+    logarithm of the wavelength; otherwise, return the linear step in
+    angstroms.
 
     Args: 
-        wave (`numpy.ndarray`_): Wavelength coordinates of each spectral
-            channel in angstroms.
-        log (bool): (**Optional**) Input spectrum has been sampled
-            geometrically.
-        base (float): (**Optional**) If sampled geometrically, the
-            sampling is done using a logarithm with this base.  For
-            natural logarithm, use numpy.exp(1).
+        wave (`numpy.ndarray`_):
+            Wavelength coordinates of each spectral channel in
+            angstroms.
+        log (:obj:`bool`, optional):
+            Input spectrum has been sampled geometrically.
+        base (:obj:`float`, optional):
+            If sampled geometrically, the sampling is done using a
+            logarithm with this base. For natural logarithm, use
+            numpy.exp(1).
 
     Returns:
-        float: Spectral sampling step in either angstroms (log=False) or
-        the step in log(angstroms).
+        :obj:`float`: Spectral sampling step in either angstroms
+        (log=False) or the step in log(angstroms).
+
+    Raises:
+        ValueError:
+            Raised if the wavelength vector is not linearly or
+            log-linearly sampled.
     """
     dw = numpy.diff(numpy.log(wave))/numpy.log(base) if log else numpy.diff(wave)
     if numpy.any( numpy.absolute(numpy.diff(dw)) > 100*numpy.finfo(dw.dtype).eps):
@@ -51,7 +67,7 @@ def spectrum_velocity_scale(wave):
         log(angstrom).
 
     Args: 
-        wave (`numpy.ndarray`_): Wavelength coordinates of each spectral
+        wave (numpy.ndarray): Wavelength coordinates of each spectral
             channel in angstroms.  It is expected that the spectrum has
             been sampled geometrically
 
@@ -73,6 +89,12 @@ def angstroms_per_pixel(wave, log=False, base=10.0, regular=True):
     coordinates.  The first and last pixels are assumed to have a width
     as determined by assuming the coordinate is at its center.
 
+    .. note::
+
+        If the regular is False and log is True, the code does *not*
+        assume the wavelength coordinates are at the geometric center of
+        the pixel.
+
     Args:
         wave (`numpy.ndarray`_):
             (Geometric) centers of the spectrum pixels in angstroms.
@@ -84,118 +106,177 @@ def angstroms_per_pixel(wave, log=False, base=10.0, regular=True):
             The vector is regularly sampled.
 
     Returns:
-        `numpy.ndarray`_: The angstroms per pixel.
+        numpy.ndarray: The angstroms per pixel.
     """
     if regular:
         ang_per_pix = spectral_coordinate_step(wave, log=log, base=base)
-        if log:
-            ang_per_pix *= wave*numpy.log(base)
-    else:
-        ang_per_pix = numpy.diff([(3*wave[0]-wave[1])/2] 
-                                    + ((wave[1:] + wave[:-1])/2).tolist()
-                                    + [(3*wave[-1]-wave[-2])/2])
-    return ang_per_pix
+        return ang_per_pix*wave*numpy.log(base) if log else numpy.repeat(ang_per_pix, len(wave))
+
+    return numpy.diff([(3*wave[0]-wave[1])/2] + ((wave[1:] + wave[:-1])/2).tolist()
+                      + [(3*wave[-1]-wave[-2])/2])
 
 
-def _pixel_centers(xlim, npix, log=False, base=10.0):
-    r"""
-    Determine the centers of pixels in a linearly or geometrically
-    sampled vector given first, last and number of pixels
+def grid_npix(rng=None, dx=None, log=False, base=10.0, default=None):
+    """
+    Determine the number of pixels needed for a given grid.
 
     Args:
-        xlim (`numpy.ndarray`_) : (Geometric) Centers of the first and last
-            pixel in the vector.
-        npix (int) : Number of pixels in the vector.
-        log (bool) : (**Optional**) The input range is (to be)
-            logarithmically sampled.
-        base (float) : (**Optional**) The base of the logarithmic
-            sampling.  The default is 10.0; use numpy.exp(1.) for the
-            natural logarithm.
-
-    Returns:
-        `numpy.ndarray`_, float: A vector with the npix centres of the
-        pixels and the sampling rate.  If logarithmically binned, the
-        sampling is the step in :math:`\log x`.
-    """
-    if log:
-        logRange = numpy.log(xlim)/numpy.log(base)
-        dlogx = numpy.diff(logRange)/(npix-1.)
-        centers = numpy.power(base, numpy.linspace(*(logRange/dlogx), num=npix)*dlogx)
-        return centers, dlogx
-    dx = numpy.diff(xlim)/(npix-1.)
-    centers = numpy.linspace(*(xlim/dx), num=npix)*dx
-    return centers, dx
-
-
-def _pixel_borders(xlim, npix, log=False, base=10.0):
-    r"""
-    Determine the borders of the pixels in a vector given the first, last and 
-    number of pixels
-
-    Args:
-        xlim (`numpy.ndarray`_) : (Geometric) Centers of the first and last
-            pixel in the vector.
-        npix (int) : Number of pixels in the vector.
-        log (bool) : (**Optional**) The input range is (to be)
-            logarithmically sampled.
-        base (float) : (**Optional**) The base of the logarithmic
-            sampling.  The default is 10.0; use numpy.exp(1.) for the
-            natural logarithm.
-
-    Returns:
-        `numpy.ndarray`_, float: A vector with the (npix+1) borders of the
-        pixels and the sampling rate.  If logarithmically binned, the
-        sampling is the step in :math:`\log x`.
-    """
-    if log:
-        logRange = numpy.log(xlim)/numpy.log(base)
-        dlogx = numpy.diff(logRange)/(npix-1.)
-        borders = numpy.power(base, numpy.linspace(*(logRange/dlogx + [-0.5, 0.5]),
-                                                   num=npix+1)*dlogx)
-        return borders, dlogx
-    dx = numpy.diff(xlim)/(npix-1.)
-    borders = numpy.linspace(*(xlim/dx + numpy.array([-0.5, 0.5])), num=npix+1)*dx
-    return borders, dx
-
-
-def resample_vector_npix(outRange=None, dx=None, log=False, base=10.0, default=None):
-    """
-    Determine the number of pixels needed to resample a vector given first, last pixel and dx
-
-    Args:
-        outRange (list, `numpy.ndarray`_) : Two-element array with the
+        rng (array-like, optional):
+            Two-element array with the
             starting and ending x coordinate of the pixel centers to
             divide into pixels of a given width.  If *log* is True, this
             must still be the linear value of the x coordinate, not
             log(x)!.
-        dx (float) : Linear or logarithmic pixel width.
-        log (bool) : Flag that the range should be logarithmically
-            binned.
-        base (float) : Base for the logarithm
-        default (int) : Default number of pixels to use.  The default is
-            returned if either *outRange* or *dx* are not provided.
+        dx (:obj:`float`, optional):
+            Linear or logarithmic pixel width.
+        log (:obj:`bool`, optional):
+            Flag that the range should be logarithmically binned.
+        base (:obj:`float`, optional):
+            Base for the logarithm
+        default (:obj:`int`, optional):
+            Default number of pixels to use. The default is returned
+            if either ``rng`` or ``dx`` are not provided.
 
     Returns:
-        :obj:`tuple`: Returns two objects: The number of pixels to
-        cover *outRange* with pixels of width *dx* and the adjusted
-        range such that number of pixels of size dx is the exact integer.
+        :obj:`tuple`: Returns the number of pixels to cover ``rng``
+        with pixels of width ``dx`` and a two-element
+        `numpy.ndarray`_ with the adjusted range such that number of
+        pixels of size dx is the exact integer.
 
     Raises:
-        ValueError: Raised if the range is not a two-element vector
+        ValueError:
+            Raised if the range is not a two-element vector.
     """
     # If the range or sampling are not provided, the number of pixels is
     # already set
-    if outRange is None or dx is None:
-        return default, outRange
-    if len(outRange) != 2:
-        raise ValueError('Output range must be a 2-element vector.')
+    if rng is None or dx is None:
+        return default, rng
+    if len(rng) != 2:
+        raise ValueError('Range must be a 2-element vector.')
 
-    _outRange = numpy.atleast_1d(outRange).copy()
-    npix = int( numpy.diff(numpy.log(_outRange))/numpy.log(base) / dx) + 1 if log else \
-                int(numpy.diff(_outRange)/dx) + 1
-    _outRange[1] = numpy.power(base, numpy.log(_outRange[0])/numpy.log(base) + dx*(npix-1)) \
-                            if log else _outRange[0] + dx*(npix-1)
-    return npix, _outRange
+    _rng = numpy.atleast_1d(rng).copy()
+    npix = int(numpy.floor(numpy.diff(numpy.log(_rng))[0]/numpy.log(base)/dx) + 1) if log else \
+                    int(numpy.floor(numpy.diff(_rng)[0]/dx) + 1)
+    _rng[1] = numpy.power(base, numpy.log(_rng[0])/numpy.log(base) + dx*(npix-1)) \
+                            if log else _rng[0] + dx*(npix-1)
+
+    # Fix for numerical precision
+    if (not log and numpy.isclose(rng[1] - _rng[1], dx)) \
+           or (log and numpy.isclose((numpy.log(rng[1]) - numpy.log(_rng[1]))/numpy.log(base), dx)):
+        npix += 1
+        _rng[1] = numpy.power(base, numpy.log(_rng[0])/numpy.log(base) + dx*(npix-1)) \
+                                if log else _rng[0] + dx*(npix-1)
+
+    return npix, _rng
+
+
+def grid_borders(rng, npix, log=False, base=10.0):
+    """
+    Determine the borders of bin edges in a grid.
+
+    Args:
+        rng (array-like):
+            Two-element array with the (geometric) centers of the
+            first and last pixel in the grid.
+        npix (:obj:`int`):
+            Number of pixels in the grid.
+        log (:obj:`bool`, optional):
+            The input range is (to be) logarithmically sampled.
+        base (:obj:`float`, optional):
+            The base of the logarithmic sampling. Use
+            ``numpy.exp(1.)`` for the natural logarithm.
+
+    Returns:
+        :obj:`tuple`: Returns a `numpy.ndarray`_ with the grid
+        borders with shape ``(npix+1,)`` and the step size per grid
+        point. If ``log=True``, the latter is the geometric step.
+    """
+    if log:
+        _rng = numpy.log(rng)/numpy.log(base)
+        dlogx = numpy.diff(_rng)[0]/(npix-1.)
+        borders = numpy.power(base, numpy.linspace(*(_rng/dlogx + [-0.5, 0.5]), num=npix+1)*dlogx)
+        return borders, dlogx
+    dx = numpy.diff(rng)[0]/(npix-1.)
+    borders = numpy.linspace(*(numpy.atleast_1d(rng)/dx + numpy.array([-0.5, 0.5])), num=npix+1)*dx
+    return borders, dx
+
+
+def grid_centers(rng, npix, log=False, base=10.0):
+    """
+    Determine the (geometric) center of pixels in a grid.
+
+    Args:
+        rng (array-like):
+            Two-element array with the (geometric) centers of the
+            first and last pixel in the grid.
+        npix (:obj:`int`):
+            Number of pixels in the grid.
+        log (:obj:`bool`, optional):
+            The input range is (to be) logarithmically sampled.
+        base (:obj:`float`, optional):
+            The base of the logarithmic sampling. Use
+            ``numpy.exp(1.)`` for the natural logarithm.
+
+    Returns:
+        :obj:`tuple`: Returns a `numpy.ndarray`_ with the grid pixel
+        (geometric) ceners with shape ``(npix,)`` and the step size
+        per grid point. If ``log=True``, the latter is the geometric
+        step.
+    """
+    if log:
+        _rng = numpy.log(rng)/numpy.log(base)
+        dlogx = numpy.diff(_rng)[0]/(npix-1.)
+        centers = numpy.power(base, numpy.linspace(*(_rng/dlogx), num=npix)*dlogx)
+        return centers, dlogx
+    dx = numpy.diff(rng)[0]/(npix-1.)
+    centers = numpy.linspace(*(numpy.atleast_1d(rng)/dx), num=npix)*dx
+    return centers, dx
+
+
+def borders_to_centers(borders, log=False):
+    """
+    Convert a set of bin borders to bin centers.
+
+    Grid borders need not be regularly spaced.
+
+    Args:
+        borders (`numpy.ndarray`_):
+            Borders for adjoining bins.
+        log (:obj:`bool`, optional):
+            Return the geometric center instead of the linear center
+            of the bins.
+
+    Returns:
+        `numpy.ndarray`_: The vector of bin centers.
+    """
+    return numpy.sqrt(borders[:-1]*borders[1:]) if log else (borders[:-1]+borders[1:])/2.0
+
+
+def centers_to_borders(x, log=False):
+    """
+    Convert a set of bin centers to bounding edges.
+
+    Grid centers need not be regularly spaced. The first edge of the
+    first bin and the last edge of the last bin are assumed to be
+    equidistant from the center of the 2nd and penultimate bins,
+    respectively.
+
+    Args:
+        x (`numpy.ndarray`_):
+            Centers of adjoining bins.
+        log (:obj:`bool`, optional):
+            Adopt a geometric binning instead of a linear binning.
+
+    Returns:
+        `numpy.ndarray`_: The vector with the coordinates of
+        adjoining bin edges.
+    """
+    if log:
+        dx = numpy.diff(numpy.log(x))
+        return numpy.exp(numpy.append(numpy.log(x[:-1]) - dx/2,
+                                      numpy.log(x[-1]) + numpy.array([-1,1])*dx[-1]/2))
+    dx = numpy.diff(x)
+    return numpy.append(x[:-1] - dx/2, x[-1] + numpy.array([-1,1])*dx[-1]/2)
 
 
 class Resample:
@@ -203,127 +284,154 @@ class Resample:
     Resample regularly or irregularly sampled data to a new grid using
     integration.
     
-    This is a generalization of the routine ``ppxf_util.log_rebin`` from from
-    the `ppxf`_ package by Michele Cappellari.
+    This is a generalization of the routine
+    :func:`ppxf.ppxf_util.log_rebin` provided by Michele Cappellari in
+    the pPXF package.
 
-    The abscissa coordinates (`x`) or the pixel borders (`xBorders`) for
-    the data (`y`) should be provided for irregularly sampled data.  If
-    the input data is linearly or geometrically sampled (`inLog=True`),
-    the abscissa coordinates can be generated using the input range for
-    the (geometric) center of each grid point.  If `x`, `xBorders`, and
-    `xRange` are all None, the function assumes grid coordinates of
-    `x=numpy.arange(y.shape[-1])`.
+    The abscissa coordinates (``x``) or the pixel borders
+    (``xBorders``) for the data (``y``) should be provided for
+    irregularly sampled data. If the input data is linearly or
+    geometrically sampled (``inLog=True``), the abscissa coordinates
+    can be generated using the input range for the (geometric) center
+    of each grid point. If ``x``, ``xBorders``, and ``xRange`` are
+    all None, the function assumes grid coordinates of ``x =
+    numpy.arange(y.shape[-1])``.
 
-    The function resamples the data by constructing the borders of the
-    output grid using the `new*` keywords and integrating the input
-    function between those borders.  The output data will be set to
-    `ext_value` for any data beyond the abscissa limits of the input
-    data.
+    The function resamples the data by constructing the borders of
+    the output grid using the ``new*`` keywords and integrating the
+    input function between those borders. The output data will be set
+    to ``ext_value`` for any data beyond the abscissa limits of the
+    input data.
 
-    The data to resample (`y`) can be a 1D or 2D vector; the abscissa
-    coordinates must always be 1D.  If (`y`) is 2D, the resampling is
-    performed along the last axis (i.e., `axis=-1`).
+    The data to resample (``y``) can be a 1D or 2D array; the
+    abscissa coordinates must always be 1D. If ``y`` is 2D, the
+    resampling is performed along the last axis (i.e., ``axis=-1``).
 
     The nominal assumption is that the provided function is a step
-    function based on the provided input (i.e., `step=True`).  If the
-    output grid is substantially finer than the input grid, the
-    assumption of a step function will be very apparent.  To assume the
-    function is instead linearly interpolated between each provided
-    point, choose `step=False`; higher-order interpolations are not
-    provided.
+    function based on the provided input (i.e., ``step=True``). If
+    the output grid is substantially finer than the input grid, the
+    assumption of a step function will be very apparent. To assume
+    the function is instead linearly interpolated between each
+    provided point, choose ``step=False``; higher-order
+    interpolations are not provided.
 
-    If errors are provided, a nominal error propagation is performed to
-    provide the errors in the resampled data.  
+    If errors are provided, a nominal error propagation is performed
+    to provide the errors in the resampled data.
 
     .. warning::
+
         Depending on the details of the resampling, the output errors
         are likely highly correlated.  Any later analysis of the
-        resampled function should account for this.  A covariance
-        calculation will be provided in the future on a best-effort
-        basis.
+        resampled function should account for this.
 
-    The `conserve` keyword sets how the units of the input data should
-    be treated.  If `conserve=False`, the input data are expected to be
-    in density units (i.e., per `x` coordinate unit) such that the
-    integral over :math:`dx` is independent of the units of :math:`x`
-    (i.e., flux per unit angstrom, or flux density).  If
-    `conserve=True`, the value of the data is assumed to have been
-    integrated over the size of each pixel (i.e., units of flux).  If
-    `conserve=True`, :math:`y` is converted to units of per step in
-    :math:`x` such that the integral before and after the resample is
-    the same.  For example, if :math:`y` is a spectrum in units of flux,
-    the function first converts the units to flux density and then
-    computes the integral over each new pixel to produce the new spectra
-    with units of flux.
+    The covariance in the resampled pixels can be constructed by
+    setting ``covar=True``; however, this is currently only supported
+    when ``step=True``. If no errors are provided and ``covar=True``,
+    the computed matrix is the *correlation* matrix instead of the
+    *covariance* matrix. Given that the resampling is the same for all
+    vectors, only one correlation matix will be calculated if no
+    errors are provided, even if the input ``y`` is 2D. If the input
+    data to be resampled is 2D and errors *are* provided, a
+    covariance matrix is calculated for *each* vector in ``y``.
+    Beware that this can be an expensive computation.
+
+    The ``conserve`` keyword sets how the units of the input data
+    should be treated. If ``conserve=False``, the input data are
+    expected to be in density units (i.e., per ``x`` coordinate unit)
+    such that the integral over :math:`dx` is independent of the
+    units of :math:`x` (i.e., flux per unit angstrom or flux
+    density). If ``conserve=True``, the value of the data is assumed
+    to have been integrated over the size of each pixel (i.e., units
+    of flux). If ``conserve=True``, :math:`y` is converted to units
+    of per step in :math:`x` such that the integral before and after
+    the resample is the same. For example, if :math:`y` is a spectrum
+    in units of flux, the function first converts the units to flux
+    density and then computes the integral over each new pixel to
+    produce the new spectra with units of flux.
 
     .. todo::
-        - Allow the user to provide the output pixel borders directly.
         - Allow for higher order interpolations.
-        - Allow for a covariance matrix calculation.
+        - Enable covariance matrix calculations for ``step=False``.
+        - Provide examples
 
     Args:
-        y (`numpy.ndarray`_):
-            Data values to resample.  Can be a numpy.ma.MaskedArray, and
-            the shape can be 1 or 2D.  If 1D, the shape must be
-            :math:`(N_{\rm pix},)`; otherwise, it must be
-            :math:`(N_y,N_{\rm pix})`.  I.e., the length of the last
-            axis must match the input coordinates.
-        e (`numpy.ndarray`_, optional):
-            Errors in the data that should be resampled.  Can be a
-            numpy.ma.MaskedArray, and the shape must match the input `y`
-            array.  These data are used to perform a nominal calculation
-            of the error in the resampled array.
+        y (`numpy.ndarray`_, `numpy.ma.MaskedArray`_):
+            Data values to resample. The shape can be 1D or 2D. If
+            1D, the shape must be :math:`(N_{\rm pix},)`; otherwise,
+            it must be :math:`(N_y,N_{\rm pix})`. I.e., the length of
+            the last axis must match the input coordinates.
+        e (`numpy.ndarray`_, `numpy.ma.MaskedArray`_, optional):
+            Errors in the data that should be resampled. The shape
+            must match the input ``y`` array. These data are used to
+            perform a nominal calculation of the error in the
+            resampled array.
         mask (`numpy.ndarray`_, optional):
-            A boolean array (masked values are True) indicating values
-            in `y` that should be ignored during the resampling.  The
-            mask used during the resampling is the union of this object
-            and the masks of `y` and `e`, if they are provided as
-            numpy.ma.MaskedArrays.
+            A boolean array indicating values in ``y`` that should be
+            ignored during the resampling (values to ignore have
+            ``masked=True``, just like in a `numpy.ma.MaskedArray`_).
+            The mask used during the resampling is the union of this
+            object and the masks of ``y`` and ``e``, if either are
+            provided as `numpy.ma.MaskedArray`_ objects.
         x (`numpy.ndarray`_, optional):
-            Abcissa coordinates for the data, which do not need to be
-            regularly sampled.  If the pixel borders are not provided,
-            they are assumed to be half-way between adjacent pixels, and
-            the first and last borders are assumed to be equidistant
-            about the provided value.  If these coordinates are not
-            provided, they are determined by the input borders, the
-            input range, or just assumed to be the indices,
-            :math:`0..N_{\rm pix}-1`.
+            Abscissa coordinates for the data, which do not need to
+            be regularly sampled. If the pixel borders are not
+            provided, they are assumed to be half-way between
+            adjacent pixels, and the first and last borders are
+            assumed to be equidistant about the provided value. If
+            these coordinates are not provided, they are determined
+            by the input borders, the input range, or just assumed to
+            be the indices, :math:`0..N_{\rm pix}-1`.
         xRange (array-like, optional):
-            A two-element array with the starting and ending value for
-            the coordinates of the centers of the first and last pixels
-            in y.  Default is :math:`[0,N_{\rm pix}-1]`.
+            A two-element array with the starting and ending value
+            for the coordinates of the centers of the first and last
+            pixels in ``y``. Default is :math:`[0,N_{\rm pix}-1]`.
         xBorders (`numpy.ndarray`_, optional):
             An array with the borders of each pixel that must have a
             length of :math:`N_{\rm pix}+1`.
         inLog (:obj:`bool`, optional):
             Flag that the input is logarithmically binned, primarily
-            meaning that the coordinates are at the geometric center of
-            each pixel and the centers are spaced logarithmically.  If
-            false, the sampling is expected to be linear.
+            meaning that the coordinates are at the geometric center
+            of each pixel and the centers are spaced logarithmically.
+            If false, the sampling is expected to be linear.
+        newx (array-like, optional):
+            Abscissa coordinates for the *output* data, which do not
+            need to be a regular grid. If this is provided, the pixel
+            borders are assumed to be half-way between adjacent
+            pixels, and the first and last borders are assumed to be
+            equidistant about the provided value. If these
+            coordinates are not provided, they are determined by the
+            new range, the new number of pixels, and/or the new pixel
+            width (and whether or not the new grid should be
+            logarithmically binned). If this is provided,
+            ``newRange``, ``newpix``, ``newLog``, and ``newdx`` are
+            *all* ignored.
         newRange (array-like, optional):
             A two-element array with the (geometric) centers of the
-            first and last pixel in the output vector.  If not provided,
-            assumed to be the same as the input range.
+            first and last pixel in the output vector. If not
+            provided, assumed to be the same as the input range.
+        newBorders (array-like, optional):
+            An array with the borders of each pixel in the resampled
+            vectors.
         newpix (:obj:`int`, optional): 
             Number of pixels for the output vector.  If not provided,
             assumed to be the same as the input vector.
         newLog (:obj:`bool`, optional):
             The output vector should be logarithmically binned.
         newdx (:obj:`float`, optional):
-            The sampling step for the output vector.  If `newLog=True`,
-            this has to be the change in the logarithm of x for the
-            output vector!  If not provided, the sampling is set by the
-            output range (see `newRange` above) and number of pixels
-            (see `newpix` above).
+            The sampling step for the output vector. If
+            `newLog=True`, this must be the change in the *logarithm*
+            of :math:`x` for the output vector! If not provided, the
+            sampling is set by the output range (see ``newRange``
+            above) and number of pixels (see ``newpix`` above).
         base (:obj:`float`, optional):
             The base of the logarithm used for both input and output
-            sampling, if specified.  The default is 10; use
-            `numpy.exp(1)` for natural logarithm.
+            sampling, if specified. The default is 10; use
+            ``numpy.exp(1)`` for natural logarithm.
         ext_value (:obj:`float`, optional):
-            Set extrapolated values to the provided float.  By default,
-            extrapolated values are set to 0.  If set to None, values
-            are just set to the linear exatrapolation of the data beyond
-            the provided limits; use `ext_value=None` with caution!
+            Set extrapolated values to the provided float. If set to
+            None, values are just set to the linear extrapolation of
+            the data beyond the provided limits; use `ext_value=None`
+            with caution!
         conserve (:obj:`bool`, optional):
             Conserve the integral of the input vector.  For example, if
             the input vector is a spectrum in flux units, you should
@@ -334,6 +442,11 @@ class Resample:
             Treat the input function as a step function during the
             resampling integration.  If False, use a linear
             interpolation between pixel samples.
+        covar (:obj:`bool`, optional):
+            Calculate the covariance matrix between pixels in the
+            resampled vector. Can only be used if ``step=True``. If
+            no error vector is provided (``e``), the result is a
+            *correlation* matrix.
     
     Attributes:
         x (`numpy.ndarray`_):
@@ -359,20 +472,37 @@ class Resample:
             from the input function.
 
     Raises:
-        ValueError: Raised if *y* is not of type `numpy.ndarray`_, if *y*
-            is not one-dimensional, or if *xRange* is not provided and
-            the input vector is logarithmically binned (see *inLog*
-            above).
+        ValueError:
+            Raised if more the one of ``x``, ``xRange``, or
+            ``xBorders`` are provided, if more the one of ``newx``,
+            ``newRange``, or ``newBorders`` are provided, if ``y`` is
+            a `numpy.ndarray`_, if ``y`` is not 1D or 2D, if the
+            covariance is requested but ``step`` is False, if the
+            shapes of the provided errors or mask do not match ``y``,
+            if there is insufficient information to construct the
+            input or output grid, or if either ``xRange`` or
+            ``newRange`` are not two-element arrays.
     """
+#        covar (:class:`~mangadap.util.covariance.Covariance`):
+#            The covariance or correlation matrices for the resampled
+#            vectors.
     def __init__(self, y, e=None, mask=None, x=None, xRange=None, xBorders=None, inLog=False,
-                 newRange=None, newpix=None, newLog=True, newdx=None, base=10.0, ext_value=0.0,
-                 conserve=False, step=True):
+                 newx=None, newRange=None, newBorders=None, newpix=None, newLog=True, newdx=None,
+                 base=10.0, ext_value=0.0, conserve=False, step=True): #, covar=False):
 
-        # Check operation can be performed
+        # Check operation can be performed and is not ill-posed
+        if numpy.sum([inp is not None for inp in [x, xRange, xBorders]]) != 1:
+            raise ValueError('One and only one of the x, xRange, and xBorders arguments should be '
+                             'provided.')
+        if numpy.sum([inp is not None for inp in [newx, newRange, newBorders]]) != 1:
+            raise ValueError('One and only one of the newx, newRange, and newBorders arguments '
+                             'should be provided.')
         if not isinstance(y, numpy.ndarray):
             raise ValueError('Input vector must be a numpy.ndarray!')
-        if len(y.shape) > 2:
+        if y.ndim > 2:
             raise ValueError('Input must be a 1D or 2D array!')
+#        if covar and not step:
+#            raise ValueError('Covariance is currently only calculated for step resampling.')
 
         # Setup the data, errors, and mask
         self.y = y.filled(0.0) if isinstance(y, numpy.ma.MaskedArray) else y.copy()
@@ -394,10 +524,9 @@ class Resample:
             self.m |= e.mask
 
         # Get the input coordinates
-        self.x = None
-        self.xborders = None
-        # this defines the self.x and self.xborders
-        self._input_coordinates(x, xRange, xBorders, inLog, base)
+        nx = self.y.shape[-1] if x is None and xBorders is None else None
+        self.x, self.xborders = self._coordinate_grid(x=x, rng=xRange, nx=nx, borders=xBorders,
+                                                      log=inLog, base=base)
 
         # If conserving integral, assume input is integrated over pixel
         # width and convert to a density function (divide by pixel size)
@@ -406,19 +535,43 @@ class Resample:
                                 else numpy.diff(self.xborders))
 
         # Get the output coordinates
-        self.outx = None
-        self.outborders = None
-        # this defines the self.outx and self.outborders
-        self._output_coordinates(newRange, newpix, newLog, newdx, base)
+        nx = self.x.size \
+                if newx is None and newBorders is None and newpix is None and newdx is None \
+                else newpix
+        self.outx, self.outborders = self._coordinate_grid(x=newx, rng=newRange, nx=nx,
+                                                           borders=newBorders, dx=newdx,
+                                                           log=newLog, base=base)
 
+#        if covar:
+#            A = self._resample_step_matrix()
+#            self.outy = numpy.dot(A, self.y.T).T
+#            self.outf = numpy.dot(A, numpy.logical_not(self.m.T).astype(int)).T \
+#                            / numpy.diff(self.outborders)[...,:]
+#            if self.e is None:
+#                # TODO: Repeat it N times if there are N y vectors?
+#                self.covar = Covariance.from_matrix_multiplication(A, numpy.ones_like(self.x)
+#                                                ).apply_new_variance(numpy.ones_like(self.outx))
+#                self.oute = None
+#            else:
+#                if self.twod:
+#                    self.covar = numpy.empty(self.y.shape[0], dtype=object)
+#                    for i in range(self.y.shape[0]):
+#                        self.covar[i] = Covariance.from_matrix_multiplication(A,
+#                                            numpy.square(self.e[i])).full()
+#                    self.covar = Covariance(self.covar, impose_triu=True)
+#                    self.oute = numpy.sqrt(self.covar.variance().T)
+#                else:
+#                    self.covar = Covariance.from_matrix_multiplication(A, numpy.square(self.e))
+#                    self.oute = numpy.sqrt(self.covar.variance())
+#        else:
         # Perform the resampling
+#        self.covar = None
         self.outy = self._resample_step(self.y) if step else self._resample_linear(self.y)
        
-        
         # The mask and errors are always interpolated as a step function
         self.oute = None if self.e is None else self._resample_step(self.e, quad=True)
         
-        self.outf = self._resample_step(numpy.invert(self.m).astype(int)) \
+        self.outf = self._resample_step(numpy.logical_not(self.m).astype(int)) \
                         / numpy.diff(self.outborders)
 
         # Do not conserve the integral over the size of the pixel
@@ -428,88 +581,68 @@ class Resample:
             if self.oute is not None:
                 self.oute /= (numpy.diff(self.outborders)[None,:] if self.twod \
                                     else numpy.diff(self.outborders))
+#                if self.covar is not None:
+#                    self.covar = self.covar.apply_new_variance(numpy.square(self.oute.T))
 
         # Set values for extrapolated regions
         if ext_value is not None:
             indx = (self.outborders[:-1] < self.xborders[0]) \
                         | (self.outborders[1:] > self.xborders[-1]) 
             if numpy.sum(indx) > 0:
-                if self.twod:
-                    self.outy[:,indx] = ext_value
-                    self.outf[:,indx] = 0.
-                    if self.oute is not None:
-                        self.oute[:,indx] = 0.
-                else:
-                    self.outy[indx] = ext_value
-                    self.outf[indx] = 0.
-                    if self.oute is not None:
-                        self.oute[indx] = 0.
+                self.outy[...,indx] = ext_value
+                self.outf[...,indx] = 0.
+                if self.oute is not None:
+                    self.oute[...,indx] = 0.
 
-
-    def _input_coordinates(self, x, xRange, xBorders, inLog, base):
+    @staticmethod
+    def _coordinate_grid(x=None, rng=None, nx=None, dx=None, borders=None, log=False, base=10.0):
         """
-        Determine the centers and pixel borders of the input
-        coordinates.
+        Use the provided information to construct the coordinate grid
+        and the grid borders.
         """
-        if (x is not None or xBorders is not None) and xRange is not None:
-            warnings.warn('Provided both x or x borders and the x range.  Ignoring range.')
-        _xRange = xRange if x is None and xBorders is None else None
-        
-        if x is not None:
-            if x.ndim != 1:
-                raise ValueError('Coordinate vector must be 1D.')
-            if x.size != self.y.shape[-1]:
-                raise ValueError('Coordinate vector must match last dimension of value array.')
-        if xBorders is not None:
-            if xBorders.ndim != 1:
-                raise ValueError('Coordinate borders must be 1D.')
-            if xBorders.size != self.y.shape[-1]+1:
-                raise ValueError('Coordinate borders must match last dimension of value array.')
+        if x is not None and borders is not None:
+            raise ValueError('Both x and borders provided.  Do not need to call _coordinate_grid, '
+                             'but also _coordinate_grid does not check that x and borders are '
+                             'consistenet with one another.')
+        if (x is not None or borders is not None) and rng is not None:
+            warnings.warn('Provided both x or borders and the range.  Ignoring range.')
+        if x is None and borders is not None:
+            # Use the borders to set the centers
+            return borders_to_centers(borders, log=log), borders
+        if x is not None and borders is None:
+            # Use the centers to set the borders
+            return x, centers_to_borders(x, log=log)
 
-        if x is None:
-            if xBorders is not None:
-                self.x = numpy.sqrt(xBorders[:-1]*xBorders[1:]) if inLog \
-                            else (xBorders[:-1]+xBorders[1:])/2.0
-            elif xRange is not None:
-                self.x = _pixel_centers(xRange, self.y.shape[-1], log=inLog, base=base)[0]
-            else:
-                self.x = numpy.arange(self.y.shape[-1]) + 0.5
-        else:
-            self.x = x
+        # After this point, both x and borders should be None
+        assert x is None and borders is None, 'Coding logic error'
 
-        if xBorders is None:
-            dx = numpy.diff(numpy.log(self.x)) if inLog else numpy.diff(self.x)
-            self.xborders = numpy.exp(numpy.append(numpy.log(self.x[:-1]) - dx/2,
-                                        numpy.log(self.x[-1]) + numpy.array([-1,1])*dx[-1]/2)) \
-                                if inLog \
-                                else numpy.append(self.x[:-1] - dx/2,
-                                                  self.x[-1] + numpy.array([-1,1])*dx[-1]/2)
-        else:
-            self.xborders = xBorders
+        if rng is None and nx is None:
+            raise ValueError('Insufficient input to construct coordinate grid.')
 
-    def _output_coordinates(self, newRange, newpix, newLog, newdx, base):
-        """Set the output coordinates."""
+        if rng is None:
+            # Just set the result to a uniform pixel grid
+            return numpy.arange(nx, dtype=float) + 0.5, numpy.arange(nx+1, dtype=float)
 
-        # Set the output range and number of pixels
-        outRange = numpy.array([self.x[0], self.x[-1]]) if newRange is None \
-                        else numpy.array(newRange)
-        m, _outRange = resample_vector_npix(outRange=outRange, log=newLog, base=base, dx=newdx,
-                                        default=(self.y.shape[-1] if newpix is None else newpix))
-        outRange = outRange if _outRange is None else _outRange
+        # After this point, rng cannot be None
+        assert rng is not None, 'Coding logic error'
 
-        # Get the output pixel borders
-        self.outborders = _pixel_borders(outRange, m, log=newLog, base=base)[0]
+        if dx is not None and nx is not None:
+            warnings.warn('Provided rng, dx, and nx, which over-specifies the grid; rng and nx '
+                          'take precedence.')
+        if nx is not None:
+            borders = grid_borders(rng, nx, log=log, base=base)[0]
+            return borders_to_centers(borders, log=log), borders
 
-        # Get the output coordinate vector
-        self.outx = numpy.sqrt(self.outborders[:-1]*self.outborders[1:]) if newLog \
-                        else (self.outborders[:-1]+self.outborders[1:])/2.0
+        nx, _rng = grid_npix(rng=rng, dx=dx, log=log, base=base)
+        borders = grid_borders(_rng, nx, log=log, base=base)[0]
+        return borders_to_centers(borders, log=log), borders
 
     def _resample_linear(self, v, quad=False):
         """Resample the vectors."""
 
         # Combine the input coordinates and the output borders
         combinedX = numpy.append(self.outborders, self.x)
-        srt = numpy.argsort(combinedX, kind='stable')
+        srt = numpy.argsort(combinedX)
         combinedX = combinedX[srt]
 
         # Get the indices where the data should be reduced
@@ -575,17 +708,55 @@ class Resample:
         # Use reduceat to calculate the integral
         out = numpy.add.reduceat(integrand, k[:-1], axis=-1) if k[-1] == combinedX.size-1 \
                     else numpy.add.reduceat(integrand, k, axis=-1)[...,:-1]
-#        if self.twod:
-#            out = numpy.array(numpy.add.reduceat(integrand, k[:-1], axis=-1)) \
-#                        if k[-1] == combinedX.size-1 else \
-#                        numpy.array(numpy.add.reduceat(integrand, k, axis=-1))[:, 0:-1]
-#            
-#        else:
-#            out = numpy.add.reduceat(integrand, k[:-1], axis=-1) if k[-1] == combinedX.size-1 \
-#                            else numpy.add.reduceat(integrand, k, axis=-1)[:-1]
-            
-        
         return numpy.sqrt(out) if quad else out
+
+    def _resample_step_matrix(self):
+        r"""
+        Build a matrix such that
+
+        .. math::
+            y = \mathbf{A} x
+
+        where :math:`x` is the input vector, :math:`y` is the resampled
+        vector, and :math:`\mathbf{A}` is the matrix operations that
+        resamples :math:`x`.
+        """
+        ny = self.outx.size
+        nx = self.x.size
+        dx = numpy.diff(self.xborders)
+
+        # Repeat each element of the border array twice, and remove the
+        # first and last elements
+        _p = numpy.repeat(numpy.arange(self.x.size), 2)
+        _x = numpy.repeat(self.xborders, 2)[1:-1]
+
+        # Combine the input coordinates and the output borders into a
+        # single vector
+        indx = numpy.searchsorted(_x, self.outborders)
+        combinedX = numpy.insert(_x, indx, self.outborders)
+
+        # Insert points at the borders of the output function
+        p_indx = indx.copy()
+        p_indx[indx >= _p.shape[-1]] = -1
+        combinedP = numpy.insert(_p, indx, _p[p_indx])
+
+        # Get the indices where the data should be reduced
+        border = numpy.insert(numpy.zeros(_x.size, dtype=bool), indx,
+                              numpy.ones(self.outborders.size, dtype=bool))
+        nn = numpy.where(numpy.logical_not(border))[0][::2]
+        k = numpy.zeros(len(combinedX), dtype=int)
+        k[border] = numpy.arange(numpy.sum(border))
+        k[nn-1] = k[nn-2]
+        k[nn] = k[nn-1]
+        start,end = numpy.where(border)[0][[0,-1]]
+
+        # Calculate the fraction of each pixel into each output pixel
+        fraction = numpy.diff(combinedX[start:end+1])
+        # Construct the output matrix
+        indx = fraction > 0
+        A = numpy.zeros((ny, nx), dtype=float)
+        A[k[start:end][indx], combinedP[start:end][indx]] = fraction[indx]
+        return A
 
 
 def rectify_image(img, col, bpm=None, ocol=None, max_ocol=None, extract_width=None,

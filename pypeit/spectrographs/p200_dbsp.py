@@ -21,9 +21,6 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 
 
-def flip_fits_slice(s: str) -> str:
-    return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
-
 
 class P200DBSPSpectrograph(spectrograph.Spectrograph):
     """
@@ -217,7 +214,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         if meta_key == 'binning':
             binspatial, binspec = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
-        msgs.error("Not ready for this compound meta")
+        msgs.error(f"Not ready for this compound meta: {meta_key}")
 
     def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
         """
@@ -248,8 +245,8 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         else:
             # TODO: Could this be detector dependent??
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
-            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
+            datasec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(
@@ -441,7 +438,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             binspec, binspatial = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
         else:
-            msgs.error("Not ready for this compound meta")
+            msgs.error(f"Not ready for this compound meta: {meta_key}")
 
     def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
         """
@@ -472,8 +469,8 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         else:
             # TODO: Could this be detector dependent??
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
-            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
+            datasec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(

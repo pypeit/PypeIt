@@ -61,7 +61,7 @@ Here are example lines from the DevSuite for a Keck/LRISb reduction:
 The entry ``2:234.:1000.:3.`` specifies ``det=2`` (aka DET02), 
 ``spat=234.0``, ``spec=1000.0``, and a ``FWHM=3.0`` (pixels).
 
-You can optionally specify the ``boxcar_radius`` (in pixels, not arcsec) as the last
+You can optionally specify the ``boxcar_radius`` **(in pixels, not arcsec)** as the last
 entry in the manual extraction entry.  If not specified, the code
 will use the default value specified in :ref:`extractionpar`
 (which is in arcsec). 
@@ -71,6 +71,11 @@ Here is an example that includes ``boxcar_radius``:
 .. code-block:: console
 
     b150910_2070.fits.gz | 2015-09-10T05:43:39 |   science      |          s2 |     600 |     2,2 |      560 | 600/4000 | long_1.0 | 2:234.:1000.:3.:4.
+
+.. important::
+    It is important to remember that, unlike the units in :ref:`extractionpar` and :ref:`findobjpar`,
+    both the `fwhm` and `boxcar_radius` parameters in the manual extraction entry are in pixels,
+    not arcsec. Be sure to use the correct units for each case to ensure proper extraction.
 
 If you wish to operate on the negative image for an A-B reduction
 (typically near-IR; see :ref:`a-b_differencing`), then specify the detector value as negative.

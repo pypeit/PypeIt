@@ -69,6 +69,7 @@ apirst:
 	python ./scripts/build_par_rst.py
 	python ./scripts/build_specobj_rst.py
 	python ./scripts/build_spectbl_rst.py
+	python ./scripts/build_telluric_table.py
 	python ./scripts/make_example_files.py
 	python ./scripts/write_script_help.py
 	python ./scripts/build_standardstbl_rst.py

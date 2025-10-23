@@ -158,17 +158,17 @@ def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
         `numpy.ndarray`_: Array of evaluated polynomial with same shape as wave
     """
     # Evaluate the polynomial for rescaling
-    if 'poly' in model:
-        ymult = fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
-    elif 'square' in model:
-        ymult = (fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)) ** 2
-    elif 'exp' in model:
-        # Clipping to avoid overflow.
-        ymult = np.exp(np.clip(fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
-                               , None, 0.8 * np.log(sys.float_info.max)))
-
-    else:
-        msgs.error('Unrecognized value of model requested')
+    match model:
+        case 'poly':
+            ymult = fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
+        case 'square':
+            ymult = (fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max))**2
+        case 'exp':
+            ymult = fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
+            # Clip to avoid overflow.
+            ymult = np.exp(np.clip(ymult, None, 0.8 * np.log(sys.float_info.max)))
+        case _:
+            msgs.error('Unrecognized value of model requested')
 
     return ymult
 
@@ -309,20 +309,20 @@ def poly_ratio_fitfunc(flux_ref, gpm, arg_dict, init_from_last=None, **kwargs_op
     return result, flux_scale, ivartot
 
 def median_filt_spec(flux, ivar, gpm, med_width):
-    '''
-    Utility routine to median filter a spectrum using the mask and propagating the errors using the
-    utils.fast_running_median function.
+    """
+    Utility routine to median filter a spectrum using the mask and propagating
+    the errors using :func:`~pypeit.utils.fast_running_median`.
 
     Parameters
     ----------
     flux : `numpy.ndarray`_
-            flux array with shape (nspec,)
+        flux array with shape (nspec,)
     ivar : `numpy.ndarray`_
-            inverse variance with shape (nspec,)
+        inverse variance with shape (nspec,)
     gpm : `numpy.ndarray`_
-            Boolean mask on the spectrum with shape (nspec,). True = good
-    med_width : float
-            width for median filter in pixels
+        Boolean mask on the spectrum with shape (nspec,). True = good
+    med_width : int
+        width for median filter in pixels
 
     Returns
     -------
@@ -330,19 +330,19 @@ def median_filt_spec(flux, ivar, gpm, med_width):
         Median filtered flux
     ivar_med : `numpy.ndarray`_
         corresponding propagated variance
-    '''
-
+    """
     flux_med = np.zeros_like(flux)
     ivar_med = np.zeros_like(ivar)
     flux_med0 = utils.fast_running_median(flux[gpm], med_width)
     flux_med[gpm] = flux_med0
     var = utils.inverse(ivar)
+    # NOTE: med_width must be an integer to work with "smooth"
     var_med0 =  utils.smooth(var[gpm], med_width)
     ivar_med[gpm] = utils.inverse(var_med0)
     return flux_med, ivar_med
 
-def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, mask_ref = None,
-                     scale_min = 0.05, scale_max = 100.0, func='legendre', model ='square',
+def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask=None, mask_ref=None,
+                     scale_min=0.05, scale_max=100.0, func='legendre', model='square',
                      maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01,
                      ref_percentile=70.0, debug=False):
     """
@@ -418,7 +418,10 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     """
 
     if norder < 1:
-        msgs.error('You cannot solve for the polynomial ratio for norder < 1. For rescaling by a constant use robust_median_ratio')
+        msgs.error(
+            'You cannot solve for the polynomial ratio for norder < 1. For rescaling by a '
+            'constant use robust_median_ratio.'
+        )
 
     if mask is None:
         mask = (ivar > 0.0)
@@ -434,65 +437,42 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     wave_min = wave.min()
     wave_max = wave.max()
 
-    # Now compute median filtered versions of the spectra which we will actually operate on for the fitting. Note
-    # that rejection will however work on the non-filtered spectra.
+    # Now compute median filtered versions of the spectra which we will actually
+    # operate on for the fitting. Note that rejection will however work on the
+    # non-filtered spectra.
     med_width = (2.0*np.ceil(median_frac/2.0*nspec) + 1).astype(int)
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
     flux_ref_med, ivar_ref_med = median_filt_spec(flux_ref, ivar_ref, mask_ref, med_width)
 
-    if 'poly' in model:
-        guess = np.append(ratio, np.zeros(norder))
-    elif 'square' in model:
-        guess = np.append(np.sqrt(ratio), np.zeros(norder))
-    elif 'exp' in model:
-        guess = np.append(np.log(ratio), np.zeros(norder))
-    else:
-        msgs.error('Unrecognized model type')
+    match model:
+        case 'poly':
+            guess = np.append(ratio, np.zeros(norder))
+        case 'square':
+            guess = np.append(np.sqrt(ratio), np.zeros(norder))
+        case 'exp':
+            guess = np.append(np.log(ratio), np.zeros(norder))
+        case _:
+            msgs.error('Unrecognized model type')
 
-    ## JFH I'm not convinced any of this below is right or necessary. Going back to previous logic but
-    ## leaving this here for now
+    arg_dict = dict(flux=flux, ivar=ivar, mask=mask, flux_med=flux_med, ivar_med=ivar_med,
+                    flux_ref_med=flux_ref_med, ivar_ref_med=ivar_ref_med, ivar_ref=ivar_ref,
+                    wave=wave, wave_min=wave_min, wave_max=wave_max, func=func, model=model,
+                    norder=norder, guess=guess, debug=debug)
 
-    # Use robust_fit to get a best-guess linear fit as the starting point. The logic below deals with whether
-    # we re fitting a polynomial model to the data model='poly', to the square model='square', or taking the exponential
-    # of a polynomial fit model='exp'
-    #if 'poly' in model:
-    #    #guess = np.append(ratio, np.zeros(norder))
-    #    yval = flux_ref_med
-    #    yval_ivar = ivar_ref_med
-    #    scale_mask = np.ones_like(flux_ref_med, dtype=bool) & (wave > 1.0)
-    #elif 'square' in model:
-    #    #guess = np.append(np.sqrt(ratio), np.zeros(norder))
-    #    yval = np.sqrt(flux_ref_med + (flux_ref_med < 0))
-    #    yval_ivar = 4.0*flux_ref_med*ivar_ref_med
-    #    scale_mask = (flux_ref_med >= 0) & (wave > 1.0)
-    #elif 'exp' in model:
-    #    #guess = np.append(np.log(ratio), np.zeros(norder))
-    #    yval = np.log(flux_ref_med + (flux_ref_med <= 0))
-    #    yval_ivar = flux_ref_med**2*ivar_ref_med
-    #    scale_mask = (flux_ref_med > 0) & (wave > 1.0)
-    #else:
-    #    msgs.error('Unrecognized model type')
-
-    #pypfit = fitting.robust_fit(wave, yval, 1, function=func, in_gpm=scale_mask, invvar=yval_ivar,
-    #           sticky=False, use_mad=False, debug=debug, upper=3.0, lower=3.0)
-    #guess = np.append(pypfit.fitc, np.zeros(norder - 2)) if norder > 1 else pypfit.fitc
-
-    arg_dict = dict(flux = flux, ivar = ivar, mask = mask,
-                    flux_med = flux_med, ivar_med = ivar_med,
-                    flux_ref_med = flux_ref_med, ivar_ref_med = ivar_ref_med,
-                    ivar_ref = ivar_ref, wave = wave, wave_min = wave_min,
-                    wave_max = wave_max, func = func, model=model, norder = norder, guess = guess, debug=debug)
-
-    result, ymodel, ivartot, outmask = fitting.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
-                                                             maxiter=maxiter, lower=lower, upper=upper, sticky=sticky)
+    result, ymodel, ivartot, outmask = fitting.robust_optimize(
+        flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref, maxiter=maxiter, lower=lower,
+        upper=upper, sticky=sticky
+    )
     ymult1 = poly_model_eval(result.x, func, model, wave, wave_min, wave_max)
     ymult = np.fmin(np.fmax(ymult1, scale_min), scale_max)
     flux_rescale = ymult*flux
     ivar_rescale = ivar/ymult**2
     if debug:
         # Determine the y-range for the QA plots
-        scale_spec_qa(wave, flux_med, ivar_med, wave, flux_ref_med, ivar_ref_med, ymult, 'poly', mask = mask, mask_ref=mask_ref,
-                      title='Median Filtered Spectra that were poly_ratio Fit')
+        scale_spec_qa(
+            wave, flux_med, ivar_med, wave, flux_ref_med, ivar_ref_med, ymult, 'poly', mask=mask,
+            mask_ref=mask_ref, title='Median Filtered Spectra that were poly_ratio Fit'
+        )
 
     return ymult, (result.x, wave_min, wave_max), flux_rescale, ivar_rescale, outmask
 
@@ -932,13 +912,23 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
     return np.array(rms_sn), weights
 
 
-def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=70.0, min_good=0.05,
-                        maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=1.0,
-                        verbose=False):
+def robust_median_ratio(
+        flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=70.0,
+        min_good=0.05, maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=1.0,
+        verbose=False
+    ):
     """
-    Robustly determine the ratio between input spectrum flux and reference spectrum flux_ref. The code will perform
-    best if the reference spectrum is chosen to be the higher S/N ratio spectrum, i.e. a preliminary stack that you want
-    to scale each exposure to match. Note that the flux and flux_ref need to be on the same wavelength grid!!
+    Robustly determine the ratio between input spectrum flux and reference
+    spectrum flux_ref. The code will perform best if the reference spectrum is
+    chosen to be the higher S/N ratio spectrum, i.e. a preliminary stack that
+    you want to scale each exposure to match.
+     
+    .. note::
+    
+        - ``flux`` and ``flux_ref`` must have the same wavelength grid!!
+
+        - the returned value is the ratio of the medians, not the median of the
+          ratio.
 
     Parameters
     ----------
@@ -949,11 +939,11 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
         flux
     flux_ref : `numpy.ndarray`_
         reference spectrum. Same shape as flux
+    ivar_ref : `numpy.ndarray`_
+        inverse variance of reference spectrum.
     mask : `numpy.ndarray`_, optional
         boolean mask for the spectrum that will be rescaled. True=Good.  If not
         input, computed from inverse variance
-    ivar_ref : `numpy.ndarray`_, optional
-        inverse variance of reference spectrum.
     mask_ref : `numpy.ndarray`_, optional
         Boolean mask for reference spectrum. True=Good. If not input, computed
         from inverse variance.
@@ -996,22 +986,30 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
     snr_ref = flux_ref * np.sqrt(ivar_ref)
     
     snr_ref_best = np.fmax(np.percentile(snr_ref[mask_ref], ref_percentile),snr_do_not_rescale)
-    calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask
+    # NOTE: In the case where the S/N is artificially set to a specific number
+    # for the entire spectrum, selecting "snr_ref > snr_ref_best" cuts out most
+    # of the spectrum.  I changed to find all values that are not less than
+    # snr_ref_best.
+    calc_mask = np.logical_not(snr_ref < snr_ref_best) & mask_ref & mask
 
     snr_resc = flux*np.sqrt(ivar)
     snr_resc_med = np.median(snr_resc[calc_mask])
 
-    if (np.sum(calc_mask) > min_good*nspec) & (snr_resc_med > snr_do_not_rescale):
+    if np.sum(calc_mask) > min_good*nspec and snr_resc_med > snr_do_not_rescale:
         # Take the best part of the higher SNR reference spectrum
-        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=utils.nan_mad_std)
+        sigclip = stats.SigmaClip(
+            sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=utils.nan_mad_std
+        )
 
         flux_ref_ma = np.ma.MaskedArray(flux_ref, np.logical_not(calc_mask))
         flux_ref_clipped, lower, upper = sigclip(flux_ref_ma, masked=True, return_bounds=True)
-        mask_ref_clipped = np.logical_not(flux_ref_clipped.mask)  # mask_stack = True are good values
+        # mask_ref_clipped = True are good values
+        mask_ref_clipped = np.logical_not(flux_ref_clipped.mask)
 
         flux_ma = np.ma.MaskedArray(flux_ref, np.logical_not(calc_mask))
         flux_clipped, lower, upper = sigclip(flux_ma, masked=True, return_bounds=True)
-        mask_clipped = np.logical_not(flux_clipped.mask)  # mask_stack = True are good values
+        # mask_clipped = True are good values
+        mask_clipped = np.logical_not(flux_clipped.mask)
 
         new_mask = mask_ref_clipped & mask_clipped
 
@@ -1023,15 +1021,20 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
             ratio = 1.0
         else:
             if verbose:
-                msgs.info('Used {:} good pixels for computing median flux ratio'.format(np.sum(new_mask)))
+                msgs.info(f'Used {np.sum(new_mask)} good pixels for computing median flux ratio')
             ratio = np.fmax(np.fmin(flux_ref_median/flux_dat_median, max_factor), 1.0/max_factor)
     else:
         if (np.sum(calc_mask) <= min_good*nspec):
-            msgs.warn('Found only {:} good pixels for computing median flux ratio.'.format(np.sum(calc_mask))
-            + msgs.newline() + 'No median rescaling applied')
+            msgs.warn(
+                f'Found only {np.sum(calc_mask)} good pixels for computing median flux ratio.'
+                + msgs.newline() + 'No median rescaling applied'
+            )
         if (snr_resc_med <= snr_do_not_rescale):
-            msgs.warn('Median flux ratio of pixels in reference spectrum {:} <= snr_do_not_rescale = {:}.'.format(snr_resc_med, snr_do_not_rescale)
-                      + msgs.newline() + 'No median rescaling applied')
+            msgs.warn(
+                f'Median flux ratio of pixels in reference spectrum {snr_resc_med} <= '
+                f'snr_do_not_rescale = {snr_do_not_rescale}.' + msgs.newline()
+                + 'No median rescaling applied'
+            )
         ratio = 1.0
 
     return ratio

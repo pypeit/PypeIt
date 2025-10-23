@@ -1,0 +1,6 @@
+Version 1.18.1
+==============
+
+- Improves documentation for LDT/DeVeny
+- Removes C extension used to accelerate some bspline functions.
+

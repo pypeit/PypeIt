@@ -6,7 +6,6 @@ Class for organizing PypeIt setup
 
 """
 from pathlib import Path
-import time
 import os
 
 from IPython import embed
@@ -15,7 +14,6 @@ from pypeit import msgs
 from pypeit.metadata import PypeItMetaData
 from pypeit import inputfiles
 from pypeit.par import PypeItPar
-from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -222,11 +220,33 @@ class PypeItSetup:
         """
 
         # Configure me
-        cfg_lines = ['[rdx]']
-        cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
+        cfg_lines = ['[rdx]', f'    spectrograph = {spectrograph}']
 
         # Instantiate
         return cls(data_files, cfg_lines=cfg_lines, frametype=frametype)
+    
+    def append_user_cfg(self, user_cfg:list=None):
+        """
+        Append the user-defined configuration lines
+
+        If additional user configuration lines are provided, append them to the
+        extant list of configuration lines.
+
+        .. important::
+            This method does not perform any checking to ensure appended lines
+            are not repeats of existing lines in ``self.user_cfg``.  Since user
+            configuration parameters are applied *last* to the set of reduction
+            parameters, any repeated lines appended here will override user
+            parameters earlier in the list.
+
+        Args:
+            user_cfg (:obj:`list`, optional):
+                List of configuration lines to be added to the parameter block
+                of the pypeit file.
+        """
+        # Append the lines provided to the instance attribute
+        if user_cfg is not None:
+            self.user_cfg.extend(user_cfg)
 
     @property
     def nfiles(self):

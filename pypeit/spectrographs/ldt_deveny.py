@@ -2,16 +2,19 @@
 Module for LDT/DeVeny specific methods.
 
 The DeVeny spectrograph was built at Kitt Peak National Observatory (KPNO)
-and known as the White Spectrograph. It had a long career at the #1 36-inch
-and 84-inch telescopes there before being retired; Lowell Observatory acquired
-the spectrograph from KPNO on indefinite loan in 1998. A new CCD camera was
-built for it, and the instrument was further modified for installation on the
-72-inch Perkins telescope in 2005. Following 8 years of service there, it was
-removed in 2013 for upgrades for installation on the Lowell Discovery Telescope
-(LDT) instrument cube. It has been in service since February 2015. The
-spectrograph was designed for f/7.5 telescope optics, and new re-imaging
-optics were designed and fabricated to match the spectrograph with LDT's
-f/6.1 beam.
+and was known as the White Spectrograph. It had a long career at the #1 36-inch
+and 84-inch telescopes there before being retired. Lowell Observatory acquired
+the spectrograph from KPNO on indefinite loan in 1998 and renamed the
+instrument in honor of the longtime KPNO Instrument Support Scientist Jim
+DeVeny (see `a photo of DeVeny with the spectrograph
+<https://noirlab.edu/public/images/noao-02617/>`__ on the 84-inch telescope).
+A new CCD camera was built for it, and the spectrograph was further modified
+for installation on the 72-inch Perkins telescope in 2005. Following 8 years of
+service there, it was removed in 2013 for upgrades for installation on the
+Lowell Discovery Telescope (LDT) instrument cube. DeVeny has
+been in service at LDT since February 2015. The spectrograph was designed for
+and operates internally with f/7.5 optics; new re-imaging optics were designed
+and fabricated to match the spectrograph with LDT's f/6.1 beam.
 
 .. include:: ../include/links.rst
 """
@@ -20,7 +23,6 @@ import numpy as np
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import io
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -615,13 +617,18 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         msgs.error(f"Pattern noise removal is not yet implemented for spectrograph {self.name}")
         return []
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                       trim_std_pixs=None, log10_blaze_function=None):
         """
         This routine is for performing instrument- and/or disperser-specific
         tweaks to standard stars so that sensitivity function fits will be
         well behaved.
 
         These are tweaks needed by LDT/DeVeny for smooth sensfunc sailing.
+
+        NOTE: if the `trim_std_pixs` parameter is not None, then the standard star spectrum will be only trimmed
+        by the specified number of pixels at the start and end of the spectrum, and no other tweaks will be
+        performed.
 
         Parameters
         ----------
@@ -637,6 +644,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
         log10_blaze_function: `numpy.ndarray`_ or None
             Input blaze function to be tweaked, optional. Default=None.
 
@@ -653,6 +664,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         log10_blaze_function_out: `numpy.ndarray`_ or None
             Output blaze function after being tweaked.
         """
+
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
+
         # First, simply chop off the wavelengths outside physical limits:
         valid_wave = (wave_in >= 2900.0) & (wave_in <= 11000.0)
         wave_out = wave_in[valid_wave]

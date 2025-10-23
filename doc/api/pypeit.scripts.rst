@@ -8,7 +8,6 @@ Submodules
    :maxdepth: 4
 
    pypeit.scripts.arxiv_solution
-   pypeit.scripts.c_enabled
    pypeit.scripts.cache_github_data
    pypeit.scripts.chk_alignments
    pypeit.scripts.chk_edges
