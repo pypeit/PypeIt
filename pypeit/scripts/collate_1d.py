@@ -301,7 +301,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
         # Flux calibrate the spec1d file
         try:
             msgs.info(f"Running flux calibrate on {spec1d_file}")
-            FxCalib = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'],
+            _ = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'],
                                                    chk_version=par['rdx']['chk_version'])
             flux_calibrated_files.append(spec1d_file)
 
