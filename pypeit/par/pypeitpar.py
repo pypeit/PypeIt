@@ -5602,6 +5602,12 @@ class Collate1DPar(ParSet):
         dtypes['outdir'] = str
         descr['outdir'] = "The path where all coadded output files and report files will be placed."
 
+        # User sensfunc file
+        defaults['sensfunc_file'] = None
+        dtypes['sensfunc_file'] = str
+        descr['sensfunc_file'] = "If set, the script will use this sensfunc file for flux calibration instead of " \
+                                "searching the archive."
+
         # Directory for modified spec1d files
         defaults['spec1d_outdir'] = None
         dtypes['spec1d_outdir'] = str

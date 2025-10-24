@@ -283,7 +283,9 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
 
     par['fluxcalib']['extrap_sens'] = True
 
-    sf_archive = SensFileArchive.get_instance(spectrograph.name)
+    sf_archive = None
+    if par['collate1d']['user_sensfile'] is None:
+        sf_archive = SensFileArchive.get_instance(spectrograph.name)
     flux_calibrated_files = []
     for spec1d_file in spec1d_files:
 
@@ -598,6 +600,9 @@ def build_parameters(args):
     if args.flux:
         params['collate1d']['flux'] = True
 
+    if args.user_sensfile is not None:
+        params['collate1d']['user_sensfile'] = args.user_sensfile
+
     if args.outdir is not None:
         params['collate1d']['outdir'] = args.outdir
 
@@ -704,6 +709,7 @@ class Collate1D(scriptbase.ScriptBase):
                                  'Can contain wildcards')
         parser.add_argument('--par_outfile', default=None, type=str,
                             help='Output to save the parameters')
+        parser.add_argument('--user_sensfile', type=str, help=blank_par.descr['user_sensfile'])
         parser.add_argument('--outdir', type=str, help=blank_par.descr['outdir'] + " Defaults to the current directory.")
         parser.add_argument('--spec1d_outdir', type=str, help=blank_par.descr['spec1d_outdir'] + " Defaults to overwriting existing spec1ds.")
         parser.add_argument('--tolerance', type=str, help=blank_par.descr['tolerance'])
