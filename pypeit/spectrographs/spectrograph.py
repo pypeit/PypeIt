@@ -33,14 +33,13 @@ from IPython import embed
 
 import numpy as np
 from astropy.io import fits
-from astropy import units
 
 from pypeit import msgs
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
-from pypeit.core import flux_calib
+from pypeit.core import standard
 from pypeit.core.atmextinction import AtmosphericExtinction
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
@@ -1759,7 +1758,9 @@ class Spectrograph:
                 if ra == 'None' or dec == 'None' or np.isnan(ra) or np.isnan(dec):
                     is_std = np.append(is_std, False)
                 else:
-                    is_std = np.append(is_std, flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True))
+                    is_std = np.append(is_std, 
+                        standard.get_archive_standard(ra, dec, tol=10., check=True)
+                    )
 
             foundstd = indx & is_std
             # turn off the science flag for frames that are found to be standard stars and

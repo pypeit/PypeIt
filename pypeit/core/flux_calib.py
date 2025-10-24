@@ -27,7 +27,6 @@ from pypeit import io
 from pypeit.wavemodel import conv2res
 from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
-from pypeit.core import wave
 from pypeit import dataPaths
 
 
@@ -49,422 +48,10 @@ def zp_unit_const():
                          ).to('Jy')/(3631 * units.Jy)).value
 
 
-def mAB_to_cgs(mAB,wvl):
-    """
-    Convert AB magnitudes to flambda cgs unit erg cm^-2 s^-1 A^-1
-
-    Parameters
-    ----------
-    mAB: float or `numpy.ndarray`_
-        AB magnitudes
-    wvl: float or `numpy.ndarray`_
-        Wavelength in Angstrom
-
-    Returns
-    -------
-    flux density: float or `numpy.ndarray`_
-        f_lambda flux in cgs units
-
-    """
-    return 10**((-48.6-mAB)/2.5)*3*10**18/wvl**2
-
-
-def blackbody_func(a, teff):
-    """
-    Generate a blackbody spectrum based on the normalisation and effective temperature.
-    See Suzuki & Fukugita, 2018, AJ, 156, 219:
-    https://ui.adsabs.harvard.edu/abs/2018AJ....156..219S/abstract
-
-    Parameters
-    ----------
-    a: float
-        flux normalisation factor (dimensionless)
-    teff: float
-        Effective temperature of the blackbody (in units of K)
-
-    Returns
-    -------
-    waves : `numpy.ndarray`
-        wavelengths
-    flam : `numpy.ndarray`
-        flux in units of erg/s/cm^2/A
-
-    """
-    resln = 0.1  # Resolution to generate the blackbody spectrum
-    waves = np.arange(912.0, 26000.0, resln) * units.AA
-    temp = teff * units.K
-    # Calculate the function
-    flam = ((a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c /
-                (waves*constants.k_B*temp)).to(units.m/units.m).value)-1.0)
-    flam = flam.to(units.erg / units.s / units.cm ** 2 / units.AA).value / PYPEIT_FLUX_SCALE
-    return waves.value, flam
-
-
 # Define this global variable to avoid constantly recomputing, which could be
 # costly in the telluric optimization routines.  It has a value of ZP_UNIT_CONST
 # = 40.092117379602044
 ZP_UNIT_CONST = zp_unit_const()
-
-
-def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False, to_pkg=None):
-    """
-    Find a match for the input file to one of the archived
-    standard star files (hopefully).
-    
-    Priority is set by the following search order:
-
-    .. code-block:: python
-
-        ['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'blackbody']
-
-    Parameters
-    ----------
-    ra : float
-        Object right-ascension in decimal deg
-    dec : float
-        Object declination in decimal deg
-    toler : `astropy.units.Quantity`_, optional
-        Tolerance on matching archived standards to input.  Expected
-        to be in arcmin.
-    check : bool, optional
-        If True, the routine will only check to see if a standard
-        star exists within the input ra, dec, and toler range.
-    to_pkg : str, optional
-        Passed directly to
-        :class:`~pypeit.pypeitdata.PypeItDataPath.get_file_path`: If the file is
-        in the cache, this argument affects how the cached file is connected to
-        the package installation.  If ``'symlink'``, a symbolic link is created
-        in the package directory tree that points to the cached file.  If
-        ``'move'``, the cached file is *moved* (not copied) from the cache into
-        the package directory tree.  If anything else (including None), no
-        operation is performed; no warning is issued if the value of ``to_pkg``
-        is not one of these three options (None, ``'symlink'``, or ``'move'``).
-        This argument is ignored if the requested standard file is already in
-        the package directory structure.
-
-    Returns
-    -------
-    star_dict : dict, bool or None
-
-        If ``check`` is True, return True or False depending on if the object is
-        matched to a library standard star.  If ``check`` is False and no match
-        is found, return None.  Otherwise, return a dictionary with the matching
-        standard star with the following meta data:
-
-            - ``cal_file``: str -- Filename table
-            - ``name``: str -- Star name
-            - ``std_ra``: float -- RA(J2000)
-            - ``std_dec``: float -- DEC(J2000)
-
-    """
-    # Priority
-    std_sets = ['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'blackbody']
-
-    # SkyCoord
-    obj_coord = coordinates.SkyCoord(ra, dec, unit='deg')
-
-    # Loop on standard sets
-    closest = dict(sep=999 * units.deg)
-
-    for sset in std_sets:
-        stds_path = dataPaths.standards / sset  # This creates a new PypeItDataPath object
-        star_file = stds_path.get_file_path(f"{sset}_info.txt")
-        if not star_file.is_file():
-            msgs.warn(f"File does not exist!: {star_file}")
-            continue
-
-        star_tbl = table.Table.read(star_file, comment='#', format='ascii')
-        star_coords = coordinates.SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
-                                           unit=(units.hourangle, units.deg))
-        idx, d2d, d3d = coordinates.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
-
-        if d2d < toler:
-            if check:
-                # Found one so return
-                return True
-
-            # There are no actual files for the blackbody spectra.  These are
-            # generated on the fly.  So instead of using the `get_file_path`
-            # function, which will always try to find the file locally or
-            # download it, we directly access the relevant data path and *do
-            # not* check that the file exists.
-            _idx = int(idx)
-            if sset == 'blackbody':
-                cal_file = stds_path.path / star_tbl[_idx]['File'] 
-                msgs.info("Blackbody standard star template will be generated")
-            else:
-                cal_file = stds_path.get_file_path(star_tbl[_idx]['File'], to_pkg=to_pkg)
-                msgs.info(f'Loading standard star file: {cal_file}')
-
-            # Generate a dict
-            std_dict = dict(cal_file=cal_file, name=star_tbl[_idx]['Name'],
-                            # Force the coordinates to be decimal degrees
-                            std_ra=star_coords.ra[_idx].value,
-                            std_dec=star_coords.dec[_idx].value)
-
-            # TODO: Put this stuff in a method, like `read_standard`
-            if sset == 'xshooter':
-                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                std_spec = table.Table.read(cal_file, format='ascii')
-                std_dict['std_source'] = sset
-                std_dict['wave'] = std_spec['col1'] * units.AA
-                std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE * \
-                                   units.erg / units.s / units.cm ** 2 / units.AA
-                # Xshooter standard files use air wavelengths, convert them to vacuum
-                std_dict['wave'] = wave.airtovac(std_dict['wave'])
-            elif sset == 'calspec':
-                std_dict['std_source'] = sset
-                std_spec = io.fits_open(cal_file)[1].data
-                std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
-                std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE \
-                                   * units.erg / units.s / units.cm ** 2 / units.AA
-            elif sset == 'esofil':
-                # NOTE: `cal_file` is a pathlib.Path object
-                if not cal_file.name.startswith('f'):
-                    msgs.error('The ESO reference standard filename must start with the string '
-                               '`f`;  make sure it is the case. Also make sure that the flux '
-                               'units in the file are in 10**(-16) erg/s/cm2/AA.')
-                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                std_spec = table.Table.read(cal_file, format='ascii')
-                std_dict['std_source'] = sset
-                std_dict['wave'] = std_spec['col1'] * units.AA
-                std_dict['flux'] = std_spec['col2']*1e-16/PYPEIT_FLUX_SCALE * \
-                                   units.erg / units.s / units.cm ** 2 / units.AA
-                # At this low resolution, best to throw out entries affected by A and B-band absorption
-                mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
-                std_dict['wave'] = std_dict['wave'][np.logical_not(mask)]
-                std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
-            elif sset == 'noao': #mostly copied from 'esofil', need to convert the flux units
-                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                std_spec = table.Table.read(cal_file, format='ascii')
-                std_dict['std_source'] = sset
-                std_dict['wave'] = std_spec['col1'] * units.AA
-                std_dict['flux'] = mAB_to_cgs(std_spec['col2'],std_spec['col1']) / PYPEIT_FLUX_SCALE * \
-                                   units.erg / units.s / units.cm ** 2 / units.AA
-                # At this low resolution, best to throw out entries affected by A and B-band absorption
-                mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
-                std_dict['wave'] = std_dict['wave'][np.logical_not(mask)]
-                std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
-            elif sset == 'ing':
-                std_spec = table.Table.read(cal_file, format='ascii')
-                std_dict['std_source'] = sset
-                std_dict['wave'] = std_spec['col1'] * units.AA
-                std_dict['flux'] = mAB_to_cgs(std_spec['col2'],std_spec['col1']) / PYPEIT_FLUX_SCALE * \
-                                   units.erg / units.s / units.cm ** 2 / units.AA
-                # At this low resolution, best to throw out entries affected by A and B-band absorption
-                mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
-                std_dict['wave'] = std_dict['wave'][np.logical_not(mask)]
-                std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
-            elif sset == 'blackbody':
-                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                waves, flam = blackbody_func(star_tbl[_idx]['a_x10m23']*BB_SCALE_FACTOR, star_tbl[_idx]['T_K'])
-                std_dict['std_source'] = sset
-                std_dict['wave'] = waves * units.AA
-                std_dict['flux'] = flam * units.erg / units.s / units.cm ** 2 / units.AA
-            else:
-                msgs.error(f'Do not know how to parse {sset} file.')
-            msgs.info("Fluxes are flambda, normalized to 1e-17")
-            return std_dict
-
-        # Save closest found so far
-        imind2d = np.argmin(d2d)
-        mind2d = d2d[imind2d]
-        if mind2d < closest['sep']:
-            closest['sep'] = mind2d
-            # TODO: Is this right? Do we need to use the imind2d from
-            # above?
-            _idx = int(idx)
-            closest.update(dict(name=star_tbl[_idx]['Name'],
-                                # Force the coordinates to be decimal degrees
-                                std_ra=star_coords.ra[_idx].value,
-                                std_dec=star_coords.dec[_idx].value))
-
-    # Standard star not found
-    if check:
-        return False
-
-    msgs.error(f"No standard star was found within a tolerance of {toler}{msgs.newline()}"
-               f"Closest standard was {closest['name']} at separation {closest['sep'].to('arcmin')}")
-
-    return None
-
-
-def stellar_model(V, sptype):
-    """
-    Get the Kurucz stellar model for a given apparent magnitude and spectral type of your standard star.
-    This routine first get the temperature, logg, and bolometric luminosity from the Schmidt-Kaler (1982) table
-    for the given spectral type. It then find the nearest neighbour in the Kurucz stellar atmosphere ATLAS.
-    Finally, the wavelength was converted to Angstrom and the flux density (cgs units) was calculated.
-
-    Parameters
-    ----------
-    V: float
-        Apparent magnitude of the standard star
-    sptype: str
-        Spectral type of the standard star
-
-    Returns
-    -------
-    loglam: `numpy.ndarray`_
-        log wavelengths
-    flux: `numpy.ndarray`_
-        flux density f_lambda (cgs units)
-    """
-
-    # Grab telluric star parameters
-    # log(g) of the Sun
-    logg_sol = np.log10(6.67259e-8) + np.log10(1.989e33) - 2.0 * np.log10(6.96e10)
-
-    # Load Schmidt-Kaler (1982) table
-    sk82_file = dataPaths.standards.get_file_path('kurucz93/schmidt-kaler_table.txt')
-    sk82_tab = ascii.read(sk82_file, names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
-
-    # TODO, currently this only works on select stellar types. Add ability to interpolate across types.
-    # Match input type.
-    mti = np.where(sptype == sk82_tab['Sp'])[0]
-    if len(mti) != 1:
-        raise ValueError('Not ready to interpolate yet.')
-
-    # Calculate final quantities
-    # Relation between radius, temp, and bolometric luminosity
-    logR = 0.2 * (42.26 - sk82_tab['M_bol'][mti[0]] - 10.0 * sk82_tab['logTeff'][mti[0]])
-
-    # Mass-bolometric luminosity relation from schimdt-kaler p28 valid for M_bol < 7.5
-    logM = 0.46 - 0.10 * sk82_tab['M_bol'][mti[0]]
-    logg = logM - 2.0 * logR + logg_sol
-    M_V = sk82_tab['M_V'][mti[0]]
-    Teff = sk82_tab['Teff'][mti[0]]
-
-    # Flux factor (absolute/apparent V mag)
-    # Define constants
-    parsec = constants.pc.cgs  # 3.086e18
-    R_sol = constants.R_sun.cgs  # 6.96e10
-
-    # Distance modulus
-    logd = 0.2 * (V - M_V) + 1.0
-    D = parsec * 10. ** logd
-    R = R_sol * 10. ** logR
-
-    # Factor converts the kurucz surface flux densities to flux observed on Earth
-    flux_factor = (R / D.value) ** 2
-
-    # Grab closest T in Kurucz SEDs
-    T1 = 3000. + np.arange(28) * 250
-    T2 = 10000. + np.arange(6) * 500
-    T3 = 13000. + np.arange(22) * 1000
-    T4 = 35000. + np.arange(7) * 2500
-    Tk = np.concatenate([T1, T2, T3, T4])
-    indT = np.argmin(np.abs(Tk - Teff))
-
-    # Grab closest g in Kurucz SEDs
-    loggk = np.arange(11) * 0.5
-    indg = np.argmin(np.abs(loggk - logg))
-
-    # Grab Kurucz filename
-    std_file = dataPaths.standards.get_file_path(f'kurucz93/kp00/kp00_{int(Tk[indT])}.fits.gz')
-    std = table.Table.read(std_file)
-
-    # Grab specific spectrum
-    loglam = np.array(np.log10(std['WAVELENGTH']))
-    gdict = {0: 'g00', 1: 'g05', 2: 'g10', 3: 'g15', 4: 'g20',
-             5: 'g25', 6: 'g30', 7: 'g35', 8: 'g40', 9: 'g45',
-             10: 'g50'}
-    flux = std[gdict[indg]]
-
-    # scale the model to the V-band magnitude
-    star_lam = 10 ** loglam
-    star_flux = flux.data * flux_factor
-    # Generate a dict matching the output of find_standard_file
-    std_dict = dict(cal_file='KuruczTelluricModel', name=sptype, Vmag=V, std_ra=None, std_dec=None)
-    std_dict['std_source'] = 'KuruczTelluricModel'
-    std_dict['wave'] = star_lam * units.AA
-    std_dict['flux'] = star_flux / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
-
-    return std_dict
-
-
-def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
-    """
-    Get the standard spetrum using given information of your standard/telluric star.
-
-    Parameters
-    ----------
-    star_type: str, optional
-        Spectral type of your standard/telluric star
-    star_mag: float, optional
-        Apparent magnitude of the telluric star
-    ra: float or str, optional
-        Standard right-ascension in decimal degrees (float)
-        -OR-
-        Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
-    dec: float or str, optional
-        Standard declination in decimal degrees (float)
-        -OR-
-        Standard declination in dd:mm:ss string format (e.g., 52:52:01.0')
-
-    Returns
-    -------
-    std_dict: dict
-        Dictionary containing the information you provided and the
-        standard/telluric spectrum.
-    """
-    # Create star model
-    if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
-        # Pull star spectral model from archive
-        msgs.info("Getting archival standard spectrum")
-        # Grab closest standard within a tolerance
-        std_dict = find_standard_file(ra, dec,to_pkg='symlink')
-
-    elif (star_mag is not None) and (star_type is not None):
-        ## using vega spectrum
-        if 'A0' in star_type:
-            msgs.info('Getting vega spectrum')
-            ## Vega model from TSPECTOOL
-            vega_file = dataPaths.standards.get_file_path('vega_tspectool_vacuum.dat')
-            vega_data = table.Table.read(vega_file, comment='#', format='ascii')
-            std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, Vmag=star_mag,
-                            std_ra=ra, std_dec=dec)
-            std_dict['std_source'] = 'VEGA'
-            std_dict['wave'] = vega_data['col1'] * units.AA
-
-            # vega is V=0.03
-            std_dict['flux'] = vega_data['col2'] * 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
-                               units.erg / units.s / units.cm ** 2 / units.AA
-        elif 'PHOENIX' in star_type:
-            msgs.info('Getting PHOENIX 10000 K, logg = 4.0 spectrum')
-            ## Vega model from TSPECTOOL
-            vega_file = dataPaths.standards.get_file_path('PHOENIX_10000K_4p0.fits')
-            vega_data = table.Table.read(vega_file, format='fits')
-            std_dict = dict(cal_file='PHOENIX_10000K_4p0', name=star_type, Vmag=star_mag,
-                            std_ra=ra, std_dec=dec)
-            std_dict['std_source'] = 'VEGA'
-            std_dict['wave'] = vega_data['Wavelength'] * units.AA
-
-            # vega is V=0.03
-            std_dict['flux'] = vega_data['Flux'] *1e-11* 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
-                               units.erg / units.s / units.cm ** 2 / units.AA
-        elif 'NONE' == star_type:
-            msgs.info('Setting Standard to Continuum')
-            ## Vega model from TSPECTOOL
-            std_dict = dict(cal_file='continuum', name=star_type, Vmag=star_mag,
-                            std_ra=ra, std_dec=dec)
-            std_dict['std_source'] = 'continuum'
-            std_dict['wave'] = np.arange(2000,50000,1.0)*units.AA
-
-            std_dict['flux'] = np.ones(np.shape(std_dict['wave']))*units.erg/units.s/units.cm**2/units.AA
-                               #units.erg / units.s / units.cm ** 2 / units.AA
-        ## using Kurucz stellar model
-        else:
-            # Create star spectral model
-            msgs.info("Getting kurucz+93 stellar model")
-            std_dict = stellar_model(star_mag, star_type)
-            std_dict['std_ra'] = ra
-            std_dict['std_dec'] = dec
-    else:
-        msgs.error('Insufficient information provided for fluxing. '
-                   'Either the coordinates of the standard or a stellar type and magnitude are needed.')
-
-    return std_dict
 
 
 ### Routines for standard sensfunc started from here
@@ -500,30 +87,7 @@ def find_standard(specobj_list):
     return mxix
 
 
-#def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
-#                        longitude=None, latitude=None):
-#    """ Apply the sensitivity function to the data
-#    We also correct for extinction.
-#
-#    Parameters
-#    ----------
-#    spec_obj : dict
-#        SpecObj
-#    sens_dict : dict
-#        Sens Function dict
-#    airmass : float
-#        Airmass
-#    exptime : float
-#        Exposure time in seconds
-#    longitude : float
-#        longitude in degree for observatory
-#    latitude: float
-#        latitude in degree for observatory. Used for extinction
-#        correction
-#    """
-
-
-def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, atmext, ech_orders=None,
+def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_spec, atmext, ech_orders=None,
              mask_hydrogen_lines=True, mask_helium_lines=False,
              polyorder=4, hydrogen_mask_wid=10.0, nresln=20., resolution=3000.,
              trans_thresh=0.9,polycorrect=True, polyfunc=False, debug=False):
@@ -548,8 +112,8 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
             Exposure time in seconds
         airmass (float):
             Airmass
-        std_dict (dict):
-            Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
+        std_spec (:class:`~pypeit.core.spectrum.Spectrum`):
+            Spectrum of the flux-calibration standard.
         atmext (:class:`~pypeit.core.atmextinction.AtmosphericExtinction`):
             Class that provides the interface to the atmospheric extinction data.
         ech_orders (int `numpy.ndarray`_):
@@ -596,7 +160,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
                                                              mask_arr[:,iord], exptime, airmass, atmext)
         # Fit the zeropoint
         zeropoint_data[:, iord], zeropoint_data_gpm[:, iord], zeropoint_fit[:, iord], zeropoint_fit_gpm[:, iord], =\
-            fit_zeropoint(wave_arr[:,iord], Nlam_star, Nlam_star_ivar, gpm_star, std_dict,
+            fit_zeropoint(wave_arr[:,iord], Nlam_star, Nlam_star_ivar, gpm_star, std_spec,
                           mask_hydrogen_lines=mask_hydrogen_lines, mask_helium_lines=mask_helium_lines,
                           polyorder=polyorder,
                           hydrogen_mask_wid=hydrogen_mask_wid, nresln=nresln, resolution=resolution, trans_thresh=trans_thresh,
@@ -609,10 +173,10 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     meta_table = table.Table(meta={'name': 'Parameter Values'})
     meta_table['EXPTIME'] = [exptime]
     meta_table['AIRMASS'] = [airmass]
-    meta_table['STD_RA'] = [std_dict['std_ra']]
-    meta_table['STD_DEC'] = [std_dict['std_dec']]
-    meta_table['STD_NAME'] = [std_dict['name']]
-    meta_table['CAL_FILE'] = [std_dict['cal_file']]
+    meta_table['STD_RA'] = [std_spec.meta['ra_deg']]
+    meta_table['STD_DEC'] = [std_spec.meta['dec_deg']]
+    meta_table['STD_NAME'] = [std_spec.meta['Name']]
+    meta_table['CAL_FILE'] = [std_spec.meta['File']]
     if ech_orders is not None:
         meta_table['ECH_ORDERS'] = [ech_orders]
     # Allocate the output table, ext=2
@@ -772,7 +336,7 @@ def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, atmext
     return Nlam_star, Nlam_ivar_star, gpm_star
 
 
-def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_spec,
                   mask_hydrogen_lines=True, mask_helium_lines=False,
                   polyorder=4, hydrogen_mask_wid=10.0,
                   nresln=20., resolution=3000.,
@@ -794,8 +358,8 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
             Inverse variance of Nlam_star
         gpm_star (`numpy.ndarray`_):
             Good pixel mask for Nlam_star
-        std_dict (dict):
-            Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
+        std_spec (:class:`~pypeit.core.spectrum.Spectrum`):
+            Spectrum of the flux-calibration standard.
         mask_hydrogen_lines (bool, optional):
             If True, mask stellar hydrogen absorption lines before fitting sensitivity function. Default = True
         mask_helium_lines (bool, optional):
@@ -829,22 +393,22 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
     """
 
     # Interpolate the standard star onto the current set of observed wavelengths
-    flux_true = interpolate.interp1d(std_dict['wave'], std_dict['flux'], bounds_error=False,
+    flux_true = interpolate.interp1d(std_spec.wave, std_spec.flux, bounds_error=False,
                                      fill_value='extrapolate')(wave)
     # Do we need to extrapolate? TODO Replace with a model or a grey body?
     ## TODO This is an ugly hack. Why are we only triggering this if the extrapolated star is negative.
     if np.min(flux_true) <= 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
-        pypeitFit = fitting.robust_fit(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
-                                                    maxiter=50, lower=3.0, upper=3.0, maxrej=3,
-                                                    grow=0, sticky=True, use_mad=True)
+        pypeitFit = fitting.robust_fit(
+            std_spec.wave, std_spec.flux,8,function='polynomial', maxiter=50, lower=3.0, upper=3.0,
+            maxrej=3, grow=0, sticky=True, use_mad=True
+        )
         star_poly = pypeitFit.eval(wave)
         #flux_true[mask_model] = star_poly[mask_model]
         flux_true = star_poly.copy()
         if debug:
-            plt.plot(std_dict['wave'], std_dict['flux'],'bo',label='Raw Star Model')
-            plt.plot(std_dict['wave'],  pypeitFit.eval(std_dict['wave'].value),
-                     'k-',label='robust_poly_fit')
+            plt.plot(std_spec.wave, std_spec.flux, 'bo', label='Raw Star Model')
+            plt.plot(std_spec.wave,  pypeitFit.eval(std_spec.wave), 'k-',label='robust_poly_fit')
             plt.plot(wave,flux_true,'r-',label='Your Final Star Model used for sensfunc')
             plt.show()
 

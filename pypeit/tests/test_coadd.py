@@ -5,16 +5,16 @@ import pytest
 
 from pypeit.pypmsgs import PypeItError
 from pypeit.core import coadd
-from pypeit.core import flux_calib
+from pypeit.core import standard
 from pypeit.core import meta
 
 def test_robust_median():
     # Build some test spectra
     ra, dec = meta.convert_radec('00:31:18.49', '-43:36:23')
-    std_dict = flux_calib.get_standard_spectrum(ra=ra, dec=dec)
-    indx = (std_dict['wave'].value > 3100.) & (std_dict['wave'].value < 9000.)
-    wave = std_dict['wave'].value[indx]
-    flux_ref = std_dict['flux'].value[indx]
+    std_spec = standard.get_standard_spectrum(ra=ra, dec=dec)
+    indx = (std_spec.wave > 3100.) & (std_spec.wave < 9000.)
+    wave = std_spec.wave[indx]
+    flux_ref = std_spec.flux[indx]
     ivar_ref = (100/flux_ref)**2
     assert np.all(np.isfinite(ivar_ref)), 'Spectrum changed'
     mask_ref = ivar_ref > 0.
@@ -53,10 +53,10 @@ def test_median_filt_spec():
 
     # Read in an example spectrum
     ra, dec = meta.convert_radec('00:31:18.49', '-43:36:23')
-    std_dict = flux_calib.get_standard_spectrum(ra=ra, dec=dec)
-    indx = (std_dict['wave'].value > 3100.) & (std_dict['wave'].value < 9000.)
-    wave = std_dict['wave'].value[indx]
-    flux = std_dict['flux'].value[indx]
+    std_spec = standard.get_standard_spectrum(ra=ra, dec=dec)
+    indx = (std_spec.wave > 3100.) & (std_spec.wave < 9000.)
+    wave = std_spec.wave[indx]
+    flux = std_spec.flux[indx]
     ivar = (100/flux)**2
     assert np.all(np.isfinite(ivar)), 'Spectrum changed'
     mask = ivar > 0.
@@ -84,10 +84,10 @@ def test_poly_model_eval():
 def test_solve_poly_ratio():
     # Build some test spectra
     ra, dec = meta.convert_radec('00:31:18.49', '-43:36:23')
-    std_dict = flux_calib.get_standard_spectrum(ra=ra, dec=dec)
-    indx = (std_dict['wave'].value > 3100.) & (std_dict['wave'].value < 9000.)
-    wave = std_dict['wave'].value[indx]
-    flux_ref = std_dict['flux'].value[indx]
+    std_spec = standard.get_standard_spectrum(ra=ra, dec=dec)
+    indx = (std_spec.wave > 3100.) & (std_spec.wave < 9000.)
+    wave = std_spec.wave[indx]
+    flux_ref = std_spec.flux[indx]
     ivar_ref = (100/flux_ref)**2
     assert np.all(np.isfinite(ivar_ref)), 'Spectrum changed'
     mask_ref = ivar_ref > 0.
