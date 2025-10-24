@@ -5555,7 +5555,7 @@ class Collate1DPar(ParSet):
     """
     def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None,
                  exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None,
-                 spec1d_outdir=None, refframe=None):
+                 sensfunc_file=None, spec1d_outdir=None, refframe=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -5652,8 +5652,8 @@ class Collate1DPar(ParSet):
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
         parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using',
-                   'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir',
-                   'wv_rms_thresh', 'refframe']
+                   'exclude_slit_trace_bm', 'exclude_serendip', 'sensfunc_file',
+                   'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
