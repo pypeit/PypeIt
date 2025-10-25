@@ -5555,7 +5555,7 @@ class Collate1DPar(ParSet):
     """
     def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None,
                  exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None,
-                 sensfunc_file=None, spec1d_outdir=None, refframe=None):
+                 user_sensfile=None, spec1d_outdir=None, refframe=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -5603,9 +5603,9 @@ class Collate1DPar(ParSet):
         descr['outdir'] = "The path where all coadded output files and report files will be placed."
 
         # User sensfunc file
-        defaults['sensfunc_file'] = None
-        dtypes['sensfunc_file'] = str
-        descr['sensfunc_file'] = "If set, the script will use this sensfunc file for flux calibration instead of " \
+        defaults['user_sensfile'] = None
+        dtypes['user_sensfile'] = str
+        descr['user_sensfile'] = "If set, the script will use this sensfunc file for flux calibration instead of " \
                                 "searching the archive."
 
         # Directory for modified spec1d files
@@ -5652,7 +5652,7 @@ class Collate1DPar(ParSet):
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
         parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using',
-                   'exclude_slit_trace_bm', 'exclude_serendip', 'sensfunc_file',
+                   'exclude_slit_trace_bm', 'exclude_serendip', 'user_sensfile',
                    'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe']
 
         badkeys = np.array([pk not in parkeys for pk in k])
