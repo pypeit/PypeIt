@@ -50,6 +50,9 @@ Testing
 Under-the-hood Improvements
 ---------------------------
 
+- Improved extension checking for post-processing scripts to explicitely
+  allow PypeIt-produced ".fits" files regardless of a given spectrograph's
+  raw data extension.
 
 
 Bug Fixes

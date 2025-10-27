@@ -148,4 +148,39 @@ def test_atmext():
     atmext = spec.get_atmospheric_extinction('mkoextinct.dat')
     assert atmext.file == 'mkoextinct.dat', 'Used wrong extinction file'
 
+def test_load_spectrograph():
 
+    # Basic test
+    spec = load_spectrograph('shane_kast_blue')
+    assert isinstance(spec, spectrographs.spectrograph.Spectrograph), 'Not a Spectrograph class'
+
+    # Load using existing class
+    spec2 = load_spectrograph(spec)
+    assert isinstance(spec2, spectrographs.spectrograph.Spectrograph), 'Not a Spectrograph class'
+
+    # Load using a single processed data file
+    raw_file = dataPaths.tests.get_file_path('spec1d_b28.fits', to_pkg='symlink')
+    spec3 = load_spectrograph(raw_file)
+    assert isinstance(spec3, spectrographs.spectrograph.Spectrograph), 'Not a Spectrograph class'
+    assert spec3.name == 'shane_kast_blue'
+    assert spec3.allowed_extensions == ['.fits', '.fits.gz'], 'Found wrong extensions'
+
+    # None in --> None out
+    spec4 = load_spectrograph(None)
+    assert spec4 is None
+
+    # Test the allowed extensions for an oddball spectrograph
+    spec5 = load_spectrograph('soar_goodman_red')
+    assert spec5.allowed_extensions == [".fz"], 'Found wrong extensions'
+
+    # Call as it from a post-processing script
+    spec6 = load_spectrograph('soar_goodman_red', pypeit_fits=True)
+    assert spec6.allowed_extensions == [".fits"], 'Postproc scripts only allow .fits'
+
+    # Call using instance and from a post-processing script
+    spec7 = load_spectrograph(spec5, pypeit_fits=True)
+    assert spec7.allowed_extensions == [".fits"], 'Postproc scripts only allow .fits'
+
+    # Call using a single processed data file, and from a post-processing script
+    spec8 = load_spectrograph(raw_file, pypeit_fits=True)
+    assert spec8.allowed_extensions == [".fits"], 'Postproc scripts only allow .fits'

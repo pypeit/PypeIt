@@ -318,7 +318,7 @@ class CoAdd2D:
             msgs.error(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
                         'using the command-line option.')
         return f"{frsthdr['FILENAME'].split('.fits')[0]}-" \
-                f"{lasthdr['FILENAME'].split('.fits')[0]}-{frsthdr['TARGET']}"
+                f"{lasthdr['FILENAME'].split('.fits')[0]}-{frsthdr['TARGET'].replace(' ','')}"
 
     @staticmethod
     def output_paths(spec2d_files, par, coadd_dir=None):

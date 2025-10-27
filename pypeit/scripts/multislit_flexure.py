@@ -55,7 +55,7 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
 
         # Read in spectrograph from spec1dfile header
         header = fits.getheader(flexFile.filenames[0])
-        spectrograph = load_spectrograph(header['PYP_SPEC'])
+        spectrograph = load_spectrograph(header['PYP_SPEC'], pypeit_fits=True)
 
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()

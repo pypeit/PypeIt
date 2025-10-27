@@ -92,6 +92,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # or use the overscan for standards but not for science frames
 
         # Set the default exposure time ranges for the frame typing
+        # HIRES cannot write out files with exp time < .5s, .001 for biases is arbitrary
+        # If this value is changed, change the check in compound_meta for idname too   
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
@@ -298,7 +300,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
                     return 'Object'
                 elif not headarr[0].get('HATOPEN'):
-                    return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
+                    # Note that the check below ignores the bias exprng set in the
+                    # default pypeit par because that information is not available here
+                    return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
             elif xcovopen and collcoveropen and \
                     headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
                 return 'Line'
