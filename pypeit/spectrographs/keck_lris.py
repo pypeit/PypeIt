@@ -93,6 +93,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['illumflatframe']['exprng'] = [0, 60]
         par['calibrations']['slitless_pixflatframe']['exprng'] = [0, 60]
         par['calibrations']['standardframe']['exprng'] = [1, 121]
+        par['scienceframe']['exprng'] = [61, None]
 
         # Set default processing for slitless_pixflat
         par['calibrations']['slitless_pixflatframe']['process']['scale_to_mean'] = True
@@ -108,9 +109,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         #   May not want to do them for LongSlit
         par['scienceframe']['process']['spat_flexure_correct'] = True
         par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
-
-        par['scienceframe']['exprng'] = [61, None]
-
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
