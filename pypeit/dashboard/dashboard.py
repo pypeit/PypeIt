@@ -185,7 +185,7 @@ class DashboardWidget(FilledBackgroundWidget):
         
 class MainWindow(QWidget):
     
-    def __init__(self,app):
+    def __init__(self):
         super().__init__()
 
         layout = QHBoxLayout()
@@ -201,6 +201,7 @@ class MainWindow(QWidget):
         self.setLayout(layout)
 
     def start_controller(self):
+        # can edit this line of code to contain extra arguments which will be good for edit setup maybe
         subprocess.Popen([sys.executable, "-m", "controller_runner"])
 
     
