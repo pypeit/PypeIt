@@ -355,7 +355,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         no_img = np.array([d not in ['Mirror', 'mirror', 'clear'] for d in fitstbl['dispname']])
 
         # Check frame type
-        if ftype in ['science','standard']:
+        if ftype == 'science':
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
+        if ftype == 'standard':
             std = np.zeros(len(fitstbl), dtype=bool)
             if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
                 std = np.array([
@@ -1012,6 +1014,11 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['slitedges']['smash_range'] = [0.5, 1.]
 
+        # Slit tracing
+        # This might only be required for det=2, but we'll see..
+        if 'long' in self.get_meta_value(scifile, 'decker'):
+            par['calibrations']['slitedges']['edge_thresh'] = 50.
+
         # Return
         return par
 
@@ -1472,8 +1479,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # This might only be required for det=2, but we'll see..
         if 'long' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['edge_thresh'] = 50.
-            par['calibrations']['slitedges']['det_buffer'] = 0
-            par['calibrations']['slitedges']['clip'] = False
+            # par['calibrations']['slitedges']['det_buffer'] = 0
+            # par['calibrations']['slitedges']['clip'] = False
 
 
         # Return
