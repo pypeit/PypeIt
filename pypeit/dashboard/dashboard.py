@@ -2,6 +2,7 @@ import sys
 import subprocess
 from pathlib import Path
 from pypeit import msgs
+import zmq
 
 from qtpy.QtCore import QTimer, QSize, Qt, QMargins
 from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter
@@ -197,12 +198,25 @@ class MainWindow(QWidget):
         # -------- connections ---------
         setup_widget.open_setup_button.clicked.connect(self.start_controller)
 
-
         self.setLayout(layout)
 
+        # start the zmq context
+        # maybe make this its own function
+    def start_zmq(self):
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.REQ)
+        self.socket.connect("tcp://localhost:5555")
+
     def start_controller(self):
+        request = b'open setup'
+        print(f"Sending request {request} ...")
+        self.socket.send(request)
+
+        #  Get the reply.
+        message = self.socket.recv()
+        print(f"Recieved message {message}")
+
         # can edit this line of code to contain extra arguments which will be good for edit setup maybe
-        subprocess.Popen([sys.executable, "-m", "controller_runner"])
 
     
 def main():
@@ -231,11 +245,13 @@ def main():
         app.setFont(defaultFont)
 
 
-    main_window = MainWindow(app)
+    main_window = MainWindow()
     main_window.setWindowTitle(main_window.tr("PypeIt Dashboard"))
     main_window.resize(1650,900)
     main_window.show()
 
+    subprocess.Popen([sys.executable, "-m", "controller_runner"]) # starting the controller runnner file
+    main_window.start_zmq()
     # --------------------- this is for the SetupGUIController ----------------         
 
     # QT runs it's event loop in C, so the python signal handling mechanism
