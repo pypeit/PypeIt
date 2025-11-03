@@ -1,0 +1,35 @@
+# Auto-generated PypeIt file
+# Tue 16 Feb 2021 12:35:44
+
+# User-defined execution parameters
+[rdx]
+  spectrograph = keck_deimos
+  detnum = (3,7)
+[calibrations]
+    [[slitedges]]
+         edge_thresh = 5
+         maskdesign_maxsep = 120
+
+# Setup
+setup read
+    Setup A:
+         dispname: 1200B
+           decker: LVMslitC
+          binning: 1,1
+        dispangle: 5200.01708984
+              amp: SINGLE:B
+setup end
+
+# Read in the data
+data read
+ path /Users/dpelliccia/PypeIt/PypeIt-development-suite/RAW_DATA/keck_deimos/1200B_LVMC_5200
+|               filename |                 frametype |                ra |               dec |  target | dispname |   decker | binning |          mjd |    airmass | exptime |     dispangle |      amp |    dateobs |         utc |
+| DE.20170915.19052.fits |                   science | 265.9826666666666 | 5.413333333333334 | Kopff27 |    1200B | LVMslitC |     1,1 | 58011.220434 | 1.05451529 |   120.0 | 5200.01708984 | SINGLE:B | 2017-09-15 | 05:17:32.18 |
+| DE.20170915.05267.fits |                  arc,tilt | 57.99999999999999 |              45.0 | unknown |    1200B | LVMslitC |     1,1 | 58011.060876 | 1.41291034 |    60.0 | 5200.01708984 | SINGLE:B | 2017-09-15 | 01:27:47.37 |
+| DE.20170915.07541.fits |                  arc,tilt | 57.99999999999999 |              45.0 | unknown |    1200B | LVMslitC |     1,1 | 58011.087208 | 1.41291034 |     1.0 | 5200.01708984 | SINGLE:B | 2017-09-15 | 02:05:41.54 |
+| DE.20170915.07619.fits |                  arc,tilt | 57.99999999999999 |              45.0 | unknown |    1200B | LVMslitC |     1,1 | 58011.088119 | 1.41291034 |    60.0 | 5200.01708984 | SINGLE:B | 2017-09-15 | 02:06:59.69 |
+| DE.20170915.07757.fits |                  arc,tilt | 57.99999999999999 |              45.0 | unknown |    1200B | LVMslitC |     1,1 | 58011.089711 | 1.41291034 |    45.0 | 5200.01708984 | SINGLE:B | 2017-09-15 | 02:09:17.69 |
+| DE.20170915.08198.fits | pixelflat,illumflat,trace | 57.99999999999999 |              45.0 | unknown |    1200B | LVMslitC |     1,1 | 58011.094801 | 1.41291034 |    29.0 | 5200.01708984 | SINGLE:B | 2017-09-15 | 02:16:38.04 |
+| DE.20170915.08295.fits | pixelflat,illumflat,trace | 57.99999999999999 |              45.0 | unknown |    1200B | LVMslitC |     1,1 | 58011.095932 | 1.41291034 |    29.0 | 5200.01708984 | SINGLE:B | 2017-09-15 | 02:18:15.75 |
+| DE.20170915.08394.fits | pixelflat,illumflat,trace | 57.99999999999999 |              45.0 | unknown |    1200B | LVMslitC |     1,1 | 58011.097083 | 1.41291034 |    29.0 | 5200.01708984 | SINGLE:B | 2017-09-15 | 02:19:54.65 |
+data end
