@@ -9,6 +9,9 @@ from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter
 from qtpy.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QGridLayout, QLabel, QProgressBar,QTabWidget, QListWidget, QAbstractItemView
 import qtpy
 
+# from pypeit.setup_gui.controller import start_gui
+# from pypeit.scripts import setup
+
 class FilledBackgroundWidget(QWidget):
     def __init__(self, color=None):
         super().__init__()
@@ -183,7 +186,14 @@ class DashboardWidget(FilledBackgroundWidget):
         layout.addWidget(tab_widget, 3)
         self.setLayout(layout)
 
-        
+
+
+# what does each button do. 
+# the open setup button opens the setup at the current stage/ state
+# edit setup allows you to enter a different setup file
+# run all starts running the tasks and run does this step by step
+# help does something
+
 class MainWindow(QWidget):
     
     def __init__(self):
@@ -197,28 +207,18 @@ class MainWindow(QWidget):
 
         # -------- connections ---------
         setup_widget.open_setup_button.clicked.connect(self.start_controller)
+        setup_widget.edit_setup_button.clicked.connect(self.edit_setup_file)
 
         self.setLayout(layout)
-
-        # start the zmq context
-        # maybe make this its own function
-    def start_zmq(self):
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
-        self.socket.connect("tcp://localhost:5555")
-
     def start_controller(self):
-        request = b'open setup'
-        print(f"Sending request {request} ...")
-        self.socket.send(request)
+        command = ["pypeit_setup","--gui"]
+        subprocess.Popen(command) # starting the controller runnner file
+        # need to find the way to run this but it will be via a subprocess
 
-        #  Get the reply.
-        message = self.socket.recv()
-        print(f"Recieved message {message}")
+        
+    def edit_setup_file(self):
+        file_path = b"setup_file=./sample_pypeit_file.pypeit"
 
-        # can edit this line of code to contain extra arguments which will be good for edit setup maybe
-
-    
 def main():
         # Note QT expects the program name as arg 0
     app = QApplication(sys.argv)
@@ -250,8 +250,8 @@ def main():
     main_window.resize(1650,900)
     main_window.show()
 
-    subprocess.Popen([sys.executable, "-m", "controller_runner"]) # starting the controller runnner file
-    main_window.start_zmq()
+    # subprocess.Popen([sys.executable, "-m", "controller_runner"]) # starting the controller runnner file
+    # main_window.start_zmq()
     # --------------------- this is for the SetupGUIController ----------------         
 
     # QT runs it's event loop in C, so the python signal handling mechanism
