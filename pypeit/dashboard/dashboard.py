@@ -6,7 +6,7 @@ import zmq
 
 from qtpy.QtCore import QTimer, QSize, Qt, QMargins
 from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter
-from qtpy.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QGridLayout, QLabel, QProgressBar,QTabWidget, QListWidget, QAbstractItemView
+from qtpy.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QGridLayout, QLabel, QProgressBar,QTabWidget, QListWidget, QAbstractItemView, QFileDialog
 import qtpy
 
 # from pypeit.setup_gui.controller import start_gui
@@ -194,6 +194,23 @@ class DashboardWidget(FilledBackgroundWidget):
 # run all starts running the tasks and run does this step by step
 # help does something
 
+def parse_pypeit_setup_file(file_path):
+    """
+    takes in a file path for a pypeit_setup file
+
+    args: file path of the pypeit_setup file
+
+    returns: tuple of (spectrograph, RAW_PATH)
+
+    TODO: add checking to make sure it is a valid pypeit file (aka RAW_PATH and spectrograph exist)
+    """
+    # in a setup file there is something that says (spectrograph)
+    # there is also the RAW_PATH
+    #    data read
+    # path /Users/dpelliccia/PypeIt/PypeIt-development-suite/RAW_DATA/keck_deimos/1200B_LVMC_5200ass
+    # needs to search for both
+    pass
+
 class MainWindow(QWidget):
     
     def __init__(self):
@@ -204,20 +221,31 @@ class MainWindow(QWidget):
         dashboard_widget = DashboardWidget()
         layout.addWidget(setup_widget,alignment=Qt.AlignmentFlag.AlignTop)
         layout.addWidget(dashboard_widget,stretch=3)
+        self.open_command = ["pypeit_setup","--gui"]
+        self.run_command = ["run_pypeit"] # incomplete command currently. needs the pypeit_setup file
 
         # -------- connections ---------
         setup_widget.open_setup_button.clicked.connect(self.start_controller)
         setup_widget.edit_setup_button.clicked.connect(self.edit_setup_file)
 
         self.setLayout(layout)
-    def start_controller(self):
-        command = ["pypeit_setup","--gui"]
-        subprocess.Popen(command) # starting the controller runnner file
-        # need to find the way to run this but it will be via a subprocess
 
-        
+    def start_controller(self):
+        subprocess.Popen(self.open_command) # starting the controller runnner file
+ 
     def edit_setup_file(self):
-        file_path = b"setup_file=./sample_pypeit_file.pypeit"
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select a PypeIt setup file",
+            "",
+            "All files (*)" 
+        )
+
+        if file_path: 
+            self.file_path = file_path
+        # if the file entered is a pypeit setup file then the program will have to read through the setup file and find the raw path and the spectrograph from the file
+        # if the file is a raw path then we have the raw path, if file is spectrograph then we have a spectrograph
+        # pypeit_setup -r ${RAW_PATH}/b -s shane_kast_blue -c A
 
 def main():
         # Note QT expects the program name as arg 0
@@ -250,8 +278,6 @@ def main():
     main_window.resize(1650,900)
     main_window.show()
 
-    # subprocess.Popen([sys.executable, "-m", "controller_runner"]) # starting the controller runnner file
-    # main_window.start_zmq()
     # --------------------- this is for the SetupGUIController ----------------         
 
     # QT runs it's event loop in C, so the python signal handling mechanism
