@@ -1,5 +1,6 @@
 import sys
 import subprocess
+import re
 from pathlib import Path
 from pypeit import msgs
 import zmq
@@ -37,7 +38,7 @@ class ButtonWidget(FilledBackgroundWidget):
         self.help_button = QPushButton()
 
         self.test_icons = [(QIcon.ThemeIcon.DocumentOpen, "Open Setup", self.open_setup_button),
-                           (QIcon.ThemeIcon.InputKeyboard, "Edit Setup", self.edit_setup_button),
+                           (QIcon.ThemeIcon.InputKeyboard, "Import Setup", self.edit_setup_button),
                            (QIcon.ThemeIcon.MediaSeekForward, "Run All", self.run_all_button),
                            (QIcon.ThemeIcon.MediaSkipForward, "Run Next", self.run_next_button),
                            (QIcon.ThemeIcon.HelpFaq, "Help", self.help_button),
@@ -201,15 +202,27 @@ def parse_pypeit_setup_file(file_path):
     args: file path of the pypeit_setup file
 
     returns: tuple of (spectrograph, RAW_PATH)
-
-    TODO: add checking to make sure it is a valid pypeit file (aka RAW_PATH and spectrograph exist)
     """
-    # in a setup file there is something that says (spectrograph)
-    # there is also the RAW_PATH
-    #    data read
-    # path /Users/dpelliccia/PypeIt/PypeIt-development-suite/RAW_DATA/keck_deimos/1200B_LVMC_5200ass
-    # needs to search for both
-    pass
+    with open(file_path,"r") as setup:
+        # contents = setup.readlines()
+        spectrograph = None
+        raw_path = None
+        spectrograph_search_string = r'^\s*spectrograph\s*=\s*(\S+)' # this should give the spectrograph after the word spectrograph = 
+        file_path_search_string = r'^\s*#?\s*path\s+(.+)' # thi should give the path after the word path
+
+        # spectrograph = keck_deimos
+        while spectrograph == None:
+            line = setup.readline() # I am pretty sure this will go through each line instead of the same line
+            spectrograph = re.search(spectrograph_search_string,line)
+
+        while raw_path == None:
+            line = setup.readline()
+            raw_path = re.search(file_path_search_string,line)
+        
+        spectrograph = spectrograph.group(1)
+        raw_path = raw_path.group(1)
+
+    return (spectrograph,raw_path)
 
 class MainWindow(QWidget):
     
@@ -226,26 +239,32 @@ class MainWindow(QWidget):
 
         # -------- connections ---------
         setup_widget.open_setup_button.clicked.connect(self.start_controller)
-        setup_widget.edit_setup_button.clicked.connect(self.edit_setup_file)
+        setup_widget.edit_setup_button.clicked.connect(self.import_setup_file)
 
         self.setLayout(layout)
 
     def start_controller(self):
         subprocess.Popen(self.open_command) # starting the controller runnner file
  
-    def edit_setup_file(self):
+    def import_setup_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select a PypeIt setup file",
             "",
-            "All files (*)" 
+            "PypeIt (*.pypeit)" 
         )
 
         if file_path: 
             self.file_path = file_path
-        # if the file entered is a pypeit setup file then the program will have to read through the setup file and find the raw path and the spectrograph from the file
-        # if the file is a raw path then we have the raw path, if file is spectrograph then we have a spectrograph
-        # pypeit_setup -r ${RAW_PATH}/b -s shane_kast_blue -c A
+
+        spectrograph,raw_path = parse_pypeit_setup_file(file_path)
+        # TODO: check if the spectrograph and most importantly the raw_path actually exist
+        # update the open command to have these
+        print(spectrograph,raw_path)
+
+        # this will contain the pypeit setup file path that can be used for run
+        # when importing a pypeit setup file. updates should happen to the display and the open_command (should call parse_pypeit_setup_file)
+        # should add a progress bar for checking if the file exists
 
 def main():
         # Note QT expects the program name as arg 0
