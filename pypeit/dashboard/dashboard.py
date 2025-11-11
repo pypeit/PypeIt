@@ -13,6 +13,13 @@ import qtpy
 # from pypeit.setup_gui.controller import start_gui
 # from pypeit.scripts import setup
 
+"""
+TODO: give a meta view and specific (show meta step, what step of that step are we one, what step of that step are we on)
+make another tab next to qa and science that shows the logs of run_pypeit
+
+NOTE: args is argparse so the arguments you put in the terminal
+"""
+
 class FilledBackgroundWidget(QWidget):
     def __init__(self, color=None):
         super().__init__()
@@ -89,55 +96,55 @@ class StatusWidget(FilledBackgroundWidget):
         setup_file_label = QLabel(text="Setup File")
         layout.addWidget(setup_file_label,0,0,1,1)#,alignment=Qt.AlignmentFlag.AlignLeft)
 
-        l = QLabel(text="keck_deimos_830g_m_8500.pypeit")
-        l.setContentsMargins(value_cm)
-        l.setStyleSheet(value_style_sheet)
-        layout.addWidget(l,0,1,1,1)
+        self.setup_file = QLabel(text="keck_deimos_830g_m_8500.pypeit")
+        self.setup_file.setContentsMargins(value_cm)
+        self.setup_file.setStyleSheet(value_style_sheet)
+        layout.addWidget(self.setup_file,0,1,1,1)
         
         # --------------------- Calibration id group --------------
         calibration_id_label = QLabel(text="Calibration ID")
         layout.addWidget(calibration_id_label,1,0,1,1)
 
-        l = QLabel(text="0")
-        l.setContentsMargins(value_cm)
-        l.setStyleSheet(value_style_sheet)
-        layout.addWidget(l,1,1,1,1)#,alignment=Qt.AlignmentFlag.AlignLeft)
+        self.calibration_id = QLabel(text="0")
+        self.calibration_id.setContentsMargins(value_cm)
+        self.calibration_id.setStyleSheet(value_style_sheet)
+        layout.addWidget(self.calibration_id,1,1,1,1)#,alignment=Qt.AlignmentFlag.AlignLeft)
         
         # --------------------- Detector group ---------------------
         detector_label = QLabel(text="Detector")
         layout.addWidget(detector_label,2,0,1,1)
 
-        l = QLabel(text="3")
-        l.setContentsMargins(value_cm)
-        l.setStyleSheet(value_style_sheet)
-        layout.addWidget(l,2,1,1,1)
+        self.detector = QLabel(text="3")
+        self.detector.setContentsMargins(value_cm)
+        self.detector.setStyleSheet(value_style_sheet)
+        layout.addWidget(self.detector,2,1,1,1)
         
         # ------------------- Science file group ------------------
         science_file_label = QLabel(text="Science File")
         layout.addWidget(science_file_label,0,2,1,1)
 
-        l = QLabel(text="DE.20100913.22358.fits.gz")
-        l.setContentsMargins(value_cm)
-        l.setStyleSheet(value_style_sheet)
-        layout.addWidget(l,0,3,1,1)
+        self.science_file = QLabel(text="DE.20100913.22358.fits.gz")
+        self.science_file.setContentsMargins(value_cm)
+        self.science_file.setStyleSheet(value_style_sheet)
+        layout.addWidget(self.science_file,0,3,1,1)
 
         # ------------------- step group ----------------------
         step_label = QLabel(text="Step")
         layout.addWidget(step_label,1,2,1,1)
 
-        l = QLabel(text="Calibrations")
-        l.setContentsMargins(value_cm)
-        l.setStyleSheet(value_style_sheet)
-        layout.addWidget(l,1,3,1,1)
+        self.meta_step = QLabel(text="Calibrations")
+        self.meta_step.setContentsMargins(value_cm)
+        self.meta_step.setStyleSheet(value_style_sheet)
+        layout.addWidget(self.meta_step,1,3,1,1)
 
         # ------------------------ calibration step group ----------------
         calibration_step_label = QLabel(text="Calibration Step")
         layout.addWidget(calibration_step_label,2,2,1,1)
 
-        l = QLabel(text="Tilts")
-        l.setContentsMargins(value_cm)
-        l.setStyleSheet(value_style_sheet)
-        layout.addWidget(l,2,3,1,1)
+        self.calibration_step = QLabel(text="Tilts")
+        self.calibration_step.setContentsMargins(value_cm)
+        self.calibration_step.setStyleSheet(value_style_sheet)
+        layout.addWidget(self.calibration_step,2,3,1,1)
 
         # ------------------ progress bar ---------------------
         progress_bar = QProgressBar()
@@ -153,6 +160,24 @@ class StatusWidget(FilledBackgroundWidget):
         cm = self.layout().contentsMargins()
         cm.setTop(0)
         #self.layout().setContentsMargins(cm)
+        
+    def update_setup_file_status(self,setup_file_path):
+        # sets the setup_file_label to have the setup file path next to it that is updated
+        self.setup_file.setText(str(setup_file_path))
+
+    def update_calibration_id(self,input):
+        pass
+    def update_detector_step(self,step):
+        pass
+    def update_science_file(self,science_file):
+        pass
+    def update_meta_step(self,step):
+        pass
+    def update_calibration_step(self,step):
+        pass
+    def update_progress_bar(self,update):
+        pass # I don't really know how much I will need this but we shall see
+
 
         
 class FileListWidget(QListWidget):
@@ -230,16 +255,15 @@ class MainWindow(QWidget):
         super().__init__()
 
         layout = QHBoxLayout()
-        setup_widget = ButtonWidget()
-        dashboard_widget = DashboardWidget()
-        layout.addWidget(setup_widget,alignment=Qt.AlignmentFlag.AlignTop)
-        layout.addWidget(dashboard_widget,stretch=3)
+        self.setup_widget = ButtonWidget()
+        self.dashboard_widget = DashboardWidget()
+        layout.addWidget(self.setup_widget,alignment=Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(self.dashboard_widget,stretch=3)
         self.open_command = ["pypeit_setup","--gui"]
-        self.run_command = ["run_pypeit"] # incomplete command currently. needs the pypeit_setup file
 
         # -------- connections ---------
-        setup_widget.open_setup_button.clicked.connect(self.start_controller)
-        setup_widget.edit_setup_button.clicked.connect(self.import_setup_file)
+        self.setup_widget.open_setup_button.clicked.connect(self.start_controller)
+        self.setup_widget.edit_setup_button.clicked.connect(self.import_setup_file)
 
         self.setLayout(layout)
 
