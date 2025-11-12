@@ -372,6 +372,12 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         if binning == "2,2":
             par['calibrations']['slitedges']['min_edge_side_sep'] = 2.0
+            par['calibrations']['slitedges']['pad'] = 2
+            par['reduce']['skysub']['no_local_sky'] = True
+            par['reduce']['extraction']['sn_gauss'] = 400
+            par['reduce']['extraction']['model_full_slit'] = True
+            par['reduce']['findobj']['find_trim_edge'] = [0, 0]
+
 
         return par
 

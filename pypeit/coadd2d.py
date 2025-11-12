@@ -318,7 +318,7 @@ class CoAdd2D:
             msgs.error(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
                         'using the command-line option.')
         return f"{frsthdr['FILENAME'].split('.fits')[0]}-" \
-                f"{lasthdr['FILENAME'].split('.fits')[0]}-{frsthdr['TARGET']}"
+                f"{lasthdr['FILENAME'].split('.fits')[0]}-{frsthdr['TARGET'].replace(' ','')}"
 
     @staticmethod
     def output_paths(spec2d_files, par, coadd_dir=None):
@@ -1430,9 +1430,15 @@ class MultiSlitCoAdd2D(CoAdd2D):
                                f'(used to compute the offsets). '
                                f'Check `FindObjPar` parameters and try to adjust `snr_thresh`')
                 if self.par['coadd2d']['user_obj_ids'] is not None:
-                    left_edge_orig = self.stack_dict['slits_list'][iexp].select_edges(flexure=self.stack_dict['spat_flexure_list'][iexp])[0]
-                    idx_orig = self.stack_dict['specobjs_list'][iexp].slitorder_uniq_id_indices(self.par['coadd2d']['user_obj_ids'][iexp])                     
+                    # find the spectrum of the user object and the corresponding trace
+                    idx_orig = self.stack_dict['specobjs_list'][iexp].slitorder_uniq_id_indices(
+                        self.par['coadd2d']['user_obj_ids'][iexp])
                     trace_orig = self.stack_dict['specobjs_list'][iexp][idx_orig].TRACE_SPAT
+                    # find the slit of the user object and its left edge
+                    slitidx_orig = \
+                        self.stack_dict['slits_list'][iexp].spat_id == self.stack_dict['specobjs_list'][iexp][idx_orig].SLITID
+                    left_edge_orig = self.stack_dict['slits_list'][iexp].select_edges(
+                        flexure=self.stack_dict['spat_flexure_list'][iexp])[0][:, slitidx_orig][:,0]
                     # Compute the mean median offset betweeh the original trace and the left edge of the slit
                     dist_to_left = np.median(trace_orig - left_edge_orig)
                     # Identify the trace in the sobjs_exp from the rebinned image that is closest to the original trace taking this offset into account
@@ -1490,7 +1496,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # adjustment for multislit to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.obj_id_bri is not None) and (self.par['coadd2d']['weights'] == 'auto'):
             # compute weights using bright object
-            _, self.use_weights = self.optimal_weights(self.obj_id_bri, weight_method='constant')
+            # TODO add a parset for weight_method in optimal_weights. The default is currently 'auto'
+            _, self.use_weights = self.optimal_weights(self.obj_id_bri)
             if self.par['coadd2d']['user_obj_ids'] is not None:
                 msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} provided by the user')
             else:

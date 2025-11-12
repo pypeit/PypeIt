@@ -7,7 +7,6 @@ acting on user input, running background tasks, and returning information to the
 """
 import traceback
 import sys
-from datetime import datetime
 import re
 import io
 from pathlib import Path
@@ -16,13 +15,6 @@ from contextlib import contextmanager
 from qtpy.QtCore import QCoreApplication, Signal, QMutex, QTimer
 from qtpy.QtGui import QIcon
 
-# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
-# to no longer support it.
-try:
-    __UTC__ = datetime.UTC
-except AttributeError as e:
-    from datetime import timezone
-    __UTC__ = timezone.utc
 
 from qtpy.QtCore import QObject, Qt, QThread
 from qtpy.QtGui import QKeySequence

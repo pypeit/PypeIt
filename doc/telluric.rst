@@ -36,6 +36,58 @@ convolved by instrument resolution and shifted/stretched along the spectral
 direction to account for uncertainties in the wavelength calibration (as well
 as correct for the heliocentric velocity offset). 
 
+Model Telluric Spectra
+======================
+
+PCA spectra
+-----------
+
+The available PCA files (**recommended**) are:
+
+.. include:: include/TellPCA_files.rst
+
+The file names are ``TellPCA_{lambda start}_{lambda end}_R{resolution}.fits``;
+e.g., ``TellPCA_3000_10500_R120000.fits`` has a spectral range from 3,000--10,500
+angstroms with a spectral resolution of :math:`\lambda/\Delta\lambda` = 120,000.
+
+To use these spectra, the minimum parameters are, e.g.:
+
+.. code-block:: ini
+
+    [telluric]
+        tellgridfile = TellPCA_3000_10500_R120000.fits
+        teltype = pca
+
+Note that most spectrographs set defaults for these, meaning you don't
+necessarily need to include them in your pypeit file; i.e., they only need to be
+included if you want to *change* the defaults.
+
+Atmospheric parameter grids
+---------------------------
+
+The available atmospheric grid files are:
+
+.. include:: include/TelFit_files.rst
+
+The file names are
+``TelFit_{site}_{lambda start}_{lambda_end}_R{resolution}.fits``;
+e.g., ``TelFit_MaunaKea_3100_26100_R20000.fits`` samples atmospheric parameters
+appropriate for Maunakea, has a spectral range from 3,100--26,100 angstroms, and
+a spectral resolution of :math:`\lambda/\Delta\lambda` = 20,000.
+
+To use these spectra, the minimum parameters are, e.g.:
+
+.. code-block:: ini
+
+    [telluric]
+        tellgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
+        teltype = grid
+
+Note the atmospheric grid files are *very large* (multiple GiB).  Because of
+this and other general improvements to the associated modeling procedures, we
+*do not recommend* you use these atmospheric grids, and use the PCA-based models
+instead.  These files, and the associated modeling code, are primarily made
+available to allow users to compare to previous results.
 
 .. _pypeit_tellfit:
 

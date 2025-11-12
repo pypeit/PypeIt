@@ -12,16 +12,14 @@ from IPython import embed
 import numpy as np
 from scipy.io import readsav
 
-from astropy.table import Table
 from astropy import time
-from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.core import flux_calib
+from pypeit.core import standard
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from pypeit.par import pypeitpar
@@ -94,6 +92,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # or use the overscan for standards but not for science frames
 
         # Set the default exposure time ranges for the frame typing
+        # HIRES cannot write out files with exp time < .5s, .001 for biases is arbitrary
+        # If this value is changed, change the check in compound_meta for idname too   
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
@@ -300,7 +300,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
                     return 'Object'
                 elif not headarr[0].get('HATOPEN'):
-                    return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
+                    # Note that the check below ignores the bias exprng set in the
+                    # default pypeit par because that information is not available here
+                    return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
             elif xcovopen and collcoveropen and \
                     headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
                 return 'Line'
@@ -407,10 +409,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         if ftype == 'standard':
             std = np.zeros(len(fitstbl), dtype=bool)
             if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
-                # std = np.array([flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True)
-                #                 for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
                 std = np.array([
-                    flux_calib.find_standard_file(ra, dec, toler=10. * units.arcmin, check=True)
+                    standard.get_archive_standard(ra, dec, tol=10., check=True)
                     if ra is not None and dec is not None and not np.isnan(ra) and not np.isnan(dec)
                     else False for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
             return good_exp & (fitstbl['idname'] == 'Object') & std

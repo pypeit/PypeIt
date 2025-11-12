@@ -83,7 +83,7 @@ class TellFit(scriptbase.ScriptBase):
 
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
-        spectrograph = load_spectrograph(header['PYP_SPEC'])
+        spectrograph = load_spectrograph(header['PYP_SPEC'], pypeit_fits=True)
         spectrograph_def_par = spectrograph.default_pypeit_par()
 
         # Load tell file if provided

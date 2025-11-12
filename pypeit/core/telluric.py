@@ -23,6 +23,7 @@ from pypeit.core import flux_calib
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
 from pypeit.core import fitting
+from pypeit.core import standard
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import onespec
@@ -898,11 +899,11 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
 
 
     # Model parameter guess for starting the optimizations
-    flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
-                                           obj_params['std_dict']['flux'].value, kind='linear',
+    flam_true = scipy.interpolate.interp1d(obj_params['std_spec'].wave,
+                                           obj_params['std_spec'].flux, kind='linear',
                                            bounds_error=False, fill_value=-1e20)(wave)
-    flam_true_gpm = (wave >= obj_params['std_dict']['wave'].value.min()) \
-                        & (wave <= obj_params['std_dict']['wave'].value.max())
+    flam_true_gpm = (wave >= np.min(obj_params['std_spec'].wave)) \
+                        & (wave <= np.max(obj_params['std_spec'].wave))
     if np.any(np.logical_not(flam_true_gpm)):
         msgs.warn('Your data extends beyond the range covered by the standard star spectrum. '
                   'Proceeding by masking these regions, but consider using another standard star')
@@ -1139,8 +1140,8 @@ def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     """
 
     # Model parameter guess for starting the optimizations
-    flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
-                                           obj_params['std_dict']['flux'].value, kind='linear',
+    flam_true = scipy.interpolate.interp1d(obj_params['std_spec'].wave,
+                                           obj_params['std_spec'].flux, kind='linear',
                                            bounds_error=False, fill_value=np.nan)(wave)
     flam_model = flam_true*tellmodel
     flam_model_ivar = (100.0*utils.inverse(flam_model))**2 # This is just a bogus noise to give  S/N of 100
@@ -1329,7 +1330,7 @@ def eval_poly_model(theta, obj_dict):
     return polymodel, (polymodel > 0.0)
 
 
-def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
+def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_spec,
                       telgridfile, log10_blaze_function=None, ech_orders=None, polyorder=8,
                       tell_npca=5, teltype='pca',
                       mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
@@ -1366,9 +1367,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Exposure time
     airmass : :obj:`float`
         Airmass of the observation
-    std_dict : :obj:`dict`
-        Dictionary containing the information for the true flux of the standard
-        star.
+    std_spec : :class:`~pypeit.core.spectrum.Spectrum`
+        Spectrum of the flux-calibration standard.
     log10_blaze_function : `numpy.ndarray`_ , optional
         The log10 blaze function determined from a flat field image.  If this is
         passed in the sensitivity function model will be a (parametric)
@@ -1481,11 +1481,11 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     func ='legendre'
     # Initalize the object parameters
-    obj_params = dict(std_dict=std_dict, airmass=airmass, delta_coeff_bounds=delta_coeff_bounds,
+    obj_params = dict(std_spec=std_spec, airmass=airmass, delta_coeff_bounds=delta_coeff_bounds,
                       minmax_coeff_bounds=minmax_coeff_bounds, polyorder_vec=polyorder_vec,
-                      exptime=exptime, func=func, sigrej=3.0, std_src=std_dict['std_source'],
-                      std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
-                      std_name=std_dict['name'], std_cal=std_dict['cal_file'],
+                      exptime=exptime, func=func, sigrej=3.0, std_src=std_spec.meta['source'],
+                      std_ra=std_spec.meta['ra_deg'], std_dec=std_spec.meta['dec_deg'],
+                      std_name=std_spec.meta['Name'], std_cal=std_spec.meta['File'],
                       output_meta_keys=('airmass', 'exptime', 'polyorder_vec', 'func', 'std_src',
                                         'std_ra', 'std_dec', 'std_name', 'std_cal'),
                       debug=debug_init)
@@ -1751,8 +1751,9 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     # Read in standard star dictionary and interpolate onto regular telluric wave_grid
     star_ra = meta_spec['core']['RA'] if star_ra is None else star_ra
     star_dec = meta_spec['core']['DEC'] if star_dec is None else star_dec
-    std_dict = flux_calib.get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=star_ra,
-                                                dec=star_dec)
+    std_spec = standard.get_standard_spectrum(
+        spectral_type=star_type, V_mag=star_mag, ra=star_ra, dec=star_dec
+    )
 
     if flux.ndim == 2:
         norders = flux.shape[1]
@@ -1768,12 +1769,12 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         polyorder_vec = np.full(norders, polyorder)
 
     # Initalize the object parameters
-    obj_params = dict(std_dict=std_dict, airmass=meta_spec['core']['AIRMASS'],
+    obj_params = dict(std_spec=std_spec, airmass=meta_spec['core']['AIRMASS'],
                       delta_coeff_bounds=delta_coeff_bounds,
                       minmax_coeff_bounds=minmax_coeff_bounds, polyorder_vec=polyorder_vec,
                       exptime=meta_spec['core']['EXPTIME'], func=func, model=model, sigrej=3.0,
-                      std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
-                      std_name=std_dict['name'], std_cal=std_dict['cal_file'],
+                      std_ra=std_spec.meta['ra_deg'], std_dec=std_spec.meta['dec_deg'],
+                      std_name=std_spec.meta['Name'], std_cal=std_spec.meta['File'],
                       output_meta_keys=('airmass', 'polyorder_vec', 'exptime', 'func', 'std_ra',
                                         'std_dec', 'std_cal'),
                       debug=debug_init)
@@ -1815,7 +1816,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                  alpha=0.3, zorder=1)
         plt.plot(wave, star_model, color='cornflowerblue', linewidth=1.0,
                  label='poly scaled star model', zorder=7, alpha=0.7)
-        plt.plot(std_dict['wave'].value, std_dict['flux'].value, color='green', linewidth=1.0,
+        plt.plot(std_spec.wave, std_spec.flux, color='green', linewidth=1.0,
                  label='original star model', zorder=8, alpha=0.7)
         plt.plot(wave, star_model.max()*0.9*telluric, color='magenta', drawstyle='steps-mid',
                  label='telluric', alpha=0.4)

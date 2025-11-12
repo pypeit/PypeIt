@@ -178,10 +178,10 @@ Extinction is a function of wavelength and airmass, and needs to be corrected fo
 in science spectra for proper flux calibration.  It is generally measured by the
 observatory in a dedicated campaign (sometimes decades ago), and published for use.
 PypeIt includes measured extinction files for many of the observatories
-whose spectrographs are supported by the pipeline.  The list of current extinction
-files is in ``pypeit/data/extinction/extinction_curves.txt``, and shown below:
+whose spectrographs are supported by the pipeline.  The current list of extinction
+files are:
 
-.. include:: include/extinction_curves.txt.rst
+.. include:: include/atmext_table.rst
 
 The extinction correction is applied twice in the flux calibration process:
 

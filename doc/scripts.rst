@@ -684,6 +684,8 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_show_1dspec.rst
 
+.. _pypeit_chk_noise_1dspec:
+
 pypeit_chk_noise_1dspec
 -----------------------
 

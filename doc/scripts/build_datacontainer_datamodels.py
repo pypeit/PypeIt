@@ -12,7 +12,7 @@ from pypeit.utils import to_string, string_table
 from pypeit import datamodel
 
 def link_string(p):
-    return '`{0} Keywords`_'.format(type(p).__name__)
+    return f'`{type(p).__name__} Keywords`_'
 
 #-----------------------------------------------------------------------------
 
@@ -103,7 +103,7 @@ if __name__ == '__main__':
         with open(ofile, 'w') as f:
             f.write('\n'.join(lines))
 
-        print('Wrote: {}'.format(ofile))
+        print(f'Wrote: {ofile}')
 
 
 

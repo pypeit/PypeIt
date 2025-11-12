@@ -5,26 +5,15 @@ Main driver class for PypeIt run
 .. include:: ../include/links.rst
 
 """
+import copy
+import datetime
+import os
 from pathlib import Path
 import time
-import os
-import copy
-from datetime import datetime
-
-# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
-# to no longer support it.
-try:
-    __UTC__ = datetime.UTC
-except AttributeError as e:
-    from datetime import timezone
-    __UTC__ = timezone.utc
-
-from IPython import embed
-
-import numpy as np
 
 from astropy.io import fits
 from astropy.table import Table
+import numpy as np
 
 from pypeit import io
 from pypeit import inputfiles
@@ -49,6 +38,8 @@ from pypeit.manual_extract import ManualExtractionObj
 from pypeit.core import skysub
 
 from linetools import utils as ltu
+
+from IPython import embed
 
 
 class PypeIt:
@@ -119,7 +110,7 @@ class PypeIt:
         # Write the full parameter set here
         # --------------------------------------------------------------
         par_file = pypeit_file.replace(
-            '.pypeit', f"_UTC_{datetime.now(__UTC__).date()}.par")
+            '.pypeit', f"_UTC_{datetime.datetime.now(datetime.UTC).date()}.par")
         self.par.to_config(par_file, include_descr=False)
 
         # --------------------------------------------------------------

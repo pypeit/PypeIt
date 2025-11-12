@@ -36,7 +36,7 @@ def write_table(ofile):
     with open(ofile, 'w') as f:
         f.write(lines)
     # Report
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 def main():

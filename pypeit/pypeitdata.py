@@ -53,7 +53,6 @@ Data directories that *MUST* exist as part of the package distribution are:
 
 .. include:: ../include/links.rst
 """
-from importlib import resources
 import pathlib
 import shutil
 
