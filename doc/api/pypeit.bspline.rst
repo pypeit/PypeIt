@@ -8,9 +8,7 @@ Submodules
    :maxdepth: 4
 
    pypeit.bspline.bspline
-   pypeit.bspline.setup_package
-   pypeit.bspline.utilc
-   pypeit.bspline.utilpy
+   pypeit.bspline.util
 
 Module contents
 ---------------

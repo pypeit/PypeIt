@@ -121,13 +121,6 @@ The script usage can be displayed by calling the script with the ``-h`` option:
 
 .. include:: help/pypeit_install_extinctfile.rst
 
-pypeit_c_enabled
-----------------
-
-This is a simple script to check of the compiled C code used by PypeIt was
-successfully installed.  The script takes no arguments and reports success if
-the C libraries were successfully imported.
-
 pypeit_chk_plugins
 ------------------
 

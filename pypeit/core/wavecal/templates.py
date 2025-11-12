@@ -49,7 +49,7 @@ from pypeit.spectrographs.util import load_spectrograph
 if os.getenv('PYPEIT_DEV') is not None:
     template_path = (
         pathlib.Path(os.getenv('PYPEIT_DEV')) / 
-        'dev_algorithms' / 'wavelengths' / 'template_files'
+        'pypeitdev' / 'wavelengths' / 'template_files'
     )
 else:
     # print("You may wish to set the PYPEIT_DEV environment variable")

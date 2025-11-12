@@ -105,6 +105,8 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
             lamp4 = (headarr[0].get('LAMP4'))
             lamp5 = (headarr[0].get('LAMP5'))
             lamp6 = (headarr[0].get('LAMP6'))
+      
+            print ("%s %s %s %s %s %s %s %s %s %s %s" % (targetname,dispname,calib_unit,filter1,filter2,lamp1,lamp2,lamp3,lamp4,lamp5,lamp6))
 
             # object frame -> will be typed as science
             # This currently includes sky flats, science and standard images

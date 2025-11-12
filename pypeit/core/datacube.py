@@ -341,7 +341,7 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
 
 
 def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
-                         whitelight_range=None, fluxed=False, subpixel=20,
+                         min_frac_use=0.05, whitelight_range=None, fluxed=False, subpixel=20,
                          boxcar_radius=None, fwhm=1.5, no_skysub=False, snr_thresh=5.0, manual_position=None,
                          opt_prof_method='fit_gauss',  spectrograph='keck_kcrm', show_qa=False):
     """
@@ -361,6 +361,11 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         WCS of the datacube
     exptime : float
         Exposure time listed in the header of the datacube
+    min_frac_use : float, optional
+        Minimum accepted value for the sum of the normalized object profile across the spatial direction.
+        For each spectral pixel, if the majority of the object profile has been masked, i.e.,
+        the sum of the normalized object profile across the spatial direction is less than `min_frac_use`,
+        the optimal extraction will also be masked. The default value is 0.05.
     whitelight_range (None, list, optional):
         A two element list that specifies the minimum and maximum
         wavelengths (in Angstroms) to use when constructing the white light
@@ -554,7 +559,7 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
 
     # Store the BOXCAR extraction information
-    sobj.BOX_RADIUS = wid  # Size of boxcar radius in pixels
+    sobj.BOX_R_PIX = wid  # Size of boxcar radius in pixels
     sobj.BOX_WAVE = wave.astype(float)
     if fluxed:
         sobj.BOX_FLAM = box_flux
@@ -651,7 +656,7 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
 
     # Now do the optimal extraction
     extract.extract_optimal(flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
-                            sobj, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None)
+                            sobj, min_frac_use=min_frac_use, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None)
     sobj.TRACE_SPAT = np.full(numwave, numspat/2.0)
 
     # TODO :: The optimal extraction may suffer from residual DAR correction issues. This is because the

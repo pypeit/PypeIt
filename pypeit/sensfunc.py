@@ -810,7 +810,7 @@ class SensFunc(datamodel.DataContainer):
 
         if waves.ndim == 2:
             nspec, norder = waves.shape
-            if ech_order_vec.size != norder:
+            if ech_order_vec is not None and ech_order_vec.size != norder:
                 msgs.warn('The number of orders in the wave grid does not match the '
                           'number of orders in the unpacked sobjs. Echelle order vector not used.')
                 ech_order_vec = None
@@ -840,7 +840,7 @@ class SensFunc(datamodel.DataContainer):
             if ech_order_vec is None:
                 isens = iord
             # find the index of the sensfunc for this order
-            elif ech_order_vec is not None and np.any(sens.sens['ECH_ORDERS'].value == this_ord):
+            elif np.any(sens.sens['ECH_ORDERS'].value == this_ord):
                 isens = np.where(sens.sens['ECH_ORDERS'].value == this_ord)[0][0]
             else:
                 # if the order is not in the sensfunc file, skip it
