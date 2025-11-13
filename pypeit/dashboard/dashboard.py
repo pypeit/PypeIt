@@ -161,16 +161,15 @@ class StatusWidget(FilledBackgroundWidget):
         cm.setTop(0)
         #self.layout().setContentsMargins(cm)
         
-    def update_setup_file_status(self,setup_file_path):
+    def update_setup_file(self,setup_file_path):
         # sets the setup_file_label to have the setup file path next to it that is updated
         self.setup_file.setText(str(setup_file_path))
-
     def update_calibration_id(self,input):
         pass
     def update_detector_step(self,step):
         pass
     def update_science_file(self,science_file):
-        pass
+        self.science_file.setText(str(science_file))
     def update_meta_step(self,step):
         pass
     def update_calibration_step(self,step):
@@ -203,11 +202,15 @@ class DashboardWidget(FilledBackgroundWidget):
         super().__init__()
 
         layout = QVBoxLayout()
-        layout.addWidget(StatusWidget())
+        self.status_widget = StatusWidget()
+        self.file_list_widget = FileListWidget()
+        self.logs_widget = FilledBackgroundWidget(color=QColorConstants.Black)
+        layout.addWidget(self.status_widget)
         tab_widget = QTabWidget()
         tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.Red),"QA")
-        tab_widget.addTab(FileListWidget(),"Calibrations")
+        tab_widget.addTab(self.file_list_widget,"Calibrations")
         tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.DarkGreen),"Science")
+        tab_widget.addTab(self.logs_widget,"Logs")
 
         layout.addWidget(tab_widget, 3)
         self.setLayout(layout)
@@ -226,16 +229,18 @@ def parse_pypeit_setup_file(file_path):
 
     args: file path of the pypeit_setup file
 
-    returns: tuple of (spectrograph, RAW_PATH)
+    returns: tuple of (spectrograph, raw_path)
     """
     with open(file_path,"r") as setup:
         # contents = setup.readlines()
         spectrograph = None
         raw_path = None
-        spectrograph_search_string = r'^\s*spectrograph\s*=\s*(\S+)' # this should give the spectrograph after the word spectrograph = 
+        science_file = None
+        spectrograph_search_string = r'^\s*spectrograph\s*=\s*(\s+)' # this should give the spectrograph after the word spectrograph = 
         file_path_search_string = r'^\s*#?\s*path\s+(.+)' # thi should give the path after the word path
+        other_file_pattern = re.compile(r'^\|\s*(\S+\.fits)\s*\|\s*([^|]+?)\s*(?:\||$)')
 
-        # spectrograph = keck_deimos
+
         while spectrograph == None:
             line = setup.readline() # I am pretty sure this will go through each line instead of the same line
             spectrograph = re.search(spectrograph_search_string,line)
@@ -243,11 +248,21 @@ def parse_pypeit_setup_file(file_path):
         while raw_path == None:
             line = setup.readline()
             raw_path = re.search(file_path_search_string,line)
-        
+
+        files = [other_file_pattern.match(line) for line in setup.readlines()]
+        files = [(x.group(1),x.group(2).strip()) for x in files if x]
+
+        # get the science file, this could cause an error so put in a try except 
+        try:
+            science_file = [file[0] for file in files if file[1] == "science"][0]
+        except:
+            pass
+
         spectrograph = spectrograph.group(1)
         raw_path = raw_path.group(1)
+        # now its time to get the files from the pypeit setup file
 
-    return (spectrograph,raw_path)
+    return spectrograph,raw_path,files,science_file
 
 class MainWindow(QWidget):
     
@@ -259,7 +274,6 @@ class MainWindow(QWidget):
         self.dashboard_widget = DashboardWidget()
         layout.addWidget(self.setup_widget,alignment=Qt.AlignmentFlag.AlignTop)
         layout.addWidget(self.dashboard_widget,stretch=3)
-        self.open_command = ["pypeit_setup","--gui"]
 
         # -------- connections ---------
         self.setup_widget.open_setup_button.clicked.connect(self.start_controller)
@@ -268,7 +282,7 @@ class MainWindow(QWidget):
         self.setLayout(layout)
 
     def start_controller(self):
-        subprocess.Popen(self.open_command) # starting the controller runnner file
+        subprocess.Popen(["pypeit_setup","--gui"]) # starting the controller runnner file
  
     def import_setup_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -279,16 +293,29 @@ class MainWindow(QWidget):
         )
 
         if file_path: 
-            self.file_path = file_path
+            # maybe add a fuction to this class that just updates everything by calling other functions for the class
+            # I should update this so that it is something easier understood and doesn't return too many things at once 
+            spectrograph,raw_path,calibration_files,science_file = parse_pypeit_setup_file(file_path) 
 
-        spectrograph,raw_path = parse_pypeit_setup_file(file_path)
-        # TODO: check if the spectrograph and most importantly the raw_path actually exist
-        # update the open command to have these
-        print(spectrograph,raw_path)
+            file_name = Path(file_path).name
+            self.dashboard_widget.status_widget.update_setup_file(file_name)
+            self.update_file_list_widget(calibration_files)
+            self.update_science_file(science_file)
 
-        # this will contain the pypeit setup file path that can be used for run
-        # when importing a pypeit setup file. updates should happen to the display and the open_command (should call parse_pypeit_setup_file)
-        # should add a progress bar for checking if the file exists
+
+    def update_file_list_widget(self,file_list):
+        # This currently will be input as the first element in each tuple will be the file
+        new_list = [x[0] for x in file_list]
+        self.dashboard_widget.file_list_widget.clear()
+        self.dashboard_widget.file_list_widget.addItems(new_list)
+
+    def update_science_file(self,science_file):
+        self.dashboard_widget.status_widget.update_science_file(science_file) 
+
+    def run_pypeit(self):
+        pass
+
+
 
 def main():
         # Note QT expects the program name as arg 0
