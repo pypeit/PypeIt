@@ -523,7 +523,7 @@ class RIMASHKArm(LDTRIMASSpectrograph):
 
     def get_detector_par(self, _, hdu=None):
         """
-        Return metadata for the LDT/RIMAS YJ detector.
+        Return metadata for the LDT/RIMAS HK detector.
 
         .. warning::
 
@@ -545,18 +545,16 @@ class RIMASHKArm(LDTRIMASSpectrograph):
         if hdu is None:
             dataext = 0  # Raw data
             binning = "1,1"  # Most common use mode
-            gain = np.atleast_1d(1.52)  # Hardcoded in the header
+            gain = np.atleast_1d(1.8)  # Hardcoded in the header
             ronoise = np.atleast_1d(4.9)  # Hardcoded in the header
             datasec = np.atleast_1d("[5:512,53:2095]")  # For 1x1 binning
-            oscansec = np.atleast_1d("[5:512,5:48]")  # For 1x1 binning
         else:
             # If file is post-processed, data extension is specified.  Raw is 0.
             dataext = hdu[0].header.get("POST_EXT", 0)
             binning = self.get_meta_value(self.get_headarr(hdu), "binning")
-            gain = np.atleast_1d(hdu[0].header["GAIN"])
-            ronoise = np.atleast_1d(hdu[0].header["RDNOISE"])
-            datasec = hdu[0].header["TRIMSEC"]
-            oscansec = hdu[0].header["BIASSEC"]
+            gain = np.atleast_1d(hdu[0].header["GAIN0"])
+            ronoise = np.atleast_1d(4.9)
+            datasec = np.atleast1(hdu[0].header["SLICE"])
 
         # Detector
         detector_dict = dict(
@@ -576,7 +574,6 @@ class RIMASHKArm(LDTRIMASSpectrograph):
             ronoise=ronoise,  # See above
             # Data & Overscan Sections -- Edge tracing can handle slit edges
             datasec=datasec,  # See above
-            oscansec=oscansec,  # See above
         )
         return detector_container.DetectorContainer(**detector_dict)
 
