@@ -554,7 +554,7 @@ class RIMASHKArm(LDTRIMASSpectrograph):
             binning = self.get_meta_value(self.get_headarr(hdu), "binning")
             gain = np.atleast_1d(hdu[0].header["GAIN0"])
             ronoise = np.atleast_1d(4.9)
-            datasec = np.atleast1(hdu[0].header["SLICE"])
+            datasec = np.atleast_1d(hdu[0].header["SLICE"])
 
         # Detector
         detector_dict = dict(
