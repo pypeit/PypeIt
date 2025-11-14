@@ -320,15 +320,6 @@ class Spectrograph:
         """
         if self.allowed_extensions is not None:
             _filename = Path(filename).absolute()
-            # Don't check PypeIt spec2d files
-            if _filename.name.startswith("spec2d_"):
-                # Double check that it is a PypeIt spec2d file
-                try:
-                    tsthdr = fits.getheader(_filename, ext=0)
-                except IOError:
-                    msgs.error("Cannot open the file: {0}".format(_filename))
-                if 'PIPELINE' in tsthdr and tsthdr['PIPELINE'] == 'PYPEIT':
-                    return
             # Perform the extensions check
             if not any([_filename.name.endswith(ext) for ext in self.allowed_extensions]):
                 msgs.error(f'The input file ({_filename.name}) does not have a recognized '

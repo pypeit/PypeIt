@@ -1013,7 +1013,7 @@ class QL(scriptbase.ScriptBase):
             CoAdd2DSpec.main(CoAdd2DSpec.parse_args([str(coadd_file)]))
 
             # Get the output file name
-            spectrograph, par, _ = coadd2dFile.get_pypeitpar()
+            spectrograph, par, _ = coadd2dFile.get_pypeitpar(pypeit_fits=True)
             spec2d_files = coadd2dFile.filenames
             coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).absolute()
             basename = coadd2d.CoAdd2D.default_basename(spec2d_files)

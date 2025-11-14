@@ -46,10 +46,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         """
 
         from pathlib import Path
-        import os
-        import glob
         import copy
-        from collections import OrderedDict
 
         from IPython import embed
 
@@ -62,14 +59,13 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         from pypeit import inputfiles
         from pypeit import specobjs
         from pypeit import spec2dobj
-        from pypeit.spectrographs.util import load_spectrograph
 
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
 
         # Load the file
         coadd2dFile = inputfiles.Coadd2DFile.from_file(args.coadd2d_file)
-        spectrograph, par, _ = coadd2dFile.get_pypeitpar()
+        spectrograph, par, _ = coadd2dFile.get_pypeitpar(pypeit_fits=True)
 
         # Check some of the parameters
         # TODO Heliocentric for coadd2d needs to be thought through. Currently turning it off.
@@ -120,7 +116,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Instantiate the sci_dict
         # TODO Why do we need this sci_dict at all?? JFH
-        sci_dict = OrderedDict()  # This needs to be ordered
+        sci_dict = {}  # Standard dictionaries are ordered for Python >= 3.7
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
         sci_dict['meta']['bkg_redux'] = bkg_redux
