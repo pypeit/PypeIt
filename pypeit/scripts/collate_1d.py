@@ -21,7 +21,6 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import coadd1d
 from pypeit import msgs
-from pypeit import par
 from pypeit.utils import is_float
 from pypeit.core import wave
 from pypeit.archive import ArchiveMetadata, ArchiveDir
@@ -446,7 +445,7 @@ def coadd(par, coaddfile, source):
 
 
     # Instantiate
-    spectrograph = load_spectrograph(par['rdx']['spectrograph'])
+    spectrograph = load_spectrograph(par['rdx']['spectrograph'], pypeit_fits=True)
     coAdd1d = coadd1d.CoAdd1D.get_instance(source.spec1d_file_list,
                                            [x.NAME for x in source.spec_obj_list],
                                            spectrograph=spectrograph, par=par['coadd1d'])
@@ -561,7 +560,7 @@ def build_parameters(args):
         sys.exit(1)
 
     # Get the spectrograph for these files and then create a ParSet. 
-    spectrograph = load_spectrograph(spec1d_files[0])
+    spectrograph = load_spectrograph(spec1d_files[0], pypeit_fits=True)
     spectrograph_def_par = spectrograph.default_pypeit_par()
 
     if cfg_lines is not None:

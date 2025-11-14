@@ -33,14 +33,14 @@ from IPython import embed
 
 import numpy as np
 from astropy.io import fits
-from astropy import units
 
 from pypeit import msgs
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
-from pypeit.core import flux_calib
+from pypeit.core import standard
+from pypeit.core.atmextinction import AtmosphericExtinction
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -320,6 +320,7 @@ class Spectrograph:
         """
         if self.allowed_extensions is not None:
             _filename = Path(filename).absolute()
+            # Perform the extensions check
             if not any([_filename.name.endswith(ext) for ext in self.allowed_extensions]):
                 msgs.error(f'The input file ({_filename.name}) does not have a recognized '
                            f'extension.  The allowed extensions for '
@@ -705,6 +706,33 @@ class Spectrograph:
         Empty for base class.  See derived classes.
         """
         return None
+    
+    def get_atmospheric_extinction(self, extinct_file):
+        """
+        Return the atmospheric extinction model.
+
+        Parameters
+        ----------
+        extinct_file : str
+            Either (1) one of the extintion files provided by pypeit (see
+            :ref:`extinction_correction`), (2) the path to a local file on disk,
+            or (3) set ``extinct_file='closest'`` to have the code find the most
+            relevant extinction data based on the longitude and latitude of the
+            telescope.
+
+        Returns
+        -------
+        :class:`~pypeit.core.atmextinction.AtmosphericExtinction`
+            Class that provides the interface to the atmospheric extinction data.
+        """
+        if extinct_file == 'closest':
+            # TODO: We shouldn't have to find the closest extinction data every
+            # time.  The lon/lat of the telescopes are hard-coded, so we just
+            # have a default extinct_file.
+            return AtmosphericExtinction.from_coordinates(
+                self.telescope['longitude'], self.telescope['latitude']
+            )
+        return AtmosphericExtinction.from_file(extinct_file)
 
     def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
                                   corners=False):
@@ -1373,6 +1401,7 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
+        headarr = None
         if isinstance(inp, (str, Path, fits.HDUList)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
@@ -1381,7 +1410,7 @@ class Spectrograph:
             headarr = [inp]
         else:
             msgs.error(f'Unrecognized type for input: {type(inp)}')
-        
+
         if headarr is None:
             if required:
                 msgs.error(f'Unable to access required metadata value for {meta_key}.  Input is '
@@ -1720,7 +1749,9 @@ class Spectrograph:
                 if ra == 'None' or dec == 'None' or np.isnan(ra) or np.isnan(dec):
                     is_std = np.append(is_std, False)
                 else:
-                    is_std = np.append(is_std, flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True))
+                    is_std = np.append(is_std, 
+                        standard.get_archive_standard(ra, dec, tol=10., check=True)
+                    )
 
             foundstd = indx & is_std
             # turn off the science flag for frames that are found to be standard stars and

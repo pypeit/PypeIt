@@ -268,7 +268,8 @@ class DataCube(datamodel.DataContainer):
         # TODO :: Avoid transposing these large cubes
         sobjs, spec2d, wl_img, wl_ivar, wl_gpm = datacube.extract_point_source(
             self.wave, self.flux.T, self.ivar.T, self.bpm.T, self._wcs, exptime, 
-            fluxed=self.fluxed, whitelight_range=parset['whitelight_range'],
+            fluxed=self.fluxed, min_frac_use=parset['extraction']['min_frac_prof'],
+            whitelight_range=parset['whitelight_range'],
             fwhm = parset['fwhm'], no_skysub=parset['no_skysub'], snr_thresh = parset['snr_thresh'], 
             manual_position=manual_position,  boxcar_radius=parset['boxcar_radius'], 
             opt_prof_method=parset['opt_prof_method'],
@@ -1248,12 +1249,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             if False:
                 # Compute the extinction correction
                 msgs.info("Applying extinction correction")
-                # TODO :: Change the ['UVIS']['extinct_file'] here when the sensitivity function calculation is unified.
-                extinct = flux_calib.load_extinction_data(self.spectrograph.telescope['longitude'],
-                                                          self.spectrograph.telescope['latitude'],
-                                                          self.senspar['UVIS']['extinct_file'])
+                ## TODO :: Change the ['UVIS']['extinct_file'] here when the sensitivity function calculation is unified.
+                atmext = self.spectrograph.get_atmospheric_extinction(self.senspar['UVIS']['extinct_file'])
                 # extinction_correction requires the wavelength is sorted
-                extcorr_sort = flux_calib.extinction_correction(wave_sort * units.AA, airmass, extinct)
+                extcorr_sort = atmext.correction_factor(wave_sort, airmass=airmass)
 
             # Correct for sensitivity as a function of grating angle
             # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
@@ -1276,11 +1275,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=self.par['rdx']['chk_version'])
                 # Interpolate the sensitivity function onto the wavelength grid of the data
                 # TODO :: Change the ['UVIS']['extinct_file'] here when the sensitivity function calculation is unified.
+                atmext = self.spec.get_atmospheric_extinction(self.senspar['UVIS']['extinct_file'])
                 sens_sort = flux_calib.get_sensfunc_factor(
-                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, delta_wave=dwav_sort,
-                    extinct_correct=True, longitude=self.spectrograph.telescope['longitude'],
-                    latitude=self.spectrograph.telescope['latitude'], extinctfilepar=self.senspar['UVIS']['extinct_file'],
-                    airmass=airmass, extrap_sens=self.par['fluxcalib']['extrap_sens'])
+                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime,
+                    delta_wave=dwav_sort, atmext=atmext,
+                    airmass=airmass, extrap_sens=self.par['fluxcalib']['extrap_sens']
+                )
             # Convert the flux units to counts/s, and correct for the relative sensitivity of different setups
             sens_sort *= extcorr_sort/gratcorr_sort
             # Correct for extinction

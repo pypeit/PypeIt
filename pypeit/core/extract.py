@@ -216,7 +216,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
         if oprof_bad.any():
             # If there are no good profile wavelengths, use boxcar wavelengths for these pixels
             # get boxcar_radius
-            box_radius = spec.BOX_RADIUS
+            box_radius = spec.BOX_R_PIX
             box_denom_no_mask = moment1d(waveimg > 0.0, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0]
             wave_no_mask = moment1d(waveimg, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0] / (
                         box_denom_no_mask + (box_denom_no_mask == 0.0))
@@ -411,7 +411,7 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, f
         spec.trace_spec = spec_vec
 
     # get boxcar_radius
-    box_radius = spec.BOX_RADIUS
+    box_radius = spec.BOX_R_PIX
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
     var_no = None if base_var is None \

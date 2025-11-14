@@ -12,7 +12,6 @@ from IPython import embed
 import numpy as np
 from scipy.io import readsav
 
-from astropy.table import Table
 from astropy import time
 
 from pypeit import msgs
@@ -20,6 +19,7 @@ from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import standard
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from pypeit.par import pypeitpar
@@ -92,6 +92,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # or use the overscan for standards but not for science frames
 
         # Set the default exposure time ranges for the frame typing
+        # HIRES cannot write out files with exp time < .5s, .001 for biases is arbitrary
+        # If this value is changed, change the check in compound_meta for idname too   
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
@@ -163,6 +165,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # number of objects
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is max two object in each order.
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
+        # Extraction parameters
+        par['reduce']['extraction']['min_frac_prof'] = 0.9  # deals well with masked orders in chip gaps
 
         # Sensitivity function parameters
         par['sensfunc']['trim_std_pixs'] = [4, 40]  # Trim each side of the standard star spectrum
@@ -245,7 +249,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
         self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
-        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
+        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2, atol=1e-1)
         self.meta['object'] = dict(ext=0, card='OBJECT')
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
@@ -296,7 +300,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
                     return 'Object'
                 elif not headarr[0].get('HATOPEN'):
-                    return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
+                    # Note that the check below ignores the bias exprng set in the
+                    # default pypeit par because that information is not available here
+                    return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
             elif xcovopen and collcoveropen and \
                     headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
                 return 'Line'
@@ -399,8 +405,17 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
+        # std
+        if ftype == 'standard':
+            std = np.zeros(len(fitstbl), dtype=bool)
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                std = np.array([
+                    standard.get_archive_standard(ra, dec, tol=10., check=True)
+                    if ra is not None and dec is not None and not np.isnan(ra) and not np.isnan(dec)
+                    else False for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+            return good_exp & (fitstbl['idname'] == 'Object') & std
         # 'science' category
-        if ftype in ['science', 'standard']:
+        if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')

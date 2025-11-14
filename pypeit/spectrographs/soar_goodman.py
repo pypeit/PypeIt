@@ -9,7 +9,7 @@ from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit import io
+from pypeit.core import standard
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
@@ -182,11 +182,18 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science']:
-            return good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
-        if ftype in ['standard']:
-            # Don't type pinhole or dark frames
-            return np.zeros(len(fitstbl), dtype=bool) & self.lamps(fitstbl, 'off')
+        if ftype in ['science', 'standard']:
+            std = np.zeros(len(fitstbl), dtype=bool)
+            # Identify standard stars from flux_calib
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                std = np.array([
+                    standard.get_archive_standard(ra, dec, tol=10., check=True)
+                    for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])
+                ])
+            base = good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
+            if ftype == 'science':
+                return base & np.logical_not(std)
+            return base & std
         if ftype == 'bias':
             # Don't type bias
             return np.zeros(len(fitstbl), dtype=bool)

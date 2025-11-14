@@ -2,27 +2,18 @@
 
 .. include:: ../include/links.rst
 """
+import datetime
+import glob
+import io
 from pathlib import Path
 import os
-import glob
-import numpy as np
-import yaml
-from datetime import datetime
-import io
 import warnings
-from collections.abc import Sequence
-import configobj
-
-# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
-# to no longer support it.
-try:
-    __UTC__ = datetime.UTC
-except AttributeError as e:
-    from datetime import timezone
-    __UTC__ = timezone.utc
 
 from astropy.table import Table, column
 from astropy.io import ascii
+import configobj
+import numpy as np
+import yaml
 
 from pypeit import utils
 from pypeit.io import files_from_extension
@@ -528,7 +519,7 @@ class InputFile:
                 documentation purposes only!**
         """
         _version = __version__ if version_override is None else version_override
-        _date = datetime.now(__UTC__).isoformat(timespec='milliseconds') \
+        _date = datetime.datetime.now(datetime.UTC).isoformat(timespec='milliseconds') \
                     if date_override is None else date_override
 
         # Here we go
@@ -599,10 +590,17 @@ class InputFile:
 
         msgs.info(f'{self.flavor} input file written to: {input_file}')
 
-    def get_spectrograph(self):
+    def get_spectrograph(self, pypeit_fits:bool=False):
         """
         Use the configuration lines to instantiate the relevant
         :class:`~pypeit.spectrographs.spectrograph.Spectrograph` subclass.
+
+        Args:
+            pypeit_fits (:obj:`bool`, optional):
+                The spectrograph loader is being called from a post-processing
+                script where the expected input files are PypeIt-written FITS files
+                only.  This has the effect of overriding the :attr:`allowed_extensions`
+                attribute to be ``[".fits"]``.
 
         Returns:
             :class:`~pypeit.spectrographs.spectrograph.Spectrograph`:
@@ -616,9 +614,9 @@ class InputFile:
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
             msgs.error('Cannot define spectrograph.  Configuration file missing \n'
                        '    [rdx]\n    spectrograph=\n entry.')
-        return load_spectrograph(self.config['rdx']['spectrograph'])
+        return load_spectrograph(self.config['rdx']['spectrograph'], pypeit_fits=pypeit_fits)
 
-    def get_pypeitpar(self, config_specific_file=None):
+    def get_pypeitpar(self, config_specific_file=None, pypeit_fits:bool=False):
         """
         Use the configuration lines and a configuration-specific example file to
         build the full parameter set.
@@ -629,6 +627,11 @@ class InputFile:
                 parameters.  If None and instance contains filenames, use the
                 first file.  If None and instance provides no filenames,
                 configuration-specific parameters are not set.
+            pypeit_fits (:obj:`bool`, optional):
+                The spectrograph loader is being called from a post-processing
+                script where the expected input files are PypeIt-written FITS files
+                only.  This has the effect of overriding the :attr:`allowed_extensions`
+                attribute to be ``[".fits"]``.
 
         Returns:
             :obj:`tuple`: A tuple with the spectrograph instance, the
@@ -636,7 +639,7 @@ class InputFile:
             configuration-specific parameters.  That latter will be None if the
             no example file was available.
         """
-        spec = self.get_spectrograph()
+        spec = self.get_spectrograph(pypeit_fits=pypeit_fits)
 
         if config_specific_file is None:
             _files = self.filenames

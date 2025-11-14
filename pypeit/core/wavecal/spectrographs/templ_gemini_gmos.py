@@ -131,6 +131,28 @@ def gemini_gmos_r831_ham(overwrite=False):
                              ifiles=ifiles, det_cut=det_cut, chk=True, normalize=False, lowredux=False,
                              subtract_conti=True, overwrite=overwrite, shift_wave=True)
 
+def gemini_gmos_r150_ham(overwrite=False):
+    binspec = 2
+    outroot = 'gemini_gmos_r150_ham.fits'
+    # PypeIt fits
+    wpath = os.path.join(templates.template_path, 'GMOS', 'R150')
+
+    basefiles = ['WaveCalib_LTT7379_2_MSC01.fits', 'WaveCalib_LTT7379_0_MSC01.fits']
+    wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
+    # Snippets
+    ifiles = [0, 1]
+    slits = [257, 257]
+    wv_cuts = [6000.]
+    assert len(wv_cuts) == len(slits) - 1
+    # det_dict
+    det_cut = None
+    #
+    templates.build_template(wfiles, slits, wv_cuts, binspec, outroot,
+                             ifiles=ifiles, det_cut=det_cut, chk=True,
+                             normalize=False, lowredux=False,
+                             subtract_conti=True, overwrite=overwrite,
+                             shift_wave=False)
+
 # ##############################
 def gemini_gmos_r400_nham_mosaic(overwrite=False):  
     """This was a one-off for a wide slit with GMOS
@@ -157,6 +179,7 @@ if __name__ == '__main__':
     #gemini_gmos_r400_hama()#overwrite=True)
     #gemini_gmos_r400_e2v(overwrite=True)
     #gemini_gmos_r400_e2v_mosaic(overwrite=True)
-    gemini_gmos_b600_ham(overwrite=False)
+    #gemini_gmos_b600_ham(overwrite=False)
     #gemini_gmos_r831_ham(overwrite=False)
     #gemini_gmos_r400_nham_mosaic(overwrite=True)
+    gemini_gmos_r150_ham(overwrite=True)
