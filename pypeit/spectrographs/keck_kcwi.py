@@ -4,15 +4,16 @@ Implements KCWI-specific functions.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-
 from IPython import embed
+
+from pathlib import Path
 
 import numpy as np
 
 from astropy import wcs, units
 from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
-from astropy.coordinates import EarthLocation
 from scipy.optimize import curve_fit
 
 from pypeit import msgs
@@ -24,6 +25,7 @@ from pypeit.core import procimg
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
@@ -49,10 +51,6 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # TODO :: Might need to change the tolerance of disperser angle in
         # pypeit setup (two BH2 nights where sufficiently different that this
         # was important).
-
-        # TODO :: Might consider changing TelescopePar to use the astropy
-        # EarthLocation. KBW: Fine with me!
-        self.location = EarthLocation.of_site('Keck Observatory')
 
     def init_meta(self):
         """
@@ -108,15 +106,20 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
 
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -125,33 +128,33 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        headarr = self.get_headarr(scifile)
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
 
-        # Templates
-        par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
-        if self.get_meta_value(headarr, 'dispname') == 'BH2':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'BH3':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH3.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'BM':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'BL':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'RL':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RL.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'RM1':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM1.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'RM2':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM2.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'RH3':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RH3.fits'
-        else:
-            msgs.warn("Full template solution is unavailable")
-            msgs.info("Adopting holy-grail algorithm - Check the wavelength solution!")
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        match grating:
+            case 'BH2':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2.fits'
+            case 'BH3':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH3.fits'
+            case 'BM':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
+            case 'BL':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
+            case 'RL':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RL.fits'
+            case 'RM1':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM1.fits'
+            case 'RM2':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM2.fits'
+            case 'RH3':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RH3.fits'
+            case _:
+                msgs.warn("Full template solution is unavailable")
+                msgs.info("Adopting holy-grail algorithm - Check the wavelength solution!")
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # FWHM
         # binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         # par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
@@ -299,6 +302,10 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # KCWI has non-uniform spectral resolution across the field-of-view
         par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
         par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
+
+        # Templates
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
@@ -1207,7 +1214,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
         p0 = [amp, scale, quad, phase, wavelength, angle]
         this_bpm = gpmask & (np.abs(det_resp-1) < 0.1)  # Only expect this to be a 5% effect
-        popt, pcov = curve_fit(sinfunc2d, (xx[this_bpm], yy[this_bpm]), det_resp[this_bpm], p0=p0)
+        popt, _ = curve_fit(sinfunc2d, (xx[this_bpm], yy[this_bpm]), det_resp[this_bpm], p0=p0)
         return sinfunc2d((xx, yy), *popt)
 
 

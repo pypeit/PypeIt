@@ -1967,3 +1967,26 @@ class PypeItMetaData:
         return self.calib_bitmask.flagged_bits(self['calibbit'][row])
 
 
+    def get_row_for_filename(self, filename:str) -> table.Table:
+        """Return the row of the metadata table for a filename
+
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Filename for which to retrieve the table row
+
+        Returns
+        -------
+        :obj:`~astropy.table.Table`
+            A copy of the one-row table corresponding to the ``filename``
+            provided.
+        
+        Raises
+        ------
+        :class:`PypeItError`
+            If the requested filename is not in the table
+        """
+        idx = self.table['filename'] == Path(filename).name
+        if not any(idx):
+            msgs.error(f"Requested file {filename} not in the metadata table.")
+        return self.table[idx].copy()

@@ -3,16 +3,21 @@ Module for LBT/LUCI specific methods.
 
 .. include:: ../include/links.rst
 """
-
 from IPython import embed
 
+from pathlib import Path
+
 import numpy as np
+
+from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class LBTLUCISpectrograph(spectrograph.Spectrograph):
@@ -465,15 +470,20 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         return detector, raw, hdu, texp, datasec, oscansec
 
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -482,13 +492,13 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-
-        # Set the wavelength identification
-        dispname = self.get_meta_value(scifile, 'dispname')
-        filter = self.get_meta_value(scifile, 'filter1')
-        cenwave = self.get_meta_value(scifile, 'dispangle')
+        # Adjust parameters based on filters, decker, and disperser angle used
+        dispname = self.get_meta_value(inp, 'dispname')
+        filter = self.get_meta_value(inp, 'filter1')
+        cenwave = self.get_meta_value(inp, 'dispangle')
 
         if dispname == 'G200 LoRes' and filter == 'zJspec' and cenwave > \
                 1.165 and cenwave < 1.175:
@@ -692,15 +702,20 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         return detector, raw, hdu, texp, datasec, oscansec
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -709,13 +724,12 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-
-        # Set the wavelength identification
-        dispname = self.get_meta_value(scifile, 'dispname')
-        filter = self.get_meta_value(scifile, 'filter1')
-        cenwave = self.get_meta_value(scifile, 'dispangle')
+        # Adjust parameters based on filters and decker used
+        dispname = self.get_meta_value(inp, 'dispname')
+        filter = self.get_meta_value(inp, 'filter1')
 
         if dispname == 'G200 LoRes' and filter == 'zJspec':
             par['calibrations']['wavelengths']['method'] = 'full_template'

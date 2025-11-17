@@ -1871,6 +1871,8 @@ class SlitlessFlat:
             # slit edges
             # we need to change some parameters for the slit edge tracing
             edges_par = deepcopy(self.par['slitedges'])
+            # no maskdesign info
+            edges_par['use_maskdesign'] = False
             # lower the threshold for edge detection
             edges_par['edge_thresh'] = 50.
             # this is used for longslit (i.e., no pca)
