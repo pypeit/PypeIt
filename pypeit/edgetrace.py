@@ -769,7 +769,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             self.maskdesign_matching(debug=debug > 1)
             if debug > 0:
                 self.show(title='After matching to slit-mask design metadata.')
-            if np.all(self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)):
+            if self.edge_msk is None or np.all(self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)):
                 msgs.error('All traces masked!  Problem with mask-design matching, which may be '
                            'due to spurious edges.  Try changing the edge detection threshold '
                            '(edge_thresh) and troubleshooting the problem using the '

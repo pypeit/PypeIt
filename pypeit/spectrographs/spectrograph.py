@@ -33,6 +33,7 @@ from IPython import embed
 
 import numpy as np
 from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import io
@@ -41,6 +42,7 @@ from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.core import standard
 from pypeit.core.atmextinction import AtmosphericExtinction
+from pypeit.par import parset
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -187,15 +189,41 @@ class Spectrograph:
         par['rdx']['spectrograph'] = cls.name
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
+        This method performs a check that ``inp`` is not ``None``.
+
+        This method may be called with either a row from the metadata table
+        (sent as a single-row Table, usually from the PypeIt Reduction File)
+        or a filename/Header (used in certain scripts to populate configuration
+        parameters).  The boilerplate below should be included at the start of
+        all subclassing spectrograph class methods:
+
+        ::
+
+            # Start with instrument-wide parameters
+            par = super().config_specific_par(inp, inp_par=inp_par)
+
+            # Adjust parameters based on settings used
+            grating = self.get_meta_value(inp, 'dispname')
+            binning = self.get_meta_value(inp, 'binning')
+
+        where the specific metadata keys are those needed by the specific
+        instantiation of this method (``grating`` and ``binning`` used here as
+        examples only).
+
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -204,6 +232,8 @@ class Spectrograph:
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
+        if inp is None:
+            msgs.error("You have not included a standard or science file in your PypeIt file to determine the configuration")
         return self.__class__.default_pypeit_par() if inp_par is None else inp_par
 
     def update_edgetracepar(self, par):
@@ -430,8 +460,9 @@ class Spectrograph:
                 if not allow_missing:
                     msgs.error(f"Core Meta Key: {key} not present in your fitstbl/Header")
         # Configuration Keys -- In addition to Core Meta,
-        #   other Config-Specific values; optional
-        for key in self.configuration_keys():
+        #   other Config-Specific values and keys listed in the PypeIt File;
+        #   OPTIONAL
+        for key in self.configuration_keys() + self.pypeit_file_keys():
             if key not in subheader:
                 try:
                     subheader[key] = row_fitstbl[key]
@@ -449,6 +480,21 @@ class Spectrograph:
         for card in header_cards:
              if card in raw_header.keys():
                  subheader[card] = raw_header[card]  # Self-assigned instrument name
+
+        # The following are added for SlicerIFU spectrographs, as they are
+        #   needed by the coadd3d routine
+        if self.pypeline == "SlicerIFU":
+            slicer_keys = [
+                "slitwid", "airmass", "parangle", "pressure", "temperature", "humidity"
+            ]
+            for key in slicer_keys:
+                if key not in subheader:
+                    try:
+                        subheader[key] = row_fitstbl[key]
+                    except KeyError:
+                        msgs.error(
+                            f"Required SlicerIFU keyword {key} not present in your fitstbl/Header"
+                        )
 
         # Specify which pipeline created this file
         subheader['PYPELINE'] = self.pypeline
@@ -1364,11 +1410,11 @@ class Spectrograph:
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, `Path`_, `astropy.io.fits.Header`_, :obj:`list`):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
                 Input filename, an `astropy.io.fits.Header`_ object, or a list
-                of `astropy.io.fits.Header`_ objects.  If None, function simply
-                returns None without issuing any warnings/errors, unless
-                ``required`` is True.
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table. If None, function simply returns None without
+                issuing any warnings/errors, unless ``required`` is True.
             meta_key (:obj:`str`, :obj:`list`):
                 A (list of) string(s) with the keywords to read from the file
                 header(s).
@@ -1402,7 +1448,19 @@ class Spectrograph:
             Value recovered for (each) keyword.  Can be None.
         """
         headarr = None
-        if isinstance(inp, (str, Path, fits.HDUList)):
+
+        # If the input is a metadata table, return the desired value
+        if isinstance(inp, Table):
+            try:
+                return inp[meta_key][0]
+            except KeyError:
+                # If the key is not present (e.g., this is an older PypeIt file
+                #   and we are striving for backwards-compatability), get the
+                #   filename from the table row and proceed as below.
+                headarr = self.get_headarr(inp['filename'][0])
+
+        # Otherwise, this set of statements pulls the Header array for the file in question
+        elif isinstance(inp, (str, Path, fits.HDUList)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
             headarr = inp
@@ -1428,6 +1486,12 @@ class Spectrograph:
             else:
                 msgs.warn("Requested meta data for meta_key={} does not exist...".format(meta_key))
                 return None
+
+        # If we are pulling metadata from a PypeIt-produced file (e.g., spec2d_*.fits),
+        #   then we KNOW that the desired metadata key exists as a FITS keyword already.
+        #   Return it now and skip all the gynmastics
+        if headarr[0].get('PIPELINE','').strip() == 'PYPEIT':
+            return headarr[0][meta_key.upper()]
 
         # Is this meta required for this frame type (Spectrograph specific)
         if 'required_ftypes' in self.meta[meta_key] and usr_row is not None:

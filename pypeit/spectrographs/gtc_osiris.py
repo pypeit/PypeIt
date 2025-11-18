@@ -3,7 +3,15 @@ Module for GTC OSIRIS specific methods.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
+
+from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.table import Table
+from astropy.time import Time
+from astropy import units, wcs
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -11,10 +19,8 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from astropy import wcs, units
-import astropy.io.fits as fits
-from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation
+from pypeit.par import parset
+
 from IPython import embed
 
 
@@ -33,7 +39,6 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
 
     def __init__(self):
         super().__init__()
-        self.location = EarthLocation.of_site('lapalma')
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -239,6 +244,17 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'decker', 'binning']
 
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list` : The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['idname']
+
     def raw_header_cards(self):
         """
         Return additional raw header cards to be propagated in
@@ -311,15 +327,20 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         """
         return {'standard': 'dispname', 'bias': 'binning', 'dark': 'binning'}
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -328,78 +349,83 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'idname') == 'OsirisMOS':
+        # Adjust parameters based on grating and idname
+        grating = self.get_meta_value(inp, 'dispname')
+        idname = self.get_meta_value(inp, 'idname')
+
+        if idname == 'OsirisMOS':
             par['reduce']['findobj']['find_trim_edge'] = [1,1]
             par['calibrations']['slitedges']['sync_predict'] = 'pca'
             par['calibrations']['slitedges']['det_buffer'] = 1
-        elif self.get_meta_value(scifile, 'idname') == 'OsirisLongSlitSpectroscopy':
+        elif idname == 'OsirisLongSlitSpectroscopy':
             # Do not tweak the slit edges for longslit
             par['calibrations']['flatfield']['tweak_slits'] = False
 
         # Wavelength calibration and setup-dependent parameters
-        if self.get_meta_value(scifile, 'dispname') == 'R300B':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
-            par['reduce']['findobj']['find_min_max'] = [750, 2051]
-            par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
-            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
-            par['calibrations']['slitedges']['smash_range'] = [0.38, 0.62]
-            par['calibrations']['flatfield']['slit_illum_finecorr'] = False
-            par['reduce']['cube']['wave_min'] = 3600.0
-            par['reduce']['cube']['wave_max'] = 7200.0
-        elif self.get_meta_value(scifile, 'dispname') == 'R300R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
-            par['reduce']['findobj']['find_min_max'] = [750, 2051]
-            par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
-            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
-            par['calibrations']['slitedges']['smash_range'] = [0.38, 0.62]
-            par['calibrations']['flatfield']['slit_illum_finecorr'] = False
-            par['reduce']['cube']['wave_min'] = 4800.0
-            par['reduce']['cube']['wave_max'] = 10000.0
-        elif self.get_meta_value(scifile, 'dispname') == 'R500B':
-            par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
-            par['reduce']['findobj']['find_min_max'] = [500, 2051]
-            par['reduce']['cube']['wave_min'] = 3600.0
-            par['reduce']['cube']['wave_max'] = 7200.0
-        elif self.get_meta_value(scifile, 'dispname') == 'R500R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
-            par['reduce']['findobj']['find_min_max'] = [450, 2051]
-            par['reduce']['cube']['wave_min'] = 4800.0
-            par['reduce']['cube']['wave_max'] = 10000.0
-        elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2000B':
-            par['calibrations']['wavelengths']['fwhm'] = 15.0
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500U':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
-            par['calibrations']['wavelengths']['nsippet'] = 1
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500V':
-            par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500R':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500I':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
-            par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
-        else:
-            msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        match grating:
+            case 'R300B':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
+                par['reduce']['findobj']['find_min_max'] = [750, 2051]
+                par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
+                par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
+                par['calibrations']['slitedges']['smash_range'] = [0.38, 0.62]
+                par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+                par['reduce']['cube']['wave_min'] = 3600.0
+                par['reduce']['cube']['wave_max'] = 7200.0
+            case 'R300R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
+                par['reduce']['findobj']['find_min_max'] = [750, 2051]
+                par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
+                par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
+                par['calibrations']['slitedges']['smash_range'] = [0.38, 0.62]
+                par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+                par['reduce']['cube']['wave_min'] = 4800.0
+                par['reduce']['cube']['wave_max'] = 10000.0
+            case 'R500B':
+                par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
+                par['reduce']['findobj']['find_min_max'] = [500, 2051]
+                par['reduce']['cube']['wave_min'] = 3600.0
+                par['reduce']['cube']['wave_max'] = 7200.0
+            case 'R500R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
+                par['reduce']['findobj']['find_min_max'] = [450, 2051]
+                par['reduce']['cube']['wave_min'] = 4800.0
+                par['reduce']['cube']['wave_max'] = 10000.0
+            case 'R1000B':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
+            case 'R1000R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
+            case 'R2000B':
+                par['calibrations']['wavelengths']['fwhm'] = 15.0
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
+            case 'R2500U':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
+                par['calibrations']['wavelengths']['nsippet'] = 1
+            case 'R2500V':
+                par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
+            case 'R2500R':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
+            case 'R2500I':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
+                par['sensfunc']['algorithm'] = 'IR'
+                par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
+            case _:
+                msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Return
         return par
@@ -945,6 +971,17 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'decker', 'binning']
 
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list` : The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['idname']
+
     def raw_header_cards(self):
         """
         Return additional raw header cards to be propagated in
@@ -1021,15 +1058,20 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         """
         return {'standard': 'dispname','bias': 'binning', 'dark': 'binning'}
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -1038,61 +1080,66 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'idname') == 'OsirisMOS':
+        # Adjust parameters based on grating and idname
+        grating = self.get_meta_value(inp, 'dispname')
+        idname = self.get_meta_value(inp, 'idname')
+
+        if idname == 'OsirisMOS':
             par['reduce']['findobj']['find_trim_edge'] = [1,1]
             par['calibrations']['slitedges']['sync_predict'] = 'pca'
             par['calibrations']['slitedges']['det_buffer'] = 1
-        elif self.get_meta_value(scifile, 'idname') == 'OsirisLongSlitSpectroscopy':
+        elif idname == 'OsirisLongSlitSpectroscopy':
             # Do not tweak the slit edges for longslit
             par['calibrations']['flatfield']['tweak_slits'] = False
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'R300B':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
-            par['reduce']['findobj']['find_min_max']=[750,2051]
-        elif self.get_meta_value(scifile, 'dispname') == 'R300R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
-            par['reduce']['findobj']['find_min_max']=[750,2051]
-        elif self.get_meta_value(scifile, 'dispname') == 'R500B':
-            par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
-            par['reduce']['findobj']['find_min_max']=[500,2051]
-        elif self.get_meta_value(scifile, 'dispname') == 'R500R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
-            par['reduce']['findobj']['find_min_max']=[450,2051]
-        elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2000B':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500U':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
-            par['calibrations']['wavelengths']['nsippet'] = 1
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500V':
-            par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500R':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500I':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
-            par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
-        else:
-            msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        match grating:
+            case 'R300B':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
+                par['reduce']['findobj']['find_min_max']=[750,2051]
+            case 'R300R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
+                par['reduce']['findobj']['find_min_max']=[750,2051]
+            case 'R500B':
+                par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
+                par['reduce']['findobj']['find_min_max']=[500,2051]
+            case 'R500R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
+                par['reduce']['findobj']['find_min_max']=[450,2051]
+            case 'R1000B':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
+            case 'R1000R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
+            case 'R2000B':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
+            case 'R2500U':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
+                par['calibrations']['wavelengths']['nsippet'] = 1
+            case 'R2500V':
+                par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
+            case 'R2500R':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
+            case 'R2500I':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
+                par['sensfunc']['algorithm'] = 'IR'
+                par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
+            case _:
+                msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Return
         return par

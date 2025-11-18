@@ -3,9 +3,12 @@ Module for TNG/Dolores
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
 
 import numpy as np
 
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
 from pypeit import msgs
@@ -13,6 +16,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class TNGDoloresSpectrograph(spectrograph.Spectrograph):
@@ -93,39 +97,48 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         return par
 
     
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'LR-B':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx_v2.fits'
-            # Add CdI
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI']
-        elif self.get_meta_value(scifile, 'dispname') == 'LR-R':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-R_arx.fits'
-            # Add CdI
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI']
-        else:
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            msgs.warn('Check wavelength calibration file.')
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        match grating:
+            case 'LR-B':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx_v2.fits'
+                # Add CdI
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI']
+            case 'LR-R':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-R_arx.fits'
+                # Add CdI
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI']
+            case _:
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+                msgs.warn('Check wavelength calibration file.')
 
         # Return
         return par

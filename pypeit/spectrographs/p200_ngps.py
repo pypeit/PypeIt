@@ -3,8 +3,6 @@ Module for P200/NGPS specific methods.
 
 .. include:: ../include/links.rst
 """
-from typing import List, Optional
-
 import numpy as np
 
 from astropy.io import fits
@@ -177,7 +175,7 @@ class P200NGPSSpectrograph_r(P200NGPSSpectrograph):
     
 
 
-    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+    def compound_meta(self, headarr: list[fits.Header], meta_key: str):
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -221,7 +219,7 @@ class P200NGPSSpectrograph_r(P200NGPSSpectrograph):
             msgs.error(f"Not ready for this compound meta: {meta_key}")
 
 
-    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
+    def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):
         """
         Return metadata for the selected detector.
     
@@ -346,7 +344,7 @@ class P200NGPSSpectrograph_i(P200NGPSSpectrograph):
         # Pull image from detector 2
         return super().get_rawimage(raw_file, det=2, sec_includes_binning=True)
     
-    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+    def compound_meta(self, headarr: list[fits.Header], meta_key: str):
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -390,7 +388,7 @@ class P200NGPSSpectrograph_i(P200NGPSSpectrograph):
             msgs.error("Not ready for this compound meta: ", meta_key)
 
 
-    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
+    def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):
         """
         Return metadata for the selected detector.
     

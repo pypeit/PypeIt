@@ -3,7 +3,14 @@ Module for VLT FORS (1 and 2)
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
+from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.table import Table
+from astropy import units
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
@@ -11,9 +18,8 @@ from pypeit.core import framematch
 from pypeit.core import meta
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from astropy.coordinates import SkyCoord
-from astropy import units
-from astropy.io import fits
+from pypeit.par import parset
+
 from IPython import embed
 
 class VLTFORSSpectrograph(spectrograph.Spectrograph):
@@ -301,15 +307,20 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         else:
             msgs.error(f'Unknown chip: {chip}!')
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -318,36 +329,41 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating & decker used
+        grating = self.get_meta_value(inp, 'dispname')
+        decker = self.get_meta_value(inp, 'decker')
+
         # TODO: Should we allow the user to override these?
 
         #detector = self.get_meta_value(scifile, 'detector')
         #self.set_detector(detector)
         # Wavelengths
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_600z':
-            par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            # Since we are using the sky to fit the wavelengths don't correct for flexure
-            par['flexure']['spec_method'] = 'skip'
-            #par['reduce']['skysub']['bspline_spacing'] = 0.6
-        elif self.get_meta_value(scifile,'dispname') == 'GRIS_1200B':
-            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI','HgI','CdI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1200B.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile,'dispname') == 'GRIS_1400V':
-            par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','HgI','CdI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1400V.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
+        match grating:
+            case 'GRIS_300I':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_300V':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_600z':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+                # Since we are using the sky to fit the wavelengths don't correct for flexure
+                par['flexure']['spec_method'] = 'skip'
+                #par['reduce']['skysub']['bspline_spacing'] = 0.6
+            case 'GRIS_1200B':
+                par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI','HgI','CdI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1200B.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_1400V':
+                par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','HgI','CdI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1400V.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
 
-        decker = self.get_meta_value(scifile, 'decker')
         if 'lSlit' in decker or 'LSS' in decker:
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
