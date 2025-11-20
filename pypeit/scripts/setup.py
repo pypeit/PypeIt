@@ -58,6 +58,9 @@ class Setup(scriptbase.ScriptBase):
                                  'pypeit_obslog; i.e., you have to tell pypeit_setup to keep '
                                  'these frames, whereas you have to tell pypeit_obslog to remove '
                                  'them.')
+        parser.add_argument('-p', '--param_block_file', default=None, type=str,
+                            help='File containing the additional PypeIt user parameters to be '
+                                 'added to the parameter block of the generated reduction file')
         parser.add_argument('-G', '--gui', default=False, action='store_true',
                             help='Run setup in a GUI')        
 
@@ -101,6 +104,15 @@ class Setup(scriptbase.ScriptBase):
 
         # Initialize PypeItSetup based on the arguments
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
+        # Add any additional user parameters
+        if args.param_block_file is not None:
+            if (user_par_fn := Path(args.param_block_file)).exists():
+                with open(user_par_fn, 'r', encoding='utf-8') as user_par_fobj:
+                    user_cfgs = [l.rstrip() for l in user_par_fobj.readlines()]
+                ps.append_user_cfg(user_cfgs)
+            else:
+                msgs.warn(f"Could not open param_block file {args.param_block_file}. "
+                          "Not adding any additional user parameters to the .pypeit file.")
         # Run the setup
         ps.run(setup_only=True, clean_config=not args.keep_bad_frames)
 

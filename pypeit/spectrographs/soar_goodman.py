@@ -3,17 +3,22 @@ Module for the SOAR/Goodman instrument
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit import io
+from pypeit.core import standard
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
@@ -182,11 +187,18 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science']:
-            return good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
-        if ftype in ['standard']:
-            # Don't type pinhole or dark frames
-            return np.zeros(len(fitstbl), dtype=bool) & self.lamps(fitstbl, 'off')
+        if ftype in ['science', 'standard']:
+            std = np.zeros(len(fitstbl), dtype=bool)
+            # Identify standard stars from flux_calib
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                std = np.array([
+                    standard.get_archive_standard(ra, dec, tol=10., check=True)
+                    for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])
+                ])
+            base = good_exp & (fitstbl['idname'] == 'SPECTRUM') & self.lamps(fitstbl, 'off')
+            if ftype == 'science':
+                return base & np.logical_not(std)
+            return base & std
         if ftype == 'bias':
             # Don't type bias
             return np.zeros(len(fitstbl), dtype=bool)
@@ -340,15 +352,20 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         return par
 
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -357,16 +374,19 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+       # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
 
         # Wavelength calibrations
         # Here is a useful website with an arc atlas
         # http://soartelescope.org/soar/content/goodman-comparison-lamps
-        if self.get_meta_value(scifile, 'dispname') == '400_SYZY':
+        if grating == '400_SYZY':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_red_400_SYZY.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == '600_SYZY_OLD':
+        elif grating == '600_SYZY_OLD':
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'HgI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_red_600_SYZY_OLD.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -532,15 +552,20 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -549,13 +574,16 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
 
         # Wavelength calibrations
         # Here is a useful website with an arc atlas
         # http://soartelescope.org/soar/content/goodman-comparison-lamps
-        if self.get_meta_value(scifile, 'dispname') == '400_SYZY':
+        if grating == '400_SYZY':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_blue_400_SYZY.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['flatfield']['slit_illum_finecorr'] = False  # Turn this off due to junk in the unilluminated part of the detector

@@ -67,7 +67,7 @@ PypeIt BibTeX Entries
    codeconduct
    installing
    whatsnew
-   known_failure_modes
+   trouble
 
 .. toctree::
    :caption: Quickstart & Tutorials
@@ -130,6 +130,15 @@ PypeIt BibTeX Entries
    frametype
    scripts
    bitmasks
+
+.. toctree::
+   :caption: Project Information
+   :maxdepth: 1
+   :hidden:
+
+   governance
+   pac_charter
+   team
 
 .. toctree::
    :caption: For Developers

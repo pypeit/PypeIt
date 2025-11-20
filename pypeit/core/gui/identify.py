@@ -100,9 +100,9 @@ class Identify:
         specname : str, optional
             The name of the spectrograph
         y_log : bool, optional
-            Scale the Y-axis logarithmically instead of linearly?  (Default: True)
+            Scale the Y-axis logarithmically instead of linearly?
         rescale_resid : bool, optional
-            Rescale the residuals plot to include all points?  (Default: False)
+            Rescale the residuals plot to include all points?
         """
         # Store the axes
         self.axes = axes
@@ -234,9 +234,9 @@ class Identify:
         specname : str, optional
             The name of the spectrograph
         y_log : bool, optional
-            Scale the Y-axis logarithmically instead of linearly?  (Default: True)
+            Scale the Y-axis logarithmically instead of linearly?
         rescale_resid : bool, optional
-            Rescale the residuals plot to include all points?  (Default: False)
+            Rescale the residuals plot to include all points?
 
         Returns
         -------
@@ -932,7 +932,7 @@ class Identify:
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
                 print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
                 print("You will need the following information:")
-                print("  (1) spectral binning = {0:d}".format(binspec))
+                print("  (1) spectral binning = {}".format(binspec))
                 print("  (2) slit spat_id = {0:s}".format(self._spatid))
                 print("  (3) the {0:s} file".format(outfname))
                 print("\nPlease consider sending your solution to the PypeIt team!\n")

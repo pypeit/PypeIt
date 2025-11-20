@@ -44,10 +44,15 @@ class TraceEdges(scriptbase.ScriptBase):
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
 
-        parser.add_argument('--debug', default=False, action='store_true',
-                            help='Run in debug mode.')
+        parser.add_argument('--debug', type=int, default=0,
+                            help='Debug level.  (1) Show the result of each stage of the tracing '
+                                 'algorithm (previously the --show option). (2) Also show summary '
+                                 'plots related to the PCA decomposition and the slit and order '
+                                 'matching.  (3) Also show the individual polynomial fits to the '
+                                 'detected edges.')
         parser.add_argument('--show', default=False, action='store_true',
-                            help='Show the stages of trace refinements (only for the new code).')
+                            help='DEPRECATED!  If set, the code will assume you mean to set '
+                                 '--debug 1.')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename trace_edges_YYYYMMDD-HHMM.log')
@@ -70,6 +75,10 @@ class TraceEdges(scriptbase.ScriptBase):
 
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('trace_edges', args.verbosity)
+
+        if args.show:
+            msgs.warn('"show" option is deprecated.  Setting debug = 1.')
+            args.debug = 1
 
         if args.pypeit_file is not None:
             pypeit_file = Path(args.pypeit_file).absolute()
@@ -197,8 +206,7 @@ class TraceEdges(scriptbase.ScriptBase):
             # Trace the slit edges
             t = time.perf_counter()
             edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, auto=True,
-                                           debug=args.debug, show_stages=args.show,
-                                           qa_path=qa_path)
+                                           debug=args.debug, qa_path=qa_path)
             if not edges.success:
                 msgs.warn(f'Edge tracing for detector {det} failed.  Continuing...')
                 continue

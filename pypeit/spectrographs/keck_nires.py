@@ -431,9 +431,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        pypeit_keys = super().pypeit_file_keys()
-        pypeit_keys += ['dithpat', 'dithpos', 'dithoff','frameno']
-        return pypeit_keys
+        return super().pypeit_file_keys() + ['dithpat', 'dithpos', 'dithoff', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

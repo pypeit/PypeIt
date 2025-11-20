@@ -20,7 +20,8 @@ class SensFunc(scriptbase.ScriptBase):
                                     formatter=scriptbase.SmartFormatter)
         parser.add_argument("spec1dfile", type=str,
                             help='spec1d file for the standard that will be used to compute '
-                                 'the sensitivity function')
+                                 'the sensitivity function. This can be the output file of '
+                                 '`pypeit_coadd_1dspec` for non Echelle data.')
         parser.add_argument("--extr", type=str, default=None, choices=['OPT', 'BOX'],
                             help="R|Override the default extraction method used for computing the sensitivity "
                                  "function.  Note that it is not possible to set --extr and "
@@ -141,7 +142,7 @@ class SensFunc(scriptbase.ScriptBase):
 
         # Determine the spectrograph and generate the primary FITS header
         with io.fits_open(args.spec1dfile) as hdul:
-            spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
+            spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'], pypeit_fits=True)
             spectrograph_config_par = spectrograph.config_specific_par(hdul)
 
             # Construct a primary FITS header that includes the spectrograph's
@@ -203,8 +204,12 @@ class SensFunc(scriptbase.ScriptBase):
         # pypeit.par.pypeitpar.SensFuncPar class.
 
         # Parse the output filename
-        outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') \
-                        if args.outfile is None else args.outfile
+        if args.outfile is not None:
+            outfile = args.outfile
+        else:
+            spec1dname = Path(args.spec1dfile).name
+            outfile = spec1dname.replace('spec1d','sens') if spec1dname.startswith('spec1d') else \
+                      'sens_' + spec1dname
         # Instantiate the relevant class for the requested algorithm
         sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
                                                  par_fluxcalib=par['fluxcalib'], debug=args.debug,

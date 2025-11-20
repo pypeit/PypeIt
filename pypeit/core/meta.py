@@ -161,6 +161,7 @@ def define_additional_meta(nlamps=20):
                        'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
                        'instrument': dict(dtype=str, comment='Header supplied instrument name'),
                        'mode': dict(dtype=str, comment='Observing mode'),
+                       'nodpix': dict(dtype=int, comment='Number of rows shuffled when nodding, used for Gemini/GMOS'),
                        'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
                        'obstime': dict(dtype=str, comment='Observation time'),
                        'oscansec': dict(dtype=str, comment='Overscan section (windowing)'),
@@ -169,11 +170,24 @@ def define_additional_meta(nlamps=20):
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
                        'slitlength': dict(dtype=float, comment='Slit length, used only for long slits'),
+                       'slitrange': dict(dtype=str, comment='Slit pixel range as colon-separated values, used for MOSFIRE longslit'),
                        'temperature': dict(dtype=float, comment='Temperature (units.K) at observation time'),
                        'utc': dict(dtype=str, comment='UTC of observation'),
                        'mirror': dict(dtype=str, comment='Position of an instrument mirror (e.g. IN or OUT)'),
                        'xd': dict(dtype=float, comment='Cross disperser (e.g. red or blue for HIRES)'),
                        'xdangle':dict(dtype=float, comment='Cross disperser angle'),
+                       'readmode': dict(dtype=str,
+                                        comment='Read mode of the image'),
+                       'savemode': dict(dtype=str,
+                                        comment='Save mode of the image'),
+                       'dit': dict(dtype=float,
+                                   comment='Detector integration time'),
+                       'ndit': dict(dtype=int,
+                                    comment='Number of integrations'),
+                       'camera': dict(dtype=str,
+                                      comment='Camera (e.g. N1.8/N3.75/N30 for LUCI)'),
+                       'camera_pos':dict(dtype=str, comment='Camera position (e.g. LongRed, ShortBlue, '
+                                                            'etc for Gemini GNIRS)'),
                        }
 
     for kk in range(nlamps):

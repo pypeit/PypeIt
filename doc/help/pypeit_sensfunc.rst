@@ -10,7 +10,8 @@
     
     positional arguments:
       spec1dfile            spec1d file for the standard that will be used to
-                            compute the sensitivity function
+                            compute the sensitivity function. This can be the output
+                            file of `pypeit_coadd_1dspec` for non Echelle data.
     
     options:
       -h, --help            show this help message and exit
@@ -55,7 +56,7 @@
                                 [sensfunc]
                                     multi_spec_det = 3,7
                              
-      -o OUTFILE, --outfile OUTFILE
+      -o, --outfile OUTFILE
                             Output file for sensitivity function. If not specified,
                             the sensitivity function will be written out to a
                             standard filename in the current working directory, i.e.
@@ -69,7 +70,7 @@
                             same extensions for QA and throughput will be used if
                             outfile is provided but with .fits trimmed off if it is
                             in the filename.
-      -s SENS_FILE, --sens_file SENS_FILE
+      -s, --sens_file SENS_FILE
                             Configuration file with sensitivity function parameters
       -f, --use_flat        Use the extracted spectrum of the flatfield calibration
                             to estimate the blaze function when generating the
@@ -89,7 +90,7 @@
       --par_outfile PAR_OUTFILE
                             Name of output file to save the parameters used by the
                             fit
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename sensfunc_YYYYMMDD-
                             HHMM.log

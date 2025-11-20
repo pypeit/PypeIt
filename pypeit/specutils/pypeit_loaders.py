@@ -26,7 +26,7 @@ import astropy.units
 try:
     from specutils.io.parsing_utils import read_fileobj_or_hdulist
     from specutils.io.registers import data_loader
-    from specutils import Spectrum1D, SpectrumList
+    from specutils import Spectrum, SpectrumList
 except ModuleNotFoundError:
     raise ModuleNotFoundError('Unable to import specutils.  Install pypeit with the specutils '
                               'option to use the pypeit.specutils module.')
@@ -213,12 +213,12 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, chk_v
         _sigma = np.sqrt(utils.inverse(_ivar))
         flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if _cal else "electron")
         spec += \
-            [Spectrum1D(flux=astropy.units.Quantity(_flux * flux_unit),
-                        uncertainty=astropy.nddata.StdDevUncertainty(_sigma * flux_unit),
-                        meta={'name': sobj.NAME, 'extract': _ext, 'fluxed': _cal},
-                        spectral_axis=astropy.units.Quantity(_wave * astropy.units.angstrom),
-                        velocity_convention="doppler_optical",
-                        bin_specification="centers")]
+            [Spectrum(flux=astropy.units.Quantity(_flux * flux_unit),
+                      uncertainty=astropy.nddata.StdDevUncertainty(_sigma * flux_unit),
+                      meta={'name': sobj.NAME, 'extract': _ext, 'fluxed': _cal},
+                      spectral_axis=astropy.units.Quantity(_wave * astropy.units.angstrom),
+                      velocity_convention="doppler_optical",
+                      bin_specification="centers")]
     return SpectrumList(spec)
 
 
@@ -226,10 +226,10 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, chk_v
              identifier=identify_pypeit_onespec,
              extensions=["fits"],
              priority=10,
-             dtype=Spectrum1D)
+             dtype=Spectrum)
 def pypeit_onespec_loader(filename, grid=False, strict=True, chk_version=True, **kwargs):
     """
-    Load a spectrum from a PypeIt OneSpec file into a Spectrum1D object.
+    Load a spectrum from a PypeIt OneSpec file into a Spectrum object.
 
     Parameters
     ----------
@@ -240,9 +240,9 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, chk_version=True, *
         center.
     strict : bool, optional
         Check that the wavelength vector is monotonically increasing.  If not,
-        raise an error (as would be done by the `specutils.Spectrum1D`_ class).
+        raise an error (as would be done by the `specutils.Spectrum`_ class).
         If False, wavelengths that are *not* monotonically increasing are masked
-        in the construction of the returned `specutils.Spectrum1D`_ object.
+        in the construction of the returned `specutils.Spectrum`_ object.
     chk_version : :obj:`bool`, optional
         When reading in existing files written by PypeIt, perform strict version
         checking to ensure a valid file.  If False, the code will try to keep
@@ -253,7 +253,7 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, chk_version=True, *
 
     Returns
     -------
-    spec : `specutils.Spectrum1D`_
+    spec : `specutils.Spectrum`_
         Spectrum in the PypeIt OneSpec file
     """
     # Try to load the file and ignoring any version mismatch
@@ -269,8 +269,9 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, chk_version=True, *
 
     flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if spec.fluxed else "ct/s")
     wave = spec.wave_grid_mid if grid else spec.wave
-    wave, flux, sigma = _enforce_monotonic_wavelengths(wave, spec.flux, spec.sigma, strict=strict)
-
+    _gpm = spec.mask.astype(bool) if spec.mask is not None else np.ones_like(spec.wave, dtype=bool)
+    wave, flux, sigma = _enforce_monotonic_wavelengths(wave[_gpm], spec.flux[_gpm],
+                                                       None if spec.sigma is None else spec.sigma[_gpm], strict=strict)
     # If the input filename is actually a string, assign it as the spectrum
     # name.  Otherwise, try assuming it's a _io.FileIO object, and if that
     # doesn't work assign an empty string as the name.
@@ -283,26 +284,26 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, chk_version=True, *
             name = ''
 
     # TODO We should be dealing with masking here.
-    return Spectrum1D(flux=astropy.units.Quantity(flux * flux_unit),
-                      uncertainty=None if spec.sigma is None 
-                                  else astropy.nddata.StdDevUncertainty(sigma * flux_unit),
-                      meta={'name': name, 'extract': spec.ext_mode, 'fluxed': spec.fluxed,
-                            'grid': grid},
-                      spectral_axis=astropy.units.Quantity(wave * astropy.units.angstrom),
-                      velocity_convention="doppler_optical",
-                      bin_specification="centers")
+    return Spectrum(flux=astropy.units.Quantity(flux * flux_unit),
+                    uncertainty=None if spec.sigma is None 
+                                else astropy.nddata.StdDevUncertainty(sigma * flux_unit),
+                    meta={'name': name, 'extract': spec.ext_mode, 'fluxed': spec.fluxed,
+                          'grid': grid},
+                    spectral_axis=astropy.units.Quantity(wave * astropy.units.angstrom),
+                    velocity_convention="doppler_optical",
+                    bin_specification="centers")
 
 # Warning Function ===========================================================#
 @data_loader('PypeIt spec1d nolist',
              identifier=identify_pypeit_spec1d,
              extensions=["fits"],
              priority=10,
-             dtype=Spectrum1D,
+             dtype=Spectrum,
              autogenerate_spectrumlist=False)
 def pypeit_spec1d_loader_nolist(filename, extract=None, fluxed=True, **kwargs):
     """
     Sensible error message if a user tries to load spectra from a PypeIt spec1d
-    file into a Spectrum1D.
+    file into a Spectrum.
 
     This is not allowed because spec1d files may contain mutliple spectra.  This
     function accepts all arguments as the SpectrumList version, but only outputs
@@ -326,5 +327,5 @@ def pypeit_spec1d_loader_nolist(filename, extract=None, fluxed=True, **kwargs):
         calibration hasn't been performed or ``fluxed=False``, the spectrum is
         returned in counts.
     """
-    msgs.error(f'The spec1d file {filename.name} cannot be ingested into a Spectrum1D object.'
+    msgs.error(f'The spec1d file {filename.name} cannot be ingested into a Spectrum object.'
                f'{msgs.newline()}Please use the SpectrumList object for spec1d files.')
