@@ -331,6 +331,8 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         if ftype in ["arc", "tilt"]:
             return good_exp & (
                 (fitstbl["idname"] == "SCIENCE")
+                | (fitstbl["idname"] == "Science")
+                | (fitstbl["idname"] == "Science_extended")
                 | (fitstbl["idname"] == "TEST")
                 | (fitstbl["idname"] == "SCIENCE_ON")
                 | (fitstbl["idname"] == "SCIENCE_OFF")
@@ -338,14 +340,27 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         if ftype in ["trace", "pixelflat"]:
             return (
                 good_exp
-                & (fitstbl["idname"] == "DOME FLAT")
-                & (fitstbl["lampstat01"] == "off")
+                & (
+                    (fitstbl["idname"] == "DOME FLAT")
+                    | (fitstbl["idname"] == "Dome_flat")
+                )
+                #& (fitstbl["lampstat01"] == "off")
             )
         if ftype == "illumflat":
             return (
                 good_exp
-                & (fitstbl["idname"] == "SKY FLAT")
-                & (fitstbl["lampstat01"] == "off")
+                & (
+                    (fitstbl["idname"] == "SKY FLAT")
+                    | (fitstbl["idname"] == "Sky_flat")
+                )
+                #& (fitstbl["lampstat01"] == "off")
+            )
+        if ftype == "lampoffflats":
+            return (
+                good_exp
+                & (
+                    (fitstbl["idname"] == "Dome_background")
+                )
             )
         if ftype == "science":
             return (
@@ -353,22 +368,30 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 & (
                     (fitstbl["idname"] == "SCIENCE")
                     | (fitstbl["idname"] == "TEST")
+                    | (fitstbl["idname"] == "Science")
+                    | (fitstbl["idname"] == "Science_extended")
                     | (fitstbl["idname"] == "SCIENCE_ON")
                     | (fitstbl["idname"] == "SCIENCE_OFF")
                 )
-                & (fitstbl["lampstat01"] == "off")
+                #& (fitstbl["lampstat01"] == "off")
             )
         if ftype == "standard":
             return (
                 good_exp
-                & (fitstbl["idname"] == "STANDARD")
-                & (fitstbl["lampstat01"] == "off")
+                & (
+                    (fitstbl["idname"] == "STANDARD")
+                    | (fitstbl["idname"] == "Standard")
+                )
+                #& (fitstbl["lampstat01"] == "off")
             )
         if ftype == "dark":
             return (
                 good_exp
-                & (fitstbl["idname"] == "DARK")
-                & (fitstbl["lampstat01"] == "off")
+                & (
+                    (fitstbl["idname"] == "DARK")
+                    | (fitstbl["idname"] == "Dark")
+                )
+                #& (fitstbl["lampstat01"] == "off")
             )
         if ftype in [
             "bias",
