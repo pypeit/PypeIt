@@ -1435,7 +1435,7 @@ class PypeItMetaData:
                                'Check your PypeIt Reduction File')
             return self.set_frame_types(type_bits, merge=merge)
 
-        print(self.table, "\n")
+        print(self.table["target"], "\n")
 
         # Loop over the frame types
         for i, ftype in enumerate(self.type_bitmask.keys()):
