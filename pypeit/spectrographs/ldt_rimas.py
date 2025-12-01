@@ -331,8 +331,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         if ftype in ["arc", "tilt"]:
             return good_exp & (
                 (fitstbl["idname"] == "SCIENCE")
-                | (fitstbl["idname"] == "Science")
-                | (fitstbl["idname"] == "Science_extended")
+                | (fitstbl["idname"] == "SCIENCE_EXTENDED")
                 | (fitstbl["idname"] == "TEST")
                 | (fitstbl["idname"] == "SCIENCE_ON")
                 | (fitstbl["idname"] == "SCIENCE_OFF")
@@ -341,8 +340,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             return (
                 good_exp
                 & (
-                    (fitstbl["idname"] == "DOME FLAT")
-                    | (fitstbl["idname"] == "Dome_flat")
+                    (fitstbl["idname"] == "DOME_FLAT")
                 )
                 #& (fitstbl["lampstat01"] == "off")
             )
@@ -350,8 +348,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             return (
                 good_exp
                 & (
-                    (fitstbl["idname"] == "SKY FLAT")
-                    | (fitstbl["idname"] == "Sky_flat")
+                    (fitstbl["idname"] == "SKY_FLAT")
                 )
                 #& (fitstbl["lampstat01"] == "off")
             )
@@ -359,7 +356,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             return (
                 good_exp
                 & (
-                    (fitstbl["idname"] == "Dome_background")
+                    (fitstbl["idname"] == "DOME_BACKGROUND")
                 )
             )
         if ftype == "science":
@@ -368,8 +365,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 & (
                     (fitstbl["idname"] == "SCIENCE")
                     | (fitstbl["idname"] == "TEST")
-                    | (fitstbl["idname"] == "Science")
-                    | (fitstbl["idname"] == "Science_extended")
+                    | (fitstbl["idname"] == "SCIENCE_EXTENDED")
                     | (fitstbl["idname"] == "SCIENCE_ON")
                     | (fitstbl["idname"] == "SCIENCE_OFF")
                 )
@@ -852,13 +848,16 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
         par = super().default_pypeit_par()
 
         # Adjustments to slit and tilts for NIR
-        par["calibrations"]["slitedges"]["edge_thresh"] = 50.0  # Default: 20.0
+        par["calibrations"]["slitedges"]["edge_thresh"] = 20.0  # Default: 20.0
         par["calibrations"]["slitedges"]["fit_order"] = 2  # Default: 5
         par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
         par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
-        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.5
+        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.6
         par["calibrations"]["slitedges"]["left_right_pca"] = True
         par["calibrations"]["slitedges"]["length_range"] = 0.3
+        par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.6
+        par["calibrations"]["slitedges"]["sync_predict"]="nearest"
+        #par["calibrations"]["slitedges"]["sobel_enhance"] = 2 # Default: 0
 
         # For processing the arc frame, these settings allow for the combination of
         #   of frames from different lamps into a comprehensible Master
@@ -873,15 +872,16 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
         par["calibrations"]["bpm_usebias"] = True
 
         # Wavelength Calibration Parameters
-        # Arc lamps list from header -- instead of defining the full list here
-        par["calibrations"]["wavelengths"]["lamps"] = ["use_header"]
+        par["calibrations"]["wavelengths"]["lamps"] = ["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
         # Set this as default... but use `holy-grail` for DV4, DV8
         par["calibrations"]["wavelengths"][
             "method"
         ] = "full_template"  # Default: 'holy-grail'
         # The DeVeny arc line FWHM varies based on slitwidth used
-        par["calibrations"]["wavelengths"]["fwhm"] = 3.0  # Default: 4.0
+        par["calibrations"]["wavelengths"]["fwhm"] = 5.0  # Default: 4.0
         par["calibrations"]["wavelengths"]["nsnippet"] = 1  # Default: 2
+        par["calibrations"]["wavelengths"]["sigdetect"] = 1.0 #Default: 5
+        par["calibrations"]["wavelengths"]['echelle'] = False
 
         # Flat-field parameter modification
         par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0  # Default: None
@@ -952,6 +952,10 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
         grating = self.get_meta_value(scifile, "dispname")
 
         if grating == "Vph30":
+            par["calibrations"]["slitedges"]["edge_thresh"] = 5.0  # Default: 20.0
+            par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.01
+            par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.01
+
             # Use this `reid_arxiv` with the `full-template` method:
             par["calibrations"]["wavelengths"][
                 "reid_arxiv"

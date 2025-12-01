@@ -1416,7 +1416,7 @@ class PypeItMetaData:
         # Start
         msgs.info("Typing files")
         type_bits = np.zeros(len(self), dtype=self.type_bitmask.minimum_dtype())
-    
+
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
@@ -1434,8 +1434,6 @@ class PypeItMetaData:
                                f'{err}{msgs.newline()}'
                                'Check your PypeIt Reduction File')
             return self.set_frame_types(type_bits, merge=merge)
-
-        print(self.table[["target", "exptime", "idname"]])
 
         # Loop over the frame types
         for i, ftype in enumerate(self.type_bitmask.keys()):
@@ -1722,6 +1720,7 @@ class PypeItMetaData:
         Returns:
             :obj:`list`: List of ``PypeIt`` files generated.
         """
+
         # Set output path
         if output_path is None:
             output_path = os.getcwd()
