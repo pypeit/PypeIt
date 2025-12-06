@@ -952,9 +952,9 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
         grating = self.get_meta_value(scifile, "dispname")
 
         if grating == "Vph30":
-            par["calibrations"]["slitedges"]["edge_thresh"] = 5.0  # Default: 20.0
-            par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.01
-            par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.01
+            par["calibrations"]["slitedges"]["edge_thresh"] = 2.0  # Default: 20.0
+            par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.05
+            par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.05
 
             # Use this `reid_arxiv` with the `full-template` method:
             par["calibrations"]["wavelengths"][
@@ -978,6 +978,9 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
             par["calibrations"]["wavelengths"]["n_final"] = 5  # Default: 4
             # The approximate resolution of this grating
             par["sensfunc"]["UVIS"]["resolution"] = 800
+
+            par["reduce"]["findobj"]["find_fwhm"] = 7
+            par["reduce"]["findobj"]["snr_thresh"] = 1
 
         else:
             pass
