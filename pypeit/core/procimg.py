@@ -216,7 +216,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         # result as scipy.signal.convolve2d, but is nearly a factor of 2 faster.
         msgs.info("Convolving image with Laplacian kernel")
         deriv = convolve(boxcar_replicate(_sciframe, 2), laplkernel, normalize_kernel=False,
-                         boundary='extend', nan_treatment="fill") #originally, the nan behavior was interpolate, but I'm not sure how that makes sense, if we are not normalizing and the kernel sums to zero
+                         boundary='extend')#, nan_treatment="fill") #originally, the nan behavior was interpolate, but I'm not sure how that makes sense, if we are not normalizing and the kernel sums to zero
         s = utils.rebinND(np.clip(deriv, 0, None), _sciframe.shape) * _inv_err / 2.0
 
         # Remove the large structures

@@ -11,6 +11,7 @@ dependencies:
   - ipython
   - pyside6
   - llvm-openmp
+  - libblas=*=*_mkl
   - pip
   - pip:
     - pypeit
