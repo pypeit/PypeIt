@@ -331,6 +331,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         if ftype in ["arc", "tilt"]:
             return good_exp & (
                 (fitstbl["idname"] == "SCIENCE")
+                | (fitstbl["idname"] == "SCIENCE_EXTENDED")
                 | (fitstbl["idname"] == "TEST")
                 | (fitstbl["idname"] == "SCIENCE_ON")
                 | (fitstbl["idname"] == "SCIENCE_OFF")
@@ -338,14 +339,25 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         if ftype in ["trace", "pixelflat"]:
             return (
                 good_exp
-                & (fitstbl["idname"] == "DOME FLAT")
-                & (fitstbl["lampstat01"] == "off")
+                & (
+                    (fitstbl["idname"] == "DOME_FLAT")
+                )
+                #& (fitstbl["lampstat01"] == "off")
             )
         if ftype == "illumflat":
             return (
                 good_exp
-                & (fitstbl["idname"] == "SKY FLAT")
-                & (fitstbl["lampstat01"] == "off")
+                & (
+                    (fitstbl["idname"] == "SKY_FLAT")
+                )
+                #& (fitstbl["lampstat01"] == "off")
+            )
+        if ftype == "lampoffflats":
+            return (
+                good_exp
+                & (
+                    (fitstbl["idname"] == "DOME_BACKGROUND")
+                )
             )
         if ftype == "science":
             return (
@@ -353,22 +365,29 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 & (
                     (fitstbl["idname"] == "SCIENCE")
                     | (fitstbl["idname"] == "TEST")
+                    | (fitstbl["idname"] == "SCIENCE_EXTENDED")
                     | (fitstbl["idname"] == "SCIENCE_ON")
                     | (fitstbl["idname"] == "SCIENCE_OFF")
                 )
-                & (fitstbl["lampstat01"] == "off")
+                #& (fitstbl["lampstat01"] == "off")
             )
         if ftype == "standard":
             return (
                 good_exp
-                & (fitstbl["idname"] == "STANDARD")
-                & (fitstbl["lampstat01"] == "off")
+                & (
+                    (fitstbl["idname"] == "STANDARD")
+                    | (fitstbl["idname"] == "Standard")
+                )
+                #& (fitstbl["lampstat01"] == "off")
             )
         if ftype == "dark":
             return (
                 good_exp
-                & (fitstbl["idname"] == "DARK")
-                & (fitstbl["lampstat01"] == "off")
+                & (
+                    (fitstbl["idname"] == "DARK")
+                    | (fitstbl["idname"] == "Dark")
+                )
+                #& (fitstbl["lampstat01"] == "off")
             )
         if ftype in [
             "bias",
@@ -523,7 +542,7 @@ class RIMASHKArm(LDTRIMASSpectrograph):
 
     def get_detector_par(self, _, hdu=None):
         """
-        Return metadata for the LDT/RIMAS YJ detector.
+        Return metadata for the LDT/RIMAS HK detector.
 
         .. warning::
 
@@ -545,18 +564,16 @@ class RIMASHKArm(LDTRIMASSpectrograph):
         if hdu is None:
             dataext = 0  # Raw data
             binning = "1,1"  # Most common use mode
-            gain = np.atleast_1d(1.52)  # Hardcoded in the header
+            gain = np.atleast_1d(1.8)  # Hardcoded in the header
             ronoise = np.atleast_1d(4.9)  # Hardcoded in the header
             datasec = np.atleast_1d("[5:512,53:2095]")  # For 1x1 binning
-            oscansec = np.atleast_1d("[5:512,5:48]")  # For 1x1 binning
         else:
             # If file is post-processed, data extension is specified.  Raw is 0.
             dataext = hdu[0].header.get("POST_EXT", 0)
             binning = self.get_meta_value(self.get_headarr(hdu), "binning")
-            gain = np.atleast_1d(hdu[0].header["GAIN"])
-            ronoise = np.atleast_1d(hdu[0].header["RDNOISE"])
-            datasec = hdu[0].header["TRIMSEC"]
-            oscansec = hdu[0].header["BIASSEC"]
+            gain = np.atleast_1d(hdu[0].header["GAIN0"])
+            ronoise = np.atleast_1d(4.9)
+            datasec = np.atleast_1d(hdu[0].header["SLICE"])
 
         # Detector
         detector_dict = dict(
@@ -576,7 +593,6 @@ class RIMASHKArm(LDTRIMASSpectrograph):
             ronoise=ronoise,  # See above
             # Data & Overscan Sections -- Edge tracing can handle slit edges
             datasec=datasec,  # See above
-            oscansec=oscansec,  # See above
         )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -832,13 +848,16 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
         par = super().default_pypeit_par()
 
         # Adjustments to slit and tilts for NIR
-        par["calibrations"]["slitedges"]["edge_thresh"] = 50.0  # Default: 20.0
+        par["calibrations"]["slitedges"]["edge_thresh"] = 20.0  # Default: 20.0
         par["calibrations"]["slitedges"]["fit_order"] = 2  # Default: 5
         par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
         par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
-        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.5
+        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.6
         par["calibrations"]["slitedges"]["left_right_pca"] = True
         par["calibrations"]["slitedges"]["length_range"] = 0.3
+        par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.6
+        par["calibrations"]["slitedges"]["sync_predict"]="nearest"
+        #par["calibrations"]["slitedges"]["sobel_enhance"] = 2 # Default: 0
 
         # For processing the arc frame, these settings allow for the combination of
         #   of frames from different lamps into a comprehensible Master
@@ -853,15 +872,16 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
         par["calibrations"]["bpm_usebias"] = True
 
         # Wavelength Calibration Parameters
-        # Arc lamps list from header -- instead of defining the full list here
-        par["calibrations"]["wavelengths"]["lamps"] = ["use_header"]
+        par["calibrations"]["wavelengths"]["lamps"] = ["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
         # Set this as default... but use `holy-grail` for DV4, DV8
         par["calibrations"]["wavelengths"][
             "method"
         ] = "full_template"  # Default: 'holy-grail'
         # The DeVeny arc line FWHM varies based on slitwidth used
-        par["calibrations"]["wavelengths"]["fwhm"] = 3.0  # Default: 4.0
+        par["calibrations"]["wavelengths"]["fwhm"] = 5.0  # Default: 4.0
         par["calibrations"]["wavelengths"]["nsnippet"] = 1  # Default: 2
+        par["calibrations"]["wavelengths"]["sigdetect"] = 1.0 #Default: 5
+        par["calibrations"]["wavelengths"]['echelle'] = False
 
         # Flat-field parameter modification
         par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0  # Default: None
@@ -932,6 +952,10 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
         grating = self.get_meta_value(scifile, "dispname")
 
         if grating == "Vph30":
+            par["calibrations"]["slitedges"]["edge_thresh"] = 2.0  # Default: 20.0
+            par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.05
+            par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.05
+
             # Use this `reid_arxiv` with the `full-template` method:
             par["calibrations"]["wavelengths"][
                 "reid_arxiv"
@@ -954,6 +978,9 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
             par["calibrations"]["wavelengths"]["n_final"] = 5  # Default: 4
             # The approximate resolution of this grating
             par["sensfunc"]["UVIS"]["resolution"] = 800
+
+            par["reduce"]["findobj"]["find_fwhm"] = 7
+            par["reduce"]["findobj"]["snr_thresh"] = 1
 
         else:
             pass
