@@ -872,7 +872,7 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
         par["calibrations"]["bpm_usebias"] = True
 
         # Wavelength Calibration Parameters
-        par["calibrations"]["wavelengths"]["lamps"] = ["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+
         # Set this as default... but use `holy-grail` for DV4, DV8
         par["calibrations"]["wavelengths"][
             "method"
@@ -968,6 +968,8 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
             # The approximate resolution of this grating
             par["sensfunc"]["UVIS"]["resolution"] = 400
 
+            par["calibrations"]["wavelengths"]["lamps"] = ["arc_RIMAS_lines.dat"]
+
         elif grating == "Vph300":
             # Use this `reid_arxiv` with the `full-template` method:
             par["calibrations"]["wavelengths"][
@@ -981,6 +983,8 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
 
             par["reduce"]["findobj"]["find_fwhm"] = 7
             par["reduce"]["findobj"]["snr_thresh"] = 1
+
+            par["calibrations"]["wavelengths"]["lamps"] = ["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
 
         else:
             pass
