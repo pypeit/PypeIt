@@ -403,6 +403,24 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         msgs.warn(f"Cannot determine if frames are of type {ftype}")
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw spectrograph image files and return data and relevant metadata
+        needed for image processing.
+
+        For LDT/RIMAS, we need to convert NaN pixels in the raw frames to
+        finite staturated values.
+        """
+        # Call the super()
+        detector_par, raw_img, hdu, exptime, rawdatasec_img, oscansec_img = super().get_rawimage(raw_file, det)
+
+        # Get the locations of NaN pixels & replace with saturated value
+        nan_idx = not np.isfinite(raw_img)
+        raw_img[nan_idx] = detector_par.saturation
+
+        # Return the mess
+        return detector_par, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+
     @staticmethod
     def scrub_isot_dateobs(dt_str: str):
         """Scrub the input ``DATE-OBS`` for ingestion by AstroPy Time

@@ -562,50 +562,6 @@ class ProcessImagesPar(ParSet):
             raise ValueError('To apply a slit-illumination or spectral flat-field correction, '
                              'you must also apply the pixel-flat correction.')
 
-    # TODO: Are these out of date or is this a purposeful subselection of the
-    # full parameter set?
-    def to_header(self, hdr):
-        """
-        Write the parameters to a header object.
-        """
-        hdr['OSCANMET'] = (self.data['overscan'], 'Method used for overscan subtraction')
-        hdr['OSCANPAR'] = (','.join([ '{0:d}'.format(p) for p in self.data['overscan_par'] ]),
-                                'Overscan method parameters')
-        hdr['COMBMAT'] = ('{0}'.format(self.data['match']), 'Frame combination matching')
-        hdr['COMBMETH'] = (self.data['combine'], 'Method used to combine frames')
-        hdr['COMBSATP'] = (self.data['satpix'], 'Saturated pixel handling when combining frames')
-        hdr['COMBSIGR'] = ('{0}'.format(self.data['sigrej']),
-                                'Cosmic-ray sigma rejection when combining')
-        hdr['COMBNLH'] = (','.join([ '{0}'.format(n) for n in self.data['n_lohi']]),
-                                'N low and high pixels rejected when combining')
-        hdr['COMBSRJ'] = (self.data['comb_sigrej'], 'Sigma rejection when combining')
-#        hdr['COMBREPL'] = (self.data['replace'], 'Method used to replace pixels when combining')
-        hdr['LACMAXI'] = ('{0}'.format(self.data['lamaxiter']), 'Max iterations for LA cosmic')
-        hdr['LACGRW'] = ('{0:.1f}'.format(self.data['grow']), 'Growth radius for LA cosmic')
-        hdr['LACRMC'] = (str(self.data['rmcompact']), 'Compact objects removed by LA cosmic')
-        hdr['LACSIGC'] = ('{0:.1f}'.format(self.data['sigclip']), 'Sigma clip for LA cosmic')
-        hdr['LACSIGF'] = ('{0:.1f}'.format(self.data['sigfrac']),
-                            'Lower clip threshold for LA cosmic')
-        hdr['LACOBJL'] = ('{0:.1f}'.format(self.data['objlim']),
-                            'Object detect limit for LA cosmic')
-
-    @classmethod
-    def from_header(cls, hdr):
-        """
-        Instantiate the object from parameters read from a fits header.
-        """
-        return cls(overscan=hdr['OSCANMET'],
-                   overscan_par=[int(p) for p in hdr['OSCANPAR'].split(',')],
-                   match=eval(hdr['COMBMAT']),
-                   combine=hdr['COMBMETH'], satpix=hdr['COMBSATP'],
-                   n_lohi=[int(p) for p in hdr['COMBNLH'].split(',')],
-                   comb_sigrej=float(hdr['COMBSRJ']),
-#                   replace=hdr['COMBREPL'],
-#                   cr_sigrej=eval(hdr['LASIGR']),
-                   lamaxiter=int(hdr['LACMAXI']), grow=float(hdr['LACGRW']),
-                   rmcompact=eval(hdr['LACRMC']), sigclip=float(hdr['LACSIGC']),
-                   sigfrac=float(hdr['LACSIGF']), objlim=float(hdr['LACOBJL']))
-
 
 class FlatFieldPar(ParSet):
     """

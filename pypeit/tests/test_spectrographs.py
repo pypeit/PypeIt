@@ -1,10 +1,9 @@
 """
 Module to test spectrograph read functions
 """
+import copy
 import os
-from copy import deepcopy
-
-from IPython import embed
+import pathlib
 
 import pytest
 
@@ -16,6 +15,7 @@ from pypeit import pypeitsetup
 from pypeit.tests import tstutils
 from pypeit.tests.tstutils import data_output_path
 
+from IPython import embed
 
 
 def test_shanekastblue():
@@ -121,13 +121,13 @@ def test_configs():
     assert spec.same_configuration([cfg1,cfg1]), 'Configurations should be the same'
     assert not spec.same_configuration([cfg1,cfg2]), 'Configurations should be different'
 
-    cfg3 = deepcopy(cfg1)
+    cfg3 = copy.deepcopy(cfg1)
     cfg3['dispangle'] *= (1.+spec.meta['dispangle']['rtol']/2)
 
     assert spec.same_configuration([cfg1,cfg3]), \
         'Configurations should be the same within tolerance'
 
-    cfg3 = deepcopy(cfg1)
+    cfg3 = copy.deepcopy(cfg1)
     cfg3['dispangle'] *= (1.+2*spec.meta['dispangle']['rtol'])
 
     assert not spec.same_configuration([cfg1,cfg3]), \
@@ -184,3 +184,43 @@ def test_load_spectrograph():
     # Call using a single processed data file, and from a post-processing script
     spec8 = load_spectrograph(raw_file, pypeit_fits=True)
     assert spec8.allowed_extensions == [".fits"], 'Postproc scripts only allow .fits'
+
+
+@pytest.fixture
+def fitstbl():
+
+    # Get the files
+    file_names = [
+        'b1.fits.gz',    # arc
+        'b11.fits.gz',   # trace
+        'b21.fits.gz',   # bias
+        'b24.fits.gz',   # standard
+        'b27.fits.gz'    # science
+    ]
+    files = [dataPaths.tests.get_file_path(f, to_pkg='symlink') for f in file_names]
+
+    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
+    setupc.build_fitstbl(files)
+    setupc.fitstbl.finalize_usr_build(None, 'A')
+    return setupc.fitstbl
+
+def test_config_specific_par(fitstbl):
+    # Grab a science file for configuration specific parameters
+    indx = fitstbl.find_frames('science', index=True)[0]
+    sci_file = fitstbl.frame_paths(indx)
+ 
+    # Load the parameters based on the (raw) science file
+    spectrograph = load_spectrograph('shane_kast_blue')
+    par = spectrograph.config_specific_par(sci_file)
+
+    # Load the parameters based on the fitstbl object
+    _ = spectrograph.config_specific_par(fitstbl.get_row_for_filename(sci_file))
+    
+    # Check the value of configuration-dependent `reid_arxiv`
+    assert par['calibrations']['wavelengths']['reid_arxiv'] == 'shane_kast_blue_600.fits'
+
+    # Change the ``dispname`` value in the fitstbl, and make sure the par changed
+    ft2 = fitstbl.get_row_for_filename(sci_file)
+    ft2['dispname'] = '452/3306'
+    par = spectrograph.config_specific_par(ft2)
+    assert par['calibrations']['wavelengths']['reid_arxiv'] == 'shane_kast_blue_452.fits'

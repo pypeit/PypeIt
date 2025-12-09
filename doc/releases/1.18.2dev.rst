@@ -60,3 +60,9 @@ Bug Fixes
 
 - Removed last vestiges of support for Python 3.10 in the form of ``datetime.UTC``
   crutches left over from the start of support of Python 3.12.
+- Fixed a bug with configuration-specific parameters where the raw data FITS
+  header was polled for metadata information used to set parameters rather than
+  relying on the metadata in the ``.pypeit`` file.  For some spectrographs, this
+  required adding new columns to the ``.pypeit`` file format; to retain backwards-
+  compatibility when an older ``.pypeit`` file without these columns is used, the
+  code still pulls the desired metadata from the raw data FITS file as before.

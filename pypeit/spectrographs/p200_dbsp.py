@@ -3,13 +3,14 @@ Module for P200/DBSP specific methods.
 
 .. include:: ../include/links.rst
 """
-from typing import List, Optional
+from pathlib import Path
 
 import numpy as np
 
 from astropy.io import fits
 from astropy.coordinates import Angle
-from astropy import units as u
+import astropy.units as u
+from astropy.table import Table
 from astropy.time import Time
 
 from pypeit import msgs
@@ -19,6 +20,7 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 
@@ -60,7 +62,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
 
-    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+    def compound_meta(self, headarr: list[fits.Header], meta_key: str):
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -191,7 +193,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
     supported = True
     comment = 'Blue camera'
     
-    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+    def compound_meta(self, headarr: list[fits.Header], meta_key: str):
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -216,7 +218,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             return parse.binning2string(binspec, binspatial)
         msgs.error(f"Not ready for this compound meta: {meta_key}")
 
-    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
+    def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):
         """
         Return metadata for the selected detector.
 
@@ -315,15 +317,20 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -332,14 +339,16 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        grating = self.get_meta_value(scifile, 'dispname')
-        dichroic = self.get_meta_value(scifile, 'dichroic')
+        # Adjust parameters based on settings
+        grating = self.get_meta_value(inp, 'dispname')
+        dichroic = self.get_meta_value(inp, 'dichroic')
+        slitwidth = self.get_meta_value(inp, 'slitwid') * u.arcsec
+        dispangle = self.get_meta_value(inp, 'dispangle')
 
-        angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
-        slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
+        angle = Angle(dispangle, unit=u.deg).rad
         lines_mm = float(grating.split('/')[0]) / u.mm
 
         theta_m = 38.5 * 2*np.pi / 360. - angle
@@ -414,7 +423,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
     supported = True
     comment = 'Red camera'
     
-    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+    def compound_meta(self, headarr: list[fits.Header], meta_key: str):
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -440,7 +449,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         else:
             msgs.error(f"Not ready for this compound meta: {meta_key}")
 
-    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
+    def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):
         """
         Return metadata for the selected detector.
 
@@ -539,15 +548,20 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -556,14 +570,16 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        grating = self.get_meta_value(scifile, 'dispname')
-        dichroic = self.get_meta_value(scifile, 'dichroic')
+        # Adjust parameters based on settings
+        grating = self.get_meta_value(inp, 'dispname')
+        dichroic = self.get_meta_value(inp, 'dichroic')
+        slitwidth = self.get_meta_value(inp, 'slitwid') * u.arcsec
+        dispangle = self.get_meta_value(inp, 'dispangle')
 
-        angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
-        slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
+        angle = Angle(dispangle, unit=u.deg).rad
         lines_mm = float(grating.split('/')[0]) / u.mm
 
         theta_m = 35.0 * 2*np.pi / 360. - angle
