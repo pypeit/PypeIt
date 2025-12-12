@@ -48,6 +48,8 @@ The user interface provides controls for:
 
 - Buttons to load a FITS file and clear the current selection.
 
+- Smooth the flux plot by using the Unsmooth, Smooth + and Smooth - buttons.
+
 Buttons
 -------
 
@@ -56,6 +58,12 @@ Buttons
 - Enter: Loads the specified FITS file for analysis.
 
 - Clear: Clears the current inputs and resets the UI settings.
+
+- Unsmooth: Clears all smoothing and replots.
+
+- Smooth +: Increases the level of smoothing and replots.
+
+- Smooth -: Decreases the level of smoothing and replots.
 
 Tips
 ----
@@ -68,7 +76,10 @@ Tips
 
 """
 import time
+
 import numpy as np
+# for smoothing
+from astropy.convolution import convolve, Gaussian1DKernel
 
 from ginga import GingaPlugin
 from ginga.misc import Bunch
@@ -125,6 +136,9 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         self.masked_options = (True, False)
         self.masked = self.settings.get('masked', False)
+
+        # smoothing factor
+        self.nsmooth = 0.0
 
         # dictionary of plotable types
         self.dc = get_canvas_types()
@@ -218,6 +232,24 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         fr.set_widget(w)
         vbox.add_widget(fr, stretch=0)
 
+        tbar = Widgets.Toolbar(orientation='horizontal')
+        vbox.add_widget(tbar, stretch=0)
+
+        btn = tbar.add_action("Unsmooth")
+        btn.add_callback('activated', lambda w: self.unsmooth())
+        btn.set_enabled(self.nsmooth > 0.0)
+        self.w.unsmooth = btn
+        btn.set_tooltip("Undo all smoothing")
+        btn = tbar.add_action("Smooth-")
+        btn.add_callback('activated', lambda w: self.smooth_less())
+        btn.set_enabled(self.nsmooth > 0.0)
+        btn.set_tooltip("Smooth a bit less")
+        self.w.smooth_less = btn
+        btn = tbar.add_action("Smooth+")
+        btn.add_callback('activated', lambda w: self.smooth_more())
+        btn.set_tooltip("Smooth a bit more")
+        self.w.smooth_more = btn
+
         top.add_widget(vbox, stretch=0)
 
         spacer = Widgets.Label('')
@@ -288,6 +320,25 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         """
         self.masked = self.masked_options[idx]
         self.logger.debug(f"Selected masked option: {self.masked}")
+        self.recalc()
+
+    def unsmooth(self):
+        self.nsmooth = 0.0
+        self.w.unsmooth.set_enabled(False)
+        self.w.smooth_less.set_enabled(False)
+        self.recalc()
+
+    def smooth_more(self):
+        self.nsmooth += (0.5 if self.nsmooth > 0.0 else 1.0)
+        self.w.unsmooth.set_enabled(True)
+        self.w.smooth_less.set_enabled(True)
+        self.recalc()
+
+    def smooth_less(self):
+        self.nsmooth -= (0.5 if self.nsmooth > 1.0 else 1.0)
+        self.nsmooth = max(self.nsmooth, 0.0)
+        self.w.unsmooth.set_enabled(self.nsmooth > 0.0)
+        self.w.smooth_less.set_enabled(self.nsmooth > 0.0)
         self.recalc()
 
     def plot_lines(self):
@@ -458,6 +509,11 @@ class Spec1dView(GingaPlugin.LocalPlugin):
             flux = flux*gpm
             sig = sig*gpm
 
+        if self.nsmooth > 0.0:
+            # do smoothing if requested
+            flux = convolve_psf(flux, self.nsmooth)
+            sig = convolve_psf(sig, self.nsmooth)
+
         self.data.x_min, self.data.x_max = np.nanmin(wave), np.nanmax(wave)
         self.data.y_min, self.data.y_max = np.nanmin(flux), np.nanmax(flux)
         self.data.wave = wave
@@ -476,6 +532,10 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         Simply attempt to process the latest FITS file loaded in the channel.
         """
+        viewer = self.channel.get_viewer('Ginga Plot')
+        bd = viewer.get_bindings()
+        bd.set_mode(viewer, 'spec1d', mode_type='locked')
+
         self.redo()
 
     def stop(self):
@@ -569,3 +629,57 @@ class Spec1dView(GingaPlugin.LocalPlugin):
     def __str__(self):
         # necessary to identify the plugin and provide correct operation in Ginga
         return 'spec1dview'
+
+# Used verbatim from linetools.spectra.convolve
+#
+def convolve_psf(array, fwhm, boundary='fill', fill_value=0.0,
+                 normalize_kernel=True):
+    """ Convolve an array with a gaussian kernel.
+
+    Given an array of values `a` and a gaussian full width at half
+    maximum `fwhm` in pixel units, returns the convolution of the
+    array with the gaussian kernel.
+
+    Parameters
+    ----------
+    array : array, shape(N,)
+        Array to convolve
+    fwhm : float
+        Gaussian full width at half maximum in pixels.
+    boundary : str, optional
+        A flag indicating how to handle boundaries:
+            * `None`
+                Set the ``result`` values to zero where the kernel
+                extends beyond the edge of the array (default).
+            * 'fill'
+                Set values outside the array boundary to ``fill_value``.
+            * 'wrap'
+                Periodic boundary that wrap to the other side of ``array``.
+            * 'extend'
+                Set values outside the array to the nearest ``array``
+                value.
+    fill_value : float, optional
+        The value to use outside the array when using boundary='fill'
+    normalize_kernel : bool, optional
+        Whether to normalize the kernel prior to convolving
+
+    Returns
+    -------
+    convolved_array : array, shape (N,)
+
+    Notes
+    -----
+    This function uses astropy.convolution
+    """
+
+    const2   = 2.354820046             # 2*sqrt(2*ln(2))
+    const100 = 3.034854259             # sqrt(2*ln(100))
+    sigma = fwhm / const2
+    # gaussian drops to 1/100 of maximum value at x =
+    # sqrt(2*ln(100))*sigma, so number of pixels to include from
+    # centre of gaussian is:
+    n = np.ceil(const100 * sigma)
+    x_size = int(2*n) + 1 # we want this to be odd integer
+    return convolve(array, Gaussian1DKernel(sigma, x_size=x_size),
+                    boundary=boundary, fill_value=fill_value,
+                    normalize_kernel=normalize_kernel)
