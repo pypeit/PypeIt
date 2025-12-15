@@ -464,3 +464,15 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         return self.get_detector_par(1, hdu=hdu), \
                 full_image, hdu, head0['EXPTIME'], rawdatasec_img, oscansec_img
+
+
+    def final_config_frametypes(self, setup, table):
+        """
+        Correct the table frametype values for the given setup, if necessary.
+        """
+
+        is_wideflat = table['frametype'] == 'pixelflat,trace'
+        is_narrowflat = table['frametype'] == 'trace'
+        if np.any(is_narrowflat) and setup['decker'] == '3.0':
+            table['frametype'][is_wideflat] = 'pixelflat'
+

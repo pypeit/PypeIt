@@ -141,6 +141,7 @@
 .. _jdaviz: https://jdaviz.readthedocs.io/en/latest/
 .. _jupyter notebook: https://jupyter.org/
 .. _ppxf: https://pypi.org/project/ppxf/
+.. _ds9: https://sites.google.com/cfa.harvard.edu/saoimageds9
 
 .. ginga
 .. _ginga: https://ginga.readthedocs.io/en/stable/

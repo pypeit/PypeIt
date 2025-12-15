@@ -4253,12 +4253,12 @@ class FindObjPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
-                 find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
+    def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None, trace_maxshift=None,
+                 trace_maxdev=None, trace_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None, find_numiterfit=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
-                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None,
-                 use_std_trace=None, fof_link = None):
+                 skip_skysub=None, find_negative=None, find_min_max=None, trace_min_max=None,
+                 std_spec1d=None, use_std_trace=None, fof_link = None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4307,13 +4307,27 @@ class FindObjPar(ParSet):
         dtypes['find_trim_edge'] = list
         descr['find_trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
 
-        defaults['find_extrap_npoly'] = 3
-        dtypes['find_extrap_npoly'] = int
-        descr['find_extrap_npoly'] = 'Polynomial order used for trace extrapolation'
+        defaults['trace_extrap_npoly'] = 3
+        dtypes['trace_extrap_npoly'] = int
+        descr['trace_extrap_npoly'] = 'Polynomial order used for trace extrapolation.  NOTE: Not consumed by the code at present. (For ``pypeit<=1.18.x``, this ' \
+                                      'parameter was called ``find_extrap_npoly``.)'
 
-        defaults['find_maxdev'] = 2.0
-        dtypes['find_maxdev'] = [int, float]
-        descr['find_maxdev'] = 'Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.'
+        defaults['trace_maxdev'] = 2.0
+        dtypes['trace_maxdev'] = [int, float]
+        descr['trace_maxdev'] = 'Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.  (For ``pypeit<=1.18.x``, this ' \
+                                      'parameter was called ``find_maxdev``.)'
+
+        defaults['trace_maxshift'] = 1.0
+        dtypes['trace_maxshift'] = [int, float]
+        descr['trace_maxshift'] = 'Maximum shift allowed between the input and recalculated centroid in trace fitting.  This parameter may be increased to ' \
+                                 'allow the fiter to follow curved traces (*e.g.*, for wide spectral ranges at high airmass).'
+
+        defaults['trace_min_max'] = None
+        dtypes['trace_min_max'] = list
+        descr['trace_min_max'] = 'It defines the minimum and maximum pixel in the spectral direction with useable data for this slit/order. ' \
+                                'This parameter limits the range over which the trace is fit, and may be useful if the selected slit/order ' \
+                                'would include regions without expected signal (*e.g.* bluer than the atmospheric cutoff or redder than the ' \
+                                'silicon cutoff).'
 
         defaults['find_numiterfit'] = 9
         dtypes['find_numiterfit'] = int
@@ -4416,11 +4430,11 @@ class FindObjPar(ParSet):
 
         # Basic keywords
         parkeys = ['trace_npoly', 'snr_thresh', 'find_trim_edge',
-                   'find_extrap_npoly', 'maxnumber_sci', 'maxnumber_std',
-                   'find_maxdev', 'find_numiterfit', 'find_fwhm', 'ech_find_max_snr',
+                   'trace_extrap_npoly', 'maxnumber_sci', 'maxnumber_std', 'trace_maxshift',
+                   'trace_maxdev', 'find_numiterfit', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'std_spec1d', 'use_std_trace', 'fof_link']
+                   'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

@@ -103,6 +103,7 @@ Documentation = "https://pypeit.readthedocs.io/"
 [project.scripts]
 
 # non-GUI scripts
+pypeit_rectify_2dspec = "pypeit.scripts.rectify_2dspec:Rectify2DSpec.entry_point"
 pypeit_arxiv_solution = "pypeit.scripts.arxiv_solution:ArxivSolution.entry_point"
 pypeit_cache_github_data = "pypeit.scripts.cache_github_data:CacheGithubData.entry_point"
 pypeit_clean_cache = "pypeit.scripts.clean_cache:CleanCache.entry_point"

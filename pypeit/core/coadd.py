@@ -3133,7 +3133,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     nimgs =len(sciimg_stack)
     if weights is None:
-        msgs.info('No weights were provided. Using uniform weights.')
+        if nimgs > 1:
+            msgs.info('No weights were provided. Using uniform weights.')
         weights = (np.ones(nimgs)/float(nimgs)).tolist()
 
     shape_list = [sciimg.shape for sciimg in sciimg_stack]

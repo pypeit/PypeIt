@@ -962,6 +962,13 @@ class Spectrograph:
         """
         return {'bias': 'binning', 'dark': 'binning'}
 
+    def final_config_frametypes(self, setup, table):
+        """
+        Correct the table frametype values for the given setup, if necessary.
+        """
+
+        pass
+
     def get_comb_group(self, fitstbl):
         """
         Automatically assign combination groups and background images by parsing

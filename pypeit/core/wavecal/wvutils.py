@@ -885,13 +885,13 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
     dwave_eff = dwave*spec_samp_fact
     if log10:
-        ngrid = np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff).astype(int)
+        ngrid = np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff).astype(int) + 1
         loglam_grid = np.log10(wave_min) + dwave_eff*np.arange(ngrid)
         wave_grid = np.power(10.0,loglam_grid)
         loglam_grid_mid = np.log10(wave_grid) + dwave_eff/2.0
         wave_grid_mid = np.power(10.0, loglam_grid_mid)
     else:
-        ngrid = np.ceil((wave_max - wave_min)/dwave_eff).astype(int)
+        ngrid = np.ceil((wave_max - wave_min)/dwave_eff).astype(int) + 1
         wave_grid = wave_min + dwave_eff*np.arange(ngrid)
         wave_grid_mid = wave_grid + dwave_eff/2.0
 
