@@ -413,7 +413,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['idname'] == 'DARK')
                 & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ['pinhole', 'align', 'sky', 'lampoffflats', 'scattlight']:
+        if ftype in ['pinhole', 'align', 'sky', 'lampoffflats', 'scattlight', 'slitless_pixflat']:
             # DeVeny doesn't have any of these types of frames
             return np.zeros(len(fitstbl), dtype=bool)
         msgs.warn(f"Cannot determine if frames are of type {ftype}")
@@ -498,8 +498,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 # Because of the wide wavelength range, split DV1 arcs in half for reidentification
                 par['calibrations']['wavelengths']['nsnippet'] = 2
                 # Higher order wavelength fits because of larger span
-                par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-                par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
+                par['calibrations']['wavelengths']['n_first'] = 4  # Default: 2
+                par['calibrations']['wavelengths']['n_final'] = 7  # Default: 4
+                # Allow for larger curvature in the object trace due to atmospheric dispersion
+                par['reduce']['findobj']['trace_maxshift'] = 2.0
+                par['reduce']['findobj']['trace_npoly'] = 5   # Default: 3
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 400
 
@@ -540,12 +543,14 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 1500
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
             case 'DV7 (600/6750)':
                 # Use this `reid_arxiv` with the `full-template` method:
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 2000
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
             case 'DV8 (831/8000)':
                 # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
@@ -554,12 +559,14 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 3200
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
             case 'DV9 (1200/5000)':
                 # Use this `reid_arxiv` with the `full-template` method:
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 3000
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
             case 'DV10 (2160/5000)':
                 # Presently unsupported; no parameter changes

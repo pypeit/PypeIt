@@ -1560,6 +1560,104 @@ be able to more easily identify the object. If this step doesn't work, then
 proceed with manual extraction as described in :ref:`deveny_missing1d`.
 
 
+Observations at High Airmass
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Because of LDT's ability to point to low elevation angles, many observers
+procure science frames taken at high airmass.  Pointlike objects will then
+smear out into a rainbow (and look like cigar-shaped objects along the
+parallactic angle in the slit viewer).  Aligning the slit with this elongation
+allows all light from the object to pass into the spectrograph, but will end
+up with a curved trace on the detector with respect to the slit edges.
+
+For instance, the spectrum below was taken with the DV1 (150 l/mm) grating.
+Shown are the ``spec2d`` file and :ref:`qa-obj-trace` plot for an object
+observed at an elevation of 11\ :math:`^\circ` above the horizon (airmass 5).
+
+.. grid:: 2
+
+   .. grid-item::
+      :columns: 6
+
+      .. image:: ../figures/objtrace_high_airmass_bad.png
+         :alt: Bad tracing of object at high airmass
+         :class: with-shadow
+
+   .. grid-item::
+      :columns: 6
+
+      .. image:: ../figures/objtrace_qa_highX_bad.png
+         :alt: Bad tracing of object at high airmass
+         :class: with-shadow
+
+   .. grid-item::
+      :columns: 12
+
+      Initial poor object tracing for this high-airmass object.  The left
+      panel shows the ``spec2d`` ginga window, and the right panel shows the
+      QA plot.
+
+
+The tracing algorithm was not able to follow the curve of the spectrum to
+larger spatial pixel (rightward in the ``spec2d`` image) at low spectral pixel
+(low wavelength), and instead tried to grab onto peaks in the noise closer to
+the "Input Trace Data" (parallel to the slit edge).  In cases like this, you
+may need to allow PypeIt to follow traces further from the line defined by the
+slit edges.  The parameter ``trace_maxshift`` (default value = 2 pixels for
+DV1) may be increased incrementally to allow the curved spectrum to be traced.
+By using the following combination of parameters, the object tracing algorithm
+is now able to trace the object cleanly across the entire spectral image, as
+shown in the panels below below.
+
+.. code-block:: ini
+
+    [reduce]
+        [[findobj]]
+            trace_maxshift = 3.0
+            trace_npoly = 4
+            find_numiterfit = 100
+            find_min_max = 900,1700
+            trace_min_max = 100,1700
+
+
+The parameter ``find_min_max = 900,1700`` directs PypeIt to only spectrally
+smash the image over the range from pixel 900 to pixel 1700 (useful if the
+spectral trace fades at the ends of the detector), and ``trace_min_max =
+100,1700`` indicates that all pixels outside of this range should be masked
+when fitting the object trace (useful for similar reasons as above).  In the
+lower plot, the masked ranges are visible as the light blue regions at the
+upper and lower spectral ends.
+
+
+.. grid:: 2
+
+   .. grid-item::
+      :columns: 6
+
+      .. image:: ../figures/objtrace_high_airmass_good.png
+         :alt: Good tracing of object at high airmass
+         :class: with-shadow
+
+   .. grid-item::
+      :columns: 6
+
+      .. image:: ../figures/objtrace_qa_highX_good.png
+         :alt: Good tracing of object at high airmass
+         :class: with-shadow
+
+   .. grid-item::
+      :columns: 12
+
+      Improved object tracing for this high-airmass object using the adjusted
+      PypeIt parameters listed above.  The left panel shows the ``spec2d``
+      ginga window, and the right panel shows the QA plot.
+
+Not only does the trace now follow the blue end (low spectral pixel number),
+but it is monotonic in spatial pixel space, as mandated by the physics of
+atmospheric refraction.  See the :ref:`qa-obj-trace` documentation for more
+details on the interpretation of this plot.
+
+
 .. _deveny_miscpars:
 
 Miscellaneous Parameters

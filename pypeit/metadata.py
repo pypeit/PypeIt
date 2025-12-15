@@ -1771,6 +1771,9 @@ class PypeItMetaData:
 
             # Get the data lines
             subtbl = self.table[output_cols][in_cfg]
+
+            self.spectrograph.final_config_frametypes(setup_dict[f'Setup {setup}'], subtbl)
+
             if 'calib' in output_cols:
                 # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
                 # calibration files are used for different setups. Here we update calib to have only the

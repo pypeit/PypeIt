@@ -192,6 +192,7 @@ class Messages:
         # Close QA plots
         close_qa(self.pypeit_file, self.qa_path)
 
+        # TODO: This will go away when we merge in the logging PR
         raise eval(cls)(msg)
 
 

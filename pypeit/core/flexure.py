@@ -15,10 +15,8 @@ from matplotlib import gridspec
 from matplotlib.lines import Line2D
 import matplotlib
 
-from astropy import stats
 from astropy import units
 from astropy.io import ascii
-from astropy.table import Table
 from astropy.stats import sigma_clipped_stats
 import scipy.signal
 import scipy.optimize as opt
@@ -1158,7 +1156,24 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
     return obj_skyspec
 
 
-def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
+def spec_flexure_corrQA(ax:plt.Axes, this_flex_dict:dict, cntr:int, name:str):
+    """Spectral Flexure QA Plot
+
+    Creates one panel of the spectral felxure QA plot, with the overall figure
+    container being handled by the calling function.
+
+    Parameters
+    ----------
+    ax
+        Axes onto which to draw the plot
+    this_flex_dict
+        Dictionary of flexure-related information needed for the plot
+    cntr
+        The index into ``this_flex_dict``'s arrays corresponding to the
+        particular object, trace, or location of interest.
+    name
+        Object, trace, or location name to be printed in the plot
+    """
     # Fit
     fit = this_flex_dict['polyfit'][cntr]
     if fit is not None:
@@ -1189,8 +1204,12 @@ def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
         ax.set_xlabel('Lag')
 
 
-def spec_flexure_qa(slitords, bpm, basename, flex_list,
-                    specobjs=None, out_dir=None):
+# TODO: With Python 3.14's deferred evaluation of annotations, may be able
+#       to annotate `specobjs`; however, should really remove PypeIt-specific
+#       objects from `core`.
+def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
+                    flex_list:list[dict], specobjs=None,
+                    out_dir:str|None=None):
     """
     Generate QA for the spectral flexure calculation
 
@@ -1209,12 +1228,14 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
             Path to the output directory for the QA plots.  If None, the current
             is used.
     """
+    # Extract the mode and detector from the ``basename``
+    *_, mode, det = basename.split("_")
+
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'serif'
 
     # What type of QA are we doing
-    slit_cen = False
-    if specobjs is None: slit_cen = True
+    slit_cen = specobjs is None
 
     # Grab the named of the method
     method = inspect.stack()[0][3]
@@ -1247,7 +1268,9 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
 
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
-        outfile = qa.set_qa_filename(basename, method + '_corr', slit=slitord, out_dir=out_dir)
+        outfile = qa.set_qa_filename(
+            basename, method + '_corr', slit=slitord, det=det, mode=mode, out_dir=out_dir
+        )
         plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
@@ -1283,6 +1306,8 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
         max_wave = min(np.amax(arx_spec.wavelength.value), np.amax(sky_spec.wavelength.value))*units.AA
 
         # Sky lines
+        # TODO: Should these be defined / identified somewhere else?  Then they
+        #       could more easily be included in the documentation.
         sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
                               7340.885, 7993.332, 8430.174, 8919.610, 9439.660,
                               10013.99, 10372.88])*units.AA
@@ -1296,7 +1321,9 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
             gdsky = gdsky[idx]
 
         # Outfile
-        outfile = qa.set_qa_filename(basename, method+'_sky', slit=slitord, out_dir=out_dir)
+        outfile = qa.set_qa_filename(
+            basename, method+'_sky', slit=slitord, det=det, mode=mode, out_dir=out_dir
+        )
         # Figure
         plt.figure(figsize=(8, 5.0))
         plt.clf()

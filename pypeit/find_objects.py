@@ -690,6 +690,19 @@ class FindObjects:
         txt += '>'
         return txt
 
+    def get_findobj_qa_filename(self, slit:int, neg:bool, save_objfindQA:bool) -> str:
+        # Set objfind QA filename
+        objfindQA_filename = None
+        if save_objfindQA and (self.basename is not None):
+            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+            if self.find_negative:
+                basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
+            else:
+                basename = self.basename
+            objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit,
+                                                    det=self.detname, out_dir=out_dir)
+
+        return objfindQA_filename
 
 class MultiSlitFindObjects(FindObjects):
     """
@@ -786,16 +799,7 @@ class MultiSlitFindObjects(FindObjects):
             else:
                 snr_thresh = self.par['reduce']['findobj']['snr_thresh']
 
-            # Set objfind QA filename
-            objfindQA_filename = None
-            if save_objfindQA and (self.basename is not None):
-                out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
-                if self.find_negative:
-                    basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
-                else:
-                    basename = self.basename
-                objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit_spat,
-                                                        det=self.detname, out_dir=out_dir)
+            objfindQA_filename = self.get_findobj_qa_filename(slit_spat, neg, save_objfindQA)
 
             maxnumber =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
                 else self.par['reduce']['findobj']['maxnumber_sci']
@@ -818,9 +822,11 @@ class MultiSlitFindObjects(FindObjects):
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                 use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
                                 boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
-                                maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                                maxshift=self.par['reduce']['findobj']['trace_maxshift'],
+                                maxdev=self.par['reduce']['findobj']['trace_maxdev'],
                                 numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                                spec_min_max=self.par['reduce']['findobj']['trace_min_max'],
                                 extract_maskwidth=self.par['reduce']['skysub']['local_maskwidth'],
                                 qa_title=qa_title, nperslit=maxnumber,
                                 objfindQA_filename=objfindQA_filename,
@@ -924,16 +930,7 @@ class EchelleFindObjects(FindObjects):
                         'OBJTYPE': self.objtype,
                         'PYPELINE': self.pypeline}
 
-        # Set objfind QA filename
-        objfindQA_filename = None
-        if save_objfindQA and (self.basename is not None):
-            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
-            if self.find_negative:
-                basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
-            else:
-                basename = self.basename
-            objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
-                                                    det=self.detname, out_dir=out_dir)
+        objfindQA_filename = self.get_findobj_qa_filename(999, neg, save_objfindQA)
 
         #This could cause problems if there are more than one object on the echelle slit, i,e, this tacitly
         #assumes that the standards for echelle have a single object. If this causes problems, we could make an
@@ -959,7 +956,7 @@ class EchelleFindObjects(FindObjects):
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
             fof_link = self.par['reduce']['findobj']['fof_link'],
-            maxdev=self.par['reduce']['findobj']['find_maxdev'],
+            maxdev=self.par['reduce']['findobj']['trace_maxdev'],
             numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
             nperorder=nperorder,
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],

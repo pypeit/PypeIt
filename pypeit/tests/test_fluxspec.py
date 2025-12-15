@@ -9,7 +9,6 @@ import pytest
 from IPython import embed
 
 import numpy as np
-import configobj
 
 from astropy.table import Table
 from astropy.io import fits
@@ -19,8 +18,6 @@ from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
 from pypeit.tests.tstutils import data_output_path
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
 from pypeit import inputfiles 
 

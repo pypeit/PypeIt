@@ -13,6 +13,7 @@ import numpy as np
 
 # Logging
 from pypeit import msgs
+from pypeit.par.util import eval_tuple
 
 
 def load_sections(string, fmt_iraf=True):
@@ -93,6 +94,45 @@ def get_dnum(det, caps=False, prefix=True):
             dnum = 'det'+dnum
     # Return
     return dnum
+
+
+# TODO: How do we parse the values of detnum that are included in the pypeit
+# file?  I'm embarrassed that I can't remember!
+def eval_detectors(det:str | None) -> None | int | list[int] | tuple | list[tuple]:
+    """
+    Convert the provided string into one or more detectors or detector mosaics
+    to process.
+
+    The expected format is to be a comma-separated list of integers or tuples.
+    If tuples are expected, the string *must* contain the parentheses.  I.e.,
+    ``'1,2'`` will be interpreted as a list of two detectors (1 and 2), whereas
+    ``'(1,2)'`` will be interpreted as a single mosaic made up of detectors 1
+    and 2.
+
+    Parameters
+    ----------
+    det
+        The string list of detectors or detector mosaics to parse.  The input
+        can be None; and None is returned if it is.
+
+    Returns
+    -------
+        The parsed set of detectors or mosaics that can be interpreted by
+        PypeIt.
+    """
+    if det is None:
+        return None
+    _det = det.replace(' ', '').replace('[', '').replace(']', '')
+    if '(' in _det:
+        parsed = eval_tuple(_det.split(','))
+        return parsed[0] if len(parsed) == 1 else parsed
+    if ',' in _det:
+        parsed = list(map(int, _det.split(',')))
+        return parsed[0] if len(parsed) == 1 else parsed
+    try:
+        return int(_det)
+    except:
+        msgs.error(f'Unable to parse {det} into a set of detectors or detector mosaics.')
 
 
 def binning2string(binspectral, binspatial):
