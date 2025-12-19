@@ -64,8 +64,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par = super().default_pypeit_par()
 
         # Do not require bias frames
-        turn_off = dict(use_biasimage=False)
-        par.reset_all_processimages_par(**turn_off)
+        change_default = dict(use_biasimage=False)
+
+        par.reset_all_processimages_par(**change_default)
 
         # Set wave tilts order
         par['calibrations']['slitedges']['edge_thresh'] = 15.
