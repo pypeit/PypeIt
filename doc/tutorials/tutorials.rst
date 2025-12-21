@@ -51,6 +51,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    :maxdepth: 1
 
    2D Coadds <coadd2d_howto>
+   Setup GUI <setup_gui>
 
 
 

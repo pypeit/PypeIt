@@ -499,7 +499,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
         
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
         arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
-                                                      mask=np.invert(arcmask[:,left:right]),
+                                                      mask=np.logical_not(arcmask[:,left:right]),
                                                       sigma=3.0, axis=1, 
                                                       cenfunc = np.nanmedian, stdfunc=np.nanstd)[1]
     # Get the mask, set the masked values to 0, and return
@@ -630,7 +630,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     # handle NaN's
     if ind.size and indnan.size:
         # NaN's and values close to NaN's cannot be peaks
-        ind = ind[np.in1d(ind, np.unique(np.hstack((indnan, indnan - 1, indnan + 1))), invert=True)]
+        ind = ind[np.isin(ind, np.unique(np.hstack((indnan, indnan - 1, indnan + 1))), invert=True)]
     # first and last values of x cannot be peaks
     if ind.size and ind[0] == 0:
         ind = ind[1:]
@@ -800,8 +800,8 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
         peak_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
         cont_mask = peak_mask & gpm
         # If more than max_mask_frac of the nspec_available are getting masked than short circuit this masking
-        #frac_mask = np.sum(np.invert(cont_mask))/float(nspec)
-        nmask = np.sum(np.invert(peak_mask[gpm]))
+        #frac_mask = np.sum(np.logical_not(cont_mask))/float(nspec)
+        nmask = np.sum(np.logical_not(peak_mask[gpm]))
         if nmask > max_nmask:
             msgs.warn('Too many pixels {:d} masked in spectrum continuum definiton: frac_mask = {:5.3f} > {:5.3f} which is '
                       'max allowed. Only masking the {:d} largest values....'.format(nmask, nmask/nspec_available, max_mask_frac, max_nmask))
@@ -841,7 +841,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
             plt.plot(spec_vec[cont_mask], spec[cont_mask], color='cyan', markersize=3.0,
                      mfc='cyan', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'Used for cont')
-            plt.plot(spec_vec[np.invert(cont_mask)], spec[np.invert(cont_mask)], color='red', markersize=5.0,
+            plt.plot(spec_vec[np.logical_not(cont_mask)], spec[np.logical_not(cont_mask)], color='red', markersize=5.0,
                      mfc='red', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'masked for cont')
             plt.title(qa_title)
@@ -1036,7 +1036,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     #   - The Gaussian-fitted center and the center from `detect_lines`
     #     are not different by more than 0.75*FWHM
     #   - Width is finite, greater than 0, and less than FWHM_MAX/2.35
-    good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
+    good = np.logical_not(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
     # Get the indices of the good measurements
@@ -1173,7 +1173,7 @@ def find_lines_qa(spec, cen, amp, good, bpm=None, thresh=None, nonlinear=None):
     pix = np.arange(_spec.size)
     plt.figure(figsize=(14, 6))
     plt.step(pix, _spec, color='k', where='mid', label='arc', lw=1.0)
-    plt.scatter(cen[np.invert(good)], amp[np.invert(good)], marker='+', color='C3', s=50,
+    plt.scatter(cen[np.logical_not(good)], amp[np.logical_not(good)], marker='+', color='C3', s=50,
                 label='bad for tilts')
     plt.scatter(cen[good], amp[good], color='C2', marker='+', s=50, label='good for tilts')
     if thresh is not None:

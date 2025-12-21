@@ -90,6 +90,7 @@ PypeIt BibTeX Entries
    Execution <running>
    outputs
    QA <qa>
+   Step-by-step Processing <reduce_by_step>
 
 .. toctree::
    :caption: Processing Details

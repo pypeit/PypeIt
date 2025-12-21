@@ -3,7 +3,12 @@ Module for NTT EFOSC2
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
+
+from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -11,6 +16,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 from IPython import embed
 
@@ -274,15 +280,20 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -291,20 +302,24 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'Gr#6':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr6.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Gr#5':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr5.fits'
-            # Fringes are affecting this Grism significantly, skip flat fielding
-            par['scienceframe']['process']['use_pixelflat'] = False
-            par['scienceframe']['process']['use_illumflat'] = False
-            par['scienceframe']['process']['use_specillum'] = False
-        elif self.get_meta_value(scifile, 'dispname') == 'Gr#4':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr4.fits'
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        # Wavelength calibrations (metadata has already removed the '#')
+        match grating.replace('#',''):
+            case 'Gr6':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr6.fits'
+            case 'Gr5':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr5.fits'
+                # Fringes are affecting this Grism significantly, skip flat fielding
+                par['scienceframe']['process']['use_pixelflat'] = False
+                par['scienceframe']['process']['use_illumflat'] = False
+                par['scienceframe']['process']['use_specillum'] = False
+            case 'Gr4':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr4.fits'
 
         return par
 

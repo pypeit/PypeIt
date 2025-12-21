@@ -16,6 +16,7 @@ from abc import ABCMeta
 from pypeit import msgs, utils
 from pypeit.display import display
 from pypeit.core import skysub, extract, flexure, flat
+from pypeit.core.moment import moment1d
 from IPython import embed
 
 
@@ -420,6 +421,9 @@ class Extract:
             sobj.S2N = sobj.med_s2n()
             sobj.SPAT_FWHM = sobj.med_fwhm()
             sobj.BOX_R_ASEC = sobj.boxcar_arcsec()
+            if self.sciImg.det_img is not None:
+                _det_spec = moment1d(self.sciImg.det_img, sobj.TRACE_SPAT, 1, row=sobj.trace_spec)[0].astype(int)
+                sobj.SPEC_DET = np.clip(_det_spec, 0, len(sobj.DETECTOR.detectors))
 
         # Return
         return self.skymodel, self.bkg_redux_skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs

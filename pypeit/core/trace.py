@@ -246,7 +246,7 @@ def identify_traces(edge_img, max_spatial_separation=4, follow_span=10, minimum_
     traceid[indx] = left[reconstruct]
 
     #   - Right edges.  Given positive IDs starting with 1
-    indx = np.invert(indx)
+    indx = np.logical_not(indx)
     right, reconstruct, counts = np.unique(traceid[indx], return_inverse=True, return_counts=True)
 #    if np.any(counts > edge_img.shape[0]):
 #        warnings.warn('Some traces have more pixels than allowed by the image.  The maximum '
@@ -421,7 +421,7 @@ def handle_orphan_edges(edge_img, sobel_sig, bpm=None, flux_valid=True, buffer=0
         best_trace = np.argmin([-np.median(sobel_sig[_edge_img==t]) for t in range(nright)])+1
         # Remove the other right traces
         indx = _edge_img == best_trace
-        _edge_img[(_edge_img > 0) & np.invert(indx)] = 0
+        _edge_img[(_edge_img > 0) & np.logical_not(indx)] = 0
         # Reset the number to a single right trace
         _edge_img[indx] = 1
         return _edge_img
@@ -433,7 +433,7 @@ def handle_orphan_edges(edge_img, sobel_sig, bpm=None, flux_valid=True, buffer=0
     best_trace = np.argmax([np.median(sobel_sig[_edge_img == -t]) for t in range(nleft)])+1
     # Remove the other left traces
     indx = _edge_img == best_trace
-    _edge_img[(_edge_img > 0) & np.invert(indx)] = 0
+    _edge_img[(_edge_img > 0) & np.logical_not(indx)] = 0
     # Reset the number to a single left trace
     _edge_img[indx] = 1
 
@@ -464,11 +464,11 @@ def most_common_trace_row(trace_bpm, valid_frac=1/3.):
     """
     if trace_bpm.ndim == 1 or trace_bpm.shape[1] == 1:
         # Only a single vector provided. Use the central valid pixel
-        rows = np.where(np.invert(np.squeeze(trace_bpm)))[0]
+        rows = np.where(np.logical_not(np.squeeze(trace_bpm)))[0]
         return rows[rows.size//2]
 
     s,e = ((0.5 + np.array([-1,1])*valid_frac/2)*trace_bpm.shape[0]).astype(int)
-    gpm = np.invert(trace_bpm[s:e,:])
+    gpm = np.logical_not(trace_bpm[s:e,:])
     n_good = np.sum(gpm, axis=0)
     if np.all(n_good == e-s):
         # Trace positions are all valid over this section of the
@@ -1042,7 +1042,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
 
         # Fit the data
         traceset = pydl.TraceSet(trace_coo, cen.T,
-                                 # Removed by keck_run_july:  inmask=np.invert(_trace_bpm.T),
+                                 # Removed by keck_run_july:  inmask=np.logical_not(_trace_bpm.T),
                                  function=function, ncoeff=order, maxdev=maxdev, maxiter=maxiter,
                                  invvar=trace_fit_ivar.T, xmin=xmin, xmax=xmax)
 
@@ -1050,7 +1050,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # iteration affected the centroids and fit.
 #        if debug:
 #            bad = msk.astype(bool)
-#            good = np.invert(bad)
+#            good = np.logical_not(bad)
 #            for i in range(trace_fit.shape[1]):
 #                plt.scatter(trace_coo[i,:], trace_fit[:,i], color='0.7', marker='.', s=50, lw=0,
 #                            label='input')
@@ -1079,15 +1079,15 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             idx = np.arange(1,ntrace+1).astype(str)
 
         # Construct boolean flags
-        inpgpm = np.invert(_trace_bpm)
-        cengpm = np.invert(msk.astype(bool))
+        inpgpm = np.logical_not(_trace_bpm)
+        cengpm = np.logical_not(msk.astype(bool))
         fitgpm = traceset.outmask.T
         bpm_fit = _trace_bpm & fitgpm
-        bpm_rej = _trace_bpm & np.invert(fitgpm)
-        gpm_bdcen_fit = inpgpm & np.invert(cengpm) & fitgpm
-        gpm_bdcen_rej = inpgpm & np.invert(cengpm) & np.invert(fitgpm)
+        bpm_rej = _trace_bpm & np.logical_not(fitgpm)
+        gpm_bdcen_fit = inpgpm & np.logical_not(cengpm) & fitgpm
+        gpm_bdcen_rej = inpgpm & np.logical_not(cengpm) & np.logical_not(fitgpm)
         gpm_gdcen_fit = inpgpm & cengpm & fitgpm
-        gpm_gdcen_rej = inpgpm & cengpm & np.invert(fitgpm)
+        gpm_gdcen_rej = inpgpm & cengpm & np.logical_not(fitgpm)
 
         for i in range(ntrace):
             # Plot data masked on input and included in fit using input
@@ -1486,8 +1486,8 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             if np.any(peak_mask):
                 msgs.warn('Clipping {0} detected peak(s) with aberrant amplitude(s).'.format(
                                 np.sum(peak_mask)))
-                loc = loc[np.invert(peak_mask)]
-                _cen = _cen[np.invert(peak_mask)]
+                loc = loc[np.logical_not(peak_mask)]
+                _cen = _cen[np.logical_not(peak_mask)]
 
         # As the starting point for the iterative trace fitting, use
         # the input trace data at the positions of the detected peaks.

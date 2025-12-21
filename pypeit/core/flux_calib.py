@@ -863,17 +863,17 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
         plt.close()
         fig = plt.figure(figsize=(12,8))
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-
-    rejmask = zeropoint_data_gpm[wv_gpm] & np.logical_not(zeropoint_fit_gpm[wv_gpm])
-    axis.plot(wave[wv_gpm], zeropoint_data[wv_gpm], label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5, linewidth=1.0)
-    axis.plot(wave[wv_gpm], zeropoint_fit[wv_gpm], label='Zeropoint fit', color='red', linewidth=2.0, zorder=7, alpha=0.7)
-    axis.plot(wave[wv_gpm][rejmask], zeropoint_data[wv_gpm][rejmask], 's', zorder=2, mfc='None', mec='blue', mew=0.7, label='rejected pixels from fit')
-    axis.plot(wave[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], zeropoint_data[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], 'v',
-             zorder=1, mfc='None', mec='orange', mew=0.7, label='originally masked')
-    med_filt_mask = zeropoint_data_gpm[wv_gpm] & np.isfinite(zeropoint_data[wv_gpm])
-    zp_med_filter = utils.fast_running_median(zeropoint_data[wv_gpm][med_filt_mask], 11)
-    axis.set_ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
-    axis.legend()
+    if np.any(wv_gpm):
+        rejmask = zeropoint_data_gpm[wv_gpm] & np.logical_not(zeropoint_fit_gpm[wv_gpm])
+        axis.plot(wave[wv_gpm], zeropoint_data[wv_gpm], label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5, linewidth=1.0)
+        axis.plot(wave[wv_gpm], zeropoint_fit[wv_gpm], label='Zeropoint fit', color='red', linewidth=2.0, zorder=7, alpha=0.7)
+        axis.plot(wave[wv_gpm][rejmask], zeropoint_data[wv_gpm][rejmask], 's', zorder=2, mfc='None', mec='blue', mew=0.7, label='rejected pixels from fit')
+        axis.plot(wave[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], zeropoint_data[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], 'v',
+                 zorder=1, mfc='None', mec='orange', mew=0.7, label='originally masked')
+        med_filt_mask = zeropoint_data_gpm[wv_gpm] & np.isfinite(zeropoint_data[wv_gpm])
+        zp_med_filter = utils.fast_running_median(zeropoint_data[wv_gpm][med_filt_mask], 11)
+        axis.set_ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
+        axis.legend()
     axis.set_xlabel('Wavelength')
     axis.set_ylabel('Zeropoint (AB mag)')
     axis.set_title(title, fontsize=12)
@@ -957,7 +957,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
 
     zeropoint_poly = pypeitFit.eval(wave)
     # Robustly characterize the standard deviation for the b-spline fitting.
-    zp_dev_mean, zp_dev_median, zp_std = stats.sigma_clipped_stats(zeropoint_data - zeropoint_poly, np.invert(zeropoint_fitmask),
+    zp_dev_mean, zp_dev_median, zp_std = stats.sigma_clipped_stats(zeropoint_data - zeropoint_poly, np.logical_not(zeropoint_fitmask),
                                                                    cenfunc='median', stdfunc=utils.nan_mad_std,
                                                                    maxiters=10, sigma_lower=lower, sigma_upper=upper)
     zeropoint_ivar = np.ones_like(zeropoint_data)/zp_std**2
@@ -1033,9 +1033,9 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
         plt.plot(wave, zeropoint_data, drawstyle='steps-mid', color='black', label='Zeropoint Data', zorder=1)
         plt.plot(wave, zeropoint_bspl, color='cornflowerblue', label='Bspline fit', linewidth=1.0, zorder=2)
         plt.plot(wave, zeropoint_poly, color='orchid', label='PolyFit for masking', linewidth=2.0, zorder=0)
-        plt.plot(wave[np.invert(zeropoint_fitmask)], zeropoint_data[np.invert(zeropoint_fitmask)], '+', color='red', markersize=5.0,
+        plt.plot(wave[np.logical_not(zeropoint_fitmask)], zeropoint_data[np.logical_not(zeropoint_fitmask)], '+', color='red', markersize=5.0,
                  label='masked zeropoint_fitmask', zorder=4)
-        plt.plot(wave[np.invert(zeropoint_fit_gpm)], zeropoint_bspl[np.invert(zeropoint_fit_gpm)], 'x', color='pink', markersize=5.0,
+        plt.plot(wave[np.logical_not(zeropoint_fit_gpm)], zeropoint_bspl[np.logical_not(zeropoint_fit_gpm)], 'x', color='pink', markersize=5.0,
                  label='masked zeropoint_bspl_fit', zorder=3)
         plt.plot(init_breakpoints, zeropoint_bspl_bkpt, '.', color='cyan', markersize=8.0, label='breakpoints', zorder=10)
         plt.plot(init_breakpoints, np.interp(init_breakpoints, wave, zeropoint_data), '.', color='green', zorder=15,

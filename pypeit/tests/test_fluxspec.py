@@ -9,7 +9,6 @@ import pytest
 from IPython import embed
 
 import numpy as np
-import configobj
 
 from astropy.table import Table
 from astropy.io import fits
@@ -19,8 +18,6 @@ from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
 from pypeit.tests.tstutils import data_output_path
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
 from pypeit import inputfiles 
 
@@ -202,7 +199,7 @@ def extinction_correction_tester(algorithm):
     par['sensfunc']['star_ra'] = 159.9042
     par['sensfunc']['star_dec'] = 43.1025
 
-    sensobj = sensfunc.SensFunc.get_instance(spec1d_file, sens_file, par['sensfunc'])
+    sensobj = sensfunc.SensFunc.get_instance([spec1d_file], sens_file, par['sensfunc'])
 
     sensobj.wave = np.linspace(3000, 6000, 300).reshape((300, 1))
     sensobj.sens = sensobj.empty_sensfunc_table(*sensobj.wave.T.shape, 0)

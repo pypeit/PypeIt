@@ -18,16 +18,19 @@ and fabricated to match the spectrograph with LDT's f/6.1 beam.
 
 .. include:: ../include/links.rst
 """
-import numpy as np
+import pathlib
 
-from astropy.table import Table
-from astropy.time import Time
+import astropy.io.fits
+import astropy.table
+import astropy.time
+import numpy as np
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
 
 
@@ -350,7 +353,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def check_frame_type(self, ftype:str, fitstbl:Table, exprng=None):
+    def check_frame_type(self, ftype:str, fitstbl:astropy.table.Table, exprng=None):
         """
         Check for frames of the provided type.
 
@@ -410,7 +413,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['idname'] == 'DARK')
                 & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ['pinhole', 'align', 'sky', 'lampoffflats', 'scattlight']:
+        if ftype in ['pinhole', 'align', 'sky', 'lampoffflats', 'scattlight', 'slitless_pixflat']:
             # DeVeny doesn't have any of these types of frames
             return np.zeros(len(fitstbl), dtype=bool)
         msgs.warn(f"Cannot determine if frames are of type {ftype}")
@@ -425,9 +428,13 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['dispangle','slitwid','lampstat01']
+        pypeit_keys = super().pypeit_file_keys()
+        if 'decker' in pypeit_keys:
+            pypeit_keys.remove('decker')  # Until the decker is actually installed
+        pypeit_keys.remove('cenwave')
+        return pypeit_keys + ['dispangle', 'slitwid', 'lampstat01']
 
-    def get_lamps(self, fitstbl:Table) -> list:
+    def get_lamps(self, fitstbl:astropy.table.Table) -> list:
         """
         Extract the list of arc lamps used from header
 
@@ -452,15 +459,20 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             )
         ]
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|pathlib.Path|astropy.io.fits.Header|astropy.table.Table,
+            inp_par:parset.ParSet=None
+        ):
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -470,98 +482,107 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument-wide parameters
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
         # Adjust parameters based on DeVeny grating used
-        grating = self.get_meta_value(scifile, 'dispname')
+        grating = self.get_meta_value(inp, 'dispname')
+        binning = self.get_meta_value(inp, 'binning')
 
         # TODO: Compute resolving power on the fly  (e.g., from p200_dbsp)
         # par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
 
-        if grating == 'DV1 (150/5000)':
-            # Use this `reid_arxiv` with the `full-template` method:
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150_HgCdAr.fits'
-            # Because of the wide wavelength range, split DV1 arcs in half for reidentification
-            par['calibrations']['wavelengths']['nsnippet'] = 2
-            # Higher order wavelength fits because of larger span
-            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
-            # The approximate resolution of this grating
-            par['sensfunc']['UVIS']['resolution'] = 400
+        match grating:
+            case 'DV1 (150/5000)':
+                # Use this `reid_arxiv` with the `full-template` method:
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150_HgCdAr.fits'
+                # Because of the wide wavelength range, split DV1 arcs in half for reidentification
+                par['calibrations']['wavelengths']['nsnippet'] = 2
+                # Higher order wavelength fits because of larger span
+                par['calibrations']['wavelengths']['n_first'] = 4  # Default: 2
+                par['calibrations']['wavelengths']['n_final'] = 7  # Default: 4
+                # Allow for larger curvature in the object trace due to atmospheric dispersion
+                par['reduce']['findobj']['trace_maxshift'] = 2.0
+                par['reduce']['findobj']['trace_npoly'] = 5   # Default: 3
+                # The approximate resolution of this grating
+                par['sensfunc']['UVIS']['resolution'] = 400
 
-        elif grating == 'DV2 (300/4000)':
-            # Use this `reid_arxiv` with the `full-template` method:
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
-            # Higher order wavelength fits because of larger span
-            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
-            # The approximate resolution of this grating
-            par['sensfunc']['UVIS']['resolution'] = 800
+            case 'DV2 (300/4000)':
+                # Use this `reid_arxiv` with the `full-template` method:
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+                # Higher order wavelength fits because of larger span
+                par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+                par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
+                # The approximate resolution of this grating
+                par['sensfunc']['UVIS']['resolution'] = 800
 
-        elif grating == 'DV3 (300/6750)':
-            # Use this `reid_arxiv` with the `full-template` method:
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
-            # Higher order wavelength fits because of larger span
-            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
-            # The approximate resolution of this grating
-            par['sensfunc']['UVIS']['resolution'] = 1200
+            case 'DV3 (300/6750)':
+                # Use this `reid_arxiv` with the `full-template` method:
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+                # Higher order wavelength fits because of larger span
+                par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+                par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
+                # The approximate resolution of this grating
+                par['sensfunc']['UVIS']['resolution'] = 1200
 
-        elif grating == 'DV4 (400/8500)':
-            # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
-            #  and it's associated tweaks in parameters
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            # The approximate resolution of this grating
-            par['sensfunc']['UVIS']['resolution'] = 1800
+            case 'DV4 (400/8500)':
+                # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
+                #  and it's associated tweaks in parameters
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+                par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
+                # The approximate resolution of this grating
+                par['sensfunc']['UVIS']['resolution'] = 1800
 
-        elif grating == 'DV5 (500/5500)':
-            # Use this `reid_arxiv` with the `full-template` method:
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500_HgCdAr.fits'
-            # The approximate resolution of this grating
-            par['sensfunc']['UVIS']['resolution'] = 1450
+            case 'DV5 (500/5500)':
+                # Use this `reid_arxiv` with the `full-template` method:
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500_HgCdAr.fits'
+                # The approximate resolution of this grating
+                par['sensfunc']['UVIS']['resolution'] = 1450
 
-        elif grating == 'DV6 (600/4900)':
-            # Use this `reid_arxiv` with the `full-template` method:
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
-            # The approximate resolution of this grating
-            par['sensfunc']['UVIS']['resolution'] = 1500
+            case 'DV6 (600/4900)':
+                # Use this `reid_arxiv` with the `full-template` method:
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
+                # The approximate resolution of this grating
+                par['sensfunc']['UVIS']['resolution'] = 1500
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
-        elif grating == 'DV7 (600/6750)':
-            # Use this `reid_arxiv` with the `full-template` method:
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
-            # The approximate resolution of this grating
-            par['sensfunc']['UVIS']['resolution'] = 2000
+            case 'DV7 (600/6750)':
+                # Use this `reid_arxiv` with the `full-template` method:
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
+                # The approximate resolution of this grating
+                par['sensfunc']['UVIS']['resolution'] = 2000
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
-        elif grating == 'DV8 (831/8000)':
-            # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
-            #  and it's associated tweaks in parameters
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            # The approximate resolution of this grating
-            par['sensfunc']['UVIS']['resolution'] = 3200
+            case 'DV8 (831/8000)':
+                # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
+                #  and it's associated tweaks in parameters
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+                par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
+                # The approximate resolution of this grating
+                par['sensfunc']['UVIS']['resolution'] = 3200
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
-        elif grating == 'DV9 (1200/5000)':
-            # Use this `reid_arxiv` with the `full-template` method:
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
-            # The approximate resolution of this grating
-            par['sensfunc']['UVIS']['resolution'] = 3000
+            case 'DV9 (1200/5000)':
+                # Use this `reid_arxiv` with the `full-template` method:
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
+                # The approximate resolution of this grating
+                par['sensfunc']['UVIS']['resolution'] = 3000
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
-        elif grating == 'DV10 (2160/5000)':
-            # Presently unsupported; no parameter changes
-            pass
+            case 'DV10 (2160/5000)':
+                # Presently unsupported; no parameter changes
+                msgs.warn("The DV10 grating is not present supported; no config-specific pars set!")
 
-        else:
-            pass
+            case _:
+                msgs.warn("No recognized grating passed; no config-specific pars set!")
 
         # Adjust parameters based on CCD binning
-        binspec, binspat = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-        par['reduce']['findobj']['find_fwhm'] /= binspat  # Specified in pixels and not arcsec
-        par['flexure']['spec_maxshift'] //= binspec  # Must be an integer
-        par['sensfunc']['UVIS']['resolution'] /= binspec
+        bin_spec, bin_spat = parse.parse_binning(binning)
+        par['reduce']['findobj']['find_fwhm'] /= bin_spat  # Specified in pixels and not arcsec
+        par['flexure']['spec_maxshift'] //= bin_spec  # Must be an integer
+        par['sensfunc']['UVIS']['resolution'] /= bin_spec
 
         # SlitEdges Exclusion Regions (30 pixels at each edge) -- adjust based on binning
-        excl_l, excl_r, last = np.array([30, 485, 515], dtype=int) // binspat
+        excl_l, excl_r, last = np.array([30, 485, 515], dtype=int) // bin_spat
         par['calibrations']['slitedges']['exclude_regions'] = f"1:0:{excl_l},1:{excl_r}:{last}"
 
         return par
@@ -786,7 +807,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         # Attempt to directly return the AstroPy Time object
         try:
-            return Time(dt_str, format='isot')
+            return astropy.time.Time(dt_str, format='isot')
         except ValueError:
             # Split out all pieces of the datetime, and recompile
             date, time = dt_str.split("T")
@@ -808,4 +829,4 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # Reconstitute the DATE-OBS string, and return the Time() object
             date = f"{int(yea):04d}-{int(mon):02d}-{int(day):02d}"
             time = f"{int(hou):02d}:{int(mnt):02d}:{float(sec):09.6f}"
-            return Time(f"{date}T{time}", format='isot')
+            return astropy.time.Time(f"{date}T{time}", format='isot')

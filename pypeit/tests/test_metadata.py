@@ -14,6 +14,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts.setup import Setup
 from pypeit.inputfiles import PypeItFile
 from astropy.table import Table
+from pypeit.pypmsgs import PypeItError
 
 
 def test_read_combid():
@@ -177,3 +178,33 @@ def test_multiple_setups():
     # Remove the created files
     for fil in filelist:
         os.remove(fil)
+
+
+def test_get_row_for_filename():
+    ## Clone of above test, just trying to get a metadata object
+    config_dir = Path(tstutils.data_output_path('shane_kast_blue_A')).absolute()
+    if config_dir.exists():
+        shutil.rmtree(config_dir)
+    tstutils.install_shane_kast_blue_raw_data()
+    droot = tstutils.data_output_path('b')
+    pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-b',
+                              '--output_path', f'{config_dir.parent}'])
+    Setup.main(pargs)
+    pypeit_file = config_dir / 'shane_kast_blue_A.pypeit'
+    pypeItFile = PypeItFile.from_file(str(pypeit_file))
+    spectrograph = load_spectrograph('shane_kast_blue')
+    pmd = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), 
+                         files=pypeItFile.filenames,
+                         usrdata=pypeItFile.data, strict=False)
+
+    ## Actual new testing ==#
+    # Get a row
+    row = pmd.get_row_for_filename('b27.fits.gz')
+
+    assert isinstance(row, Table), 'Returned object is not a table'
+    assert len(row) == 1, 'Returned object should be a table with one row'
+    assert row['filename'] == 'b27.fits.gz'
+
+    # Try to get a non-existent row
+    with pytest.raises(PypeItError):
+        row = pmd.get_row_for_filename('not_a_kast_file.fits')

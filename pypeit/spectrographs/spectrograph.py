@@ -28,11 +28,13 @@ provide instrument-specific:
 
 from abc import ABCMeta
 from pathlib import Path
+import ast
 
 from IPython import embed
 
 import numpy as np
 from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import io
@@ -41,6 +43,7 @@ from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.core import standard
 from pypeit.core.atmextinction import AtmosphericExtinction
+from pypeit.par import parset
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -187,15 +190,41 @@ class Spectrograph:
         par['rdx']['spectrograph'] = cls.name
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
+        This method performs a check that ``inp`` is not ``None``.
+
+        This method may be called with either a row from the metadata table
+        (sent as a single-row Table, usually from the PypeIt Reduction File)
+        or a filename/Header (used in certain scripts to populate configuration
+        parameters).  The boilerplate below should be included at the start of
+        all subclassing spectrograph class methods:
+
+        ::
+
+            # Start with instrument-wide parameters
+            par = super().config_specific_par(inp, inp_par=inp_par)
+
+            # Adjust parameters based on settings used
+            grating = self.get_meta_value(inp, 'dispname')
+            binning = self.get_meta_value(inp, 'binning')
+
+        where the specific metadata keys are those needed by the specific
+        instantiation of this method (``grating`` and ``binning`` used here as
+        examples only).
+
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -204,6 +233,8 @@ class Spectrograph:
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
+        if inp is None:
+            msgs.error("You have not included a standard or science file in your PypeIt file to determine the configuration")
         return self.__class__.default_pypeit_par() if inp_par is None else inp_par
 
     def update_edgetracepar(self, par):
@@ -430,8 +461,9 @@ class Spectrograph:
                 if not allow_missing:
                     msgs.error(f"Core Meta Key: {key} not present in your fitstbl/Header")
         # Configuration Keys -- In addition to Core Meta,
-        #   other Config-Specific values; optional
-        for key in self.configuration_keys():
+        #   other Config-Specific values and keys listed in the PypeIt File;
+        #   OPTIONAL
+        for key in self.configuration_keys() + self.pypeit_file_keys():
             if key not in subheader:
                 try:
                     subheader[key] = row_fitstbl[key]
@@ -449,6 +481,21 @@ class Spectrograph:
         for card in header_cards:
              if card in raw_header.keys():
                  subheader[card] = raw_header[card]  # Self-assigned instrument name
+
+        # The following are added for SlicerIFU spectrographs, as they are
+        #   needed by the coadd3d routine
+        if self.pypeline == "SlicerIFU":
+            slicer_keys = [
+                "slitwid", "airmass", "parangle", "pressure", "temperature", "humidity"
+            ]
+            for key in slicer_keys:
+                if key not in subheader:
+                    try:
+                        subheader[key] = row_fitstbl[key]
+                    except KeyError:
+                        msgs.error(
+                            f"Required SlicerIFU keyword {key} not present in your fitstbl/Header"
+                        )
 
         # Specify which pipeline created this file
         subheader['PYPELINE'] = self.pypeline
@@ -767,6 +814,33 @@ class Spectrograph:
         msgs.error('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
 
+    @staticmethod
+    def maskdef_spec_minmax(maskfile=None, maskdef_ids=None, nspec=None, shift=150):
+        """
+        Get the spectral min and max values of each slit from the mask definition file.
+
+        This method is not defined for all spectrographs. This base-class
+        method raises an exception.
+
+        Args:
+            maskfile (:obj:`str`, optional):
+                The mask file to read the maskdef spec minmax from.
+            maskdef_ids (:obj:`list`, optional):
+                The list of maskdef IDs to match to the maskfile values.
+            nspec (:obj:`int`, optional):
+                The number of spectral pixels in the image.
+            shift (:obj:`int`, optional):
+                The shift to apply to the spec minmax. Default is 150.
+                This is used to shift the spec minmax to account for the
+                uncertainty in the maskdef spec minmax values.
+        Returns:
+            :obj:`tuple`: A tuple of two `numpy.ndarray`_ with the spec min and max values.
+            If the maskfile, maskdef_ids, or nspec are not provided, None is returned for both min and max.
+        """
+
+        msgs.error('This spectrograph does not support the use of mask design to get the '
+                     'maskdef spec minmax. Set `maskdef_spec_minmax=False`')
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -915,6 +989,13 @@ class Spectrograph:
             group.
         """
         return {'bias': 'binning', 'dark': 'binning'}
+
+    def final_config_frametypes(self, setup, table):
+        """
+        Correct the table frametype values for the given setup, if necessary.
+        """
+
+        pass
 
     def get_comb_group(self, fitstbl):
         """
@@ -1097,11 +1178,15 @@ class Spectrograph:
         individually.  A subset can be selected using one of the following
         methods:
 
-            - If ``subset`` is a string, it is assumed that you're selecting a
-              set of detector and spatial pixel coordinate combinations needed
-              to reduce a single slit; see ``slitspatnum`` in the
-              :ref:`pypeitpar`.  The string is parsed into the list of relevant
-              detectors.
+            - If ``subset`` is a string, there are 2 options:
+
+                - you're selecting a set of detector and spatial pixel
+                  coordinate combinations needed to reduce a single slit; see
+                  ``slitspatnum`` in the :ref:`pypeitpar`.  The string is parsed
+                  into the list of relevant detectors.
+
+                - you are inputing the detectors/mosaics in string format, e.g.
+                  "3,(1,5)"
 
             - If ``subset`` is a list, integer, or tuple, it is parsed into a
               set of single detector or detector mosaics to reduce.
@@ -1118,12 +1203,34 @@ class Spectrograph:
         Raises:
             PypeItError: Raised if any of the detectors or detector mosaics
             specified by ``subset`` are invalid.
+
+        Examples:
+            >>> from pypeit.spectrographs.keck_deimos import KeckDEIMOSSpectrograph
+            >>> spectrograph = KeckDEIMOSSpectrograph()
+            >>> spectrograph.select_detectors()
+            [1, 2, 3, 4, 5, 6, 7, 8]
+            >>> spectrograph.select_detectors(subset=3)
+            [3]
+            >>> spectrograph.select_detectors(subset=(3,4))
+            PypeItError: The allowed values are det=[1, 2, 3, 4, 5, 6, 7, 8, (1, 5), (2, 6), (3, 7), (4, 8)]
+            >>> spectrograph.select_detectors(subset=(3,7))
+            [(3, 7)]
+            >>> spectrograph.select_detectors(subset=[(1,5),(2,6)])
+            [(1,5), (2, 6)]
+            >>> spectrograph.select_detectors(subset='DET01:10')
+            [1]
+            >>> spectrograph.select_detectors(subset=['DET01:10','DET05:10'])
+            [1, 5]
+            >>> spectrograph.select_detectors(subset="3,(1,5)")
+            [3, (1, 5)]
+            >>> spectrograph.select_detectors(subset="[3,(1,5)]")
+            [3, (1, 5)]
         """
         if subset is None:
             return np.arange(1, self.ndet+1).tolist()
 
         # Parse subset if it's a string (single slitspatnum) or a list of slitspatnums
-        if isinstance(subset, str) or \
+        if (isinstance(subset, str) and ':' in subset) or \
                 (isinstance(subset, list) and np.all([isinstance(ss, str) for ss in subset])
                  and np.all([':' in ss for ss in subset])):
             subset_list = [subset] if isinstance(subset, str) else subset
@@ -1138,6 +1245,12 @@ class Spectrograph:
                     idx = np.where(self.list_detectors(mosaic=True) == parsed_det)[0][0]
                     new_dets.append(self.allowed_mosaics[idx])
             _subset = new_dets
+        elif isinstance(subset, str):
+            # Is it in square brackets (i.e. a list)`?  If not, do so
+            if subset[0] != '[':
+                subset = '[' + subset + ']'
+            # Convert to a list of int and tuple
+            _subset = ast.literal_eval(subset)  
         elif isinstance(subset, (int, tuple)):
             _subset = [subset]
         else:
@@ -1145,7 +1258,8 @@ class Spectrograph:
 
         allowed = np.arange(1, self.ndet+1).tolist() + self.allowed_mosaics
         if any([s not in allowed for s in _subset]):
-            msgs.error('Selected detectors or detector mosaics contain invalid values.')
+            msgs.warn('Selected detectors or detector mosaics contain invalid values.')
+            msgs.error(f"The allowed values are det={allowed}")
 
         # Require the list contains unique items
         # DP: I had to modify this, because list(set(_subset)) was changing the order of the detectors
@@ -1364,11 +1478,11 @@ class Spectrograph:
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, `Path`_, `astropy.io.fits.Header`_, :obj:`list`):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
                 Input filename, an `astropy.io.fits.Header`_ object, or a list
-                of `astropy.io.fits.Header`_ objects.  If None, function simply
-                returns None without issuing any warnings/errors, unless
-                ``required`` is True.
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table. If None, function simply returns None without
+                issuing any warnings/errors, unless ``required`` is True.
             meta_key (:obj:`str`, :obj:`list`):
                 A (list of) string(s) with the keywords to read from the file
                 header(s).
@@ -1402,7 +1516,19 @@ class Spectrograph:
             Value recovered for (each) keyword.  Can be None.
         """
         headarr = None
-        if isinstance(inp, (str, Path, fits.HDUList)):
+
+        # If the input is a metadata table, return the desired value
+        if isinstance(inp, Table):
+            try:
+                return inp[meta_key][0]
+            except KeyError:
+                # If the key is not present (e.g., this is an older PypeIt file
+                #   and we are striving for backwards-compatability), get the
+                #   filename from the table row and proceed as below.
+                headarr = self.get_headarr(inp['filename'][0])
+
+        # Otherwise, this set of statements pulls the Header array for the file in question
+        elif isinstance(inp, (str, Path, fits.HDUList)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
             headarr = inp
@@ -1428,6 +1554,12 @@ class Spectrograph:
             else:
                 msgs.warn("Requested meta data for meta_key={} does not exist...".format(meta_key))
                 return None
+
+        # If we are pulling metadata from a PypeIt-produced file (e.g., spec2d_*.fits),
+        #   then we KNOW that the desired metadata key exists as a FITS keyword already.
+        #   Return it now and skip all the gynmastics
+        if headarr[0].get('PIPELINE','').strip() == 'PYPEIT':
+            return headarr[0][meta_key.upper()]
 
         # Is this meta required for this frame type (Spectrograph specific)
         if 'required_ftypes' in self.meta[meta_key] and usr_row is not None:
@@ -1613,7 +1745,7 @@ class Spectrograph:
 
         # Check core
         core_keys = np.array(list(core_meta.keys()))
-        indx = np.invert(np.isin(core_keys, list(self.meta.keys())))
+        indx = np.logical_not(np.isin(core_keys, list(self.meta.keys())))
         if np.any(indx):
             msgs.error('Required keys {0} not defined by spectrograph!'.format(core_keys[indx]))
 
@@ -1626,7 +1758,7 @@ class Spectrograph:
 
         # Now confirm all meta are in the data model
         meta_keys = np.array(list(self.meta.keys()))
-        indx = np.invert(np.isin(meta_keys, list(self.meta_data_model.keys())))
+        indx = np.logical_not(np.isin(meta_keys, list(self.meta_data_model.keys())))
         if np.any(indx):
             msgs.error('Meta data keys {0} not in metadata model'.format(meta_keys[indx]))
 

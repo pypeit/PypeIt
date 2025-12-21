@@ -94,7 +94,7 @@ class PypeItImage(datamodel.DataContainer):
     # TODO These docs are confusing. The __init__ method needs to be documented just as it is for
     # every other class that we have written in PypeIt, i.e. the arguments all need to be documented. They are not
     # documented here and instead we have the odd Args documentation above. 
-    version = '1.3.0'
+    version = '1.3.1'
     """Datamodel version number"""
 
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
@@ -131,7 +131,19 @@ class PypeItImage(datamodel.DataContainer):
                  'spat_flexure': dict(otype=float,
                                       descr='Shift, in spatial pixels, between this image '
                                             'and SlitTrace'), 
-                 'filename': dict(otype=str, descr='Filename for the image'),}
+                 'filename': dict(otype=str, descr='Filename for the image'),
+                 'rel_scaleImg': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='Image used to apply a relative scaling to the science '
+                                        'image to correct its spectral illumination. Currently '
+                                        'only used for IFU reductions. This is calculated and '
+                                        'updated during object finding.'),
+                 'flex_shift': dict(otype=np.ndarray, atype=np.floating,
+                                    descr='Array of global spectral shifts (pixels) of the '
+                                          'wavelength array at the center of each slit to '
+                                          'correct for spectral flexure. This is calculated '
+                                          'using the sky spectrum, therefore, updated during '
+                                          'object finding/extraction.')
+                 }
     """Data model components."""
 
     internals = ['process_steps', 'files', 'rawheadlist']
@@ -356,7 +368,7 @@ class PypeItImage(datamodel.DataContainer):
         # to L.A.Cosmic?  For now, I'm doing the simple thing of just using the
         # bad pixel mask, but what other flags from ``fullmask`` should be
         # included?
-        bpm = self.fullmask.bpm
+        bpm = self.fullmask.flagged('BPM')
 
         # TODO: These saturation and non-linear values are typically for the raw
         # pixel value.  E.g., a saturation of 65535 is because the digitization
@@ -549,8 +561,8 @@ class PypeItImage(datamodel.DataContainer):
 
         if from_scratch:
             # Save the existing BPM and CR masks
-            bpm = self.fullmask.bpm
-            cr = self.fullmask.cr
+            bpm = self.fullmask.flagged('BPM')
+            cr = self.fullmask.flagged('CR')
             # Re-initialize the fullmask (erases all existing masks)
             self.reinit_mask()
             # Recover the BPM and CR masks
