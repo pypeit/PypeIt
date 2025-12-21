@@ -4,7 +4,7 @@ Module for LRIS specific methods.
 .. include:: ../include/links.rst
 """
 import os
-
+import pdb
 from IPython import embed
 
 import numpy as np
@@ -575,7 +575,23 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         xmin = 10000
         ymin = 10000
 
+        pdb.set_trace()
+
+        # Deal with detectors
+        if det in [1, 2]:
+            n_ext = n_ext // 2
+            det_idx = np.arange(n_ext, dtype=int) + (det - 1) * n_ext
+        elif det is None:
+            det_idx = np.arange(n_ext).astype(int)
+        else:
+            raise ValueError('Bad value for det')
+
+
         for i in extensions:
+
+            if det and (i-1 not in det_idx):
+                continue
+
             theader = hdu[i].header
             detsec = theader['DETSEC']
             if detsec != '0':
@@ -608,16 +624,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Update PRECOL and POSTPIX
         precol = precol // xbin
         postpix = postpix // xbin
-
-        # Deal with detectors
-        if det in [1, 2]:
-            nx = nx // 2
-            n_ext = n_ext // 2
-            det_idx = np.arange(n_ext, dtype=int) + (det - 1) * n_ext
-        elif det is None:
-            det_idx = np.arange(n_ext).astype(int)
-        else:
-            raise ValueError('Bad value for det')
 
         # change size for pre/postscan...
         nx += n_ext * (precol + postpix)
