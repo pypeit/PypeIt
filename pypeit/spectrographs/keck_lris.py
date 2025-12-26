@@ -4,7 +4,7 @@ Module for LRIS specific methods.
 .. include:: ../include/links.rst
 """
 from pathlib import Path
-import pdb
+
 from IPython import embed
 
 import numpy as np
@@ -588,8 +588,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         xmaxs = []
         ymins = []
         ymaxs = []
-
-        pdb.set_trace()
 
         for i in extensions:
 
