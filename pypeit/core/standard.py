@@ -218,8 +218,12 @@ class ArchivedFluxStandard(spectrum.Spectrum):
         """
         sep, row = nearest_archive_entry(cls.archive, ra, dec, unit=unit)
         if sep > tol * units.arcmin:
-            msgs.error(f'Closest object ({row["Name"]}) is separated by {sep.to("arcmin").value} '
-                       f'arcmin, which is beyond the required tolerance ({tol} arcmin).')
+            msgs.error(f'Closest object ({row["Name"]}) in archive "{cls.archive}" is '
+                       f'separated by {sep.to("arcmin").value:.2f} arcmin, which is beyond the '
+                       f'required tolerance ({tol} arcmin).')
+        else:
+            msgs.info(f'Using object {row["Name"]} in archive "{cls.archive}" '
+                      f'(sep = {sep.to("arcmin").value:.2f} arcmin)')
         return cls(row['File'], meta=cls._init_meta(row=row))
     
     @classmethod

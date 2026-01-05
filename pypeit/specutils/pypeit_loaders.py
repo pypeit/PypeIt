@@ -215,7 +215,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, chk_v
         spec += \
             [Spectrum(flux=astropy.units.Quantity(_flux * flux_unit),
                       uncertainty=astropy.nddata.StdDevUncertainty(_sigma * flux_unit),
-                      meta={'name': sobj.NAME, 'extract': _ext, 'fluxed': _cal},
+                      meta={'name': sobj.NAME, 'extract': _ext, 'fluxed': _cal, 'header':sobjs.header},
                       spectral_axis=astropy.units.Quantity(_wave * astropy.units.angstrom),
                       velocity_convention="doppler_optical",
                       bin_specification="centers")]
@@ -288,7 +288,7 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, chk_version=True, *
                     uncertainty=None if spec.sigma is None 
                                 else astropy.nddata.StdDevUncertainty(sigma * flux_unit),
                     meta={'name': name, 'extract': spec.ext_mode, 'fluxed': spec.fluxed,
-                          'grid': grid},
+                          'grid': grid, 'header': spec.head0},
                     spectral_axis=astropy.units.Quantity(wave * astropy.units.angstrom),
                     velocity_convention="doppler_optical",
                     bin_specification="centers")

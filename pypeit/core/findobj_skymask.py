@@ -5,6 +5,9 @@
 """
 from IPython import embed
 
+import os 
+from pathlib import Path
+
 import numpy as np
 import scipy.interpolate
 import scipy.ndimage
@@ -577,8 +580,8 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                 use_mad= True, sticky=False,
                 minx = order_vec.min(), maxx=order_vec.max())
             # Fill
-            goodorder = np.in1d(order_vec, thisorder)
-            badorder = np.invert(goodorder)
+            goodorder = np.isin(order_vec, thisorder)
+            badorder = np.logical_not(goodorder)
             frac_mean_new = np.zeros(norders)
             frac_mean_new[badorder] = pypeitFit.eval(order_vec[badorder])
             frac_mean_new[goodorder] = frac_mean_good
@@ -586,7 +589,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             if show:
                 frac_mean_fit = pypeitFit.eval(order_vec)
                 plt.plot(order_vec[goodorder][pypeitFit.bool_gpm], frac_mean_new[goodorder][pypeitFit.bool_gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(order_vec[goodorder][np.invert(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
+                plt.plot(order_vec[goodorder][np.logical_not(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.logical_not(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
                 plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
                 plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
                 plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
@@ -960,14 +963,14 @@ def ech_pca_traces(
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & allmask
-        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask_now),
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.logical_not(inmask_now),
+                                 trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
                                  debug=show_fits)[0]
 
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
-        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask_now),
-                                 trace_bpm=np.invert(trc_inmask), weighting='gaussian', fwhm=fwhm,
+        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.logical_not(inmask_now),
+                                 trace_bpm=np.logical_not(trc_inmask), weighting='gaussian', fwhm=fwhm,
                                  maxdev=maxdev, debug=show_fits)[0]
 
         #TODO  Assign the new traces. Only assign the orders that were not orginally detected and traced. If this works
@@ -1409,13 +1412,184 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
     plt.xlabel('Approximate Spatial Position (pixels)')
     plt.ylabel('SNR')
     plt.title(qa_title)
+    plt.tick_params(axis="both", which="both", direction="in", top=True, right=True)
+    plt.tight_layout()
     #plt.ylim(np.fmax(snr_vector.min(), -20.0), 1.3*snr_vector.max())
     fig = plt.gcf()
     if show:
         plt.show()
+    # Write to disk?
     if objfindQA_filename is not None:
-        fig.savefig(objfindQA_filename, dpi=400)
+        qafile = Path(objfindQA_filename).absolute()
+        qafile.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(qafile, dpi=400)
     plt.close('all')
+
+
+def objtrace_QA(
+    trace_fit: np.ndarray,
+    trace_fit_gpm: np.ndarray,
+    peak_cen: np.ndarray,
+    peak_cen_gpm: np.ndarray,
+    trace_input: np.ndarray,
+    trace_input_bpm: np.ndarray,
+    trace_names: list | None = None,
+    qa_title: str | None = None,
+    objtraceQA_filename: str | None = None,
+    show: bool = False,
+):
+    """Utility routine for making object tracing QA plots.
+
+    This is a slightly adjusted version of the ``debug`` plot from
+    :func:`~pypeit.core.trace.fit_trace`.  This QA figure combines the two
+    rounds of trace-fitting, starting with the slit-edge trace and ending with
+    the gaussian-weighted trace (implicitly or explicitely drawing the flux-
+    weighted trace).
+
+    Parameters
+    ----------
+    trace_fit
+        Gaussian-weighed best-fitting positions of each trace determined by the
+        polynomial fit.  This should be a (npix, ntrace) :obj:`float` array.
+    trace_fit_gpm
+        Good-pixel mask from the trace fitting. This should be a (npix, ntrace)
+        :obj:`bool` array.
+    peak_cen
+        Measured spatial pixel centroids of the trace peak as a function of
+        spectral pixel.  This should be a (npix, ntrace) :obj:`float` array.
+    peak_cen_gpm
+        Good pixel mask resulting from the attempt to fit ``peak_cen`` spatial
+        centroids.  This should be a (npix, ntrace) :obj:`bool` array.
+    trace_input
+        Input trace spatial pixel positions as a function of spectral pixel.
+        This array is used as the starting point for fitting a polynomial to
+        each ``peak_cen`` array.  This should be a (npix, ntrace) :obj:`float`
+        array.
+    trace_input_bpm
+        Tracing input bad picel mask indicating which pixels in ``peak_cen``
+        (in addition to those not in ``peak_cen_gpm``) were not included in the
+        fitting.  This should be a (npix, ntrace) :obj:`bool` array.
+    trace_names
+        List of trace names for plot titles.  This should be ntrace items long.
+    qa_title
+        Title for the QA file plot.
+    objtraceQA_filename
+        Output filename for the QA plot.  If None, plot is not saved.
+    show
+        If True, show the plot as a matplotlib interactive plot.
+    """
+    # Allow for single vectors as input
+    _trace_cen = trace_input.reshape(-1, 1) if trace_input.ndim == 1 else trace_input
+    _trace_bpm = trace_input_bpm.reshape(-1, 1) if trace_input.ndim == 1 else trace_input_bpm
+    nspec, ntrace = _trace_cen.shape
+    trace_coo = np.tile(np.arange(nspec), (ntrace, 1)).astype(float)
+
+    if trace_names is None:
+        trace_names = np.arange(1, ntrace + 1).astype(str)
+
+    # Construct boolean flags
+    inpgpm = np.logical_not(_trace_bpm)
+    bpm_fit = _trace_bpm & trace_fit_gpm
+    bpm_rej = _trace_bpm & np.logical_not(trace_fit_gpm)
+    gpm_bdcen_fit = inpgpm & np.logical_not(peak_cen_gpm) & trace_fit_gpm
+    gpm_bdcen_rej = inpgpm & np.logical_not(peak_cen_gpm) & np.logical_not(trace_fit_gpm)
+    gpm_gdcen_fit = inpgpm & peak_cen_gpm & trace_fit_gpm
+    gpm_gdcen_rej = inpgpm & peak_cen_gpm & np.logical_not(trace_fit_gpm)
+
+    # Line the individual object traces up as rows in the plot
+    fig, axes = plt.subplots(ncols=1, nrows=ntrace, gridspec_kw={"hspace": 0.0})
+
+    tsz = plt.rcParams['font.size']
+
+    # Make possible loop for more than one object
+    for i, axis in enumerate([axes] if ntrace == 1 else axes):
+
+        # Plot data masked on input and included in fit using input
+        # locations and lower weight
+        if np.any(bpm_fit[:, i]):
+            axis.scatter(
+                trace_coo[i, bpm_fit[:, i]], peak_cen[bpm_fit[:, i], i],
+                marker="o", color="cornflowerblue", s=30, label="Input masked, fit",
+            )
+
+        # Plot data masked on input and included in fit using input
+        # locations and lower weight, but rejected by the fit
+        if np.any(bpm_rej[:, i]):
+            axis.scatter(
+                trace_coo[i, bpm_rej[:, i]], peak_cen[bpm_rej[:, i], i],
+                marker="x", color="C6", s=30, label="Input masked, fit, rejected",
+            )
+
+        # *** Plot data with bad recentroid measurements, included in
+        # fit using input locations and lower weight
+        if np.any(gpm_bdcen_fit[:, i]):
+            axis.scatter(
+                trace_coo[i, gpm_bdcen_fit[:, i]], peak_cen[gpm_bdcen_fit[:, i], i],
+                marker="o", color="0.7", s=30, label="Centroid masked, fit",
+            )
+
+        # Plot data with bad recentroid measurements, included in
+        # fit using input locations and lower weight, but rejected
+        # by the fit
+        if np.any(gpm_bdcen_rej[:, i]):
+            axis.scatter(
+                trace_coo[i, gpm_bdcen_rej[:, i]], peak_cen[gpm_bdcen_rej[:, i], i],
+                marker="x", color="C1", s=30, label="Centroid masked, fit, rejected",
+            )
+
+        # *** Plot data with good recentroid measurements and included
+        # in fit
+        if np.any(gpm_gdcen_fit[:, i]):
+            axis.scatter(
+                trace_coo[i, gpm_gdcen_fit[:, i]], peak_cen[gpm_gdcen_fit[:, i], i],
+                marker="o", color="k", s=30, label="Remeasured and fit",
+            )
+
+        # Plot data with good recentroid measurements and included
+        # in fit but rejected
+        if np.any(gpm_gdcen_rej[:, i]):
+            axis.scatter(
+                trace_coo[i, gpm_gdcen_rej[:, i]], peak_cen[gpm_gdcen_rej[:, i], i],
+                marker="x", color="C3", s=30, label="Remeasured, fit, and rejected",
+            )
+
+        # *** Plot all input trace locations as a line
+        axis.plot(
+            trace_coo[i, :], _trace_cen[:, i],
+            color="C2", linewidth=1.5, linestyle="--", label="Input Trace Data",
+        )
+
+        # *** Plot all output fit trace locations as a line
+        axis.plot(
+            trace_coo[i, :], trace_fit[:, i],
+            color="r", linewidth=2.0, linestyle="--", label="Fit",
+        )
+
+        plt.ylim((0.995 * np.amin(trace_fit[:, i]), 1.005 * np.amax(trace_fit[:, i])))
+
+        axis.legend(fontsize=tsz-ntrace)
+        axis.tick_params(axis="both", which="both", direction="in", top=True, right=True)
+
+    try:
+        *_, slit, det = trace_names[0].split('-')
+    except ValueError:
+        slit, det = trace_names[0], ''
+    
+    try:
+        fig.suptitle(qa_title.replace("Finding", "Centroid fit for"))
+    except AttributeError:
+        fig.suptitle(f"Centroid fit for objects on {slit} {det}")
+    fig.supxlabel("Spectral Pixel")
+    fig.supylabel("Spatial Pixel")
+
+    plt.tight_layout()
+    # Display and/or save the plot(s)
+    if show:
+        plt.show()
+    if objtraceQA_filename is not None:
+        fig.savefig(objtraceQA_filename, dpi=400)
+    plt.close("all")
+
 
 def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
     """
@@ -1506,7 +1680,7 @@ def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
 
 def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, 
                  inmask=None, fwhm=3.0,
-                 sigclip_smash=5.0, use_user_fwhm=False, boxcar_rad=7.,
+                 sigclip_smash=5.0, use_user_fwhm=False, boxcar_rad=7., maxshift=1.0,
                  maxdev=2.0, numiterfit=9, spec_min_max=None, hand_extract_dict=None, std_trace=None,
                  ncoeff=5, nperslit=None, snr_thresh=10.0, trim_edg=(5,5),
                  extract_maskwidth=4.0, specobj_dict=None, find_min_max=None,
@@ -1592,6 +1766,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         boxcar_rad (:obj:`float`, optional):
             Box_car extraction radius *in pixels* to assign to each detected
             object and to be used later for boxcar extraction. 
+        maxshift (:obj:`float`, optional):
+            Maximum shift allowed between the input and recalculated
+            centroid (see :func:`~pypeit.core.trace.fit_trace`).
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -1730,7 +1907,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     else:
         find_min_max_out = np.array(find_min_max).astype(int)
 
-    #totmask = thismask & inmask & np.invert(edgmask)
+    #totmask = thismask & inmask & np.logical_not(edgmask)
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     #nsamp = np.ceil(np.median(xsize)) # JFH Changed 07-07-19
@@ -1924,13 +2101,14 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         xinit_fweight = np.copy(sobjs.TRACE_SPAT.T).astype(float)
         spec_mask = (spec_vec >= spec_min_max_out[0]) & (spec_vec <= spec_min_max_out[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
-        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask), maxshift=1., niter=numiterfit,
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.logical_not(inmask), maxshift=maxshift, niter=numiterfit,
+                                 trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
                                  idx=sobjs.NAME, debug=show_fits)[0]
+        # Redo the fit with Gaussian weighting
         xinit_gweight = np.copy(xfit_fweight)
-        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask), maxshift=1., niter=numiterfit,
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
+        xfit_gweight, cen, _, msk, traceset = fit_trace(image, xinit_gweight, ncoeff, bpm=np.logical_not(inmask), maxshift=maxshift, niter=numiterfit,
+                                 trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                 weighting='gaussian', idx=sobjs.NAME, debug=show_fits)
 
         # assign the final trace
         for iobj in range(nobj_reg):
@@ -1938,6 +2116,12 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
             sobjs[iobj].SPAT_PIXPOS_ID = int(np.rint(sobjs[iobj].SPAT_PIXPOS))
             sobjs[iobj].set_name()
+
+        # Create a QA plot for the object traces based on plots in ``fit_trace``
+        objtraceQA_filename = None if objfindQA_filename is None else objfindQA_filename.replace("prof","trace")
+        objtrace_QA(xfit_gweight, traceset.outmask.T, cen, np.logical_not(msk.astype(bool)),
+                    xinit_fweight, np.logical_not(trc_inmask), trace_names=sobjs.NAME,
+                    qa_title=qa_title, objtraceQA_filename=objtraceQA_filename)
 
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
@@ -2022,7 +2206,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         #spat_pixpos = np.array([spec.SPAT_PIXPOS for spec in specobjs])
         #hand_flag = np.array([spec.hand_extract_flag for spec in specobjs])
         #spec_fwhm = np.array([spec.FWHM for spec in specobjs])
-        reg_ind, = np.where(np.invert(hand_flag))
+        reg_ind, = np.where(np.logical_not(hand_flag))
         hand_ind, = np.where(hand_flag)
         #med_fwhm = np.median(spec_fwhm[~hand_flag])
         #spat_pixpos_hand = spat_pixpos[hand_ind]

@@ -108,7 +108,6 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     if nimgs == 1:
         # If only one image is passed in, simply return the input lists of images, but reshaped
         # to be (nspec, nspat)
-        msgs.warn('Cannot combine a single image. Returning input images')
         sci_list_out = []
         for sci_stack in sci_list:
             sci_list_out.append(sci_stack.reshape(img_shape))

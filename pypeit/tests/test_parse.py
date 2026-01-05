@@ -11,6 +11,33 @@ from pypeit.pypmsgs import PypeItError
 from pypeit.core import parse
 from pypeit.spectrographs.util import load_spectrograph
 
+
+def test_eval_detectors():
+
+    det = '1'
+    assert parse.eval_detectors(det) == 1, 'Bad integer parsing'
+
+    det = '1,2'
+    assert parse.eval_detectors(det) == [1,2], 'Bad integer list parsing'
+
+    det = '(1,2)'
+    assert parse.eval_detectors(det) == (1,2), 'Bad tuple parsing'
+
+    det = '[(1,2), (3,4)]'
+    assert parse.eval_detectors(det) == [(1, 2), (3, 4)], 'Bad tuple list parsing'
+
+    det = '[1]'
+    assert parse.eval_detectors(det) == 1, 'Should ignore square brackets'
+
+    det = '1]'
+    assert parse.eval_detectors(det) == 1, 'Should ignore square brackets'
+
+    # This should fault
+    det = 'test'
+    with pytest.raises(PypeItError):
+        parse.eval_detectors(det)
+
+    
 def test_parse_binning():
     """ Test parse binning algorithm
     """

@@ -319,9 +319,9 @@ class Spec2DObj(datamodel.DataContainer):
 
         # Find the good ones on the input object
 #        bpm = spec2DObj.slits.mask.astype(bool)
-#        exc_reduce = np.invert(spec2DObj.slits.bitmask.flagged(
+#        exc_reduce = np.logical_not(spec2DObj.slits.bitmask.flagged(
 #            spec2DObj.slits.mask, flag=spec2DObj.slits.bitmask.exclude_for_reducing))
-#        gpm = np.invert(bpm & exc_reduce)
+#        gpm = np.logical_not(bpm & exc_reduce)
         bpm = spec2DObj.slits.bitmask.flagged(
                     spec2DObj.slits.mask,
                     and_not=spec2DObj.slits.bitmask.exclude_for_reducing)

@@ -904,7 +904,12 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
                                            bounds_error=False, fill_value=-1e20)(wave)
     flam_true_gpm = (wave >= np.min(obj_params['std_spec'].wave)) \
                         & (wave <= np.max(obj_params['std_spec'].wave))
-    if np.any(np.logical_not(flam_true_gpm)):
+    # check the overlap between the archival standard star spectrum and the observed one.
+    if np.all(np.logical_not(flam_true_gpm)):
+        msgs.warn('Your data does not overlap with the archival standard star spectrum in this slit/order. '
+                  'The sensitivity function WILL NOT BE COMPUTED for this slit/order.')
+        return None, None
+    elif np.any(np.logical_not(flam_true_gpm)):
         msgs.warn('Your data extends beyond the range covered by the standard star spectrum. '
                   'Proceeding by masking these regions, but consider using another standard star')
     N_lam = counts_per_ang/obj_params['exptime']
@@ -2515,6 +2520,9 @@ class Telluric(datamodel.DataContainer):
                                      self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                      self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                      tellmodel)
+            # if the init_obj_model failed, we skip this slit/order
+            if obj_dict is None:
+                continue
             self.obj_dict_list[iord] = obj_dict
             self.bounds_obj_list[iord] = bounds_obj
             self.max_ntheta_obj = np.fmax(self.max_ntheta_obj, len(bounds_obj))
@@ -2573,7 +2581,7 @@ class Telluric(datamodel.DataContainer):
         self.theta_obj_list = [None]*self.norders
         self.theta_tell_list = [None]*self.norders
         for counter, iord in enumerate(self.srt_order_tell):
-            if iord not in good_orders:
+            if iord not in good_orders or  self.arg_dict_list[iord] is None:
                 continue
             _ord = self.ech_orders[iord] if self.ech_orders is not None and \
                                             len(self.ech_orders) == self.norders else iord
