@@ -633,8 +633,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         else:
             raise ValueError('Bad value for det')
 
-
-
         # determine the output array size...
         nx = xmax - xmin + 1
         ny = ymax - ymin + 1
