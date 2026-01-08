@@ -37,6 +37,9 @@ class PypeitWorker(QThread):
                 if line:
                     self.line_received.emit(line.rstrip())
 
+        # this will pipe out all the logs and errors. if I want to only look at the logs then I will need to manually filter them
+        # another way is if the program excepts log level flags. will have to check if it does that
+
         process.wait()
         self.finished.emit(process.returncode)
 
