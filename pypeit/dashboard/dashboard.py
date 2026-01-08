@@ -12,6 +12,7 @@ import qtpy
 
 # from pypeit.setup_gui.controller import start_gui
 # from pypeit.scripts import setup
+from pypeit.dashboard.capture_logs import PypeitWorker
 
 """
 TODO: give a meta view and specific (show meta step, what step of that step are we one, what step of that step are we on)
@@ -196,6 +197,7 @@ class FileListWidget(QListWidget):
                        ])
         self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
+
 class DashboardWidget(FilledBackgroundWidget):
     """this widget is the bottom widget"""
     def __init__(self):
@@ -204,10 +206,10 @@ class DashboardWidget(FilledBackgroundWidget):
         layout = QVBoxLayout()
         self.status_widget = StatusWidget()
         self.file_list_widget = FileListWidget()
-        self.logs_widget = FilledBackgroundWidget(color=QColorConstants.Black)
+        self.logs_widget = QListWidget()
         layout.addWidget(self.status_widget)
         tab_widget = QTabWidget()
-        tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.Red),"QA")
+        tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.Red),"QA") # Quality analysis
         tab_widget.addTab(self.file_list_widget,"Calibrations")
         tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.DarkGreen),"Science")
         tab_widget.addTab(self.logs_widget,"Logs")
@@ -264,6 +266,7 @@ def parse_pypeit_setup_file(file_path):
 
     return spectrograph,raw_path,files,science_file
 
+
 class MainWindow(QWidget):
     
     def __init__(self):
@@ -275,14 +278,30 @@ class MainWindow(QWidget):
         layout.addWidget(self.setup_widget,alignment=Qt.AlignmentFlag.AlignTop)
         layout.addWidget(self.dashboard_widget,stretch=3)
 
+        self.setup_file_path = None
+
         # -------- connections ---------
         self.setup_widget.open_setup_button.clicked.connect(self.start_controller)
         self.setup_widget.edit_setup_button.clicked.connect(self.import_setup_file)
+        self.setup_widget.run_all_button.clicked.connect(self.run_all)
+
 
         self.setLayout(layout)
 
     def start_controller(self):
         subprocess.Popen(["pypeit_setup","--gui"]) # starting the controller runnner file
+
+    def run_all(self):
+        # will need better checking in the future but for now will say if file path is not none
+        command = ["run_pypeit",f"{self.setup_file_path}"]
+        if self.setup_file_path != None:
+            subprocess.Popen(command)
+            worker = PypeitWorker(command)
+            worker.line_received.connect(self.update_logs)
+            worker.run()
+        else:
+            # I will do something here that is like you don't have a setup file imported
+            pass
  
     def import_setup_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -301,6 +320,7 @@ class MainWindow(QWidget):
             self.dashboard_widget.status_widget.update_setup_file(file_name)
             self.update_file_list_widget(calibration_files)
             self.update_science_file(science_file)
+            self.setup_file_path = file_path
 
 
     def update_file_list_widget(self,file_list):
@@ -312,9 +332,8 @@ class MainWindow(QWidget):
     def update_science_file(self,science_file):
         self.dashboard_widget.status_widget.update_science_file(science_file) 
 
-    def run_pypeit(self):
-        pass
-
+    def update_logs(self, line):
+        self.dashboard_widget.logs_widget.addItems([line])
 
 
 def main():

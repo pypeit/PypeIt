@@ -6,6 +6,7 @@
 # another way is to use subprocess and have capture output
 
 
+
 from PyQt6.QtCore import QThread, pyqtSignal
 import subprocess
 import sys
