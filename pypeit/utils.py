@@ -1068,11 +1068,21 @@ def smooth(x, window_len, window='flat'):
         raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
     s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
-    # print(len(s))
-    if window == 'flat':  # moving average
-        w = np.ones(window_len, 'd')
-    else:
-        w = eval('np.' + window + '(window_len)')
+
+    match window:
+        case 'flat':
+            # moving average
+            w = np.ones(window_len, 'd')
+        case 'hanning':
+            w = np.hanning(window_len)
+        case 'hamming':
+            w = np.hamming(window_len)
+        case 'bartlett':
+            w = np.bartlett(window_len)
+        case 'blackman':
+            w = np.blackman(window_len)
+        case _:
+            msgs.error(f'Unknown window type passed to smooth(): {window}')
 
     y = np.convolve(w / w.sum(), s, mode='same')
 

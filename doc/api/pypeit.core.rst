@@ -44,6 +44,8 @@ Submodules
    pypeit.core.scattlight
    pypeit.core.skysub
    pypeit.core.slitdesign_matching
+   pypeit.core.spectrum
+   pypeit.core.standard
    pypeit.core.telluric
    pypeit.core.trace
    pypeit.core.tracewave

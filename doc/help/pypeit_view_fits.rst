@@ -1,7 +1,7 @@
 .. code-block:: console
 
     $ pypeit_view_fits -h
-    usage: pypeit_view_fits [-h] [--list] [--proc] [--bkg_file BKG_FILE]
+    usage: pypeit_view_fits [-h] [--list] [--proc] [--bkg_file BKG_FILE] [--inter]
                             [--exten EXTEN] [--det [DET ...]] [--chname CHNAME]
                             [--showmask] [--embed]
                             spectrograph file
@@ -32,7 +32,8 @@
                            tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
                            wht_isis_red
-      file                 FITS file
+      file                 FITS file. Either a Raw file or an Intermediate PypeIt
+                           file
     
     options:
       -h, --help           show this help message and exit
@@ -43,6 +44,8 @@
       --bkg_file BKG_FILE  FITS file to be subtracted from the image in file.--proc
                            must be set in order for this option to work. (default:
                            None)
+      --inter              Input file is an Intermediate SciImage file (default:
+                           False)
       --exten EXTEN        Show a FITS extension in the raw file. Note --proc and
                            --mosaic will not work with this option. (default: None)
       --det [DET ...]      Detector(s) to show. If more than one, the list of

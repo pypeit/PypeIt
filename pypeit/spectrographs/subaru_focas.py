@@ -3,18 +3,21 @@ Module for Subaru FOCAS
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
+from astropy.io import fits
+from astropy.table import Table
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.core import meta
 from pypeit.spectrographs import spectrograph
 from pypeit import io
 from pypeit.images import detector_container
-from astropy.coordinates import SkyCoord
-from astropy import units
-from astropy.io import fits
+from pypeit.par import parset
+
 from IPython import embed
 
 class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
@@ -301,15 +304,20 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error(f'Unknown chip: {chip}!')
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -318,93 +326,102 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        grism_ID = self.get_meta_value(scifile, 'dispname')
+        # Adjust parameters based on grism used
+        grism_ID = self.get_meta_value(inp, 'dispname')
 
-        if grism_ID == 'SCFCGRMB01':
-            # 300B grism
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRMB01.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+        match grism_ID:
 
-        elif grism_ID == 'SCFCGRMR01':
-            # 300R grism
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRMR01.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            case 'SCFCGRMB01':
+                # 300B grism
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRMB01.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        # elif grism_ID == 'SCFCGREL01':
-        #     # 75/mm grism
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGREL01.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            case 'SCFCGRMR01':
+                # 300R grism
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRMR01.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        # elif grism_ID == 'SCFCGRHD45':
-        #     # VPH450 grism
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD45.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            # case 'SCFCGREL01':
+            #     # 75/mm grism
+            #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGREL01.fits'
+            #     par['calibrations']['wavelengths']['method'] = 'full_template'
+            #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        elif grism_ID == 'SCFCGRHD52':
-            # VPH520 grism
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD52.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            # case 'SCFCGRHD45':
+            #     # VPH450 grism
+            #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD45.fits'
+            #     par['calibrations']['wavelengths']['method'] = 'full_template'
+            #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        # elif grism_ID == 'SCFCGRHD65':
-        #     # VPH650 grism
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD65.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            case 'SCFCGRHD52':
+                # VPH520 grism
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD52.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        # elif grism_ID == 'SCFCGRHD68':
-        #     # VPH680 grism
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD68.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            # case 'SCFCGRHD65':
+            #     # VPH650 grism
+            #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD65.fits'
+            #     par['calibrations']['wavelengths']['method'] = 'full_template'
+            #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        # elif grism_ID == 'SCFCGRHD80':
-        #      # VPH800 grism
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD80.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            # case 'SCFCGRHD68':
+            #     # VPH680 grism
+            #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD68.fits'
+            #     par['calibrations']['wavelengths']['method'] = 'full_template'
+            #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        elif grism_ID == 'SCFCGRHD85':
-             # VPH850 grism
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD85.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            # case 'SCFCGRHD80':
+            #      # VPH800 grism
+            #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD80.fits'
+            #     par['calibrations']['wavelengths']['method'] = 'full_template'
+            #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        # elif grism_ID == 'SCFCGRHD95':
-        #     # VPH950 grism
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD95.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            case 'SCFCGRHD85':
+                # VPH850 grism
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD85.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        # elif grism_ID == 'SCFCGRLD01':
-        #     # 150/mm grism
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRLD01.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            # case 'SCFCGRHD95':
+            #     # VPH950 grism
+            #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHD95.fits'
+            #     par['calibrations']['wavelengths']['method'] = 'full_template'
+            #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        # elif grism_ID == 'SCFCGRHDEC':
-        #     # Echelle grism
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHDEC.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+            # case 'SCFCGRLD01':
+            #     # 150/mm grism
+            #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRLD01.fits'
+            #     par['calibrations']['wavelengths']['method'] = 'full_template'
+            #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        # ---- NOTE: from Debora ----
-        # The pypeit_sensfunc script uses the config_specific_par() method
-        # with a reduced spec1d file to pull out some info, although the method
-        # is meant for raw frames. In this case, the spec1d file does not have
-        # the dispname meta value in the header and PypeIt tries to run those
-        # 2 lines of code (just a message to the terminal) and crashes.
-        # So, removing them should fix the problem.
-        # ----------------------------
-        # else:
-        #     msgs.error(f'Not ready for this grism {self.get_meta_value(scifile, "dispname")}')
+            # case 'SCFCGRHDEC':
+            #     # Echelle grism
+            #     par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRHDEC.fits'
+            #     par['calibrations']['wavelengths']['method'] = 'full_template'
+            #     par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
+
+            # ---- NOTE: from Debora ----
+            # The pypeit_sensfunc script uses the config_specific_par() method
+            # with a reduced spec1d file to pull out some info, although the method
+            # is meant for raw frames. In this case, the spec1d file does not have
+            # the dispname meta value in the header and PypeIt tries to run those
+            # 2 lines of code (just a message to the terminal) and crashes.
+            # So, removing them should fix the problem.
+            #
+            # ---- NOTE: from tbowers7 ---- 2025-Aug-27
+            # The inclusion of the raw header cards (bottom of this class) should
+            # deal with the above situation, since the ``self.get_meta_value()``
+            # method would have access to the needed FITS header values from
+            # which to recreate the metadata value.
+            # ----------------------------
+            case _:
+                msgs.error(f'Not ready for this grism {grism_ID}')
 
         return par
 

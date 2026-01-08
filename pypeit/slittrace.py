@@ -682,7 +682,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             bpm = self.bitmask.flagged(self.mask, and_not=exclude_flag)
 #            bpm = self.mask.astype(bool)
 #            if exclude_flag:
-#                bpm &= np.invert(self.bitmask.flagged(self.mask, flag=exclude_flag))
+#                bpm &= np.logical_not(self.bitmask.flagged(self.mask, flag=exclude_flag))
             slitidx = np.where(np.logical_not(bpm))[0]
 
         # TODO: When specific slits are chosen, need to check that the
@@ -1642,7 +1642,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
         return calib_slits
 
     # are there dets from calib_slits that are blue?
-    indx_b = np.where(np.in1d(calib_dets, spectrograph_dets[0]))[0]
+    indx_b = np.where(np.isin(calib_dets, spectrograph_dets[0]))[0]
     # if this spectrograph is not split into blue and red detectors
     # or if it is but there are no available offsets in the blue
     if not blue_and_red or indx_b.size == 0:
@@ -1666,7 +1666,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
                   '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
         # which dets from calib_slits are red?
-        indx_r = np.where(np.in1d(calib_dets, spectrograph_dets[1]))[0]
+        indx_r = np.where(np.isin(calib_dets, spectrograph_dets[1]))[0]
         if indx_r.size > 0:
             # compute median if these red dets have values of slitmask_offsets
             _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_r], sigma=2.)

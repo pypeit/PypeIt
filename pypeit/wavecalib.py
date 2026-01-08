@@ -543,12 +543,12 @@ class BuildWaveCalib:
             # Redo?
             if self.par['redo_slits'] is not None:
                 if self.par['echelle'] and self.slits.ech_order is not None:
-                    idx = np.in1d(self.slits.ech_order, self.par['redo_slits'])
+                    idx = np.isin(self.slits.ech_order, self.par['redo_slits'])
                     # Turn off mask
                     self.slits.mask[idx] = self.slits.bitmask.turn_off(
                             self.slits.mask[idx], 'BADWVCALIB')
                 else:
-                    idx = np.in1d(self.slits.spat_id, self.par['redo_slits'])
+                    idx = np.isin(self.slits.spat_id, self.par['redo_slits'])
                     self.slits.mask[idx] = self.slits.bitmask.turn_off(
                             self.slits.mask[idx], 'BADWVCALIB')
 
@@ -559,7 +559,7 @@ class BuildWaveCalib:
 #            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
-            self.wvc_bpm = np.invert(mask == 0)
+            self.wvc_bpm = np.logical_not(mask == 0)
             ## We want to keep the 'BOXSLIT', which mask value is 2. But we don't want to keep 'BOXSLIT'
             ## with other bad flag (for which the mask value would be > 2)
             #self.wvc_bpm = mask > 2
@@ -622,7 +622,7 @@ class BuildWaveCalib:
             dict:  self.wv_calib
         """
         # Obtain a list of good slits
-        ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
+        ok_mask_idx = np.where(np.logical_not(self.wvc_bpm))[0]
 
         # print to screen the slit widths if maskdef_designtab is available
         if self.slits.maskdef_designtab is not None:
@@ -789,7 +789,7 @@ class BuildWaveCalib:
 
         # QA
         if not skip_QA:
-            ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
+            ok_mask_idx = np.where(np.logical_not(self.wvc_bpm))[0]
             for slit_idx in ok_mask_idx:
                 msgs.info(f"Preparing wavelength calibration QA for slit {slit_idx+1}/{self.slits.nslits}")
                 # Obtain the output QA name for the wavelength solution
@@ -839,7 +839,7 @@ class BuildWaveCalib:
         fixed = False
 
         for idet in range(len(dets)):
-            in_det = np.in1d(bad_orders, order_dets[idet])
+            in_det = np.isin(bad_orders, order_dets[idet])
             if not np.any(in_det):
                 continue
             msgs.info(f"Attempting to refit bad orders in detector={dets[idet]}")
@@ -1175,7 +1175,7 @@ class BuildWaveCalib:
         self.update_wvmask()
 
         # Any masked during this analysis?
-        wv_masked = np.where(np.invert(self.wvc_bpm_init) & self.wvc_bpm)[0]
+        wv_masked = np.where(np.logical_not(self.wvc_bpm_init) & self.wvc_bpm)[0]
         if len(wv_masked) > 0:
             self.slits.mask[wv_masked] = self.slits.bitmask.turn_on(
                     self.slits.mask[wv_masked], 'BADWVCALIB')

@@ -334,7 +334,7 @@ class Show2DSpec(scriptbase.ScriptBase):
             channel_names.append(chname_sci)
 
         # SKYSUB
-        if 1 in show_channels:
+        if 1 in show_channels and skymodel is not None:
             image = (sciimg - skymodel) * model_gpm.astype(float)
             mean, med, sigma = sigma_clipped_stats(image[model_gpm], sigma_lower=5.0,
                                                    sigma_upper=5.0)
@@ -371,7 +371,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         #    imgminsky= pseudo_dict['imgminsky']
 
         # SKRESIDS
-        if 2 in show_channels:
+        if 2 in show_channels and skymodel is not None:
             # the block below is repeated because if showing this channel but
             # not channel 1 it will crash
             chname_skyresids = args.prefix+f'sky_resid-{detname}'
@@ -386,7 +386,7 @@ class Show2DSpec(scriptbase.ScriptBase):
             channel_names.append(chname_skyresids)
 
         # RESIDS
-        if 3 in show_channels:
+        if 3 in show_channels and objmodel is not None:
             chname_resids = args.prefix+f'resid-{detname}'
             # full model residual map
             image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * img_gpm.astype(float)

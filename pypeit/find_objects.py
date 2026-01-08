@@ -98,6 +98,7 @@ class FindObjects:
             WaveImage image generated on-the-spot
         slitshift (`numpy.ndarray`_):
             Global spectral flexure correction for each slit (in pixels)
+            Currently only used with the IFU
         vel_corr (:obj:`float`):
             Relativistic reference frame velocity correction (e.g. heliocentyric/barycentric/topocentric)
 
@@ -176,7 +177,7 @@ class FindObjects:
         # make sure any of the `exclude_for_reducing` flags are not on.  This
         # previous code may also have included slits that were flagged as
         # SHORTSLIT.  Was that on purpose?
-#        self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
+#        self.reduce_bpm = (self.slits.mask > 2) & (np.logical_not(self.slits.bitmask.flagged(
 #                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
@@ -301,7 +302,7 @@ class FindObjects:
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
         #bpm = self.slits.mask.astype(bool)
-        #bpm &= np.invert(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing + ['BOXSLIT']))
+        #bpm &= np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing + ['BOXSLIT']))
         #gpm = np.logical_not(bpm)
         #self.slits_left = slits_left[:, gpm]
         #self.slits_right = slits_right[:, gpm]
@@ -690,6 +691,19 @@ class FindObjects:
         txt += '>'
         return txt
 
+    def get_findobj_qa_filename(self, slit:int, neg:bool, save_objfindQA:bool) -> str:
+        # Set objfind QA filename
+        objfindQA_filename = None
+        if save_objfindQA and (self.basename is not None):
+            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+            if self.find_negative:
+                basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
+            else:
+                basename = self.basename
+            objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit,
+                                                    det=self.detname, out_dir=out_dir)
+
+        return objfindQA_filename
 
 class MultiSlitFindObjects(FindObjects):
     """
@@ -761,7 +775,7 @@ class MultiSlitFindObjects(FindObjects):
         nobj : :obj:`int`
             Number of objects identified
         """
-        gdslits = np.where(np.invert(self.reduce_bpm))[0]
+        gdslits = np.where(np.logical_not(self.reduce_bpm))[0]
 
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
@@ -786,21 +800,20 @@ class MultiSlitFindObjects(FindObjects):
             else:
                 snr_thresh = self.par['reduce']['findobj']['snr_thresh']
 
-            # Set objfind QA filename
-            objfindQA_filename = None
-            if save_objfindQA and (self.basename is not None):
-                out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
-                if self.find_negative:
-                    basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
-                else:
-                    basename = self.basename
-                objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit_spat,
-                                                        det=self.detname, out_dir=out_dir)
+            objfindQA_filename = self.get_findobj_qa_filename(slit_spat, neg, save_objfindQA)
 
             maxnumber =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
                 else self.par['reduce']['findobj']['maxnumber_sci']
             # standard star
             std_in = std_trace[0]['TRACE_SPAT'] if std_trace is not None else None
+
+            # set the find_min_max and trace_min_max parameters
+            find_minmax = [self.slits.specmin[slit_idx], self.slits.specmax[slit_idx]] if \
+                self.par['reduce']['findobj']['find_min_max'] is None else \
+                self.par['reduce']['findobj']['find_min_max']
+            trace_minmax = [self.slits.specmin[slit_idx], self.slits.specmax[slit_idx]] if \
+                self.par['reduce']['findobj']['trace_min_max'] is None else \
+                self.par['reduce']['findobj']['trace_min_max']
 
             # Find objects
             sobjs_slit = \
@@ -818,9 +831,11 @@ class MultiSlitFindObjects(FindObjects):
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                 use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
                                 boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
-                                maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                                maxshift=self.par['reduce']['findobj']['trace_maxshift'],
+                                maxdev=self.par['reduce']['findobj']['trace_maxdev'],
                                 numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
-                                find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                                find_min_max=find_minmax,
+                                spec_min_max=trace_minmax,
                                 extract_maskwidth=self.par['reduce']['skysub']['local_maskwidth'],
                                 qa_title=qa_title, nperslit=maxnumber,
                                 objfindQA_filename=objfindQA_filename,
@@ -924,16 +939,7 @@ class EchelleFindObjects(FindObjects):
                         'OBJTYPE': self.objtype,
                         'PYPELINE': self.pypeline}
 
-        # Set objfind QA filename
-        objfindQA_filename = None
-        if save_objfindQA and (self.basename is not None):
-            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
-            if self.find_negative:
-                basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
-            else:
-                basename = self.basename
-            objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
-                                                    det=self.detname, out_dir=out_dir)
+        objfindQA_filename = self.get_findobj_qa_filename(999, neg, save_objfindQA)
 
         #This could cause problems if there are more than one object on the echelle slit, i,e, this tacitly
         #assumes that the standards for echelle have a single object. If this causes problems, we could make an
@@ -959,7 +965,7 @@ class EchelleFindObjects(FindObjects):
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
             fof_link = self.par['reduce']['findobj']['fof_link'],
-            maxdev=self.par['reduce']['findobj']['find_maxdev'],
+            maxdev=self.par['reduce']['findobj']['trace_maxdev'],
             numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
             nperorder=nperorder,
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
@@ -1017,8 +1023,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
         if self.wv_calib is None:
             msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
-        msgs.info("Generating wavelength image")
 
+        msgs.info("Generating wavelength image")
         # Generate the waveimg which is needed if flexure is being computed
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 

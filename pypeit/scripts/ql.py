@@ -54,6 +54,7 @@ from pypeit import pypeitsetup
 from pypeit import metadata
 from pypeit import io
 from pypeit import inputfiles 
+from pypeit import outputfiles
 from pypeit import pypeit
 from pypeit import coadd2d
 from pypeit.par.pypeitpar import PypeItPar
@@ -299,9 +300,9 @@ def generate_sci_pypeitfile(redux_path:str,
     is_std = ps_sci.fitstbl.find_frames('standard', index=True)
     if len(is_std) > 0 and not clear:
         for i in is_std:
-            std_spec1d = pypeit.PypeIt.get_spec_file_name(
-                            sci_dir / ps_sci.par['rdx']['scidir'],
-                            ps_sci.fitstbl.construct_basename(i))
+            std_spec1d = outputfiles.spec_output_file(
+                    ps_sci.fitstbl, None, i,
+                    sci_path=sci_dir / ps_sci.par['rdx']['scidir'])
             if std_spec1d.exists():
                 break
             # File doesn't exist, so reset
@@ -779,7 +780,7 @@ class QL(scriptbase.ScriptBase):
 
         # Find the raw science files
         sci_idx = ps.fitstbl.find_frames('science') if args.sci_files is None \
-                        else np.in1d(ps.fitstbl['filename'].data, args.sci_files)
+                        else np.isin(ps.fitstbl['filename'].data, args.sci_files)
         # TODO: Allow for standard files to be identified?
 
         # Check for any untyped files (that have not been typed) as science
@@ -1013,7 +1014,7 @@ class QL(scriptbase.ScriptBase):
             CoAdd2DSpec.main(CoAdd2DSpec.parse_args([str(coadd_file)]))
 
             # Get the output file name
-            spectrograph, par, _ = coadd2dFile.get_pypeitpar()
+            spectrograph, par, _ = coadd2dFile.get_pypeitpar(pypeit_fits=True)
             spec2d_files = coadd2dFile.filenames
             coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).absolute()
             basename = coadd2d.CoAdd2D.default_basename(spec2d_files)
@@ -1021,7 +1022,7 @@ class QL(scriptbase.ScriptBase):
         else:
             # Grab the spec2d file (or at least the first one)
             frame = pypeIt.fitstbl.find_frames('science', index=True)[0]
-            spec2d_file = pypeIt.spec_output_file(frame, twod=True)
+            spec2d_file = outputfiles.spec_output_file(pypeIt.fitstbl, pypeIt.par, frame, twod=True)
 
         if not args.skip_display:
             # TODO: Need to parse detector here?

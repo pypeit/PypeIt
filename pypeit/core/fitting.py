@@ -609,8 +609,8 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
                                           lower=lower, upper=upper, maxdev=maxdev, maxrej=maxrej,
                                           groupdim=groupdim, groupsize=groupsize, groupbadpix=groupbadpix, grow=grow,
                                           use_mad=use_mad, sticky=sticky)
-        nrej = np.sum(thismask_iter & np.invert(thismask))
-        nrej_tot = np.sum(inmask & np.invert(thismask))
+        nrej = np.sum(thismask_iter & np.logical_not(thismask))
+        nrej_tot = np.sum(inmask & np.logical_not(thismask))
         if verbose:
             msgs.info(
                 'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '

@@ -1,6 +1,6 @@
 
 
-Version: 1.1.13
+Version: 1.1.14
 
 =======================  =========================  =================  ====================================================================================================================================================================================
 Obj Key                  Obj Type                   Array Type         Description                                                                                                                                                                         
@@ -75,6 +75,7 @@ Obj Key                  Obj Type                   Array Type         Descripti
 ``WAVE_RMS``             float, floating                               RMS (pix) for the wavelength solution for this slit.                                                                                                                                
 ``hand_extract_flag``    bool                                          Boolean indicating if this is a forced extraction at the location provided by the user.                                                                                             
 ``maskwidth``            float, floating                               Size (in units of spatial fwhm) of the region used for local sky subtraction                                                                                                        
+``sign``                 float                                         Sign of the object profile (+1 or -1).  + is a positive profile above the sky background.                                                                                           
 ``smash_peakflux``       float                                         Peak value of the spectral direction collapsed spatial profile                                                                                                                      
 ``smash_snr``            float                                         Peak S/N ratio of the spectral direction collapsed patial profile                                                                                                                   
 ``trace_spec``           ndarray                    int,numpy.integer  Array of pixels along the spectral direction                                                                                                                                        

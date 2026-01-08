@@ -44,13 +44,13 @@ class RunToCalibStep(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
-        import ast
         import numpy as np
         from IPython import embed
         from pathlib import Path
 
-        from pypeit import pypeit
+        from pypeit import pypeit, pypeit_steps
         from pypeit import msgs
+        from pypeit.core import parse
 
         # Load options from command line
         _pypeit_file = Path(args.pypeit_file).absolute()
@@ -71,26 +71,30 @@ class RunToCalibStep(scriptbase.ScriptBase):
         pypeIt.reuse_calibs = True
 
         # Find the detectors to reduce
-        dets = pypeIt.par['rdx']['detnum'] if args.det is None else ast.literal_eval(args.det)
-        detectors = pypeIt.select_detectors(
-            pypeIt.spectrograph, dets,
-            slitspatnum=pypeIt.par['rdx']['slitspatnum'])
+        if args.det is None:
+            dets = pypeIt.par['rdx']['detnum']
+        else:
+            dets = parse.eval_detectors(args.det)
+        # NOTE: dets *can be* None
+
+        detectors = pypeIt.spectrograph.select_detectors(dets if pypeIt.par['rdx']['slitspatnum'] is None else dets)
 
         # Find the row of the frame
         if args.science_frame is not None:
             row = np.where(pypeIt.fitstbl['filename'] == args.science_frame)[0]
             if len(row) != 1:
-                msgs.error(f"Frame {args.frame} not found or not unique")
+                msgs.error(f"Frame {args.science_frame} not found or not unique")
         elif args.calib_group is not None:
             rows = np.where((pypeIt.fitstbl['calib'].data.astype(str) == args.calib_group))[0] 
             if len(rows) == 0:
                 msgs.error(f"Calibration group {args.calib_group} not found")
             row = rows[0]
         row = int(row)
+        calib_id = pypeIt.fitstbl.find_frame_calib_groups(row)[0]
 
         # Calibrations?
         for det in detectors:
-            pypeIt.calib_one([row], det, stop_at_step=args.step)
+            pypeit_steps.calib_one(pypeIt.spectrograph, pypeIt.fitstbl, pypeIt.par, det, calib_id, pypeIt.calibrations_path, stop_at_step=args.step)
         
         # QA HTML
         msgs.info('Generating QA HTML')
