@@ -43,7 +43,7 @@ dependencies = [
     "configobj>=5.0.6",
     "scikit-learn>=1.2",
     "IPython>=8.0.0",
-    "ginga>=5.5.0",
+    "ginga>=5.5.1",
     "setuptools<81",    # Keep until we deprecate linetools
     "linetools>=0.3.2",
     "qtpy>=2.2.0",

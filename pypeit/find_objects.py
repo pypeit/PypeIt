@@ -807,6 +807,14 @@ class MultiSlitFindObjects(FindObjects):
             # standard star
             std_in = std_trace[0]['TRACE_SPAT'] if std_trace is not None else None
 
+            # set the find_min_max and trace_min_max parameters
+            find_minmax = [self.slits.specmin[slit_idx], self.slits.specmax[slit_idx]] if \
+                self.par['reduce']['findobj']['find_min_max'] is None else \
+                self.par['reduce']['findobj']['find_min_max']
+            trace_minmax = [self.slits.specmin[slit_idx], self.slits.specmax[slit_idx]] if \
+                self.par['reduce']['findobj']['trace_min_max'] is None else \
+                self.par['reduce']['findobj']['trace_min_max']
+
             # Find objects
             sobjs_slit = \
                     findobj_skymask.objs_in_slit(image, ivar, thismask,
@@ -826,8 +834,8 @@ class MultiSlitFindObjects(FindObjects):
                                 maxshift=self.par['reduce']['findobj']['trace_maxshift'],
                                 maxdev=self.par['reduce']['findobj']['trace_maxdev'],
                                 numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
-                                find_min_max=self.par['reduce']['findobj']['find_min_max'],
-                                spec_min_max=self.par['reduce']['findobj']['trace_min_max'],
+                                find_min_max=find_minmax,
+                                spec_min_max=trace_minmax,
                                 extract_maskwidth=self.par['reduce']['skysub']['local_maskwidth'],
                                 qa_title=qa_title, nperslit=maxnumber,
                                 objfindQA_filename=objfindQA_filename,
