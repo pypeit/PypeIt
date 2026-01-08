@@ -1,0 +1,85 @@
+# Auto-generated calibration association file using PypeIt version:  0.1.dev18393+gc4a495cc9
+# UTC 2026-01-08T19:10:51.263+00:00
+# NOTE: DET01 is a placeholder for the reduced detectors/mosaics
+A:
+  --:
+    dichroic: d55
+    dispname: 600/4310
+  0:
+    arc:
+      proc:
+      - /home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Arc_A_0_DET01.fits
+      - /home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/WaveCalib_A_0_DET01.fits
+      raw:
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b1.fits.gz
+    bias:
+      proc:
+      - /home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Bias_A_0_DET01.fits
+      raw:
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b14.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b15.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b16.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b17.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b18.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b19.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b20.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b21.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b22.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b23.fits.gz
+    illumflat:
+      proc:
+      - /home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Flat_A_0_DET01.fits
+      raw:
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b10.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b11.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b12.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b13.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b3.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b4.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b5.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b6.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b7.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b8.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b9.fits.gz
+    pixelflat:
+      proc:
+      - /home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Flat_A_0_DET01.fits
+      raw:
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b10.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b11.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b12.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b13.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b3.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b4.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b5.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b6.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b7.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b8.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b9.fits.gz
+    science:
+    - /home/abowman/uco_work/sample_data/600_4310_d55/b27.fits.gz
+    - /home/abowman/uco_work/sample_data/600_4310_d55/b28.fits.gz
+    standard:
+    - /home/abowman/uco_work/sample_data/600_4310_d55/b24.fits.gz
+    tilt:
+      proc:
+      - /home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Tiltimg_A_0_DET01.fits
+      - /home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Tilts_A_0_DET01.fits
+      raw:
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b1.fits.gz
+    trace:
+      proc:
+      - /home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Edges_A_0_DET01.fits.gz
+      - /home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Slits_A_0_DET01.fits.gz
+      raw:
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b10.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b11.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b12.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b13.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b3.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b4.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b5.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b6.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b7.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b8.fits.gz
+      - /home/abowman/uco_work/sample_data/600_4310_d55/b9.fits.gz
