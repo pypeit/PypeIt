@@ -1065,11 +1065,6 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         if grating == '300/5000':
             par['calibrations']['slitedges']['smash_range'] = [0.5, 1.]
 
-        # Slit tracing
-        # This might only be required for det=2, but we'll see..
-        if 'long' in self.get_meta_value(scifile, 'decker'):
-            par['calibrations']['slitedges']['edge_thresh'] = 50.
-
         # Return
         return par
 
