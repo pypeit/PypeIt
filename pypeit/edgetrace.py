@@ -4465,7 +4465,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 ccdnum=self.traceimg.detector.det, 
                 binning=self.traceimg.detector.binning, 
                 filename=maskfiles, 
-                trc_path = os.path.dirname(self.traceimg.files[0]),
+                trc_path=str(Path(self.traceimg.files[0]).parent),
                 debug=debug)
 
         if omodel_bspat[omodel_bspat!=-1].size < 3:
@@ -5736,6 +5736,15 @@ class EdgeTraceSet(calibframe.CalibFrame):
             _merged_designtab.rename_column('MASKDEF_ID_1', 'MASKDEF_ID')
             # One more item
             _posx_pa = float(self.slitmask.posx_pa)
+            # Use maskdef specmin and specmax
+            if self.maskfile is not None and self.par['maskdesign_trim']:
+                _maskfile = str(Path(self.traceimg.files[0]).parent / self.maskfile) \
+                            if not Path(self.maskfile).exists() else self.maskfile
+                specmin, specmax = self.spectrograph.maskdef_spec_minmax(maskfile=_maskfile,
+                                                                         maskdef_ids=_maskdef_id,
+                                                                         nspec=self.nspec,
+                                                                         binning=self.traceimg.detector.binning,
+                                                                         shift=self.par['maskdesign_trim_shift'])
         else:
             _maskdef_id = None
             _merged_designtab = None

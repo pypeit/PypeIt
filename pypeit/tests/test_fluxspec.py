@@ -199,7 +199,7 @@ def extinction_correction_tester(algorithm):
     par['sensfunc']['star_ra'] = 159.9042
     par['sensfunc']['star_dec'] = 43.1025
 
-    sensobj = sensfunc.SensFunc.get_instance(spec1d_file, sens_file, par['sensfunc'])
+    sensobj = sensfunc.SensFunc.get_instance([spec1d_file], sens_file, par['sensfunc'])
 
     sensobj.wave = np.linspace(3000, 6000, 300).reshape((300, 1))
     sensobj.sens = sensobj.empty_sensfunc_table(*sensobj.wave.T.shape, 0)

@@ -223,7 +223,7 @@ def poly_ratio_fitfunc_chi2(theta, gpm, arg_dict):
     # Changing the Huber loss parameter from step to step results in instability during optimization --MSR.
     # Robustly characterize the dispersion of this distribution
     #chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
-    #    chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
+    #    chi_vec, np.logical_not(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
     chi_std = np.std(chi_vec)
     # The Huber loss function smoothly interpolates between being chi^2/2 for standard chi^2 rejection and
     # a linear function of residual in the outlying tails for large residuals. This transition occurs at the

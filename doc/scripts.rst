@@ -194,6 +194,8 @@ run_pypeit
 This is the main executable for PypeIt for its core end-to-end data processing.
 See :ref:`run-pypeit` for details.
 
+.. _pypeit-run-to-calibstep:
+
 pypeit_run_to_calibstep
 -----------------------
 
@@ -227,6 +229,12 @@ An example call is:
 
     pypeit_run_to_calibstep shane_kast_blue_A.pypeit wv_calib --science_frame b28.fits.gz 
 
+pypeit_reduce_by_step
+---------------------
+
+See :doc:`reduce_by_step` for a complete discussion of this 
+script which is used to isolate individual steps of the reduction 
+on individual science/standard frames and detectors/mosaics.
 
 pypeit_trace_edges
 ------------------

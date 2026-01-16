@@ -98,6 +98,7 @@ class FindObjects:
             WaveImage image generated on-the-spot
         slitshift (`numpy.ndarray`_):
             Global spectral flexure correction for each slit (in pixels)
+            Currently only used with the IFU
         vel_corr (:obj:`float`):
             Relativistic reference frame velocity correction (e.g. heliocentyric/barycentric/topocentric)
 
@@ -176,7 +177,7 @@ class FindObjects:
         # make sure any of the `exclude_for_reducing` flags are not on.  This
         # previous code may also have included slits that were flagged as
         # SHORTSLIT.  Was that on purpose?
-#        self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
+#        self.reduce_bpm = (self.slits.mask > 2) & (np.logical_not(self.slits.bitmask.flagged(
 #                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
@@ -301,7 +302,7 @@ class FindObjects:
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
         #bpm = self.slits.mask.astype(bool)
-        #bpm &= np.invert(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing + ['BOXSLIT']))
+        #bpm &= np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing + ['BOXSLIT']))
         #gpm = np.logical_not(bpm)
         #self.slits_left = slits_left[:, gpm]
         #self.slits_right = slits_right[:, gpm]
@@ -774,7 +775,7 @@ class MultiSlitFindObjects(FindObjects):
         nobj : :obj:`int`
             Number of objects identified
         """
-        gdslits = np.where(np.invert(self.reduce_bpm))[0]
+        gdslits = np.where(np.logical_not(self.reduce_bpm))[0]
 
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
@@ -806,6 +807,14 @@ class MultiSlitFindObjects(FindObjects):
             # standard star
             std_in = std_trace[0]['TRACE_SPAT'] if std_trace is not None else None
 
+            # set the find_min_max and trace_min_max parameters
+            find_minmax = [self.slits.specmin[slit_idx], self.slits.specmax[slit_idx]] if \
+                self.par['reduce']['findobj']['find_min_max'] is None else \
+                self.par['reduce']['findobj']['find_min_max']
+            trace_minmax = [self.slits.specmin[slit_idx], self.slits.specmax[slit_idx]] if \
+                self.par['reduce']['findobj']['trace_min_max'] is None else \
+                self.par['reduce']['findobj']['trace_min_max']
+
             # Find objects
             sobjs_slit = \
                     findobj_skymask.objs_in_slit(image, ivar, thismask,
@@ -825,8 +834,8 @@ class MultiSlitFindObjects(FindObjects):
                                 maxshift=self.par['reduce']['findobj']['trace_maxshift'],
                                 maxdev=self.par['reduce']['findobj']['trace_maxdev'],
                                 numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
-                                find_min_max=self.par['reduce']['findobj']['find_min_max'],
-                                spec_min_max=self.par['reduce']['findobj']['trace_min_max'],
+                                find_min_max=find_minmax,
+                                spec_min_max=trace_minmax,
                                 extract_maskwidth=self.par['reduce']['skysub']['local_maskwidth'],
                                 qa_title=qa_title, nperslit=maxnumber,
                                 objfindQA_filename=objfindQA_filename,
@@ -1014,8 +1023,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
         if self.wv_calib is None:
             msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
-        msgs.info("Generating wavelength image")
 
+        msgs.info("Generating wavelength image")
         # Generate the waveimg which is needed if flexure is being computed
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 

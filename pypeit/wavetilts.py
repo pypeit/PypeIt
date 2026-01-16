@@ -353,7 +353,7 @@ class BuildWaveTilts:
         # Load up all slits
         # TODO -- Discuss further with JFH
         all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
-        # self.tilt_bpm = np.invert(mask == 0)
+        # self.tilt_bpm = np.logical_not(mask == 0)
         # At this point of the reduction the only bitmask flags that may have been generated are 'USERIGNORE',
         # 'SHORTSLIT', 'BOXSLIT' and 'BADWVCALIB'. Here we use only 'USERIGNORE' and 'SHORTSLIT' to create the bpm mask
         self.tilt_bpm = self.slits.bitmask.flagged(mask, flag=['SHORTSLIT', 'USERIGNORE'])
@@ -458,7 +458,7 @@ class BuildWaveTilts:
             plt.imshow(self.mstilt.image, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=vmin, vmax=vmax)
             plt.scatter(lines_spat[good], lines_spec[good], marker='x', color='k', lw=2, s=50)
-            plt.scatter(lines_spat[np.invert(good)], lines_spec[np.invert(good)], marker='x', color='C3', lw=2, s=50)
+            plt.scatter(lines_spat[np.logical_not(good)], lines_spec[np.logical_not(good)], marker='x', color='C3', lw=2, s=50)
             plt.show()
 
         self.steps.append(inspect.stack()[0][3])
@@ -595,7 +595,7 @@ class BuildWaveTilts:
             # TODO: What to do with the following iter_continuum parameters?:
             #       sigthresh, sigrej, niter_cont, cont_samp, cont_frac_fwhm
             arc_continuum[:,i], arc_fitmask[:,i] \
-                    = arc.iter_continuum(self.arccen[:,i], gpm=np.invert(self.arccen_bpm[:,i]),
+                    = arc.iter_continuum(self.arccen[:,i], gpm=np.logical_not(self.arccen_bpm[:,i]),
                                          fwhm=fwhm)
             # TODO: Original version.  Please leave it for now.
 #            arc_fitmask[:,i], coeff \
@@ -635,7 +635,7 @@ class BuildWaveTilts:
             # Set a single width for the slit to simplify the
             # calculation
             width = np.sum(indx, axis=1)
-            width = int(np.amax(width[np.invert(self.arccen_bpm[:,i])]))
+            width = int(np.amax(width[np.logical_not(self.arccen_bpm[:,i])]))
 
             # Get the spatial indices for spectral pixels in the
             # spatial dimension that follow the curvature of the slit
@@ -664,7 +664,7 @@ class BuildWaveTilts:
                                                     axis=0)[1]
 
             # Fill the image with the continuum for this slit
-            indx = np.invert(aligned_flux.mask)
+            indx = np.logical_not(aligned_flux.mask)
             cont_image[aligned_spec[indx], _spat[indx]] \
                     = (arc_continuum[:,i,None] * cont_renorm[None,:])[indx]
 
@@ -913,11 +913,11 @@ class BuildWaveTilts:
                 # good pixels
                 gpix = trc['tot_mask']
                 # bad pixels
-                bpix = np.invert(gpix) & (trc['tilts'] > 0)
+                bpix = np.logical_not(gpix) & (trc['tilts'] > 0)
                 # good 2d fit
                 gfit = gpix & trc['fit_mask']
                 # bad 2d fit
-                bfit = gpix & np.invert(trc['fit_mask'])
+                bfit = gpix & np.logical_not(trc['fit_mask'])
 
                 for l in range(trc['tilts_spat'].shape[1]):
                     # good pixels

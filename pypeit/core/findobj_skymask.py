@@ -5,6 +5,9 @@
 """
 from IPython import embed
 
+import os 
+from pathlib import Path
+
 import numpy as np
 import scipy.interpolate
 import scipy.ndimage
@@ -577,8 +580,8 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                 use_mad= True, sticky=False,
                 minx = order_vec.min(), maxx=order_vec.max())
             # Fill
-            goodorder = np.in1d(order_vec, thisorder)
-            badorder = np.invert(goodorder)
+            goodorder = np.isin(order_vec, thisorder)
+            badorder = np.logical_not(goodorder)
             frac_mean_new = np.zeros(norders)
             frac_mean_new[badorder] = pypeitFit.eval(order_vec[badorder])
             frac_mean_new[goodorder] = frac_mean_good
@@ -586,7 +589,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             if show:
                 frac_mean_fit = pypeitFit.eval(order_vec)
                 plt.plot(order_vec[goodorder][pypeitFit.bool_gpm], frac_mean_new[goodorder][pypeitFit.bool_gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(order_vec[goodorder][np.invert(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
+                plt.plot(order_vec[goodorder][np.logical_not(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.logical_not(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
                 plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
                 plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
                 plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
@@ -960,14 +963,14 @@ def ech_pca_traces(
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & allmask
-        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask_now),
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.logical_not(inmask_now),
+                                 trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
                                  debug=show_fits)[0]
 
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
-        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask_now),
-                                 trace_bpm=np.invert(trc_inmask), weighting='gaussian', fwhm=fwhm,
+        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.logical_not(inmask_now),
+                                 trace_bpm=np.logical_not(trc_inmask), weighting='gaussian', fwhm=fwhm,
                                  maxdev=maxdev, debug=show_fits)[0]
 
         #TODO  Assign the new traces. Only assign the orders that were not orginally detected and traced. If this works
@@ -1415,8 +1418,11 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
     fig = plt.gcf()
     if show:
         plt.show()
+    # Write to disk?
     if objfindQA_filename is not None:
-        fig.savefig(objfindQA_filename, dpi=400)
+        qafile = Path(objfindQA_filename).absolute()
+        qafile.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(qafile, dpi=400)
     plt.close('all')
 
 
@@ -2200,7 +2206,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         #spat_pixpos = np.array([spec.SPAT_PIXPOS for spec in specobjs])
         #hand_flag = np.array([spec.hand_extract_flag for spec in specobjs])
         #spec_fwhm = np.array([spec.FWHM for spec in specobjs])
-        reg_ind, = np.where(np.invert(hand_flag))
+        reg_ind, = np.where(np.logical_not(hand_flag))
         hand_ind, = np.where(hand_flag)
         #med_fwhm = np.median(spec_fwhm[~hand_flag])
         #spat_pixpos_hand = spat_pixpos[hand_ind]

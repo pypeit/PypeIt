@@ -41,6 +41,15 @@ Functionality/Performance Improvements and Additions
   detector that extend beyond the detected object (latter).
 - Include an object tracing QA plot (``<objname>_<det>_<slit>_obj_trace.png``)
   in the collection of QA plots produced in the main PypeIt run.
+- Added the possibility to use the maskdesign information to set `specmin` and
+  `specmax` in the edge tracing process for each slit (only if this information is
+  available). Currently implemented only for Gemini/GMOS.
+- When creating a sensitivity function from a standard star reduced using the mosaic
+  approach, the code now splits the standard star spec1d into the single detectors and,
+  after the sensitivity function for each detector is computed, it splices them into
+  a single sensfunc covering the full wavelength range.
+- Add the possibility to use more than one standard star spec1d to create the
+  sensitivity function. This can be helpful in case of spectrally dithered observations.
 
 Instrument-specific Updates
 ---------------------------
@@ -52,6 +61,8 @@ Instrument-specific Updates
 - Updated object tracing parameters for LDT/DeVeny to allow more robust
   extraction of objects observed at low elevation where atmospheric dispersion
   is significant.
+- Updated the `gain` and `ronoise` values for Gemini/GMOS spectrographs to account
+  for the different values measured in each amplifier.
 
 Script Changes
 --------------

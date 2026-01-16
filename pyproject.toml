@@ -43,7 +43,7 @@ dependencies = [
     "configobj>=5.0.6",
     "scikit-learn>=1.2",
     "IPython>=8.0.0",
-    "ginga>=5.4.0",
+    "ginga>=5.5.1",
     "setuptools<81",    # Keep until we deprecate linetools
     "linetools>=0.3.2",
     "qtpy>=2.2.0",
@@ -136,6 +136,7 @@ pypeit_qa_html = "pypeit.scripts.qa_html:QAHtml.entry_point"
 pypeit_ql = "pypeit.scripts.ql:QL.entry_point"
 run_pypeit = "pypeit.scripts.run_pypeit:RunPypeIt.entry_point"
 pypeit_run_to_calibstep = "pypeit.scripts.run_to_calibstep:RunToCalibStep.entry_point"
+pypeit_reduce_by_step = "pypeit.scripts.reduce_by_step:ReducebyStep.entry_point"
 pypeit_sensfunc = "pypeit.scripts.sensfunc:SensFunc.entry_point"
 pypeit_setup = "pypeit.scripts.setup:Setup.entry_point"
 pypeit_setup_coadd2d = "pypeit.scripts.setup_coadd2d:SetupCoAdd2D.entry_point"
@@ -165,6 +166,10 @@ pypeit_show_pixflat = "pypeit.scripts.show_pixflat:ShowPixFlat.entry_point"
 
 SlitWavelength = "pypeit.display:setup_SlitWavelength"
 Spec1dView = "pypeit.display:setup_Spec1dView"
+
+[project.entry-points."ginga_modes"]
+
+pypeit1d = "pypeit.display.pypeit_modes:Spec1DMode"
 
 [build-system]
 requires = [

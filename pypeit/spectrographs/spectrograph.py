@@ -28,6 +28,7 @@ provide instrument-specific:
 
 from abc import ABCMeta
 from pathlib import Path
+import ast
 
 from IPython import embed
 
@@ -813,6 +814,33 @@ class Spectrograph:
         msgs.error('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
 
+    @staticmethod
+    def maskdef_spec_minmax(maskfile=None, maskdef_ids=None, nspec=None, shift=150):
+        """
+        Get the spectral min and max values of each slit from the mask definition file.
+
+        This method is not defined for all spectrographs. This base-class
+        method raises an exception.
+
+        Args:
+            maskfile (:obj:`str`, optional):
+                The mask file to read the maskdef spec minmax from.
+            maskdef_ids (:obj:`list`, optional):
+                The list of maskdef IDs to match to the maskfile values.
+            nspec (:obj:`int`, optional):
+                The number of spectral pixels in the image.
+            shift (:obj:`int`, optional):
+                The shift to apply to the spec minmax. Default is 150.
+                This is used to shift the spec minmax to account for the
+                uncertainty in the maskdef spec minmax values.
+        Returns:
+            :obj:`tuple`: A tuple of two `numpy.ndarray`_ with the spec min and max values.
+            If the maskfile, maskdef_ids, or nspec are not provided, None is returned for both min and max.
+        """
+
+        msgs.error('This spectrograph does not support the use of mask design to get the '
+                     'maskdef spec minmax. Set `maskdef_spec_minmax=False`')
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -1150,11 +1178,15 @@ class Spectrograph:
         individually.  A subset can be selected using one of the following
         methods:
 
-            - If ``subset`` is a string, it is assumed that you're selecting a
-              set of detector and spatial pixel coordinate combinations needed
-              to reduce a single slit; see ``slitspatnum`` in the
-              :ref:`pypeitpar`.  The string is parsed into the list of relevant
-              detectors.
+            - If ``subset`` is a string, there are 2 options:
+
+                - you're selecting a set of detector and spatial pixel
+                  coordinate combinations needed to reduce a single slit; see
+                  ``slitspatnum`` in the :ref:`pypeitpar`.  The string is parsed
+                  into the list of relevant detectors.
+
+                - you are inputing the detectors/mosaics in string format, e.g.
+                  "3,(1,5)"
 
             - If ``subset`` is a list, integer, or tuple, it is parsed into a
               set of single detector or detector mosaics to reduce.
@@ -1171,12 +1203,34 @@ class Spectrograph:
         Raises:
             PypeItError: Raised if any of the detectors or detector mosaics
             specified by ``subset`` are invalid.
+
+        Examples:
+            >>> from pypeit.spectrographs.keck_deimos import KeckDEIMOSSpectrograph
+            >>> spectrograph = KeckDEIMOSSpectrograph()
+            >>> spectrograph.select_detectors()
+            [1, 2, 3, 4, 5, 6, 7, 8]
+            >>> spectrograph.select_detectors(subset=3)
+            [3]
+            >>> spectrograph.select_detectors(subset=(3,4))
+            PypeItError: The allowed values are det=[1, 2, 3, 4, 5, 6, 7, 8, (1, 5), (2, 6), (3, 7), (4, 8)]
+            >>> spectrograph.select_detectors(subset=(3,7))
+            [(3, 7)]
+            >>> spectrograph.select_detectors(subset=[(1,5),(2,6)])
+            [(1,5), (2, 6)]
+            >>> spectrograph.select_detectors(subset='DET01:10')
+            [1]
+            >>> spectrograph.select_detectors(subset=['DET01:10','DET05:10'])
+            [1, 5]
+            >>> spectrograph.select_detectors(subset="3,(1,5)")
+            [3, (1, 5)]
+            >>> spectrograph.select_detectors(subset="[3,(1,5)]")
+            [3, (1, 5)]
         """
         if subset is None:
             return np.arange(1, self.ndet+1).tolist()
 
         # Parse subset if it's a string (single slitspatnum) or a list of slitspatnums
-        if isinstance(subset, str) or \
+        if (isinstance(subset, str) and ':' in subset) or \
                 (isinstance(subset, list) and np.all([isinstance(ss, str) for ss in subset])
                  and np.all([':' in ss for ss in subset])):
             subset_list = [subset] if isinstance(subset, str) else subset
@@ -1191,6 +1245,12 @@ class Spectrograph:
                     idx = np.where(self.list_detectors(mosaic=True) == parsed_det)[0][0]
                     new_dets.append(self.allowed_mosaics[idx])
             _subset = new_dets
+        elif isinstance(subset, str):
+            # Is it in square brackets (i.e. a list)`?  If not, do so
+            if subset[0] != '[':
+                subset = '[' + subset + ']'
+            # Convert to a list of int and tuple
+            _subset = ast.literal_eval(subset)  
         elif isinstance(subset, (int, tuple)):
             _subset = [subset]
         else:
@@ -1198,7 +1258,8 @@ class Spectrograph:
 
         allowed = np.arange(1, self.ndet+1).tolist() + self.allowed_mosaics
         if any([s not in allowed for s in _subset]):
-            msgs.error('Selected detectors or detector mosaics contain invalid values.')
+            msgs.warn('Selected detectors or detector mosaics contain invalid values.')
+            msgs.error(f"The allowed values are det={allowed}")
 
         # Require the list contains unique items
         # DP: I had to modify this, because list(set(_subset)) was changing the order of the detectors
@@ -1703,7 +1764,7 @@ class Spectrograph:
 
         # Check core
         core_keys = np.array(list(core_meta.keys()))
-        indx = np.invert(np.isin(core_keys, list(self.meta.keys())))
+        indx = np.logical_not(np.isin(core_keys, list(self.meta.keys())))
         if np.any(indx):
             msgs.error('Required keys {0} not defined by spectrograph!'.format(core_keys[indx]))
 
@@ -1716,7 +1777,7 @@ class Spectrograph:
 
         # Now confirm all meta are in the data model
         meta_keys = np.array(list(self.meta.keys()))
-        indx = np.invert(np.isin(meta_keys, list(self.meta_data_model.keys())))
+        indx = np.logical_not(np.isin(meta_keys, list(self.meta_data_model.keys())))
         if np.any(indx):
             msgs.error('Meta data keys {0} not in metadata model'.format(meta_keys[indx]))
 

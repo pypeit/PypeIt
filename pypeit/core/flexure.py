@@ -1241,7 +1241,7 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
     method = inspect.stack()[0][3]
 
     # Mask
-    gdslits = np.where(np.invert(bpm))[0]
+    gdslits = np.where(np.logical_not(bpm))[0]
 
     # Loop over slits, and then over objects here
     for islit in gdslits:

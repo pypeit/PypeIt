@@ -229,8 +229,8 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
         ax = plt.gca()
         ax.scatter(spat_coo_data[spat_gpm_data_raw], spat_flat_data_raw[spat_gpm_data_raw],
                    marker='.', lw=0, s=10, color='k', zorder=1, label='used data')
-        ax.scatter(spat_coo_data[np.invert(spat_gpm_data_raw)],
-                   spat_flat_data_raw[np.invert(spat_gpm_data_raw)],
+        ax.scatter(spat_coo_data[np.logical_not(spat_gpm_data_raw)],
+                   spat_flat_data_raw[np.logical_not(spat_gpm_data_raw)],
                    marker='.', lw=0, s=10, color='C3', zorder=2, label='rejected data')
         ax.plot(spat_coo_data[spat_gpm_data_raw], spat_flat_data, color='C2', zorder=3,
                 label='filtered profile')
@@ -668,8 +668,8 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
             if debug:
                 plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.',
                             s=10, color='C3', lw=0)
-                plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                            norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k',
+                plt.scatter(spat_coo[np.logical_not(masked_flat.mask)],
+                            norm_flat[np.logical_not(masked_flat.mask)], marker='.', s=10, color='k',
                             lw=0)
                 plt.show()
             msgs.error('Tweak left edge has failed!  Bad continuous region.')
@@ -679,8 +679,8 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
         if debug:
             plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.', s=10,
                         color='C3', lw=0)
-            plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                        norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
+            plt.scatter(spat_coo[np.logical_not(masked_flat.mask)],
+                        norm_flat[np.logical_not(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
             plt.scatter(spat_coo[i], norm_flat[i], marker='o', facecolor='none', s=50, color='C1')
             plt.show()
         if norm_flat[i+1] < left_thresh:
@@ -722,8 +722,8 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
             if debug:
                 plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.',
                             s=10, color='C3', lw=0)
-                plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                            norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k',
+                plt.scatter(spat_coo[np.logical_not(masked_flat.mask)],
+                            norm_flat[np.logical_not(masked_flat.mask)], marker='.', s=10, color='k',
                             lw=0)
                 plt.show()
             msgs.error('Tweak right edge has failed!  Bad continuous region.')
@@ -733,8 +733,8 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
         if debug:
             plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.', s=10,
                         color='C3', lw=0)
-            plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                        norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
+            plt.scatter(spat_coo[np.logical_not(masked_flat.mask)],
+                        norm_flat[np.logical_not(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
             plt.scatter(spat_coo[i], norm_flat[i], marker='o', facecolor='none', s=50, color='C1')
             plt.show()
         if norm_flat[i-1] < right_thresh:

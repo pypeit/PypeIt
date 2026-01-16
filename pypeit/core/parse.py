@@ -209,7 +209,7 @@ def parse_binning(binning:str):
     return binspectral, binspatial
 
 
-def parse_slitspatnum(slitspatnum):
+def parse_slitspatnum(slitspatnum:(str|list)):
     """
     Parse the ``slitspatnum`` into a list of detectors and SPAT_IDs.
 
@@ -222,6 +222,15 @@ def parse_slitspatnum(slitspatnum):
         and spatial pixels coordinates for each slit.  The shape of each
         array is ``(nslits,)``, where ``nslits`` is the number of
         ``slitspatnum`` entries parsed (1 if only a single string is provided).
+
+    Examples:
+        >>> from pypeit.core import parse
+        >>> parse.parse_slitspatnum('1:150,2:200')
+        (array(['1', '2'], dtype='<U1'), array([150, 200]))
+        >>> parse.parse_slitspatnum(['1:150,2:200','3:250'])
+        (array(['1', '2', '3'], dtype='<U1'), array([150, 200, 250]))
+        >>> parse.parse_slitspatnum(['1:150','2:200','3:250'])
+        (array(['1', '2', '3'], dtype='<U1'), array([150, 200, 250]))
     """
     _slitspatnum = slitspatnum if isinstance(slitspatnum,list) else [slitspatnum]
     _slitspatnum = np.concatenate([item.split(',') for item in _slitspatnum])

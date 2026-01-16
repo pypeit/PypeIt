@@ -3,9 +3,8 @@ Module for Gemini GMOS specific methods.
 
 .. include:: ../include/links.rst
 """
-from pathlib import Path
-
 import numpy as np
+from pathlib import Path
 
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
@@ -18,6 +17,7 @@ from pypeit import msgs
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
 from pypeit import io
+from pypeit import utils
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.images import detector_container
@@ -132,6 +132,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['binning'] = dict(card=None, compound=True)  # Uses CCDSUM
 
         self.meta['mjd'] = dict(card=None, compound=True)
+        self.meta['dateobs'] = dict(ext=0, card='DATE-OBS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
@@ -212,7 +213,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': 'datasec', 'dark': 'datasec'}
+        return {'bias': ['datasec', 'binning'], 'dark': ['datasec', 'binning']}
 
     def configuration_keys(self):
         """
@@ -228,7 +229,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['dispangle', 'datasec']
+        return super().configuration_keys() + ['dispangle', 'datasec', 'binning']
 
     def raw_header_cards(self) -> list[str]:
         """
@@ -312,6 +313,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['follow_span'] = 80
         par['calibrations']['slitedges']['edge_thresh'] = 100.
         par['calibrations']['slitedges']['fit_order'] = 3
+        par['calibrations']['slitedges']['minimum_slit_length'] = 1.8
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.08  # Might be grating dependent..
@@ -336,6 +338,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Always correct for flexure
         par['flexure']['spec_method'] = 'boxcar'
+
+        # sensfunc
+        par['sensfunc']['trim_std_pixs'] = [20,20]  # Trim each side of the standard star spectrum
+        par['sensfunc']['extrap_blu'] = 0.05
+        par['sensfunc']['extrap_red'] = 0.05
 
         # TODO: Note the default is now to mosaic the detectors.  This means the
         # user will need to set this if they ever reduce single detectors at a
@@ -699,90 +706,128 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         `wcs_file`, which should be an alighment image from the observations.
 
         Args:
-            binning (_type_, optional): _description_. Defaults to None.
             binning(str, optional): spec,spat binning of the flat field image
-            filename (:obj:`list`, optional): Names
-                the mask design info and wcs_file in that order
+            filename (:obj:`list`, optional): Name the mask design info
             debug (:obj:`bool`, optional): Debug
             ccdnum (:obj:`int`, optional): detector number
+            trc_path (:obj:`str`, optional): path to location of the mask design file
 
         Returns:
             :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
             Two arrays are the predictions of the slit edges from the slitmask design and
             one contains the indices to order the slits from left to right in the PypeIt orientation
         """
-        if not isinstance(filename, list):
-            msgs.error('The mask design file input should be a comma separated list of two files')
 
-        # Parse
-        maskfile = filename[0]
-        wcs_file = filename[1]
-        # Add path?
-        if not Path(maskfile).is_file():
-            maskfile = Path(trc_path) / maskfile
-        if not Path(wcs_file).is_file():
-            wcs_file = Path(trc_path) / wcs_file
+        # check if the binning is provided, even if optional, it's needed for this spectrograph
+        if binning is None:
+            msgs.error('Binning must be provided to get the slit edges from the mask definition file.')
 
-        # Slurp in the slitmask info
-        self.get_slitmask(maskfile)
-
-        # Binning of flat
+        # Parse the binning
         _, bin_spat = parse.parse_binning(binning)
+        # get the platescale
+        pscale = self.get_detector_par(det=1)['platescale']
+        # combine them
+        obs_pscale_bin = pscale * bin_spat  # arcsec/pixel
 
-        # Slit center
-        slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0],
-                               dec=self.slitmask.onsky[:,1], unit='deg')
-        mask_coord = SkyCoord(ra=self.slitmask.mask_radec[0],
-                              dec=self.slitmask.mask_radec[1], unit='deg')
+        # get the full path to the mask design file
+        _maskfile = str(Path(trc_path) / filename) if not Path(filename).exists() else filename
 
-        # Load up the acquisition image (usually a sciframe)
-        hdul_acq = io.fits_open(wcs_file)
-        acq_binning = self.get_meta_value(self.get_headarr(hdul_acq), 'binning')
-        _, bin_spat_acq = parse.parse_binning(acq_binning)
-        wcss = [wcs.WCS(hdul_acq[i].header) for i in range(1, len(hdul_acq))]
+        # check if the mask design file exists
+        if not Path(_maskfile).exists():
+            msgs.error(f'The mask design file {_maskfile} does not exist.')
 
-        left_edges = []
-        right_edges = []
-        for islit in range(self.slitmask.nslits):
-            # JOD: Need to adjust predicted images by slit tilt (which is
-            # slit PA relative to mask PA)
-            slittilt = self.slitmask.onsky[islit,4] - self.slitmask.posx_pa
-            # Left coord
-            left_coord = slit_coords[islit].directional_offset_by(
-                self.slitmask.onsky[islit,4]*units.deg - 180.*units.deg,
-                self.slitmask.onsky[islit,2]*units.arcsec/2./np.cos(np.radians(slittilt)))
-            right_coord = slit_coords[islit].directional_offset_by(
-                self.slitmask.onsky[islit,4]*units.deg,
-                self.slitmask.onsky[islit,2]*units.arcsec/2./np.cos(np.radians(slittilt)))
+        # read the mask design file
+        mask_tbl = Table.read(_maskfile, format='fits')
 
-            got_it = False
-            for kk, iwcs in enumerate(wcss):
-                pix_xy = iwcs.world_to_pixel(left_coord)
-                # Do we have the right WCS?
-                if 0 < float(pix_xy[0]) < hdul_acq[kk+1].header['NAXIS1']-1:
-                    left_edges.append(float(pix_xy[1])*bin_spat_acq/bin_spat)
-                    # Right
-                    pix_xy2 = iwcs.world_to_pixel(right_coord)
-                    right_edges.append(float(pix_xy2[1])*bin_spat_acq/bin_spat)
-                    # Occasionally a slit thinks it is on 2 detectors -- this avoids that
-                    print(f'matched to {kk}, {pix_xy}, {pix_xy2}')
-                    break
+        # Pixel scale (which includes binning) used in the mask design is not necessary
+        # the same as the one used in the observations, so we need to account for it here.
+        # Get the maskdef pixel scale + binning
+        msk_pscale_bin = mask_tbl.meta['PIXSCALE']  # arcsec/pixel
 
+        # spatial coordinate of object position
+        # see https://gmmps-documentation.readthedocs.io/en/latest/OTformat.html
+        # converted it to arcsec
+        objpos_arcsec = mask_tbl['y_ccd'] * msk_pscale_bin  # arcsec
+        # slit center position in arcsec (taken from the Note here:
+        # https://gmmps-documentation.readthedocs.io/en/latest/createODF.html)
+        slitcen_pix = (objpos_arcsec + mask_tbl['slitpos_y'].to('arcsec').value)/obs_pscale_bin
+        # left and right edges of the slit in arcsec
+        left_edges = slitcen_pix - (mask_tbl['slitsize_y'].to('arcsec').value / 2.)/obs_pscale_bin
+        right_edges = slitcen_pix + (mask_tbl['slitsize_y'].to('arcsec').value / 2.)/obs_pscale_bin
 
-#        DEBUGGING
-#        tbl = Table()
-#        tbl['left'] = left_edges
-#        tbl['right'] = right_edges
-#        tbl['ID'] = self.slitmask.slitid
-#        tbl.sort('left')
-#        embed(header='641 of gemini_gmos')
-
-        # Recast as floats
-        left_edges = np.array(left_edges).astype(float)
-        right_edges = np.array(right_edges).astype(float)
+        # make sure that the order of the edges arrays is the same as the slitmask
+        # First load the slitmask info
+        self.get_slitmask(_maskfile)
+        # get the IDs from the mask file
+        ids = np.array(mask_tbl['ID'].data, dtype=int)
+        # match the ids to get the ones from the slitmask
+        idx = utils.index_of_x_eq_y(ids, self.slitmask.slitid, strict=True)
+        # reorder the edges arrays
+        left_edges = left_edges[idx]
+        right_edges = right_edges[idx]
         sortindx = np.argsort(left_edges)
 
         return left_edges, right_edges, sortindx, self.slitmask
+
+    def maskdef_spec_minmax(self, maskfile=None, maskdef_ids=None, nspec=None, binning=None, shift=150):
+        """
+        Get the spectral min and max values of each slit from the mask definition file.
+
+        Args:
+            maskfile (:obj:`str`, optional):
+                The mask file to read the maskdef spec minmax from.
+            maskdef_ids (:obj:`list`, optional):
+                The list of maskdef IDs to match to the maskfile values.
+            nspec (:obj:`int`, optional):
+                The number of spectral pixels in the image.
+            binning (str, optional):
+                The binning of the trace image in the format 'spec,spat'.
+            shift (:obj:`int`, optional):
+                The shift to apply to the spec minmax. Default is 150.
+                This is used to shift the spec minmax to account for the
+                uncertainty in the maskdef spec minmax values.
+        Returns:
+            :obj:`tuple`: A tuple of two `numpy.ndarray`_ with the spec min and max values.
+            If the maskfile, maskdef_ids, or nspec are not provided, None is returned for both min and max.
+        """
+
+        if maskfile is None or maskdef_ids is None or nspec is None:
+            # If any of these are not provided, we cannot get the maskdef spec minmax
+            # and we will use the whole spectral length instead.
+            msgs.warn('maskfile, maskdef_id, and nspec must be provided to get the maskdef spec minmax. '
+                       'The whole spectral length will be used instead.')
+            return None, None
+
+        # check if the binning is provided, even if optional, it's needed for this spectrograph
+        if binning is None:
+            msgs.error('Binning must be provided to get the slit edges from the mask definition file.')
+
+        # Parse the binning
+        bin_spec, _ = parse.parse_binning(binning)
+
+        # read the mask design file
+        mask_tbl = Table.read(maskfile, format='fits')
+
+        # The binning used in the mask design is not necessary
+        # the same as the one used in the observations, so we need to account for it here.
+        # Get maskdef binning
+        msk_bin = mask_tbl.meta['PIXSCALE']/self.get_detector_par(det=1)['platescale']
+        # scale factor to go from maskdef to observed binning
+        bin_scale = msk_bin / bin_spec
+
+        # Get the maskdef specmin specmax
+        ids = np.array(mask_tbl['ID'].data, dtype=int)
+        idx = utils.index_of_x_eq_y(ids,maskdef_ids, strict=True)
+        specmin =  nspec - mask_tbl['specright'].data[idx] * bin_scale
+        specmax = nspec - mask_tbl['specleft'].data[idx] * bin_scale
+
+        # Add the shift
+        # if the tabulated value of specmin is less than 10 (i.e., very close to the edge of the detector),
+        # we do not apply the positive shift
+        _specmin = np.array([s + shift if s > 10 else s for s in specmin]) if shift > 0 else specmin + shift
+        _specmax = np.array([s + shift if s < nspec - 10 else s for s in specmax]) if shift < 0 else specmax + shift
+        return np.vstack((_specmin, _specmax))
+
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
@@ -809,6 +854,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
+        Values of gain and ronoise are taken from DRAGONS.
+        https://github.com/GeminiDRSoftware/DRAGONS/blob/master/gemini_instruments/gmos/lookup.py
 
         Args:
             det (:obj:`int`):
@@ -839,8 +886,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.86]*4),  # Slow Readout,	Low Gain
-            ronoise         = np.atleast_1d([4.19]*4),  # Slow Readout,	Low Gain
+            gain            = np.atleast_1d([1.852, 1.878, 1.874, 1.834]),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([4.240, 4.000, 4.250, 4.030]),  # Slow Readout,	Low Gain
             )
         # Detector 2
         detector_dict2 = dict(
@@ -856,8 +903,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.89]*4),  # Slow Readout,	Low Gain
-            ronoise         = np.atleast_1d([4.13]*4),  # Slow Readout,	Low Gain
+            gain            = np.atleast_1d([1.878, 1.840, 1.933, 1.908]),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([4.120, 3.830, 3.980, 3.800]),  # Slow Readout,	Low Gain
             )
         # Detector 3
         detector_dict3 = dict(
@@ -873,8 +920,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.74]*4),  # Slow Readout,	Low Gain
-            ronoise         = np.atleast_1d([3.75]*4),  # Slow Readout,	Low Gain
+            gain            = np.atleast_1d([1.652, 1.761, 1.724, 1.813]),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([3.460, 3.350, 3.250, 3.500]),  # Slow Readout,	Low Gain
             )
 
         # account for the CCD upgrade happened on 2023-12-14
@@ -886,13 +933,12 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             if obs_date >= t_upgrade:
                 # These values are taken from
                 # https://github.com/GeminiDRSoftware/DRAGONS/blob/v3.2.0/gemini_instruments/gmos/lookup.py
-                # For each detector, we use the values averaged over the 4 amps for Slow Readout+Low Gain
-                detector_dict1['gain'] = np.atleast_1d([2.00]*4)
-                detector_dict2['gain'] = np.atleast_1d([1.78]*4)
-                detector_dict3['gain'] = np.atleast_1d([1.69]*4)
-                detector_dict1['ronoise'] = np.atleast_1d([4.19]*4)
-                detector_dict2['ronoise'] = np.atleast_1d([3.82]*4)
-                detector_dict3['ronoise'] = np.atleast_1d([3.50]*4)
+                detector_dict1['gain'] = np.atleast_1d([2.038, 2.016, 2.020, 1.943])  # Slow Readout, Low Gain
+                detector_dict2['gain'] = np.atleast_1d([1.798, 1.745, 1.787, 1.787])
+                detector_dict3['gain'] = np.atleast_1d([1.594, 1.699, 1.681, 1.770,])
+                detector_dict1['ronoise'] = np.atleast_1d([4.22, 4.29, 4.20, 4.05])
+                detector_dict2['ronoise'] = np.atleast_1d([3.79, 3.68, 3.59, 4.22])
+                detector_dict3['ronoise'] = np.atleast_1d([3.39, 3.67, 3.39, 3.53])
                 # TODO: we may need to update the saturation values
 
         detectors = [detector_dict1, detector_dict2, detector_dict3]
@@ -1121,6 +1167,8 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
+        Values of gain and ronoise are taken from DRAGONS.
+        https://github.com/GeminiDRSoftware/DRAGONS/blob/master/gemini_instruments/gmos/lookup.py
 
         Args:
             det (:obj:`int`):
@@ -1151,8 +1199,8 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.63]*4),
-            ronoise         = np.atleast_1d([4.14]*4),
+            gain            = np.atleast_1d([1.568, 1.620, 1.618, 1.675]),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([3.99, 4.12, 4.12, 4.06]),  # Slow Readout,	Low Gain
             )
         # Detector 2
         detector_dict2 = dict(
@@ -1168,8 +1216,8 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.63]*4),
-            ronoise         = np.atleast_1d([4.14]*4),
+            gain            = np.atleast_1d([1.664, 1.633, 1.65, 1.69]),
+            ronoise         = np.atleast_1d([4.20, 3.88, 3.98, 4.20]),
             )
         # Detector 3
         detector_dict3 = dict(
@@ -1185,8 +1233,8 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.63]*4),
-            ronoise         = np.atleast_1d([4.14]*4),
+            gain            = np.atleast_1d([1.654, 1.587, 1.63, 1.604]),
+            ronoise         = np.atleast_1d([4.55, 4.02, 4.35, 4.04]),
             )
         detectors = [detector_dict1, detector_dict2, detector_dict3]
 

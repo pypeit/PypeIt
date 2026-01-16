@@ -3317,7 +3317,8 @@ class EdgeTracePar(ParSet):
                  add_missed_orders=None, order_width_poly=None, order_gap_poly=None,
                  order_fitrej=None, order_outlier=None, order_spat_range=None, overlap=None,
                  max_overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
-                 maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
+                 maskdesign_step=None, maskdesign_sigrej=None, maskdesign_trim=None,
+                 maskdesign_trim_shift=None, pad=None, add_slits=None,
                  add_predict=None, rm_slits=None, maskdesign_filename=None, mask_off_detector=None):
 
         # Grab the parameter names and values from the function
@@ -3805,6 +3806,23 @@ class EdgeTracePar(ParSet):
         descr['maskdesign_sigrej'] = 'Number of sigma for sigma-clipping rejection during slit-mask ' \
                                      'design matching.'
 
+        defaults['maskdesign_trim'] = False
+        dtypes['maskdesign_trim'] = bool
+        descr['maskdesign_trim'] = 'If True, the mask design information is used to trim each ' \
+                                   'slit in the spectral direction. This functionality is ' \
+                                   'only used for spectrographs with slit-mask designs that ' \
+                                   'have information on the spectral extent of each slit (currently, ' \
+                                   'only Gemini GMOS N/S).'
+        defaults['maskdesign_trim_shift'] = 0
+        dtypes['maskdesign_trim_shift'] = [int, float]
+        descr['maskdesign_trim_shift'] = 'Shift in pixels to apply to the mask design information ' \
+                                         'when trimming the slits in the spectral direction.  This ' \
+                                         'is useful for cases where the mask design information ' \
+                                         'is not perfectly aligned with the detector.  This ' \
+                                         'functionality is only used for spectrographs with ' \
+                                         'slit-mask designs that have information on the spectral ' \
+                                        'extent of each slit (currently, only Gemini GMOS N/S).'
+
 #        # Force trim to be a tuple
 #        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
 #            try:
@@ -3921,8 +3939,8 @@ class EdgeTracePar(ParSet):
                    'add_missed_orders', 'order_width_poly', 'order_gap_poly', 'order_fitrej',
                    'order_outlier', 'order_spat_range','overlap', 'max_overlap', 'use_maskdesign',
                    'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                   'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits',
-                   'mask_off_detector']
+                   'maskdesign_filename', 'maskdesign_trim', 'maskdesign_trim_shift',
+                   'pad', 'add_slits', 'add_predict', 'rm_slits', 'mask_off_detector']
 
         # Find the list of keywords provded in `cfg` that are *not* valid
         badkeys = np.array([pk not in parkeys for pk in k])

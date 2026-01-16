@@ -386,7 +386,7 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
         use_trace = np.ones(trace_cen.shape[1], dtype=bool)
         _reference_row = trace_cen.shape[0]//2 if reference_row is None else reference_row
     else:
-        use_trace = np.sum(np.invert(trace_bpm), axis=0)/trace_cen.shape[0] > min_length
+        use_trace = np.sum(np.logical_not(trace_bpm), axis=0)/trace_cen.shape[0] > min_length
         _reference_row = trace.most_common_trace_row(trace_bpm[:,use_trace]) \
                                 if reference_row is None else reference_row
     _coo = None if coo is None else coo[use_trace]

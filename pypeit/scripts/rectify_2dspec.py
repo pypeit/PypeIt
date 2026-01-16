@@ -54,8 +54,7 @@ class Rectify2DSpec(scriptbase.ScriptBase):
             for detname in detnames:
                 msgs.info(f'DETECTOR: {detname}')
                 spec2d = spec2dobj.Spec2DObj.from_file(spec2file, detname, chk_version=chk_version)
-                pad = 10  # pixels to pad on each side
-                slitmask = spec2d.slits.slit_img(pad=pad, flexure=spec2d.sci_spat_flexure)
+                slitmask = spec2d.slits.slit_img(flexure=spec2d.sci_spat_flexure)
                 slit_ids = spec2d.slits.spat_id
                 # this is just to print useful info in the terminal
                 slitord_ids = spec2d.slits.slitord_id
@@ -124,6 +123,7 @@ class Rectify2DSpec(scriptbase.ScriptBase):
 
 
                 # Get dimensions for each slit
+                pad = 10  # pixels to pad on each side
                 nspat_vec = np.array([cdict['nspat'] for cdict in imgrect_list])
                 nspec_rect = len(wave_grid_mid)
                 nspat_rect = int(np.sum(nspat_vec) + (spec2d.slits.nslits + 1) * pad)

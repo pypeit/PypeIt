@@ -128,7 +128,8 @@ class Calibrations:
     __metaclass__ = ABCMeta
 
     @staticmethod
-    def get_instance(fitstbl, par, spectrograph, caldir, **kwargs):
+    def get_instance(fitstbl, par, spectrograph, caldir, calib_ID:str, 
+        frame:int, det:int, **kwargs):
         """
         Get the instance of the appropriate subclass of :class:`Calibrations` to
         use for reducing data from the provided ``spectrograph``.  For argument
@@ -136,10 +137,13 @@ class Calibrations:
         """
         calibclass = MultiSlitCalibrations if spectrograph.pypeline in ['MultiSlit', 'Echelle'] \
                         else IFUCalibrations
-        return calibclass(fitstbl, par, spectrograph, caldir, **kwargs)
+        return calibclass(fitstbl, par, spectrograph, caldir, calib_ID, frame, det,
+                          **kwargs)
 
-    def __init__(self, fitstbl, par, spectrograph, caldir, qadir=None,
+    def __init__(self, fitstbl, par, spectrograph, caldir, calib_ID:str, 
+                 frame:int, det:int, qadir=None,
                  reuse_calibs=False, show=False, user_slits=None, chk_version=True):
+                 #, state=None):
 
         # Check the types
         # TODO -- Remove this None option once we have data models for all the Calibrations
@@ -155,6 +159,9 @@ class Calibrations:
         self.fitstbl = fitstbl
         self.par = par
         self.spectrograph = spectrograph
+        self.calib_ID = calib_ID
+        self.det = det
+        self.frame = frame
 
         # Calibrations
         self.reuse_calibs = reuse_calibs
@@ -175,13 +182,14 @@ class Calibrations:
         # Debugging
         self.show = show
 
+        # State
+#        self.state = state
+        self.state = None 
+
         # Restrict on slits?
         self.user_slits = user_slits
 
         # Attributes
-        self.det = None
-        self.frame = None
-
         self.msarc = None
         self.mstilt = None
         self.alignments = None
@@ -194,7 +202,6 @@ class Calibrations:
 
         self.wavetilts = None
         self.flatimages = None
-        self.calib_ID = None
 
         # Steps
         self.steps = self.__class__.default_steps()
@@ -303,37 +310,37 @@ class Calibrations:
         return self.fitstbl.frame_paths(rows), cal_file, calib_key, setup, \
                     frameclass.ingest_calib_id(calib_id), detname
 
-    def set_config(self, frame, det, par=None):
-        """
-        Specify the critical attributes of the class to perform a set of calibrations.
-
-        Operations are:
-
-            - Set the frame
-            - Use the frame to find the calibration group
-            - Set the detector/mosaic
-            - Set the parameters
-
-        Args:
-            frame (:obj:`int`):
-                The row index in :attr:`fitstbl` with the frame to calibrate.
-            det (:obj:`int`):
-                Detector number.
-            par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`, optional):
-                Parameters used by the calibration procedures.  If None, use
-                :attr:`par`.
-        """
-        # Initialize for this setup
-        self.frame = frame
-        # Find the calibration groups associated with this frame.  Note
-        # find_frame_calib_groups *always* returns a list.  Science frames only
-        # have one calibration group, but calibration frames can have many.  So
-        # for both science and calibration frames, we just set the calibration
-        # group to the first group in the returned list.
-        self.calib_ID = self.fitstbl.find_frame_calib_groups(self.frame)[0]
-        self.det = det
-        if par is not None:
-            self.par = par
+#    def set_config(self, frame, det, par=None):
+#        """
+#        Specify the critical attributes of the class to perform a set of calibrations.
+#
+#        Operations are:
+#
+#            - Set the frame
+#            - Use the frame to find the calibration group
+#            - Set the detector/mosaic
+#            - Set the parameters
+#
+#        Args:
+#            frame (:obj:`int`):
+#                The row index in :attr:`fitstbl` with the frame to calibrate.
+#            det (:obj:`int`):
+#                Detector number.
+#            par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`, optional):
+#                Parameters used by the calibration procedures.  If None, use
+#                :attr:`par`.
+#        """
+#        # Initialize for this setup
+#        self.frame = frame
+#        # Find the calibration groups associated with this frame.  Note
+#        # find_frame_calib_groups *always* returns a list.  Science frames only
+#        # have one calibration group, but calibration frames can have many.  So
+#        # for both science and calibration frames, we just set the calibration
+#        # group to the first group in the returned list.
+#        self.calib_ID = self.fitstbl.find_frame_calib_groups(self.frame)[0]
+#        self.det = det
+#        if par is not None:
+#            self.par = par
 
     def get_arc(self, force:str=None):
         """
@@ -506,6 +513,17 @@ class Calibrations:
         self.alignments.to_file()
         return self.alignments
 
+    def bias_state(self, outfile:str):
+        if self.state is None:
+            return
+        #
+        self.state.update_calib('bias', self.calib_ID, self.det, 
+                                'input_files', self.raw_files)
+        self.state.update_calib('bias', self.calib_ID, self.det, 
+                                'output_file', outfile)
+        self.state.update_calib('bias', self.calib_ID, self.det, 'mean', self.msbias.image.mean())
+        self.state.update_calib('bias', self.calib_ID, self.det, 'std', self.msbias.image.std())
+
     def get_bias(self, force:str=None):
         """
         Load or generate the bias calibration frame.
@@ -525,11 +543,11 @@ class Calibrations:
 
         # Find the calibrations
         frame = {'type': 'bias', 'class': buildimage.BiasImage}
-        raw_files, cal_file, calib_key, setup, calib_id, detname \
+        self.raw_files, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
         # If no raw files are available and no processed calibration frame
-        if len(raw_files) == 0 and cal_file is None:
+        if len(self.raw_files) == 0 and cal_file is None:
             msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
                       'processed calibration frame.  Continuing without a bias...')
             self.msbias = None
@@ -542,16 +560,20 @@ class Calibrations:
             return self.msbias
 
         # Perform a check on the files
-        self.check_calibrations(raw_files)
+        self.check_calibrations(self.raw_files)
 
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                     self.par['biasframe'], raw_files,
+                                                     self.par['biasframe'], self.raw_files,
                                                      calib_dir=self.calib_dir, setup=setup,
                                                      calib_id=calib_id)
         # Save the result
         self.msbias.to_file()
+
+        # State
+        self.bias_state(self.msbias.get_path())
+
         # Return it
         return self.msbias
 
@@ -740,6 +762,7 @@ class Calibrations:
 
         return self.msscattlight
 
+
     def get_flats(self, force:str=None):
         """
         Load or generate the flat-field calibration images.
@@ -897,6 +920,14 @@ class Calibrations:
             # sensitivity corrections to the illumflat
             self.flatimages = pixelflatImages
 
+            # State
+            if self.state is not None:
+                self.state.update_calib('flats', self.calib_ID, self.det, 
+                                'types', 'pixelflat')
+                if pix_is_illum:
+                    self.state.update_calib('flats', self.calib_ID, self.det, 
+                                'types', 'illumflat')
+
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(raw_illum_files) > 0:
             # Reset the BPM
@@ -940,6 +971,11 @@ class Calibrations:
             # Generate
             illumflatImages = illumFlatField.run(doqa=self.write_qa, show=self.show)
 
+            # State
+            if self.state is not None:
+                self.state.update_calib('flats', self.calib_ID, self.det, 
+                                'types', 'illumflat')
+
         # Merge the illum flat with the pixel flat
         if pixelflatImages is not None:
             # Combine the pixelflat and illumflat parameters into flatimages.
@@ -958,6 +994,10 @@ class Calibrations:
             self.flatimages.to_file()
             # Save slits too, in case they were tweaked
             self.slits.to_file()
+            # State
+            if self.state is not None:
+                self.state.update_calib('flats', self.calib_ID, self.det, 
+                                'output_file', self.flatimages.get_path())
 
         # Apply user-supplied images
         # NOTE: These are the *final* images, not just a stack, and it will
@@ -1033,6 +1073,7 @@ class Calibrations:
         msgs.info('Creating edge tracing calibration frame using files: ')
         for f in raw_trace_files:
             msgs.prindent(f'{Path(f).name}')
+        self.raw_files = raw_trace_files
 
         # Reset the BPM
         self.get_bpm(frame=raw_trace_files[0])
@@ -1089,9 +1130,55 @@ class Calibrations:
         traceImage = None
         edges = None
         self.slits.to_file()
+
+        # State
+        self.slits_state(self.slits.get_path())
+
         if self.user_slits is not None:
             self.slits.user_mask(detname, self.user_slits)
         return self.slits
+
+    def slits_state(self, outfile:str):
+        if self.state is None:
+            return
+        #
+        self.state.update_calib('slits', self.calib_ID, self.det, 
+                                'input_files', self.raw_files)
+        self.state.update_calib('slits', self.calib_ID, self.det, 
+                                'output_file', outfile)
+        self.state.update_calib('slits', self.calib_ID, self.det, 
+                                'nslits', self.slits.nslits)
+
+        #embed(header='Slit State; 1136 of calibrations.py')
+        for islit in range(self.slits.nslits):
+            slit_ID = int(self.slits.slitord_id[islit])
+            self.state.update_calib('slits', self.calib_ID, self.det, 
+                                'center', self.slits.center[islit],
+                                slit=slit_ID)
+            self.state.update_calib('slits', self.calib_ID, self.det, 
+                                'status', 'success', slit=slit_ID)
+
+    def wvcalib_state(self, outfile:str):
+        if self.state is None:
+            return
+        # Update
+        self.state.update_calib('wv_calib', self.calib_ID, self.det, 
+                                'output_file', outfile)
+        for islit in range(self.slits.nslits):
+            slit_ID = int(self.slits.slitord_id[islit])
+            # Status
+            if self.slits.bitmask.flagged(
+                self.slits.mask[islit], flag='BADWVCALIB'):
+                status = 'fail'
+            else:
+                status = 'success'
+            self.state.update_calib('wv_calib', self.calib_ID, self.det, 
+                                'status', status, slit=slit_ID)
+            # Metrics
+            if status == 'success':
+                self.state.update_calib('wv_calib', self.calib_ID, self.det, 
+                                'rms', self.wv_calib.wv_fits[islit].rms,
+                                slit=slit_ID)
 
     def get_wv_calib(self, force:str=None):
         """
@@ -1151,6 +1238,7 @@ class Calibrations:
 
             # Return
             if self.par['wavelengths']['redo_slits'] is None:
+                self.wvcalib_state(cal_file)
                 return self.wv_calib
 
         # Determine lamp list to use for wavecalib
@@ -1183,8 +1271,37 @@ class Calibrations:
         # Save calibration frame
         self.wv_calib.to_file()
 
+        # State
+        self.wvcalib_state(self.wv_calib.get_path())
+
         # Return
         return self.wv_calib
+
+    def tilts_state(self, buildTilts, outfile:str):
+        if self.state is None:
+            return
+        # Update
+        self.state.update_calib('tilts', self.calib_ID, self.det, 
+                                'output_file', outfile)
+        for islit in range(self.slits.nslits):
+            slit_ID = int(self.slits.slitord_id[islit])
+            # Status
+            if self.slits.bitmask.flagged(
+                self.slits.mask[islit], flag='BADTILTCALIB'):
+                status = 'fail'
+            else:
+                status = 'success'
+            self.state.update_calib('tilts', self.calib_ID, self.det, 
+                                'status', status, slit=slit_ID)
+            #embed(header='1288 of calibrations')
+            # Metrics
+            if status == 'success':
+                rms = buildTilts.all_fit_dict[islit]['pypeitFit'].calc_fit_rms(
+                    x2=buildTilts.all_fit_dict[islit]['pypeitFit'].x2)
+
+                self.state.update_calib(
+                    'tilts', self.calib_ID, self.det, 
+                    'rms', rms, slit=slit_ID)
 
     def get_tilts(self, force:str=None):
         """
@@ -1244,9 +1361,13 @@ class Calibrations:
             self.par['wavelengths'], det=self.det, qa_path=self.qa_path,
             spat_flexure=_spat_flexure, measured_fwhms=measured_fwhms)
 
-        # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
+        # Write
         self.wavetilts = buildwaveTilts.run(doqa=self.write_qa, show=self.show)
         self.wavetilts.to_file()
+
+        # State
+        self.tilts_state(buildwaveTilts, self.wavetilts.get_path())
+
         return self.wavetilts
 
     def process_load_selection(self, frame, cal_file, force):
@@ -1293,23 +1414,44 @@ class Calibrations:
         if force == 'reload' or (self.reuse_calibs and _cal_file.exists()): 
             return frame['class'].from_file(_cal_file, chk_version=self.chk_version)
 
-    def run_the_steps(self, stop_at_step:str=None):
+    def run_the_steps(self, stop_at_step:str=None, reload_only:bool=False):
         """
         Run full the full recipe of calibration steps.
         """
+
+        # State
+        if self.state is not None:
+            self.state.current_det = self.det
+            self.state.current_calibID = self.calib_ID
+            self.state.write()
+
         self.success = True
         for step in self.steps:
-            if stop_at_step is not None and step == stop_at_step:
+            if reload_only:
+                force = 'reload'
+            elif stop_at_step is not None and step == stop_at_step:
                 force = 'remake'
-                msgs.info(f"Calibrations will stop at {stop_at_step}") 
+                msgs.info(f"Calibrations will stop at {stop_at_step}")
             else:
                 force = None
+
+            # Running
+            if self.state is not None:
+                self.state.update_calib(step, self.calib_ID, self.det, 'status', 'running')
+                self.state.write()
             getattr(self, f'get_{step}')(force=force)
+
+            # Update state
+            if self.state is not None:
+                self.state.update_calib(step, self.calib_ID, self.det, 'status',
+                                    'success' if self.success else 'failed')
+                self.state.write()
+            # Drop out?
             if not self.success:
                 self.failed_step = f'get_{step}'
                 return
             if stop_at_step is not None and step == stop_at_step:
-                msgs.info(f"Calibrations stopping at {stop_at_step}") 
+                msgs.info(f"Calibrations stopping at {stop_at_step}")
                 return
         msgs.info("Calibration complete and/or fully loaded!")
         msgs.info("#######################################################################")
