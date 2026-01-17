@@ -881,6 +881,26 @@ def main(flg):
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
+    # LDSS3
+    if flg & (2**35):
+        iroot = 'magellan_ldss3_vphred_MasterWaveCalib.fits'
+        iout = 'magellan_ldss3_vphred.fits'
+        # Load
+        old_file = dataPaths.reid_arxiv.path / iroot
+        par = io.fits_open(old_file)
+        # Do it
+        all_wave = par[4].data['wave_soln'][0]  # The second slit has a smaller rms
+        all_flux = par[4].data['spec'][0]
+
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave
+        tbl['flux'] = all_flux
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outfile = dataPaths.reid_arxiv.path / iout
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
 
 # Command line execution
 if __name__ == '__main__':
@@ -941,6 +961,9 @@ if __name__ == '__main__':
 
     # P200 Triplespec
     #flg += 2**34
+
+    # LDSS3
+    #flg += 2**35
 
     main(flg)
 

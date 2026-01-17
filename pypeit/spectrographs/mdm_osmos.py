@@ -79,6 +79,8 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
             all of PypeIt methods.
         """
         par = super().default_pypeit_par()
+        turn_off = dict(use_biasimage=False, overscan_method='odd_even')
+        par.reset_all_processimages_par(**turn_off)
 
 
         # Ignore PCA
@@ -98,6 +100,16 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
+
+        # Set slits and tilts parameters
+        par['calibrations']['tilts']['tracethresh'] = 5
+        par['calibrations']['tilts']['spat_order'] = 7
+        par['calibrations']['tilts']['spec_order'] = 5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 100.
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         return par
 
