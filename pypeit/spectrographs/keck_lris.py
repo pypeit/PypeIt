@@ -580,14 +580,19 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             if 'VidInp' in ihdu.name:
                 extensions.append(kk)
         n_ext = len(extensions)
-        xcol = []
+        xcol = np.zeros(n_ext, dtype=int)
         xmax = 0
         ymax = 0
         xmin = 10000
         ymin = 10000
+        xmins = np.zeros(n_ext, dtype=int)
+        xmaxs = np.zeros(n_ext, dtype=int)
+        ymins = np.zeros(n_ext, dtype=int)
+        ymaxs = np.zeros(n_ext, dtype=int)
 
-        for i in extensions:
-            theader = hdu[i].header
+        for i, ext in enumerate(extensions):
+
+            theader = hdu[ext].header
             detsec = theader['DETSEC']
             if detsec != '0':
                 # parse the DETSEC keyword to determine the size of the array.
@@ -596,17 +601,34 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 # find the range of detector space occupied by the data
                 # [xmin:xmax,ymin:ymax]
                 xt = max(x2, x1)
-                xmax = max(xt, xmax)
+                xmaxs[i] = max(xt, xmax)
                 yt = max(y2, y1)
-                ymax = max(yt, ymax)
+                ymaxs[i] = max(yt, ymax)
 
                 # find the min size of the array
                 xt = min(x1, x2)
-                xmin = min(xmin, xt)
+                xmins[i] = min(xmin, xt)
                 yt = min(y1, y2)
-                ymin = min(ymin, yt)
+                ymins[i] = min(ymin, yt)
                 # Save
-                xcol.append(xt)
+                xcol[i] = xt
+
+        # Deal with detectors
+        if det in [1, 2]:
+            n_ext = n_ext // 2
+            det_idx = np.arange(n_ext, dtype=int) + (det - 1) * n_ext
+            xmin = min(xmins[det_idx])
+            xmax = max(xmaxs[det_idx])
+            ymin = min(ymins[det_idx])
+            ymax = max(ymaxs[det_idx])
+        elif det is None:
+            det_idx = np.arange(n_ext).astype(int)
+            xmin = min(xmins)
+            xmax = max(xmaxs)
+            ymin = min(ymins)
+            ymax = max(ymaxs)
+        else:
+            raise ValueError('Bad value for det')
 
         # determine the output array size...
         nx = xmax - xmin + 1
@@ -620,23 +642,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         precol = precol // xbin
         postpix = postpix // xbin
 
-        # Deal with detectors
-        if det in [1, 2]:
-            nx = nx // 2
-            n_ext = n_ext // 2
-            det_idx = np.arange(n_ext, dtype=int) + (det - 1) * n_ext
-        elif det is None:
-            det_idx = np.arange(n_ext).astype(int)
-        else:
-            raise ValueError('Bad value for det')
-
         # change size for pre/postscan...
         nx += n_ext * (precol + postpix)
         ny += preline + postline
 
         # allocate output arrays...
         array = np.zeros((nx, ny))
-        order = np.argsort(np.array(xcol))
+        order = np.argsort(xcol)
         rawdatasec_img = np.zeros_like(array, dtype=int)
         oscansec_img = np.zeros_like(array, dtype=int)
 
