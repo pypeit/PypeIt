@@ -1571,7 +1571,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             sobj = sobjs[ibobj]
             mtc = sobj.RA == robjs.RA
             if np.sum(mtc) == 1:
-                irobj = int(ridx[mtc])
+                irobj = int(ridx[mtc][0])
                 if not np.isclose(sobj.DEC, sobjs[irobj].DEC):
                     msgs.error('DEC does not match RA!')
                 bmt.append(ibobj)
