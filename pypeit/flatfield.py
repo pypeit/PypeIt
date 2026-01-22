@@ -2527,7 +2527,7 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
         traceimg = edgetrace.EdgeTraceSet.from_file(edges_file, chk_version=chk_version).traceimg
         det_info = traceimg.detector
         # check that the mosaic parameters are defined
-        if not np.all(np.in1d(['tform', 'msc_ord'], list(det_info.keys()))) or  \
+        if not np.all(np.isin(['tform', 'msc_ord'], list(det_info.keys()))) or  \
                 det_info.tform is None or det_info.msc_ord is None:
             msgs.error('Mosaic parameters are not defined in the Edges frame. Cannot load the pixel flat!')
 
@@ -2536,7 +2536,7 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
             # list of available detectors in the pixel flat file
             file_dets = [int(h.name.split('-')[0].split('DET')[1]) for h in hdu[1:]]
             # check if all detectors required for the mosaic are in the list
-            if not np.all(np.in1d(list(det), file_dets)):
+            if not np.all(np.isin(list(det), file_dets)):
                 msgs.error(f'Not all detectors in the mosaic are in the pixel flat file: '
                            f'{pixel_flat_file}. Cannot load the pixel flat!')
 

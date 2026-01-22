@@ -543,12 +543,12 @@ class BuildWaveCalib:
             # Redo?
             if self.par['redo_slits'] is not None:
                 if self.par['echelle'] and self.slits.ech_order is not None:
-                    idx = np.in1d(self.slits.ech_order, self.par['redo_slits'])
+                    idx = np.isin(self.slits.ech_order, self.par['redo_slits'])
                     # Turn off mask
                     self.slits.mask[idx] = self.slits.bitmask.turn_off(
                             self.slits.mask[idx], 'BADWVCALIB')
                 else:
-                    idx = np.in1d(self.slits.spat_id, self.par['redo_slits'])
+                    idx = np.isin(self.slits.spat_id, self.par['redo_slits'])
                     self.slits.mask[idx] = self.slits.bitmask.turn_off(
                             self.slits.mask[idx], 'BADWVCALIB')
 
@@ -835,7 +835,7 @@ class BuildWaveCalib:
         fixed = False
 
         for idet in range(len(dets)):
-            in_det = np.in1d(bad_orders, order_dets[idet])
+            in_det = np.isin(bad_orders, order_dets[idet])
             if not np.any(in_det):
                 continue
             msgs.info(f"Attempting to refit bad orders in detector={dets[idet]}")
