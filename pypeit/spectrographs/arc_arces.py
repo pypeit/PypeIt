@@ -57,7 +57,7 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
             xgap            = 0.,
             ygap            = 0.,
             ysize           = 1.,
-            platescale      = 0.14,
+            platescale      = 0.52,
             mincounts       = -1e10,
             darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
@@ -108,6 +108,61 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [1, None]
+
+        #Debora from here
+
+        # edge tracing
+        par['calibrations']['traceframe']['process']['scale_to_mean'] = True
+        par['calibrations']['slitedges']['edge_thresh'] = 15.
+        par['calibrations']['slitedges']['smash_range'] = [0.3,0.7]
+        par['calibrations']['slitedges']['order_match'] = 0.005
+        par['calibrations']['slitedges']['fwhm_gaussian'] = 1.5
+        par['calibrations']['slitedges']['fwhm_uniform'] = 1.5
+        par['calibrations']['slitedges']['pad'] = 5
+
+        # Wavelength
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['n_final'] = 4
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.4
+        par['calibrations']['wavelengths']['sigdetect'] = 3.
+        par['calibrations']['wavelengths']['fwhm'] = 3.5
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = False
+        par['calibrations']['wavelengths']['match_toler'] = 2.
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.5
+        par['calibrations']['wavelengths']['bad_orders_maxfrac'] = 0.5
+        
+        # Echelle parameters
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # wave tilts calibration
+        par['calibrations']['tilts']['tracethresh'] = 10.
+
+        # flat fileding
+        # Set pixel flat combination method
+        par['calibrations']['pixelflatframe']['process']['scale_to_mean'] = True
+        par['calibrations']['illumflatframe']['process']['scale_to_mean'] = True
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'mean'
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+        par['calibrations']['flatfield']['tweak_slits'] = False
+        par['calibrations']['flatfield']['spat_samp'] = 1  # default is 5
+        par['calibrations']['flatfield']['slit_trim'] = 1
+
+        # no sky subtraction on standard stars
+        par['reduce']['skysub']['global_sky_std'] = False
+        # skip sky subtraction when searching for objects
+        par['reduce']['findobj']['skip_skysub'] = True
+        # no local sky subtraction
+        par['reduce']['skysub']['no_local_sky'] = True
+        par['reduce']['skysub']['mask_by_boxcar'] = True
+
+        # find objects
+        par['reduce']['findobj']['find_trim_edge'] = [0, 0]
+        # extraction
+        par['reduce']['extraction']['boxcar_radius'] = 3.
+        par['reduce']['extraction']['model_full_slit'] = True
+        par['reduce']['extraction']['sn_gauss'] = 4000 # basically always use the Gaussian model for optimal extraction
 
         return par
 
@@ -282,7 +337,7 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
         Number of orders for this spectograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
-        return 107
+        return 105
 
     @property
     def order_spat_pos(self):
@@ -307,14 +362,14 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
           0.7577895 , 0.76221721, 0.76662915, 0.77103302, 0.77543287, 0.7798291 ,
           0.78422839, 0.7886239 , 0.79302601, 0.79743542, 0.80185765, 0.80629519,
           0.81075452, 0.81523994, 0.81975688, 0.82430991, 0.82890433, 0.83354863,
-          0.83825048, 0.84301529, 0.84784117, 0.85275266, 0.85776007])
+          0.83825048, 0.84301529, 0.84784117])  #, 0.85275266, 0.85776007])
 
     @property
     def orders(self):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(160, 53, -1, dtype=int)
+        return np.arange(160, 160-self.norders, -1, dtype=int)
 
     @property
     def spec_min_max(self):

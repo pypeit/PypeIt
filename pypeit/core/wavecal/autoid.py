@@ -1453,7 +1453,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             wv_calib[str(iord)] = None
             all_patt_dict[str(iord)] = None
             continue
-        msgs.info('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord+1, norders))
+        msgs.warn('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord+1, norders))
         sigdetect = wvutils.parse_param(par, 'sigdetect', iord)
         cc_thresh = wvutils.parse_param(par, 'cc_thresh', iord)
         msgs.info("Using sigdetect =  {}".format(sigdetect))
