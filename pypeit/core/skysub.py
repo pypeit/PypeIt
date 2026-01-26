@@ -442,11 +442,11 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
         used_grid = True
     else:
         piximg_temp = np.ma.array(np.copy(piximg))
-        piximg_temp.mask = np.invert(sampmask)
+        piximg_temp.mask = np.logical_not(sampmask)
         samplmin = np.ma.min(piximg_temp,fill_value=np.inf,axis=1)
-        samplmin = samplmin[np.invert(samplmin.mask)].data
+        samplmin = samplmin[np.logical_not(samplmin.mask)].data
         samplmax = np.ma.max(piximg_temp,fill_value=-np.inf,axis=1)
-        samplmax = samplmax[np.invert(samplmax.mask)].data
+        samplmax = samplmax[np.logical_not(samplmax.mask)].data
         if samplmax.size != samplmin.size:
             msgs.error('This should not happen')
         nbkpt = samplmax.size
@@ -541,7 +541,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, slit_left,
-                         slit_righ, sobjs, ingpm=None, bkg_redux_global_sky=None,
+                         slit_righ, sobjs, min_frac_use=0.05, ingpm=None, bkg_redux_global_sky=None,
                          fwhmimg=None, flatimg=None, spat_pix=None, adderr=0.01, bsp=0.6,
                          trim_edg=(3,3), std=False, prof_nsigma=None, niter=4,
                          extract_good_frac=0.005, sigrej=3.5, bkpts_optimal=True,
@@ -580,6 +580,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     sobjs : :class:`~pypeit.specobjs.SpecObjs` object
         Object containing the information about the objects found on the
         slit/order from objfind or ech_objfind
+    min_frac_use : :obj:`float`, optional
+        Minimum accepted value for the sum of the normalized object profile across the spatial direction.
+        For each spectral pixel, if the majority of the object profile has been masked, i.e.,
+        the sum of the normalized object profile across the spatial direction is less than `min_frac_use`,
+        the optimal extraction will also be masked. The default value is 0.05.
     ingpm : `numpy.ndarray`_, optional
         Input mask with any non-zero item flagged as False using
         :class:`pypeit.images.imagebitmask.ImageBitMask`
@@ -861,14 +866,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
                     trace = sobjs[iobj].TRACE_SPAT[:, None]
-                    objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_RADIUS)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_RADIUS)))
+                    objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_R_PIX)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_R_PIX)))
                     # Boxcar
                     extract.extract_boxcar(sciimg-skyimage, modelivar, (outmask & objmask), waveimg,
                                            skyimage, sobjs[iobj], fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var,
                                            count_scale=count_scale, noise_floor=adderr)
                     # Optimal
                     extract.extract_optimal(sciimg-skyimage, modelivar, (outmask & objmask), waveimg,
-                                            skyimage, thismask, last_profile, sobjs[iobj],
+                                            skyimage, thismask, last_profile, sobjs[iobj], min_frac_use=min_frac_use,
                                             fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var, count_scale=count_scale,
                                             noise_floor=adderr)
                     # If the extraction is bad do not update
@@ -983,7 +988,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                 if iiter == niter:
                     msgs.warn('WARNING: LOCAL SKY SUBTRACTION NOT PERFORMED')
 
-        outmask_extract = outmask if use_2dmodel_mask else inmask
+        outmask_extract = outmask.copy() if use_2dmodel_mask else inmask.copy()
 
         # Now that the iterations of profile fitting and sky subtraction are completed,
         # loop over the objwork objects in this grouping and perform the final extractions.
@@ -999,9 +1004,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             this_profile = obj_profiles[:, :, ii]
             trace = sobjs[iobj].TRACE_SPAT[:, None]
             # Optimal
-            objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_RADIUS)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_RADIUS)))
+            objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_R_PIX)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_R_PIX)))
             extract.extract_optimal(sciimg-skyimage, modelivar * thismask, (outmask_extract & objmask),
-                                    waveimg, extract_sky, thismask, this_profile, sobjs[iobj],
+                                    waveimg, extract_sky, thismask, this_profile, sobjs[iobj], min_frac_use=min_frac_use,
                                     fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var, count_scale=count_scale,
                                     noise_floor=adderr)
             # Boxcar
@@ -1053,12 +1058,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         canvas.add('constructedcanvas', canvas_list)
 
     return skyimage[thismask], bkg_redux_skyimage[thismask] if bkg_redux_skyimage is not None else None, \
-        objimage[thismask], modelivar[thismask], outmask[thismask]
+        objimage[thismask], modelivar[thismask], outmask_extract[thismask]
 
 
 def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              global_sky, left, right,
-                             slitmask, sobjs, spat_pix=None, bkg_redux_global_sky=None,
+                             slitmask, sobjs, min_frac_use=0.05, spat_pix=None, bkg_redux_global_sky=None,
                              fit_fwhm=False, fwhmimg=None, flatimg=None,
                              min_snr=2.0, bsp=0.6, trim_edg=(3,3), std=False, prof_nsigma=None,
                              use_2dmodel_mask=True, 
@@ -1117,6 +1122,11 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     sobjs : :class:`~pypeit.specobjs.SpecObjs` object
         Object containing the information about the objects found on the
         slit/order from objfind or ech_objfind
+    min_frac_use : :obj:`float`, optional
+        Minimum accepted value for the sum of the normalized object profile across the spatial direction.
+        For each spectral pixel, if the majority of the object profile has been masked, i.e.,
+        the sum of the normalized object profile across the spatial direction is less than `min_frac_use`,
+        the optimal extraction will also be masked. The default value is 0.05.
     spat_pix: `numpy.ndarray`_, optional
         Image containing the spatial location of pixels. If not
         input, it will be computed from ``spat_img =
@@ -1314,8 +1324,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
             if np.sum(ind) == 0:
                 msgs.error('There is a missing order for object {0:d} on slit {1:d}!'.format(iobj, slitid))
             if iobj == 0:
-                order_vec[islit] = sobjs[ind].ECH_ORDER
-            order_snr[islit,iobj] = sobjs[ind].ech_snr
+                order_vec[islit] = sobjs[ind][0].ECH_ORDER
+            order_snr[islit,iobj] = sobjs[ind][0].ech_snr
 
     # Enforce that the number of objects in the sobjs object is an integer multiple of the number of good orders
     if (np.sum(sobjs.sign > 0) % norders) == 0:
@@ -1352,7 +1362,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     for iord in srt_order_snr:
         order = order_vec[iord]
         msgs.info("Local sky subtraction and extraction for slit/order: {:d}/{:d}".format(iord,order))
-        other_orders = (fwhm_here > 0) & np.invert(fwhm_was_fit)
+        other_orders = (fwhm_here > 0) & np.logical_not(fwhm_was_fit)
         other_fit    = (fwhm_here > 0) & fwhm_was_fit
         # Loop over objects in order of S/N ratio (from highest to lowest)
         for iobj in srt_obj:
@@ -1400,9 +1410,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                     if show_fwhm:
                         plt.plot(order_vec[other_orders][fit_mask], fwhm_here[other_orders][fit_mask], marker='o', linestyle=' ',
                         color='k', mfc='k', markersize=4.0, label='orders informing fit')
-                        if np.any(np.invert(fit_mask)):
-                            plt.plot(order_vec[other_orders][np.invert(fit_mask)],
-                                     fwhm_here[other_orders][np.invert(fit_mask)], marker='o', linestyle=' ',
+                        if np.any(np.logical_not(fit_mask)):
+                            plt.plot(order_vec[other_orders][np.logical_not(fit_mask)],
+                                     fwhm_here[other_orders][np.logical_not(fit_mask)], marker='o', linestyle=' ',
                                      color='magenta', mfc='magenta', markersize=4.0, label='orders rejected by fit')
                         if np.any(other_fit):
                             plt.plot(order_vec[other_fit], fwhm_here[other_fit], marker='o', linestyle=' ',
@@ -1425,7 +1435,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         # Local sky subtraction and extraction
         skymodel[thismask], _this_bkg_redux_skymodel, objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
             = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask,
-                                   left[:,iord], right[:,iord], sobjs[thisobj],
+                                   left[:,iord], right[:,iord], sobjs[thisobj], min_frac_use=min_frac_use,
                                    bkg_redux_global_sky=bkg_redux_global_sky,
                                    fwhmimg=fwhmimg, flatimg=flatimg,
                                    spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,

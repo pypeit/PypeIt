@@ -24,7 +24,7 @@ from pypeit.core.moment import moment1d
 
 
 def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
-                    spec, min_frac_use=0.05, fwhmimg=None, flatimg=None,
+                    spec, min_frac_use=0.9, fwhmimg=None, flatimg=None,
                     base_var=None, count_scale=None, noise_floor=None):
 
     r"""
@@ -187,6 +187,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
 
     tot_weight = np.nansum(mask_sub*ivar_sub*oprof_sub, axis=1)
     prof_norm = np.nansum(oprof_sub, axis=1)
+    # NOTE: Frac_use is also equal to np.nansum(mask_sub * oprof_sub, axis=1)
     frac_use = (prof_norm > 0.0)*np.nansum((mask_sub*ivar_sub > 0.0)*oprof_sub, axis=1)/(prof_norm + (prof_norm == 0.0))
 
     # Use the same weights = oprof^2*mivar for the wavelenghts as the flux.
@@ -202,7 +203,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
     if flatimg is not None:
         blaze_opt = np.nansum(mask_sub*ivar_sub*flatimg_sub*oprof_sub, axis=1) * utils.inverse(tot_weight)
     # Interpolate wavelengths over masked pixels
-    badwvs = (mivar_num <= 0) | np.invert(np.isfinite(wave_opt)) | (wave_opt <= 0.0)
+    badwvs = (mivar_num <= 0) | np.logical_not(np.isfinite(wave_opt)) | (wave_opt <= 0.0)
     if badwvs.any():
         oprof_smash = np.nansum(thismask_sub*oprof_sub**2, axis=1)
         # Can we use the profile average wavelengths instead?
@@ -215,7 +216,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
         if oprof_bad.any():
             # If there are no good profile wavelengths, use boxcar wavelengths for these pixels
             # get boxcar_radius
-            box_radius = spec.BOX_RADIUS
+            box_radius = spec.BOX_R_PIX
             box_denom_no_mask = moment1d(waveimg > 0.0, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0]
             wave_no_mask = moment1d(waveimg, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0] / (
                         box_denom_no_mask + (box_denom_no_mask == 0.0))
@@ -410,7 +411,7 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, f
         spec.trace_spec = spec_vec
 
     # get boxcar_radius
-    box_radius = spec.BOX_RADIUS
+    box_radius = spec.BOX_R_PIX
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
     var_no = None if base_var is None \
@@ -446,7 +447,7 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, f
     pixmsk = moment1d(ivar*mask == 0.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # If every pixel is masked then mask the boxcar extraction
     mask_box = (pixmsk != pixtot) & np.isfinite(wave_box) & (wave_box > 0.0)
-    bad_box = (wave_box <= 0.0) | np.invert(np.isfinite(wave_box)) | (box_denom == 0.0)
+    bad_box = (wave_box <= 0.0) | np.logical_not(np.isfinite(wave_box)) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
         box_denom_no_mask = moment1d(waveimg > 0.0, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0]
@@ -971,11 +972,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         nbad1 = np.sum(indbad1)
         if(nbad1 > 0):
             spline_flux1[indbad1] = cont_flux1[indbad1]
-        indbad2 = badpix & np.invert(goodval)
+        indbad2 = badpix & np.logical_not(goodval)
         nbad2 = np.sum(indbad2)
-        ngood0 = np.sum(np.invert(badpix))
+        ngood0 = np.sum(np.logical_not(badpix))
         if((nbad2 > 0) or (ngood0 > 0)):
-            spline_flux1[indbad2] = np.median(spline_flux1[np.invert(badpix)])
+            spline_flux1[indbad2] = np.median(spline_flux1[np.logical_not(badpix)])
         # take a 5-pixel median to filter out some hot pixels
         spline_flux1 = scipy.ndimage.median_filter(spline_flux1,size=5,mode='reflect')
 

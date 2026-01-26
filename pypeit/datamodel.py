@@ -469,6 +469,7 @@ from astropy.table import Table
 
 from pypeit import io
 from pypeit import msgs
+from pypeit.par.util import eval_tuple
 
 # TODO: There are methods in, e.g., doc/scripts/build_specobj_rst.py that output
 # datamodels for specific datacontainers.  It would be useful if we had
@@ -1058,8 +1059,10 @@ class DataContainer:
                 for key in keys[indx]:
                     if key in _d.keys() and _d[key] is not None:
                         continue
-                    _d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
-                                else eval(_hdu[e].header[key.upper()])
+                    if cls.datamodel[key]['otype'] == tuple:
+                        _d[key] = eval_tuple(_hdu[e].header[key.upper()].split(','))[0]
+                    else:
+                        _d[key] = _hdu[e].header[key.upper()]
             if isinstance(e, (str, np.str_)) and e in prefkeys:
                 # Already parsed this above
                 continue
@@ -1089,7 +1092,7 @@ class DataContainer:
         #     cause trouble.
         #   - Hack to force native byte ordering
         for key in _d:
-            if isinstance(_d[key], np.chararray):
+            if isinstance(_d[key], np.char.chararray):
                 _d[key] = np.asarray(_d[key])
             elif isinstance(_d[key], np.ndarray) and _d[key].dtype.byteorder not in ['=', '|']:
                 _d[key] = _d[key].astype(_d[key].dtype.type)

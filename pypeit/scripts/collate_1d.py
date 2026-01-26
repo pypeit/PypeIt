@@ -21,7 +21,6 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import coadd1d
 from pypeit import msgs
-from pypeit import par
 from pypeit.utils import is_float
 from pypeit.core import wave
 from pypeit.archive import ArchiveMetadata, ArchiveDir
@@ -446,7 +445,7 @@ def coadd(par, coaddfile, source):
 
 
     # Instantiate
-    spectrograph = load_spectrograph(par['rdx']['spectrograph'])
+    spectrograph = load_spectrograph(par['rdx']['spectrograph'], pypeit_fits=True)
     coAdd1d = coadd1d.CoAdd1D.get_instance(source.spec1d_file_list,
                                            [x.NAME for x in source.spec_obj_list],
                                            spectrograph=spectrograph, par=par['coadd1d'])
@@ -561,7 +560,7 @@ def build_parameters(args):
         sys.exit(1)
 
     # Get the spectrograph for these files and then create a ParSet. 
-    spectrograph = load_spectrograph(spec1d_files[0])
+    spectrograph = load_spectrograph(spec1d_files[0], pypeit_fits=True)
     spectrograph_def_par = spectrograph.default_pypeit_par()
 
     if cfg_lines is not None:
@@ -580,8 +579,8 @@ def build_parameters(args):
     if args.match_using is not None:
         params['collate1d']['match_using'] = args.match_using
 
-    if args.exclude_slit_bm is not None and len(args.exclude_slit_bm) > 0:
-        params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_bm.split(',')
+    if args.exclude_slit_trace_bm is not None and len(args.exclude_slit_trace_bm) > 0:
+        params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_trace_bm.split(',')
 
     if args.exclude_serendip:
         params['collate1d']['exclude_serendip'] = True
@@ -712,7 +711,7 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
         parser.add_argument('--ignore_flux', default=False, action='store_true', help=blank_par.descr['ignore_flux'])
         parser.add_argument('--flux', default=False, action = 'store_true', help=blank_par.descr['flux'])
-        parser.add_argument('--exclude_slit_bm', type=str, # nargs='*',
+        parser.add_argument('--exclude_slit_trace_bm', type=str, # nargs='*',
                             help=blank_par.descr['exclude_slit_trace_bm']+' Comma separated.')
         parser.add_argument('--exclude_serendip', action='store_true',
                             help=blank_par.descr['exclude_serendip'])

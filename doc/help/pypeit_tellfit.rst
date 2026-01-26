@@ -16,40 +16,35 @@
     options:
       -h, --help            show this help message and exit
       --objmodel {qso,star,poly}
-                            science object model used in the fitting. The options
-                            are:
-                             
-                            qso = For quasars. You might need to set redshift,
-                            bal_wv_min_max in the tell file.
-                             
-                            star = For stars. You need to set star_type, star_ra,
-                            star_dec, and star_mag in the tell_file.
-                             
-                            poly = For other type object, You might need to set
-                            fit_wv_min_max, and norder in the tell_file.
-                             
+                            The object model to be used for telluric fitting.
+                            Currently the options are: ``qso``, ``star``, and
+                            ``poly``. For ``qso``, you might need to set
+                            ``redshift`` and ``bal_wv_min_max``. For ``star``, you
+                            must set ``star_type``, ``star_ra``, ``star_dec``, and
+                            ``star_mag``. For ``poly``, you might need to set
+                            ``fit_wv_min_max`` and ``norder``.
       -r, --redshift REDSHIFT
-                            Specify redshift. Used with the --objmodel qso option
-                            above.
+                            The redshift for the object model. This is currently
+                            only used by the QSO model.
       -g, --tell_grid TELL_GRID
-                            Telluric grid. You should download the giant grid file
-                            to the pypeit/data/telluric folder. It should only be
-                            passed if you want to overwrite the default tell_grid
-                            that is set via each spectrograph file.
+                            File with the telluric model spectra to use. Generally,
+                            these do not need to be set; reasonable defaults are
+                            provided for each spectrograph. Due to their size, the
+                            files are not included with the released pypeit package;
+                            instead the code downloads each file into your cache as
+                            needed. If this parameter is set in your pypeit file, it
+                            can be the path to a local file (which must have the
+                            correct format), or it can be the name of the specific
+                            cache file to use (e.g.,
+                            TellPCA_3000_26000_R10000.fits).
       -p, --pca_file PCA_FILE
-                            Quasar PCA fits file with full path. The default file
-                            (qso_pca_1200_3100.fits) is stored in the
-                            pypeit/data/telluric folder. If you change the fits
-                            file, make sure to set the pca_lower and pca_upper in
-                            the tell_file to specify the wavelength coverage of your
-                            model. The defaults are pca_lower=1220. and
-                            pca_upper=3100.
+                            qso_pca_1200_3100.fits
       -t, --tell_file TELL_FILE
                             Configuration file to change default telluric
-                            parameters.  Note that the parameters in this file will
-                            be overwritten if you set argument in your terminal.
-                            The --tell_file option requires a .tell file with the
-                            following format:
+                            parameters.  The format is identical to any telluric
+                            parameters in your pypeit file.  See the PypeIt
+                            parameter documentation.  For example, the ".tell" file
+                            could have the following:
                              
                                 [telluric]
                                      objmodel = qso

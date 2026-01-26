@@ -12,7 +12,7 @@ def mmt_binospec_270(overwrite=False):
 
     Args:
         overwrite: bool, optional
-            Overwrite the existing file? [Default: False]
+            Overwrite the existing file?
     """
     binspec = 1
     outroot = 'mmt_binospec_270.fits'
@@ -41,7 +41,7 @@ def mmt_binospec_600(overwrite=False):
 
     Args:
         overwrite: bool, optional
-            Overwrite the existing file? [Default: False]
+            Overwrite the existing file?
     """
     binspec = 1
     outroot = 'mmt_binospec_600.fits'
@@ -70,7 +70,7 @@ def mmt_binospec_1000(overwrite=False):
 
     Args:
         overwrite: bool, optional
-            Overwrite the existing file? [Default: False]
+            Overwrite the existing file?
     """
     binspec = 1
     outroot = 'mmt_binospec_1000.fits'

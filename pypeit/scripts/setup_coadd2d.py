@@ -142,21 +142,24 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         # Get the set of objects
         # TODO: Direct parsing of the filenames will be wrong if any of the
         # reduced files have dashes in them or if the objects have underscores.
-        objects = np.unique(pypeitFile.data['target'].data 
-                                if pypeitFile is not None and 'target' in pypeitFile.data.keys()
-                                else [f.name.split('-')[1].split('_')[0] for f in spec2d_files])
+        if pypeitFile is not None and 'target' in pypeitFile.data.keys():
+            objects = np.unique([row['target'] for row in pypeitFile.data 
+                                 if any(ft in row['frametype'] for ft in ['science','standard'])])
+        else:
+            objects = np.unique([f.name.split('-')[1].split('_')[0] for f in spec2d_files])
+
         if args.obj is not None:
             # Limit to the selected objects
-            _objects = [o for o in objects if o == args.obj]
+            _objects = [o for o in objects if o in args.obj]
             # Check some were found
             if len(_objects) == 0:
                 msgs.error('Unable to find relevant objects.  Unique objects are '
                            f'{objects.tolist()}; you requested {args.obj}.')
             objects = _objects
 
-        # Match spec2d files to objects
+        # Match spec2d files to objects; remove any spaces in the object names
         object_spec2d_files = {}
-        for obj in objects:
+        for obj in (o.replace(" ","") for o in objects):
             object_spec2d_files[obj] = [f for f in spec2d_files if obj.strip() in f.name]
             if len(object_spec2d_files[obj]) == 0:
                 msgs.warn(f'No spec2d files found for target={obj}.')

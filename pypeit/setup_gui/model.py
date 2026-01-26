@@ -8,7 +8,6 @@ to that data, and translating PypeIt datastructures to a form usable by Qt.
 
 import os
 from collections import deque
-import copy
 import traceback
 import enum
 import glob
@@ -20,6 +19,7 @@ from pathlib import Path
 from qtpy.QtCore import QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
 import qtpy
 from configobj import ConfigObj
+from datetime import datetime, timezone
 
 from pypeit import msgs, spectrographs
 from pypeit.spectrographs import available_spectrographs
@@ -1218,7 +1218,7 @@ class PypeItSetupGUIModel(QObject):
         self.obslog_model = PypeItObsLogModel()
         self._clipboard = PypeItMetadataModel(None)
 
-    def setup_logging(self, logname, verbosity):
+    def setup_logging(self, verbosity):
         """
         Setup the PypeIt logging mechanism and a log buffer
         for monitoring the progress of operations and
@@ -1228,7 +1228,15 @@ class PypeItSetupGUIModel(QObject):
             logname (str): The filename to log to.
             verbosity (int): The verbosity level to log at.
         """
-        self.log_buffer = LogBuffer(logname,verbosity)
+
+        if verbosity >=2:
+            # For conistency with other pypeit scripts, log to a file when verbosity is 2
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
+            logfile = f"setup_gui_{timestamp}.log"
+        else:
+            logfile = None
+
+        self.log_buffer = LogBuffer(logfile,verbosity)
         msgs.reset(verbosity=verbosity, log=self.log_buffer, log_to_stderr=False)
         msgs.info(f"QT Version: {qtpy.QT_VERSION}")
         msgs.info(f"PySide version: {qtpy.PYSIDE_VERSION}")
@@ -1383,7 +1391,7 @@ class PypeItSetupGUIModel(QObject):
             pf_model.stateChanged.connect(self.stateChanged)
 
             self.pypeit_files[setup_name] = pf_model            
-
+            msgs.info("Adding empty file model in open_pypeit_file")
             self.filesAdded.emit([pf_model])
             self.stateChanged.emit()
 
@@ -1408,7 +1416,7 @@ class PypeItSetupGUIModel(QObject):
         pf_model.stateChanged.connect(self.stateChanged)
 
         self.pypeit_files[new_name] = pf_model            
-
+        msgs.info("Adding emtpy pypeit file in createEmptyPypeItFile")
         self.filesAdded.emit([pf_model])
         self.stateChanged.emit()
         return pf_model
@@ -1452,5 +1460,6 @@ class PypeItSetupGUIModel(QObject):
 
         msgs.info(f"Current files: {self.pypeit_files}")
         if len(config_names) > 0:
+            msgs.info("Adding pypeit files in createFilesForConfigs")
             self.filesAdded.emit(list(self.pypeit_files.values()))
 

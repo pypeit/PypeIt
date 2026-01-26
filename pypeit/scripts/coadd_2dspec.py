@@ -46,10 +46,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         """
 
         from pathlib import Path
-        import os
-        import glob
         import copy
-        from collections import OrderedDict
 
         from IPython import embed
 
@@ -59,17 +56,17 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         from pypeit import msgs
         from pypeit import coadd2d
+        from pypeit import history
         from pypeit import inputfiles
         from pypeit import specobjs
         from pypeit import spec2dobj
-        from pypeit.spectrographs.util import load_spectrograph
 
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
 
         # Load the file
         coadd2dFile = inputfiles.Coadd2DFile.from_file(args.coadd2d_file)
-        spectrograph, par, _ = coadd2dFile.get_pypeitpar()
+        spectrograph, par, _ = coadd2dFile.get_pypeitpar(pypeit_fits=True)
 
         # Check some of the parameters
         # TODO Heliocentric for coadd2d needs to be thought through. Currently turning it off.
@@ -115,12 +112,12 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         msgs_string += f"Searching for objects that are {head2d['FINDOBJ']}" + msgs.newline()
         msgs_string += 'Combining frames in 2d coadd:' + msgs.newline()
         for f, file in enumerate(spec2d_files):
-            msgs_string += f'Exp {f}: {Path(file).name}' + msgs.newline()
+            msgs_string += f'File {f}: {Path(file).name}' + msgs.newline()
         msgs.info(msgs_string)
 
         # Instantiate the sci_dict
         # TODO Why do we need this sci_dict at all?? JFH
-        sci_dict = OrderedDict()  # This needs to be ordered
+        sci_dict = {}  # Standard dictionaries are ordered for Python >= 3.7
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
         sci_dict['meta']['bkg_redux'] = bkg_redux
@@ -161,12 +158,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
             # Instantiate Coadd2d
             coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, par, det=det,
-                                                 offsets=par['coadd2d']['offsets'],
-                                                 weights=par['coadd2d']['weights'],
                                                  only_slits=this_only_slits,
                                                  exclude_slits=this_exclude_slits,
-                                                 spec_samp_fact=par['coadd2d']['spec_samp_fact'],
-                                                 spat_samp_fact=par['coadd2d']['spat_samp_fact'],
                                                  bkg_redux=bkg_redux, find_negative=find_negative,
                                                  debug_offsets=args.debug_offsets,
                                                  debug=args.debug)
@@ -231,12 +224,17 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # SAVE TO DISK
 
+        # Add history entries for coadding.
+        coadd_history = history.History()
+        coadd_history.add_coadd2d(spec2d_files, basename)
+
         # THE FOLLOWING MIMICS THE CODE IN pypeit.save_exposure()
         subheader = spectrograph.subheader_for_spec(head2d, head2d)
+        subheader['coaddobj'] = (basename, 'Coadd object base name')
         # Write spec1D
         if all_specobjs.nobj > 0:
             outfile1d = coadd_scidir / f'spec1d_{basename}.fits'
-            all_specobjs.write_to_fits(subheader, outfile1d)
+            all_specobjs.write_to_fits(subheader, outfile1d, history=coadd_history)
 
             # Info
             outfiletxt = coadd_scidir / f'spec1d_{basename}.txt'
@@ -246,7 +244,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # Build header for spec2d
         outfile2d = coadd_scidir / f'spec2d_{basename}.fits'
         pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
-                                               subheader=subheader,
+                                               subheader=subheader, history=coadd_history,
                                                # TODO -- JFH :: Decide if we need any of these
                                                redux_path=None)
         # Write spec2d

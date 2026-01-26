@@ -16,9 +16,9 @@ reduction of the sample J Band dataset and include recommendations for reducing
 other sample datasets (Y, H, and K bands).
 
 See :ref:`here <dev-suite>` to find the example dataset, please join our `PypeIt
-Users Slack <pypeit-users.slack.com>`__ (using `this invitation link
-<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
-to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
+Users Slack <https://pypeit-users.slack.com>`__ using `this invitation link
+<invite_>`_ to ask for help, and/or `Submit an issue`_ to Github if you find a
+bug!
 
 ----------------------
 
@@ -433,16 +433,10 @@ can be checked by using:
     ginga Calibrations/Arc_A_0_DET01.fits
 
 The wavelength calibration can be checked by looking at the automatically
-generaged QA plots; see :ref:`qa-wave-fit`. Below is the wavelenght calibration
+generaged QA plots; see :ref:`qa-wave-fit`. Below is the wavelength calibration
 QA plot for the automated wavelength calibration featured in this tutorial. The
-RMS of the wavelength solution will depend on the number of lines availble in a
-given order and may vary significantly from order to order. 
-
-More importantly, you should check the result of the wavelength calibration
-using the automatically generated QA file; see :ref:`qa-wave-fit`.  Below is the
-wavelength-calibration QA plot for the reddest order (order=3).  The RMS of the
-wavelength solution should be of order 0.1-0.2 pixels.  Such a plot is produced
-for each order of each the combined arc image used for each calibration group.
+RMS of the wavelength solution will depend on the number of lines available in a
+given order and may vary significantly from order to order.
 
 .. figure:: ../figures/nirspec/Arc_1dfit_A_0_DET01_S0060.png
    :width: 70%

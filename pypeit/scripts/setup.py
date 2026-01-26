@@ -58,6 +58,9 @@ class Setup(scriptbase.ScriptBase):
                                  'pypeit_obslog; i.e., you have to tell pypeit_setup to keep '
                                  'these frames, whereas you have to tell pypeit_obslog to remove '
                                  'them.')
+        parser.add_argument('-p', '--param_block_file', default=None, type=str,
+                            help='File containing the additional PypeIt user parameters to be '
+                                 'added to the parameter block of the generated reduction file')
         parser.add_argument('-G', '--gui', default=False, action='store_true',
                             help='Run setup in a GUI')        
 
@@ -80,9 +83,6 @@ class Setup(scriptbase.ScriptBase):
         from pypeit.pypeitsetup import PypeItSetup
         from pypeit.calibrations import Calibrations
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('setup', args.verbosity)
-
         if args.spectrograph is None:
             if args.gui is False:
                 raise IOError('spectrograph is a required argument.  Use the -s, --spectrograph '
@@ -96,27 +96,23 @@ class Setup(scriptbase.ScriptBase):
                                  'on how to add a new instrument.')
 
         if args.gui:
-            from pypeit.scripts.setup_gui import SetupGUI
-            # Build up arguments to the GUI
-            setup_gui_argv = ["-e", args.extension]
-            if args.spectrograph is not None:
-                setup_gui_argv += ["-s", args.spectrograph]
-
-                # Pass root but only if there's a spectrograph, because
-                # root has a default value but can't be acted upon by the GUI
-                # without a spectrograph.
-                if isinstance(args.root,list):
-                    root_args = args.root
-                else:
-                    # If the root argument is a single string, convert it to a list.
-                    # This can happen when the default for --root is used
-                    root_args = [args.root]
-                setup_gui_argv += ["-r"] + root_args
-            gui_args = SetupGUI.parse_args(setup_gui_argv)
-            SetupGUI.main(gui_args)
+            # Start the GUI
+            from pypeit.setup_gui.controller import start_gui
+            start_gui(args)
+        else:
+            msgs.set_logfile_and_verbosity("setup", args.verbosity)       
 
         # Initialize PypeItSetup based on the arguments
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
+        # Add any additional user parameters
+        if args.param_block_file is not None:
+            if (user_par_fn := Path(args.param_block_file)).exists():
+                with open(user_par_fn, 'r', encoding='utf-8') as user_par_fobj:
+                    user_cfgs = [l.rstrip() for l in user_par_fobj.readlines()]
+                ps.append_user_cfg(user_cfgs)
+            else:
+                msgs.warn(f"Could not open param_block file {args.param_block_file}. "
+                          "Not adding any additional user parameters to the .pypeit file.")
         # Run the setup
         ps.run(setup_only=True, clean_config=not args.keep_bad_frames)
 

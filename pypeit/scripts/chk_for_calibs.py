@@ -42,7 +42,9 @@ class ChkForCalibs(scriptbase.ScriptBase):
 
         """
 
+        from pathlib import Path
         import os
+        import time
 
         from IPython import embed
 
@@ -55,7 +57,6 @@ class ChkForCalibs(scriptbase.ScriptBase):
         from pypeit import msgs
         from pypeit.par import PypeItPar
 
-        import shutil
 
         # Check that the spectrograph is provided if using a file root
         if args.root is not None:
@@ -126,9 +127,10 @@ class ChkForCalibs(scriptbase.ScriptBase):
                 answers['pass'][i] = False
                 answers['scifiles'][i] = None
                 continue
-            #
-            spectrograph_cfg_lines \
-                    = ps.spectrograph.config_specific_par(config_specific_file).to_config()
+
+            # Send the Row of the metadata table corresponding to the file
+            spectrograph_cfg_lines = ps.spectrograph.config_specific_par(
+                ps.fitstbl.get_row_for_filename(config_specific_file)).to_config()
 
             #   - Build the full set, merging with any user-provided
             #     parameters
@@ -167,7 +169,7 @@ class ChkForCalibs(scriptbase.ScriptBase):
             # the calib file,
             calib_file = sorted_file.with_suffix('.calib')
             caldir = calib_file.parent / ps.par['calibrations']['calib_dir']
-            Calibrations.association_summary(calib_file, ps.fitstbl, ps.spectrograph, caldir,
+            calibrations.Calibrations.association_summary(calib_file, ps.fitstbl, ps.spectrograph, caldir,
                                              overwrite=True)
             # and the obslog file
             obslog_file = sorted_file.with_suffix('.obslog')

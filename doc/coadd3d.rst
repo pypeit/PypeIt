@@ -247,7 +247,7 @@ the name of the sensitivity function in your ``coadd3d`` file as follows:
 
     [reduce]
         [[cube]]
-            sensfunc = my_sensfunc.fits
+            sensfile = my_sensfunc.fits
 
 
 Also, an important note for users that wish to combine multiple standard star exposures

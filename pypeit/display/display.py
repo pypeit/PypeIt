@@ -26,7 +26,8 @@ from pypeit import msgs
 from pypeit import io
 from pypeit import utils
 
-def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=False):
+def connect_to_ginga(host='localhost', port=grc.default_rc_port,
+                     raise_err=False, allow_new=False):
     """
     Connect to a RC Ginga.
 
@@ -34,7 +35,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
         host (:obj:`str`, optional):
             Host name.
         port (:obj:`int`, optional):
-            Probably should remain at 9000
+            Probably should remain at Ginga default
         raise_err (:obj:`bool`, optional):
             Raise an error if no connection is made, otherwise just
             raise a warning and continue
@@ -53,7 +54,8 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
         tmp = sh.get_current_workspace()
     except:
         if allow_new:
-            subprocess.Popen(['ginga', '--modules=RC,SlitWavelength'])
+            subprocess.Popen(['ginga', f'--rcport={port}',
+                              '--modules=RC,SlitWavelength'])
 
             # NOTE: time.sleep(3) is now insufficient. The loop below
             # continues to try to connect with the ginga viewer that
@@ -72,7 +74,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
                     break
             if i == maxiter-1:
                 msgs.error('Timeout waiting for ginga to start.  If window does not appear, type '
-                           '`ginga --modules=RC,SlitWavelength` on the command line.  In either '
+                           f'`ginga --rcport={port} --modules=RC,SlitWavelength` on the command line.  In either '
                            'case, wait for the ginga viewer to open and try the pypeit command '
                            'again.')
             return viewer
@@ -81,7 +83,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
             raise ValueError
         else:
             msgs.warn('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
-                      'then continue: \n    ginga --modules=RC,SlitWavelength')
+                      f'then continue: \n    ginga --rcport={port} --modules=RC,SlitWavelength')
 
     # Return
     return viewer
@@ -141,6 +143,9 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     if clear:
         clear_all()
 
+    sh = viewer.shell()
+    sh.get_channel_on_demand(chname)
+
     ch = viewer.channel(chname)
     # Header
     header = {}
@@ -150,7 +155,6 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     # Giddy up
 #    waveimg = None
     if waveimg is not None:
-        sh = viewer.shell()
         args = [chname, chname, grc.Blob(img.tobytes()), img.shape, img.dtype.name, header,
                 grc.Blob(waveimg.tobytes()), waveimg.dtype.name, {}]
         sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})
@@ -349,7 +353,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
     _right = right.reshape(-1,1) if right.ndim == 1 else right
     nright = _right.shape[1]
-    
+
     nspec = _left.shape[0]
     if _right.shape[0] != nspec:
         # TODO: Any reason to remove this restriction?
@@ -667,3 +671,28 @@ def show_scattered_light(image_list, slits=None, wcs_match=True):
         if clear:
             clear = False
 
+
+def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
+    """
+    Interface to ginga to show a 1dspec and manipulate with Spec1dView plugin.
+
+    Parameters
+    ----------
+    filename : str
+        spec1d FITS file to show in the viewer
+    ext : int
+        extension to show (which spectrum)
+    """
+    viewer = connect_to_ginga(raise_err=True, allow_new=True)
+    sh = viewer.shell()
+
+    chname, plname = "Spec1d", "Spec1dView"
+    sh.add_channel(chname)
+    ch = viewer.channel(chname)
+    # set up the options as passed
+    kwargs = dict(ext=ext, extraction=extraction, masked=masked, fluxed=fluxed)
+    sh.call_local_plugin_method(chname, plname, 'set_params', [], kwargs)
+    # start the plugin
+    sh.start_local_plugin(chname, plname)
+    # load the file
+    sh.load_file(filename, chname=chname)

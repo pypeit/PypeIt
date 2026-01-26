@@ -503,62 +503,6 @@ class PypeItMetaData:
                                            datetime.datetime.strftime(dtime, '%Y%m%dT'),
                                            tiso.value.split("T")[1].replace(':',''))
 
-#    def get_setup(self, row, det=None, config_only=False):
-#        """
-#        Construct the setup dictionary.
-#
-#        .. todo::
-#            - This is for backwards compatibility, but we should
-#              consider reformatting it.  And it may be something to put
-#              in the relevant spectrograph class.
-#
-#        Args:
-#            row (:obj:`int`):
-#                The 0-indexed row used to construct the setup.
-#            det (:obj:`int`, optional):
-#                The 1-indexed detector to include.  If None, all
-#                detectors are included.
-#            config_only (:obj:`bool`, optional):
-#                Just return the dictionary with the configuration, don't
-#                include the top-level designation of the configuration
-#                itself.
-#
-#        Returns:
-#            dict: The pypeit setup dictionary with the default format.
-#
-#        Raises:
-#            PypeItError:
-#                Raised if the 'setup' isn't been defined.
-#        """
-#        if 'setup' not in self.keys():
-#            msgs.error('Cannot provide instrument setup without \'setup\' column; '
-#                       'run set_configurations.')
-#        dispname = 'none' if 'dispname' not in self.keys() else self['dispname'][row]
-#        dispangle = 'none' if 'dispangle' not in self.keys() else self['dispangle'][row]
-#        dichroic = 'none' if 'dichroic' not in self.keys() else self['dichroic'][row]
-#        decker = 'none' if 'decker' not in self.keys() else self['decker'][row]
-#        slitwid = 'none' if 'slitwid' not in self.keys() else self['slitwid'][row]
-#        slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
-#        binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
-#
-#        skey = 'Setup {}'.format(self['setup'][row])
-#        # Key names *must* match configuration_keys() for spectrographs
-#        setup = {skey:
-#                    {'--':
-#                        {'disperser': {'dispname': dispname, 'dispangle':dispangle},
-#                         'dichroic': dichroic,
-#                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
-#                         'binning': binning,  # PypeIt orientation binning of a science image
-#                         }
-#                     }
-#                 }
-#        #_det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
-#        #for d in _det:
-#        #    setup[skey][str(d).zfill(2)] \
-#        #            = {'binning': binning, 'det': d,
-#        #               'namp': self.spectrograph.detector[d-1]['numamplifiers']}
-#        return setup[skey] if config_only else setup
-
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """
         Get the list of the unique configuration names.
@@ -619,6 +563,35 @@ class PypeItMetaData:
 
         return (setups, indx) if return_index else setups
 
+    def get_frames_from_combid(self, comb_id):
+        """
+        Return the indices of all frames with the provided combination
+        group ID.
+
+        Args:
+            comb_id (:obj:`int`):
+                The combination group ID to search for.
+
+        Returns:
+            `numpy.ndarray`_: The indices of all frames with the
+            provided combination group ID.
+
+        Raises:
+            PypeItError:
+                Raised if the 'comb_id' column has not been defined.
+        """
+        if 'comb_id' not in self.keys():
+            msgs.error('Cannot get frames from comb_id; run set_combination_groups.')
+
+        # Frames
+        frames = np.where(self['comb_id'] == comb_id)[0]
+
+        # Find all frames whose comb_id matches the current frames bkg_id.
+        bg_frames = np.where((self['comb_id'] == self['bkg_id'][frames][0])
+                                & (self['comb_id'] >= 0))[0]
+
+        return frames, bg_frames
+        
     def _get_cfgs(self, copy=False, rm_none=False):
         """
         Convenience method to return :attr:`configs` with possible
@@ -1771,6 +1744,9 @@ class PypeItMetaData:
 
             # Get the data lines
             subtbl = self.table[output_cols][in_cfg]
+
+            self.spectrograph.final_config_frametypes(setup_dict[f'Setup {setup}'], subtbl)
+
             if 'calib' in output_cols:
                 # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
                 # calibration files are used for different setups. Here we update calib to have only the
@@ -1786,8 +1762,7 @@ class PypeItMetaData:
             #    data_lines = ff.getvalue().split('\n')[:-1]
             # Config lines
             if cfg_lines is None:
-                cfg_lines = ['[rdx]']
-                cfg_lines += ['    spectrograph = {0}'.format(self.spectrograph.name)]
+                cfg_lines = ['[rdx]', f'    spectrograph = {self.spectrograph.name}']
 
             # Instantiate a PypeItFile
             pypeItFile = inputfiles.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
@@ -1968,3 +1943,26 @@ class PypeItMetaData:
         return self.calib_bitmask.flagged_bits(self['calibbit'][row])
 
 
+    def get_row_for_filename(self, filename:str) -> table.Table:
+        """Return the row of the metadata table for a filename
+
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Filename for which to retrieve the table row
+
+        Returns
+        -------
+        :obj:`~astropy.table.Table`
+            A copy of the one-row table corresponding to the ``filename``
+            provided.
+        
+        Raises
+        ------
+        :class:`PypeItError`
+            If the requested filename is not in the table
+        """
+        idx = self.table['filename'] == Path(filename).name
+        if not any(idx):
+            msgs.error(f"Requested file {filename} not in the metadata table.")
+        return self.table[idx].copy()

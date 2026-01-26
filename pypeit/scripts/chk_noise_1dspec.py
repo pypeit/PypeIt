@@ -19,6 +19,7 @@ from pypeit import utils
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit.onespec import OneSpec
+from pypeit.core import plot as pypeit_plot
 
 from IPython import embed
 
@@ -69,7 +70,7 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     if lbda[sec].size == 0:
         sec = lbda > 0
 
-    ax.plot(lbda[sec], flux[sec], lw=1, zorder=1, drawstyle=drawstyle, label='{}'.format(basename))
+    ax.plot(lbda[sec], flux[sec], lw=1, zorder=1, drawstyle=drawstyle, label='{}'.format(basename), color='k')
     ax.plot(lbda[sec], np.zeros(lbda[sec].size), ls='--', color='Gray', zorder=-1)
     
     if args.ploterr: 
@@ -94,7 +95,9 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     ax.set_ylim(ymin, ymax)
     ax.set_xlabel('Wavelength  (Angstrom)')
     ax.set_ylabel(r'Counts')
-    plt.legend(loc=3)
+    pypeit_plot.set_fontsize(ax, 20)
+    plt.legend(loc=3, fontsize=10)
+
     ax2 = plt.subplot2grid((1, 4), (0, 3), rowspan=1, colspan=1)
     ax2.minorticks_on()
     bin_step = (np.nanmax(ratio) - np.nanmin(ratio))*0.01
@@ -111,10 +114,12 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     ax2.text(0.97, 0.93, r'Median Noise= {:.1f} - Flux RMS= {:.1f} --> {:.2f}x'.format(np.median(err[input_mask]),
                                                                                        mad_std(flux[input_mask]),
                                                                                        err_over_flux),
-             color='k', fontsize=9, horizontalalignment='right', transform=ax2.transAxes)
+             color='k', fontsize=10, horizontalalignment='right', transform=ax2.transAxes)
     ax2.text(0.97, 0.87, r'Chi:  Median = {:.2f}, Std = {:.2f}'.format(np.median(ratio), mad_std(ratio)),
              color='k', fontsize=12, horizontalalignment='right', transform=ax2.transAxes, weight='bold')
-    ax2.legend(loc=2)
+    ax2.legend(loc=2, fontsize=10)
+    pypeit_plot.set_fontsize(ax2, 20)
+
     plt.tight_layout()
 
     # Finish

@@ -16,6 +16,7 @@ Submodules
    pypeit.scripts.chk_for_calibs
    pypeit.scripts.chk_noise_1dspec
    pypeit.scripts.chk_noise_2dspec
+   pypeit.scripts.chk_plugins
    pypeit.scripts.chk_scattlight
    pypeit.scripts.chk_tilts
    pypeit.scripts.chk_wavecalib
@@ -43,12 +44,14 @@ Submodules
    pypeit.scripts.print_bpm
    pypeit.scripts.qa_html
    pypeit.scripts.ql
+   pypeit.scripts.rectify_2dspec
+   pypeit.scripts.reduce_by_step
    pypeit.scripts.run_pypeit
+   pypeit.scripts.run_to_calibstep
    pypeit.scripts.scriptbase
    pypeit.scripts.sensfunc
    pypeit.scripts.setup
    pypeit.scripts.setup_coadd2d
-   pypeit.scripts.setup_gui
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
    pypeit.scripts.show_arxiv
@@ -57,6 +60,7 @@ Submodules
    pypeit.scripts.skysub_regions
    pypeit.scripts.tellfit
    pypeit.scripts.trace_edges
+   pypeit.scripts.version
    pypeit.scripts.view_fits
 
 Module contents

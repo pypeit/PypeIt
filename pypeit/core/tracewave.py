@@ -304,7 +304,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             tilts_guess_now, tge, tgm \
                 = trace.follow_centroid(smsub_img,
                                         (sub_img.shape[0] - 1) // 2, lines_spec[iline], ivar=ivar,
-                                        bpm=np.invert(sub_inmask.astype(bool)), width=3 * fwhm,
+                                        bpm=np.logical_not(sub_inmask.astype(bool)), width=3 * fwhm,
                                         maxshift_start=tcrude_maxshift0,
                                         maxshift_follow=tcrude_maxshift,
                                         maxerror=tcrude_maxerr, continuous=False)
@@ -343,8 +343,8 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # aperature has its own image.
         tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, tset_out \
             = trace.fit_trace(sub_img, tilts_guess_now, spat_order,
-                              bpm=np.invert(sub_inmask.astype(bool)),
-                              trace_bpm=np.invert(tilts_sub_mask_box), fwhm=fwhm,
+                              bpm=np.logical_not(sub_inmask.astype(bool)),
+                              trace_bpm=np.logical_not(tilts_sub_mask_box), fwhm=fwhm,
                               maxdev=maxdev, niter=6, idx=str(iline), debug=show_tracefits,
                               xmin=0.0, xmax=float(nsub - 1), flavor='tilts')
 
@@ -361,8 +361,8 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             # Re-measure using Gaussian weighting and refit
             tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, _ \
                 = trace.fit_trace(sub_img, tilts_sub_fit_out, spat_order,
-                                  bpm=np.invert(sub_inmask.astype(bool)),
-                                  trace_bpm=np.invert(tilts_sub_mask_box),
+                                  bpm=np.logical_not(sub_inmask.astype(bool)),
+                                  trace_bpm=np.logical_not(tilts_sub_mask_box),
                                   weighting='gaussian', fwhm=fwhm, maxdev=maxdev, niter=3,
                                   idx=str(iline), debug=show_tracefits, xmin=0.0,
                                   xmax=float(nsub - 1))
@@ -457,7 +457,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
     # Create the mask for the bad lines. Define the error on the bad tilt as being the
     #    bad_mask = (tilts_err > 900) | (tilts_mask == False)
-    bad_mask = tilts_bpm | np.invert(tilts_mask)
+    bad_mask = tilts_bpm | np.logical_not(tilts_mask)
     on_slit = np.sum(tilts_mask, axis=0)
     on_slit_bad = np.sum(tilts_mask & tilts_bpm, axis=0)
     bad_frac = on_slit_bad / on_slit
@@ -465,7 +465,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     dev_mean, dev_median, dev_sig = sigma_clipped_stats(np.abs(tilts - tilts_fit), mask=bad_mask,
                                                         sigma=4.0, axis=0)
     # Determine the line is masked everywhere
-    good_line = np.any(np.invert(bad_mask), axis=0)
+    good_line = np.any(np.logical_not(bad_mask), axis=0)
     # Median absolute deviation for each line quantifies the goodness of tracing
     dev_mad = 1.4826 * dev_median
     # Now reject outliers from this distribution
@@ -698,7 +698,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
     use_mask = np.outer(np.ones(nspat, dtype=bool), use_tilt)
     #    tot_mask = tilts_mask & (tilts_err < 900) & use_mask
-    tot_mask = tilts_mask & np.invert(tilts_bpm) & use_mask
+    tot_mask = tilts_mask & np.logical_not(tilts_bpm) & use_mask
     fitxy = [spec_order, spat_order]
 
     # Fit the inverted model with a 2D polynomial
@@ -720,7 +720,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     fitmask = pypeitFit.bool_gpm.reshape(tilts_dspat.shape)
     # Compute a rejection mask that we will use later. These are
     # locations that were fit but were rejected
-    rej_mask = tot_mask & np.invert(fitmask)
+    rej_mask = tot_mask & np.logical_not(fitmask)
     # Compute and store the 2d tilts fit
     delta_tilt_1 = xnspecmin1 * pypeitFit.eval(tilts_spec[tilts_mask] / xnspecmin1,
                                                x2=tilts_dspat[tilts_mask] / xnspatmin1)
@@ -807,7 +807,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # normalized tilts image
     # TODO -- This should be a DataContainer
     tilt_fit_dict = dict(nspec=nspec, nspat=nspat, ngood_lines=np.sum(use_tilt),
-                         npix_fit=np.sum(tot_mask), npix_rej=np.sum(np.invert(fitmask)),
+                         npix_fit=np.sum(tot_mask), npix_rej=np.sum(np.logical_not(fitmask)),
                          coeff2=pypeitFit.fitc, spec_order=spec_order, spat_order=spat_order,
                          minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, func=func2d,
                          pypeitFit=pypeitFit)

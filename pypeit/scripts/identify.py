@@ -156,7 +156,7 @@ class Identify(scriptbase.ScriptBase):
                 if args.slits == 'all':
                     slits_inds = np.arange(slits.nslits)
                 else:
-                    slits_inds = np.array(list(slits.strip('[]').split(",")), dtype=int)
+                    slits_inds = np.array(list(args.slits.strip('[]').split(",")), dtype=int)
             fits_dicts = []
             specdata_multi = []
             wv_fits_arr = []
