@@ -1324,8 +1324,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
             if np.sum(ind) == 0:
                 msgs.error('There is a missing order for object {0:d} on slit {1:d}!'.format(iobj, slitid))
             if iobj == 0:
-                order_vec[islit] = sobjs[ind].ECH_ORDER
-            order_snr[islit,iobj] = sobjs[ind].ech_snr
+                order_vec[islit] = sobjs[ind][0].ECH_ORDER
+            order_snr[islit,iobj] = sobjs[ind][0].ech_snr
 
     # Enforce that the number of objects in the sobjs object is an integer multiple of the number of good orders
     if (np.sum(sobjs.sign > 0) % norders) == 0:

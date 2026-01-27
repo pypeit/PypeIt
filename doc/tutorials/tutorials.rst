@@ -41,6 +41,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    Keck MOSFIRE <mosfire_howto>
    Keck NIRES <nires_howto>
    Keck NIRSPEC <nirspec_high_howto>
+   LBT MODS <mods_howto>
    Shane Kast <kast_howto>
    Subaru FOCAS <focas_howto>
 
