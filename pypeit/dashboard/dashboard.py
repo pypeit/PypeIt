@@ -12,6 +12,7 @@ import qtpy
 
 # from pypeit.setup_gui.controller import start_gui
 # from pypeit.scripts import setup
+import pypeit
 from pypeit.dashboard.capture_logs import PypeitWorker
 
 """
@@ -292,12 +293,20 @@ class MainWindow(QWidget):
         subprocess.Popen(["pypeit_setup","--gui"]) # starting the controller runnner file
 
     def run_all(self):
+        """
+        how to get what the current step is that is happening in pypeit. 
+        there is a pypeit_steps thing that runs_steps apparently and it also outputs what step it is on in logging
+        I will regex the logs and when it finds pypeit_steps() or something similar, it will update the current step
+        to be whatever comes after. 
+        """
+
         # will need better checking in the future but for now will say if file path is not none
         command = ["run_pypeit",f"{self.setup_file_path}"]
         if self.setup_file_path != None:
             subprocess.Popen(command)
-            worker = PypeitWorker(command)
+            worker = PypeitWorker(self.setup_file_path)
             worker.line_received.connect(self.update_logs)
+
             worker.run()
         else:
             # I will do something here that is like you don't have a setup file imported

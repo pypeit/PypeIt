@@ -10,11 +10,19 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 import subprocess
 import sys
+from pypeit.pypeit import PypeIt
+
 
 class PypeitWorker(QThread):
     line_received = pyqtSignal(str)
     finished = pyqtSignal(int)
+
     def __init__(self,command):
+        """ 
+        takes in a pypeit file and will later run and send what the current state is 
+        in the future this class should also take in all the arguments as Pypeit does 
+        so that it will be the exact same
+        """
         super().__init__()
         self.command = command
         self._stop_requested = False
