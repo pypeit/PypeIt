@@ -40,17 +40,17 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
         # Required (core)
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['target'] = dict(ext=0, card='OBJNAME')
         self.meta['decker'] = dict(ext=0, card=None, default='default')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
-        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='FPA')
-        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
-        self.meta['instrument'] = dict(ext=0, card='FPA')
+        self.meta['dispname'] = dict(ext=0, card='SLIT')
+        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['instrument'] = dict(ext=0, card='SLIT')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -67,8 +67,9 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'mjd':
-            time = headarr[0]['UTSHUT']
+            time = headarr[0]['DATE-OBS']
             ttime = Time(time, format='isot')
+            print(time,ttime.mjd,type(ttime.mjd))
             return ttime.mjd
         else:
             msgs.error("Not ready for this compound meta")
@@ -263,11 +264,11 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
             # No pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'dark':
-            return good_exp & (fitstbl['target'] == 'lamp_off')
+            return good_exp & (fitstbl['idname'] == 'dark')
         if ftype == 'standard':
             return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
         if ftype in ['pixelflat', 'trace']:
-            return good_exp & (fitstbl['target'] == 'lamp_on')
+            return good_exp & (fitstbl['idname'] == 'flat')
         if ftype in 'science':
             return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
         if ftype in ['arc', 'tilt']:

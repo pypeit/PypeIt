@@ -45,6 +45,7 @@ from pypeit.spectrographs import subaru_focas
 from pypeit.spectrographs import p200_ngps 
 from pypeit.spectrographs import arc_kosmos
 from pypeit.spectrographs import arc_arces
+from pypeit.spectrographs import arc_tspec
 
 
 # Build the list of names for the available spectrographs
