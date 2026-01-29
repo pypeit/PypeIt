@@ -133,13 +133,13 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
             specaxis        = 1,
             specflip        = True,
             spatflip        = False,
-            platescale      = 0.37,
+            platescale      = 0.39,
             darkcurr        = 306.0,  # e-/pixel/hour  (=0.085 e-/pixel/s)
             saturation      = 28000,
             nonlinear       = 0.9,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(3.8),
+            gain            = np.atleast_1d(3.5),
             ronoise         = np.atleast_1d(3.5),
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = None #np.atleast_1d('[:,:]')
@@ -167,7 +167,7 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'reidentify'
 
         # Reidentification parameters
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_triplespec.fits'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'arc_tspec.fits'
 #        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -321,7 +321,8 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
         """
         Return the expected spatial position of each echelle order.
         """
-        return np.array([0.3096, 0.4863, 0.6406, 0.7813, 0.9424])
+        #return np.array([0.3096, 0.4863, 0.6406, 0.7813, 0.9424])
+        return np.array([0.09, 0.30, 0.45, 0.59, 0.75])
 
     @property
     def orders(self):
@@ -357,6 +358,6 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        return np.full(order_vec.size, 0.37)
+        return np.full(order_vec.size, 0.39)
 
 
