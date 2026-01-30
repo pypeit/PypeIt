@@ -2,7 +2,7 @@ name: pypeit
 channels:
   - conda-forge
 dependencies:
-  - python>=3.11,<3.14
+  - python>=3.11,<3.15
   - numpy
   - astropy
   - scipy
