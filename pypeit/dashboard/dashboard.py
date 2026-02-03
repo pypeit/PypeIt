@@ -2,7 +2,6 @@ import sys
 import subprocess
 import re
 from pathlib import Path
-from pypeit import msgs
 import zmq
 import logging
 from logging.handlers import QueueListener
@@ -88,7 +87,6 @@ class StatusWidget(FilledBackgroundWidget):
         self.setMaximumHeight(h)
         w = fm.averageCharWidth() * 80
         self.setMaximumWidth(w)
-        msgs.info(f"status height {h} width{w}")
 
         value_cm = QMargins(fm.averageCharWidth(),0,fm.averageCharWidth(),0)
         value_style_sheet = "background-color:rgb(80,80,80);"
@@ -383,21 +381,13 @@ def main():
     # Setup application/window icon
     iconPath = Path(__file__).parent.parent / "setup_gui/images/window_icon.png"
     if not iconPath.exists():
-        msgs.info("Icon path does not exist")
+        num = 1
     else:
         app.setWindowIcon(QIcon(str(iconPath)))
     
-    msgs.reset(verbosity=2, log="dashboard.log", log_to_stderr=True)
-    msgs.info(f"QT Version: {qtpy.QT_VERSION}")
-    msgs.info(f"PySide version: {qtpy.PYSIDE_VERSION}")
-    msgs.info(f"PyQt version: {qtpy.PYQT_VERSION}")
-    msgs.info(f"QtPy API_NAME: {qtpy.API_NAME}")
 
     defaultFont = app.font()
-    msgs.info(f"Default font pixel size: {defaultFont.pixelSize()}")
-    msgs.info(f"Default font point size: {defaultFont.pointSizeF()}")
     if defaultFont.pointSizeF() < 18.0:
-        msgs.info(f"Setting font to 18.")
         defaultFont.setPointSize(18)
         app.setFont(defaultFont)
 
