@@ -9,7 +9,8 @@ import astropy.table
 import linetools.utils
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import dataPaths
 from pypeit import cache
 from pypeit.core.wavecal import defs
@@ -31,7 +32,7 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
         Lists read from the json file are returnes as numpy arrays.
     """
     if not filename.is_file():
-        msgs.error(f"File does not exist: {filename}")
+        raise PypeItError(f"File does not exist: {filename}")
 
     # Force any possible pathlib.Path object to string before `loadjson`
     wv_calib = linetools.utils.loadjson(str(filename))
@@ -159,7 +160,7 @@ def load_reid_arxiv(arxiv_file):
             wv_calib_arxiv[str(irow)]['order'] = wv_tbl['order'][irow]
 
     else:
-        msgs.error(f"Not ready for this `reid_arxiv` extension: {arxiv_fmt}")
+        raise PypeItError(f"Not ready for this `reid_arxiv` extension: {arxiv_fmt}")
 
     return wv_calib_arxiv, par
 
@@ -220,10 +221,10 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
             i1 = line_file.rfind('_')
             lamps.append(line_file[i0+1:i1])
 
-    msgs.info(f"Arc lamps used: {', '.join(lamps)}")
+    log.info(f"Arc lamps used: {', '.join(lamps)}")
     # Read standard files
     # NOTE: If one of the `lamps` does not exist, dataPaths.linelist.get_file_path()
-    #       will exit with msgs.error().
+    #       will exit with raise PypeItError().
     lists = [load_line_list(dataPaths.linelist.get_file_path(f'{lamp}_lines.dat'))
                 for lamp in lamps]
     # Stack
@@ -297,8 +298,10 @@ def load_tree(polygon=4, numsearch=20):
             file_load = pickle.load(f_obj)
         index = np.load(fileindx)
     except FileNotFoundError:
-        msgs.info('The requested KDTree was not found on disk' + msgs.newline() +
-                  'please be patient while the ThAr KDTree is built and saved to disk.')
+        log.info(
+            'The requested KDTree was not found on disk\nplease be patient while the ThAr KDTree '
+            'is built and saved to disk.'
+        )
         from pypeit.core.wavecal import kdtree_generator
         file_load, index = kdtree_generator.main(polygon, numsearch=numsearch, verbose=True,
                                                  ret_treeindx=True, outname=filename)

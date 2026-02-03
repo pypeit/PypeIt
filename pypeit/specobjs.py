@@ -6,8 +6,6 @@ Module for the SpecObjs and SpecObj classes
 """
 import os
 from pathlib import Path
-import re
-from typing import List
 
 from IPython import embed
 
@@ -18,7 +16,8 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import specobj
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
@@ -42,14 +41,11 @@ class SpecObjs:
           specobjs.
 
     Args:
-        specobjs (`numpy.ndarray`_, list, optional):
+        specobjs (:class:`numpy.ndarray`, :class:`list`, optional):
             One or more :class:`~pypeit.specobj.SpecObj`  objects
-        header (`astropy.io.fits.Header`_, optional):
+        header (:class:`~astropy.io.fits.Header`, optional):
             Baseline header to use
 
-    Attributes:
-        summary (`astropy.table.Table`_):
-            Summary table (?)
     """
     version = '1.0.0'
 
@@ -85,7 +81,7 @@ class SpecObjs:
 
             # Catch common error of trying to read a OneSpec file
             if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
-                msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
+                raise PypeItError('This is a OneSpec file.  You are treating it like a SpecObjs file.')
 
             # Load the calibration association into the instance attribute `calibs`
             if 'CLBS_DIR' in slf.header:
@@ -102,14 +98,18 @@ class SpecObjs:
                 if 'DETECTOR' not in hdu.name:
                     continue
                 if 'DMODCLS' not in hdu.header:
-                    msgs.error('HDUs with DETECTOR in the name must have DMODCLS in their header.')
+                    raise PypeItError(
+                        'HDUs with DETECTOR in the name must have DMODCLS in their header.'
+                    )
                 match hdu.header['DMODCLS']:
                     case 'DetectorContainer':
                         dmodcls = DetectorContainer
                     case 'Mosaic':
                         dmodcls = Mosaic
                     case _:
-                        msgs.error(f"Unknown detector datamodel class: {hdu.header['DMODCLS']}")
+                        raise PypeItError(
+                            f"Unknown detector datamodel class: {hdu.header['DMODCLS']}"
+                        )
                 # NOTE: This requires that any "detector" datamodel class has a
                 # from_hdu method, and the name of the HDU must have a known format
                 # (e.g., 'DET01-DETECTOR').
@@ -247,10 +247,10 @@ class SpecObjs:
                 msg = f"{extract_type} extracted flux is not available for all slits/orders. " \
                       f"Consider trying the {other} extraction."
             if not remove_missing:
-                msgs.error(msg)
+                raise PypeItError(msg)
             else:
-                msg += f"{msgs.newline()}-- The missing data will be removed --"
-                msgs.warn(msg)
+                msg += f"\n-- The missing data will be removed --"
+                log.warning(msg)
                 # Remove missing data
                 r_indx = np.where(none_flux)[0]
                 self.remove_sobj(r_indx)
@@ -258,7 +258,7 @@ class SpecObjs:
         if extract_blaze:
             none_blaze = [f is None for f in getattr(self, blaze_key)]
             if np.any(none_blaze):
-                msgs.error(f"{extract_type} extracted blaze is not available for all slits/orders. "
+                raise PypeItError(f"{extract_type} extracted blaze is not available for all slits/orders. "
                            f"Consider trying the {other} extraction, or NOT using the flat.")
 
         #
@@ -363,7 +363,7 @@ class SpecObjs:
                     this_det = self.DET == idet
                     if not np.any(this_det):
                         unique_det = np.unique(self.DET)
-                        msgs.error(f'No matches for {idet} in spec1d file.  Unique options found'
+                        raise PypeItError(f'No matches for {idet} in spec1d file.  Unique options found'
                                    f"are {', '.join(unique_det)}.  Check usage of multi_spec_det.")
                     istd = SNR[this_det].argmax()
                     sobjs_std.add_sobj(self[this_det][istd])
@@ -415,7 +415,7 @@ class SpecObjs:
             sobjs_std.header = self.header
             return sobjs_std
         else:
-            msgs.error('Unknown pypeline')
+            raise PypeItError('Unknown pypeline')
 
     def append_neg(self, sobjs_neg):
         """
@@ -426,7 +426,7 @@ class SpecObjs:
 
         """
         if sobjs_neg.nobj == 0:
-            msgs.warn("No negative objects found...")
+            log.warning("No negative objects found...")
             return
         # Assign the sign and the objids
         sobjs_neg.sign = -1.0
@@ -438,7 +438,7 @@ class SpecObjs:
         elif sobjs_neg[0].PYPELINE == 'SlicerIFU':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
-            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+            raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         self.add_sobj(sobjs_neg)
 
         # Sort objects according to their spatial location. Necessary for the extraction to properly work
@@ -459,7 +459,7 @@ class SpecObjs:
             elif self[0].PYPELINE == 'SlicerIFU':
                 index = self.OBJID < 0
             else:
-                msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+                raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
             self.remove_sobj(index)
 
 
@@ -477,7 +477,7 @@ class SpecObjs:
             elif self[0].PYPELINE == 'SlicerIFU':
                 index = self.OBJID < 0
             else:
-                msgs.error("Should not get here")
+                raise PypeItError("Should not get here")
             try:
                 self[index].OPT_COUNTS *= -1
             except (TypeError,ValueError):
@@ -503,7 +503,7 @@ class SpecObjs:
         elif self[0].PYPELINE == 'SlicerIFU':
             indx = self.SLITID == slitorder
         else:
-            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+            raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
 
         return indx
 
@@ -527,7 +527,7 @@ class SpecObjs:
         elif self[0].PYPELINE == 'SlicerIFU':
             indx = self.NAME == name
         else:
-            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+            raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         return indx
 
 
@@ -557,7 +557,7 @@ class SpecObjs:
         elif self[0].PYPELINE == 'SlicerIFU':
             indx = self.SPAT_PIXPOS_ID == uniq_id
         else: 
-            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+            raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         
         return indx
 
@@ -587,9 +587,9 @@ class SpecObjs:
                 self.specobjs = np.append(self.specobjs, isobj)
             return
         if not isinstance(sobj, (np.ndarray, list)):
-            msgs.error(f'Unable to add {type(sobj)} objects to SpecObjs')
+            raise PypeItError(f'Unable to add {type(sobj)} objects to SpecObjs')
         if any([not isinstance(s, specobj.SpecObj) for s in sobj]):
-            msgs.error('List or arrays of objects to add must all be of type SpecObj.')
+            raise PypeItError('List or arrays of objects to add must all be of type SpecObj.')
         self.specobjs = np.append(self.specobjs, sobj)
 
     def remove_sobj(self, index):
@@ -678,7 +678,7 @@ class SpecObjs:
                                              extrap_sens=par['extrap_sens'],
                                              airmass=float(self.header['AIRMASS']))
                 else:
-                    msgs.error('This should not happen, there is a problem with your sensitivity function.')
+                    raise PypeItError('This should not happen, there is a problem with your sensitivity function.')
 
 
         elif spectrograph.pypeline == 'Echelle':
@@ -703,13 +703,13 @@ class SpecObjs:
                                              extinct_file=par['extinct_file'],
                                              airmass=float(self.header['AIRMASS']))
                 elif indx.size == 0:
-                    msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
+                    log.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
                               'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))
                 else:
-                    msgs.error('This should not happen')
+                    raise PypeItError('This should not happen')
 
         else:
-            msgs.error('Unrecognized pypeline: {0}'.format(spectrograph.pypeline))
+            raise PypeItError('Unrecognized pypeline: {0}'.format(spectrograph.pypeline))
 
 
     def copy(self):
@@ -819,7 +819,7 @@ class SpecObjs:
                 If True, run in debug mode.
         """
         if os.path.isfile(outfile) and not overwrite:
-            msgs.warn(f'{outfile} exits. Set overwrite=True to overwrite it.')
+            log.warning(f'{outfile} exits. Set overwrite=True to overwrite it.')
             return
 
         # If the file exists and update_det (and slit_spat_num) is provided, use the existing header
@@ -893,7 +893,7 @@ class SpecObjs:
                 #exit()
             shdul = sobj.to_hdu()
             if len(shdul) not in [1, 2]:
-                msgs.error('CODING ERROR: SpecObj datamodel changed.  to_hdu should return 1 or 2 '
+                raise PypeItError('CODING ERROR: SpecObj datamodel changed.  to_hdu should return 1 or 2 '
                            'HDUs.  If returned, the 2nd one should be the detector/mosaic.')
             if len(shdul) == 2:
                 detector_hdus[sobj['DET']] = shdul[1]
@@ -902,7 +902,7 @@ class SpecObjs:
                 shdu = shdul
 
             if len(shdu) != 1 or not isinstance(shdu[0], fits.hdu.table.BinTableHDU):
-                msgs.error('CODING ERROR: SpecObj datamodel changed.')
+                raise PypeItError('CODING ERROR: SpecObj datamodel changed.')
 
             # Name
             shdu[0].name = sobj.NAME
@@ -933,7 +933,7 @@ class SpecObjs:
              #embed()
              #exit()
         hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info(f'Wrote 1D spectra to {outfile}')
+        log.info(f'Wrote 1D spectra to {outfile}')
 
     def write_info(self, outfile, pypeline):
         """
@@ -1042,11 +1042,13 @@ class SpecObjs:
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
-    def get_extraction_groups(self, model_full_slit=False) -> List[List[int]]:
+    def get_extraction_groups(self, model_full_slit=False) -> list[list[int]]:
         """
-        Returns:
-            List[List[int]]: A list of extraction groups, each of which is a list of integer
-                object indices that should be extracted together by core.skysub.local_skysub_extract
+        Returns
+        -------
+            A list of extraction groups, each of which is a list of integer
+            object indices that should be extracted together by
+            core.skysub.local_skysub_extract
         """
         nobj = len(self.specobjs)
 
@@ -1155,7 +1157,7 @@ def get_std_trace(detname, std_outfile, chk_version=True):
         elif 'SlicerIFU' in pypeline:
             std_tab = None
         else:
-            msgs.error('Unrecognized pypeline')
+            raise PypeItError('Unrecognized pypeline')
     else:
         std_tab = None
 

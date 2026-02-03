@@ -20,7 +20,8 @@ from pypeit.orderstack import OrderStack
 from pypeit import utils
 from pypeit import sensfunc
 from pypeit import specobjs
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.core import coadd, flux_calib
 from pypeit.history import History
 
@@ -116,7 +117,7 @@ class CoAdd1D:
         """
         Load the arrays we need for performing coadds. Dummy method overloaded by children.
         """
-        msgs.error('This method is undefined in the base classes and should only be called by the subclasses')
+        raise PypeItError('This method is undefined in the base classes and should only be called by the subclasses')
 
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
@@ -229,10 +230,10 @@ class MultiSlitCoAdd1D(CoAdd1D):
                                                     chk_version=self.chk_version)
             indx = sobjs.name_indices(self.objids[iexp])
             if not np.any(indx):
-                msgs.error(
+                raise PypeItError(
                     "No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
             if np.sum(indx) > 1:
-                msgs.error("Error in spec1d file for exposure {:d}: "
+                raise PypeItError("Error in spec1d file for exposure {:d}: "
                            "More than one object was identified with the OBJID={:s} in file={:s}".format(
                     iexp, self.objids[iexp], self.spec1dfiles[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, blaze_iexp, _, header = \
@@ -286,8 +287,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
         # check if there are exposures that are completely masked out, i.e., gpms = False for all spectral pixels
         masked_exps = [np.all(np.logical_not(gpm)) for gpm in _gpms]
         if np.any(masked_exps):
-            msgs.warn(f'The following exposure(s) is/are completely masked out. It/They will not be coadded.')
-            [msgs.warn(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
+            log.warning(f'The following exposure(s) is/are completely masked out. It/They will not be coadded.')
+            [log.warning(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
              for i, (fname, obj, masked_exp) in enumerate(zip(_spec1dfiles, _objids, masked_exps)) if masked_exp]
             # remove masked out exposure
             _waves = [wave for (wave, masked_exp) in zip(_waves, masked_exps) if not masked_exp]
@@ -301,7 +302,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
 
         # check if there is still at least 1 exposure left
         if len(_fluxes) < 1:
-            msgs.error('At least 1 unmasked exposures are required for coadding.')
+            raise PypeItError('At least 1 unmasked exposures are required for coadding.')
 
         # check if there is any bad exposure by comparing the rms_sn with the median rms_sn among all exposures
         if len(_fluxes) > 2:
@@ -318,8 +319,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
                            f'({_sigrej} sigma above the median S/N in the stack).'
                 if self.par['sigrej_exp'] is not None:
                         warn_msg += ' It/They WILL NOT BE COADDED.'
-                msgs.warn(warn_msg)
-                [msgs.warn(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
+                log.warning(warn_msg)
+                [log.warning(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
                  for i, (fname, obj, bad_exp) in enumerate(zip(_spec1dfiles, _objids, bad_exps)) if bad_exp]
                 if self.par['sigrej_exp'] is not None:
                     # remove bad exposure
@@ -383,7 +384,7 @@ class EchelleCoAdd1D(CoAdd1D):
                          chk_version=chk_version)
 
         if sensfuncfile is None:
-            msgs.error('sensfuncfile is a required argument for echelle coadding')
+            raise PypeItError('sensfuncfile is a required argument for echelle coadding')
 
         self.sensfuncfile = self.nexp * [sensfuncfile] if isinstance(sensfuncfile, str) else sensfuncfile
         nsens = len(self.sensfuncfile)
@@ -391,7 +392,7 @@ class EchelleCoAdd1D(CoAdd1D):
             self.sensfuncfile = self.nexp * [self.sensfuncfile[0]]
             nsens = self.nexp
         if nsens != self.nexp:
-            msgs.error('Must enter either one sensfunc file for all exposures or one sensfunc file for '
+            raise PypeItError('Must enter either one sensfunc file for all exposures or one sensfunc file for '
                        f'each exposure.  Entered {nsens} files for {self.nexp} exposures.')
 
         if setup_id is None:
@@ -403,7 +404,7 @@ class EchelleCoAdd1D(CoAdd1D):
             self.setup_id = self.nexp * [self.setup_id[0]]
             nsetup = self.nexp
         if nsetup != self.nexp:
-            msgs.error('Must enter either a single setup_id for all exposures or one setup_id for '
+            raise PypeItError('Must enter either a single setup_id for all exposures or one setup_id for '
                        f'each exposure.  Entered {nsetup} files for {self.nexp} exposures.')
 
 
@@ -485,7 +486,7 @@ class EchelleCoAdd1D(CoAdd1D):
             sobjs = specobjs.SpecObjs.from_fitsfile(spec1dfiles[iexp], chk_version=self.chk_version)
             indx = sobjs.name_indices(objids[iexp])
             if not np.any(indx):
-                msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
+                raise PypeItError("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, blaze_iexp, meta_spec, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             # This np.atleast2d hack deals with the situation where we are wave_iexp is actually Multislit data, i.e. we are treating
@@ -517,7 +518,7 @@ class EchelleCoAdd1D(CoAdd1D):
                 waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp], weights_sens[...,iexp] \
                     = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
             except ValueError:
-                msgs.error('The shape (Nspec,Norder) of spectra is not consistent between exposures. '
+                raise PypeItError('The shape (Nspec,Norder) of spectra is not consistent between exposures. '
                            'These spec1ds cannot be coadded at this time.')
 
         return waves, fluxes, ivars, gpms, weights_sens, header_out

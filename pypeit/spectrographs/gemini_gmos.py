@@ -10,10 +10,10 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units
 from astropy.time import Time
-from astropy.wcs import wcs
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
 from pypeit import io
@@ -184,7 +184,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 # binning in the spec2d file
                 binning = headarr[0].get('BINNING')
             if binning is None:
-                msgs.error('Binning not found')
+                raise PypeItError('Binning not found')
             return binning
 
         if meta_key == 'mjd':
@@ -192,7 +192,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             if obsepoch is not None:
                 return Time(obsepoch, format='jyear').mjd
             else:
-                msgs.warn('OBSEPOCH header keyword not found. Using today as the date.')
+                log.warning('OBSEPOCH header keyword not found. Using today as the date.')
                 return Time.now().mjd
 
     def config_independent_frames(self):
@@ -293,7 +293,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if ftype == 'bias':
             return good_exp & (fitstbl['target'] == 'Bias')#& (fitstbl['idname'] == 'BIAS')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     @classmethod
@@ -431,7 +431,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Read
-        msgs.info(f'Attempting to read GMOS file: {raw_file}')
+        log.info(f'Attempting to read GMOS file: {raw_file}')
         # NOTE: io.fits_open checks that the file exists
         hdu = io.fits_open(raw_file)
         head0 = hdu[0].header
@@ -447,7 +447,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Number of amplifiers is hard-coded as follows
         numamp = (len(hdu) - 1) // self.ndet
         if numamp != detectors[0].numamplifiers:
-            msgs.error(f'Unexpected number of amplifiers for {self.name} based on number of '
+            raise PypeItError(f'Unexpected number of amplifiers for {self.name} based on number of '
                        f'extensions in {raw_file}.')
 
         # First read over the header info to determine the size of the output array...
@@ -544,7 +544,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
         # Binning *must* be consistent for all detectors
         if any(d.binning != detectors[0].binning for d in detectors[1:]):
-            msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+            raise PypeItError('Binning is somehow inconsistent between detectors in the mosaic!')
 
         # Collect the offsets and rotations for *all unbinned* detectors in the
         # full instrument, ordered by the number of the detector.  Detector
@@ -717,10 +717,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             Two arrays are the predictions of the slit edges from the slitmask design and
             one contains the indices to order the slits from left to right in the PypeIt orientation
         """
-
         # check if the binning is provided, even if optional, it's needed for this spectrograph
         if binning is None:
-            msgs.error('Binning must be provided to get the slit edges from the mask definition file.')
+            raise PypeItError(
+                'Binning must be provided to get the slit edges from the mask definition file.'
+            )
 
         # Parse the binning
         _, bin_spat = parse.parse_binning(binning)
@@ -734,7 +735,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # check if the mask design file exists
         if not Path(_maskfile).exists():
-            msgs.error(f'The mask design file {_maskfile} does not exist.')
+            raise PypeItError(f'The mask design file {_maskfile} does not exist.')
 
         # read the mask design file
         mask_tbl = Table.read(_maskfile, format='fits')
@@ -794,13 +795,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if maskfile is None or maskdef_ids is None or nspec is None:
             # If any of these are not provided, we cannot get the maskdef spec minmax
             # and we will use the whole spectral length instead.
-            msgs.warn('maskfile, maskdef_id, and nspec must be provided to get the maskdef spec minmax. '
-                       'The whole spectral length will be used instead.')
+            log.warning(
+                'maskfile, maskdef_id, and nspec must be provided to get the maskdef spec minmax. '
+                'The whole spectral length will be used instead.'
+            )
             return None, None
 
         # check if the binning is provided, even if optional, it's needed for this spectrograph
         if binning is None:
-            msgs.error('Binning must be provided to get the slit edges from the mask definition file.')
+            raise PypeItError(
+                'Binning must be provided to get the slit edges from the mask definition file.'
+            )
 
         # Parse the binning
         bin_spec, _ = parse.parse_binning(binning)
@@ -983,7 +988,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
             if obs_date >= t_upgrade:
                 self.detid = 'BI11-41-4k-2,BI13-19-4k-3,BI12-34-4k-1'
-                msgs.info(f'Using the detector parameters for GMOS-S Hamamatsu after the upgrade on '
+                log.info(f'Using the detector parameters for GMOS-S Hamamatsu after the upgrade on '
                           f'{t_upgrade.iso.split(" ")[0]}')
             else:
                 self.detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
@@ -1054,13 +1059,13 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
         # Add the detector-specific, hard-coded bad columns
         if 1 in _det:
-            msgs.info("Using hard-coded BPM for det=1 on GMOSs")
+            log.info("Using hard-coded BPM for det=1 on GMOSs")
             i = _det.index(1)
             # Apply the mask
             badc = 616//bin_spec
             _bpm_img[i,badc,:] = 1
         if 2 in _det:
-            msgs.info("Using hard-coded BPM for det=2 on GMOSs")
+            log.info("Using hard-coded BPM for det=2 on GMOSs")
             i = _det.index(2)
             # Apply the mask
             # Up high
@@ -1075,7 +1080,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 badr = (768*2)//bin_spec
                 _bpm_img[i,badr:,:] = 1
         if 3 in _det:
-            msgs.info("Using hard-coded BPM for det=3 on GMOSs")
+            log.info("Using hard-coded BPM for det=3 on GMOSs")
             i = _det.index(3)
             # Apply the mask
             badr = (281*2)//bin_spec # Transposed
@@ -1692,6 +1697,3 @@ def gemini_read_amp(inp, ext):
 
     # Return
     return data, overscan, datasec, biassec, x1, x2
-
-
-

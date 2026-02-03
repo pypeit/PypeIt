@@ -10,7 +10,7 @@ import yaml
 import numpy as np
 
 from pypeit import utils
-from pypeit import msgs
+from pypeit import log
 from pypeit.tests.tstutils import data_output_path
 from pypeit import io
 

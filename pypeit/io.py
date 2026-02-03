@@ -36,7 +36,8 @@ import time
 # favor of specutils.Spectrum1D (or whatever it is in specutils>2.0).
 from linetools.spectra import xspectrum1d
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import dataPaths
 from pypeit import __version__
 
@@ -111,7 +112,7 @@ def rec_to_fits_type(col_element, single_row=False):
     if s < 0:
         s = col_element.dtype.str.find('S')
     if s < 0:
-        msgs.error(f'Unable to parse datatype: {col_element.dtype.str}')
+        raise PypeItError(f'Unable to parse datatype: {col_element.dtype.str}')
     
     l = int(col_element.dtype.str[s+1:])
 #    return '{0}A'.format(l) if n==1 else '{0}A{1}'.format(l*n,l)
@@ -363,10 +364,6 @@ def header_version_check(hdr, warning_only=True):
             msg = '{0} version used to create the file ({1}) '.format(package, hdr_version) \
                         + 'does not match the current system version ({0})!'.format(sys_version)
             if warning_only:
-                # TODO: I had to change pypeit/__init__.py to get these
-                # to show up. We eventually need to make pypmsgs play
-                # nice with warnings and other logging, or just give up
-                # on pypmsgs...
                 warnings.warn(msg)
             else:
                 raise ValueError(msg)
@@ -674,11 +671,10 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     # Compress the file if the output filename has a '.gz' extension;
     # this is slow but still faster than if you have astropy.io.fits do
     # it directly
-    # TODO: use pypmsgs?
     if _ofile is not ofile:
-        pypeit.msgs.info('Compressing file: {0}'.format(_ofile))
+        log.info('Compressing file: {0}'.format(_ofile))
         compress_file(_ofile, overwrite=True)
-    pypeit.msgs.info('File written to: {0}'.format(ofile))
+    log.info('File written to: {0}'.format(ofile))
 
 
 def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
@@ -788,16 +784,16 @@ def fits_open(filename, **kwargs):
     # to do this!  Is there are more appropriate os.path function that allows
     # for this different type of object?
     if isinstance(filename, (str, Path)) and not Path(filename).absolute().exists():
-        msgs.error(f'{filename} does not exist!')
+        raise PypeItError(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
     except OSError as e:
-        msgs.warn(f'Error opening {filename} ({e}).  Trying again by setting '
+        log.warning(f'Error opening {filename} ({e}).  Trying again by setting '
                   'ignore_missing_end=True, assuming the error was a header problem.')
         try:
             return fits.open(filename, ignore_missing_end=True, **kwargs)
         except OSError as e:
-            msgs.error(f'That failed, too!  Astropy is unable to open {filename} and reports the '
+            raise PypeItError(f'That failed, too!  Astropy is unable to open {filename} and reports the '
                        f'following error: {e}')
 
 
@@ -883,7 +879,7 @@ def files_from_extension(raw_path, extension='.fits'):
         else:
             _raw_path, prefix = _raw_path.parent, _raw_path.name
             if not _raw_path.is_dir():
-                msgs.error(f'{_raw_path} does not exist!')
+                raise PypeItError(f'{_raw_path} does not exist!')
         ext = [extension] if isinstance(extension, str) else extension
         files = numpy.concatenate([sorted(_raw_path.glob(f'{prefix}*{e}')) for e in ext])
         return numpy.unique(files).tolist()
@@ -892,7 +888,7 @@ def files_from_extension(raw_path, extension='.fits'):
         files = numpy.concatenate([files_from_extension(p, extension=extension) for p in raw_path])
         return numpy.unique(files).tolist()
 
-    msgs.error(f"Incorrect type {type(raw_path)} for raw_path; must be str, Path, or list.")
+    raise PypeItError(f"Incorrect type {type(raw_path)} for raw_path; must be str, Path, or list.")
 
 
 
@@ -951,7 +947,7 @@ def load_telluric_grid(filename: str):
     # Check for existence of file parameter
     # TODO: Do we need this check?
     if not isinstance(filename, str) or len(filename) == 0:
-        msgs.error("No file specified for telluric correction.  "
+        raise PypeItError("No file specified for telluric correction.  "
                    "See https://pypeit.readthedocs.io/en/latest/telluric.html")
 
     # Get the data path for the filename, whether in the package directory or cache
@@ -961,7 +957,7 @@ def load_telluric_grid(filename: str):
     # Check for existance of file
     # NOTE: With the use of `PypeItDataPath.get_file_path`, this should never fault
     if not file_with_path.is_file():
-        msgs.error(f"File {file_with_path} is not on your disk.  "
+        raise PypeItError(f"File {file_with_path} is not on your disk.  "
                    "You likely need to download the Telluric files.  "
                    "See https://pypeit.readthedocs.io/en/release/installing.html"
                    "#atmospheric-model-grids")

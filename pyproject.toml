@@ -32,7 +32,7 @@ classifiers = [
 ]
 requires-python = ">=3.11,<3.14"
 dependencies = [ 
-    "numpy>=2.0",
+    "numpy>=2.4.1",
     "astropy>=7.0",
     "packaging>=22.0",
     "scipy>=1.9",
@@ -68,11 +68,12 @@ test = [
     "coverage",
 ]
 docs = [
-    "sphinx>=1.6,<8",
+    "sphinx>6",
     "docutils<0.22",
     "sphinx-automodapi",
     "sphinx-design",
-    "sphinx_rtd_theme==2.0.0",
+    "sphinx_rtd_theme==3.0.0",
+    "sphinx-autodoc-typehints>3.2",
 ]
 devsuite = [
     "psutil",
@@ -87,11 +88,12 @@ dev = [
     "tox",
     "pytest-cov",
     "coverage",
-    "sphinx>=1.6,<8",
+    "sphinx>6",
     "docutils<0.22",
     "sphinx-automodapi",
     "sphinx-design",
-    "sphinx_rtd_theme==2.0.0",
+    "sphinx_rtd_theme==3.0.0",
+    "sphinx-autodoc-typehints>3.2",
     "psutil",
     "pytest-qt",
 ]

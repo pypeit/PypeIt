@@ -1,15 +1,29 @@
 .. code-block:: console
 
     $ pypeit_setup -h
-    usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT [ROOT ...]] [-e EXTENSION]
-                        [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-f] [-m]
-                        [-v VERBOSITY] [-k] [-p PARAM_BLOCK_FILE] [-G]
+    usage: pypeit_setup [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                        [--log_level LOG_LEVEL] [-s SPECTROGRAPH]
+                        [-r ROOT [ROOT ...]] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
+                        [-c CFG_SPLIT] [-b] [-f] [-m] [-k] [-p PARAM_BLOCK_FILE]
+                        [-G]
     
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: default)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
       -s, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: aat_uhrf, apf_levy,
                             bok_bc, gemini_flamingos1, gemini_flamingos2,
@@ -65,10 +79,6 @@
       -m, --manual_extraction
                             Include the manual extraction column for the user to
                             edit (default: False)
-      -v, --verbosity VERBOSITY
-                            Verbosity level between 0 [none] and 2 [all]. Default:
-                            1. Level 2 writes a log with filename setup_YYYYMMDD-
-                            HHMM.log (default: 1)
       -k, --keep_bad_frames
                             Keep all frames, even if they are identified as having
                             bad/unrecognized configurations that cannot be reduced

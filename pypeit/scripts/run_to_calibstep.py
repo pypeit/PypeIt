@@ -15,8 +15,6 @@ class RunToCalibStep(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        import argparse
-
         parser = super().get_parser(description='Run PypeIt to a single calibration step for an input frame',
                                     width=width, formatter=scriptbase.SmartFormatter)
         parser.add_argument('pypeit_file', type=str,
@@ -28,9 +26,6 @@ class RunToCalibStep(scriptbase.ScriptBase):
         parser.add_argument('--det', type=str, help='Detector to reduce')
 
         # TODO -- Grab these from run_pypeit.py ?
-        parser.add_argument('-v', '--verbosity', type=int, default=2,
-                            help='Verbosity level between 0 [none] and 2 [all]')
-
         parser.add_argument('-r', '--redux_path', default=None,
                             help='Path to directory for the reduction.  Only advised for testing')
         parser.add_argument('-s', '--show', default=False, action='store_true',
@@ -41,33 +36,40 @@ class RunToCalibStep(scriptbase.ScriptBase):
 
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         import numpy as np
         from IPython import embed
         from pathlib import Path
 
-        from pypeit import pypeit, pypeit_steps
-        from pypeit import msgs
+        from pypeit import pypeit
+        from pypeit import pypeit_steps
+        from pypeit import log
+        from pypeit import PypeItError
         from pypeit.core import parse
 
-        # Load options from command line
-        _pypeit_file = Path(args.pypeit_file).absolute()
-        if _pypeit_file.suffix != '.pypeit':
-            msgs.error(f'Input file {_pypeit_file} must have a .pypeit extension!')
-        logname = _pypeit_file.parent / f'{_pypeit_file.stem}.log'
+        # Set a default log file based on the name of the pypeit file, not the
+        # name of the script
+        if args.log_file == 'default':
+            _pypeit_file = Path(args.pypeit_file)
+            if _pypeit_file.suffix != '.pypeit':
+                raise PypeItError('Input file must have a .pypeit extension!')
+            args.log_file = _pypeit_file.with_suffix('.log')
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Check for the frame or calib_group
         if args.science_frame is None and args.calib_group is None:
-            msgs.error('Must provide either a science frame or a calibration group ID')
+            raise PypeItError('Must provide either a science frame or a calibration group ID')
         elif args.science_frame is not None and args.calib_group is not None:
-            msgs.warn("Both science_frame and calib_group ID provided.  Will use the science_frame")
+            log.warning("Both science_frame and calib_group ID provided.  Will use the science_frame")
 
         # Instantiate the main pipeline reduction object
-        pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
-                               redux_path=args.redux_path, 
-                               logname=logname, show=args.show, calib_only=True)
+        pypeIt = pypeit.PypeIt(
+            args.pypeit_file, redux_path=args.redux_path, show=args.show, calib_only=True
+        )
         pypeIt.reuse_calibs = True
 
         # Find the detectors to reduce
@@ -83,11 +85,11 @@ class RunToCalibStep(scriptbase.ScriptBase):
         if args.science_frame is not None:
             row = np.where(pypeIt.fitstbl['filename'] == args.science_frame)[0]
             if len(row) != 1:
-                msgs.error(f"Frame {args.science_frame} not found or not unique")
+                raise PypeItError(f"Frame {args.science_frame} not found or not unique")
         elif args.calib_group is not None:
             rows = np.where((pypeIt.fitstbl['calib'].data.astype(str) == args.calib_group))[0] 
             if len(rows) == 0:
-                msgs.error(f"Calibration group {args.calib_group} not found")
+                raise PypeItError(f"Calibration group {args.calib_group} not found")
             row = rows[0]
         row = int(row[0])
         calib_id = pypeIt.fitstbl.find_frame_calib_groups(row)[0]
@@ -97,9 +99,8 @@ class RunToCalibStep(scriptbase.ScriptBase):
             pypeit_steps.calib_one(pypeIt.spectrograph, pypeIt.fitstbl, pypeIt.par, det, calib_id, pypeIt.calibrations_path, stop_at_step=args.step)
         
         # QA HTML
-        msgs.info('Generating QA HTML')
+        log.info('Generating QA HTML')
         pypeIt.build_qa()
-        msgs.close()
 
         return 0
 

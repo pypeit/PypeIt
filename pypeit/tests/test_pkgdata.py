@@ -14,7 +14,7 @@ import github
 
 from linetools.spectra import xspectrum1d
 
-from pypeit.pypmsgs import PypeItPathError
+from pypeit import PypeItPathError
 from pypeit.pypeitdata import PypeItDataPath
 from pypeit import dataPaths
 from pypeit import io

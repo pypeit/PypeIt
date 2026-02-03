@@ -20,10 +20,13 @@ class LowRDXSkySpec(scriptbase.ScriptBase):
         parser.add_argument('new_file', type=str, default=None, help='PYPIT FITS sky spectrum')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         from scipy.io.idl import readsav
         from linetools.spectra.xspectrum1d import XSpectrum1D
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Read
         lrdx_sky = readsav(args.lowrdx_sky)

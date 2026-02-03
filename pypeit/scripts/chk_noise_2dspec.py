@@ -16,7 +16,8 @@ from astropy.modeling.models import Gaussian1D
 from astropy.table import Table
 
 from pypeit import spec2dobj
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import io
 from pypeit import utils
 from pypeit.scripts import scriptbase
@@ -177,8 +178,10 @@ class ChkNoise2D(scriptbase.ScriptBase):
 
 
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
+        # Initialize the log
+        cls.init_log(args)
 
         chk_version = not args.try_old
 
@@ -238,7 +241,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
             all_maskdef_ids = spec2DObj.slits.maskdef_id
             all_pypeit_ids = spec2DObj.slits.slitord_id
             if args.maskdef_id is not None and all_maskdef_ids is None:
-                msgs.error('This spec2d does not have maskdef_id. Choose a pypeit_id insteed.')
+                raise PypeItError('This spec2d does not have maskdef_id. Choose a pypeit_id insteed.')
 
             # Build the mask
             input_mask = spec2DObj.bpmmask.mask == 0
@@ -274,7 +277,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 # Cut down
                 chi_select = chi_slit * input_mask
                 if np.all(chi_select == 0):
-                    msgs.warn(f"All of the chi values are masked in slit {pypeit_id} of {basename}!")
+                    log.warning(f"All of the chi values are masked in slit {pypeit_id} of {basename}!")
                     continue
 
                 # Flux to show
@@ -293,7 +296,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
 
                 # Wavelengths
                 if spec2DObj.waveimg[input_mask].size == 0:
-                    msgs.warn(f"None of the wavelength values work in slit {pypeit_id} of {basename}!")
+                    log.warning(f"None of the wavelength values work in slit {pypeit_id} of {basename}!")
                     continue
                 lbda_1darray = spec2DObj.waveimg[:, mid_spat]
 

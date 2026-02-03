@@ -10,7 +10,8 @@ import copy
 
 from astropy.table import Table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
 from pypeit import specobjs
@@ -65,8 +66,10 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
     elif 'standard' in types:
         objtype_out = 'standard'
     else:
-        msgs.error('get_sci_metadata() should only be run on standard or science frames.  '
-                    f'Types of this frame are: {types}')
+        raise PypeItError(
+            'get_sci_metadata() should only be run on standard or science frames.  Types of this '
+            f'frame are: {types}'
+        )
     calib_key = CalibFrame.construct_calib_key(fitstbl['setup'][frame],
                                                 fitstbl['calib'][frame],
                                                 spectrograph.get_det_name(det))
@@ -167,7 +170,7 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
     # Instantiate Calibrations class
     user_slits = slittrace.merge_user_slit(par['rdx']['slitspatnum'],
                                             par['rdx']['maskIDs'])
-    msgs.info(f'Building/loading calibrations for detector {det}')
+    log.info(f'Building/loading calibrations for detector {det}')
     caliBrate = calibrations.Calibrations.get_instance(
         fitstbl, par['calibrations'], spectrograph, calibrations_path, 
         calib_ID, grp_frames[0], det,
@@ -178,16 +181,20 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
 
     # Check
     if stop_at_step is not None and stop_at_step not in caliBrate.steps:
-        msgs.error(f"Requested stop_at_step={stop_at_step} is not a valid calibration step.\n Allowed steps are: {caliBrate.steps}")
+        raise PypeItError(
+            f"Requested stop_at_step={stop_at_step} is not a valid calibration step.\n Allowed "
+            f"steps are: {caliBrate.steps}"
+        )
         
     # Run
     caliBrate.run_the_steps(stop_at_step=stop_at_step)
 
     # Success?
     if not caliBrate.success:
-        msgs.warn(f'Calibrations for detector {det} were unsuccessful!  The step '
-                              f'that failed was {caliBrate.failed_step}.  Continuing to next '
-                              f'detector.')
+        log.warning(
+            f'Calibrations for detector {det} were unsuccessful!  The step that failed was '
+            f'{caliBrate.failed_step}.  Continuing to next detector.'
+        )
 
     return caliBrate
 
@@ -250,7 +257,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
     caliBrate = load_calibrations_for_frame(
         spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
 
-    msgs.info("Image processing begins for {} on det={}".format(basename, det))
+    log.info(f"Image processing begins for {basename} on det={det}")
 
     # Is this a standard star?
     std_redux = objtype == 'standard'
@@ -301,12 +308,12 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
         if not sci_outfile.parent.is_dir():
             sci_outfile.parent.mkdir()
         sciImg.to_file(sci_outfile, overwrite=True)
-        msgs.info(f'Wrote intermediate science image to {sci_outfile}')
+        log.info(f'Wrote intermediate science image to {sci_outfile}')
 
     # Write out the background image?
     if bkg_outfile is not None and bkg_redux_sciimg is not None:
         bkg_redux_sciimg.to_file(bkg_outfile, overwrite=True)
-        msgs.info(f'Wrote intermediate background image to {bkg_outfile}')
+        log.info(f'Wrote intermediate background image to {bkg_outfile}')
 
     # Return
     return sciImg, bkg_redux_sciimg
@@ -371,13 +378,13 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
                                         std_outfile)
     else:
         std_trace = None
-    msgs.info("Object finding begins for {} on det={}".format(basename, det))
+    log.info("Object finding begins for {} on det={}".format(basename, det))
 
     # Grab the calibrations
     caliBrate = load_calibrations_for_frame(
         spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
 
-    msgs.info(f'Reducing detector {det}')
+    log.info(f'Reducing detector {det}')
 
     # Instantiate Reduce object
     # Required for pypeline specific object
@@ -519,8 +526,10 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
     caliBrate.run_the_steps(reload_only=True)
 
     if not caliBrate.success:
-        msgs.error(f'Calibrations for detector {det} were unsuccessful!  The step '
-                    f'that failed was {caliBrate.failed_step}.')  
+        raise PypeItError(
+            f'Calibrations for detector {det} were unsuccessful!  The step that failed was '
+            f'{caliBrate.failed_step}.'
+        )
 
     return caliBrate
 
@@ -583,16 +592,18 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
             basename=io.remove_suffix(scifile))
         regfile = Path(regfile).absolute()
         if not regfile.exists():
-            msgs.error(f'Unable to find SkyRegions file: {regfile} . Create a SkyRegions '
-                        'frame using pypeit_skysub_regions, or change the user_regions to '
-                        'the percentage format.  See documentation.')
-        msgs.info(f'Loading SkyRegions file: {regfile}')
+            raise PypeItError(
+                f'Unable to find SkyRegions file: {regfile} . Create a SkyRegions frame using '
+                'pypeit_skysub_regions, or change the user_regions to the percentage format.  '
+                'See documentation.'
+            )
+        log.info(f'Loading SkyRegions file: {regfile}')
         return buildimage.SkyRegions.from_file(regfile).image.astype(bool)
 
     skyregtxt = par['reduce']['skysub']['user_regions']
     if isinstance(skyregtxt, list):
         skyregtxt = ",".join(skyregtxt)
-    msgs.info(f'Generating skysub mask based on the user defined regions: {skyregtxt}')
+    log.info(f'Generating skysub mask based on the user defined regions: {skyregtxt}')
     # NOTE : Do not include spatial flexure here!
     #        It is included when generating the mask in the return statement below
     slits_left, slits_right, _ \
@@ -602,9 +613,14 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
     # Get the regions
     status, regions = skysub.read_userregions(skyregtxt, caliBrate.slits.nslits, maxslitlength)
     if status == 1:
-        msgs.error("Unknown error in sky regions definition. Please check the value:" + msgs.newline() + skyregtxt)
+        raise PypeItError(
+            "Unknown error in sky regions definition. Please check the value:\n" + skyregtxt
+        )
     elif status == 2:
-        msgs.error("Sky regions definition must contain a percentage range, and therefore must contain a ':'")
+        raise PypeItError(
+            "Sky regions definition must contain a percentage range, and therefore must "
+            "contain a ':'"
+        )
     # Generate and return image
     return skysub.generate_mask(spectrograph.pypeline, regions, caliBrate.slits,
                                 slits_left, slits_right, spat_flexure=spat_flexure)
@@ -693,7 +709,7 @@ def extract_det(spectrograph, fitstbl, par,
     scaleImg = sciImg.rel_scaleImg
 
     if not par['reduce']['extraction']['skip_extraction']:
-        msgs.info(f"Extraction begins for {basename} on det={det}")
+        log.info(f"Extraction begins for {basename} on det={det}")
         # Instantiate Reduce object
         # Required for pipeline specific object
         # At instantiation, the fullmask in self.sciImg is modified
@@ -713,7 +729,7 @@ def extract_det(spectrograph, fitstbl, par,
         slitgpm = np.logical_not(exTract.extract_bpm)
         slitshift = exTract.slitshift
     else:
-        msgs.info(f"Extraction skipped for {basename} on det={det}")
+        log.info(f"Extraction skipped for {basename} on det={det}")
         # Since the extraction was not performed, fill the arrays with the best available information
         skymodel, bkg_redux_skymodel, objmodel, ivarmodel, outmask, sobjs = \
             final_sky, \
@@ -887,7 +903,7 @@ def refframe_correct(spectrograph, par, slits, ra, dec, obstime, slitgpm=None,
     vel_corr = 0.0
     if refframe in ['heliocentric', 'barycentric'] \
             and par['calibrations']['wavelengths']['reference'] != 'pixel':
-        msgs.info("Performing a {0} correction".format(par['calibrations']['wavelengths']['refframe']))
+        log.info(f"Performing a {par['calibrations']['wavelengths']['refframe']} correction")
         # Calculate correction
         radec = ltu.radec_to_coord((ra, dec))
         vel, vel_corr = wave.geomotion_correct(radec, obstime,
@@ -896,7 +912,7 @@ def refframe_correct(spectrograph, par, slits, ra, dec, obstime, slitgpm=None,
                                                 spectrograph.telescope['elevation'],
                                                 refframe)
         # Apply correction to objects
-        msgs.info('Applying {0} correction = {1:0.5f} km/s'.format(refframe, vel))
+        log.info(f'Applying {refframe} correction = {vel:0.5f} km/s')
         if (sobjs is not None) and (sobjs.nobj != 0):
             # Loop on slits to apply
             gd_slitord = slits.slitord_id[slitgpm]
@@ -913,7 +929,7 @@ def refframe_correct(spectrograph, par, slits, ra, dec, obstime, slitgpm=None,
         if waveimg is not None:
             waveimg *= vel_corr
     else:
-        msgs.info('A wavelength reference frame correction will not be performed.')
+        log.info('A wavelength reference frame correction will not be performed.')
 
     # Return the value of the correction and the corrected wavelength image
     return vel_corr, waveimg

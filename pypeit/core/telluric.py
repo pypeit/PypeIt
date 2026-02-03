@@ -16,7 +16,8 @@ import scipy.special
 from astropy import table
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import dataPaths
 from pypeit import io
 from pypeit.core import flux_calib
@@ -180,7 +181,7 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     ncomp = hdul[0].header.get('NCOMP')
     # check that the telgrid file is the correct one for this method
     if ncomp is None:
-        msgs.error("Could NOT read the number of PCA components of the telluric model. "
+        raise PypeItError("Could NOT read the number of PCA components of the telluric model. "
                    "Are you using a grid-based model instead? If so, you should "
                    " set teltype=grid")
     bounds = hdul[2].data
@@ -249,7 +250,7 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
 
     # check that the telgrid file is the correct one for this method
     if hdul[0].header.get('PRES0') is None:
-        msgs.error("Could NOT read the atmospheric information from the telluric model. "
+        raise PypeItError("Could NOT read the atmospheric information from the telluric model. "
                    "Are you using a PCA-based model instead? If so, you should "
                    " set teltype=pca")
 
@@ -294,7 +295,7 @@ def interp_telluric_grid(theta, tell_dict):
         available wavelengths in ``tell_dict``.
     """
     if len(theta) != 4:
-        msgs.error('Input parameter vector must have 4 and only 4 values.')
+        raise PypeItError('Input parameter vector must have 4 and only 4 values.')
     pg = tell_dict['pressure_grid']
     tg = tell_dict['temp_grid']
     hg = tell_dict['h2o_grid']
@@ -330,13 +331,13 @@ def conv_telluric(tell_model, dloglam, res):
     """
     # Check the input values
     if res <= 0.0:
-        msgs.error('Resolution must be positive.')
+        raise PypeItError('Resolution must be positive.')
     if dloglam == 0.0:
-        msgs.error('The telluric model grid has zero spacing in log wavelength. This is not supported.')
+        raise PypeItError('The telluric model grid has zero spacing in log wavelength. This is not supported.')
     pix_per_sigma = 1.0/res/(dloglam*np.log(10.0))/(2.0 * np.sqrt(2.0 * np.log(2))) # number of dloglam pixels per 1 sigma dispersion
     sig2pix = 1.0/pix_per_sigma # number of sigma per 1 pix
     if sig2pix > 2.0:
-        msgs.warn('The telluric model grid is not sampled finely enough to properly convolve to the desired resolution. '
+        log.warning('The telluric model grid is not sampled finely enough to properly convolve to the desired resolution. '
                   'Skipping resolution convolution for now. Create a higher resolution telluric model grid')
         return tell_model
 
@@ -811,7 +812,7 @@ def general_spec_reader(specfile, ret_flam=False, chk_version=False, ret_order_s
     meta_spec['core'] = spect_dict
     # ASC: Reimplement the ability to return the OrderStack components at some point. 
     #if ret_order_stacks:
-    #    msgs.info('Returning order stacks')
+    #    log.info('Returning order stacks')
     #    return wave_stack, None, counts_stack, counts_ivar_stack, counts_gpm_stack, meta_spec, head
     
     return wave, wave_grid_mid, counts, counts_ivar, counts_gpm, meta_spec, head
@@ -906,12 +907,16 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
                         & (wave <= np.max(obj_params['std_spec'].wave))
     # check the overlap between the archival standard star spectrum and the observed one.
     if np.all(np.logical_not(flam_true_gpm)):
-        msgs.warn('Your data does not overlap with the archival standard star spectrum in this slit/order. '
-                  'The sensitivity function WILL NOT BE COMPUTED for this slit/order.')
+        log.warning(
+            'Your data does not overlap with the archival standard star spectrum in this '
+            'slit/order.  The sensitivity function WILL NOT BE COMPUTED for this slit/order.'
+        )
         return None, None
     elif np.any(np.logical_not(flam_true_gpm)):
-        msgs.warn('Your data extends beyond the range covered by the standard star spectrum. '
-                  'Proceeding by masking these regions, but consider using another standard star')
+        log.warning(
+            'Your data extends beyond the range covered by the standard star spectrum.  '
+            'Proceeding by masking these regions, but consider using another standard star'
+        )
     N_lam = counts_per_ang/obj_params['exptime']
     zeropoint_data, zeropoint_data_gpm \
             = flux_calib.compute_zeropoint(wave, N_lam, (gpm & flam_true_gpm), flam_true,
@@ -1159,7 +1164,7 @@ def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
     coeff, wave_min, wave_max = fit_tuple
     if(wave_min != wave.min()) or (wave_max != wave.max()):
-        msgs.error('Problem with the wave_min or wave_max')
+        raise PypeItError('Problem with the wave_min or wave_max')
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
                    np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1], obj_params['minmax_coeff_bounds'][1]))
@@ -1279,7 +1284,7 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
     coeff, wave_min, wave_max = fit_tuple
     if(wave_min != wave.min()) or (wave_max != wave.max()):
-        msgs.error('Problem with the wave_min or wave_max')
+        raise PypeItError('Problem with the wave_min or wave_max')
     # Polynomial model
     polymodel = coadd.poly_model_eval(coeff, obj_params['func'], obj_params['model'], wave, wave_min, wave_max)
 
@@ -1478,7 +1483,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     # Create the polyorder_vec
     if np.size(polyorder) > 1:
         if np.size(polyorder) != norders:
-            msgs.error('polyorder must have either have norder elements or be a scalar')
+            raise PypeItError('polyorder must have either have norder elements or be a scalar')
         # TODO: Should this be np.asarray?
         polyorder_vec = np.array(polyorder)
     else:
@@ -1535,7 +1540,7 @@ def create_bal_mask(wave, bal_wv_min_max):
 
     """
     if np.size(bal_wv_min_max) % 2 !=0:
-        msgs.error('bal_wv_min_max must be a list/array with even numbers.')
+        raise PypeItError('bal_wv_min_max must be a list/array with even numbers.')
 
     bal_bpm = np.zeros_like(wave, dtype=bool)
     nbal = int(np.size(bal_wv_min_max) / 2)
@@ -1768,7 +1773,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     # Create the polyorder_vec
     if np.size(polyorder) > 1:
         if np.size(polyorder) != norders:
-            msgs.error('polyorder must have either have norder elements or be a scalar')
+            raise PypeItError('polyorder must have either have norder elements or be a scalar')
         polyorder_vec = np.array(polyorder)
     else:
         polyorder_vec = np.full(norders, polyorder)
@@ -1870,7 +1875,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
     # Create the polyorder_vec
     if np.size(polyorder) > 1:
         if np.size(polyorder) != norders:
-            msgs.error('polyorder must have either have norder elements or be a scalar')
+            raise PypeItError('polyorder must have either have norder elements or be a scalar')
         polyorder_vec = np.array(polyorder)
     else:
         polyorder_vec = np.full(norders, polyorder)
@@ -2445,12 +2450,12 @@ class Telluric(datamodel.DataContainer):
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
         if self.teltype == 'pca':
-            msgs.info(f'Reading in the pca-based telluric model: {self.telgrid}')
+            log.info(f'Reading in the pca-based telluric model: {self.telgrid}')
             self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                wave_max=self.wave_in_arr[wv_gpm].max())
         elif self.teltype == 'grid':
             self.tell_npca = 4
-            msgs.info(f'Reading in the grid-based telluric model: {self.telgrid}')
+            log.info(f'Reading in the grid-based telluric model: {self.telgrid}')
             self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                 wave_max=self.wave_in_arr[wv_gpm].max())
 
@@ -2502,7 +2507,7 @@ class Telluric(datamodel.DataContainer):
         for counter, iord in enumerate(self.srt_order_tell):
             _ord = self.ech_orders[iord] if self.ech_orders is not None and \
                                             len(self.ech_orders) == self.norders else iord
-            msgs.info(f'Initializing object model for order: {_ord}, {counter+1}/{self.norders}'
+            log.info(f'Initializing object model for order: {_ord}, {counter+1}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             tellmodel = eval_telluric(self.tell_guess, self.tell_dict,
                                         ind_lower=self.ind_lower[iord],
@@ -2563,14 +2568,14 @@ class Telluric(datamodel.DataContainer):
         if self.ech_orders is not None and len(self.ech_orders) == self.norders:
             indx_only = np.where(np.isin(self.ech_orders, only_orders))[0]
             if (indx_only.size == 0) and (only_orders is not None):
-                msgs.warn(f'All the orders provided in `only_orders` are not among the expected orders. '
+                log.warning(f'All the orders provided in `only_orders` are not among the expected orders. '
                           f'Using all orders available in the data.')
             elif indx_only.size > 0:
                 good_orders = indx_only
-                msgs.info(f'Working only on the following orders: {self.ech_orders[indx_only]}')
+                log.info(f'Working only on the following orders: {self.ech_orders[indx_only]}')
                 if len(indx_only) != len(only_orders):
                     missing_orders = list(set(only_orders) - set(self.ech_orders[indx_only]))
-                    msgs.warn(f'Some orders provided in `only_orders` are not among the expected orders. '
+                    log.warning(f'Some orders provided in `only_orders` are not among the expected orders. '
                               f'Ignoring orders: {missing_orders}')
 
         # Run the fits
@@ -2585,7 +2590,7 @@ class Telluric(datamodel.DataContainer):
                 continue
             _ord = self.ech_orders[iord] if self.ech_orders is not None and \
                                             len(self.ech_orders) == self.norders else iord
-            msgs.info(f'Fitting object + telluric model for order: {_ord}, {counter+1}/{self.norders}'
+            log.info(f'Fitting object + telluric model for order: {_ord}, {counter+1}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] \
                     = fitting.robust_optimize(self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
@@ -2711,7 +2716,7 @@ class Telluric(datamodel.DataContainer):
 #
 #        if inmask is not None:
 #            if wave_inmask is None:
-#                msgs.error('If you are specifying a mask you need to pass in the corresponding '
+#                raise PypeItError('If you are specifying a mask you need to pass in the corresponding '
 #                           'wavelength grid')
 #
 #            # TODO we shoudld consider refactoring the interpolator to take a
@@ -2730,7 +2735,7 @@ class Telluric(datamodel.DataContainer):
 #            elif mask.ndim == inmask.ndim:
 #                inmask_out = inmask_int
 #            else:
-#                msgs.error('Unrecognized shape for data mask')
+#                raise PypeItError('Unrecognized shape for data mask')
 #            return (mask & inmask_out)
 #        else:
 #            return mask

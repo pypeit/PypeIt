@@ -29,7 +29,8 @@ from astropy import units
 from astropy import stats
 from astropy.io import ascii
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.move_median import move_median
 from pypeit import dataPaths
 
@@ -200,7 +201,7 @@ def concat_to_setup_list(concat, norders, nexps):
         the exposure number.
     """
     if len(norders) != len(nexps):
-        msgs.error('The number of elements in norders and nexps must match')
+        raise PypeItError('The number of elements in norders and nexps must match')
     nsetups = len(norders)
     setup_list = []
     ind_start = 0
@@ -564,7 +565,7 @@ def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False
     # Check the input
     if wave.shape[0] != flux.shape[0] or ivar.shape != flux.shape or gpm.shape != flux.shape \
             or wave.ndim == 2 and wave.shape != flux.shape:
-        msgs.error('Input spectral arrays have mismatching shapes.')
+        raise PypeItError('Input spectral arrays have mismatching shapes.')
 
     if flux.ndim == 1:
         # Input flux is 1D
@@ -763,7 +764,7 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     if wgt is not None and img.shape != wgt.shape:
         raise ValueError('Input image to smooth and weights must have the same shape.')
     if nave > img.shape[0]:
-        msgs.warn('Smoothing box is larger than the image size!')
+        log.warning('Smoothing box is larger than the image size!')
 
     # Construct the kernel for mean calculation
     _nave = np.fmin(nave, img.shape[0])
@@ -782,7 +783,7 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     elif replace == 'zero':
         smoothed_img[smoothed_img.mask] = 0.0
     else:
-        msgs.error('Unrecognized value of replace')
+        raise PypeItError('Unrecognized value of replace')
     return smoothed_img.data
 
 
@@ -920,7 +921,7 @@ def rebin_slice(a, newshape):
         rebinning to shape newshape
     """
     if not len(a.shape) == len(newshape):
-        msgs.error('Dimension of a image does not match dimension of new requested image shape')
+        raise PypeItError('Dimension of a image does not match dimension of new requested image shape')
 
     slices = [slice(0, old, float(old) / new) for old, new in zip(a.shape, newshape)]
     coordinates = np.mgrid[slices]
@@ -950,7 +951,7 @@ def rebinND(img, shape):
     rem0, rem1 = img.shape[0] % shape[0], img.shape[1] % shape[1]
     if rem0 != 0 or rem1 != 0:
         # In this case, the shapes are not an integer multiple... need to slice
-        msgs.warn("Input image shape is not an integer multiple of the requested shape. Flux is not conserved.")
+        log.warning("Input image shape is not an integer multiple of the requested shape. Flux is not conserved.")
         return rebin_slice(img, shape)
     # Convert input 2D image into a 4D array to make the rebinning easier
     sh = shape[0], img.shape[0] // shape[0], shape[1], img.shape[1] // shape[1]
@@ -1082,7 +1083,7 @@ def smooth(x, window_len, window='flat'):
         case 'blackman':
             w = np.blackman(window_len)
         case _:
-            msgs.error(f'Unknown window type passed to smooth(): {window}')
+            raise PypeItError(f'Unknown window type passed to smooth(): {window}')
 
     y = np.convolve(w / w.sum(), s, mode='same')
 
@@ -1122,9 +1123,9 @@ def fast_running_median(seq, window_size):
     # upon return (very bad). Added by JFH. Should we print out an error here?
 
     if (window_size > (len(seq) - 1)):
-        msgs.warn('window_size > len(seq)-1. Truncating window_size to len(seq)-1, but something is probably wrong....')
+        log.warning('window_size > len(seq)-1. Truncating window_size to len(seq)-1, but something is probably wrong....')
     if (window_size < 0):
-        msgs.warn(
+        log.warning(
             'window_size is negative. This does not make sense something is probably wrong. Setting window size to 1')
 
     window_size = int(np.fmax(np.fmin(int(window_size), len(seq) - 1), 1))
@@ -1176,9 +1177,9 @@ def cross_correlate(x, y, maxlag):
     x = np.asarray(x)
     y = np.asarray(y)
     if x.ndim != 1:
-        msgs.error('x must be one-dimensional.')
+        raise PypeItError('x must be one-dimensional.')
     if y.ndim != 1:
-        msgs.error('y must be one-dimensional.')
+        raise PypeItError('y must be one-dimensional.')
 
     # py = np.pad(y.conj(), 2*maxlag, mode=mode)
     py = np.pad(y, 2 * maxlag, mode='constant')
@@ -1221,7 +1222,7 @@ def clip_ivar(flux, ivar, sn_clip, gpm=None, verbose=False):
         return ivar
 
     if verbose:
-        msgs.info('Inflating errors to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
+        log.info('Inflating errors to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
 
     _gpm = ivar > 0.
     if gpm is not None:
@@ -1442,9 +1443,9 @@ def replace_bad(frame, bpm):
     """
     # Do some checks on the inputs
     if frame.shape != bpm.shape:
-        msgs.error("Input frame and BPM have different shapes")
+        raise PypeItError("Input frame and BPM have different shapes")
     # Replace bad pixels with the nearest (good) neighbour
-    msgs.info("Replacing bad pixels")
+    log.info("Replacing bad pixels")
     ind = scipy.ndimage.distance_transform_edt(bpm, return_distances=False, return_indices=True)
     return frame[tuple(ind)]
 
@@ -1653,7 +1654,7 @@ def save_pickle(fname, obj):
         fname += '.pkl'
     with open(fname, 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-        msgs.info('File saved: {0:s}'.format(fname))
+        log.info('File saved: {0:s}'.format(fname))
 
 
 def load_pickle(fname):
@@ -1669,7 +1670,7 @@ def load_pickle(fname):
     :class:`object`
         An object suitable for pickle serialization.
     """
-    msgs.info('Loading file: {0:s}'.format(fname))
+    log.info('Loading file: {0:s}'.format(fname))
     with open(fname, 'rb') as f:
         return pickle.load(f)
 
@@ -1954,9 +1955,9 @@ def find_single_file(file_pattern, required: bool=False) -> pathlib.Path:
     """
     files = sorted(glob.glob(file_pattern))
     if len(files) > 1:
-        msgs.warn(f'Found multiple files matching {file_pattern}; using {files[0]}')
+        log.warning(f'Found multiple files matching {file_pattern}; using {files[0]}')
     if len(files) == 0 and required:
-        msgs.error(f'No files matching pattern: {file_pattern}')
+        raise PypeItError(f'No files matching pattern: {file_pattern}')
     return None if len(files) == 0 else pathlib.Path(files[0])
 
 

@@ -20,7 +20,8 @@ from linetools import utils as ltu
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import coadd1d
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.utils import is_float
 from pypeit.core import wave
 from pypeit.archive import ArchiveMetadata, ArchiveDir
@@ -170,25 +171,25 @@ def exclude_source_objects(source_objects, exclude_map, par):
 
         if par['collate1d']['exclude_serendip'] and sobj.MASKDEF_OBJNAME == 'SERENDIP':
             msg = f'Excluding SERENDIP object from {sobj.NAME} in {spec1d_file}'
-            msgs.info(msg)
+            log.info(msg)
             excluded_messages.append(msg)
             continue
 
         if par['collate1d']['wv_rms_thresh'] is not None and sobj.WAVE_RMS > par['collate1d']['wv_rms_thresh']:
             msg = f'Excluding {sobj.NAME} in {spec1d_file} due to wave_rms {sobj.WAVE_RMS} > threshold {par["collate1d"]["wv_rms_thresh"]}'
-            msgs.info(msg)
+            log.info(msg)
             excluded_messages.append(msg)
             continue
 
         if sobj.MASKDEF_ID in exclude_map:
             msg = f'Excluding {sobj.NAME} with mask id: {sobj.MASKDEF_ID} in {spec1d_file} because of flags {exclude_map[sobj.MASKDEF_ID]}'
-            msgs.info(msg)
+            log.info(msg)
             excluded_messages.append(msg)
             continue
 
         if sobj.OPT_COUNTS is None and sobj.BOX_COUNTS is None:
             msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing both OPT_COUNTS and BOX_COUNTS'
-            msgs.warn(msg)
+            log.warning(msg)
             excluded_messages.append(msg)
             continue
 
@@ -203,7 +204,7 @@ def exclude_source_objects(source_objects, exclude_map, par):
                     msg = f'Excluding {sobj.NAME} in {spec1d_file} because all of OPT_COUNTS was masked out. Consider changing ex_value to "BOX".'
             
             if msg is not None:
-                msgs.warn(msg)
+                log.warning(msg)
                 excluded_messages.append(msg)
                 continue
 
@@ -218,14 +219,14 @@ def exclude_source_objects(source_objects, exclude_map, par):
                     msg = f'Excluding {sobj.NAME} in {spec1d_file} because all of BOX_COUNTS was masked out. Consider changing ex_value to "OPT".'
 
             if msg is not None:
-                msgs.warn(msg)
+                log.warning(msg)
                 excluded_messages.append(msg)
                 continue
 
         filtered_objects.append(source_object)
     return (filtered_objects, excluded_messages)
 
-def read_spec1d_files(par, spec1d_files, failure_msgs):
+def read_spec1d_files(par, spec1d_files, failure_log):
     """
     Read spec1d files.
 
@@ -234,7 +235,7 @@ def read_spec1d_files(par, spec1d_files, failure_msgs):
             Parameters for collating, fluxing, and coadding.
         spec1d_files (list of str):
             List of spec1d files to read.
-        failure_msgs(list of str):
+        failure_log(list of str):
             Return parameter describing any failures that occurred when reading.
 
     Returns:
@@ -251,14 +252,14 @@ def read_spec1d_files(par, spec1d_files, failure_msgs):
             good_spec1d_files.append(spec1d_file)
         except Exception as e:
             formatted_exception = traceback.format_exc()
-            msgs.warn(formatted_exception)
-            msgs.warn(f"Failed to read {spec1d_file}, skipping it.")
-            failure_msgs.append(f"Failed to read {spec1d_file}, skipping it.")
-            failure_msgs.append(formatted_exception)
+            log.warning(formatted_exception)
+            log.warning(f"Failed to read {spec1d_file}, skipping it.")
+            failure_log.append(f"Failed to read {spec1d_file}, skipping it.")
+            failure_log.append(formatted_exception)
 
     return specobjs_list, good_spec1d_files
 
-def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
+def flux(par, spectrograph, spec1d_files, failed_fluxing_log):
     """
     Flux calibrate spec1d files using archived sens func files.
 
@@ -269,7 +270,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
             Spectrograph for the files to flux.
         spec1d_files (list of str):
             List of spec1d files to flux calibrate.
-        failed_fluxing_msgs(list of str):
+        failed_fluxing_log(list of str):
             Return parameter describing any failures that occurred when fluxing.
 
     Returns:
@@ -278,7 +279,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
 
     # Make sure fluxing from archive is supported for this spectrograph
     if spectrograph.name not in SensFileArchive.supported_spectrographs():
-        msgs.error(f"Flux calibrating {spectrograph.name} with an archived sensfunc is not supported.")
+        raise PypeItError(f"Flux calibrating {spectrograph.name} with an archived sensfunc is not supported.")
 
     par['fluxcalib']['extrap_sens'] = True
 
@@ -291,25 +292,25 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
             sens_file = sf_archive.get_archived_sensfile(spec1d_file)
         except Exception:
             formatted_exception = traceback.format_exc()
-            msgs.warn(formatted_exception)
-            msgs.warn(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
-            failed_fluxing_msgs.append(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
-            failed_fluxing_msgs.append(formatted_exception)
+            log.warning(formatted_exception)
+            log.warning(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
+            failed_fluxing_log.append(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
+            failed_fluxing_log.append(formatted_exception)
             continue
             
         # Flux calibrate the spec1d file
         try:
-            msgs.info(f"Running flux calibrate on {spec1d_file}")
+            log.info(f"Running flux calibrate on {spec1d_file}")
             FxCalib = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'],
                                                    chk_version=par['rdx']['chk_version'])
             flux_calibrated_files.append(spec1d_file)
 
         except Exception:
             formatted_exception = traceback.format_exc()
-            msgs.warn(formatted_exception)
-            msgs.warn(f"Failed to flux calibrate {spec1d_file}, skipping it.")
-            failed_fluxing_msgs.append(f"Failed to flux calibrate {spec1d_file}, skipping it.")
-            failed_fluxing_msgs.append(formatted_exception)
+            log.warning(formatted_exception)
+            log.warning(f"Failed to flux calibrate {spec1d_file}, skipping it.")
+            failed_fluxing_log.append(f"Failed to flux calibrate {spec1d_file}, skipping it.")
+            failed_fluxing_log.append(formatted_exception)
             continue
 
     # Return the succesfully fluxed files
@@ -344,10 +345,10 @@ def build_coadd_file_name(source_object):
     
     return f'{coord_portion}_{instrument_name}_{date_portion}.fits'
 
-def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
+def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log):
 
     refframe = par['collate1d']['refframe']
-    msgs.info(f"Performing a {refframe} correction")
+    log.info(f"Performing a {refframe} correction")
 
     for spec1d in spec1d_files:
         # Get values from the fits header needed to calculate the correction
@@ -359,8 +360,8 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
             obstime = Time(sobjs.header['MJD'], format='mjd')
         except Exception as e:
             msg = f'Failed to perform {refframe} correction on {spec1d}: {e}'
-            msgs.info(msg)
-            spec1d_failure_msgs.append(msg)
+            log.info(msg)
+            spec1d_failure_log.append(msg)
             continue
 
         corrected_at_least_one = False
@@ -368,8 +369,8 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
             if sobj['VEL_CORR'] is not None:
                 # Don't double correct
                 msg = f"Not performing {refframe} correction for {spec1d} object {sobj['NAME']} because it has already been corrected."
-                msgs.info(msg)
-                spec1d_failure_msgs.append(msg)
+                log.info(msg)
+                spec1d_failure_log.append(msg)
                 continue
             # Use the SpecObj RA/DEC if it's available, otherwise use the value from the header
             if sobj['RA'] is not None and sobj['DEC'] is not None:
@@ -383,7 +384,7 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
                                                    spectrograph.telescope['elevation'],
                                                    refframe)
             # Apply correction to objects
-            msgs.info(f'Applying {refframe} correction to {spec1d} object {sobj["NAME"]} = {vel} km/s, {vel_corr}')
+            log.info(f'Applying {refframe} correction to {spec1d} object {sobj["NAME"]} = {vel} km/s, {vel_corr}')
             sobj.apply_helio(vel_corr, refframe)
             corrected_at_least_one = True
         if corrected_at_least_one:
@@ -430,17 +431,17 @@ def coadd(par, coaddfile, source):
 
     if par['collate1d']['ignore_flux'] is True:
         # Use non fluxed if asked to
-        msgs.info(f"Ignoring flux for {coaddfile}.")
+        log.info(f"Ignoring flux for {coaddfile}.")
         par['coadd1d']['flux_value'] = False
 
     elif False in [x[flux_key] is not None for x in source.spec_obj_list]:               
         # Do not use fluxed data if one or more objects have not been flux calibrated 
-        msgs.info(f"Not all spec1ds for {coaddfile} are flux calibrated, using counts instead.")
+        log.info(f"Not all spec1ds for {coaddfile} are flux calibrated, using counts instead.")
         par['coadd1d']['flux_value'] = False
     
     else:
         # Use fluxed data
-        msgs.info(f"Using flux for {coaddfile}.")
+        log.info(f"Using flux for {coaddfile}.")
         par['coadd1d']['flux_value'] = True
 
 
@@ -475,25 +476,25 @@ def find_spec2d_from_spec1d(spec1d_files):
         spec2d_file = os.path.join(path, filename.replace('spec1d', 'spec2d', 1))
 
         if not os.path.exists(spec2d_file):
-            msgs.error(f'Could not find matching spec2d file for {spec1d_file}')
+            raise PypeItError(f'Could not find matching spec2d file for {spec1d_file}')
 
         spec2d_files.append(spec2d_file)
 
     return spec2d_files
 
 
-def write_warnings(par, excluded_obj_msgs, failed_source_msgs, spec1d_failure_msgs, start_time, total_time):
+def write_warnings(par, excluded_obj_log, failed_source_log, spec1d_failure_log, start_time, total_time):
     """
     Write gathered warning messages to a `collate_warnings.txt` file.
 
     Args:
-        excluded_obj_msgs (:obj:`list` of :obj:`str`): 
+        excluded_obj_log (:obj:`list` of :obj:`str`): 
             Messages about which objects were excluded from collating and why.
 
-        failed_source_msgs (:obj:`list` of :obj:`str`): 
+        failed_source_log (:obj:`list` of :obj:`str`): 
             Messages about which objects failed coadding and why.
 
-        spec1d_failure_msgs (:obj:`list` of :obj:`str`): 
+        spec1d_failure_log (:obj:`list` of :obj:`str`): 
             Messages about failures with spec1d files and why.
 
     """
@@ -504,17 +505,17 @@ def write_warnings(par, excluded_obj_msgs, failed_source_msgs, spec1d_failure_ms
         print(f"\nStarted {start_time.isoformat(sep=' ')}", file=f)
         print(f"Duration: {total_time}", file=f)
 
-        if len(spec1d_failure_msgs) > 0:
+        if len(spec1d_failure_log) > 0:
             print("\nspec1d_* failures\n", file=f)
-            for msg in spec1d_failure_msgs:
+            for msg in spec1d_failure_log:
                 print(msg, file=f)
 
         print("\nExcluded Objects:\n", file=f)
-        for msg in excluded_obj_msgs:
+        for msg in excluded_obj_log:
             print(msg, file=f)
 
         print("\nFailed to Coadd:\n", file=f)
-        for msg in failed_source_msgs:
+        for msg in failed_source_log:
             print(msg, file=f)
 
 def build_parameters(args):
@@ -666,7 +667,8 @@ class Collate1D(scriptbase.ScriptBase):
 
         parser = super().get_parser(description='Flux/Coadd multiple 1d spectra from multiple '
                                                 'nights and prepare a directory for the KOA.',
-                                    width=width, formatter=scriptbase.SmartFormatter)
+                                    width=width, formatter=scriptbase.SmartFormatter,
+                                    default_log_file=True)
 
         # TODO: Is the file optional?  If so, shouldn't the first argument start
         # with '--'?
@@ -719,16 +721,12 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument("--refframe", type=str, default = None, choices = pypeitpar.WavelengthSolutionPar.valid_reference_frames(),
                             help=blank_par.descr['refframe'])
         parser.add_argument('--chk_version', action = 'store_true', help=blank_pypar['rdx'].descr['chk_version'])
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename collate_1d_YYYYMMDD-HHMM.log')
         return parser
 
-    @staticmethod
-    def main(args):
-
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('collate_1d', args.verbosity)
+    @classmethod
+    def main(cls, args):
+        # Initialize the log
+        cls.init_log(args)
 
         start_time = datetime.now()
         (par, spectrograph, spec1d_files) = build_parameters(args)
@@ -770,7 +768,7 @@ class Collate1D(scriptbase.ScriptBase):
             exclude_map = dict()
 
         # Flux the spec1ds based on a archived sensfunc
-        spec1d_failure_msgs = []
+        spec1d_failure_log = []
         copied_spec1d = False
         if par['collate1d']['flux'] and not args.dry_run:
             if par['collate1d']['spec1d_outdir'] is not None:
@@ -778,7 +776,7 @@ class Collate1D(scriptbase.ScriptBase):
                 # if requested
                 spec1d_files = copy_spec1d_to_outdir(spec1d_files, par['collate1d']['spec1d_outdir'])
                 copied_spec1d = True                
-            spec1d_files = flux(par, spectrograph, spec1d_files, spec1d_failure_msgs)
+            spec1d_files = flux(par, spectrograph, spec1d_files, spec1d_failure_log)
         
 
         # Perform reference frame correction
@@ -788,35 +786,35 @@ class Collate1D(scriptbase.ScriptBase):
                 # if requested and fluxing hasn't already done so
                 spec1d_files = copy_spec1d_to_outdir(spec1d_files, par['collate1d']['spec1d_outdir'])
 
-            refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
+            refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log)
 
         # Read in the spec1d files        
-        specobjs_to_coadd, spec1d_files = read_spec1d_files(par, spec1d_files, spec1d_failure_msgs)
+        specobjs_to_coadd, spec1d_files = read_spec1d_files(par, spec1d_files, spec1d_failure_log)
 
         # Build source objects from spec1d file, this list is not collated 
         source_objects = SourceObject.build_source_objects(specobjs_to_coadd, spec1d_files,
                                                            par['collate1d']['match_using'])
 
         # Filter out unwanted SpecObj objects based on parameters 
-        (objects_to_coadd, excluded_obj_msgs) = exclude_source_objects(source_objects, exclude_map, par)
+        (objects_to_coadd, excluded_obj_log) = exclude_source_objects(source_objects, exclude_map, par)
 
         # Collate the spectra
         source_list = collate_spectra_by_source(objects_to_coadd, tolerance)
 
         # Coadd the spectra
         successful_source_list = []
-        failed_source_msgs = []
+        failed_source_log = []
         for source in source_list:
 
             coaddfile = os.path.join(par['collate1d']['outdir'], build_coadd_file_name(source))
-            msgs.info(f'Creating {coaddfile} from the following sources:')
+            log.info(f'Creating {coaddfile} from the following sources:')
             for i in range(len(source.spec_obj_list)):
-                msgs.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} '
+                log.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} '
                           f'({source.spec_obj_list[i].MASKDEF_OBJNAME})')
 
             # Exclude sources with a single object to coadd
             if len(source.spec_obj_list) == 1:
-                excluded_obj_msgs.append(f"Excluding {source.spec_obj_list[0].NAME} in {source.spec1d_file_list[0]} because there's no other SpecObj to coadd with.")
+                excluded_obj_log.append(f"Excluding {source.spec_obj_list[0].NAME} in {source.spec1d_file_list[0]} because there's no other SpecObj to coadd with.")
                 continue
 
             if not args.dry_run:
@@ -825,10 +823,10 @@ class Collate1D(scriptbase.ScriptBase):
                     successful_source_list.append(source)
                 except Exception:
                     formatted_exception = traceback.format_exc()
-                    msgs.warn(formatted_exception)
-                    msgs.warn(f"Failed to coadd {coaddfile}, skipping")
-                    failed_source_msgs.append(f"Failed to coadd {coaddfile}:")
-                    failed_source_msgs.append(formatted_exception)
+                    log.warning(formatted_exception)
+                    log.warning(f"Failed to coadd {coaddfile}, skipping")
+                    failed_source_log.append(f"Failed to coadd {coaddfile}:")
+                    failed_source_log.append(formatted_exception)
 
         # Create collate_report.dat
         archive = create_report_archive(par)
@@ -837,9 +835,9 @@ class Collate1D(scriptbase.ScriptBase):
 
         total_time = datetime.now() - start_time
 
-        write_warnings(par, excluded_obj_msgs, failed_source_msgs,
-                       spec1d_failure_msgs, start_time, total_time)
+        write_warnings(par, excluded_obj_log, failed_source_log,
+                       spec1d_failure_log, start_time, total_time)
 
-        msgs.info(f'Total duration: {total_time}')
+        log.info(f'Total duration: {total_time}')
 
         return 0

@@ -14,7 +14,8 @@ import scipy.special
 
 from IPython import embed
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit import bspline
 from pypeit.core import pydl
@@ -132,7 +133,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
 
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
-        msgs.warn('Object profile is zero everywhere. This aperture is junk.')
+        log.warning('Object profile is zero everywhere. This aperture is junk.')
         return
 
     mincol = np.min(ispat)
@@ -505,18 +506,18 @@ def extract_hist_spectrum(waveimg, frame, gpm=None, bins=1000):
     """
     # Check the inputs
     if waveimg.shape != frame.shape:
-        msgs.error("Wavelength image is not the same shape as the input frame")
+        raise PypeItError("Wavelength image is not the same shape as the input frame")
     # Check the GPM
     _gpm = gpm if gpm is not None else waveimg > 0
     if waveimg.shape != _gpm.shape:
-        msgs.error("Wavelength image is not the same shape as the GPM")
+        raise PypeItError("Wavelength image is not the same shape as the GPM")
     # Set the bins
     if isinstance(bins, int):
         _bins = np.linspace(np.min(waveimg[_gpm]), np.max(waveimg[_gpm]), bins)
     elif isinstance(bins, np.ndarray):
         _bins = bins
     else:
-        msgs.error("Argument 'bins' should be an integer or a numpy array")
+        raise PypeItError("Argument 'bins' should be an integer or a numpy array")
 
     # Construct a histogram and the normalisation
     hist, edge = np.histogram(waveimg[gpm], bins=_bins, weights=frame[gpm])
@@ -755,11 +756,11 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string,
     profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0 * np.pi)*(sigma_x ** 2 < 25.)
     info_string = "FWHM=" + "{:6.2f}".format(fwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
     title_string = obj_string + ', ' + info_string
-    msgs.info(title_string)
+    log.info(title_string)
     inf = np.isfinite(profile_model) == False
     ninf = np.sum(inf)
     if ninf != 0:
-        msgs.warn("Nan pixel values in object profile... setting them to zero")
+        log.warning("Nan pixel values in object profile... setting them to zero")
         profile_model[inf] = 0.0
     if show_profile:
         qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, l_limit = l_limit, r_limit = r_limit,
@@ -892,8 +893,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     eligible_pixels = np.sum((wave >= wave_min) & (wave <= wave_max))
     good_pix_frac = 0.05
     if (np.sum(indsp) < good_pix_frac*eligible_pixels) or (eligible_pixels == 0):
-        msgs.warn('There are no pixels eligible to be fit for the object profile.' + msgs.newline() +
-                  'There is likely an issue in local_skysub_extract. Returning a Gassuain with fwhm={:5.3f}'.format(thisfwhm))
+        log.warning(
+            'There are no pixels eligible to be fit for the object profile.\nThere is likely an '
+            f'issue in local_skysub_extract. Returning a Gassuain with fwhm={thisfwhm:5.3f}'
+        )
         profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
         return profile_model, trace_in, fwhmfit, 0.0
 
@@ -907,8 +910,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     try:
         cont_flux, _ = c_answer.value(wave[indsp])
     except:
-        msgs.warn('Problem estimating S/N ratio of spectrum' + msgs.newline() +
-                  'There is likely an issue in local_skysub_extract. Returning a Gassuain with fwhm={:5.3f}'.format(thisfwhm))
+        log.warning(
+            'Problem estimating S/N ratio of spectrum\nThere is likely an issue in '
+            f'local_skysub_extract. Returning a Gassuain with fwhm={thisfwhm:5.3f}'
+        )
         profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
         return profile_model, trace_in, fwhmfit, 0.0
 
@@ -955,9 +960,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                                                 bounds_error=False,fill_value = 'extrapolate')
         sn2_img[totmask] = sn2_interp(waveimg[totmask])
     else:
-        msgs.warn('All pixels are masked')
+        log.warning('All pixels are masked')
 
-    msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
+    log.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
 
     # TODO -- JFH document this
     if(med_sn2 <= 2.0):
@@ -1005,13 +1010,13 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     xtemp = (np.cumsum(np.outer(4.0 + np.sqrt(np.fmax(sn2_1, 0.0)),np.ones(nspat)))).reshape((nspec,nspat))
     xtemp = xtemp/xtemp.max()
 
-    msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
+    log.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
 
     # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
-        msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
-        msgs.info("Returning Gaussian profile")
+        log.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
+        log.info("Returning Gaussian profile")
         profile_model = return_gaussian(sigma_x, norm_obj, thisfwhm, med_sn2, obj_string,show_profile,ind=good,xtrunc=7.0)
         return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -1026,7 +1031,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         max_sigma = np.fmin(sigma_x.flat[good].max(), (abs_sigma))
         nb = (np.arcsinh(abs_sigma)/sinh_space).astype(int) + 1
     else:
-        msgs.info("Using prof_nsigma= " + "{:6.2f}".format(prof_nsigma) + " for extended/bright objects")
+        log.info("Using prof_nsigma= " + "{:6.2f}".format(prof_nsigma) + " for extended/bright objects")
         nb = np.round(prof_nsigma > 10)
         max_sigma = prof_nsigma
         min_sigma = -1*prof_nsigma
@@ -1059,7 +1064,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
 
     # TODO I don't follow the logic behind this statement but I'm leaving it for now. If the median is large it is used, otherwise we  user zero???
     if (np.abs(median_fit) > 0.01):
-        msgs.info("Median flux level in profile is not zero: median = " + "{:7.4f}".format(median_fit))
+        log.info("Median flux level in profile is not zero: median = " + "{:7.4f}".format(median_fit))
     else:
         median_fit = 0.0
 
@@ -1069,7 +1074,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     min_level = peak*np.exp(-0.5*limit**2)
 
     bspline_fwhm = (rwhm - lwhm)*thisfwhm/2.3548
-    msgs.info("Bspline FWHM: " + "{:7.4f}".format(bspline_fwhm) + ", compared to initial object finding FWHM: " + "{:7.4f}".format(thisfwhm) )
+    log.info("Bspline FWHM: " + "{:7.4f}".format(bspline_fwhm) + ", compared to initial object finding FWHM: " + "{:7.4f}".format(thisfwhm) )
     sigma = sigma * (rwhm-lwhm)/2.3548
 
     limit = limit * (rwhm-lwhm)/2.3548
@@ -1089,7 +1094,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     else:
         r_limit = max_sigma
 
-    msgs.info("Trace limits: limit = " + "{:7.4f}".format(limit) + ", min_level = " + "{:7.4f}".format(min_level) +
+    log.info("Trace limits: limit = " + "{:7.4f}".format(limit) + ", min_level = " + "{:7.4f}".format(min_level) +
               ", l_limit = " + "{:7.4f}".format(l_limit) + ", r_limit = " + "{:7.4f}".format(r_limit))
 
     # Just grab the data points within the limits
@@ -1099,8 +1104,8 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
 
     # If we have too few pixels after this step, then again just use a Gaussian profile and return.
     if(ninside < 10):
-        msgs.info("Too few pixels inside l_limit and r_limit")
-        msgs.info("Returning Gaussian profile")
+        log.info("Too few pixels inside l_limit and r_limit")
+        log.info("Returning Gaussian profile")
         profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,show_profile,
                                                           ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
         return (profile_model, trace_in, fwhmfit, med_sn2)
@@ -1132,8 +1137,8 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                                                maxiter=1, kwargs_bspline={'nbkpts':nbkpts})
         # Check to see if the mode fit failed, if so punt and return a Gaussian
         if not np.any(mode_shift_out[1]):
-            msgs.info('B-spline fit to trace correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
-            msgs.info("Returning Gaussian profile")
+            log.info('B-spline fit to trace correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
+            log.info("Returning Gaussian profile")
             profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
                                             show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
             return (profile_model, trace_in, fwhmfit, med_sn2)
@@ -1155,8 +1160,8 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                                                  norm_ivar.flat[inside], profile_basis, maxiter=1,
                                                  fullbkpt=mode_shift_set.breakpoints)
         if not np.any(mode_stretch_out[1]):
-            msgs.info('B-spline fit to width correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
-            msgs.info("Returning Gaussian profile")
+            log.info('B-spline fit to width correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
+            log.info("Returning Gaussian profile")
             profile_model  = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
                                                               show_profile,ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
             return (profile_model, trace_in, fwhmfit, med_sn2)
@@ -1172,9 +1177,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         ratio_20 = (h2 / (h0 + (h0 == 0.0)))
         sigma_factor = 0.3 * ratio_20 / (1.0 + np.abs(ratio_20))
 
-        msgs.info("Iteration# " + "{:3d}".format(iiter))
-        msgs.info("Median abs value of trace correction = " + "{:8.3f}".format(np.median(np.abs(delta_trace_corr))))
-        msgs.info("Median abs value of width correction = " + "{:8.3f}".format(np.median(np.abs(sigma_factor))))
+        log.info("Iteration# " + "{:3d}".format(iiter))
+        log.info("Median abs value of trace correction = " + "{:8.3f}".format(np.median(np.abs(delta_trace_corr))))
+        log.info("Median abs value of width correction = " + "{:8.3f}".format(np.median(np.abs(sigma_factor))))
 
         sigma = sigma*(1.0 + sigma_factor)
         area = area * h0/(1.0 + sigma_factor)
@@ -1192,8 +1197,8 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                                              norm_ivar.flat[inside[ss]],pb[ss], nord=4,
                                              bkpt=bkpt[keep], maxiter=2)
             if not np.any(bset_out[1]):
-                msgs.info('B-spline to profile in trace and width correction loop failed for fit to ninside = {:}'.format(ninside) + ' pixels')
-                msgs.info("Returning Gaussian profile")
+                log.info('B-spline to profile in trace and width correction loop failed for fit to ninside = {:}'.format(ninside) + ' pixels')
+                log.info("Returning Gaussian profile")
                 profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
                                                                   show_profile, ind=good, l_limit=l_limit,r_limit=r_limit, xlim=7.0)
                 return (profile_model, trace_in, fwhmfit, med_sn2)
@@ -1302,21 +1307,21 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     chi_med = np.median(res_mode[chi_good]**2)
     chi_zero = np.median(norm_obj.flat[ss[inside]]**2*norm_ivar.flat[ss[inside]])
 
-    msgs.info("--------------------  Results of Profile Fit --------------------")
-    msgs.info(" min(fwhmfit)={:5.2f}".format(fwhmfit.min()) +
+    log.info("--------------------  Results of Profile Fit --------------------")
+    log.info(" min(fwhmfit)={:5.2f}".format(fwhmfit.min()) +
               " max(fwhmfit)={:5.2f}".format(fwhmfit.max()) + " median(chi^2)={:5.2f}".format(chi_med) +
               " nbkpts={:2d}".format(bkpt.size))
-    msgs.info("-----------------------------------------------------------------")
+    log.info("-----------------------------------------------------------------")
 
     nxinf = np.sum(np.isfinite(xnew) == False)
     if (nxinf != 0):
-        msgs.warn("Nan pixel values in trace correction")
-        msgs.warn("Returning original trace....")
+        log.warning("Nan pixel values in trace correction")
+        log.warning("Returning original trace....")
         xnew = trace_in
     inf = np.isfinite(profile_model) == False
     ninf = np.sum(inf)
     if (ninf != 0):
-        msgs.warn("Nan pixel values in object profile... setting them to zero")
+        log.warning("Nan pixel values in object profile... setting them to zero")
         profile_model[inf] = 0.0
     # Normalize profile
     norm = np.outer(np.sum(profile_model, 1), np.ones(nspat))

@@ -30,14 +30,16 @@ class CompareSky(scriptbase.ScriptBase):
         return parser
 
     # Script to run XSpec from the command line or ipython
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         import matplotlib.pyplot as plt
 
         import linetools.spectra.io
         from pypeit import io
 
+        # Initialize the log
+        cls.init_log(args)
 
         # Extension
         exten = args.exten if args.exten is not None else 1

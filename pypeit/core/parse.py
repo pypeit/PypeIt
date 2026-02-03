@@ -5,14 +5,12 @@ parse module.
 .. include:: ../include/links.rst
 
 """
-import inspect
-
 from IPython import embed
 
 import numpy as np
 
-# Logging
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.par.util import eval_tuple
 
 
@@ -132,7 +130,7 @@ def eval_detectors(det:str | None) -> None | int | list[int] | tuple | list[tupl
     try:
         return int(_det)
     except:
-        msgs.error(f'Unable to parse {det} into a set of detectors or detector mosaics.')
+        raise PypeItError(f'Unable to parse {det} into a set of detectors or detector mosaics.')
 
 
 def binning2string(binspectral, binspatial):
@@ -195,7 +193,7 @@ def parse_binning(binning:str):
         elif 'x' in binning:
             binspectral, binspatial = [int(item) for item in binning.split('x')]  # LRIS
         elif binning == 'None':
-            msgs.warn("Assuming unbinned, i.e.  1x1")
+            log.warning("Assuming unbinned, i.e.  1x1")
             binspectral, binspatial = 1,1
         else:
             binspectral, binspatial = [int(item) for item in binning.strip().split(' ')]  # Gemini
@@ -204,7 +202,7 @@ def parse_binning(binning:str):
     elif isinstance(binning, np.ndarray):
         binspectral, binspatial = binning
     else:
-        msgs.error("Unable to parse input binning: {}".format(binning))
+        raise PypeItError("Unable to parse input binning: {}".format(binning))
     # Return
     return binspectral, binspatial
 
@@ -459,7 +457,7 @@ def parse_image_location(inp, spec):
     
     """
     if ';' in inp:
-        msgs.error(f'Image location string provided ({inp}) includes a semi-colon!')
+        raise PypeItError(f'Image location string provided ({inp}) includes a semi-colon!')
     # Split the components of the string
     _inp = inp.split(':')
 
@@ -473,14 +471,14 @@ def parse_image_location(inp, spec):
         det = tuple(-d for d in det)
 
     if len(det) > 1 and det not in spec.allowed_mosaics:
-        msgs.error(f'{det} is not a valid mosaic for {spec.name}.')
+        raise PypeItError(f'{det} is not a valid mosaic for {spec.name}.')
     elif len(det) > 1 and det in spec.allowed_mosaics:
         # we use detname, which is a string (e.g., 'DET01', 'MSC01')
         detname = spec.get_det_name(det)
     elif len(det) == 1:
         detname = spec.get_det_name(det[0])
     else:
-        msgs.error(f'Unable to parse detector identifier in: {inp}')
+        raise PypeItError(f'Unable to parse detector identifier in: {inp}')
 
     return (neg, detname) + tuple(float(p) for p in _inp[1:])
 

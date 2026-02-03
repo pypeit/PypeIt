@@ -11,7 +11,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch, meta
 from pypeit import utils
@@ -373,7 +374,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             elif PWSTATA7 == 1 or PWSTATA8 == 1:
                 return 'arclamp'
             else:
-                msgs.warn('Header keyword FLATSPEC, PWSTATA7, or PWSTATA8 may not exist')
+                log.warning('Header keyword FLATSPEC, PWSTATA7, or PWSTATA8 may not exist')
                 return 'unknown'
         if meta_key == 'lampstat01':
             if headarr[0].get('PWSTATA7') == 1 or headarr[0].get('PWSTATA8') == 1:
@@ -394,7 +395,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             else:
                 return 0.0
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -743,7 +744,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             is_arc = fitstbl['idname'] == 'arclamp'
             is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & ('long2pos_specphot' not in fitstbl['decker'])
             return good_exp & (is_arc | is_obj)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     # TODO: Is this supposed to be deprecated in favor of get_comb_group?
@@ -951,7 +952,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         if (numslits.sum() != self._CSUnumslits()) and ('LONGSLIT' not in self.get_meta_value(filename, 'decker')) \
                 and ('long2pos' not in self.get_meta_value(filename, 'decker')):
-            msgs.error('The number of allocated CSU slits does not match the number of possible slits. '
+            raise PypeItError('The number of allocated CSU slits does not match the number of possible slits. '
                        'Slitmask design matching not possible. Turn parameter `use_maskdesign` off')
 
         targ_dist_center = np.array(ssl['Target_to_center_of_slit_distance'], dtype=float)
@@ -1048,10 +1049,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if filename is not None:
             self.get_slitmask(filename)
         else:
-            msgs.error('The name of a science file should be provided')
+            raise PypeItError('The name of a science file should be provided')
 
         if self.slitmask is None:
-            msgs.error('Unable to read slitmask design info. Provide a file.')
+            raise PypeItError('Unable to read slitmask design info. Provide a file.')
 
         platescale = self.get_detector_par(det=1)['platescale']
         slit_gap = self._slit_gap(platescale)
@@ -1078,33 +1079,33 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # This print a QA table with info on the slits sorted from left to right.
         if not debug:
             num = 0
-            msgs.info('Expected slits')
-            msgs.info('*' * 18)
-            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'Slit_Number'))
-            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 13))
+            log.info('Expected slits')
+            log.info('*' * 18)
+            log.info('{0:^6s} {1:^12s}'.format('N.', 'Slit_Number'))
+            log.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 13))
             for i in range(sortindx.shape[0]):
-                msgs.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
+                log.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
                 num += 1
-            msgs.info('*' * 18)
+            log.info('*' * 18)
 
         # If instead we run this method in debug mode, we print more info
         if debug:
             num = 0
-            msgs.info('Expected slits')
-            msgs.info('*' * 92)
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^16s}'.format('N.', 'Slit_Number',
+            log.info('Expected slits')
+            log.info('*' * 92)
+            log.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^16s}'.format('N.', 'Slit_Number',
                                                                                     'slitLen(arcsec)',
                                                                                     'slitWid(arcsec)',
                                                                                     'top_edges(pix)',
                                                                                     'bot_edges(pix)'))
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^14s}'.format('-' * 4, '-' * 13, '-' * 11,
+            log.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^14s}'.format('-' * 4, '-' * 13, '-' * 11,
                                                                                     '-' * 11, '-' * 18, '-' * 15))
             for i in range(sortindx.size):
-                msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f}    {4:^16.2f} {5:^14.2f}'.format(num,
+                log.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f}    {4:^16.2f} {5:^14.2f}'.format(num,
                             self.slitmask.slitid[sortindx][i], self.slitmask.onsky[:,2][sortindx][i],
                             self.slitmask.onsky[:,3][sortindx][i], top_edges[sortindx][i], bot_edges[sortindx][i]))
                 num += 1
-            msgs.info('*' * 92)
+            log.info('*' * 92)
 
         return top_edges, bot_edges, sortindx, self.slitmask
 
