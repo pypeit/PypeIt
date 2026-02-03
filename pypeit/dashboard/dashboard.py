@@ -4,16 +4,20 @@ import re
 from pathlib import Path
 from pypeit import msgs
 import zmq
+import logging
+from logging.handlers import QueueListener
+from multiprocessing import Process, Queue
 
-from qtpy.QtCore import QTimer, QSize, Qt, QMargins
+from PyQt6.QtCore import pyqtSignal
+import qtpy
+from qtpy.QtCore import QTimer, QSize, Qt, QMargins, QObject
 from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter
 from qtpy.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QGridLayout, QLabel, QProgressBar,QTabWidget, QListWidget, QAbstractItemView, QFileDialog
-import qtpy
 
 # from pypeit.setup_gui.controller import start_gui
 # from pypeit.scripts import setup
 import pypeit
-from pypeit.dashboard.capture_logs import PypeitWorker
+from pypeit.dashboard.pypeit_worker import PypeItWorker
 
 """
 TODO: give a meta view and specific (show meta step, what step of that step are we one, what step of that step are we on)
@@ -198,6 +202,11 @@ class FileListWidget(QListWidget):
                        ])
         self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
+# special QlistWidget for easy adding of items
+class logs_view_widget(QListWidget):
+    def update_list(self,item):
+        self.addItems(item)
+
 
 class DashboardWidget(FilledBackgroundWidget):
     """this widget is the bottom widget"""
@@ -207,7 +216,7 @@ class DashboardWidget(FilledBackgroundWidget):
         layout = QVBoxLayout()
         self.status_widget = StatusWidget()
         self.file_list_widget = FileListWidget()
-        self.logs_widget = QListWidget()
+        self.logs_widget = logs_view_widget()
         layout.addWidget(self.status_widget)
         tab_widget = QTabWidget()
         tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.Red),"QA") # Quality analysis
@@ -267,6 +276,21 @@ def parse_pypeit_setup_file(file_path):
 
     return spectrograph,raw_path,files,science_file
 
+# this is to handle the logging from pypeit. will be redirected to the dashboard for it to display
+class QtLogHandler(logging.Handler, QObject):
+    log_signal = pyqtSignal(str)
+
+    def __init__(self):
+        QObject.__init__(self)
+        logging.Handler.__init__(self)
+
+    def emit(self, record):
+        self.log_signal.emit(self.format(record))
+
+def start_pypeit_process(file_path,log_queue):
+    p = Process(target=PypeItWorker,args=(f'{file_path}',log_queue),daemon=True)
+    p.start()
+    return p
 
 class MainWindow(QWidget):
     
@@ -284,7 +308,7 @@ class MainWindow(QWidget):
         # -------- connections ---------
         self.setup_widget.open_setup_button.clicked.connect(self.start_controller)
         self.setup_widget.edit_setup_button.clicked.connect(self.import_setup_file)
-        self.setup_widget.run_all_button.clicked.connect(self.run_all)
+        # self.setup_widget.run_all_button.clicked.connect(self.run_all)
 
 
         self.setLayout(layout)
@@ -299,18 +323,21 @@ class MainWindow(QWidget):
         I will regex the logs and when it finds pypeit_steps() or something similar, it will update the current step
         to be whatever comes after. 
         """
+        self.pypeit_process = start_pypeit_process(self.setup_file_path)
+        # p.join()
+        # will figure this out in a second
 
         # will need better checking in the future but for now will say if file path is not none
-        command = ["run_pypeit",f"{self.setup_file_path}"]
-        if self.setup_file_path != None:
-            subprocess.Popen(command)
-            worker = PypeitWorker(self.setup_file_path)
-            worker.line_received.connect(self.update_logs)
-
-            worker.run()
-        else:
-            # I will do something here that is like you don't have a setup file imported
-            pass
+        # command = ["run_pypeit",f"{self.setup_file_path}"]
+        # if self.setup_file_path != None:
+        #     subprocess.Popen(command)
+        #     worker = PypeitWorker(self.setup_file_path)
+        #     worker.line_received.connect(self.update_logs)
+        #
+        #     worker.run()
+        # else:
+        #     # I will do something here that is like you don't have a setup file imported
+        #     pass
  
     def import_setup_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -344,6 +371,10 @@ class MainWindow(QWidget):
     def update_logs(self, line):
         self.dashboard_widget.logs_widget.addItems([line])
 
+    def update_state(self, state):
+        print(state)
+        pass
+
 
 def main():
         # Note QT expects the program name as arg 0
@@ -370,11 +401,29 @@ def main():
         defaultFont.setPointSize(18)
         app.setFont(defaultFont)
 
-
     main_window = MainWindow()
     main_window.setWindowTitle(main_window.tr("PypeIt Dashboard"))
     main_window.resize(1650,900)
     main_window.show()
+
+    # ---------------- LOGGING ----------------
+    log_queue = Queue()
+
+    qt_handler = QtLogHandler()
+    qt_handler.setFormatter(logging.Formatter(
+        "%(asctime)s | %(processName)s | %(levelname)s | %(message)s"
+    ))
+    qt_handler.log_signal.connect(main_window.update_logs)
+
+    listener = QueueListener(log_queue, qt_handler)
+    listener.start()
+    # ----------------------------------------
+    main_window.setup_widget.run_all_button.clicked.connect(
+            lambda: start_pypeit_process(
+                main_window.setup_file_path,
+                log_queue
+            )
+        )
 
     # --------------------- this is for the SetupGUIController ----------------         
 
