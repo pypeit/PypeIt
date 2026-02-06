@@ -130,7 +130,7 @@ class StatusWidget(FilledBackgroundWidget):
         science_file_label = QLabel(text="Science File")
         layout.addWidget(science_file_label,0,2,1,1)
 
-        self.science_file = QLabel(text="DE.20100913.22358.fits.gz")
+        self.science_file = QLabel(text="None")
         self.science_file.setContentsMargins(value_cm)
         self.science_file.setStyleSheet(value_style_sheet)
         layout.addWidget(self.science_file,0,3,1,1)
@@ -186,11 +186,6 @@ class StatusWidget(FilledBackgroundWidget):
 
 
         
-class FileListWidget(QListWidget):
-    """ can honestly get rid of this and just use a more general logs_view_widget"""
-    def __init__(self):
-        super().__init__()
-        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
 # special QlistWidget for easy adding of items
 class logs_view_widget(QTextEdit):
@@ -209,26 +204,25 @@ class DashboardWidget(FilledBackgroundWidget):
         super().__init__()
 
         layout = QVBoxLayout()
+
+        # ------------- definitions --------------
         self.status_widget = StatusWidget()
-        self.file_list_widget = FileListWidget()
+        self.file_list_widget = QListWidget()
+        self.qa_widget = QListWidget()
+        self.science_widget = QListWidget()
         self.logs_widget = logs_view_widget()
+
+        # -------------- main layout -------------
         layout.addWidget(self.status_widget)
         tab_widget = QTabWidget()
-        tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.Red),"QA") # Quality analysis
+        tab_widget.addTab(self.qa_widget,"QA") # Quality analysis
         tab_widget.addTab(self.file_list_widget,"Calibrations")
-        tab_widget.addTab(FilledBackgroundWidget(color=QColorConstants.DarkGreen),"Science")
+        tab_widget.addTab(self.science_widget,"Science")
         tab_widget.addTab(self.logs_widget,"Logs")
 
         layout.addWidget(tab_widget, 3)
         self.setLayout(layout)
 
-
-
-# what does each button do. 
-# the open setup button opens the setup at the current stage/ state
-# edit setup allows you to enter a different setup file
-# run all starts running the tasks and run does this step by step
-# help does something
 
 def parse_pypeit_setup_file(file_path):
     """
@@ -330,6 +324,13 @@ class MainWindow(QWidget):
     def update_logs(self, line):
         self.dashboard_widget.logs_widget.update_logs(line)
 
+    def update_qa_tab(self,directory_path):
+        items = [str(item) for item in directory_path.iterdir()]
+        self.dashboard_widget.qa_widget.addItems(items)
+    def update_science_tab(self,directory_path):
+        items = [str(item) for item in directory_path.iterdir()]
+        self.dashboard_widget.science_widget.addItems(items)
+
     def update_state(self, state: tuple):
         # TODO change this so it is better
         if state[0] == "Step":
@@ -340,6 +341,7 @@ class MainWindow(QWidget):
             self.dashboard_widget.status_widget.update_calibration_step(state[1])
         elif state[0] == "Detector":
             self.dashboard_widget.status_widget.update_detector_step(state[1])
+
 # ------------------------------------------------------------------------
 # these are classes and functions for multiprocessing and threading
 class QtLogHandler(logging.Handler, QObject):
@@ -360,9 +362,16 @@ def start_pypeit_process(file_path,log_queue,msg_queue):
 def message_listener(msg_queue, handler):
     while True:
         msg = msg_queue.get()
+        print(msg)
         if msg == "STOP":
                     break
-        handler.update_state(msg)
+        if msg[0] == "file path":
+            if msg[1] == 'QA':
+                handler.update_qa_tab(msg[2])
+            if msg[1] == 'Science':
+                handler.update_science_tab(msg[2])
+        else:
+            handler.update_state(msg)
 # --------------------------------------------
 
 def main():
