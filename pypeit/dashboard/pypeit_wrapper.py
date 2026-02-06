@@ -8,7 +8,7 @@ from multiprocessing import Process
 # instead of pyqt6 signalling I will have to use sockets to publish what step Pypeit is on
 
 class PypeItWrapper(PypeIt):
-    def __init__(self, pypeit_file, msg_queue, overwrite=True, reuse_calibs=False, show=False, redux_path=None, calib_only=False ):
+    def __init__(self, pypeit_file, msg_queue, overwrite=True, reuse_calibs=False, show=False, redux_path=None, calib_only=True ):
         super().__init__(pypeit_file, overwrite, reuse_calibs, show, redux_path, calib_only)
         self.msg_queue = msg_queue
         self.calib_only = calib_only
@@ -120,12 +120,23 @@ class PypeItWrapper(PypeIt):
     def run(self):
         # there is no logging for this but I have mostly copied the run function from run_pypeit.py
         # I will probably have to copy the logging but we shall see
+
+
         if self.calib_only:
             self.calib_all()
         else:
             self.reduce_all()
 
+
         self.build_qa()
+
+        # ------------------------------------------------------------
+        self.msg_queue.put(("file path", "QA", Path(self.qa_path))) 
+        # -------------------------------------------------------------
+
+        # ------------------------------------------------------------
+        self.msg_queue.put(("file path","Science", self.science_path)) 
+        # -------------------------------------------------------------
 
         return 0
 
