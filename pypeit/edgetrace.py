@@ -4227,8 +4227,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Insert
         self.insert_traces(side, new_traces, mode='user')
         # Sync
-        print('Add User Traces')
-        embed()
         self.check_synced(rebuild_pca=False)
         return True
 
