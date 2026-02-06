@@ -187,9 +187,20 @@ class StatusWidget(FilledBackgroundWidget):
 
         
 class FileListWidget(QListWidget):
-    """ can honestly get rid of this and just use a more general logs_view_widget"""
     def __init__(self):
         super().__init__()
+        self.addItems(["Arc_A_0_DET03.fits",
+                       "Arc_A_0_DET07.fits",
+                       "Edges_A_0_DET03.fits.gz",
+                       "Edges_A_0_DET07.fits.gz",
+                       "Slits_A_0_DET03.fits.gz",
+                       "Slits_A_0_DET07.fits.gz",
+                       "Tiltimg_A_0_DET03.fits",
+                       "Tiltimg_A_0_DET07.fits",
+                       "Tilts_A_0_DET03.fits",
+                       "WaveCalib_A_0_DET03.fits,"
+                       "WaveCalib_A_0_DET07.fits",
+                       ])
         self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
 # special QlistWidget for easy adding of items
@@ -331,14 +342,13 @@ class MainWindow(QWidget):
         self.dashboard_widget.logs_widget.update_logs(line)
 
     def update_state(self, state: tuple):
-        # TODO change this so it is better
         if state[0] == "Step":
             self.dashboard_widget.status_widget.update_meta_step(state[1])
-        elif state[0] == "Calibration ID":
+        if state[0] == "Calibration ID":
             self.dashboard_widget.status_widget.update_calibration_id(state[1])
-        elif state[0] == "Calibration Step":
+        if state[0] == "Calibration Step":
             self.dashboard_widget.status_widget.update_calibration_step(state[1])
-        elif state[0] == "Detector":
+        if state[0] == "Detector":
             self.dashboard_widget.status_widget.update_detector_step(state[1])
 # ------------------------------------------------------------------------
 # these are classes and functions for multiprocessing and threading
