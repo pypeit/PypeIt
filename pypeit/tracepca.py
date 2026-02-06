@@ -13,7 +13,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit.io import hdu_iter_by_ext
 from pypeit.core import trace
@@ -235,7 +236,7 @@ class TracePCA(DataContainer):
         if self.is_empty:
             raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
         if self.pca_coeffs_model is None:
-            msgs.error('PCA coefficients have not been modeled; run build_interpolator first.')
+            raise PypeItError('PCA coefficients have not been modeled; run build_interpolator first.')
         return pca.pca_predict(x, self.pca_coeffs_model, self.pca_components, self.pca_mean, x).T
 
     def _bundle(self, ext='PCA'):
@@ -268,7 +269,7 @@ class TracePCA(DataContainer):
 
         # This should only ever read one hdu!
         if len(parsed_hdus) > 1:
-            msgs.error('CODING ERROR: Parsing saved TracePCA instances should only parse 1 HDU, '
+            raise PypeItError('CODING ERROR: Parsing saved TracePCA instances should only parse 1 HDU, '
                        'independently of the PCA PypeItFit models.')
 
         # Check if any models exist
@@ -386,7 +387,7 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
         use_trace = np.ones(trace_cen.shape[1], dtype=bool)
         _reference_row = trace_cen.shape[0]//2 if reference_row is None else reference_row
     else:
-        use_trace = np.sum(np.invert(trace_bpm), axis=0)/trace_cen.shape[0] > min_length
+        use_trace = np.sum(np.logical_not(trace_bpm), axis=0)/trace_cen.shape[0] > min_length
         _reference_row = trace.most_common_trace_row(trace_bpm[:,use_trace]) \
                                 if reference_row is None else reference_row
     _coo = None if coo is None else coo[use_trace]
@@ -405,8 +406,8 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
     if _order.size == 1:
         _order = np.clip(order - np.arange(cenpca.npca), 1, None).astype(int)
     if _order.size != cenpca.npca:
-        msgs.error('Number of polynomial orders does not match the number of PCA components.')
-    msgs.info('Order of function fit to each component: {0}'.format(_order))
+        raise PypeItError('Number of polynomial orders does not match the number of PCA components.')
+    log.info('Order of function fit to each component: {0}'.format(_order))
 
     # Apply a 10% relative error to each coefficient. This performs
     # better than use_mad, since larger coefficients will always be

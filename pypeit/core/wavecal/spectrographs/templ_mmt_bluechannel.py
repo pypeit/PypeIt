@@ -12,7 +12,7 @@ def mmt_bluechannel_300(overwrite=False):
 
     Args:
         overwrite: bool, optional
-            Overwrite the existing file? [Default: False]
+            Overwrite the existing file?
     """
     binspec = 1
     outroot = 'mmt_bluechannel_300GPM.fits'
@@ -41,7 +41,7 @@ def mmt_bluechannel_500(overwrite=False):
 
     Args:
         overwrite: bool, optional
-            Overwrite the existing file? [Default: False]
+            Overwrite the existing file?
     """
     binspec = 1
     outroot = 'mmt_bluechannel_500GPM.fits'
@@ -70,7 +70,7 @@ def mmt_bluechannel_800(overwrite=False):
 
     Args:
         overwrite: bool, optional
-            Overwrite the existing file? [Default: False]
+            Overwrite the existing file?
     """
     binspec = 1
     outroot = 'mmt_bluechannel_800GPM.fits'
@@ -99,7 +99,7 @@ def mmt_bluechannel_832_order1(overwrite=False):
 
     Args:
         overwrite: bool, optional
-            Overwrite the existing file? [Default: False]
+            Overwrite the existing file?
     """
     binspec = 1
     outroot = 'mmt_bluechannel_832GPM_order1.fits'
@@ -128,7 +128,7 @@ def mmt_bluechannel_832_order2(overwrite=False):
 
     Args:
         overwrite: bool, optional
-            Overwrite the existing file? [Default: False]
+            Overwrite the existing file?
     """
     binspec = 1
     outroot = 'mmt_bluechannel_832GPM_order2.fits'
@@ -157,7 +157,7 @@ def mmt_bluechannel_1200(overwrite=False):
 
     Args:
         overwrite: bool, optional
-            Overwrite the existing file? [Default: False]
+            Overwrite the existing file?
     """
     binspec = 1
     outroot = 'mmt_bluechannel_1200GPM.fits'

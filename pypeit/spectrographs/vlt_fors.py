@@ -3,17 +3,24 @@ Module for VLT FORS (1 and 2)
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
-from pypeit import msgs
+from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.table import Table
+from astropy import units
+
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.core import meta
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from astropy.coordinates import SkyCoord
-from astropy import units
-from astropy.io import fits
+from pypeit.par import parset
+
 from IPython import embed
 
 class VLTFORSSpectrograph(spectrograph.Spectrograph):
@@ -137,9 +144,9 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
                     # This is for the bias frames
                     return None
                 else:
-                    msgs.error(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
+                    raise PypeItError(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -203,7 +210,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             return good_exp & ((fitstbl['target'] == 'LAMP,WAVE')
                                | (fitstbl['target'] == 'WAVE,LAMP'))
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -299,17 +306,22 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         elif chip == 'CHIP2':
             return detector_container.DetectorContainer(**detector_dict2)
         else:
-            msgs.error(f'Unknown chip: {chip}!')
+            raise PypeItError(f'Unknown chip: {chip}!')
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -318,28 +330,41 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating & decker used
+        grating = self.get_meta_value(inp, 'dispname')
+        decker = self.get_meta_value(inp, 'decker')
+
         # TODO: Should we allow the user to override these?
 
         #detector = self.get_meta_value(scifile, 'detector')
         #self.set_detector(detector)
         # Wavelengths
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_600z':
-            par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            # Since we are using the sky to fit the wavelengths don't correct for flexure
-            par['flexure']['spec_method'] = 'skip'
-            #par['reduce']['skysub']['bspline_spacing'] = 0.6
+        match grating:
+            case 'GRIS_300I':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_300V':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_600z':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+                # Since we are using the sky to fit the wavelengths don't correct for flexure
+                par['flexure']['spec_method'] = 'skip'
+                #par['reduce']['skysub']['bspline_spacing'] = 0.6
+            case 'GRIS_1200B':
+                par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI','HgI','CdI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1200B.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_1400V':
+                par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','HgI','CdI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1400V.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
 
-        decker = self.get_meta_value(scifile, 'decker')
         if 'lSlit' in decker or 'LSS' in decker:
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
@@ -436,7 +461,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 ra, dec = meta.convert_radec(self.get_meta_value(hdr, 'ra', no_fussing=True),
                                     self.get_meta_value(hdr, 'dec', no_fussing=True))
             except:
-                msgs.warn('Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets')
+                log.warning('Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets')
                 ra, dec = 0.0, 0.0
             if ifile == 0:
                 coord_ref = SkyCoord(ra*units.deg, dec*units.deg)
@@ -454,8 +479,12 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 u_hat_this  = np.array([ra_off.to('arcsec').value/separation, dec_off.to('arcsec').value/separation])
                 dot_product = np.dot(u_hat_slit, u_hat_this)
                 if not np.isclose(np.abs(dot_product),1.0, atol=1e-2):
-                    msgs.error('The slit appears misaligned with the angle between the coordinates: dot_product={:7.5f}'.format(dot_product) + msgs.newline() +
-                               'The position angle in the headers {:5.3f} differs from that computed from the coordinates {:5.3f}'.format(posang_this, posang_ref))
+                    raise PypeItError(
+                        'The slit appears misaligned with the angle between the coordinates: '
+                        f'dot_product={dot_product:7.5f}\n'
+                        f'The position angle in the headers {posang_this:5.3f} differs from that '
+                        f'computed from the coordinates {posang_ref:5.3f}'
+                    )
                 offset_arcsec[ifile] = separation*np.sign(dot_product)
 
 #            dither_id.append(hdr['FRAMEID'])

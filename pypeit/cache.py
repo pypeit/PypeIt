@@ -56,8 +56,8 @@ else:
 # NOTE: To avoid circular imports, avoid (if possible) importing anything from
 # pypeit into this module!  Objects created or available in pypeit/__init__.py
 # are the exceptions, for now.
-from pypeit.pypmsgs import PypeItPathError
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError, PypeItPathError
 from pypeit import __version__
 
 
@@ -179,7 +179,7 @@ def git_most_recent_tag():
     tags = [packaging.version.parse(ref.split('/')[-1]) \
                 for ref in repo.references if 'refs/tags' in ref]
     if len(tags) == 0:
-        msgs.warn('Unable to find any tags in pypeit repository.')
+        log.warning('Unable to find any tags in pypeit repository.')
         return __version__, None
     latest_version = str(sorted(tags)[-1])
     timestamp = repo.resolve_refish(f'refs/tags/{latest_version}')[0].author.time
@@ -239,7 +239,7 @@ def fetch_remote_file(
     if remote_host == "s3_cloud" and not install_script:
         # Display a warning that this may take a while, and the user may wish to
         # download use an install script
-        msgs.warn(f'Note: If this file takes a while to download, you may wish to used one of '
+        log.warning(f'Note: If this file takes a while to download, you may wish to used one of '
                   'the install scripts (e.g., pypeit_install_telluric) to install the file '
                   'independent of this processing script.')
 
@@ -260,26 +260,26 @@ def fetch_remote_file(
             in [requests.codes.forbidden, requests.codes.not_found]
         ):
             err_msg = (
-                f"The file {filename}{msgs.newline()}"
-                f"is not hosted in the cloud.  Please download this file from{msgs.newline()}"
-                f"the PypeIt Google Drive and install it using the script{msgs.newline()}"
-                f"pypeit_install_telluric --local.  See instructions at{msgs.newline()}"
+                f"The file {filename}\n"
+                f"is not hosted in the cloud.  Please download this file from"
+                f"the PypeIt Google Drive and install it using the script"
+                f"pypeit_install_telluric --local.  See instructions at"
                 "https://pypeit.readthedocs.io/en/latest/installing.html#additional-data"
             )
 
         elif filetype == "arc_lines/lists":
             err_msg = (
-                f"Cannot find local arc line list {filename}{msgs.newline()}"
-                f"Use the script `pypeit_install_linelist` to install{msgs.newline()}"
-                f"your custom line list into the cache.  See instructions at{msgs.newline()}"
+                f"Cannot find local arc line list {filename}\n"
+                f"Use the script `pypeit_install_linelist` to install"
+                f"your custom line list into the cache.  See instructions at"
                 "https://pypeit.readthedocs.io/en/latest/wave_calib.html#line-lists"
             )
 
         elif filetype == "extinction":
             err_msg = (
-                f"Cannot find local extinction file {filename}{msgs.newline()}"
-                f"Use the script `pypeit_install_extinctfile` to install{msgs.newline()}"
-                f"your custom extinction file into the cache.  See instructions at{msgs.newline()}"
+                f"Cannot find local extinction file {filename}\n"
+                f"Use the script `pypeit_install_extinctfile` to install"
+                f"your custom extinction file into the cache.  See instructions at"
                 "https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction"
             )
 
@@ -288,19 +288,19 @@ def fetch_remote_file(
 
         else:
             err_msg = (
-                f"Error downloading {filename}: {error}{msgs.newline()}"
-                f"URL attempted: {remote_url}{msgs.newline()}"
-                f"If the error relates to the server not being found,{msgs.newline()}"
-                f"check your internet connection.  If the remote server{msgs.newline()}"
-                f"name has changed, please contact the PypeIt development{msgs.newline()}"
+                f"Error downloading {filename}: {error}\n"
+                f"URL attempted: {remote_url}\n"
+                f"If the error relates to the server not being found,"
+                f"check your internet connection.  If the remote server"
+                f"name has changed, please contact the PypeIt development"
                 "team."
             )
 
         # Raise the appropriate error message
-        msgs.error(err_msg)
+        raise PypeItError(err_msg)
 
     except TimeoutError as error:
-        msgs.error(f"Timeout Error encountered: {error}")
+        raise PypeItError(f"Timeout Error encountered: {error}")
 
     # If no error, return the pathlib object
     return pathlib.Path(cache_fn).resolve()
@@ -388,7 +388,7 @@ def remove_from_cache(cache_url=None, pattern=None, allow_multiple=False):
     if cache_url is None:
         _url = search_cache(pattern, path_only=False)
         if len(_url) == 0:
-            msgs.warn(f'Cache does not include a file matching the pattern {pattern}.')
+            log.warning(f'Cache does not include a file matching the pattern {pattern}.')
             return
         _url = list(_url.keys())
     elif not isinstance(cache_url, list):
@@ -397,7 +397,7 @@ def remove_from_cache(cache_url=None, pattern=None, allow_multiple=False):
         _url = cache_url
 
     if len(_url) > 1 and not allow_multiple:
-        msgs.warn('Function found or was provided with multiple entries to be removed.  Either '
+        log.warning('Function found or was provided with multiple entries to be removed.  Either '
                   'set allow_multiple=True, or try again with a single url or more specific '
                   'pattern.  URLs passed/found are:\n' + '\n'.join(_url))
         return
@@ -452,7 +452,7 @@ def parse_cache_url(url):
         return 's3_cloud', None, None, str(sub_path.parent), sub_path.name
 
     # Unknown host
-    msgs.warn(f'URL not recognized as a pypeit cache url:\n\t{url}')
+    log.warning(f'URL not recognized as a pypeit cache url:\n\t{url}')
     return None, None, None, None, None
 
 
@@ -520,7 +520,7 @@ def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):
         return reduce(lambda a, b: urljoin(a, b), parts_perm), \
                 [reduce(lambda a, b: urljoin(a, b), parts_fake)]
 
-    msgs.error(f"Remote host type {remote_host} is not supported for package data caching.")
+    raise PypeItError(f"Remote host type {remote_host} is not supported for package data caching.")
 
 
 def _get_s3_hostname() -> str:

@@ -468,7 +468,9 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import io
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItDataModelError
+from pypeit.par.util import eval_tuple
 
 # TODO: There are methods in, e.g., doc/scripts/build_specobj_rst.py that output
 # datamodels for specific datacontainers.  It would be useful if we had
@@ -676,8 +678,10 @@ class DataContainer:
                         else:
                             break
                     if dc is None:
-                        msgs.error(f'Could not assign dictionary element {key} to datamodel '
-                                   f'for {self.__class__.__name__}.', cls='PypeItDataModelError')
+                        raise PypeItDataModelError(
+                            f'Could not assign dictionary element {key} to datamodel for '
+                            f'{self.__class__.__name__}.'
+                        )
                     setattr(self, key, dc)
                     continue
                 
@@ -824,8 +828,10 @@ class DataContainer:
             try:
                 d = Table(d)
             except:
-                msgs.error(f'Cannot force all elements of {self.__class__.__name__} datamodel'
-                           'into a single-row astropy Table!', cls='PypeItDataModelError')
+                raise PypeItDataModelError(
+                    f'Cannot force all elements of {self.__class__.__name__} datamodelinto a '
+                    'single-row astropy Table!'
+                )
 
         return [d] if ext is None else [{ext:d}]
 
@@ -959,8 +965,10 @@ class DataContainer:
         _ext_pseudo = _ext if ext_pseudo is None else np.atleast_1d(ext_pseudo)
 
         if len(_ext_pseudo) != len(_ext):
-            msgs.error(f'Length of provided extension pseudonym list must match number of '
-                       f'extensions selected: {len(_ext)}.', cls='PypeItDataModelError')
+            raise PypeItDataModelError(
+                f'Length of provided extension pseudonym list must match number of extensions '
+                f'selected: {len(_ext)}.'
+            )
 
         str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext_pseudo])
 
@@ -971,7 +979,7 @@ class DataContainer:
         # DataContainers that have no data, although such a usage case should be
         # rare.
         if np.all([_hdu[e].data is None for e in _ext]):
-            msgs.warn(f'Extensions to be read by {cls.__name__} have no data!')
+            log.warning(f'Extensions to be read by {cls.__name__} have no data!')
             # This is so that the returned booleans for reading the
             # data are not tripped as false!
             found_data = True
@@ -1058,8 +1066,10 @@ class DataContainer:
                 for key in keys[indx]:
                     if key in _d.keys() and _d[key] is not None:
                         continue
-                    _d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
-                                else eval(_hdu[e].header[key.upper()])
+                    if cls.datamodel[key]['otype'] == tuple:
+                        _d[key] = eval_tuple(_hdu[e].header[key.upper()].split(','))[0]
+                    else:
+                        _d[key] = _hdu[e].header[key.upper()]
             if isinstance(e, (str, np.str_)) and e in prefkeys:
                 # Already parsed this above
                 continue
@@ -1089,7 +1099,7 @@ class DataContainer:
         #     cause trouble.
         #   - Hack to force native byte ordering
         for key in _d:
-            if isinstance(_d[key], np.chararray):
+            if isinstance(_d[key], np.char.chararray):
                 _d[key] = np.asarray(_d[key])
             elif isinstance(_d[key], np.ndarray) and _d[key].dtype.byteorder not in ['=', '|']:
                 _d[key] = _d[key].astype(_d[key].dtype.type)
@@ -1144,15 +1154,14 @@ class DataContainer:
                 Flag to impose strict version checking.
         """
         if not type_passed:
-            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!',
-                       cls='PypeItDataModelError')
+            raise PypeItDataModelError(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
         if not version_passed:
             msg = f'Current version of {cls.__name__} object in code ({cls.version}) ' \
                   'does not match version used to write your HDU(s)!'
             if chk_version:
-                msgs.error(msg, cls='PypeItDataModelError')
+                raise PypeItDataModelError(msg)
             else:
-                msgs.warn(msg)
+                log.warning(msg)
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -1382,9 +1391,10 @@ class DataContainer:
             hdr_keys = np.array([k.upper() for k in self.keys()])
             indx = np.isin(hdr_keys, list(_primary_hdr.keys()))
             if np.sum(indx) > 1:
-                msgs.error('CODING ERROR: Primary header should not contain keywords that are the '
-                           'same as the datamodel for {0}.'.format(self.__class__.__name__),
-                           cls='PypeItDataModelError')
+                raise PypeItDataModelError(
+                    'CODING ERROR: Primary header should not contain keywords that are the same '
+                    f'as the datamodel for {self.__class__.__name__}.'
+                )
 
         # Initialize the base header
         _hdr = self._base_header(hdr=hdr)
@@ -1392,9 +1402,10 @@ class DataContainer:
         # with any datamodel keys.
         if _hdr is not None \
                 and np.any(np.isin([k.upper() for k in self.keys()], list(_hdr.keys()))):
-            msgs.error('CODING ERROR: Baseline header should not contain keywords that are the '
-                       'same as the datamodel for {0}.'.format(self.__class__.__name__),
-                       cls='PypeItDataModelError')
+            raise PypeItDataModelError(
+                'CODING ERROR: Baseline header should not contain keywords that are the same as '
+                f'the datamodel for {self.__class__.__name__}.'
+            )
 
         # Construct the list of HDUs
         hdu = []
@@ -1544,7 +1555,7 @@ class DataContainer:
             raise FileNotFoundError(f'{_ifile} does not exist!')
 
         if verbose:
-            msgs.info(f'Loading {cls.__name__} from {_ifile}')
+            log.info(f'Loading {cls.__name__} from {_ifile}')
 
         # Do it
         with io.fits_open(_ifile) as hdu:

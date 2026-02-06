@@ -13,7 +13,7 @@ from typing import Optional,Union
 from pathlib import Path
 from dataclasses import dataclass
 
-from pypeit import msgs
+from pypeit import log
 
 from qtpy.QtWidgets import QFileDialog, QMessageBox, QCheckBox, QDialog, QWidget
 from qtpy.QtCore import QStringListModel, QSettings
@@ -231,7 +231,7 @@ def display_error(parent : QWidget, message: str) -> None:
         parent: The parent widget of the pop-up dialog
         message: The message to display.
     """
-    msgs.warn(message) # Make sure the message also goes to the logs
+    log.warning(message) # Make sure the message also goes to the logs
     QMessageBox.warning(parent, "PypeIt Setup Error", message, QMessageBox.Ok)
 
 def prompt_to_save(parent : QWidget) -> DialogResponses:

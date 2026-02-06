@@ -23,21 +23,18 @@ from scipy.interpolate import interp1d
 from astropy.table import Table
 from astropy import units
 
-import linetools.utils
-
-from pypeit import msgs
-from pypeit import utils
+from pypeit import dataPaths
 from pypeit import io
+from pypeit import log
+from pypeit import utils
 from pypeit import wavecalib
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wv_fitting
-from pypeit.core import fitting
-from pypeit import dataPaths
-
 from pypeit.spectrographs.util import load_spectrograph
 
 # Data Model
@@ -49,7 +46,7 @@ from pypeit.spectrographs.util import load_spectrograph
 if os.getenv('PYPEIT_DEV') is not None:
     template_path = (
         pathlib.Path(os.getenv('PYPEIT_DEV')) / 
-        'dev_algorithms' / 'wavelengths' / 'template_files'
+        'pypeitdev' / 'wavelengths' / 'template_files'
     )
 else:
     # print("You may wish to set the PYPEIT_DEV environment variable")
@@ -146,7 +143,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         else:
             wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
         # Diagnostics
-        msgs.info("wvmin, wvmax of {}: {}, {}".format(in_file, wv_vac.min(), wv_vac.max()))
+        log.info("wvmin, wvmax of {}: {}, {}".format(in_file, wv_vac.min(), wv_vac.max()))
         # Cut
         if len(slits) > 1:
             wvmin, wvmax = grab_wvlim(kk, wv_cuts, len(slits))
@@ -260,8 +257,8 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
     in_file = str(in_file)
 
     if '.json' in in_file:
-        # Force any possible pathlib.Path object to string before `loadjson`
-        wv_dict = linetools.utils.loadjson(in_file)
+        # Load JSON file
+        wv_dict = utils.loadjson(in_file)
         iwv_calib = wv_dict[str(slit)]
         pypeitFitting = fitting.PypeItFit(fitc=np.array(iwv_calib['fitc']),
                                           func=iwv_calib['function'],

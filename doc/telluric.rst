@@ -1,7 +1,9 @@
 .. include:: include/links.rst
 
+.. _telluric_correction:
+
 ===================
-Telluric correction
+Telluric Correction
 ===================
 
 Overview
@@ -9,13 +11,83 @@ Overview
 
 Telluric correction is done after the main run of PypeIt, :doc:`fluxing` and
 :doc:`coadd1d`.  The algorithm for deriving the best telluric model is pretty
-similar with that used in the IR sensitivity function, which fits a user-defined
-model and telluric to a giant telluric grid. Please see :doc:`fluxing` for more
-details.
+similar with that used in the IR sensitivity function, which jointly fits a
+user-defined object model and atmospheric absorption model to the spectrum.
 
-Note that execution of ``pypeit_tellfit`` requires the atmospheric model grids
-to be installed on your system.  See the instructions for installing these
-:ref:`data_installation`.
+The default telluric model is derived from a large pre-computed grid of
+simulated atmospheric transmission spectra computed using the 
+`LBLRTM <https://github.com/AER-RC/LBLRTM/>`__ code (v12.17), including  
+`HITRAN <http://cfa-www.harvard.edu/hitran>`__ 2016 
+molecular line parameters delivered by the 
+`AER Line File v3.8.1 <https://zenodo.org/records/5120012>`__, via a modified
+version of the `TelFit <https://github.com/kgullikson88/Telluric-Fitter>`__
+python interface. The models were computed for the locations of six different
+observatories, covering a wide range of altitudes, and sampling from realistic
+ranges of airmass, ground-level humidity/pressure/temperature, and perturbations 
+of the abundances of several molecular species. This model grid was then 
+decomposed into basis vectors using Principal Component Analysis (PCA) applied
+to the arcsinh of the absorption optical depth. By default, the first 5 basis 
+vectors are used in the fitting, but any number from 1 up to 10 can be specified
+(see below).
+
+The spectrum is jointly fitted to the object model multiplied by a model for 
+the atmospheric absorption, which consists of the telluric model described above
+convolved by instrument resolution and shifted/stretched along the spectral
+direction to account for uncertainties in the wavelength calibration (as well
+as correct for the heliocentric velocity offset). 
+
+Model Telluric Spectra
+======================
+
+PCA spectra
+-----------
+
+The available PCA files (**recommended**) are:
+
+.. include:: include/TellPCA_files.rst
+
+The file names are ``TellPCA_{lambda start}_{lambda end}_R{resolution}.fits``;
+e.g., ``TellPCA_3000_10500_R120000.fits`` has a spectral range from 3,000--10,500
+angstroms with a spectral resolution of :math:`\lambda/\Delta\lambda` = 120,000.
+
+To use these spectra, the minimum parameters are, e.g.:
+
+.. code-block:: ini
+
+    [telluric]
+        tellgridfile = TellPCA_3000_10500_R120000.fits
+        teltype = pca
+
+Note that most spectrographs set defaults for these, meaning you don't
+necessarily need to include them in your pypeit file; i.e., they only need to be
+included if you want to *change* the defaults.
+
+Atmospheric parameter grids
+---------------------------
+
+The available atmospheric grid files are:
+
+.. include:: include/TelFit_files.rst
+
+The file names are
+``TelFit_{site}_{lambda start}_{lambda_end}_R{resolution}.fits``;
+e.g., ``TelFit_MaunaKea_3100_26100_R20000.fits`` samples atmospheric parameters
+appropriate for Maunakea, has a spectral range from 3,100--26,100 angstroms, and
+a spectral resolution of :math:`\lambda/\Delta\lambda` = 20,000.
+
+To use these spectra, the minimum parameters are, e.g.:
+
+.. code-block:: ini
+
+    [telluric]
+        tellgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
+        teltype = grid
+
+Note the atmospheric grid files are *very large* (multiple GiB).  Because of
+this and other general improvements to the associated modeling procedures, we
+*do not recommend* you use these atmospheric grids, and use the PCA-based models
+instead.  These files, and the associated modeling code, are primarily made
+available to allow users to compare to previous results.
 
 .. _pypeit_tellfit:
 
@@ -109,9 +181,9 @@ Your object model, either qso, star or poly.
 --tell_grid, -g
 +++++++++++++++
 
-The filename of the telluric grid file. In case of spectrograph which
-has defined the default grid, you do not need to set this argument.  You
-may, however, select a different grid than the instrument default using
+The filename of the telluric model file. In case of spectrographs which
+have defined a default model, you do not need to set this argument. You
+may, however, select a different model than the instrument default using
 this argument.
 
 --pca_file, -p
@@ -149,6 +221,38 @@ File name for the tellfit parameters used in the fit.
 
 Parameters
 ==========
+
+teltype
+-------
+
+There are two options to model the atmospheric absorption, ``pca`` (default)
+and ``grid`` (legacy). Both options are based on atmospheric radiative transfer
+models as described above. See also :ref:`install_atmosphere`.
+
+The ``pca`` option uses the PCA decomposition of a massive grid of atmospheric
+models run for many different observatories, and should thus work for just about
+any observatory.
+
+The ``grid`` option corresponds to the default method used in earlier versions
+of PypeIt, and uses grids of pre-computed observatory-specific atmospheric models.
+
+telgridfile
++++++++++++
+
+There are different TellPCA files available corresponding to different (maximum) 
+spectral resolutions and wavelength ranges. All spectrographs which default to 
+the ``IR`` telluric method have the suitable file as the default value of 
+``telgridfile``. It is important to remember that, if the user wants to use
+grids of pre-computed observatory-specific atmospheric models (TelFit files),
+``teltype`` parameter must be changed accordingly.
+
+tell_npca
++++++++++
+
+The default number of PCA vectors used is 5, but ``tell_npca`` can be increased
+up to 10 in case more flexibility is required in the telluric model. Has no
+effect if ``teltype = grid`` is specified.
+
 
 qso model
 ---------
@@ -216,12 +320,7 @@ class :class:`~pypeit.onespec.OneSpec`, such that its file extensions are:
 
 .. include:: include/datamodel_onespec.rst
 
-You view the spectrum using the ``lt_xspec`` script, which loads the data
-and launches a GUI from the `linetools`_ package. e.g.:
-
-.. code-block:: console
-
-    lt_xspec J1342_GNIRS_tellcorr.fits
+You view the spectrum using the :ref:`pypeit_show_1dspec`.
 
 The best-fitting telluric model is a two extension fits file, where the 2nd
 extension is identical to one of the extensions from the

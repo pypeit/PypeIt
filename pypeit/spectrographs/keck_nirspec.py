@@ -4,14 +4,21 @@ Module for Keck/NIRSPEC specific methods.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 
-from pypeit import msgs
+from astropy.io import fits
+from astropy.table import Table
+
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import io
 from pypeit.images import detector_container
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
+from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
 
 
@@ -273,15 +280,20 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -290,18 +302,20 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        headarr = self.get_headarr(scifile)
-        self.filter1 = self.get_meta_value(headarr, 'filter1')
-        self.filter2 = self.get_meta_value(headarr, 'filter2')
-        decker = self.get_meta_value(headarr, 'decker')
+        # Adjust parameters based on filters, decker, and `xdangle` used
+        self.filter1 = self.get_meta_value(inp, 'filter1')
+        self.filter2 = self.get_meta_value(inp, 'filter2')
+        decker = self.get_meta_value(inp, 'decker')
+        xdangle = self.get_meta_value(inp, 'xdangle')
         self.lamps_list = par['calibrations']['wavelengths']['lamps']
         
         # wavelength calibration
         supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'Kband-new', 'KL']
         if (self.filter1 not in supported_filters) and (self.filter2 not in supported_filters):
-            msgs.warn(f'Filter {self.filter1} or {self.filter2} may not be supported!!')
+            log.warning(f'Filter {self.filter1} or {self.filter2} may not be supported!!')
         
         if self.filter1 == 'Kband-new' or self.filter2 == 'NIRSPEC-7':
             par['calibrations']['wavelengths']['n_final'] = 3
@@ -336,7 +350,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 70.0
             par['calibrations']['wavelengths']['echelle_pad'] = 1
             par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
-            if self.get_meta_value(headarr, 'xdangle') == 36.72:
+            if xdangle == 36.72:
                 par['calibrations']['slitedges']['rm_slits'] = '1:1100:1925'
 
         if self.filter2 == 'NIRSPEC-3':
@@ -359,7 +373,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['echelle_pad'] = 1
             par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
             #par['calibrations']['slitedges']['rm_slits'] = '1:'
-
 
         if decker == '0.144x12':
             par['calibrations']['wavelengths']['fwhm'] = 3.0
@@ -423,8 +436,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             band = self.filter2
         lamps_list = np.copy(self.lamps_list)
 
-        #msgs.info(lamps_list, 'Xe' in lamps_list[0])
-        #msgs.info('filter1 = ', filter1)
+        #log.info(lamps_list, 'Xe' in lamps_list[0])
+        #log.info('filter1 = ', filter1)
         if 'Xe' in lamps_list[0]:
             if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
@@ -445,7 +458,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
                 angle_fits_file = 'keck_nirspec_l_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_l_composite_arc.fits'
         elif 'OH' in lamps_list[0]:
-            msgs.info('Using OH Lines')
+            log.info('Using OH Lines')
             if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
@@ -498,7 +511,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') 
             good_exp[is_obj] = fitstbl['exptime'].data[is_obj] > 60.0
             return good_exp & (is_arc | is_obj)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def lamps(self, fitstbl, status):
@@ -688,15 +701,20 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_9300_55100_R60000.fits'
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -705,19 +723,19 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        headarr = self.get_headarr(scifile)
-        self.filter1 = self.get_meta_value(headarr, 'filter1')
-        self.filter2 = self.get_meta_value(headarr, 'filter2')
+        # Adjust parameters based on filters and decker used
+        self.filter1 = self.get_meta_value(inp, 'filter1')
+        self.filter2 = self.get_meta_value(inp, 'filter2')
+        decker = self.get_meta_value(inp, 'decker')
         self.lamps_list = par['calibrations']['wavelengths']['lamps']
-        decker = self.get_meta_value(headarr, 'decker')
-
 
         # wavelength calibration
         supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'KL']
         if (self.filter1 not in supported_filters) and (self.filter2 not in supported_filters):
-            msgs.warn(f'Filter {self.filter1} or {self.filter2} may not be supported!!')
+            log.warning(f'Filter {self.filter1} or {self.filter2} may not be supported!!')
         
         if self.filter2 == 'NIRSPEC-7':
             par['calibrations']['wavelengths']['n_final'] = 3
@@ -752,7 +770,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 70.0
             par['calibrations']['wavelengths']['echelle_pad'] = 1
             par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
-
 
         if self.filter2 == 'NIRSPEC-3':
             par['calibrations']['wavelengths']['n_final'] = 3
@@ -936,7 +953,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
             is_obj = self.lamps(fitstbl, 'off') & (hatch == '0') 
             good_exp[is_obj] = fitstbl['exptime'].data[is_obj] > 60.0
             return good_exp & (is_arc | is_obj)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def lamps(self, fitstbl, status):
@@ -1086,7 +1103,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
             #if raw_img[i].ndim != 2:
             #    raw_img[i] = np.squeeze(raw_img[i])
             if raw_img[i].ndim != 2:
-                msgs.error(f"Raw images must be 2D; check extension {detectors[i]['dataext']} "
+                raise PypeItError(f"Raw images must be 2D; check extension {detectors[i]['dataext']} "
                            f"of {raw_file}.")
 
             for section in ['datasec', 'oscansec']:
@@ -1128,7 +1145,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
             return detectors[0], raw_img[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
 
         if any([img.shape != raw_img[0].shape for img in raw_img[1:]]):
-            msgs.error('All raw images in a mosaic must have the same shape.')
+            raise PypeItError('All raw images in a mosaic must have the same shape.')
         # Return all images for mosaic
         return mosaic, np.array(raw_img), hdu, exptime, np.array(rawdatasec_img), np.array(oscansec_img)
 
@@ -1366,7 +1383,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
             is_obj = self.lamps(fitstbl, 'off') & (hatch == 0) \
                         & (fitstbl['idname'] == 'object')
             return good_exp & (is_arc | is_obj)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def lamps(self, fitstbl, status):
@@ -1438,7 +1455,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         # Edges of the detector are junk
-        msgs.info("Custom bad pixel mask for NIRSPEC")
+        log.info("Custom bad pixel mask for NIRSPEC")
         bpm_img[:, :20] = 1.
         bpm_img[:, 1000:] = 1.
 

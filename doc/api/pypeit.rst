@@ -35,6 +35,8 @@ Submodules
    pypeit.coadd3d
    pypeit.datamodel
    pypeit.edgetrace
+   pypeit.exceptions
+   pypeit.exposure
    pypeit.extraction
    pypeit.find_objects
    pypeit.flatfield
@@ -42,19 +44,20 @@ Submodules
    pypeit.history
    pypeit.inputfiles
    pypeit.io
+   pypeit.logger
    pypeit.manual_extract
    pypeit.metadata
    pypeit.onespec
    pypeit.orderstack
+   pypeit.outputfiles
    pypeit.pypeit
+   pypeit.pypeit_steps
    pypeit.pypeitdata
    pypeit.pypeitsetup
-   pypeit.pypmsgs
    pypeit.sampling
    pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc
-   pypeit.setup_package
    pypeit.slittrace
    pypeit.spec2dobj
    pypeit.specobj
@@ -72,5 +75,5 @@ Module contents
 .. automodule:: pypeit
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

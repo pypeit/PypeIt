@@ -448,7 +448,7 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     good = (c >= 0) & (c < ncol)
     if bpm is not None:
         # NOTE: `&=` doesn't work here because of the np.newaxis usage
-        good = good & np.invert(bpm[_row[:,None],ih])
+        good = good & np.logical_not(bpm[_row[:,None],ih])
     if ivar is not None:
         good = good & (ivar[_row[:,None],ih] > 0)
     if _weighting == 'uniform':

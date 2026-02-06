@@ -16,11 +16,11 @@ dataset, which are observations of the quasar J0100+2802 at z=6.29 taken with th
 cross-disperser, echelle angle of -0.82°, cross-disperser angle of 1.62°, and 1x2
 (spectral x spatial) binning.  See :ref:`here <dev-suite>` to find this example dataset.
 
-If you're having trouble reducing your data, we encourage you to try going through this tutorial
-using this example dataset first.  Please join our `PypeIt Users Slack <pypeit-users.slack.com>`__
-(using `this invitation link
-<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
-to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
+If you're having trouble reducing your data, we encourage you to try going
+through this tutorial using this example dataset first.  Please join our `PypeIt
+Users Slack <https://pypeit-users.slack.com>`__ using `this invitation link
+<invite_>`_ to ask for help, and/or `Submit an issue`_ to Github if you find a
+bug!
 
 The following was performed on a Macbook Pro with 16 GB RAM. The main reduction took
 a little over 1 hour, and the fluxing took an additional 15-20 minutes.
@@ -369,30 +369,13 @@ You can plot the spectrum using :ref:`pypeit_show_1dspec`:
 
 .. code-block:: bash
 
-    pypeit_show_1dspec Science/spec1d_HI.20151214.17593-SDSSJ0100+2802_HIRES_20151214T045314.323.fits --exten 23
+    pypeit_show_1dspec Science/spec1d_HI.20151214.17593-SDSSJ0100+2802_HIRES_20151214T045314.323.fits
 
-The ``--exten 23`` argument specifies to use the 23rd extension in the fits file, which selects
-the spectrum in the order 40. This uses the `XSpecGUI`_ from the `linetools`_ package,
-and the result looks like this:
+which plots the spectrum in a tab of the `ginga`_ viewer and allows you to
+select the different order spectra using a drop down menu, in addition to
+selecting other properties of the spectrum. Here is an example:
 
-.. figure:: ../figures/hires_spec1d_xgui.png
-
-   `XSpecGUI`_ produced by calling :ref:`pypeit_show_1dspec` for the order=40 spectrum.
-   The black line is the flux and the red line is the estimated error. In the window,
-   press ``?`` to open a webpage with the `XSpecGUI keystrokes`_ that help you navigate
-   through the spectrum.
-
-Another option for visualizing the 1D extracted spectrum is to use the `ginga`_ viewer. The call
-is simply:
-
-.. code-block:: bash
-
-    pypeit_show_1dspec Science/spec1d_HI.20151214.17593-SDSSJ0100+2802_HIRES_20151214T045314.323.fits --ginga
-
-which plots the spectrum in a tab of the `ginga`_ viewer and allows to select the different order spectra using a
-drop down menu, in addition to selecting other properties of the spectrum. Here is one exemple:
-
-.. figure:: ../figures/hires_spec1d_ginga.png
+.. figure:: ../figures/hires_spec1d.png
 
 
 Fluxing and co-adding
@@ -518,11 +501,11 @@ The following lines can be used to load and visualize the co-added spectrum of t
 
 .. code-block:: python
 
-    from pypeit.specutils import Spectrum1D
+    from pypeit.specutils import Spectrum
     from jdaviz import Specviz
 
     file = 'J0100+2802_coadded_50kms.fits'
-    spec = Spectrum1D.read(file)
+    spec = Spectrum.read(file)
 
     specviz = Specviz()
     specviz.load_data(spec)

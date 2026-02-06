@@ -1,14 +1,17 @@
 .. code-block:: console
 
     $ pypeit_collate_1d -h
-    usage: pypeit_collate_1d [-h] [--spec1d_files [SPEC1D_FILES ...]]
+    usage: pypeit_collate_1d [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                             [--log_level LOG_LEVEL]
+                             [--spec1d_files [SPEC1D_FILES ...]]
                              [--par_outfile PAR_OUTFILE] [--outdir OUTDIR]
                              [--spec1d_outdir SPEC1D_OUTDIR] [--tolerance TOLERANCE]
                              [--match_using MATCH_USING] [--dry_run] [--ignore_flux]
-                             [--flux] [--exclude_slit_bm EXCLUDE_SLIT_BM]
+                             [--flux]
+                             [--exclude_slit_trace_bm EXCLUDE_SLIT_TRACE_BM]
                              [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
                              [--refframe {observed,heliocentric,barycentric}]
-                             [--chk_version] [-v VERBOSITY]
+                             [--chk_version]
                              [input_file]
     
     Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory for
@@ -44,6 +47,17 @@
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence.
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log.
       --spec1d_files [SPEC1D_FILES ...]
                             One or more spec1d files to flux/coadd/archive. Can
                             contain wildcards
@@ -75,7 +89,7 @@
                             are coadded if all spec1ds have been fluxed calibrated.
       --flux                If set, the script will flux calibrate using archived
                             sensfuncs before coadding.
-      --exclude_slit_bm EXCLUDE_SLIT_BM
+      --exclude_slit_trace_bm EXCLUDE_SLIT_TRACE_BM
                             A list of slit trace bitmask bits that should be
                             excluded. Comma separated.
       --exclude_serendip    Whether to exclude SERENDIP objects from collating.
@@ -94,8 +108,4 @@
                             to crash or lead to erroneous results. I.e., you really
                             need to know what you are doing if you set this to
                             False!
-      -v, --verbosity VERBOSITY
-                            Verbosity level between 0 [none] and 2 [all]. Default:
-                            1. Level 2 writes a log with filename
-                            collate_1d_YYYYMMDD-HHMM.log
     

@@ -4,18 +4,20 @@ Implements KCWI-specific functions.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-
 from IPython import embed
+
+from pathlib import Path
 
 import numpy as np
 
 from astropy import wcs, units
 from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
-from astropy.coordinates import EarthLocation
 from scipy.optimize import curve_fit
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
 from pypeit import io
@@ -24,6 +26,7 @@ from pypeit.core import procimg
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
@@ -49,10 +52,6 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # TODO :: Might need to change the tolerance of disperser angle in
         # pypeit setup (two BH2 nights where sufficiently different that this
         # was important).
-
-        # TODO :: Might consider changing TelescopePar to use the astropy
-        # EarthLocation. KBW: Fine with me!
-        self.location = EarthLocation.of_site('Keck Observatory')
 
     def init_meta(self):
         """
@@ -108,15 +107,20 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
 
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -125,33 +129,33 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        headarr = self.get_headarr(scifile)
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
 
-        # Templates
-        par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
-        if self.get_meta_value(headarr, 'dispname') == 'BH2':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'BH3':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH3.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'BM':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'BL':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'RL':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RL.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'RM1':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM1.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'RM2':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM2.fits'
-        elif self.get_meta_value(headarr, 'dispname') == 'RH3':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RH3.fits'
-        else:
-            msgs.warn("Full template solution is unavailable")
-            msgs.info("Adopting holy-grail algorithm - Check the wavelength solution!")
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        match grating:
+            case 'BH2':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2.fits'
+            case 'BH3':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH3.fits'
+            case 'BM':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
+            case 'BL':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
+            case 'RL':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RL.fits'
+            case 'RM1':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM1.fits'
+            case 'RM2':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM2.fits'
+            case 'RH3':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RH3.fits'
+            case _:
+                log.warning("Full template solution is unavailable")
+                log.info("Adopting holy-grail algorithm - Check the wavelength solution!")
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # FWHM
         # binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         # par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
@@ -217,36 +221,36 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 try:
                     hdrstr = 'TARGRA' if meta_key == 'ra' else 'TARGDEC'
                 except KeyError:
-                    msgs.error(f'Cannot determine the {meta_key} from the header')
+                    raise PypeItError(f'Cannot determine the {meta_key} from the header')
             return headarr[0][hdrstr]
         elif meta_key == 'pressure':
             try:
                 return headarr[0]['WXPRESS']  # Must be in astropy.units.mbar
             except KeyError:
-                msgs.warn("Pressure is not in header")
-                msgs.info("The default pressure will be assumed: 611 mbar")
+                log.warning("Pressure is not in header")
+                log.info("The default pressure will be assumed: 611 mbar")
                 return 611.0
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
             except KeyError:
-                msgs.warn("Temperature is not in header")
-                msgs.info("The default temperature will be assumed: 1.5 deg C")
+                log.warning("Temperature is not in header")
+                log.info("The default temperature will be assumed: 1.5 deg C")
                 return 1.5  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'humidity':
             try:
                 # Humidity expressed as a percentage, not a fraction
                 return headarr[0]['WXOUTHUM']
             except KeyError:
-                msgs.warn("Humidity is not in header")
-                msgs.info("The default relative humidity will be assumed: 20 %")
+                log.warning("Humidity is not in header")
+                log.info("The default relative humidity will be assumed: 20 %")
                 return 20.0  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'parangle':
             try:
                 # Parallactic angle expressed in radians
                 return headarr[0]['PARANG'] * np.pi / 180.0
             except KeyError:
-                msgs.error("Parallactic angle is not in header")
+                raise PypeItError("Parallactic angle is not in header")
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         elif meta_key == 'posang':
@@ -264,7 +268,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             skypa = rpos + rref  # IFU position angle (degrees)
             return skypa
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
 
     @classmethod
@@ -299,6 +303,10 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # KCWI has non-uniform spectral resolution across the field-of-view
         par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
         par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
+
+        # Templates
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
@@ -402,7 +410,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             is_align = good_exp & (fitstbl['idname'] == 'CONTBARS') \
                         & (fitstbl['calpos'] == 'Mirror') & self.lamps(fitstbl, 'cont')
             if np.any(is_align & np.logical_not(self.lamps(fitstbl, 'cont_noarc'))):
-                msgs.warn('Alignment frames have both the continuum and arc lamps on (although '
+                log.warning('Alignment frames have both the continuum and arc lamps on (although '
                           'arc-lamp shutter might be closed)!')
             return is_align
         if ftype == 'arc':
@@ -422,7 +430,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def lamps(self, fitstbl, status):
@@ -559,7 +567,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         patt_freqs : :obj:`list`
             List of pattern frequencies.
         """
-        msgs.info("Calculating pattern noise frequency")
+        log.info("Calculating pattern noise frequency")
 
         # Make a copy of te original frame
         raw_img = frame.copy()
@@ -591,7 +599,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             # Calculate the pattern frequency
             freq = procimg.pattern_frequency(frame)
             patt_freqs.append(freq)
-            msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
+            log.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
 
         # Return the list of pattern frequencies
         return patt_freqs
@@ -623,7 +631,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         Returns:
             `astropy.wcs.WCS`_: The world-coordinate system.
         """
-        msgs.info(f"Generating {self.camera} WCS")
+        log.info(f"Generating {self.camera} WCS")
         # Get the x and y binning factors, and the typical slit length
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
@@ -632,7 +640,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         slscl = self.get_meta_value([hdr], 'slitwid')
         if spatial_scale is not None:
             if pxscl > spatial_scale / 3600.0:
-                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+                log.warning("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
             # Update the pixel scale
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
@@ -674,7 +682,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             #     off1 = 0.05
             #     off2 = 5.6
             # else:
-            #     msgs.warn("Unknown IFU number: {0:d}".format(ifunum))
+            #     log.warning("Unknown IFU number: {0:d}".format(ifunum))
             off1 = 0.
             off2 = 0.
             off1 /= binspec
@@ -809,7 +817,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
 
         # Check if the bad columns haven't been set
         if bc is None:
-            msgs.warn("KCRM bad pixel mask is not available for ampmode={0:s} binning={1:s}".format(ampmode, binning))
+            log.warning("KCRM bad pixel mask is not available for ampmode={0:s} binning={1:s}".format(ampmode, binning))
             bc = []
 
         # Apply these bad columns to the mask
@@ -857,7 +865,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             gainarr = None
             ronarr = None
 #            dsecarr = None
-#            msgs.error("A required keyword argument (hdu) was not supplied")
+#            raise PypeItError("A required keyword argument (hdu) was not supplied")
         else:
             # Some properties of the image
             binning = self.compound_meta(self.get_headarr(hdu), "binning")
@@ -1029,7 +1037,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info(f'Reading KCWI file: {fil}')
+        log.info(f'Reading KCWI file: {fil}')
         hdu = io.fits_open(fil)
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
@@ -1137,7 +1145,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
                            -0.004790394657721825, 0.0032481886185675036,  # Polynomial terms (coefficients of "spat" and "spat*spec")
                            0.07823077510724392, -0.0644638013233617, 0.01819438897935518])  # Polynomial terms (coefficients of spec**index)
         else:
-            msgs.warn(f"Initial scattered light model parameters have not been setup for grating {dispname}")
+            log.warning(f"Initial scattered light model parameters have not been setup for grating {dispname}")
             x0 = np.array([54.843502304988725 / specbin, 71.36603219575882 / spatbin,  # Gaussian kernel widths
                            166.5990017834228 / specbin, 164.45188033168876 / spatbin,  # Lorentzian kernel widths
                            -5.759623374637964 / specbin, 5.01392929142184 / spatbin,  # pixel offsets
@@ -1185,7 +1193,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         Returns:
             `numpy.ndarray`_: A model fit to the flatfield structure.
         """
-        msgs.info("Performing a 2D fit to the detector response")
+        log.info("Performing a 2D fit to the detector response")
 
         # Define a 2D sine function, which is a good description of KCWI data
         def sinfunc2d(x, amp, scl, quad, phase, wavelength, angle):
@@ -1207,7 +1215,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
         p0 = [amp, scale, quad, phase, wavelength, angle]
         this_bpm = gpmask & (np.abs(det_resp-1) < 0.1)  # Only expect this to be a 5% effect
-        popt, pcov = curve_fit(sinfunc2d, (xx[this_bpm], yy[this_bpm]), det_resp[this_bpm], p0=p0)
+        popt, _ = curve_fit(sinfunc2d, (xx[this_bpm], yy[this_bpm]), det_resp[this_bpm], p0=p0)
         return sinfunc2d((xx, yy), *popt)
 
 
@@ -1250,7 +1258,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
             gainarr = None
             ronarr = None
 #            dsecarr = None
-#            msgs.error("A required keyword argument (hdu) was not supplied")
+#            raise PypeItError("A required keyword argument (hdu) was not supplied")
         else:
             # Some properties of the image
             binning = self.compound_meta(self.get_headarr(hdu), "binning")
@@ -1303,7 +1311,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         elif numamps == 4:
             return [0, 1, 2, 3]
         else:
-            msgs.error("PypeIt only supports 2 or 4 amplifier readout of KCRM data")
+            raise PypeItError("PypeIt only supports 2 or 4 amplifier readout of KCRM data")
 
     def init_meta(self):
         """
@@ -1415,7 +1423,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info(f'Reading KCWI file: {fil}')
+        log.info(f'Reading KCWI file: {fil}')
         hdu = io.fits_open(fil)
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
