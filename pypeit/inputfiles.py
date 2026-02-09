@@ -17,7 +17,8 @@ import yaml
 
 from pypeit import utils
 from pypeit.io import files_from_extension
-from pypeit import msgs, __version__
+from pypeit import log, __version__
+from pypeit import PypeItError
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par.pypeitpar import PypeItPar
 
@@ -107,7 +108,7 @@ class InputFile:
         """
         # Check the files
         if not os.path.isfile(ifile):
-            msgs.error('The filename does not exist -' + msgs.newline() + ifile)
+            raise PypeItError('The filename does not exist -\n' + ifile)
 
         # Read the input lines and replace special characters
         with open(ifile, 'r') as f:
@@ -132,7 +133,7 @@ class InputFile:
             :class:`InputFile`: An instance of the InputFile class
         """
         # Read in the pypeit reduction file
-        msgs.info('Loading the reduction file')
+        log.info('Loading the reduction file')
         lines = cls.readlines(input_file)
        
         if not preserve_comments:
@@ -146,10 +147,10 @@ class InputFile:
         # Parse data block
         data_start, data_end = cls.find_block(lines, cls.data_block) 
         if data_start >= 0 and data_end < 0:
-            msgs.error(
+            raise PypeItError(
                 f"Missing '{cls.data_block} end' in {input_file}")
         if data_start < 0 and data_end>0:
-            msgs.error("You have not specified the start of the data block!")
+            raise PypeItError("You have not specified the start of the data block!")
         # Read it, if it exists
         if data_start>0 and data_end>0:
             paths, usrtbl = cls._read_data_file_table(lines[data_start:data_end], preserve_comments)
@@ -157,7 +158,7 @@ class InputFile:
             data_block_found = True
         else:
             if cls.datablock_required:
-                msgs.error("You have not specified the data block!")            
+                raise PypeItError("You have not specified the data block!")            
             paths, usrtbl = [], None
             data_block_found = False
 
@@ -165,9 +166,9 @@ class InputFile:
         setup_found = False
         setup_start, setup_end = cls.find_block(lines, 'setup')
         if setup_start >= 0 and setup_end < 0 and cls.setup_required:
-            msgs.error(f"Missing 'setup end' in {input_file}")
+            raise PypeItError(f"Missing 'setup end' in {input_file}")
         elif setup_start < 0 and cls.setup_required:
-            msgs.error(f"Missing 'setup read' in {input_file}")
+            raise PypeItError(f"Missing 'setup read' in {input_file}")
         elif setup_start >= 0 and setup_end > 0:
             setup_found = True
 
@@ -210,7 +211,7 @@ class InputFile:
                 is_config[data_end+1:] = False
 
         # vet
-        msgs.info(f'{cls.flavor} input file loaded successfully.')
+        log.info(f'{cls.flavor} input file loaded successfully.')
 
         # Instantiate
         return cls(config=list(lines[is_config]), 
@@ -227,14 +228,14 @@ class InputFile:
         # Data table
         if self.data is None:
             if self.datablock_required:
-                msgs.error("You have not specified the data block!")
+                raise PypeItError("You have not specified the data block!")
         else:
             for key in self.required_columns:
                 if key not in self.data.keys():
-                    msgs.error(f'Add {key} to the Data block of your {self.flavor} file before running.')
+                    raise PypeItError(f'Add {key} to the Data block of your {self.flavor} file before running.')
 
         if self.setup_required and self.setup is None:
-            msgs.error("Add setup info to your PypeIt file in the setup block!")
+            raise PypeItError("Add setup info to your PypeIt file in the setup block!")
 
     @property
     def setup_name(self):
@@ -303,7 +304,7 @@ class InputFile:
 
         # Check
         if len(setups) > 1:
-            msgs.error("Setup block contains more than one Setup!")
+            raise PypeItError("Setup block contains more than one Setup!")
 
         return setups, sdict
 
@@ -498,7 +499,7 @@ class InputFile:
 
             # Check we got a good hit
             if check_exists and not os.path.isfile(filename):
-                msgs.error(f"{name} does not exist in one of the provided paths.  Modify your input {self.flavor} file")
+                raise PypeItError(f"{name} does not exist in one of the provided paths.  Modify your input {self.flavor} file")
             data_files.append(filename)
 
         # Return
@@ -588,7 +589,7 @@ class InputFile:
                     f.write(f"{self.data_block} end\n")
                     f.write("\n")
 
-        msgs.info(f'{self.flavor} input file written to: {input_file}')
+        log.info(f'{self.flavor} input file written to: {input_file}')
 
     def get_spectrograph(self, pypeit_fits:bool=False):
         """
@@ -608,11 +609,11 @@ class InputFile:
             parameter.
 
         Raises:
-            :class:`~pypeit.pypmsgs.PypeItError`:
+            :class:`~pypeit.exceptions.PypeItError`:
                 Raised if the relevant configuration parameter is not available.
         """
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
-            msgs.error('Cannot define spectrograph.  Configuration file missing \n'
+            raise PypeItError('Cannot define spectrograph.  Configuration file missing \n'
                        '    [rdx]\n    spectrograph=\n entry.')
         return load_spectrograph(self.config['rdx']['spectrograph'], pypeit_fits=pypeit_fits)
 
@@ -673,15 +674,15 @@ class PypeItFile(InputFile):
 
         # Confirm spectrograph is present
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
-            msgs.error(f"Missing spectrograph in the Parameter block of your PypeIt file.  Add it!")
+            raise PypeItError(f"Missing spectrograph in the Parameter block of your PypeIt file.  Add it!")
 
         # Setup
         setup_keys = list(self.setup)
         if 'Setup' not in setup_keys[0]:
-            msgs.error("Setup does not appear in your setup block! Add it")
+            raise PypeItError("Setup does not appear in your setup block! Add it")
 
         # Done
-        msgs.info('PypeIt file successfully vetted.')
+        log.info('PypeIt file successfully vetted.')
 
     @property
     def frametypes(self):
@@ -706,7 +707,7 @@ class PypeItFile(InputFile):
             no example file was available.
         """
         if 'frametype' not in self.data.keys():
-            msgs.error('PypeIt file must provide the frametype column.')
+            raise PypeItError('PypeIt file must provide the frametype column.')
 
         # NOTE: self.filenames is a property function that generates the full
         # set of file names each time they are requested.  However, this should
@@ -790,7 +791,7 @@ class FluxFile(InputFile):
         #  This is allowed if using an archived sensitivity function
         #  And the checking has to be done in the script as the specgtrograph must be known..
         if 'sensfile' not in self.data.keys():
-            msgs.warn("sensfile column not provided.  Fluxing will crash if an archived sensitivity function does not exist")
+            log.warning("sensfile column not provided.  Fluxing will crash if an archived sensitivity function does not exist")
             self.data['sensfile'] = ''
 
     @property
@@ -897,10 +898,10 @@ class Coadd2DFile(InputFile):
 
         # Confirm spectrograph is present
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
-            msgs.error(f"Missing spectrograph in the Parameter block of your .coadd2d file.  Add it!")
+            raise PypeItError(f"Missing spectrograph in the Parameter block of your .coadd2d file.  Add it!")
 
         # Done
-        msgs.info('.coadd2d file successfully vetted.')
+        log.info('.coadd2d file successfully vetted.')
 
 
 class Coadd3DFile(InputFile):
@@ -920,10 +921,10 @@ class Coadd3DFile(InputFile):
 
         # Confirm spectrograph is present
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
-            msgs.error(f"Missing spectrograph in the Parameter block of your .coadd2d file.  Add it!")
+            raise PypeItError(f"Missing spectrograph in the Parameter block of your .coadd2d file.  Add it!")
 
         # Done
-        msgs.info('.coadd3d file successfully vetted.')
+        log.info('.coadd3d file successfully vetted.')
 
     @property
     def options(self):
@@ -1010,7 +1011,7 @@ class Coadd3DFile(InputFile):
         if grating_corr is None:
             opts['grating_corr'] = [None]*len(self.filenames)
         elif len(grating_corr) == 1 and len(self.filenames) > 1:
-            msgs.error("You cannot specify a single grating correction file for multiple input files.")
+            raise PypeItError("You cannot specify a single grating correction file for multiple input files.")
         elif len(grating_corr) != 0:
             opts['grating_corr'] = grating_corr
 
@@ -1045,7 +1046,7 @@ class Coadd3DFile(InputFile):
                 opts['dec_offset'] = [odec/3600.0 for odec in off_dec]
         # Check that both have been set or both are not set
         if (off_ra is not None and off_dec is None) or (off_ra is None and off_dec is not None):
-            msgs.error("You must specify both or neither of the following arguments: ra_offset, dec_offset")
+            raise PypeItError("You must specify both or neither of the following arguments: ra_offset, dec_offset")
 
         # Return all options
         return opts
@@ -1077,10 +1078,10 @@ class FlexureFile(InputFile):
 
         # Confirm spectrograph is present
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
-            msgs.error(f"Missing spectrograph in the Parameter block of your .flex file.  Add it!")
+            raise PypeItError(f"Missing spectrograph in the Parameter block of your .flex file.  Add it!")
 
         # Done
-        msgs.info('.flex file successfully vetted.')
+        log.info('.flex file successfully vetted.')
 
 class Collate1DFile(InputFile):
     """Child class for collate 1D script
@@ -1128,7 +1129,7 @@ class RawFiles(InputFile):
         super().vet()
 
         # Done
-        msgs.info('.rawfiles file successfully vetted.')
+        log.info('.rawfiles file successfully vetted.')
 
 
 # NOTE: I originally had this in pypeit/io.py, but I think it was causing a

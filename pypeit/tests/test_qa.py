@@ -1,7 +1,7 @@
 """
 Module to run tests on arqa
 """
-from pypeit import msgs
+from pypeit import log
 from pypeit.core import qa
 
 def test_get_dimen():

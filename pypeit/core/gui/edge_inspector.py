@@ -9,7 +9,7 @@ from IPython import embed
 import numpy as np
 from matplotlib import pyplot, widgets
 
-from pypeit import msgs
+from pypeit import log
 from pypeit.core.gui import gui_util
 
 
@@ -67,7 +67,7 @@ class EdgeInspectorGUI:
                                     if self.edges.par['left_right_pca'] \
                                     else self.edges.pca.reference_row
         else:
-            msgs.warn('Edges object does not include a PCA decomposition of the traces.')
+            log.warning('Edges object does not include a PCA decomposition of the traces.')
             self.reference_row = self.edges.nspec // 2
         # NOTE: line properties match what is used for the Pointer
         self.ref_row_line = image_ax.axhline(self.reference_row, color='C1', lw=0.5)
@@ -170,7 +170,7 @@ class EdgeInspectorGUI:
         if np.any(_remove) or np.any(_add):
             success = self.edges.sync()
             if not success:
-                msgs.warn('Unable to synchronize left-right traces!')
+                log.warning('Unable to synchronize left-right traces!')
 
         # Remove the trace lines from the plot
         # TODO: There may be an easier way to do this, but I couldn't find it.
@@ -245,7 +245,7 @@ class EdgeInspectorGUI:
         # Get the spatial offset
         self.offset[i] = pos[0] - self.trace_cen[self.reference_row,i]
         # Report
-        msgs.info(f'Offsetting trace {i} by {self.offset[i]} pixels')
+        log.info(f'Offsetting trace {i} by {self.offset[i]} pixels')
         # Reset the line data
         self.trace_plot[i].set_data((self.trace_cen[:,i] + self.offset[i], self.spec_pix))
         # Update the plot
@@ -307,7 +307,7 @@ class EdgeInspectorGUI:
         # Draw the plot
         pyplot.draw()
         # Report
-        msgs.info(f'Added {"right" if side > 0 else "left"} trace passing through '
+        log.info(f'Added {"right" if side > 0 else "left"} trace passing through '
                   f'({spat:.1f}, {self.reference_row:.2f}).')
 
     def add_left(self, pos):

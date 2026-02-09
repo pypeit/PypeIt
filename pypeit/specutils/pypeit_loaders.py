@@ -32,8 +32,8 @@ except ModuleNotFoundError:
                               'option to use the pypeit.specutils module.')
 
 from pypeit import __version__
-from pypeit.pypmsgs import PypeItError
-from pypeit import msgs
+from pypeit import PypeItError
+from pypeit import log
 from pypeit import specobjs
 from pypeit import onespec
 from pypeit import utils
@@ -79,12 +79,12 @@ def _enforce_monotonic_wavelengths(wave, flux, ivar, strict=True):
     if strict:
         # Wavelengths are not monotonic, but the user expects them to be, so
         # fault.
-        msgs.error('Wavelengths are not monotonically increasing!  Circumvent this fault by '
+        raise PypeItError('Wavelengths are not monotonically increasing!  Circumvent this fault by '
                    'setting strict=False, but BEWARE that this is likely the result of an '
                    'error in the data reduction!')
 
     # Wavelengths are not monotonic, but the user wants to keep going.
-    msgs.warn('Wavelengths are not monotonically increasing!  Strict was set to False, so '
+    log.warning('Wavelengths are not monotonically increasing!  Strict was set to False, so '
               'measurements after a negative step in wavelength are removed from the constructed '
               'spectrum.  BEWARE that this is likely the result of an error in the data '
               'reduction!')
@@ -191,7 +191,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, chk_v
         sobjs = specobjs.SpecObjs.from_fitsfile(filename, chk_version=chk_version)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
-        msgs.error(f'Unable to ingest {filename.name} using pypeit.specobjs module from your version '
+        raise PypeItError(f'Unable to ingest {filename.name} using pypeit.specobjs module from your version '
                    f'of PypeIt ({__version__}).  The version used to write the file is '
                    f'{file_pypeit_version}.  If these are different, you may need to re-reduce '
                    'your data using your current PypeIt version or install the matching version '
@@ -204,9 +204,9 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, chk_v
         _wave, _flux, _ivar, _gpm = sobj.get_box_ext(fluxed=_cal) if _ext == 'BOX' \
                                         else sobj.get_opt_ext(fluxed=_cal)
         if not np.all(_gpm):
-            msgs.warn(f'Ignoring {np.sum(np.logical_not(_gpm))} masked pixels.')
+            log.warning(f'Ignoring {np.sum(np.logical_not(_gpm))} masked pixels.')
         if not np.any(_gpm):
-            msgs.warn(f'Spectrum {sobj.NAME} is fully masked and will be ignored!')
+            log.warning(f'Spectrum {sobj.NAME} is fully masked and will be ignored!')
             continue
         _wave, _flux, _ivar = _enforce_monotonic_wavelengths(_wave[_gpm], _flux[_gpm], _ivar[_gpm],
                                                              strict=strict)
@@ -261,7 +261,7 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, chk_version=True, *
         spec = onespec.OneSpec.from_file(filename, chk_version=chk_version)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
-        msgs.error(f'Unable to ingest {filename.name} using pypeit.specobjs module from your version '
+        raise PypeItError(f'Unable to ingest {filename.name} using pypeit.specobjs module from your version '
                    f'of PypeIt ({__version__}).  The version used to write the file is '
                    f'{file_pypeit_version}.  If these are different, you may need to re-reduce '
                    'your data using your current PypeIt version or install the matching version '
@@ -327,5 +327,7 @@ def pypeit_spec1d_loader_nolist(filename, extract=None, fluxed=True, **kwargs):
         calibration hasn't been performed or ``fluxed=False``, the spectrum is
         returned in counts.
     """
-    msgs.error(f'The spec1d file {filename.name} cannot be ingested into a Spectrum object.'
-               f'{msgs.newline()}Please use the SpectrumList object for spec1d files.')
+    raise PypeItError(
+        f'The spec1d file {filename.name} cannot be ingested into a Spectrum object.\n'
+        'Please use the SpectrumList object for spec1d files.'
+    )

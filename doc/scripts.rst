@@ -684,8 +684,9 @@ Here is an example from the Dev Suite:
 pypeit_show_1dspec
 ------------------
 
-This script loads a 1D spectrum file from PypeIt and launches a GUI from the
-`linetools`_ package for inspection; see :ref:`pypeit_show_1dspec`.
+This script loads a 1D spectrum file from PypeIt and launches a ginga viewer for
+inspection; see :ref:`pypeit_show_1dspec`.  This script can be used to view both
+1D extractions from a basic run of the reductions or 1D coadds.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:

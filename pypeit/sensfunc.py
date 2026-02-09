@@ -16,7 +16,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from astropy.io import fits
 from astropy import table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import specobjs
 from pypeit import specobj
 from pypeit import utils
@@ -273,7 +274,7 @@ class SensFunc(datamodel.DataContainer):
             self.norderdet = utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk,
                                                    log10_blaze_function=log10_blaze_function_twk)
         if self.nspec_in == 0:
-            msgs.error('1D spectra have 0 length!')
+            raise PypeItError('1D spectra have 0 length!')
 
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
@@ -292,11 +293,14 @@ class SensFunc(datamodel.DataContainer):
         overlap = (self.wave_cnts[self.counts_mask] <= np.max(self.std_spec.wave)) & \
                   (self.wave_cnts[self.counts_mask] >= np.min(self.std_spec.wave))
         if np.sum(overlap) == 0:
-            msgs.error(f'No wavelength overlap between the archival and observed standard star spectrum. '
+            raise PypeItError(f'No wavelength overlap between the archival and observed standard star spectrum. '
                        'This is not the right standard star for your observations.')
         elif np.sum(overlap)/self.wave_cnts[self.counts_mask].size < 0.8:
-            msgs.warn(f'Only {np.sum(overlap)/self.nspec_in:.1%} of the observed wavelength range is covered by the '
-                      f'archival standard star. This may not be the right standard star for your observations. ')
+            log.warning(
+                f'Only {np.sum(overlap)/self.nspec_in:.1%} of the observed wavelength range is '
+                'covered by the archival standard star. This may not be the right standard star '
+                'for your observations.'
+            )
 
     def unpack_std(self):
         """
@@ -320,17 +324,28 @@ class SensFunc(datamodel.DataContainer):
                 elif hdul[1].header.get('DMODCLS') == 'OneSpec':
                     spec = OneSpec.from_file(spec1d, chk_version=self.chk_version)
                     if spec.head0['PYPELINE'] == 'Echelle':
-                        msgs.error('Standard star 1D spectrum from OneSpec class cannot be used for Echelle data.')
+                        raise PypeItError(
+                            'Standard star 1D spectrum from OneSpec class cannot be used for '
+                            'Echelle data.'
+                        )
                     if spec.fluxed:
-                        msgs.error('Standard star 1D spectrum from OneSpec class is already fluxed '
-                                   'and cannot be used to generate the sensitivity function.')
+                        raise PypeItError(
+                            'Standard star 1D spectrum from OneSpec class is already fluxed and '
+                            'cannot be used to generate the sensitivity function.'
+                        )
                     if self.par['use_flat']:
-                        msgs.error('"use_flat" set to True, but standard star 1D spectrum from OneSpec class '
-                                   'does not contain the flat spectrum. The blaze function cannot be estimated.')
+                        raise PypeItError(
+                            '"use_flat" set to True, but standard star 1D spectrum from OneSpec '
+                            'class does not contain the flat spectrum. The blaze function cannot '
+                            'be estimated.'
+                        )
                     if spec.ext_mode != self.par['extr']:
-                        msgs.warn(f'Standard star 1D spectrum from OneSpec class was obtained using the'
-                                  f' {spec.ext_mode} extraction, while the requested extraction is {self.par["extr"]}. '
-                                  f'The available {spec.ext_mode} extraction will be used instead.')
+                        log.warning(
+                            'Standard star 1D spectrum from OneSpec class was obtained using the'
+                            f' {spec.ext_mode} extraction, while the requested extraction is '
+                            f'{self.par["extr"]}.  The available {spec.ext_mode} extraction will '
+                            'be used instead.'
+                        )
                         self.extr = spec.ext_mode
 
                     # create sobjs_std
@@ -340,14 +355,19 @@ class SensFunc(datamodel.DataContainer):
                     _sobj[f'{self.extr}_MASK'] |= spec.mask.astype(bool)
                     _std_obj = specobjs.SpecObjs(specobjs=np.array([_sobj]), header=spec.head0)
                 else:
-                    msgs.error('Unrecognized class for the 1D spectrum file. Cannot read in the standard')
+                    raise PypeItError(
+                        'Unrecognized class for the 1D spectrum file. Cannot read in the standard.'
+                    )
                 # fill sobjs_std
                 if sobjs_std is None:
                     sobjs_std = _std_obj.copy()
                 else:
                     sobjs_std.add_sobj(_std_obj)
         if sobjs_std is None:
-            msgs.error(f'There is a problem with your standard star 1D spectrum file(s): {self.spec1d_arr}')
+            raise PypeItError(
+                'There is a problem with your standard star 1D spectrum file(s):  '
+                f'{self.spec1d_arr}'
+            )
         # Sort by wavelength
         s_sort = np.argsort(np.max(sobjs_std[f'{self.extr}_WAVE'], axis=1), kind='stable')
         sobjs_std = sobjs_std[s_sort]
@@ -392,7 +412,7 @@ class SensFunc(datamodel.DataContainer):
             # TODO: I added this neurotic check, just to make sure...
             if self.wave_splice is None or self.zeropoint_splice is None \
                     or self.throughput_splice is None:
-                msgs.error('CODING ERROR: Assumed if splice_multi_det is True, then the *_splice '
+                raise PypeItError('CODING ERROR: Assumed if splice_multi_det is True, then the *_splice '
                            'arrays have all been defined.  Found a case where this is not true!')
             # Loop through this list of dictionaries
             for _d in d:
@@ -593,7 +613,7 @@ class SensFunc(datamodel.DataContainer):
             zero-point array
         """
 
-        msgs.info(f"Merging sensfunc for {self.norderdet} detectors {self.par['multi_spec_det']}")
+        log.info(f"Merging sensfunc for {self.norderdet} detectors {self.par['multi_spec_det']}")
         wave_splice_min = self.wave[self.wave > 1.0].min()
         wave_splice_max = self.wave[self.wave > 1.0].max()
         wave_splice_1d, _, _ = wvutils.get_wave_grid(waves=self.wave, wave_method='linear',
@@ -622,7 +642,7 @@ class SensFunc(datamodel.DataContainer):
         # Interpolate over gaps
         zeros = zeropoint_splice_1d == 0.
         if np.any(zeros):
-            msgs.info("Interpolating over gaps (and extrapolating with fill_value=1, if need be)")
+            log.info("Interpolating over gaps (and extrapolating with fill_value=1, if need be)")
             interp_func = scipy.interpolate.interp1d(wave_splice_1d[np.logical_not(zeros)],
                                                      zeropoint_splice_1d[np.logical_not(zeros)],
                                                      kind='nearest', fill_value=0.,
@@ -893,7 +913,7 @@ class SensFunc(datamodel.DataContainer):
         if waves.ndim == 2:
             nspec, norder = waves.shape
             if ech_order_vec is not None and ech_order_vec.size != norder:
-                msgs.warn('The number of orders in the wave grid does not match the '
+                log.warning('The number of orders in the wave grid does not match the '
                           'number of orders in the unpacked sobjs. Echelle order vector not used.')
                 ech_order_vec = None
             nexp = 1
@@ -906,14 +926,14 @@ class SensFunc(datamodel.DataContainer):
             norder, nexp = 1, 1
             waves_stack = np.reshape(waves, (nspec, 1, 1))
         else:
-            msgs.error('Unrecognized dimensionality for waves')
+            raise PypeItError('Unrecognized dimensionality for waves')
 
         weights_stack = np.ones_like(waves_stack)
 
         if norder != sens.zeropoint.shape[1] and ech_order_vec is None:
-            msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
+            raise PypeItError('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
         elif norder != sens.zeropoint.shape[1] and ech_order_vec is not None:
-            msgs.warn('The number of orders in {:} does not match the number of orders in the data. '
+            log.warning('The number of orders in {:} does not match the number of orders in the data. '
                       'Using only the matching orders.'.format(sensfile))
 
         # array of order to loop through

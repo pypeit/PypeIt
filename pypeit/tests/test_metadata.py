@@ -14,7 +14,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts.setup import Setup
 from pypeit.inputfiles import PypeItFile
 from astropy.table import Table
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 
 def test_read_combid():

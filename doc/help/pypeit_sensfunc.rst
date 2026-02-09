@@ -1,20 +1,36 @@
 .. code-block:: console
 
     $ pypeit_sensfunc -h
-    usage: pypeit_sensfunc [-h] [--extr {OPT,BOX}] [--algorithm {UVIS,IR}]
-                           [--multi MULTI] [-o OUTFILE] [-s SENS_FILE] [-f]
-                           [--debug] [--par_outfile PAR_OUTFILE] [-v VERBOSITY]
-                           spec1dfile
+    usage: pypeit_sensfunc [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                           [--log_level LOG_LEVEL] [--extr {OPT,BOX}]
+                           [--algorithm {UVIS,IR}] [--multi MULTI] [-o OUTFILE]
+                           [-s SENS_FILE] [-f] [--debug] [--par_outfile PAR_OUTFILE]
+                           spec1dfiles [spec1dfiles ...]
     
     Compute a sensitivity function
     
     positional arguments:
-      spec1dfile            spec1d file for the standard that will be used to
-                            compute the sensitivity function. This can be the output
-                            file of `pypeit_coadd_1dspec` for non Echelle data.
+      spec1dfiles           file(s) of the reduced standard star spectrum. These can
+                            be either spec1d*.fits files or the output of
+                            `pypeit_coadd_1dspec` (except for cross-dispersed
+                            echelle data). Multiple files can be provided, but they
+                            are helpful onlyif they cover different wavelength
+                            ranges, since thisscript will splice (not combine) them
+                            together.
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence.
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log.
       --extr {OPT,BOX}      Override the default extraction method used for
                             computing the sensitivity function.  Note that it is not
                             possible to set --extr and simultaneously use a .sens
@@ -90,8 +106,4 @@
       --par_outfile PAR_OUTFILE
                             Name of output file to save the parameters used by the
                             fit
-      -v, --verbosity VERBOSITY
-                            Verbosity level between 0 [none] and 2 [all]. Default:
-                            1. Level 2 writes a log with filename sensfunc_YYYYMMDD-
-                            HHMM.log
     

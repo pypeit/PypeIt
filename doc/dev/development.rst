@@ -502,8 +502,8 @@ can do:
     cd $PYPEIT_DIR
     tox -e py312-test-astropydev
 
-Similar ``dev`` dependencies are configured for ``numpy``, ``ginga``, and
-``linetools``, as well.
+Similar ``dev`` dependencies are configured for ``numpy`` and ``ginga``, as
+well.
 
 Unit tests included in the main PypeIt repo should *not* require large data
 files.  Some files are kept in the repo for this purpose (see the
