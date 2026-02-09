@@ -54,7 +54,7 @@ def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
 #    raise ValueError('Entered bspline_model')
     yfit = np.zeros(x.shape, dtype=x.dtype)
     spot = np.arange(npoly * nord, dtype=int)
-    nowidth = np.invert(upper+1 > lower)
+    nowidth = np.logical_not(upper+1 > lower)
     for i in range(n-nord+1):
         if nowidth[i]:
             continue
@@ -142,7 +142,7 @@ def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
     bi = np.concatenate([np.arange(i)+(bw-i)*(bw+1) for i in range(bw,0,-1)])
     bo = np.concatenate([np.arange(i)+(bw-i)*bw for i in range(bw,0,-1)])
     upper += 1
-    nowidth = np.invert(upper > lower)
+    nowidth = np.logical_not(upper > lower)
     for k in range(nn-nord+1):
         if nowidth[k]:
             continue
@@ -185,7 +185,7 @@ def cholesky_band(l, mininf=0.0, verbose=False):
 
     bw, nn = l.shape
     n = nn - bw
-    negative = (l[0,:n] <= mininf) | np.invert(np.isfinite(l[0,:n]))
+    negative = (l[0,:n] <= mininf) | np.logical_not(np.isfinite(l[0,:n]))
     # JFH changed this below to make it more consistent with IDL version. Not sure
     # why the np.all(np.isfinite(lower)) was added. The code could return an empty
     # list for negative.nonzero() and crash if all elements in lower are NaN.

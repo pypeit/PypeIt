@@ -41,6 +41,8 @@ from pypeit.scripts import parse_slits
 from pypeit.scripts import print_bpm
 from pypeit.scripts import qa_html
 from pypeit.scripts import ql
+from pypeit.scripts import rectify_2dspec
+from pypeit.scripts import reduce_by_step
 from pypeit.scripts import run_pypeit
 from pypeit.scripts import run_to_calibstep
 from pypeit.scripts import sensfunc

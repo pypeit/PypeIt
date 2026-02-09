@@ -369,30 +369,13 @@ You can plot the spectrum using :ref:`pypeit_show_1dspec`:
 
 .. code-block:: bash
 
-    pypeit_show_1dspec Science/spec1d_HI.20151214.17593-SDSSJ0100+2802_HIRES_20151214T045314.323.fits --exten 23
+    pypeit_show_1dspec Science/spec1d_HI.20151214.17593-SDSSJ0100+2802_HIRES_20151214T045314.323.fits
 
-The ``--exten 23`` argument specifies to use the 23rd extension in the fits file, which selects
-the spectrum in the order 40. This uses the `XSpecGUI`_ from the `linetools`_ package,
-and the result looks like this:
+which plots the spectrum in a tab of the `ginga`_ viewer and allows you to
+select the different order spectra using a drop down menu, in addition to
+selecting other properties of the spectrum. Here is an example:
 
-.. figure:: ../figures/hires_spec1d_xgui.png
-
-   `XSpecGUI`_ produced by calling :ref:`pypeit_show_1dspec` for the order=40 spectrum.
-   The black line is the flux and the red line is the estimated error. In the window,
-   press ``?`` to open a webpage with the `XSpecGUI keystrokes`_ that help you navigate
-   through the spectrum.
-
-Another option for visualizing the 1D extracted spectrum is to use the `ginga`_ viewer. The call
-is simply:
-
-.. code-block:: bash
-
-    pypeit_show_1dspec Science/spec1d_HI.20151214.17593-SDSSJ0100+2802_HIRES_20151214T045314.323.fits --ginga
-
-which plots the spectrum in a tab of the `ginga`_ viewer and allows to select the different order spectra using a
-drop down menu, in addition to selecting other properties of the spectrum. Here is one exemple:
-
-.. figure:: ../figures/hires_spec1d_ginga.png
+.. figure:: ../figures/hires_spec1d.png
 
 
 Fluxing and co-adding

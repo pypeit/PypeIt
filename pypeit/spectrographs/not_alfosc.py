@@ -13,7 +13,8 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -200,7 +201,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'ra':
             objra = headarr[0]['OBJRA'] # Given in hours, not deg
             return objra*15.
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -271,7 +272,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc','tilt']:
             return good_exp & (fitstbl['idname'] == 'WAVE,LAMP')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def config_specific_par(
@@ -330,7 +331,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             case 'Grism_20':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism20.fits'
             case _:
-                msgs.warn('not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
+                log.warning('not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
 
         # Return
         return par

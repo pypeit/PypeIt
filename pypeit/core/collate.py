@@ -20,7 +20,9 @@ from astropy.coordinates import SkyCoord, Angle
 
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
+
 
 class SourceObject:
 
@@ -63,7 +65,7 @@ class SourceObject:
             try:
                 self.coord = SkyCoord(spec1d_obj.RA, spec1d_obj.DEC, unit='deg')
             except Exception as e:
-                msgs.error(f"Cannot do ra/dec matching on {spec1d_obj.NAME}, could not read RA/DEC.")
+                raise PypeItError(f"Cannot do ra/dec matching on {spec1d_obj.NAME}, could not read RA/DEC.")
         else:
             self.coord = spec1d_obj['SPAT_PIXPOS']
 
@@ -164,7 +166,7 @@ class SourceObject:
         
         if other_source_object._spectrograph.name != self._spectrograph.name or \
            other_source_object.match_type != self.match_type:
-           msgs.error(f"Can't append incompatible source objects. {self.spectrograph.name}/{self.match_type} does not match {other_source_object.spectrograph.name}/{other_source_object.match_type}")
+           raise PypeItError(f"Can't append incompatible source objects. {self.spectrograph.name}/{self.match_type} does not match {other_source_object.spectrograph.name}/{other_source_object.match_type}")
 
         self.spec_obj_list += other_source_object.spec_obj_list
         self.spec1d_file_list += other_source_object.spec1d_file_list

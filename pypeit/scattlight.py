@@ -11,7 +11,7 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit.display import display
@@ -100,9 +100,9 @@ class ScatteredLight(calibframe.CalibFrame):
         model : `numpy.ndarray`_
             A model of the expected scattered light in the input image. Shape is (nspec, nspat).
         """
-        msgs.info("Generating a scattered light image")
+        log.info("Generating a scattered light image")
         if self.scattlight_param is None:
-            msgs.warn("No scattered light parameters are available")
+            log.warning("No scattered light parameters are available")
             return np.zeros_like(image)
         # Return the model of the scattered light
         return scattlight.scattered_light_model_pad(self.scattlight_param, image)

@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 
 from sklearn.decomposition import PCA
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import utils
 from pypeit.core import fitting
 
@@ -98,7 +98,7 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
     # Number of components for a full decomposition
     npca_tot = var_growth.size
 
-    msgs.info('The unconstrained PCA yields {0} components.'.format(npca_tot))
+    log.info('The unconstrained PCA yields {0} components.'.format(npca_tot))
     if npca is None:
         # Assign the number of components to use based on the variance
         # percentage
@@ -112,7 +112,7 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
                          + ', which is less than the requested {0} component(s).'.format(npca)
                          + '  Lower the number of requested PCA component(s) or turn off the PCA.')
 
-    msgs.info('PCA will include {0} component(s), '.format(npca)
+    log.info('PCA will include {0} component(s), '.format(npca)
               + 'containing {0:.3f}% of the total variance.'.format(var_growth[npca-1]))
 
     # Determine the PCA coefficients with the revised number of

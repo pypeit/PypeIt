@@ -10,7 +10,8 @@ from IPython import embed
 import numpy as np
 from scipy import ndimage
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.core import transform
 from pypeit.utils import inverse
 
@@ -77,11 +78,11 @@ def build_image_mosaic_transform(shape, shift, rotation=0., binning=(1.,1.)):
         :func:`pypeit.core.transform.affine_transform_series`.
     """
     if len(shape) != 2:
-        msgs.error('Shape must be a two-tuple.')
+        raise PypeItError('Shape must be a two-tuple.')
     if len(shift) != 2:
-        msgs.error('Shift must be a two-tuple.')
+        raise PypeItError('Shift must be a two-tuple.')
     if len(binning) != 2:
-        msgs.error('Binning must be a two-tuple.')
+        raise PypeItError('Binning must be a two-tuple.')
 
     tform = []
     if np.absolute(rotation) > 0:
@@ -150,7 +151,7 @@ def prepare_mosaic(shape, tforms, buffer=0, inplace=False):
 
     # Set the mosaic image shape
     if buffer < 0:
-        msgs.error('Mosaic image buffer must be >= 0.')
+        raise PypeItError('Mosaic image buffer must be >= 0.')
     mosaic_shape = tuple(*np.ceil(np.diff(box, axis=0) + 2*buffer).astype(int))
 
     # Adjust the image transformations to be within the limits of the mosaic
@@ -257,28 +258,28 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
     # Check the input
     nimg = len(imgs)
     if len(tforms) != nimg:
-        msgs.error('Number of image transformations does not match number of images to mosaic.')
+        raise PypeItError('Number of image transformations does not match number of images to mosaic.')
     if ivar is not None and len(ivar) != nimg:
-        msgs.error('If providing any, must provide inverse-variance for each image in the mosaic.')
+        raise PypeItError('If providing any, must provide inverse-variance for each image in the mosaic.')
     if bpm is not None and len(bpm) != nimg:
-        msgs.error('If providing any, must provide bad-pixel masks for each image in the mosaic.')
+        raise PypeItError('If providing any, must provide bad-pixel masks for each image in the mosaic.')
     if overlap not in ['combine', 'error']:
-        msgs.error(f'Unknown value for overlap ({overlap}), must be "combine" or "error".')
+        raise PypeItError(f'Unknown value for overlap ({overlap}), must be "combine" or "error".')
 
     if any([not np.issubdtype(img.dtype, np.floating) for img in imgs]):
-        msgs.warn('Images must be floating type, and will be recast before transforming.')
+        log.warning('Images must be floating type, and will be recast before transforming.')
 
     # Get the output shape, if necessary
     if mosaic_shape is None:
         shape = imgs[0].shape
         if not np.all([img.shape == shape for img in imgs]):
-            msgs.error('If output mosaic shape is not provided, all input images must have the '
+            raise PypeItError('If output mosaic shape is not provided, all input images must have the '
                        'same shape!')
         mosaic_shape, _tforms = prepare_mosaic(shape, tforms)
     else:
         _tforms = tforms
 
-    msgs.info(f'Constructing image mosaic with {nimg} images and output shape {mosaic_shape}.')
+    log.info(f'Constructing image mosaic with {nimg} images and output shape {mosaic_shape}.')
 
     if ivar is not None:
         var = [inverse(_ivar) for _ivar in ivar]
@@ -324,7 +325,7 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
     has_overlap = np.any(mosaic_npix > 1)
     if has_overlap and overlap == 'error':
         # Input images should not be allowed to overlap
-        msgs.error('Mosaic has pixels with contributions by more than one input image!')
+        raise PypeItError('Mosaic has pixels with contributions by more than one input image!')
 
     filled = mosaic_npix > 0
     mosaic_data[np.logical_not(filled)] = cval

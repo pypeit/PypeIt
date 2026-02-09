@@ -6,9 +6,10 @@ import os
 import pathlib
 
 import pytest
+import astropy.table 
 
 from pypeit import dataPaths
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit import spectrographs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import pypeitsetup
@@ -61,8 +62,13 @@ def test_select_detectors_mosaic():
     # Valid
     assert spec.select_detectors() == [1,2,3], 'Bad detector selection'
     # Valid
-    assert spec.select_detectors(subset=[3,(1,2,3)]) == [3,(1,2,3)], 'Bad detector selection'
+    assert spec.select_detectors(subset=[3,(1,2,3)]) == [3,(1,2,3)], 'Bad mix detector/mosaic selection'
 
+    # String input that is *not* slitspatnum
+    spec = load_spectrograph('keck_deimos') 
+    assert spec.select_detectors(subset='3') == [3]
+    assert spec.select_detectors(subset="3,(1,5)") == [3,(1,5)], 'Bad string of mix detector/mosaic selection'
+    assert spec.select_detectors(subset="[3,(1,5)]") == [3,(1,5)], 'Bad string of mix detector/mosaic selection'
 
 def test_list_detectors_deimos():
     deimos = load_spectrograph('keck_deimos')
@@ -224,3 +230,42 @@ def test_config_specific_par(fitstbl):
     ft2['dispname'] = '452/3306'
     par = spectrograph.config_specific_par(ft2)
     assert par['calibrations']['wavelengths']['reid_arxiv'] == 'shane_kast_blue_452.fits'
+
+def test_apf_levy_final_config_frametypes():
+    """
+    Test the final_config_frametypes method for APF Levy spectrograph.
+    
+    The method should change 'pixelflat,trace' frames to 'pixelflat' when:
+    - There are 'trace' frames (narrowflat) in the table
+    - AND the setup decker is '3.0'
+    """
+    # Load the spectrograph
+    spec = load_spectrograph('apf_levy')
+
+    # Test case 1: decker is '3.0' with both narrowflat and wideflat frames
+    # Should change wideflat to pixelflat
+    table1 = astropy.table.Table()
+    table1['frametype'] = ['pixelflat,trace', 'trace', 'science', 'arc']
+    table1['filename'] = ['file1.fits', 'file2.fits', 'file3.fits', 'file4.fits']
+    setup1 = {'decker': '3.0', 'binning': '1,1'}
+
+    spec.final_config_frametypes(setup1, table1)
+
+    # Check that wideflat frames were changed to pixelflat
+    assert table1['frametype'][0] == 'pixelflat', \
+        "Wideflat frame should be changed to pixelflat when decker is 3.0 and narrowflat exists"
+
+    # Test case 2: decker is '8.0'
+    # Should NOT change wideflat frames even if narrowflat exists
+    table2 = astropy.table.Table()
+    table2['frametype'] = ['pixelflat,trace', 'trace', 'science']
+    table2['filename'] = ['file1.fits', 'file2.fits', 'file3.fits']
+    setup2 = {'decker': '8.0', 'binning': '1,1'}
+
+    spec.final_config_frametypes(setup2, table2)
+
+    # Check that wideflat frames were NOT changed
+    assert table2['frametype'][0] == 'pixelflat,trace', \
+        "Wideflat frame should NOT be changed when decker is not 3.0"
+    assert table2['frametype'][1] == 'trace', \
+        "Narrowflat frame should remain unchanged"

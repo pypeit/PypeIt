@@ -10,7 +10,8 @@ from copy import deepcopy
 from IPython import embed
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import sampling
 from pypeit import utils
 
@@ -50,23 +51,23 @@ class Spectrum:
 
         self.wave = np.asarray(wave, dtype=float).copy()
         if self.wave.ndim != 1:
-            msgs.error('wavelength array must always be 1D in the spectrum object')
+            raise PypeItError('wavelength array must always be 1D in the spectrum object')
         if self.wave.size != self.flux.shape[0]:
-            msgs.error('wavelength vector must match length of flux array')
+            raise PypeItError('wavelength vector must match length of flux array')
 
         if ivar is None:
             self.ivar = None
         else:
             self.ivar = np.asarray(ivar, dtype=float).copy()
             if self.ivar.shape != self.flux.shape:
-                msgs.error('Wavelength and inverse variance arrays do not have the same shape.')
+                raise PypeItError('Wavelength and inverse variance arrays do not have the same shape.')
 
         if gpm is None:
             self.gpm = np.ones(self.flux.shape, dtype=bool)
         else:
             self.gpm = np.asarray(gpm, dtype=bool).copy()
             if self.gpm.shape != self.flux.shape:
-                msgs.error('Wavelength and good-pixel arrays do not have the same size.')
+                raise PypeItError('Wavelength and good-pixel arrays do not have the same size.')
 
         self.meta = meta if meta is None else deepcopy(meta)
 
@@ -119,7 +120,7 @@ class Spectrum:
         # Multiply by a scalar
         if isinstance(a, (int, np.integer, float, np.floating)):
             if float(a) == 0.:
-                msgs.warn('Multiplicative factor is 0!')
+                log.warning('Multiplicative factor is 0!')
             self.flux *= a
             if self.ivar is not None:
                 if np.absolute(a) > 0:
@@ -138,7 +139,7 @@ class Spectrum:
             # Check the wavelength vectors
             # TODO: Loosen this; i.e., use isclose instead of array_equal?
             if not np.array_equal(a.wave, self.wave):
-                msgs.error('To multiply two spectra, their wavelength vectors must be identical.')
+                raise PypeItError('To multiply two spectra, their wavelength vectors must be identical.')
             a_flux = a.flux
             a_gpm = a.gpm
             if a.ivar is not None:
@@ -150,7 +151,7 @@ class Spectrum:
 
         # Check the input
         if a_flux.ndim > self.ndim:
-            msgs.error(
+            raise PypeItError(
                 'Multiplication does not allow the dimensionality of the spectrum to change.  '
                 f'The dimensionality of this spectrum is {self.ndim} and the multiplier is '
                 f'{a_flux.ndim}.'
@@ -159,7 +160,7 @@ class Spectrum:
         # below should work, as long as the last a.ndim dimensions of a and this
         # spectrum match.
         if a_flux.shape != self.shape[:a_flux.ndim]:
-            msgs.error(
+            raise PypeItError(
                 'Numpy will not be able to successfully broadcast arithmetic operations between '
                 f'this spectrum, shape={self.shape}, and the multiplier, shape={a_flux.shape}.'
             )

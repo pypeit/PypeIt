@@ -23,12 +23,15 @@ class ShowArxiv(scriptbase.ScriptBase):
                             help=argparse.SUPPRESS)
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         """ Shows the spectrum
         """
         from matplotlib import pyplot as plt
         from pypeit.core.wavecal import waveio
+
+        # Initialize the log
+        cls.init_log(args)
 
         # NOTE: Path is checked within load_template()
         wave, flux = waveio.load_template(args.file, args.det)[:2]

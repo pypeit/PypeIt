@@ -44,6 +44,8 @@ Submodules
    pypeit.scripts.print_bpm
    pypeit.scripts.qa_html
    pypeit.scripts.ql
+   pypeit.scripts.rectify_2dspec
+   pypeit.scripts.reduce_by_step
    pypeit.scripts.run_pypeit
    pypeit.scripts.run_to_calibstep
    pypeit.scripts.scriptbase
@@ -67,5 +69,5 @@ Module contents
 .. automodule:: pypeit.scripts
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

@@ -17,7 +17,7 @@ class Setup(scriptbase.ScriptBase):
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Parse data files to construct a pypeit file in '
                                                 'preparation for reduction using \'run_pypeit\'',
-                                    width=width)
+                                    width=width, default_log_file=True)
 
         # TODO: Spectrograph should be a required argument
         parser.add_argument('-s', '--spectrograph', default=None, type=str,
@@ -48,9 +48,6 @@ class Setup(scriptbase.ScriptBase):
                             help='Include the manual spatial shift (flexure) column for the user to edit')
         parser.add_argument('-m', '--manual_extraction', default=False, action='store_true',
                             help='Include the manual extraction column for the user to edit')
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename setup_YYYYMMDD-HHMM.log')
         parser.add_argument('-k', '--keep_bad_frames', default=False, action='store_true',
                             help='Keep all frames, even if they are identified as having '
                                  'bad/unrecognized configurations that cannot be reduced by '
@@ -73,13 +70,13 @@ class Setup(scriptbase.ScriptBase):
 
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         import time
         from pathlib import Path
 
-        from pypeit import msgs
+        from pypeit import log
         from pypeit.pypeitsetup import PypeItSetup
         from pypeit.calibrations import Calibrations
 
@@ -100,7 +97,8 @@ class Setup(scriptbase.ScriptBase):
             from pypeit.setup_gui.controller import start_gui
             start_gui(args)
         else:
-            msgs.set_logfile_and_verbosity("setup", args.verbosity)       
+            # Initialize the log
+            cls.init_log(args)
 
         # Initialize PypeItSetup based on the arguments
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
@@ -111,7 +109,7 @@ class Setup(scriptbase.ScriptBase):
                     user_cfgs = [l.rstrip() for l in user_par_fobj.readlines()]
                 ps.append_user_cfg(user_cfgs)
             else:
-                msgs.warn(f"Could not open param_block file {args.param_block_file}. "
+                log.warning(f"Could not open param_block file {args.param_block_file}. "
                           "Not adding any additional user parameters to the .pypeit file.")
         # Run the setup
         ps.run(setup_only=True, clean_config=not args.keep_bad_frames)

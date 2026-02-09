@@ -30,8 +30,8 @@ class ChkForCalibs(scriptbase.ScriptBase):
                             help='If not toggled, remove setup_files/ folder and its files.')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         """
 
         Args:
@@ -54,9 +54,12 @@ class ChkForCalibs(scriptbase.ScriptBase):
 
         from pypeit.pypeitsetup import PypeItSetup
         from pypeit import calibrations
-        from pypeit import msgs
+        from pypeit import log
         from pypeit.par import PypeItPar
 
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Check that the spectrograph is provided if using a file root
         if args.root is not None:
@@ -76,7 +79,7 @@ class ChkForCalibs(scriptbase.ScriptBase):
         ps.run(setup_only=True)
         is_science = ps.fitstbl.find_frames('science')
 
-        msgs.info('Loaded spectrograph {0}'.format(ps.spectrograph.name))
+        log.info('Loaded spectrograph {0}'.format(ps.spectrograph.name))
 
         # Unique configurations
         uniq_cfg = ps.fitstbl.unique_configurations(copy=True)
@@ -103,10 +106,10 @@ class ChkForCalibs(scriptbase.ScriptBase):
                 answers['scifiles'][i] = None
                 continue
 
-            msgs.info('=======================================================================')
-            msgs.info('Working on setup: {}'.format(setup))
-            msgs.info(str(uniq_cfg[setup]))
-            msgs.info('=======================================================================')
+            log.info('=======================================================================')
+            log.info('Working on setup: {}'.format(setup))
+            log.info(str(uniq_cfg[setup]))
+            log.info('=======================================================================')
 
             # TODO: Make the snippet below, which is also in the init of
             # PypeIt a method somewhere
@@ -120,10 +123,10 @@ class ChkForCalibs(scriptbase.ScriptBase):
                 if 'science' in row['frametype'] or 'standard' in row['frametype']:
                     config_specific_file = data_files[idx]
             if config_specific_file is not None:
-                msgs.info('Setting configuration-specific parameters using {0}'.format(
+                log.info('Setting configuration-specific parameters using {0}'.format(
                             os.path.split(config_specific_file)[1]))
             else:
-                msgs.warn('No science or standard frame.  Punting..')
+                log.warning('No science or standard frame.  Punting..')
                 answers['pass'][i] = False
                 answers['scifiles'][i] = None
                 continue
@@ -137,19 +140,19 @@ class ChkForCalibs(scriptbase.ScriptBase):
             par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines)
             # Print science frames
             if np.any(in_cfg & is_science):
-                msgs.info('Your science frames are: {0}'.format(
+                log.info('Your science frames are: {0}'.format(
                             ps.fitstbl['filename'][in_cfg & is_science].tolist()))
                 answers['scifiles'][i] \
                         = ', '.join(ps.fitstbl['filename'][in_cfg & is_science].tolist())
             else:
-                msgs.warn("This setup has no science frames!")
+                log.warning("This setup has no science frames!")
                 answers['scifiles'][i] = ''
 
             # Check!
             answers['pass'][i] = calibrations.check_for_calibs(par, ps.fitstbl,
                                                             raise_error=False, cut_cfg=in_cfg)
             if not answers['pass'][i]:
-                msgs.warn("Setup {} did not pass the calibration check!".format(setup))
+                log.warning("Setup {} did not pass the calibration check!".format(setup))
 
         print('= RESULTS ============================================')
         # Print
