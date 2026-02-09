@@ -1694,7 +1694,6 @@ class PypeItMetaData:
         Returns:
             :obj:`list`: List of ``PypeIt`` files generated.
         """
-
         # Set output path
         if output_path is None:
             output_path = os.getcwd()
