@@ -15,6 +15,7 @@ from IPython import embed
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit import tracepca
 
@@ -879,13 +880,15 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, spat_flexure=
     img_shape = thismask_science.shape
     # Check the spatial flexure input
     if spat_flexure is not None and len(spat_flexure) != 2:
-        msgs.error('Spatial flexure must be a two element array')
+        raise PypeItError('Spatial flexure must be a two element array')
     _spat_flexure = np.zeros(2) if spat_flexure is None else spat_flexure
     # Check dimensions
     if len(slit_left) != len(slit_right):
-        msgs.error('Slit left and right edges must have the same length')
+        raise PypeItError('Slit left and right edges must have the same length')
     if len(slit_left) != img_shape[0]:
-        msgs.error('Slit edges must have the same length as the spectral dimension of the image')
+        raise PypeItError(
+            'Slit edges must have the same length as the spectral dimension of the image'
+        )
 
     # Prepare the spatial and spectral coordinates
     nspec, nspat = img_shape
@@ -938,17 +941,23 @@ def fit2tilts(coeff2, func2d, shape=None, spec_eval=None, spat_eval=None):
     else:
         # Print a warning just in case only one was provided
         if (spec_eval is None and spat_eval is not None) or (spec_eval is not None and spat_eval is None):
-            msgs.warn('Both spec_eval and spat_eval must be provided.' + msgs.newline() +
-                      'Only one variable provided, so a new (full) grid will be generated.')
+            log.warning(
+                'Both spec_eval and spat_eval must be provided.  Only one variable provided, so '
+                'a new (full) grid will be generated.'
+            )
         # Print a warning if neither are provided
         if spec_eval is None and spat_eval is None:
-            msgs.warn('No spatial and spectral coordinates provided.' + msgs.newline() +
-                      'A new (full) grid will be generated.')
+            log.warning(
+                'No spatial and spectral coordinates provided.  A new (full) grid will be '
+                'generated.'
+            )
         # Print a warning is shape is not provided
         if shape is None:
-            msgs.error('No shape provided for the image.' + msgs.newline() +
-                       'You must provide either `shape` or both `spat_eval` and `spec_eval`.')
-        msgs.warn("Assuming no spatial flexure.")
+            raise PypeItError(
+                'No shape provided for the image.  You must provide either `shape` or both '
+                '`spat_eval` and `spec_eval`.'
+            )
+        log.warning("Assuming no spatial flexure.")
         _spat_shift = 0.0
         # Setup the evaluation grid
         nspec, nspat = shape

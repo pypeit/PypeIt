@@ -814,14 +814,18 @@ class RawImage:
         # Check if the slits are provided
         if slits is None:
             if not np.ma.is_masked(manual_spat_flexure):
-                msgs.warn('Manual spatial flexure provided without slits - assuming no spatial flexure.')
+                log.warning(
+                    'Manual spatial flexure provided without slits - assuming no spatial flexure.'
+                )
             else:
-                msgs.warn('Cannot calculate spatial flexure without slits - assuming no spatial flexure.')
+                log.warning(
+                    'Cannot calculate spatial flexure without slits - assuming no spatial flexure.'
+                )
             return
 
         # First check for manual flexure
         if not np.ma.is_masked(manual_spat_flexure):
-            msgs.info(f'Adopting a manual spatial flexure of {manual_spat_flexure} pixels')
+            log.info(f'Adopting a manual spatial flexure of {manual_spat_flexure} pixels')
             spat_flexure = np.full((slits.nslits, 2), np.float64(manual_spat_flexure))
         else:
             # get filename for QA
@@ -838,12 +842,14 @@ class RawImage:
 
         # Print the flexure values
         if np.all(spat_flexure == spat_flexure[0, 0]):
-            msgs.info(f'Spatial flexure is: {spat_flexure[0, 0]} pixels')
+            log.info(f'Spatial flexure is: {spat_flexure[0, 0]} pixels')
         else:
             # Print the flexure values for each slit separately
             for slit in range(spat_flexure.shape[0]):
-                msgs.info(
-                    f'Spatial flexure for slit {slits.spat_id[slit]} is: left={spat_flexure[slit, 0]} pixels; right={spat_flexure[slit, 1]} pixels')
+                log.info(
+                    f'Spatial flexure for slit {slits.spat_id[slit]} is: '
+                    f'left={spat_flexure[slit, 0]} pixels; right={spat_flexure[slit, 1]} pixels'
+                )
 
         self.steps[step] = True
         # Return
