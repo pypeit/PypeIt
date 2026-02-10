@@ -400,7 +400,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         ]:
             # DeVeny doesn't have any of these types of frames
             return np.zeros(len(fitstbl), dtype=bool)
-        log.warn(f"Cannot determine if frames are of type {ftype}")
+        log.warning(f"Cannot determine if frames are of type {ftype}")
         return np.zeros(len(fitstbl), dtype=bool)
 
     def get_rawimage(self, raw_file, det):
@@ -486,7 +486,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             return astropy.time.Time(f"{date}T{time}", format="isot")
 
 
-class RIMASYJArm(LDTRIMASSpectrograph):
+class YJArm(LDTRIMASSpectrograph):
     """
     Child to handle common aspects of the LDT/RIMAS YJ Arm
     """
@@ -549,7 +549,7 @@ class RIMASYJArm(LDTRIMASSpectrograph):
         return detector_container.DetectorContainer(**detector_dict)
 
 
-class RIMASHKArm(LDTRIMASSpectrograph):
+class HKArm(LDTRIMASSpectrograph):
     """
     Child to handle common aspects of the LDT/RIMAS HK Arm
     """
@@ -615,9 +615,9 @@ class RIMASHKArm(LDTRIMASSpectrograph):
         return detector_container.DetectorContainer(**detector_dict)
 
 
-class RIMASLowres:
+class VPH_Modes:
     """
-    Mix-in Class to handle common aspects of the LDT/RIMAS Low-Res (VPH) Modes
+    Mix-in Class to handle common aspects of the LDT/RIMAS VPH (low-res) Modes
     """
 
     pypeline = "MultiSlit"
@@ -644,9 +644,9 @@ class RIMASLowres:
         return fitstbl[vph_idx]
 
 
-class RIMASEchelle:
+class GRISM_Mode:
     """
-    Mix-in Class to handle common aspects of the LDT/RIMAS Echelle Modes
+    Mix-in Class to handle common aspects of the LDT/RIMAS GRISM (Echelle) Mode
     """
 
     pypeline = "Echelle"
@@ -673,13 +673,13 @@ class RIMASEchelle:
 
 
 # Actual Operational Modes ===================================================#
-class LDTRIMASLowYJSpectrograph(RIMASLowres, RIMASYJArm):
+class LDTRIMASVphYJSpectrograph(VPH_Modes, YJArm):
     """
     Child to handle LDT/RIMAS YJ Arm, lowres-specific code
     """
 
-    name = "ldt_rimas_yj_low"
-    comment = "LDT Rapid infrared IMAger Spectrometer, YJ Arm Low-Res Gratings"
+    name = "ldt_rimas_yj_vph"
+    comment = "LDT Rapid infrared IMAger Spectrometer, YJ Arm VPH Gratings"
 
     @classmethod
     def default_pypeit_par(cls):
@@ -845,13 +845,13 @@ class LDTRIMASLowYJSpectrograph(RIMASLowres, RIMASYJArm):
         return par
 
 
-class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
+class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
     """
     Child to handle LDT/RIMAS HK Arm, lowres-specific code
     """
 
-    name = "ldt_rimas_hk_low"
-    comment = "LDT Rapid infrared IMAger Spectrometer, HK Arm Low-Res Gratings"
+    name = "ldt_rimas_hk_vph"
+    comment = "LDT Rapid infrared IMAger Spectrometer, HK Arm VPH Gratings"
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1020,12 +1020,12 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
         return par
 
 
-class LDTRIMASEchelleYJSpectrograph(RIMASEchelle, RIMASYJArm):
+class LDTRIMASGrismYJSpectrograph(GRISM_Mode, YJArm):
     """
     Child to handle LDT/RIMAS YJ Arm, echelle-specific code
     """
 
-    name = "ldt_rimas_yj_echelle"
+    name = "ldt_rimas_yj_grism"
     comment = "LDT Rapid infrared IMAger Spectrometer, YJ Arm Med-Res Echelle Grism"
 
     @classmethod
@@ -1227,12 +1227,12 @@ class LDTRIMASEchelleYJSpectrograph(RIMASEchelle, RIMASYJArm):
         return np.log10(9500.0), np.log10(26000)
 
 
-class LDTRIMASEchelleHKSpectrograph(RIMASEchelle, RIMASHKArm):
+class LDTRIMASGrismHKSpectrograph(GRISM_Mode, HKArm):
     """
     Child to handle LDT/RIMAS HK Arm, echelle-specific code
     """
 
-    name = "ldt_rimas_hk_echelle"
+    name = "ldt_rimas_hk_grism"
     comment = "LDT Rapid infrared IMAger Spectrometer, HK Arm Med-Res Echelle Grism"
 
     @classmethod
