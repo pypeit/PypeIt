@@ -12,6 +12,8 @@ jobs:
   cron-tests:
     name: Tox env ${{ matrix.python }}-${{ matrix.toxenv }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         os: [ubuntu-latest]
