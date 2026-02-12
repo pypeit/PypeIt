@@ -8,7 +8,7 @@ from IPython import embed
 
 import numpy as np
 from astropy.io import fits
-from pypeit import msgs
+from pypeit import log
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -27,6 +27,9 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
     header_name = 'ERIS'
     supported = True
     comment = 'Gratings tested: K'
+    allowed_extensions = ['.fits']
+    # NOTE: downloaded files may have this extension 'fits.Z', but it does not work with PYpeIt.
+    # So data needs to be uncompressed before running with PypeIt.
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -75,6 +78,9 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
+        turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
@@ -97,14 +103,16 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['tracethresh'] = 5.0
 
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['standardframe']['exprng'] = [None, 20]
+        par['calibrations']['standardframe']['exprng'] = [None, None]
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
 
 
         # TODO: We need to implement dark subtraction for the arcframe and
-        # tiltframe. Currently the pypeit file won't let me do this.
+        #  tiltframe. Currently the pypeit file won't let me do this. -- VERIFY THIS
+        # par['calibrations']['arcframe']['process']['use_darkimage'] = True
+        # par['calibrations']['tiltframe']['process']['use_darkimage'] = True
         par['calibrations']['arcframe']['process']['sigclip'] = 20.0
         #par['calibrations']['arcframe']['process']['combine'] = 'median'
         par['calibrations']['arcframe']['process']['mask_cr'] = True
@@ -120,9 +128,6 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
 
 
         # Flats
-        turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False)
-        par.reset_all_processimages_par(**turn_off)
-
         # # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
         # par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
         # par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
@@ -149,12 +154,6 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
-        # Set the default exposure time ranges for the frame typing
-        par['calibrations']['standardframe']['exprng'] = [None, 20]
-        par['calibrations']['arcframe']['exprng'] = [20, None]
-        par['calibrations']['darkframe']['exprng'] = [20, None]
-        par['scienceframe']['exprng'] = [20, None]
-
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 7
@@ -174,22 +173,24 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])  # Need to convert to : separated
         self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
         self.meta['target'] = dict(ext=0, card='OBJECT')
+        # self.meta['target'] = dict(ext=0, card='HIERARCH ESO OBS TARG NAME')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
-        # TODO Must change for ERIS
-        self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI1 NAME')
-        self.meta['filter1'] = dict(ext=0, card='HIERARCH ESO INS FILT1 NAME')
-        self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRAT1 NAME')
+        # TODO Must change for ERIS - is this DONE?
+        self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS3 SPXW NAME')
+        self.meta['filter1'] = dict(ext=0, card='HIERARCH ESO INS3 SPFW NAME')
+        self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS3 SPGW NAME')
+        self.meta['frameno'] = dict(ext=0, card='HIERARCH ESO DET EXP ID')
 
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO OCS DET1 IMGNAME')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         # self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         # Dithering
         # TODO Must change for ERIS
-        self.meta['dithoff'] = dict(ext=0, card='HIERARCH ESO OCS CUMOFFS Y ',
+        self.meta['dithoff'] = dict(ext=0, card='HIERARCH ESO OCS OFFSET RA',
                                    required_ftypes=['science', 'standard'])
 
     def compound_meta(self, headarr, meta_key):
@@ -208,16 +209,15 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
         """
         # TODO Change to match above (init_meta)
         if meta_key == 'decker':
-            try:  # Science
+            if headarr[0].get('HIERARCH ESO INS SLIT NAME') is not None:
+                # Science
                 decker = headarr[0]['HIERARCH ESO INS SLIT NAME']
-            except KeyError:  # Standard!
-                try:
-                    decker = headarr[0]['HIERARCH ESO SEQ SPEC TARG']
-                except KeyError:
-                    return None
+            elif headarr[0].get('HIERARCH ESO SEQ SPEC TARG') is not None:
+                # Standard!
+                decker = headarr[0]['HIERARCH ESO SEQ SPEC TARG']
+            else:
+                decker = None
             return decker
-        else:
-            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -235,27 +235,45 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
         """
         return ['decker', 'dispname', 'filter1']
 
-    def raw_header_cards(self):
+    def config_independent_frames(self):
         """
-        Return additional raw header cards to be propagated in
-        downstream output files for configuration identification.
+        Define frame types that are independent of the fully defined
+        instrument configuration.
 
-        The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
-        for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
-
-        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
-        to include additional FITS keywords in downstream output files.
+        Bias and dark frames are considered independent of a configuration,
+        but the DATE-OBS keyword is used to assign each to the most-relevant
+        configuration frame group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
 
         Returns:
-            :obj:`list`: List of keywords from the raw data files that should
-            be propagated in output files.
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
         """
-        # TODO Change to match above (init_meta)
-        return ['HIERARCH ESO INS OPTI1 NAME', 'HIERARCH ESO INS GRAT1 NAME',
-                'HIERARCH ESO INS FILT1 NAME']
+        return {'dark': ['decker', 'dispname']}
+
+    # def raw_header_cards(self):
+    #     """
+    #     Return additional raw header cards to be propagated in
+    #     downstream output files for configuration identification.
+    #
+    #     The list of raw data FITS keywords should be those used to populate
+    #     the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+    #     or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+    #     for a particular spectrograph, if different from the name of the
+    #     PypeIt metadata keyword.
+    #
+    #     This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+    #     to include additional FITS keywords in downstream output files.
+    #
+    #     Returns:
+    #         :obj:`list`: List of keywords from the raw data files that should
+    #         be propagated in output files.
+    #     """
+    #     # TODO Change to match above (init_meta)
+    #     return ['HIERARCH ESO INS OPTI1 NAME', 'HIERARCH ESO INS GRAT1 NAME',
+    #             'HIERARCH ESO INS FILT1 NAME']
 
     def pypeit_file_keys(self):
         """
@@ -267,10 +285,7 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
             :ref:`pypeit_file`.
         """
         pypeit_keys = super().pypeit_file_keys()
-        # TODO: Why are these added here? See
-        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
-        return pypeit_keys + ['dithoff']
+        return pypeit_keys + ['dithoff', 'frameno']
 
 
 
@@ -294,67 +309,61 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        # TODO: Allow for 'sky' frame type, for now include sky in
-        # 'science' category
         if ftype == 'science':
-            return good_exp & ((fitstbl['idname'] == 'ERIS_IFS_OBS') #TODO Enter Science frame info
-                                | (fitstbl['target'] == 'STD,TELLURIC')
-                                | (fitstbl['target'] == 'SKY,STD'))
+            return good_exp & (fitstbl['idname'] == 'ERIS_IFS_OBS')
         if ftype == 'standard':
-            return good_exp & ((fitstbl['target'] == 'STD') | (fitstbl['target'] == 'SKY,STD'))
-        #if ftype == 'bias':
-        #    return good_exp & (fitstbl['target'] == 'BIAS')
+            return good_exp & (fitstbl['idname'] == 'ERIS_IFS_STD')
         if ftype == 'dark':
-            return good_exp & (fitstbl['target'] == 'DARK')
+            return good_exp & (fitstbl['idname'] == 'ERIS_IFS_DARK')
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
+            # TODO: what about illuminflats?
             return good_exp & (fitstbl['target'] == 'FLAT,LAMP')
-        #if ftype == 'pinhole':
-        #    # Don't type pinhole
-        #    return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & ((fitstbl['target'] == 'WAVE,LAMP') | (fitstbl['idname'] == 'ERIS_IFS_OBS') |
+            # return good_exp & ((fitstbl['target'] == 'WAVE,LAMP') | (fitstbl['idname'] == 'ERIS_IFS_OBS') |
+            #                    (fitstbl['idname'] == 'ERIS_IFS_SKY'))
+            # for now we use only OH lines for wavelength calibration.
+            return good_exp & ((fitstbl['idname'] == 'ERIS_IFS_OBS') |
                                (fitstbl['idname'] == 'ERIS_IFS_SKY'))
-        # Putting this in now in anticipation of the sky class
         if ftype in ['sky']:
             return good_exp & (fitstbl['idname'] == 'ERIS_IFS_SKY')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.warning('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-
-    def lamps(self, fitstbl, status):
-        """
-        Check the lamp status.
-
-        Args:
-            fitstbl (`astropy.table.Table`_):
-                The table with the fits header meta data.
-            status (:obj:`str`):
-                The status to check. Can be ``'off'``, ``'arcs'``, or
-                ``'dome'``.
-
-        Returns:
-            `numpy.ndarray`_: A boolean array selecting fits files that meet
-            the selected lamp status.
-
-        Raises:
-            ValueError:
-                Raised if the status is not one of the valid options.
-        """
-        if status == 'off':
-            # Check if all are off
-            return np.all(np.array([fitstbl[k] == 0 for k in fitstbl.keys() if 'lampstat' in k]),
-                          axis=0)
-        if status == 'arcs':
-            # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-            return np.any(np.array([ fitstbl[k] == 1 for k in fitstbl.keys()
-                                            if k in arc_lamp_stat]), axis=0)
-        if status == 'dome':
-            return fitstbl['lampstat01'] == '1'
-
-        raise ValueError('No implementation for status = {0}'.format(status))
+# TODO: Just commenting out for now, and if really not needed, we can remove.
+    # def lamps(self, fitstbl, status):
+    #     """
+    #     Check the lamp status.
+    #
+    #     Args:
+    #         fitstbl (`astropy.table.Table`_):
+    #             The table with the fits header meta data.
+    #         status (:obj:`str`):
+    #             The status to check. Can be ``'off'``, ``'arcs'``, or
+    #             ``'dome'``.
+    #
+    #     Returns:
+    #         `numpy.ndarray`_: A boolean array selecting fits files that meet
+    #         the selected lamp status.
+    #
+    #     Raises:
+    #         ValueError:
+    #             Raised if the status is not one of the valid options.
+    #     """
+    #     if status == 'off':
+    #         # Check if all are off
+    #         return np.all(np.array([fitstbl[k] == 0 for k in fitstbl.keys() if 'lampstat' in k]),
+    #                       axis=0)
+    #     if status == 'arcs':
+    #         # Check if any arc lamps are on
+    #         arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
+    #         return np.any(np.array([ fitstbl[k] == 1 for k in fitstbl.keys()
+    #                                         if k in arc_lamp_stat]), axis=0)
+    #     if status == 'dome':
+    #         return fitstbl['lampstat01'] == '1'
+    #
+    #     raise ValueError('No implementation for status = {0}'.format(status))
 
 
 
