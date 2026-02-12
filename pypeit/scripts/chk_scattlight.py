@@ -31,14 +31,17 @@ class ChkScattLight(scriptbase.ScriptBase):
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         from pypeit import scattlight, spec2dobj, slittrace
-        from pypeit import msgs
-        from pypeit.pypmsgs import PypeItError, PypeItDataModelError
+        from pypeit import log
+        from pypeit import PypeItError, PypeItDataModelError
         from pypeit.images.detector_container import DetectorContainer
         from pypeit import io
+
+        # Initialize the log
+        cls.init_log(args)
 
         chk_version = not args.try_old
 
@@ -59,13 +62,13 @@ class ChkScattLight(scriptbase.ScriptBase):
         # Load the alternate file if requested
         display_frame = None  # The default is to display the frame used to calculate the scattered light model
         if args.spec2d is not None:
-            msgs.error("displaying the spec2d scattered light is not currently supported")
+            raise PypeItError("displaying the spec2d scattered light is not currently supported")
             try:
                 # TODO :: the spec2d file may have already had the scattered light removed, so this is not correct. This script only works when the scattered light is turned off for the spec2d file
                 spec2D = spec2dobj.Spec2DObj.from_file(args.spec2d, detname,
                                                        chk_version=chk_version)
             except PypeItDataModelError:
-                msgs.warn(f"Error loading spec2d file {args.spec2d} - attempting to load science image from fits")
+                log.warning(f"Error loading spec2d file {args.spec2d} - attempting to load science image from fits")
                 spec2D = None
 
             # Now set the frame to be displayed

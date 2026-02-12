@@ -23,10 +23,13 @@ class InstallTelluric(scriptbase.ScriptBase):
                             help='This is a local file to be installed in the cache')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         import os
         from pypeit import cache
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Loop through the files passed
         for file in args.files:

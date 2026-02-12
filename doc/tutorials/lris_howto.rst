@@ -536,10 +536,6 @@ This is a screenshot from the GUI showing the 1D spectrum:
 
 .. image:: ../figures/lris_spec1d.png
 
-This uses the `XSpecGUI`_ from the `linetools`_ package.  The black line is the
-flux and the red line is the estimated error. In the window, the user can press ``?`` to open
-a webpage with the `XSpecGUI keystrokes`_ that help you navigate through the spectrum.
-
 See :ref:`spec-1d-output` for further details.
 
 

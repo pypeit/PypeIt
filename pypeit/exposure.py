@@ -2,8 +2,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypeit import msgs
-
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import outputfiles
 from pypeit.core import parse
 from pypeit.display import display
@@ -123,7 +123,7 @@ def process_exposure(spectrograph, fitstbl, par, frames:list,
 
     # Loop on the detectors
     for det in detectors:
-        msgs.info(f'Reducing detector {det}')
+        log.info(f'Reducing detector {det}')
 
         # Process
         sciImg, bkg_redux_sciimg = pypeit_steps.process_one_det(
@@ -397,36 +397,37 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         fitstbl, par, bg_frames)
 
     # Print status message
-    msgs_string = 'Reducing target {:s}'.format(fitstbl['target'][frames[0]]) + msgs.newline()
+    lstr = f'Reducing target {fitstbl["target"][frames[0]]}\n'
     # TODO: Print these when the frames are actually combined,
     # backgrounds are used, etc?
-    msgs_string += 'Combining frames:' + msgs.newline()
+    lstr += 'Combining frames:\n'
     for iframe in frames:
-        msgs_string += '{0:s}'.format(fitstbl['filename'][iframe]) + msgs.newline()
-    msgs.info(msgs_string)
+        lstr += f'{fitstbl["filename"][iframe]}\n'
+    log.info(lstr)
     if has_bg:
-        bg_msgs_string = ''
+        bg_lstr = ''
         for iframe in bg_frames:
-            bg_msgs_string += '{0:s}'.format(fitstbl['filename'][iframe]) + msgs.newline()
-        bg_msgs_string = msgs.newline() + 'Using background from frames:' + msgs.newline() + bg_msgs_string
-        msgs.info(bg_msgs_string)
+            bg_lstr += f'{fitstbl["filename"][iframe]}\n'
+        bg_lstr = '\nUsing background from frames:\n' + bg_lstr
+        log.info(bg_lstr)
 
     # Find the detectors to reduce
     detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'] if par['rdx']['slitspatnum'] is None 
                                               else par['rdx']['slitspatnum'])
-    msgs.info(f'Detectors to work on: {detectors}')
+    log.info(f'Detectors to work on: {detectors}')
 
     # #####################################
     # Calibrations
     for det in detectors:
-        msgs.info(f'Calibrating detector {det}')
+        log.info(f'Calibrating detector {det}')
         # run/load calibration
         caliBrate =  pypeit_steps.calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path,
               show=show, run_state=run_state, reuse_calibs=reuse_calibs)
         if not caliBrate.success:
-            msgs.warn(f'Calibrations for detector {det} were unsuccessful!  The step '
-                        f'that failed was {caliBrate.failed_step}.  Continuing by '
-                        f'skipping this detector.')
+            log.warning(
+                f'Calibrations for detector {det} were unsuccessful!  The step that failed was '
+                f'{caliBrate.failed_step}.  Continuing by skipping this detector.'
+            )
             # Remove from list of detectors
             detectors.remove(det)
             continue

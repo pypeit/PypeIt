@@ -1,7 +1,9 @@
 .. code-block:: console
 
     $ pypeit_cache_github_data -h
-    usage: pypeit_cache_github_data [-h] [--exclude EXCLUDE [EXCLUDE ...] |
+    usage: pypeit_cache_github_data [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                                    [--log_level LOG_LEVEL]
+                                    [--exclude EXCLUDE [EXCLUDE ...] |
                                     --include INCLUDE [INCLUDE ...]]
                                     [--spec_dependent_only] [--force_update]
                                     spectrograph [spectrograph ...]
@@ -35,6 +37,18 @@
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: None)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
       --exclude EXCLUDE [EXCLUDE ...]
                             A subset of the directories to *exclude* from the list
                             of files to download. Options are: tests, reid_arxiv,

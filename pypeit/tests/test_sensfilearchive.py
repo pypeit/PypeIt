@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pypeit.sensfilearchive import SensFileArchive
 from astropy.io import fits
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 def test_getinstance():
     # Test success

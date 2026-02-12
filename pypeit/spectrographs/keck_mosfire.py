@@ -11,7 +11,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch, meta
 from pypeit import utils
@@ -373,7 +374,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             elif PWSTATA7 == 1 or PWSTATA8 == 1:
                 return 'arclamp'
             else:
-                msgs.warn('Header keyword FLATSPEC, PWSTATA7, or PWSTATA8 may not exist')
+                log.warning('Header keyword FLATSPEC, PWSTATA7, or PWSTATA8 may not exist')
                 return 'unknown'
         if meta_key == 'lampstat01':
             if headarr[0].get('PWSTATA7') == 1 or headarr[0].get('PWSTATA8') == 1:
@@ -394,7 +395,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             else:
                 return 0.0
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -743,7 +744,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             is_arc = fitstbl['idname'] == 'arclamp'
             is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & ('long2pos_specphot' not in fitstbl['decker'])
             return good_exp & (is_arc | is_obj)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     # TODO: Is this supposed to be deprecated in favor of get_comb_group?
@@ -912,24 +913,24 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         #    plt.legend()
         #    plt.show()
 
-    def get_slitmask(self, filename):
+    def get_slitmask(self, filename:str, det:int=1):
         """
-        Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
+        Parse the slitmask data from a raw file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
-        This can be used for multi-object slitmask, but it it's not good
-        for "LONGSLIT" nor "long2pos". Both "LONGSLIT" and "long2pos" have emtpy/incomplete
-        binTable where the slitmask data are stored.
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Name of the file to read.
+        det : :obj:`int`, optional
+            1-indexed detector number to read the slitmask for.  Ignored for
+            Keck/MOSFIRE.
 
-
-        Args:
-            filename (:obj:`str`):
-                Name of the file to read.
-
-        Returns:
-            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
-            data read from the file. The returned object is the same as
-            :attr:`slitmask`.
+        Returns
+        -------
+        :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            The slitmask data read from the file. The returned object is the
+            same as :attr:`slitmask`.
         """
         # Open the file
         hdu = io.fits_open(filename)
@@ -951,7 +952,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         if (numslits.sum() != self._CSUnumslits()) and ('LONGSLIT' not in self.get_meta_value(filename, 'decker')) \
                 and ('long2pos' not in self.get_meta_value(filename, 'decker')):
-            msgs.error('The number of allocated CSU slits does not match the number of possible slits. '
+            raise PypeItError('The number of allocated CSU slits does not match the number of possible slits. '
                        'Slitmask design matching not possible. Turn parameter `use_maskdesign` off')
 
         targ_dist_center = np.array(ssl['Target_to_center_of_slit_distance'], dtype=float)
@@ -1019,39 +1020,52 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                  posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
-                              trc_path=None, binning=None):
+    def get_maskdef_slitedges(self, filename:str=None, det:1=None, debug:bool=None, 
+                              binning:str=None, trc_path:str=None):
         """
-        Provides the slit edges positions predicted by the slitmask design using
-        the mask coordinates already converted from mm to pixels by the method
-        `mask_to_pixel_coordinates`.
+        Provides the slit edges positions predicted by the slitmask design.
 
-        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
-        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`, and
+        :attr:`bmap` attributes are instantiated; in this case, a file must be
+        provided.
 
-        Args:
-            ccdnum (:obj:`int`):
-                Detector number
-            filename (:obj:`str`):
-                The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
-                Default is None, i.e., to use previously instantiated attributes.
-            debug (:obj:`bool`, optional):
-                Run in debug mode.
+        Parameters
+        ---------- 
+        filename : :obj:`str`, :obj:`list`, optional:
+            Name of the file holding the mask design info or the maskfile and
+            wcs_file in that order
+        det : :obj:`int`, optional
+            Detector number.  Ignored for Keck/MOSFIRE.
+        debug : :obj:`bool`, optional
+            Flag to run in debugging mode
+        trc_path : str, optional
+            Path to the first trace file used to generate the trace flat
+        binning : str, optional
+            String with the comma-separated number of pixels binned in each
+            dimension of the flat-field image.  Order must be spectral then
+            spatial.
 
-        Returns:
-            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
-            Two arrays are the predictions of the slit edges from the slitmask design and
-            one contains the indices to order the slits from left to right in the PypeIt orientation
-
+        Returns
+        -------
+        top_edges : :class:`numpy.ndarray`
+            Predicted locations of the top edges of the slits in spatial pixel
+            coordinates.
+        bot_edges : :class:`numpy.ndarray`
+            Predicted locations of the bottom edges of the slits in spatial pixel
+            coordinates.
+        sortindx : :class:`numpy.ndarray`
+            Indices of the slits in the provided ``slitmask`` object that orders
+            the slits from left to right, in the PypeIt orientation.
+        slitmask : :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            Slit mask metadata read from the provided input file(s).
         """
         # Re-initiate slitmask
-        if filename is not None:
-            self.get_slitmask(filename)
-        else:
-            msgs.error('The name of a science file should be provided')
+        if filename is None:
+            raise PypeItError('The name of a science file should be provided for Keck/MOSFIRE.')
+        self.get_slitmask(filename)
 
         if self.slitmask is None:
-            msgs.error('Unable to read slitmask design info. Provide a file.')
+            raise PypeItError('Unable to read slitmask design info. Provide a file.')
 
         platescale = self.get_detector_par(det=1)['platescale']
         slit_gap = self._slit_gap(platescale)
@@ -1078,33 +1092,33 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # This print a QA table with info on the slits sorted from left to right.
         if not debug:
             num = 0
-            msgs.info('Expected slits')
-            msgs.info('*' * 18)
-            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'Slit_Number'))
-            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 13))
+            log.info('Expected slits')
+            log.info('*' * 18)
+            log.info('{0:^6s} {1:^12s}'.format('N.', 'Slit_Number'))
+            log.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 13))
             for i in range(sortindx.shape[0]):
-                msgs.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
+                log.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
                 num += 1
-            msgs.info('*' * 18)
+            log.info('*' * 18)
 
         # If instead we run this method in debug mode, we print more info
         if debug:
             num = 0
-            msgs.info('Expected slits')
-            msgs.info('*' * 92)
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^16s}'.format('N.', 'Slit_Number',
+            log.info('Expected slits')
+            log.info('*' * 92)
+            log.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^16s}'.format('N.', 'Slit_Number',
                                                                                     'slitLen(arcsec)',
                                                                                     'slitWid(arcsec)',
                                                                                     'top_edges(pix)',
                                                                                     'bot_edges(pix)'))
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^14s}'.format('-' * 4, '-' * 13, '-' * 11,
+            log.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^14s}'.format('-' * 4, '-' * 13, '-' * 11,
                                                                                     '-' * 11, '-' * 18, '-' * 15))
             for i in range(sortindx.size):
-                msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f}    {4:^16.2f} {5:^14.2f}'.format(num,
+                log.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f}    {4:^16.2f} {5:^14.2f}'.format(num,
                             self.slitmask.slitid[sortindx][i], self.slitmask.onsky[:,2][sortindx][i],
                             self.slitmask.onsky[:,3][sortindx][i], top_edges[sortindx][i], bot_edges[sortindx][i]))
                 num += 1
-            msgs.info('*' * 92)
+            log.info('*' * 92)
 
         return top_edges, bot_edges, sortindx, self.slitmask
 

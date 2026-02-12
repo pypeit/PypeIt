@@ -12,14 +12,13 @@ import pytest
 
 import github
 
-from linetools.spectra import xspectrum1d
-
-from pypeit.pypmsgs import PypeItPathError
+from pypeit import PypeItPathError
 from pypeit.pypeitdata import PypeItDataPath
 from pypeit import dataPaths
-from pypeit import io
 from pypeit import cache
+from pypeit.core import skyspec
 from pypeit.core.wavecal import waveio
+from pypeit import onespec
 
 
 def test_cloud_url():
@@ -94,8 +93,8 @@ def test_filepath_routines():
 def test_load_sky_spectrum():
 
     # Load in the most common sky spectrum, check that the return is valid
-    skyspec = io.load_sky_spectrum("paranal_sky.fits")
-    assert isinstance(skyspec, xspectrum1d.XSpectrum1D)
+    sky = skyspec.load_sky_spectrum("paranal_sky.fits")
+    assert isinstance(sky, onespec.OneSpec)
 
 
 def test_search_cache():

@@ -14,11 +14,13 @@ jobs:
   ci-tests:
     name: Tox env ${{ matrix.python }}-${{ matrix.toxenv }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         os: [ubuntu-latest]
         python: ['3.11', '3.12', '3.13']
-        toxenv: [test, test-alldeps-cov, test-numpydev, test-linetoolsdev, test-gingadev, test-astropydev]
+        toxenv: [test, test-alldeps-cov, test-numpydev, test-gingadev, test-astropydev]
     steps:
     - name: Check out repository
       uses: actions/checkout@v3
@@ -43,6 +45,8 @@ jobs:
   os-tests:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       # set this to false for now so windows failures don't prevent macos test from finishing
       fail-fast: false
@@ -66,6 +70,8 @@ jobs:
 
   conda:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v3
     - name: Conda environment check
@@ -81,6 +87,8 @@ jobs:
 
   codestyle:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v3
     - name: Python codestyle check

@@ -22,7 +22,8 @@ from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
 from astropy import stats
 from astropy import convolution
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import dataPaths
 from pypeit import utils
 from pypeit.core import fitting
@@ -71,10 +72,10 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0,
     plt.title(title, fontsize=16, color='red')
     if qafile is not None:
         if len(qafile.split('.'))==1:
-            msgs.info("No fomat given for the qafile, save to PDF format.")
+            log.info("No fomat given for the qafile, save to PDF format.")
             qafile = qafile+'.pdf'
         plt.savefig(qafile,dpi=300)
-        msgs.info("Wrote QA: {:s}".format(qafile))
+        log.info("Wrote QA: {:s}".format(qafile))
     plt.show()
     plt.close()
 
@@ -116,21 +117,24 @@ def renormalize_errors(chi, mask, clip=6.0, max_corr=5.0, title = '', debug=Fals
         chi2_sigrej = np.percentile(chi2[maskchi], 100.0*gauss_prob)
         sigma_corr = np.sqrt(chi2_sigrej)
         if sigma_corr < 1.0:
-            msgs.warn("Error renormalization found correction factor sigma_corr = {:f}".format(sigma_corr) +
-                      " < 1." + msgs.newline() +
-                      " Errors are overestimated so not applying correction")
+            log.warning(
+                f"Error renormalization found correction factor sigma_corr = {sigma_corr} < 1.\n"
+                "Errors are overestimated so not applying correction."
+            )
             sigma_corr = 1.0
         if sigma_corr > max_corr:
-            msgs.warn(("Error renormalization found sigma_corr/sigma = {:f} > {:f}." + msgs.newline() +
-                      "Errors are severely underestimated." + msgs.newline() +
-                      "Setting correction to sigma_corr = {:4.2f}").format(sigma_corr, max_corr, max_corr))
+            log.warning(
+                f"Error renormalization found sigma_corr/sigma = {sigma_corr} > {max_corr}.\n"
+                "Errors are severely underestimated.\nSetting correction to sigma_corr = "
+                f"{max_corr:4.2f}"
+            )
             sigma_corr = max_corr
 
         if debug:
             renormalize_errors_qa(chi, maskchi, sigma_corr, title=title)
 
     else:
-        msgs.warn('No good pixels in error_renormalize. There are probably issues with your data')
+        log.warning('No good pixels in error_renormalize. There are probably issues with your data')
         sigma_corr = 1.0
 
     return sigma_corr, maskchi
@@ -168,7 +172,7 @@ def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
             # Clip to avoid overflow.
             ymult = np.exp(np.clip(ymult, None, 0.8 * np.log(sys.float_info.max)))
         case _:
-            msgs.error('Unrecognized value of model requested')
+            raise PypeItError('Unrecognized value of model requested')
 
     return ymult
 
@@ -418,7 +422,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask=None, ma
     """
 
     if norder < 1:
-        msgs.error(
+        raise PypeItError(
             'You cannot solve for the polynomial ratio for norder < 1. For rescaling by a '
             'constant use robust_median_ratio.'
         )
@@ -452,7 +456,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask=None, ma
         case 'exp':
             guess = np.append(np.log(ratio), np.zeros(norder))
         case _:
-            msgs.error('Unrecognized model type')
+            raise PypeItError('Unrecognized model type')
 
     arg_dict = dict(flux=flux, ivar=ivar, mask=mask, flux_med=flux_med, ivar_med=ivar_med,
                     flux_ref_med=flux_ref_med, ivar_ref_med=ivar_ref_med, ivar_ref=ivar_ref,
@@ -533,10 +537,10 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_fun
     """
     # Check input
     if wave_new.ndim != 1 or wave_old.ndim != 1:
-        msgs.error('All input vectors must be 1D.')
+        raise PypeItError('All input vectors must be 1D.')
     if flux_old.shape != wave_old.shape or ivar_old.shape != wave_old.shape \
             or gpm_old.shape != wave_old.shape:
-        msgs.error('All vectors to interpolate must have the same size.')
+        raise PypeItError('All vectors to interpolate must have the same size.')
 
     # Do not interpolate if the wavelength is exactly same with wave_new
     if np.array_equal(wave_new, wave_old) and not sensfunc:
@@ -643,11 +647,11 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
     """
     # Check input
     if wave_new.ndim > 2:
-        msgs.error('Invalid shape for wave_new; must be 1D or 2D')
+        raise PypeItError('Invalid shape for wave_new; must be 1D or 2D')
     if wave_new.ndim == 2 and fluxes.ndim != 1:
-        msgs.error('If new wavelength grid is 2D, all other input arrays must be 1D.')
+        raise PypeItError('If new wavelength grid is 2D, all other input arrays must be 1D.')
     if fluxes.shape != waves.shape or ivars.shape != waves.shape or gpms.shape != waves.shape:
-        msgs.error('Input spectral arrays must all have the same shape.')
+        raise PypeItError('Input spectral arrays must all have the same shape.')
 
     # First case: interpolate either an (nspec, nexp) array of spectra onto a
     # single wavelength grid
@@ -769,7 +773,7 @@ def calc_snr(fluxes, ivars, gpms):
         sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
         sn2_iexp = sn_sigclip.mean()**2  # S/N^2 value for each spectrum
         if sn2_iexp is np.ma.masked:
-            msgs.error(f'No unmasked value in iexp={iexp+1}/{nexp}. Check inputs.')
+            raise PypeItError(f'No unmasked value in iexp={iexp+1}/{nexp}. Check inputs.')
         else:
             sn2.append(sn2_iexp)
             rms_sn.append(np.sqrt(sn2_iexp))  # Root Mean S/N**2 value for all spectra
@@ -845,23 +849,23 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
         `numpy.ndarray`_  with the same shape as those in waves.
     """
     if weight_method not in ['auto', 'constant', 'uniform', 'wave_dependent', 'relative', 'ivar']:
-        msgs.error('Unrecognized option for weight_method=%s').format(weight_method)
+        raise PypeItError('Unrecognized option for weight_method=%s').format(weight_method)
 
     nexp = len(fluxes)
     # Check that all the input lists have the same length
     if len(ivars) != nexp or len(gpms) != nexp:
-        msgs.error("Input lists of spectra must have the same length")
+        raise PypeItError("Input lists of spectra must have the same length")
 
     # Check that sn_smooth_npix if weight_method = constant or uniform
     if sn_smooth_npix is None and weight_method not in ['constant', 'uniform']:
-        msgs.error("sn_smooth_npix cannot be None unless the weight_method='constant' or weight_method='uniform'")
+        raise PypeItError("sn_smooth_npix cannot be None unless the weight_method='constant' or weight_method='uniform'")
 
     rms_sn, sn_val = calc_snr(fluxes, ivars, gpms)
     sn2 = np.square(rms_sn)
 
     # Check if relative weights input
     if verbose:
-        msgs.info('Computing weights with weight_method={:s}'.format(weight_method))
+        log.info('Computing weights with weight_method={:s}'.format(weight_method))
 
     weights = []
 
@@ -870,7 +874,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
         # Relative weights are requested, use the highest S/N spectrum as a reference
         ref_spec = np.argmax(sn2)
         if verbose:
-            msgs.info(
+            log.info(
                 "The reference spectrum (ref_spec={0:d}) has a typical S/N = {1:.3f}".format(ref_spec, sn2[ref_spec]))
         # Adjust the arrays to be relative
         refscale = utils.inverse(sn_val[ref_spec])
@@ -905,7 +909,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
 
     if verbose:
         for iexp in range(nexp):
-            msgs.info('Using {:s} weights for coadding, S/N '.format(weight_method_used[iexp]) +
+            log.info('Using {:s} weights for coadding, S/N '.format(weight_method_used[iexp]) +
                       '= {:4.2f}, weight = {:4.2f} for {:}th exposure'.format(rms_sn[iexp], np.mean(weights[iexp]), iexp))
 
     # Finish
@@ -1017,22 +1021,22 @@ def robust_median_ratio(
         flux_dat_median = np.median(flux[new_mask])
 
         if (flux_ref_median < 0.0) or (flux_dat_median < 0.0):
-            msgs.warn('Negative median flux found. Not rescaling')
+            log.warning('Negative median flux found. Not rescaling')
             ratio = 1.0
         else:
             if verbose:
-                msgs.info(f'Used {np.sum(new_mask)} good pixels for computing median flux ratio')
+                log.info(f'Used {np.sum(new_mask)} good pixels for computing median flux ratio')
             ratio = np.fmax(np.fmin(flux_ref_median/flux_dat_median, max_factor), 1.0/max_factor)
     else:
         if (np.sum(calc_mask) <= min_good*nspec):
-            msgs.warn(
-                f'Found only {np.sum(calc_mask)} good pixels for computing median flux ratio.'
-                + msgs.newline() + 'No median rescaling applied'
+            log.warning(
+                f'Found only {np.sum(calc_mask)} good pixels for computing median flux ratio.\n'
+                'No median rescaling applied'
             )
         if (snr_resc_med <= snr_do_not_rescale):
-            msgs.warn(
+            log.warning(
                 f'Median flux ratio of pixels in reference spectrum {snr_resc_med} <= '
-                f'snr_do_not_rescale = {snr_do_not_rescale}.' + msgs.newline()
+                f'snr_do_not_rescale = {snr_do_not_rescale}.\n'
                 + 'No median rescaling applied'
             )
         ratio = 1.0
@@ -1162,7 +1166,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
     elif method_used == 'hand':
         # Input?
         if hand_scale is None:
-            msgs.error("Need to provide hand_scale parameter, single value")
+            raise PypeItError("Need to provide hand_scale parameter, single value")
         flux_scale = flux * hand_scale
         ivar_scale = ivar * 1.0 / hand_scale ** 2
         scale = np.full(flux.size, hand_scale)
@@ -1171,7 +1175,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         ivar_scale = ivar.copy()
         scale = np.ones_like(flux)
     else:
-        msgs.error("Scale method not recognized! Check documentation for available options")
+        raise PypeItError("Scale method not recognized! Check documentation for available options")
     # Finish
     if show:
         scale_spec_qa(wave, flux*mask, ivar*mask, wave_ref, flux_ref*mask_ref, ivar_ref*mask_ref, scale, method_used, mask = mask, mask_ref=mask_ref,
@@ -1499,10 +1503,10 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
     spec_plot.set_title(title, fontsize=16, color='red')
     if qafile is not None:
         if len(qafile.split('.'))==1:
-            msgs.info("No fomat given for the qafile, save to PDF format.")
+            log.info("No fomat given for the qafile, save to PDF format.")
             qafile = qafile+'.pdf'
         plt.savefig(qafile,dpi=300)
-        msgs.info("Wrote QA: {:s}".format(qafile))
+        log.info("Wrote QA: {:s}".format(qafile))
     plt.show()
 
 def weights_qa(waves, weights, gpms, title='', colors=None):
@@ -1619,10 +1623,10 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
 
     if qafile is not None:
         if len(qafile.split('.'))==1:
-            msgs.info("No fomat given for the qafile, save to PDF format.")
+            log.info("No fomat given for the qafile, save to PDF format.")
             qafile = qafile+'.pdf'
         plt.savefig(qafile,dpi=300)
-        msgs.info("Wrote QA: {:s}".format(qafile))
+        log.info("Wrote QA: {:s}".format(qafile))
     plt.show()
 
 def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack,
@@ -1872,7 +1876,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
         iter += 1
 
     if (iter == maxiter_reject) & (maxiter_reject != 0):
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter_reject) + ' reached in spec_reject_comb')
+        log.warning('Maximum number of iterations maxiter={:}'.format(maxiter_reject) + ' reached in spec_reject_comb')
     out_gpms = np.copy(this_gpms)
     out_gpms_list = utils.array_to_explist(out_gpms, nspec_list=nspec_list)
 
@@ -1884,7 +1888,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
     if verbose:
         for iexp in range(nexp):
             # nrej = pixels that are now masked that were previously good
-            msgs.info("Rejected {:d} pixels in exposure {:d}/{:d}".format(nrej[iexp], iexp, nexp))
+            log.info("Rejected {:d} pixels in exposure {:d}/{:d}".format(nrej[iexp], iexp, nexp))
 
     # Compute the final stack using this outmask
     wave_stack, flux_stack, ivar_stack, gpm_stack, nused = compute_stack(
@@ -2334,7 +2338,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         # This is the effective good number of spectral pixels in the stack
         nspec_eff = np.sum([np.sum(wave > 1.0) for wave in waves]) / nexp
         sn_smooth_npix = int(np.round(0.1*nspec_eff))
-        msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
+        log.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
     wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
         waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
@@ -2559,7 +2563,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     # data shape
     nsetups=len(waves_arr_setup)
 
-    msgs.info(f'Number of setups to cycle through is: {nsetups}')
+    log.info(f'Number of setups to cycle through is: {nsetups}')
 
     if setup_ids is None:
         setup_ids = list(string.ascii_uppercase[:nsetups])
@@ -2591,7 +2595,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     #        ngood.append(norder*nexp)
     #    nspec_eff = np.sum(nspec_good)/np.sum(ngood)
     #    sn_smooth_npix = int(np.round(0.1 * nspec_eff))
-    #    msgs.info('Using a sn_smooth_pix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
+    #    log.info('Using a sn_smooth_pix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
     # Create the setup lists
     waves_setup_list = [utils.echarr_to_echlist(wave)[0] for wave in waves_arr_setup]
@@ -2609,7 +2613,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                                             wave_grid_min=wave_grid_min,
                                             wave_grid_max=wave_grid_max, dwave=dwave, dv=dv,
                                             dloglam=dloglam, spec_samp_fact=spec_samp_fact)
-    msgs.info(f'The shape of the giant wave grid here is: {np.shape(wave_grid)}')
+    log.info(f'The shape of the giant wave grid here is: {np.shape(wave_grid)}')
     # Evaluate the sn_weights. This is done once at the beginning
     weights = []
     rms_sn_setup_list = []
@@ -2741,7 +2745,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             # if the wavelength grid is non-monotonic, resample onto a loglam grid
             wave_grid_diff_ord = np.diff(wave_grid_ord)
             if np.any(wave_grid_diff_ord < 0):
-                msgs.warn(f'This order ({iord}) has a non-monotonic wavelength solution. Resampling now: ')
+                log.warning(f'This order ({iord}) has a non-monotonic wavelength solution. Resampling now: ')
                 wave_grid_ord = np.linspace(np.min(wave_grid_ord), np.max(wave_grid_ord), len(wave_grid_ord))
                 wave_grid_diff_ord = np.diff(wave_grid_ord)
 
@@ -2806,7 +2810,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                 # QA for individual exposures
                 for iexp in range(nexps[isetup]):
                     # plot the residual distribution
-                    msgs.info('QA plots for exposure {:} with new_sigma = {:}'.format(iexp, sigma_corrs_2d_exps[iexp]))
+                    log.info('QA plots for exposure {:} with new_sigma = {:}'.format(iexp, sigma_corrs_2d_exps[iexp]))
                     # plot the residual distribution for each exposure
                     title_renorm = 'ech_combspec: Error distribution about stack for exposure {:d}/{:d} for setup={:s}'.format(iexp, nexps[isetup], setup_ids[isetup])
                     renormalize_errors_qa(outchi_2d_exps[:, iexp], gpm_chi_2d_exps[:, iexp], sigma_corrs_2d_exps[iexp],
@@ -2879,14 +2883,14 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
     diff[diff > 0] = np.inf
     if not np.any(diff < 0):
         ind_lower = 0
-        msgs.warn('Your wave grid does not extend blue enough. Taking bluest point')
+        log.warning('Your wave grid does not extend blue enough. Taking bluest point')
     else:
         ind_lower = np.argmin(np.abs(diff))
     diff = wave_max - wave_grid
     diff[diff > 0] = np.inf
     if not np.any(diff < 0):
         ind_upper = wave_grid.size-1
-        msgs.warn('Your wave grid does not extend red enough. Taking reddest point')
+        log.warning('Your wave grid does not extend red enough. Taking reddest point')
     else:
         ind_upper = np.argmin(np.abs(diff))
 
@@ -3134,7 +3138,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     nimgs =len(sciimg_stack)
     if weights is None:
         if nimgs > 1:
-            msgs.info('No weights were provided. Using uniform weights.')
+            log.info('No weights were provided. Using uniform weights.')
         weights = (np.ones(nimgs)/float(nimgs)).tolist()
 
     shape_list = [sciimg.shape for sciimg in sciimg_stack]

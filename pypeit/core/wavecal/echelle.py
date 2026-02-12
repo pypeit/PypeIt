@@ -11,7 +11,7 @@ from scipy import interpolate
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import dataPaths
 from pypeit.core import fitting
 from pypeit.core.wavecal import wvutils
@@ -236,7 +236,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         angle_fits_file, composite_arc_file, echangle, xdangle, dispname, 
         nspec, norders, pad=pad)
     norders_guess = order_vec_guess.size
-    msgs.info(f'initial orders vec guess = {order_vec_guess}')
+    log.info(f'initial orders vec guess = {order_vec_guess}')
     # Since we padded the guess we need to pad the data to the same size
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
@@ -247,7 +247,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         percent_ceil=cc_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
 
     if debug:
-        msgs.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')
+        log.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')
         from matplotlib import pyplot as plt
         xvals = np.arange(arccen_pad.flatten('F').size)
         plt.clf()
@@ -261,9 +261,9 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     # Finish
     ordr_shift = int(np.round(shift_cc / nspec))
     spec_shift = int(np.round(shift_cc - ordr_shift * nspec))
-    msgs.info('Shift in order number between prediction and reddest order: {:.3f}'.format(
+    log.info('Shift in order number between prediction and reddest order: {:.3f}'.format(
         ordr_shift + pad))
-    msgs.info('Shift in spectral pixels between prediction and data: {:.3f}'.format(spec_shift))
+    log.info('Shift in spectral pixels between prediction and data: {:.3f}'.format(spec_shift))
 
     # Assign
     order_vec = order_vec_guess[0] + ordr_shift - np.arange(norders)
