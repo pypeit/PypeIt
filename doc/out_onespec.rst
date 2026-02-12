@@ -32,14 +32,7 @@ See :ref:`orderstack` for more details.
 Inspection
 ==========
 
-You view the spectrum using the ``lt_xspec`` script 
-(``pypeit_show_1dspec`` will not work), which loads the data
-and launches a GUI from the `linetools`_ package. e.g.:
-
-.. code-block:: console
-
-    lt_xspec J1217p3905_coadd.fits
-
+Use :ref:`pypeit_show_1dspec` to view the spectrum.
 
 Current Data Model
 ==================

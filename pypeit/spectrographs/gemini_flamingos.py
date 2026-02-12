@@ -9,8 +9,7 @@ import numpy as np
 
 from astropy.io import fits
 from astropy.table import Table
-
-from pypeit import msgs
+from pypeit import log
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.images import detector_container
@@ -223,7 +222,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'OBJECT')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -354,6 +353,6 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
             return good_exp & (fitstbl['idname'] == 'Science')
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'Arc')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 

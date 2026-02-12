@@ -38,7 +38,7 @@ import astropy.table
 import astropy.time
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
@@ -153,7 +153,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 return "ABBAABBA"
             return "None"
 
-        msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
+        log.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
 
     def configuration_keys(self):
         """
@@ -400,7 +400,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         ]:
             # DeVeny doesn't have any of these types of frames
             return np.zeros(len(fitstbl), dtype=bool)
-        msgs.warn(f"Cannot determine if frames are of type {ftype}")
+        log.warn(f"Cannot determine if frames are of type {ftype}")
         return np.zeros(len(fitstbl), dtype=bool)
 
     def get_rawimage(self, raw_file, det):

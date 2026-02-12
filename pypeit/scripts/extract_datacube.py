@@ -16,8 +16,11 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Read in a datacube, extract a spectrum of a point source,'
-                                                'and save it as a spec1d file.', width=width)
+        parser = super().get_parser(
+            description='Read in a datacube, extract a spectrum of a point source, and save it as '
+                        'a spec1d file.',
+            width=width, default_log_file=True
+        )
         parser.add_argument('file', type = str, default=None, help='spec3d.fits DataCube file')
         parser.add_argument("-e", "--ext_file", type=str,
                             help='Configuration file with extraction parameters')
@@ -27,28 +30,26 @@ class ExtractDataCube(scriptbase.ScriptBase):
                             help='Overwrite any existing files/directories')
         parser.add_argument('-b', '--boxcar_radius', type=float, default=None,
                             help='Radius of the circular boxcar (in arcseconds) to use for the extraction.')
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename extract_datacube_YYYYMMDD-HHMM.log')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         import time
 
-        from pypeit import msgs
+        from pypeit import log
+        from pypeit import PypeItError
         from pypeit import par
         from pypeit import inputfiles
         from pypeit import utils
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.coadd3d import DataCube
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('extract_datacube', args.verbosity)
+        # Initialize the log
+        cls.init_log(args)
 
         # Check that a file has been provided
         if args.file is None:
-            msgs.error('You must input a spec3d (i.e. PypeIt DataCube) fits file')
+            raise PypeItError('You must input a spec3d (i.e. PypeIt DataCube) fits file')
         extcube = DataCube.from_file(args.file)
         spectrograph = load_spectrograph(extcube.PYP_SPEC)
 
@@ -76,4 +77,4 @@ class ExtractDataCube(scriptbase.ScriptBase):
         extcube.extract_spec(parset['reduce'], outname=outname, boxcar_radius=boxcar_radius, overwrite=args.overwrite)
 
         # Report the extraction time
-        msgs.info(utils.get_time_string(time.time()-tstart))
+        log.info(utils.get_time_string(time.time()-tstart))

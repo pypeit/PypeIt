@@ -8,7 +8,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -144,7 +145,7 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'THAR') # Temporary fix, do not use FEAR arcs
 
         
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -216,7 +217,7 @@ class P200NGPSSpectrograph_r(P200NGPSSpectrograph):
         elif meta_key == 'dichroic': 
             return None
         else:
-            msgs.error(f"Not ready for this compound meta: {meta_key}")
+            raise PypeItError(f"Not ready for this compound meta: {meta_key}")
 
 
     def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):
@@ -385,7 +386,7 @@ class P200NGPSSpectrograph_i(P200NGPSSpectrograph):
         elif meta_key == 'dichroic': 
             return None
         else:
-            msgs.error("Not ready for this compound meta: ", meta_key)
+            raise PypeItError("Not ready for this compound meta: ", meta_key)
 
 
     def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):

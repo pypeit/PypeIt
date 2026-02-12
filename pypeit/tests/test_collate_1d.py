@@ -16,7 +16,7 @@ from pypeit.scripts.collate_1d import flux, coadd, build_coadd_file_name, get_re
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.sensfilearchive import SensFileArchive
 from pypeit.par import pypeitpar
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit.images.detector_container import DetectorContainer
 from pypeit import fluxcalibrate
 from pypeit import coadd1d
@@ -422,7 +422,7 @@ def test_exclude_source_objects(monkeypatch):
     par = pypeitpar.PypeItPar()
     par['collate1d']['exclude_serendip'] = True
     par['collate1d']['wv_rms_thresh'] = 0.1
-    filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
+    filtered_list, excluded_log = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT5334_SLIT4934_DET02']
     assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1']
 
@@ -430,7 +430,7 @@ def test_exclude_source_objects(monkeypatch):
     par['coadd1d']['ex_value'] = 'BOX'
     par['collate1d']['wv_rms_thresh'] = None
 
-    filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, dict(), par)
+    filtered_list, excluded_log = exclude_source_objects(uncollated_list, dict(), par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1233_SLIT1235_DET07', 'SPAT6256_SLIT6245_DET05', 'SPAT6934_SLIT6245_DET05']
     assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file2', 'spec1d_file2' ]
 
@@ -648,14 +648,14 @@ def test_refframe_correction(monkeypatch):
     spectrograph = load_spectrograph('keck_deimos')
 
     # Test that should fail due to no RA/DEC nor mjd in header
-    spec1d_failure_msgs = []
+    spec1d_failure_log = []
     spec1d_files = ["spec1d_file3"]
-    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
-    assert len(spec1d_failure_msgs) == 1
-    assert spec1d_failure_msgs[0].startswith('Failed to perform heliocentric correction on spec1d_file3')
+    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log)
+    assert len(spec1d_failure_log) == 1
+    assert spec1d_failure_log[0].startswith('Failed to perform heliocentric correction on spec1d_file3')
 
     # Test where onf of the SpecObjs already has a VEL_CORR that should not be overwritten
-    spec1d_failure_msgs = []
+    spec1d_failure_log = []
     spec1d_files = ["spec1d_file4"]
 
     # Test where one VEL_CORR is already set, and the SpecObj objects have no RA/DEC so the header RA/DEC must be used instead
@@ -664,9 +664,9 @@ def test_refframe_correction(monkeypatch):
         return sobjs
     monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_from_fitsfile)
 
-    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
-    assert len(spec1d_failure_msgs) == 1
-    assert spec1d_failure_msgs[0].startswith('Not performing heliocentric correction for spec1d_file4 object SPAT3234_SLIT3236_DET03 because it has already been corrected')
+    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log)
+    assert len(spec1d_failure_log) == 1
+    assert spec1d_failure_log[0].startswith('Not performing heliocentric correction for spec1d_file4 object SPAT3234_SLIT3236_DET03 because it has already been corrected')
     assert sobjs[0].VEL_CORR == 2.0 # Original value, should not have been overwritten
     assert sobjs[1].VEL_CORR == 1.0 # New value, from apply_helio
 

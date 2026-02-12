@@ -24,7 +24,7 @@ from pypeit.setup_gui.view import SetupGUIMainWindow, PypeItFileView, DialogResp
 from pypeit.setup_gui.text_viewer import TextViewerWindow
 from pypeit.setup_gui.dialog_helpers import prompt_to_save, display_error, FileDialog, FileType
 from pypeit.setup_gui.model import PypeItSetupGUIModel, ModelState, PypeItFileModel
-from pypeit import msgs
+from pypeit import log
 from pypeit.display import display
 from pypeit import io as pypeit_io
 
@@ -39,9 +39,7 @@ def lock_qt_mutex(mutex):
         mutex.unlock()
 
 class OpCanceledError(Exception):
-    """Exception thrown when a background operation has been canceled."""
-    def __init__(self):
-        super().__init__()
+    pass
 
 class OperationThread(QThread):
     """Thread to run a background operation."""
@@ -64,7 +62,7 @@ class OperationThread(QThread):
         canceled = False
         exc_info = (None, None, None)
         try:
-            msgs.info("Running operation")
+            log.info("Running operation")
             self._operation.run()            
         except OpCanceledError:
             canceled=True
@@ -107,7 +105,7 @@ class OperationThread(QThread):
             canceled (bool): Whether or not the operation was canceled.
             exc_info (tuple): The exception information if the operation failed. None if it succeeded
         """
-        msgs.info("Op complete")
+        log.info("Op complete")
         with lock_qt_mutex(self._mutex):
             if self._operation is not None:
                 operation = self._operation
@@ -129,7 +127,7 @@ class OperationThread(QThread):
         Args:
             operation (MetadataOperation): The MetadataOperation to start in the background thread.
         """
-        msgs.info("Starting operation")
+        log.info("Starting operation")
         self._operation = operation
         if operation.preRun():
             operation.progressMade.connect(self._op_progress, type=Qt.QueuedConnection)
@@ -173,7 +171,7 @@ class MetadataOperation(QObject):
     def _buildingMetadata(self, name, match):
         """Callback used to find the total number of files being read when building metadata."""
         self._max_progress = int(match.group(1))
-        msgs.info(f"Found max progress {self._max_progress}")
+        log.info(f"Found max progress {self._max_progress}")
 
     def _addedMetadata(self, name, match):
         """Callback used to report progress on reading files when building metadata."""
@@ -195,7 +193,7 @@ class MetadataOperation(QObject):
 
         if exc_info[0] is not None:
             traceback_string = "".join(traceback.format_exception(*exc_info))
-            msgs.warn(f"Failed to {self.name.lower()}:\n" + traceback_string)
+            log.warning(f"Failed to {self.name.lower()}:\n" + traceback_string)
             display_error(self._main_window, f"Failed to {self.name.lower()} {exc_info[0]}: {exc_info[1]}")
             self._model.reset()
         elif canceled:
@@ -432,7 +430,7 @@ class PypeItMetadataController(QObject):
                 display.connect_to_ginga(raise_err=True, allow_new=True)
             except Exception as e:
                 display_error(self._main_controller.main_window, f"Could not start ginga to view FITS files: {e}")
-                msgs.warn(f"Failed to connect to ginga:\n" + traceback.format_exc())
+                log.warning(f"Failed to connect to ginga:\n" + traceback.format_exc())
 
             
             # Display each file in its own ginga tab
@@ -448,13 +446,13 @@ class PypeItMetadataController(QObject):
                     img = self._model.spectrograph.get_rawimage(str(file), n)[1]
                 except Exception as e:
                     display_error(self._main_controller.main_window, f"Failed to read image {file.name}: {e}")
-                    msgs.warn(f"Failed get raw image:\n" + traceback.format_exc())
+                    log.warning(f"Failed get raw image:\n" + traceback.format_exc())
 
                 try:
                     display.show_image(img, chname = f"{file.name} {det_name}")
                 except Exception as e:
                     display_error(self._main_controller.main_window, f"Failed to send image {file.name} to ginga: {e}")
-                    msgs.warn(f"Failed send image to ginga:\n" + traceback.format_exc())
+                    log.warning(f"Failed send image to ginga:\n" + traceback.format_exc())
 
     def view_header(self):
         """ Display the header of one or more selected files in the metadata.
@@ -474,7 +472,7 @@ class PypeItMetadataController(QObject):
                             hdu.header.totextfile(header_string_buffer)
                 except Exception as e:
                     display_error(self._main_controller.main_window, f"Failed to read header from file {file.name} in {file.parent}: {e}")
-                    msgs.warn(f"Failed to read header from {file}:\n" + traceback.format_exc())
+                    log.warning(f"Failed to read header from {file}:\n" + traceback.format_exc())
                     return
                 header_string_buffer.seek(0)
                 window = TextViewerWindow(title=f"{file.name} Header", width=80, height=50,start_at_top=True, filename=file.parent / (file.name+".txt"), text_stream=header_string_buffer)
@@ -497,7 +495,7 @@ class PypeItMetadataController(QObject):
             return False
 
         row_indices = self._view.selectedRows()
-        msgs.info(f"Copying {len(row_indices)} rows to the clipboard.")
+        log.info(f"Copying {len(row_indices)} rows to the clipboard.")
         if len(row_indices) > 0:
             row_model = self._model.createCopyForRows(row_indices)
             self._main_controller.model.clipboard = row_model
@@ -521,11 +519,11 @@ class PypeItMetadataController(QObject):
         clipboard = self._main_controller.model.clipboard
         if clipboard.rowCount() > 0:
             try:
-                msgs.info(f"Pasting {clipboard.rowCount()} rows")
+                log.info(f"Pasting {clipboard.rowCount()} rows")
                 self._model.pasteFrom(clipboard)
             except Exception as e:
                 traceback_string = "".join(traceback.format_exc())
-                msgs.warn(f"Failed to paste metadata rows:\n" + traceback_string)
+                log.warning(f"Failed to paste metadata rows:\n" + traceback_string)
                 display_error(self._main_controller.main_window, f"Could not paste rows to this PypeIt file: {e}")
 
 
@@ -534,7 +532,7 @@ class PypeItMetadataController(QObject):
         if self._view is None:
             return
         row_indices = self._view.selectedRows()
-        msgs.info(f"Commenting out {len(row_indices)} rows.")
+        log.info(f"Commenting out {len(row_indices)} rows.")
         if len(row_indices) > 0:
             self._model.commentMetadataRows(row_indices)
     
@@ -543,7 +541,7 @@ class PypeItMetadataController(QObject):
         if self._view is None:
             return
         row_indices = self._view.selectedRows()
-        msgs.info(f"Unommenting out {len(row_indices)} rows.")
+        log.info(f"Unommenting out {len(row_indices)} rows.")
         if len(row_indices) > 0:
             self._model.uncommentMetadataRows(row_indices)
 
@@ -557,7 +555,7 @@ class PypeItMetadataController(QObject):
         if self._view is None:
             return False
         row_indices = self._view.selectedRows()
-        msgs.info(f"Removing {len(row_indices)} rows.")
+        log.info(f"Removing {len(row_indices)} rows.")
         if len(row_indices) > 0:               
             self._model.removeMetadataRows(row_indices)
             return True
@@ -596,7 +594,7 @@ class PypeItObsLogController(QObject):
 
     def addNewPath(self, new_path):
         """Add a new path to the observation log"""
-        msgs.info(f"Adding new path {new_path}")
+        log.info(f"Adding new path {new_path}")
         self._model.add_raw_data_directory(new_path)
 
 class PypeItFileController(QObject):
@@ -659,10 +657,10 @@ class SetupGUIController(QObject):
         self.model.obslog_model.default_extension = extension
 
         defaultFont = self.app.font()
-        msgs.info(f"Default font pixel size: {defaultFont.pixelSize()}")
-        msgs.info(f"Default font point size: {defaultFont.pointSizeF()}")
+        log.info(f"Default font pixel size: {defaultFont.pixelSize()}")
+        log.info(f"Default font point size: {defaultFont.pointSizeF()}")
         if defaultFont.pointSizeF() < 12.0:
-            msgs.info(f"Setting font to 12.")
+            log.info(f"Setting font to 12.")
             defaultFont.setPointSize(12)
             self.app.setFont(defaultFont)
 
@@ -745,7 +743,7 @@ class SetupGUIController(QObject):
             # Shouldn't really happen, it would mean the save tab button was enabled
             # when it shouldn't be. We'll handle this case and log it to prevent a crash
             # just in case though.
-            msgs.warn(f"Attempt to save a tab that is *not* a PypeItFileView!")
+            log.warning(f"Attempt to save a tab that is *not* a PypeItFileView!")
 
     
     def _save_file(self, file_model : PypeItFileModel, prompt_for_all : bool=False) -> DialogResponses:
@@ -760,7 +758,7 @@ class SetupGUIController(QObject):
             The DialogResponse from the user, or DialogResponses.ACCEPT if it wasn't
             neccessary to prompt the user.
         """
-        msgs.info(f"Saving config {file_model.name_stem}")
+        log.info(f"Saving config {file_model.name_stem}")
         if file_model.save_location is None:
             dialog = FileDialog.create_save_location_dialog(self.main_window, file_model.name_stem, prompt_for_all=prompt_for_all)
             response = dialog.show()
@@ -835,7 +833,7 @@ class SetupGUIController(QObject):
                 self.save_all()
             elif response == DialogResponses.CANCEL:
                 return
-        msgs.info("run_setup starting operation")
+        log.info("run_setup starting operation")
         self.operation_thread.startOperation(SetupOperation(self.model, self))
 
     def createNewPypeItFile(self):
@@ -878,7 +876,7 @@ class SetupGUIController(QObject):
         open_dialog = FileDialog.create_open_file_dialog(self.main_window, "Select PypeIt File", file_type=FileType("PypeIt input files",".pypeit"))
         result = open_dialog.show()
         if result != DialogResponses.CANCEL:
-            msgs.info("open_pypeit_file starting operation")
+            log.info("open_pypeit_file starting operation")
             self.operation_thread.startOperation(OpenFileOperation(self.model, open_dialog.selected_path, self))
 
 def start_gui(args):
@@ -888,7 +886,7 @@ def start_gui(args):
     # Setup application/window icon TODO this doesn't work in windows.
     iconPath = Path(__file__).parent / "images/window_icon.png"
     if not iconPath.exists():
-        msgs.info("Icon path does not exist")
+        log.info("Icon path does not exist")
     else:
         app.setWindowIcon(QIcon(str(iconPath)))
 

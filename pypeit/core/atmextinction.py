@@ -14,9 +14,9 @@ from astropy import units
 from astropy import coordinates
 from astropy import table
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import dataPaths
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit import utils
 
 
@@ -46,13 +46,13 @@ class AtmosphericExtinction:
     def __init__(self, wave, mag_ext, assume_sorted=True, file=None):
 
         if len(wave) != len(mag_ext):
-            msgs.error('Wavelength and extinction vectors must have the same length.')
+            raise PypeItError('Wavelength and extinction vectors must have the same length.')
 
         self.wave = np.asarray(wave, dtype=float)
         self.mag_ext = np.asarray(mag_ext, dtype=float)
 
         if self.wave.ndim != 1 or self.mag_ext.ndim != 1:
-            msgs.error('Atmospheric extinction must be 1D.')
+            raise PypeItError('Atmospheric extinction must be 1D.')
 
         if not assume_sorted:
             srt = np.argsort(self.wave)
@@ -95,7 +95,7 @@ class AtmosphericExtinction:
             return extinct_files[int(idx)]['File']
 
         # Crash with a helpful error message
-        msgs.error(
+        raise PypeItError(
             f'No atmospheric extinction file was found within {toler} degrees of observation at '
             f'lon = {longitude:.1f} lat = {latitude:.1f}.'
         )
@@ -118,14 +118,14 @@ class AtmosphericExtinction:
         try:
             extinct_file = cls.closest_extinction_file(longitude, latitude, toler=toler)
         except PypeItError as e:
-            msgs.error(
+            raise PypeItError(
                 f'{e}  You may select a specific extinction file (e.g., KPNO) for use by adding '
                 'an ``extinct_file`` to your pypeit_sensfunc or pypeit_fluxcalib input file.  '
                 'See instructions at'
                 'https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction.'
             )
 
-        msgs.info(f'Using {extinct_file} for extinction corrections.')
+        log.info(f'Using {extinct_file} for extinction corrections.')
         return cls.from_file(extinct_file)
 
     @classmethod
@@ -166,7 +166,7 @@ class AtmosphericExtinction:
         """
         # Warn if extrapolation is necessary
         if np.amin(wave) < np.amin(self.wave) or np.amax(wave) > np.amax(self.wave):
-            msgs.warn(
+            log.warning(
                 'Spectral regions outside of the bounds of the atmospheric extinction curve are '
                 'set to the nearest value.'
             )
@@ -205,14 +205,14 @@ class AtmosphericExtinction:
         _flux = np.asarray(flux)
         _factor = np.asarray(factor)
         if _flux.size != _factor.size:
-            msgs.error('Flux and correction factor arrays must have the same size.')
+            raise PypeItError('Flux and correction factor arrays must have the same size.')
 
         if ivar is None:
             return _flux * _factor
 
         _ivar = np.asarray(ivar)
         if _ivar.size != _flux.size:
-            msgs.error('Inverse variance and flux arrays must have the same size.')
+            raise PypeItError('Inverse variance and flux arrays must have the same size.')
 
         return _flux * _factor, _ivar * utils.inverse(_factor**2)
 

@@ -1,10 +1,9 @@
 """
-Wrapper to the linetools XSpecGUI
+Wrapper for 1D spectrum viewer in ginga.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-from pathlib import Path
 from IPython import embed
 
 from pypeit.scripts import scriptbase
@@ -30,23 +29,22 @@ class Show1DSpec(scriptbase.ScriptBase):
 #        parser.add_argument('--jdaviz', default=False, action='store_true',
 #                            help='Open the spectrum in jdaviz (requires specutils and jdaviz '
 #                                 'to be installed)')
-        parser.add_argument('--ginga', default=False, action='store_true',
-                            help='Open the spectrum in ginga')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         """ Runs the XSpecGui on an input file
         """
-        import sys
+        from pathlib import Path
+
         import numpy as np
 
-        from qtpy.QtWidgets import QApplication
-
-        from linetools.guis.xspecgui import XSpecGui
-
+        from pypeit import PypeItError
         from pypeit import specobjs
-        from pypeit import msgs
+        from pypeit.display.display import show_1dspec
+
+        # Initialize the log
+        cls.init_log(args)
 
         sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
 
@@ -73,11 +71,11 @@ class Show1DSpec(scriptbase.ScriptBase):
 #        if args.jdaviz:
 #            from pypeit.specutils import Spectrum1D, SpectrumList
 #            if Spectrum1D is None:
-#                msgs.error('specutils package must be installed.')
+#                raise PypeItError('specutils package must be installed.')
 #            try:
 #                from jdaviz import Specviz
 #            except ModuleNotFoundError:
-#                msgs.error('jdaviz package must be installed.')
+#                raise PypeItError('jdaviz package must be installed.')
 #
 #            # First try reading it as a list
 #            try:
@@ -103,42 +101,26 @@ class Show1DSpec(scriptbase.ScriptBase):
 #                return
 #
 #            # If we get here, the file couldn't be parsed
-#            msgs.error(f'Could not parse input file: {args.file}')
+#            raise PypeItError(f'Could not parse input file: {args.file}')
 
 
         if args.obj is not None:
             exten = np.where(sobjs.NAME == args.obj)[0][0]
             if exten < 0:
-                msgs.error("Bad input object name: {:s}".format(args.obj))
+                raise PypeItError(f"Bad input object name: {args.obj}")
         else:
             exten = args.exten-1 # 1-index in FITS file
 
         # Check Extraction
         if args.extract == 'OPT':
             if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
-                    msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
+                    raise PypeItError("Spectrum not extracted with OPT.  Try --extract BOX")
 
-        if args.ginga:
-            # show the 1d spectrum in Ginga
-            from pypeit.display.display import show_1dspec
+        # Pre-pend cwd to filename (in case RC Ginga was launched already)
+        full_file = Path(args.file).absolute()
 
-            # in case Ginga is invoked in another directory
-            file_path = str(Path(args.file).absolute())
-            show_1dspec(file_path, ext=exten,
-                        masked=args.masked, extraction=args.extract,
-                        fluxed=args.flux)
-            return
-
-        spec = sobjs[exten].to_xspec1d(masked=args.masked, extraction=args.extract,
-                                       fluxed=args.flux)
-
-        # Setup
-        app = QApplication(sys.argv)
-        # Screen dimensions
-        width = app.screens()[0].geometry().width()
-        scale = 2. * (width/3200.)
-
-        # Launch
-        gui = XSpecGui(spec)#, screen_scale=scale)
-        gui.show()
-        app.exec_()
+        # Ginga
+        show_1dspec(
+            str(full_file), ext=exten, masked=args.masked, extraction=args.extract,
+            fluxed=args.flux
+        )
