@@ -20,7 +20,8 @@ from astropy import table
 from astropy.io import ascii
 from astropy import stats
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit import bspline
 from pypeit import io
@@ -81,7 +82,7 @@ def find_standard(specobj_list):
         else:
             medfx.append(np.median(spobj.BOX_COUNTS))
     mxix = np.argmax(np.array(medfx))
-    msgs.info("Putative standard star {} has a median boxcar count of {}".format(specobj_list[mxix],
+    log.info("Putative standard star {} has a median boxcar count of {}".format(specobj_list[mxix],
                                                                                  np.max(medfx)))
     # Return
     return mxix
@@ -238,10 +239,10 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta
             _delta_wave = delta_wave
         elif isinstance(delta_wave, np.ndarray):
             if wave.size != delta_wave.size:
-                msgs.error('The wavelength vector and delta_wave vector must be the same size')
+                raise PypeItError('The wavelength vector and delta_wave vector must be the same size')
             _delta_wave = delta_wave
         else:
-            msgs.warn('Invalid type for delta_wave - using a default value')
+            log.warning('Invalid type for delta_wave - using a default value')
             _delta_wave = wvutils.get_delta_wave(wave, wave_mask)
     else:
         # If delta_wave is not passed in, then we will use the native wavelength sampling of the spectrum
@@ -257,15 +258,16 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta
         if extrap_sens:
             zeropoint_obs[wave_mask] \
                     = interpolate.interp1d(wave_zp, zeropoint, bounds_error=False)(wave[wave_mask])
-            msgs.warn("Your data extends beyond the bounds of your sensfunc. You should be "
+            log.warning("Your data extends beyond the bounds of your sensfunc. You should be "
                       "adjusting the par['sensfunc']['extrap_blu'] and/or "
                       "par['sensfunc']['extrap_red'] to extrapolate further and recreate your "
                       "sensfunc. But we are extrapolating per your direction. Good luck!")
         else:
-            msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
-                       "Adjust the par['sensfunc']['extrap_blu'] and/or "
-                       "par['sensfunc']['extrap_red'] to extrapolate further and recreate "
-                       "your sensfunc.")
+            raise PypeItError(
+                "Your data extends beyond the bounds of your sensfunc.\nAdjust the "
+                "par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to "
+                "extrapolate further and recreate your sensfunc."
+            )
 
     # This is the S_lam factor required to convert N_lam = counts/sec/Ang to
     # F_lam = 1e-17 erg/s/cm^2/Ang, i.e.  F_lam = S_lam*N_lam
@@ -275,16 +277,16 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta
     # Did the user request a telluric correction?
     if tellmodel is not None:
         # This assumes there is a separate telluric key in this dict.
-        #msgs.warn("Telluric corrections via this method are deprecated")
-        msgs.info('Applying telluric correction')
+        #log.warning("Telluric corrections via this method are deprecated")
+        log.info('Applying telluric correction')
         sensfunc_obs = sensfunc_obs * (tellmodel > 1e-10) / (tellmodel + (tellmodel < 1e-10))
 
     if atmext is None:
         senstot = sensfunc_obs.copy()
     else:
         # Apply Extinction if optical bands
-        msgs.info("Applying extinction correction")
-#        msgs.warn("Extinction correction applied only if the spectra covers <10000Ang.")
+        log.info("Applying extinction correction")
+#        log.warning("Extinction correction applied only if the spectra covers <10000Ang.")
         senstot = sensfunc_obs * atmext.correction_factor(wave, airmass=airmass)
 
     # senstot is the conversion from N_lam to F_lam, and the division by exptime and delta_wave are to convert
@@ -327,7 +329,7 @@ def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, atmext
     Nlam_ivar_star = delta_wave**2*counts_ivar*exptime**2
 
     # Extinction correction
-    msgs.info("Applying extinction correction")
+    log.info("Applying extinction correction")
     ext_corr = atmext.correction_factor(wave, airmass=airmass)
     # Correct for extinction
     Nlam_star = Nlam_star * ext_corr
@@ -398,7 +400,7 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_spec,
     # Do we need to extrapolate? TODO Replace with a model or a grey body?
     ## TODO This is an ugly hack. Why are we only triggering this if the extrapolated star is negative.
     if np.min(flux_true) <= 0.:
-        msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
+        log.warning('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
         pypeitFit = fitting.robust_fit(
             std_spec.wave, std_spec.flux,8,function='polynomial', maxiter=50, lower=3.0, upper=3.0,
             maxrej=3, grow=0, sticky=True, use_mad=True
@@ -490,15 +492,15 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
     mask_tell = np.ones_like(flux_star).astype(bool)
 
     # masking bad entries
-    msgs.info(" Masking bad pixels")
+    log.info(" Masking bad pixels")
     gpm_star = mask_star.copy()
     gpm_star[ivar_star <= 0.] = False
     gpm_star[flux_star <= 0.] = False
     # Mask edges
-    msgs.info(" Masking edges")
+    log.info(" Masking edges")
     gpm_star[[0, -1]] = False
     # Mask Atm. cutoff
-    msgs.info(" Masking Below the atmospheric cutoff")
+    log.info(" Masking Below the atmospheric cutoff")
     atms_cutoff = wave_star <= 3000.0
     gpm_star[atms_cutoff] = False
 
@@ -549,7 +551,7 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
             tell_nir = (trans_final < trans_thresh) & (wave_star > 9100.0)
             mask_tell[tell_nir] = False
         else:
-            msgs.info('Your spectrum is bluer than 9100A, only optical telluric regions are masked.')
+            log.info('Your spectrum is bluer than 9100A, only optical telluric regions are masked.')
 
     return gpm_star, mask_recomb, mask_tell
 
@@ -580,10 +582,10 @@ def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
     if mask_star is None:
         mask_star = np.ones_like(wave_star, dtype=bool)
     # Mask Balmer, Paschen, Brackett, and Pfund recombination lines
-    msgs.info("Masking hydrogen recombination lines")
+    log.info("Masking hydrogen recombination lines")
 
     # Mask Balmer
-    msgs.info(" Masking Balmer")
+    log.info(" Masking Balmer")
     # Vacuum Wavelengths from NIST (TEB, 2023-02-10)
     lines_balm = np.array([6564.6, 4862.7, 4341.7, 4102.9,
                            3971.2, 3890.2, 3836.4])
@@ -594,7 +596,7 @@ def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
         mask_star[ibalm] = False
 
     # Mask Paschen
-    msgs.info(" Masking Paschen")
+    log.info(" Masking Paschen")
     # Vacuum Wavelengths from NIST (TEB, 2023-02-10)
     lines_pasc = np.array([18756.4, 12821.6, 10941.2, 10052.6,
                            9548.8, 9232.2, 9017.8, 8865.3,
@@ -605,7 +607,7 @@ def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
         mask_star[ipasc] = False
 
     # Mask Brackett
-    msgs.info(" Masking Brackett")
+    log.info(" Masking Brackett")
     # Vacuum Wavelengths from NIST (TEB, 2023-02-10)
     lines_brac = np.array([40522.8, 26258.7, 21661.2, 19446.0,
                            18179.2, 17366.9, 14584.0])
@@ -614,7 +616,7 @@ def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
         mask_star[ibrac] = False
 
     # Mask Pfund
-    msgs.info(" Masking Pfund")
+    log.info(" Masking Pfund")
     # Vacuum Wavelengths from NIST (TEB, 2023-02-10)
     lines_pfund = np.array([74599.0, 46537.8, 37405.8, 32969.8, 22788.0])
     for line_pfund in lines_pfund:
@@ -651,10 +653,10 @@ def mask_stellar_helium(wave_star, mask_width=5.0, mask_star=None):
     if mask_star is None:
         mask_star = np.ones_like(wave_star, dtype=bool)
     # Mask Balmer, Paschen, Brackett, and Pfund recombination lines
-    msgs.info("Masking ionized helium recombination lines")
+    log.info("Masking ionized helium recombination lines")
 
     # Mask HeII
-    msgs.info(" Masking HeII lines")
+    log.info(" Masking HeII lines")
     # Prominent HeII lines not overlapped by hydrogen lines:
     #    Vacuum wavelengths from Hubeney & Milhas (2015)
     #    "Theory of Stellar Atmospheres", p. 191.
@@ -935,7 +937,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
         Good pixel mask for fitted sensitivity function with same shape as wave (nspec,)
     """
     if np.any(np.logical_not(np.isfinite(Nlam_ivar))):
-        msgs.warn("NaN are present in the inverse variance")
+        log.warning("NaN are present in the inverse variance")
     ivar_bpm = np.logical_not(np.isfinite(Nlam_ivar) & (Nlam_ivar > 0))
 
     # check masks
@@ -969,7 +971,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     zeropoint_clean_gpm = zeropoint_data_gpm.copy()
     # Polynomial corrections on Hydrogen Recombination lines
     if (np.sum(zeropoint_fitmask) > 0.5 * len(zeropoint_fitmask)) & polycorrect:
-        msgs.info("Replacing bspline fit with polyfit over Hydrogen Recombination line regions")
+        log.info("Replacing bspline fit with polyfit over Hydrogen Recombination line regions")
         ## Only correct Hydrogen Recombination lines with polyfit in the telluric free region
         balmer_clean = np.zeros_like(wave, dtype=bool)
         # Commented out the bluest recombination lines since they are weak for spectroscopic standard stars.
@@ -987,32 +989,32 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
         zeropoint_clean[ivar_bpm] = zeropoint_poly[ivar_bpm]
     else:
         ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
-        msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
+        log.warning('No polynomial corrections performed on Hydrogen Recombination line regions')
 
     # ToDo
     # Compute an effective resolution for the standard. This could be improved
     # to setup an array of breakpoints based on the resolution. At the
     # moment we are using only one number
-    msgs.work("Should pull resolution from arc line analysis")
-    msgs.work("At the moment the resolution is taken as the PixelScale")
-    msgs.work("This needs to be changed!")
+    log.debug("Should pull resolution from arc line analysis")
+    log.debug("At the moment the resolution is taken as the PixelScale")
+    log.debug("This needs to be changed!")
     std_pix = np.median(np.abs(wave[zeropoint_data_gpm] - np.roll(wave[zeropoint_data_gpm], 1)))
     std_res = np.median(wave[zeropoint_data_gpm]/resolution) # median resolution in units of Angstrom.
     if (nresln * std_res) < std_pix:
-        msgs.warn("Bspline breakpoints spacing shoud be larger than 1pixel")
-        msgs.warn("Changing input nresln to fix this")
+        log.warning("Bspline breakpoints spacing shoud be larger than 1pixel")
+        log.warning("Changing input nresln to fix this")
         nresln = std_res / std_pix
 
     # Output some helpful information for double-checking input params are correct
-    msgs.test(f" This is the passed-in R: {resolution}")
-    msgs.info(f" This is the standard pixel: {std_pix:.2f} Å")
-    msgs.info(f" This is the standard resolution element: {std_res:.2f} Å")
-    msgs.info(f" Breakpoint spacing: {std_res * nresln:.2f} pixels")
+    log.debug(f" This is the passed-in R: {resolution}")
+    log.info(f" This is the standard pixel: {std_pix:.2f} Å")
+    log.info(f" This is the standard resolution element: {std_res:.2f} Å")
+    log.info(f" Breakpoint spacing: {std_res * nresln:.2f} pixels")
 
     # Fit zeropoint with bspline
     kwargs_bspline = {'bkspace': std_res * nresln}
     kwargs_reject = {'maxrej': 5}
-    msgs.info("Initialize bspline for flux calibration")
+    log.info("Initialize bspline for flux calibration")
     init_bspline = bspline.bspline(wave[zeropoint_data_gpm], bkspace=kwargs_bspline['bkspace'])
     fullbkpt = init_bspline.breakpoints
 
@@ -1021,7 +1023,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     init_breakpoints = fullbkpt[msk_bkpt > 0.999]
 
     # init_breakpoints = fullbkpt
-    msgs.info("Bspline fit on zeropoint. ")
+    log.info("Bspline fit on zeropoint. ")
     bset1, bmask = fitting.iterfit(wave, zeropoint_clean, invvar=zeropoint_ivar, inmask=zeropoint_fitmask, upper=upper, lower=lower,
                                 fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
                                 kwargs_reject=kwargs_reject)
@@ -1061,7 +1063,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     else:
         ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
         zeropoint_bspl_clean = zeropoint_bspl.copy()
-        msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
+        log.warning('No polynomial corrections performed on Hydrogen Recombination line regions')
 
     # Calculate zeropoint
     zeropoint_fit = zeropoint_poly if polyfunc else zeropoint_bspl_clean
@@ -1098,7 +1100,7 @@ def load_filter_file(filter):
 
     # Check
     if filter not in allowed_options:
-        msgs.error("PypeIt is not ready for filter = {}".format(filter))
+        raise PypeItError("PypeIt is not ready for filter = {}".format(filter))
 
     trans_file = dataPaths.filters.get_file_path('filtercurves.fits')
     trans = io.fits_open(trans_file)
@@ -1151,7 +1153,7 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
     flux = flux[gpm]
 
     # Grab the instrument response function
-    msgs.info("Integrating spectrum in filter: {}".format(scale_dict['filter']))
+    log.info("Integrating spectrum in filter: {}".format(scale_dict['filter']))
     fwave, trans = load_filter_file(scale_dict['filter'])
     tfunc = interpolate.interp1d(fwave, trans, bounds_error=False, fill_value=0.)
 
@@ -1171,9 +1173,9 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
         # Scale factor
         Dm = AB - scale_dict['filter_mag']
         scale = np.power(10.0,(Dm/2.5))
-        msgs.info("Scaling spectrum by {}".format(scale))
+        log.info("Scaling spectrum by {}".format(scale))
     else:
-        msgs.error("Bad magnitude type")
+        raise PypeItError("Bad magnitude type")
 
     return scale
 

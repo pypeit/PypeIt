@@ -13,7 +13,8 @@ import astropy.units as u
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import io
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -82,7 +83,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             try:
                 return Angle(headarr[0]['ANGLE'].lower()).deg
             except Exception as e:
-                msgs.warn("Could not read dispangle from header:" + msgs.newline() + str(headarr[0]['ANGLE']))
+                log.warning("Could not read dispangle from header:\n" + str(headarr[0]['ANGLE']))
                 raise e
         else:
             return None
@@ -165,7 +166,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lampstat01'] != '0000000') & (fitstbl['idname'] == 'cal')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def get_rawimage(self, raw_file, det):
@@ -216,7 +217,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         if meta_key == 'binning':
             binspatial, binspec = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
-        msgs.error(f"Not ready for this compound meta: {meta_key}")
+        raise PypeItError(f"Not ready for this compound meta: {meta_key}")
 
     def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):
         """
@@ -389,7 +390,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
                 # blue wavelength coverage with a 1200 lines/mm grating is about 1550 A
                 diff = np.abs(best_wv - cen_wv_AA)
                 if diff > 775:
-                    msgs.warn("Closest matching archived wavelength solutions"
+                    log.warning("Closest matching archived wavelength solutions"
                         f"differs in central wavelength by {diff:4.0f} A. The"
                         "wavelength solution may be unreliable. If wavelength"
                         "calibration fails, try using the holy grail method by"
@@ -399,7 +400,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
                         "\t\tmethod = holy-grail")
                 par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
             except KeyError:
-                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
+                log.warning("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
         else:
             if grating == '600/4000' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
@@ -408,7 +409,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             elif grating == '300/3990' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_300_3990_d55.fits'
             else:
-                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
+                log.warning("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
         
         return par
 
@@ -447,7 +448,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             binspec, binspatial = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
         else:
-            msgs.error(f"Not ready for this compound meta: {meta_key}")
+            raise PypeItError(f"Not ready for this compound meta: {meta_key}")
 
     def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):
         """
@@ -626,7 +627,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                 # red wavelength coverage with a 1200 lines/mm grating is about 1600 A
                 diff = np.abs(best_wv - cen_wv_AA)
                 if diff > 800:
-                    msgs.warn("Closest matching archived wavelength solutions"
+                    log.warning("Closest matching archived wavelength solutions"
                         f"differs in central wavelength by {diff:4.0f} A. The"
                         "wavelength solution may be unreliable. If wavelength"
                         "calibration fails, try using the holy grail method by"
@@ -636,14 +637,14 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                         "\t\tmethod = holy-grail")
                 par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
             except KeyError:
-                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
+                log.warning("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
         else:
             if grating == '316/7500' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
             elif grating == '600/10000' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_600_10000_d55.fits'
             else:
-                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
+                log.warning("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
 
         return par
 
@@ -663,7 +664,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         bpix : ndarray
           0 = ok; 1 = Mask
         """
-        msgs.info("Custom bad pixel mask for DBSPr")
+        log.info("Custom bad pixel mask for DBSPr")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
 
         # Fill in bad pixels if a processed bias frame is provided

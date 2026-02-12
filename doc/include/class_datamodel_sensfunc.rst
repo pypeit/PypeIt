@@ -11,7 +11,7 @@ Attribute       Type                                     Array Type  Description
 ``extr``        str                                                  Extraction method used for the standard star (OPT or BOX)  
 ``pypeline``    str                                                  PypeIt pipeline reduction path                             
 ``sens``        `astropy.table.table.Table`_                         Table with the sensitivity function                        
-``spec1df``     str                                                  PypeIt spec1D file used to for sensitivity function        
+``spec1df``     str                                                  PypeIt spec1D file(s) used to for sensitivity function     
 ``std_cal``     str                                                  File name (or shorthand) with the standard flux data       
 ``std_dec``     float                                                DEC of the standard source                                 
 ``std_name``    str                                                  Type of standard source                                    

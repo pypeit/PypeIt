@@ -7,7 +7,7 @@ import pytest
 
 import numpy as np
 
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit.core import parse
 from pypeit.spectrographs.util import load_spectrograph
 

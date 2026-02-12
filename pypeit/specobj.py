@@ -11,16 +11,13 @@ from IPython import embed
 
 import numpy as np
 
-from astropy import units
-
-from linetools.spectra import xspectrum1d
-
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.core import flexure
 from pypeit.core import flux_calib
 from pypeit.core import parse
-from pypeit import utils
 from pypeit import datamodel
+from pypeit import onespec
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 from pypeit.spectrographs.util import load_spectrograph
@@ -279,9 +276,9 @@ class SpecObj(datamodel.DataContainer):
         # Check the type of the flat field if it's not None
         if flat is not None:
             if not isinstance(flat, np.ndarray):
-                msgs.error('Flat must be a numpy array')
+                raise PypeItError('Flat must be a numpy array')
             if flat.shape != counts.shape:
-                msgs.error('Flat and counts must have the same shape')
+                raise PypeItError('Flat and counts must have the same shape')
         # Add in arrays
         for item, attr in zip([wave, counts, ivar, flat], ['_WAVE', '_COUNTS', '_COUNTS_IVAR', '_FLAT']):
             # Check if any of the arrays are None. If so, skip
@@ -298,7 +295,7 @@ class SpecObj(datamodel.DataContainer):
         """
         pypelines = ['MultiSlit', 'SlicerIFU', 'Echelle', 'NIRSpecSlit']
         if self.PYPELINE not in pypelines:
-            msgs.error(f'{self.PYPELINE} is not a known pipeline procedure.  Options are: '
+            raise PypeItError(f'{self.PYPELINE} is not a known pipeline procedure.  Options are: '
                        f"{', '.join(pypelines)}")
 
     def _bundle(self, **kwargs):
@@ -331,7 +328,7 @@ class SpecObj(datamodel.DataContainer):
         set to True.
         """
         if 'force_to_bintbl' in kwargs and not kwargs['force_to_bintbl']:
-            msgs.warn(f'Writing a {self.__class__.__name__} always requires force_to_bintbl=True')
+            log.warning(f'Writing a {self.__class__.__name__} always requires force_to_bintbl=True')
             del kwargs['force_to_bintbl']
         return super().to_hdu(force_to_bintbl=True, **kwargs)
 
@@ -346,7 +343,7 @@ class SpecObj(datamodel.DataContainer):
         elif self.PYPELINE == 'NIRSpecSlit':
             return self.SLITID
         else:
-            msgs.error("Bad PYPELINE")
+            raise PypeItError("Bad PYPELINE")
 
 
     @property
@@ -360,7 +357,7 @@ class SpecObj(datamodel.DataContainer):
         elif self.PYPELINE == 'NIRSpecSlit':
             return self.SLITID
         else:
-            msgs.error("Bad PYPELINE")
+            raise PypeItError("Bad PYPELINE")
 
     @property
     def mnx_wave(self):
@@ -441,7 +438,7 @@ class SpecObj(datamodel.DataContainer):
         """
         # some checks first
         if self.spectrograph is None and self.PYP_SPEC is None:
-            msgs.error("PYP_SPEC must be set to access the spectrograph")
+            raise PypeItError("PYP_SPEC must be set to access the spectrograph")
         # get it
         if self.spectrograph is None:
             self.spectrograph = load_spectrograph(self.PYP_SPEC)
@@ -504,7 +501,7 @@ class SpecObj(datamodel.DataContainer):
             name += f'-{self.DET}'
             self.NAME = name
         else:
-            msgs.error(f'{self.PYPELINE} is not an understood pipeline.')
+            raise PypeItError(f'{self.PYPELINE} is not an understood pipeline.')
 
     def copy(self):
         """
@@ -524,23 +521,25 @@ class SpecObj(datamodel.DataContainer):
         Args:
             shift (float):
                 additive spectral flexure in pixels
-            sky_spec (`linetools.spectra.xspectrum1d.XSpectrum1D`_):
+            sky_spec (:class:`~pypeit.onespec.OneSpec`):
                 Sky Spectrum
 
         Returns:
-            `linetools.spectra.xspectrum1d.XSpectrum1D`_: New sky
-            spectrum (mainly for QA)
+            :class:`~pypeit.onespec.OneSpec`:
+                New sky spectrum with the flexure applied  
+                mainly for QA
         """
         # Simple interpolation to apply
         # Apply
         for attr in ['BOX', 'OPT']:
             if self[attr+'_WAVE'] is not None:
-                msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
-                          msgs.newline() + "{0:s}".format(str(self.NAME)))
+                log.info(
+                    f"Applying flexure correction to {attr:s} extraction for object:\n{self.NAME}"
+                )
                 self[attr+'_WAVE'] = flexure.flexure_interp(shift, self[attr+'_WAVE']).copy()
         # Shift sky spec too
-        twave = flexure.flexure_interp(shift, sky_spec.wavelength.value) * units.AA
-        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, sky_spec.flux))
+        twave = flexure.flexure_interp(shift, sky_spec.wave)
+        new_sky = onespec.OneSpec(twave, None, sky_spec.flux)
         # Save - since flexure may have been applied/calculated twice, this needs to be additive
         self.update_flex_shift(shift, flex_type='local')
         # Return
@@ -558,7 +557,7 @@ class SpecObj(datamodel.DataContainer):
         elif flex_type == 'local':
             self.FLEX_SHIFT_LOCAL = shift
         else:
-            msgs.error("Spectral flexure type must be 'global' or 'local' only")
+            raise PypeItError("Spectral flexure type must be 'global' or 'local' only")
         # Now update the total flexure
         self.FLEX_SHIFT_TOTAL += shift
 
@@ -598,7 +597,7 @@ class SpecObj(datamodel.DataContainer):
         for attr in ['BOX', 'OPT']:
             if self[attr+'_WAVE'] is None:
                 continue
-            msgs.info("Fluxing {:s} extraction for:".format(attr) + msgs.newline() + "{}".format(self))
+            log.info(f"Fluxing {attr} extraction for:\n{self}")
 
             wave = self[attr+'_WAVE']
             # Interpolate the sensitivity function onto the wavelength grid of the data
@@ -616,7 +615,7 @@ class SpecObj(datamodel.DataContainer):
             flam_ivar = self[attr+'_COUNTS_IVAR']/sens_factor**2
 
             # Mask bad pixels
-            msgs.info(" Masking bad pixels")
+            log.info(" Masking bad pixels")
             msk = np.zeros_like(sens_factor).astype(bool)
             msk[sens_factor <= 0.] = True
             msk[self[attr+'_COUNTS_IVAR'] <= 0.] = True
@@ -646,9 +645,9 @@ class SpecObj(datamodel.DataContainer):
         # Apply
         for attr in ['BOX', 'OPT']:
             if self[attr+'_WAVE'] is not None:
-                msgs.info('Applying {0} correction to '.format(refframe)
-                          + '{0} extraction for object:'.format(attr)
-                          + msgs.newline() + "{0}".format(str(self.NAME)))
+                log.info(
+                    f'Applying {refframe} correction to {attr} extraction for object:\n{self.NAME}'
+                )
                 self[attr+'_WAVE'] *= vel_corr
                 # Record
                 self['VEL_TYPE'] = refframe
@@ -671,7 +670,7 @@ class SpecObj(datamodel.DataContainer):
         swave = extraction+'_WAVE'
         smask = extraction+'_MASK'
         if self[swave] is None:
-            msgs.error("This object has not been extracted with extract={}.".format(extraction))
+            raise PypeItError("This object has not been extracted with extract={}.".format(extraction))
         # Fluxed?
         if fluxed:
             sflux = extraction+'_FLAM'
@@ -681,33 +680,6 @@ class SpecObj(datamodel.DataContainer):
             sivar = extraction+'_COUNTS_IVAR'
         # Return
         return self[swave], self[sflux], self[sivar], self[smask]
-
-    def to_xspec1d(self, masked=True, extraction='OPT', fluxed=True):
-        """
-        Create an `XSpectrum1D <linetools.spectra.xspectrum1d.XSpectrum1D>`_
-        using this spectrum.
-
-        Args:
-            masked (:obj:`bool`, optional):
-                If True, only unmasked data are included.
-            extraction (str):
-                Extraction method to convert
-            fluxed:
-                Use the fluxed tags
-
-        Returns:
-            `linetools.spectra.xspectrum1d.XSpectrum1D`_: Spectrum object
-        """
-        wave, flux, ivar, gpm = self.to_arrays(extraction=extraction, fluxed=fluxed)
-        sig = np.sqrt(utils.inverse(ivar))
-        wave_gpm = wave > 1.0
-        wave, flux, sig, gpm = wave[wave_gpm], flux[wave_gpm], sig[wave_gpm], gpm[wave_gpm]
-        if masked:
-            flux = flux*gpm
-            sig = sig*gpm
-
-        # Create
-        return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 
     def ready_for_extraction(self):
         """ Simple method to check all the items are filled
@@ -726,8 +698,8 @@ class SpecObj(datamodel.DataContainer):
         passed = True
         for key in required:
             if self[key] is None:
-                msgs.warn("Item {} is missing from SpecObj. Failing vette".format(key))
-                msgs.warn('{}'.format(self))
+                log.warning("Item {} is missing from SpecObj. Failing vette".format(key))
+                log.warning('{}'.format(self))
                 passed = False
         #
         return passed
@@ -850,7 +822,7 @@ class SpecObj(datamodel.DataContainer):
         # If not set, prefer the optimal extraction over the boxcar one.
         _extract = 'OPT' if extract is None else extract
         if _extract not in ['OPT', 'BOX']:
-            msgs.error(f'Extraction type ({_extract}) not understood; must be OPT or BOX.')
+            raise PypeItError(f'Extraction type ({_extract}) not understood; must be OPT or BOX.')
         if _extract == 'OPT':
             if self.has_opt_ext(fluxed=fluxed):
                 return 'OPT', fluxed
@@ -866,5 +838,5 @@ class SpecObj(datamodel.DataContainer):
         if self.has_box_ext(fluxed=False):
             return 'BOX', False
         # If we make it here, we've got a problem!
-        msgs.error('Unable to find a relevant set of data!')
+        raise PypeItError('Unable to find a relevant set of data!')
 

@@ -14,7 +14,7 @@ from IPython import embed
 
 from astropy.stats import sigma_clipped_stats
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import utils
 from pypeit import tracepca
 
@@ -79,7 +79,7 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
     aduse = np.zeros(arcdet.size, dtype=bool)  # Which lines should be used to trace the tilts
     aduse[nsig >= tracethresh] = True
 
-    msgs.info('Rejecting {0} lines below sigma threshold.'.format(arcdet.size - np.sum(aduse)))
+    log.info('Rejecting {0} lines below sigma threshold.'.format(arcdet.size - np.sum(aduse)))
     #    arc.find_lines_qa(arc_cont_sub, arcdet, arc_ampl, aduse, bpm=bpm,
     #                      nonlinear=nonlinear_counts)
 
@@ -100,7 +100,7 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
                 aduse[idxuse[s]] = False
                 break
 
-    msgs.info('Removed {0} lines that were too close to neighboring lines.'.format(
+    log.info('Removed {0} lines that were too close to neighboring lines.'.format(
         np.sum(olduse) - np.sum(aduse)))
 
     # Restricted to ID lines? [introduced to avoid LRIS ghosts]
@@ -110,19 +110,19 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
         idxuse = np.arange(arcdet.size)[aduse]
         for s in idxuse:
             if np.min(np.abs(arcdet[s] - ids_pix)) > 2.0:
-                msgs.info('Ignoring line at {:6.1f} which was not identified'.format(arcdet[s]))
+                log.info('Ignoring line at {:6.1f} which was not identified'.format(arcdet[s]))
                 aduse[s] = False
 
     # Final spectral positions of arc lines we will trace
     lines_spec = arcdet[aduse]
     nlines = len(lines_spec)
     if nlines == 0:
-        msgs.warn('No arc lines were deemed usable on this slit; line tilts cannot be computed.'
+        log.warning('No arc lines were deemed usable on this slit; line tilts cannot be computed.'
                   '  This may be a bad slit, which you can remove.  Otherwise, try lowering '
                   'the tracethresh parameter.')
         return None, None, None
     else:
-        msgs.info('Modeling arc line tilts with {:d} arc lines'.format(nlines))
+        log.info('Modeling arc line tilts with {:d} arc lines'.format(nlines))
 
     nspec = arc_spec.size
     spec_vec = np.arange(nspec)
@@ -479,7 +479,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     use_tilt = (mad_rej) & (bad_frac < max_badpix_frac) & good_line & (dev_mad < maxdev)
     nuse = np.sum(use_tilt)
 
-    msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse, nlines))
+    log.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse, nlines))
 
     tilts_mad = np.outer(np.ones(nspat), dev_mad)
 
@@ -489,9 +489,10 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # cause a full fault of the code, we need to make sure the user
         # sees these kinds of critical failures instead of them getting
         # buried in all the other messages.
-        msgs.warn('Too many lines rejected in this slit/order.' + msgs.newline()
-                  + 'Would reject {0}/{1} lines (more than 95%).'.format(nlines - nuse, nlines)
-                  + msgs.newline() + 'Proceeding without rejection, but reduction likely bogus.')
+        log.warning(
+            f'Too many lines rejected in this slit/order.\nWould reject {nlines - nuse}/{nlines} '
+            'lines (more than 95%).\nProceeding without rejection, but reduction likely bogus.'
+        )
         use_tilt = np.ones(nlines, dtype=bool)
         nuse = nlines
 
@@ -617,7 +618,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     debug_pca_fit = False
     if debug_pca_fit:
         # !!!! FOR TESTING ONLY!!!!  Evaluate the model fit to the tilts for all of our lines
-        msgs.info('TESTING: Performing an initial fit before PCA.')
+        log.info('TESTING: Performing an initial fit before PCA.')
         # JFH Note spec_order is hard wired here as we don't pass it in
         tilt_fit_dict0 = fit_tilts(trace_dict0, spat_order=spat_order, spec_order=6, debug=True,
                                    maxdev=0.2, sigrej=3.0, doqa=True, setup='test', slit=0,
@@ -629,12 +630,12 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     if nuse < 2:
         # DP: Added this because sometime there are < 2 usable arc lines for tilt tracing, PCA fit does not work
         # and the reduction crushes
-        msgs.warn('Less than 2 usable arc lines for tilts. NO PCA modeling!')
+        log.warning('Less than 2 usable arc lines for tilts. NO PCA modeling!')
         return trace_dict0
     else:
         bpm = np.ones(trace_dict0['tilts_sub_fit'].shape, dtype=bool)
         bpm[:, iuse] = False
-        msgs.info('PCA modeling {:d} good tilts'.format(nuse))
+        log.info('PCA modeling {:d} good tilts'.format(nuse))
         pca_fit = tracepca.pca_trace_object(trace_dict0['tilts_sub_fit'], order=coeff_npoly_pca,
                                             trace_bpm=bpm, npca=npca, coo=lines_spec, minx=0.0,
                                             maxx=float(trace_dict0['nsub'] - 1), lower=sigrej_pca,
@@ -702,7 +703,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     fitxy = [spec_order, spat_order]
 
     # Fit the inverted model with a 2D polynomial
-    msgs.info("Fitting tilts with a low order, 2D {:s}".format(func2d))
+    log.info("Fitting tilts with a low order, 2D {:s}".format(func2d))
 
     # TODO: Make adderr a parameter?  Where does this come from?
     adderr = 0.03
@@ -739,11 +740,11 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Report the residuals in pixels
     res_fit = tilts[fitmask] - tilts_2dfit[fitmask]
     rms_fit = np.std(res_fit)
-    msgs.info("Residuals: 2D Legendre Fit")
-    msgs.info("RMS (pixels): {}".format(rms_fit))
-    msgs.info("RMS/FWHM: {}".format(rms_fit / fwhm))
+    log.info("Residuals: 2D Legendre Fit")
+    log.info("RMS (pixels): {}".format(rms_fit))
+    log.info("RMS/FWHM: {}".format(rms_fit / fwhm))
 
-    msgs.info('Inverting the fit to generate the tilts image')
+    log.info('Inverting the fit to generate the tilts image')
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
     spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
@@ -802,7 +803,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                    use_mad=False, sticky=False)
     # JFH changed above to use stick=False, to limit the amount of rejection
     irej = np.logical_not(pypeitFit.bool_gpm) & inmask
-    msgs.info('Rejected {0}/{1} pixels in final inversion tilts image fit'.format(
+    log.info('Rejected {0}/{1} pixels in final inversion tilts image fit'.format(
         np.sum(irej), np.sum(inmask)))
     # normalized tilts image
     # TODO -- This should be a DataContainer
@@ -846,9 +847,9 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Actual 2D Model Tilt Residuals
     # res_real = tilts[fitmask] - tilts_2dfit_piximg[fitmask]
     # rms_real = np.std(res_real)
-    # msgs.info("Residuals: Actual 2D Tilt Residuals from piximg")
-    # msgs.info("RMS (pixels): {}".format(rms_real))
-    # msgs.info("RMS/FWHM: {}".format(rms_real/fwhm))
+    # log.info("Residuals: Actual 2D Tilt Residuals from piximg")
+    # log.info("RMS (pixels): {}".format(rms_real))
+    # log.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
 
 def fit2tilts(shape, coeff2, func2d, spat_shift=None):

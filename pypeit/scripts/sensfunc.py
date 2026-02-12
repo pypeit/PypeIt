@@ -17,7 +17,7 @@ class SensFunc(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Compute a sensitivity function', width=width,
-                                    formatter=scriptbase.SmartFormatter)
+                                    formatter=scriptbase.SmartFormatter, default_log_file=True)
         parser.add_argument("spec1dfiles", type=str, nargs='+',
                             help='file(s) of the reduced standard star spectrum.  These '
                                  'can be either spec1d*.fits files or the output of '
@@ -84,30 +84,28 @@ class SensFunc(scriptbase.ScriptBase):
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
                             help="Name of output file to save the parameters used by the fit")
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename sensfunc_YYYYMMDD-HHMM.log')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         """Executes sensitivity function computation."""
 
         import os
 
-        from pypeit import msgs
+        from pypeit import log
+        from pypeit import PypeItError
         from pypeit import inputfiles
         from pypeit import io
         from pypeit.par import pypeitpar
         from pypeit import sensfunc
         from pypeit.spectrographs.util import load_spectrograph
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('sensfunc', args.verbosity)
+        # Initialize the log
+        cls.init_log(args)
 
         # Check parameter inputs
         if args.algorithm is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --algorithm and simultaneously use a .sens "
+            raise PypeItError("It is not possible to set --algorithm and simultaneously use a .sens "
                        "file via the --sens_file option. If you are using a .sens file set the "
                        "algorithm there via:\n"
                        "\n"
@@ -116,7 +114,7 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n")
 
         if args.use_flat and args.sens_file is not None:
-            msgs.error("It is not possible to set --use_flat and simultaneously use a .sens "
+            raise PypeItError("It is not possible to set --use_flat and simultaneously use a .sens "
                        "file via the --sens_file option. If you are using a .sens file set the "
                        "use_flat flag in your .sens file using the argument:\n"
                        "\n"
@@ -125,7 +123,7 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n")
 
         if args.multi is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --multi and simultaneously use a .sens file via "
+            raise PypeItError("It is not possible to set --multi and simultaneously use a .sens file via "
                        "the --sens_file option. If you are using a .sens file set the detectors "
                        "there via:\n"
                        "\n"
@@ -134,7 +132,7 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n")
 
         if args.extr is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --extr and simultaneously use a .sens file via "
+            raise PypeItError("It is not possible to set --extr and simultaneously use a .sens file via "
                        "the --sens_file option. If you are using a .sens file set the extraction "
                        "method there via:\n"
                        "\n"
@@ -197,7 +195,7 @@ class SensFunc(scriptbase.ScriptBase):
         # command line, overwrite the parset values read in from the .sens file
 
         # Write the par to disk
-        msgs.info(f'Writing the parameters to {args.par_outfile}')
+        log.info(f'Writing the parameters to {args.par_outfile}')
         par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
         # TODO JFH I would like to be able to run only

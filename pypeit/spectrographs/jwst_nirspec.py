@@ -5,7 +5,8 @@ Module for JWST NIRSpec specific methods.
 """
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
 from pypeit.core import framematch
@@ -123,7 +124,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
         # # Binning *must* be consistent for all detectors
         # if any(d.binning != detectors[0].binning for d in detectors[1:]):
-        #     msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+        #     raise PypeItError('Binning is somehow inconsistent between detectors in the mosaic!')
         #
         # # Collect the offsets and rotations for *all unbinned* detectors in the
         # # full instrument, ordered by the number of the detector.  Detector
@@ -283,7 +284,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             elif exp_type == 'NRS_FIXEDSLIT':
                 return headarr[0].get('PATTTYPE')
             else:
-                msgs.warn(f'Cannot determine dithering pattern for EXP_TYPE={exp_type}.')
+                log.warning(f'Cannot determine dithering pattern for EXP_TYPE={exp_type}.')
                 return None
         elif meta_key == 'target':
             # The target name is stored in the TARGPROP header card
@@ -302,10 +303,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                 else:
                     return None
             else:
-                msgs.warn("Cannot determine idname from header. Setting to None.")
+                log.warning("Cannot determine idname from header. Setting to None.")
                 return None
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -365,7 +366,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'interpolatedflat')
         if ftype in ['arc', 'tilt', 'trace']:
             return good_exp & (fitstbl['idname'] == 'calib')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -424,7 +425,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info(f'Reading JWST/NIRSpec file: {fil}')
+        log.info(f'Reading JWST/NIRSpec file: {fil}')
 
         return super().get_rawimage(fil, det, sec_includes_binning=True)
 
@@ -470,12 +471,12 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         nimg, _ = self.validate_det(det)
 
         if nimg == 1:
-            msgs.error('Mosaic cannot be made with only one detector!')
+            raise PypeItError('Mosaic cannot be made with only one detector!')
         else:
             if len(img_list) != 2:
-                msgs.error('Mosaic can only be made with two images!')
+                raise PypeItError('Mosaic can only be made with two images!')
             if det not in self.allowed_mosaics:
-                msgs.error(f'Mosaic with detectors {det} is not allowed! '
+                raise PypeItError(f'Mosaic with detectors {det} is not allowed! '
                            f'Allowed mosaics are: {self.allowed_mosaics}')
 
         detector_gap = int(self.get_detector_par(1).xgap)

@@ -21,7 +21,8 @@ import qtpy
 from configobj import ConfigObj
 from datetime import datetime, timezone
 
-from pypeit import msgs, spectrographs
+from pypeit import log
+from pypeit import spectrographs
 from pypeit.spectrographs import available_spectrographs
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.metadata import PypeItMetaData
@@ -44,7 +45,7 @@ class ModelState(enum.Enum):
 
 
 class LogBuffer(io.TextIOBase):
-    """Imitation file object that is passed to the PypeIt msgs logging system. It maintains a buffer
+    """Imitation file object that is passed to the PypeIt log logging system. It maintains a buffer
     of log messages that the user can view through the GUI. It is also used to monitor progress of 
     background operations, by registering regular expressions to watch the log for.
 
@@ -365,7 +366,7 @@ class PypeItMetadataModel(QAbstractTableModel):
                 try:
                     self.metadata[colname][index.row()] = value
                 except ValueError as e:
-                    msgs.warn(f"Failed to set {colname} row {index.row()} to '{value}'. ValueError: {e}")
+                    log.warning(f"Failed to set {colname} row {index.row()} to '{value}'. ValueError: {e}")
 
                 self.dataChanged.emit(index,index,[Qt.DisplayRole, Qt.EditRole])
                 return True
@@ -508,7 +509,7 @@ class PypeItMetadataModel(QAbstractTableModel):
             # We could try to group these rows into ranges, but
             # it doesn't seem worth it
             self.beginRemoveRows(QModelIndex(), row, row)
-            msgs.info(f"Removing metadata row {row}")
+            log.info(f"Removing metadata row {row}")
             self.metadata.remove_rows([row])
             self.endRemoveRows()
 
@@ -591,7 +592,7 @@ class PypeItMetadataModel(QAbstractTableModel):
         Return:
             PypeItMetadataModel: A deep copy of the meatdata matching the config_name
         """
-        msgs.info(f"Creating new metadata for config {config_name}")
+        log.info(f"Creating new metadata for config {config_name}")
 
         config_rows  = [ config_name in setup for setup in self.metadata.table['setup'] ]
         return self.createCopyForRows(config_rows)
@@ -829,7 +830,7 @@ class PypeItParamsProxy(QAbstractItemModel):
                 # Column 1 does not have children
                 return 0
 
-            #msgs.info("rowCount valid")
+            #log.info("rowCount valid")
             node = parent.internalPointer()
 
         return len(node.children)
@@ -1024,7 +1025,7 @@ class PypeItFileModel(QObject):
         """Signal handler that detects changes to the metadata model and updates
         our model state to ModelState.CHANGED
         """
-        msgs.info("Updating state")
+        log.info("Updating state")
         if self.state == ModelState.NEW:
             # Only move to "CHANGED" if there are rows in the metadata.
             if self.metadata_model.rowCount() > 0:
@@ -1069,14 +1070,14 @@ class PypeItFileModel(QObject):
     
             pf = PypeItFile(self.params_model.getConfigLines(),self.metadata_model.getPathsModel().getPaths(), metadata_table, setup_dict,vet=False,preserve_comments=True)    
 
-            msgs.info(f"Saving filename: {self.filename}")
+            log.info(f"Saving filename: {self.filename}")
             if self.save_location is not None:
                 os.makedirs(self.save_location,exist_ok=True)
             pf.write(self.filename) 
             
         except Exception as e:
-            msgs.warn(f"Failed saving setup {self.name_stem} to {self.save_location}.")
-            msgs.warn(traceback.format_exc())
+            log.warning(f"Failed saving setup {self.name_stem} to {self.save_location}.")
+            log.warning(traceback.format_exc())
             # Raise an exception that will look nice when displayed to the GUI
             raise RuntimeError(f"Failed saving setup {self.name_stem} to {self.save_location}.\nException: {e}")
         self.state = ModelState.UNCHANGED
@@ -1102,10 +1103,10 @@ class PypeItObsLogModel(QObject):
     def state(self):
         """ModelState: The state of the obslog model. Either NEW or UNCHANGED."""
         if self.metadata_model.metadata is None:
-            msgs.info("Obslog state is NEW")
+            log.info("Obslog state is NEW")
             return ModelState.NEW
         else:
-            msgs.info("Obslog state is UNCHANGED")
+            log.info("Obslog state is UNCHANGED")
             return ModelState.UNCHANGED
 
     def set_spectrograph(self, new_spec):
@@ -1114,7 +1115,7 @@ class PypeItObsLogModel(QObject):
         Args:
             new_spec (str): The name of the new spectrograph.
         """
-        msgs.info(f"Spectrograph is now {new_spec}")
+        log.info(f"Spectrograph is now {new_spec}")
         self._spectrograph = spectrographs.util.load_spectrograph(new_spec)
         if self.metadata_model.spectrograph is not None and self.metadata_model.spectrograph.name != new_spec:
             self.metadata_model.reset()
@@ -1149,7 +1150,7 @@ class PypeItObsLogModel(QObject):
         Args:
             new_directory (str): The new directory containing raw data.        
         """
-        msgs.info(f"Adding raw directory: {new_directory}, current spec is {self._spectrograph}")
+        log.info(f"Adding raw directory: {new_directory}, current spec is {self._spectrograph}")
         if new_directory not in self.paths_model.stringList():
             row_number = self.paths_model.rowCount()
             self.paths_model.insertRows(row_number, 1)
@@ -1170,7 +1171,7 @@ class PypeItObsLogModel(QObject):
 
         raw_data_files = []
         for directory in self.paths_model.stringList():
-            msgs.info(f"Scanning directory: {directory}")
+            log.info(f"Scanning directory: {directory}")
             for extension in allowed_extensions:
                 #  The command line may set a root, which isn't a directory but a prefix
                 if not os.path.isdir(directory):
@@ -1178,7 +1179,7 @@ class PypeItObsLogModel(QObject):
                 else:
                     glob_pattern = os.path.join(directory, "*" + extension)
 
-                msgs.info(f"Searching for raw data files with {glob_pattern}")
+                log.info(f"Searching for raw data files with {glob_pattern}")
                 raw_data_files += glob.glob(glob_pattern)
 
         return raw_data_files
@@ -1187,7 +1188,7 @@ class PypeItObsLogModel(QObject):
     def reset(self):
         """Reset the model to an empty state."""
 
-        msgs.info(f"Resetting to empty setup.")
+        log.info(f"Resetting to empty setup.")
         self.raw_data_files = []
         self.raw_data_dirs = []
         self.metadata_model.setMetadata(None)     
@@ -1236,12 +1237,12 @@ class PypeItSetupGUIModel(QObject):
         else:
             logfile = None
 
-        self.log_buffer = LogBuffer(logfile,verbosity)
-        msgs.reset(verbosity=verbosity, log=self.log_buffer, log_to_stderr=False)
-        msgs.info(f"QT Version: {qtpy.QT_VERSION}")
-        msgs.info(f"PySide version: {qtpy.PYSIDE_VERSION}")
-        msgs.info(f"PyQt version: {qtpy.PYQT_VERSION}")
-        msgs.info(f"QtPy API_NAME: {qtpy.API_NAME}")
+        self.log_buffer = LogBuffer(logfile, verbosity)
+        log.init(level=log.convert_verbosity_to_logging_level(verbosity), stream=self.log_buffer)
+        log.info(f"QT Version: {qtpy.QT_VERSION}")
+        log.info(f"PySide version: {qtpy.PYSIDE_VERSION}")
+        log.info(f"PyQt version: {qtpy.PYQT_VERSION}")
+        log.info(f"QtPy API_NAME: {qtpy.API_NAME}")
 
     @property
     def state(self):
@@ -1249,20 +1250,20 @@ class PypeItSetupGUIModel(QObject):
         """
         if len(self.pypeit_files) == 0:
             # No pypeit files, just use the obslog state
-            msgs.info(f"GUI state is {self.obslog_model.state}")
+            log.info(f"GUI state is {self.obslog_model.state}")
             return self.obslog_model.state
         else:
             if any([file.state!=ModelState.UNCHANGED for file in self.pypeit_files.values()]):
-                msgs.info("GUI state is CHANGED")
+                log.info("GUI state is CHANGED")
                 return ModelState.CHANGED
             else:
-                msgs.info("GUI state is UNCHANGED")
+                log.info("GUI state is UNCHANGED")
                 return ModelState.UNCHANGED
 
     def reset(self):
         """Reset the model to an empty state."""
 
-        msgs.info(f"Resetting to NEW state.")
+        log.info(f"Resetting to NEW state.")
         self.closeAllFiles()
         self.obslog_model.reset()
         self.stateChanged.emit()
@@ -1391,7 +1392,7 @@ class PypeItSetupGUIModel(QObject):
             pf_model.stateChanged.connect(self.stateChanged)
 
             self.pypeit_files[setup_name] = pf_model            
-            msgs.info("Adding empty file model in open_pypeit_file")
+            log.info("Adding empty file model in open_pypeit_file")
             self.filesAdded.emit([pf_model])
             self.stateChanged.emit()
 
@@ -1402,7 +1403,7 @@ class PypeItSetupGUIModel(QObject):
 
     def createEmptyPypeItFile(self, new_name):
         # Create a new empty configuration.
-        msgs.info(f"Creating new pypeit file model for {new_name}")
+        log.info(f"Creating new pypeit file model for {new_name}")
 
         # Create an empty copy of the obslog metadata for the new file
         empty_metadata = self.obslog_model.metadata_model.createCopyForRows([])
@@ -1416,7 +1417,7 @@ class PypeItSetupGUIModel(QObject):
         pf_model.stateChanged.connect(self.stateChanged)
 
         self.pypeit_files[new_name] = pf_model            
-        msgs.info("Adding emtpy pypeit file in createEmptyPypeItFile")
+        log.info("Adding emtpy pypeit file in createEmptyPypeItFile")
         self.filesAdded.emit([pf_model])
         self.stateChanged.emit()
         return pf_model
@@ -1440,9 +1441,9 @@ class PypeItSetupGUIModel(QObject):
         """
         if configs is None:
             configs = self.obslog_model.metadata_model.metadata.unique_configurations()
-            msgs.info(f"Creating files for all unique configurations: {configs}")
+            log.info(f"Creating files for all unique configurations: {configs}")
         else:
-            msgs.info(f"Creating files for configs {configs}")
+            log.info(f"Creating files for configs {configs}")
 
         # Create a new PypeItFileModel for each unique configuration
         config_names = list(configs.keys())
@@ -1458,8 +1459,8 @@ class PypeItSetupGUIModel(QObject):
             pf_model.stateChanged.connect(self.stateChanged)
             self.pypeit_files[config_name] = pf_model
 
-        msgs.info(f"Current files: {self.pypeit_files}")
+        log.info(f"Current files: {self.pypeit_files}")
         if len(config_names) > 0:
-            msgs.info("Adding pypeit files in createFilesForConfigs")
+            log.info("Adding pypeit files in createFilesForConfigs")
             self.filesAdded.emit(list(self.pypeit_files.values()))
 
