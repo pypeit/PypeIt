@@ -5690,190 +5690,273 @@ class NewProcessImagesPar(NewParSet):
         'use_biasimage': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Use a bias image. If True, one or more must be supplied in the PypeIt file.',
+            descr='Use a bias image.  If True, one or more must be supplied in the PypeIt file.',
         ),
 
         'use_overscan': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Subtract off the overscan. Detector must have one or code will crash.',
+            descr='Subtract off the overscan.  Detector *must* have one or code will crash.',
         ),
 
         'overscan_method': parset.set_parameter_definition(
             dtype=str,
             default='savgol',
             options=valid_overscan_methods,
-            descr='Method used to fit the overscan.',
+            descr=(
+                'Method used to fit the overscan. '
+                f'Options are: {", ".join(valid_overscan_methods)}  Note: Method "polynomial" '
+                'is identical to "chebyshev"; the former is deprecated and will be removed.'
+            ),
         ),
 
         'overscan_par': parset.set_parameter_definition(
             dtype=[int, list],
             default=[5, 65],
-            descr='Parameters for the overscan subtraction',
+            descr=(
+                'Parameters for the overscan subtraction.  For '
+                "'chebyshev' or 'polynomial', set overcan_par = order; "
+                "for 'savgol', set overscan_par = order, window size ; "
+                "for 'median', set overscan_par = None or omit the keyword."
+            ),
         ),
 
         'correct_nonlinear': parset.set_parameter_definition(
             dtype=list,
             default=None,
-            descr='Non-linear correction parameters (alpha) or None',
+            descr=(
+                'Correct for non-linear response of the detector.  If None, '
+                'no correction is performed. If a list, then the list should be '
+                'the non-linear correction parameter (alpha), where the functional '
+                'form is given by Ct = Cm (1 + alpha x Cm), with Ct and Cm the true '
+                'and measured counts. This parameter is usually '
+                'hard-coded for a given spectrograph, and should otherwise be left as None.'
+            ),
         ),
 
         'use_darkimage': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Subtract off a dark image',
+            descr='Subtract off a dark image.  If True, one or more darks must be provided.',
         ),
 
         'dark_expscale': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Scale dark by exposure-time ratio if True',
+            descr=(
+                'If designated dark frames are used and have a different '
+                'exposure time than the science frames, scale the counts by '
+                'the by the ratio in the exposure times to adjust the dark '
+                'counts for the difference in exposure time.  WARNING: You '
+                'should always take dark frames that have the same exposure '
+                'time as your science frames, so use this option with care!'
+            ),
         ),
 
         'use_pattern': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Subtract detector sinusoidal pattern if True',
+            descr=(
+                'Subtract off a detector pattern. This pattern is assumed to be '
+                'sinusoidal along one direction, with a frequency that is '
+                'constant across the detector.'
+            ),
         ),
 
         'subtract_continuum': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Subtract continuum level from an image',
+            descr=(
+                'Subtract off the continuum level from an image. This parameter should only '
+                'be set to True to combine arcs with multiple different lamps. '
+                'For all other cases, this parameter should probably be False.'
+            ),
         ),
 
         'subtract_scattlight': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Subtract scattered light from an image',
+            descr=(
+                'Subtract off the scattered light from an image. This parameter should only '
+                'be set to True for spectrographs that have dedicated methods to subtract '
+                'scattered light. For all other cases, this parameter should be False.'
+            ),
         ),
 
         'scattlight': parset.set_parameter_definition(
             dtype=ParSet,
             default=ScatteredLightPar(),
-            descr='Scattered light subtraction parameters',
+            descr='Scattered light subtraction parameters.',
         ),
 
         'empirical_rn': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Measure empirical readnoise from overscan if True',
+            descr=(
+                'If True, use the standard deviation in the overscan region to '
+                'measure an empirical readnoise to use in the noise model.'
+            ),
         ),
 
         'shot_noise': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Include shot noise in the image processing error budget',
+            descr=(
+                'Use the bias- and dark-subtracted image to calculate and include '
+                'electron count shot noise in the image processing error budget'
+            ),
         ),
 
         'noise_floor': parset.set_parameter_definition(
             dtype=float,
             default=0.0,
-            descr='Impose fractional noise floor on the error budget',
+            descr=(
+                'Impose a noise floor by adding the provided fraction of the '
+                'bias- and dark-subtracted electron counts to the error budget.  '
+                'E.g., a value of 0.01 means that the S/N of the counts in the '
+                'image will never be greater than 100.'
+            ),
         ),
 
         'use_pixelflat': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Apply pixel flat correction',
+            descr=(
+                'Use the pixel flat to make pixel-level corrections.  A '
+                'pixelflat image must be provied.'
+            ),
         ),
 
         'use_illumflat': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Apply slit illumination flat correction',
+            descr='Use the illumination flat to correct for the illumination profile of each slit.',
         ),
 
         'use_specillum': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Apply relative spectral illumination correction',
+            descr=(
+                'Use the relative spectral illumination profiles to correct '
+                'the spectral illumination profile of each slit. This is '
+                'primarily used for slicer IFUs.  To use this, you must set '
+                '``slit_illum_relative=True`` in the ``flatfield`` parameter set!'
+            ),
         ),
 
         'skip_write_2d': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Skip writing 2D science spectra if True',
+            descr=(
+                'Skip writing the 2D spectrum for science frames.  WARNING: '
+                'This option should only be considered for reducing the volume '
+                'of output data when processing large numbers of frames and only '
+                'after ensuring the quality of the resulting reductions.'
+            ),
         ),
 
         'spat_flexure_correct': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Correct for spatial flexure if True',
+            descr='Correct slits, illumination flat, etc. for flexure',
         ),
 
         'spat_flexure_maxlag': parset.set_parameter_definition(
             dtype=int,
             default=20,
-            descr='Maximum spatial flexure correction (px)',
+            descr='Maximum of possible spatial flexure correction, in pixels',
         ),
 
         'spat_flexure_sigdetect': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
-            descr='Sigma threshold for spatial flexure detection',
+            descr=(
+                'Sigma threshold above fluctuations in the '
+                'Sobel-filtered significance image, used for '
+                'finding slit edges in the spectral image, '
+                'for which the spatial flexure is computed.'
+            ),
         ),
 
         'spat_flexure_vrange': parset.set_parameter_definition(
             dtype=tuple,
             default=None,
-            descr='vmin,vmax used for spatial flexure QA plot',
+            descr=(
+                'This parameter is used when generating the QA plot for the spatial flexure. '
+                'It sets the data range (vmin,vmax) used by the colormap when showing the '
+                'spectral image. If None, the range is set automatically.'
+            ),
         ),
 
         'combine': parset.set_parameter_definition(
             dtype=str,
             default='mean',
             options=valid_combine_methods,
-            descr='Method used to combine multiple frames',
+            descr=(
+                'Method used to combine multiple frames.  Options are: '
+                f'{", ".join(valid_combine_methods)}'
+            ),
         ),
 
         'clip': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Perform sigma clipping when combining (used with mean)',
+            descr='Perform sigma clipping when combining.  Only used with combine=mean',
         ),
 
         'scale_to_mean': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Scale input images to same mean before combining',
+            descr='If True, scale the input images to have the same mean before combining.',
         ),
 
         'comb_sigrej': parset.set_parameter_definition(
             dtype=float,
             default=None,
-            descr='Sigma-clipping level when clip=True; None for automatic',
+            descr=(
+                'Sigma-clipping level for when clip=True; '
+                'Use None for automatic limit (recommended).  '
+            ),
         ),
 
         'satpix': parset.set_parameter_definition(
             dtype=str,
             default='reject',
             options=valid_saturation_handling,
-            descr='Handling of saturated pixels',
+            descr=(
+                'Handling of saturated pixels.  Options are: '
+                f'{", ".join(valid_saturation_handling)}'
+            ),
         ),
 
         'mask_cr': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Identify and mask cosmic rays',
+            descr='Identify CRs and mask them',
         ),
 
         'n_lohi': parset.set_parameter_definition(
             dtype=list,
             default=[0, 0],
-            descr='Number of pixels to reject at low/high ends [low, high]',
+            descr=(
+                'Number of pixels to reject at the lowest and highest ends of the '
+                'distribution; i.e., n_lohi = low, high.  Use None for no limit.'
+            ),
         ),
 
         'lamaxiter': parset.set_parameter_definition(
             dtype=int,
             default=1,
-            descr='Maximum iterations for LA cosmics routine',
+            descr='Maximum number of iterations for LA cosmics routine.',
         ),
 
         'grow': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.5,
-            descr='Expansion factor for LA cosmics detected regions',
+            descr=(
+                'Factor by which to expand regions with cosmic rays detected by the '
+                'LA cosmics routine.'
+            ),
         ),
 
         'rmcompact': parset.set_parameter_definition(
@@ -5891,7 +5974,7 @@ class NewProcessImagesPar(NewParSet):
         'sigfrac': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.3,
-            descr='Fraction for lower clipping threshold in LA cosmics routine',
+            descr='Fraction for the lower clipping threshold in LA cosmics routine.',
         ),
 
         'objlim': parset.set_parameter_definition(
