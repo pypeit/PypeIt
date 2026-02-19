@@ -294,8 +294,9 @@ def test_lists():
 # test_framegrp_to_hdr()
 
 def test_new_parset():
-    p = pypeitpar.NewScatteredLightPar()
+    #p = pypeitpar.NewScatteredLightPar()
 
+    p = pypeitpar.NewProcessImagesPar()
     embed()
     exit()
 
