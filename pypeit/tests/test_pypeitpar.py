@@ -282,3 +282,21 @@ def test_lists():
     with pytest.raises(TypeError):
         p['calibrations']['alignment']['locations'] = 0.0
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
+
+
+# def test_framegrp_to_hdr():
+#     biaspar = pypeitpar.FrameGroupPar(frametype='bias')
+# 
+#     embed()
+#     exit()
+# 
+# 
+# test_framegrp_to_hdr()
+
+def test_new_parset():
+    p = pypeitpar.NewScatteredLightPar()
+
+    embed()
+    exit()
+
+test_new_parset()
