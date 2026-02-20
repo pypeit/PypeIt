@@ -69,8 +69,7 @@ import numpy as np
 
 from configobj import ConfigObj
 
-from pypeit.par import parset
-from pypeit.par.parset import ParSet, NewParSet
+from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit.core import parse
@@ -5653,5 +5652,3 @@ class Collate1DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
-
-

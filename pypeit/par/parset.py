@@ -5,14 +5,13 @@ Define a utility base class used to hold parameters.
 .. include:: ../include/links.rst
 """
 import os
-from pathlib import Path
-import shutil
 import textwrap
 
-from astropy.io import fits
 from IPython import embed
+
 import numpy
-import numpy as np
+
+from astropy.io import fits
 
 from pypeit import log
 from pypeit.par import util
@@ -908,20 +907,6 @@ class ParSet:
                 par[hdr['{0}K{1}'.format(prefix,str(i).zfill(ndig))]] = v
         return par
 
-    def to_dict(self):
-        """
-        Return a dictionary with the contents of the parameter set.
-
-        This method recursively handles nexted :class:`ParSet` objects.
-
-        Returns
-        -------
-        dict
-            The contents in dictionary form.
-        """
-        return {k: v.to_dict() if isinstance(v, ParSet) else v for k, v in self.data.items()}
-
-
     @classmethod
     def from_dict(cls, cfg):
         """
@@ -949,6 +934,120 @@ class ParSet:
         """
         pars, values = map(lambda x : list(x), zip(*cfg.items()))
         return cls(pars, values=values)
+
+
+class ParDatabase(object):
+    """
+    NOTE: This isn't used in pypeit yet...
+
+    Class used as a list of ParSets in a glorified structured numpy
+    array.
+
+    Very similar to yanny when converted to a numpy array.
+
+    Can be initialized using a list of ParSet objects, or an SDSS
+    parameter file.
+
+    .. todo::
+
+        - Check that the data types are the same for all ParSet objects
+          in the list
+        - Better handle the NaN values when converting None to a float
+          type
+        - Add from_par_file classmethod?
+    
+    """
+    def __init__(self, inp):
+        """
+        nsets - number of parameter sets
+        npar - number of parameters in each parameter set
+        data - parameter set data
+        options - allowed options for values
+        dtype - allowed datatypes
+        can_call - parameter is a callable function
+        """
+        _inp = [inp] if isinstance(inp, ParSet) else inp
+        if not isinstance(_inp, list):
+            raise TypeError('Input must be a list.')
+        for i in _inp:
+            if not isinstance(i, ParSet):
+                raise TypeError('Input must be a list of ParSet objects.')
+        self.npar = _inp[0].npar
+        self.nsets = len(_inp)
+        keys = _inp[0].keys()
+        for i in range(1,self.nsets):
+            if _inp[i].npar != self.npar:
+                raise ValueError('Not all ParSet objects have the same number of parameters.')
+            if _inp[i].keys() != keys:
+                raise ValueError('Not all ParSet objects have the same keys.')
+            # Other checks?
+
+        record_dtypes = self._set_dtypes(_inp, 0)
+
+        data = []
+        for i in range(self.nsets):
+            data += [ tuple([_inp[i][k] for k in keys]) ]
+
+        # WARNING: None values are converted to nan if data type is
+        # float
+        self.data = numpy.array(data, dtype=record_dtypes ).view(numpy.recarray)
+        self.options = inp[0].options.copy()
+        self.dtype = inp[0].dtype.copy()
+        self.can_call = inp[0].can_call.copy()
+   
+
+    def __getitem__(self, key):
+        """
+        Return the value of the designated key.
+
+        Args:
+            key (str) : Key for new parameter
+        """
+        return self.data[key]
+
+
+    @staticmethod
+    def _set_dtypes(inp, i):
+        keys = inp[i].keys()
+        dtypes = []
+        for k in keys:
+            if inp[i].dtype[k] is None:
+                dtypes += [(k,object)]
+                continue
+            # inp.dtype is always a list
+            if any([t in inp[i].dtype[k] for t in [int , float]]) \
+                and any([t in inp[i].dtype[k] for t in [list, numpy.ndarray]]):
+                log.warning(
+                    "Parameter set has elements that can be either individual "
+                    f"ints/floats or lists/arrays.  Database column {k} will have type "
+                    "'object'."
+                )
+                dtypes += [(k,object)]
+            elif len(list({int, float} - set(inp[i].dtype[k]))) == 0:
+                dtypes += [(k,float)]
+            elif len(list({list, numpy.ndarray} - set(inp[i].dtype[k]))) == 0 \
+                    or inp[i].dtype[k] == numpy.ndarray:
+                _inp = numpy.asarray(inp[i][k])
+                dtypes += [(k,_inp.dtype,_inp.shape)]
+            elif isinstance(inp[i][k], str):
+                if any([ _inp[k] is None for _inp in inp]):
+                    dtypes += [(k, object)]
+                else:
+                    dtypes += [(k,'<U{0:d}'.format(max([ len(_inp[k]) for _inp in inp])))]
+            else:
+                dtypes += [(k,type(inp[i][k]))]
+        return dtypes
+
+
+    def append(self, pdb):
+        if not isinstance(pdb, ParDatabase):
+            raise TypeError('Can only append ParDatabase object.')
+
+        try:
+            self.data = numpy.append(self.data, pdb.data)
+        except TypeError as e:
+            raise TypeError('Could not append data:: {0}'.format(e))
+            
 
 
 
