@@ -18,18 +18,21 @@ from pypeit.par import util
 
 def set_parameter_definition(dtype=None, default=None, options=None, descr=None):
     """
-    Define a parameter for a :class:`NewParSet`.
+    Define a parameter for a :class:`~pypeit.par.newparset.ParSet`.
 
-    This should be used by the ``parameters`` attribute of :class:`NewParSet`
-    subclasses to ensure each parameter has all its necessary components.
+    This should be used by the ``parameters`` attribute of
+    :class:`~pypeit.par.newparset.ParSet` subclasses to ensure each parameter
+    has all its necessary components.
 
     Parameters
     ----------
     dtype : type, list, optional
         A single type or list of types that are allowed for the parameter.
-        Parameters cannot be dictionaries; instead create a new :class:`NewParSet`
-        subclass for that parameter.  If a parameter is a :class:`NewParSet`, it
-        *cannot have any other type* and it must be a single :class:`NewParSet`
+        Parameters cannot be dictionaries; instead create a new
+        :class:`~pypeit.par.newparset.ParSet` subclass for that parameter.  If a
+        parameter is a :class:`~pypeit.par.newparset.ParSet`, it
+        *cannot have any other type* and it must be a single
+        *:class:`~pypeit.par.newparset.ParSet`
         subclass.
     default : object, optional
         The default value for the parameter.
@@ -54,13 +57,13 @@ def set_parameter_definition(dtype=None, default=None, options=None, descr=None)
         # Parameter types are not allowed to be dictionaries
         if any(d is dict for d in _dtype):
             raise ValueError(
-                'The dtype of a parameter cannot be dict! Use a NewParSet subclass instead.'
+                'The dtype of a parameter cannot be dict! Use a ParSet subclass instead.'
             )
-        # If a parameter can be a NewParSet, it is not allowed to be any other type
-        if len(_dtype) > 1 and any(issubclass(d, NewParSet) for d in _dtype):
+        # If a parameter can be a ParSet, it is not allowed to be any other type
+        if len(_dtype) > 1 and any(issubclass(d, ParSet) for d in _dtype):
             raise ValueError(
-                'If a parameter can be a NewParSet, it is not allowed to be any other type and must '
-                'be a specific NewParSet subclass!'
+                'If a parameter can be a ParSet, it is not allowed to be any other type and must '
+                'be a specific ParSet subclass!'
             )
 
     return {
@@ -73,8 +76,8 @@ def set_parameter_definition(dtype=None, default=None, options=None, descr=None)
 
 # TODO: We might need to define the types that allowed for list parameters.
 # They should be single element objects (ints, floats, strings), NOT more
-# complex things like dicts or NewParSets.  Nested NewParSets are allowed.
-class NewParSet:
+# complex things like dicts or ParSets.  Nested ParSets are allowed.
+class ParSet:
     """
     """
 
@@ -193,13 +196,13 @@ class NewParSet:
                 f'{type(value)}.'
             )
 
-        # Disallow elements of a list to be NewParSets or dicts 
+        # Disallow elements of a list to be ParSets or dicts 
         if (
             list in self.parameters[key]['dtype']
             and isinstance(value, list)
-            and any(isinstance(v, (NewParSet, dict)) for v in value)
+            and any(isinstance(v, (ParSet, dict)) for v in value)
         ):
-            raise TypeError('Elements of a list should never be a dict or NewParSet!')
+            raise TypeError('Elements of a list should never be a dict or ParSet!')
 
         # Check that the value is one among a set of allowed options.
         if self.parameters[key]['options'] is not None:
@@ -259,7 +262,7 @@ class NewParSet:
         additional_par_strings = []
         for i, key in enumerate(self.keys()):
             data_table[i+1,0] = key
-            if isinstance(self.data[key], NewParSet):
+            if isinstance(self.data[key], ParSet):
                 _header = key if header is None else '{0}:{1}'.format(header, key)
                 additional_par_strings += [
                     self.data[key]._output_string(header=_header, value_only=value_only)
@@ -268,9 +271,9 @@ class NewParSet:
                 if not value_only:
                     data_table[i+1,2] = 'see below'
             else:
-                data_table[i+1,1] = NewParSet._data_string(self.data[key])
+                data_table[i+1,1] = ParSet._data_string(self.data[key])
                 if not value_only:
-                    data_table[i+1,2] = NewParSet._data_string(self.parameters[key]['default'])
+                    data_table[i+1,2] = ParSet._data_string(self.parameters[key]['default'])
             if value_only:
                 continue
 
@@ -279,7 +282,7 @@ class NewParSet:
                 else ', '.join([t.__name__ for t in self.parameters[key]['dtype']])
             )
 
-        output = [NewParSet._data_table_string(data_table)]
+        output = [ParSet._data_table_string(data_table)]
         if header is not None:
             output = [header] + output
         if len(additional_par_strings) > 0:
@@ -369,11 +372,11 @@ class NewParSet:
             # When the list is empty, return an empty string, which config_lines
             # will append a "," to.  This allows ConfigObj to interpret it as an
             # empty list, instead of string, when re-reading the configuration
-            # lines into a NewParSet
+            # lines into a ParSet
             return (
                 '' if len(data) == 0
                 else ', '.join([
-                    NewParSet._data_string(d, use_repr=use_repr, verbatim=verbatim) for d in data
+                    ParSet._data_string(d, use_repr=use_repr, verbatim=verbatim) for d in data
                 ])
             )
 
@@ -450,13 +453,13 @@ class NewParSet:
         """
         Construct a reStructuredText table describing the parameter set.
 
-        This works recursively for nested :class:`NewParSet` instances.
+        This works recursively for nested :class:`~pypeit.par.newparset.ParSet` instances.
         
         Parameters
         ----------
         parsets_listed : :obj:`list`, optional
-            For nested :class:`NewParSet` instances, this is the list of
-            :class:`NewParSet` subclass names that already have already a table in
+            For nested :class:`~pypeit.par.newparset.ParSet` instances, this is the list of
+            :class:`~pypeit.par.newparset.ParSet` subclass names that already have already a table in
             the string list (so that they're not repeated).
         
         Returns
@@ -469,8 +472,8 @@ class NewParSet:
         data_table[0,:] = ['Key', 'Type', 'Options', 'Default', 'Description']
         sorted_keys = np.sort(self.keys())
         for i, key in enumerate(sorted_keys):
-            data_table[i+1,0] = NewParSet._data_string(key, use_repr=False, verbatim=True)
-            if isinstance(self.data[key], NewParSet):
+            data_table[i+1,0] = ParSet._data_string(key, use_repr=False, verbatim=True)
+            if isinstance(self.data[key], ParSet):
                 if type(self.data[key]).__name__ not in parsets_listed:
                     new_parsets += [key]
                 parsets_listed += [ type(self.data[key]).__name__ ]
@@ -480,7 +483,7 @@ class NewParSet:
                 data_table[i+1,1] = ', '.join([t.__name__ for t in self.dtype[key]])
                 data_table[i+1,3] = (
                     '..' if self.parameters[key]['default'] is None
-                    else NewParSet._data_string(
+                    else ParSet._data_string(
                         self.parameters[key]['default'], use_repr=False, verbatim=True,
                         check_dir=True
                     )
@@ -488,13 +491,13 @@ class NewParSet:
 
             data_table[i+1,2] = (
                 '..' if self.parameters[key]['options'] is None
-                else NewParSet._data_string(
+                else ParSet._data_string(
                     self.parameters[key]['options'], use_repr=False, verbatim=True
                 )
             )
             data_table[i+1,4] = (
                 '..' if self.parameters[key]['descr'] is None
-                else NewParSet._data_string(self.parameters[key]['descr'])
+                else ParSet._data_string(self.parameters[key]['descr'])
             )
 
         output = [ f'.. _{self.__class__.__name__.lower()}:']
@@ -504,7 +507,7 @@ class NewParSet:
         output += [ '' ]
         output += ['Class Instantiation: ' + self.__class__._rst_class_name()]
         output += ['']
-        output += [NewParSet._data_table_string(data_table, delimeter='rst')]
+        output += [ParSet._data_table_string(data_table, delimeter='rst')]
         output += ['']
         for k in new_parsets:
             output += ['----']
@@ -518,7 +521,7 @@ class NewParSet:
         """
         tcols = int(0.9*shutil.get_terminal_size(fallback=(80, 25)).columns)
         for key in self.parameters.keys():
-            if isinstance(self.data[key], NewParSet):
+            if isinstance(self.data[key], ParSet):
                 self.data[key].info(basekey=key)
                 continue
             print(f'{key}' if basekey is None else f'{basekey}:{key}')
@@ -564,8 +567,8 @@ class NewParSet:
         list
             The list of the lines to write to a configuration file.
         """
-        # Get the list of parameters that are NewParSets
-        parset_keys = [key for key in self.keys() if isinstance(self.data[key], NewParSet)]
+        # Get the list of parameters that are ParSets
+        parset_keys = [key for key in self.keys() if isinstance(self.data[key], ParSet)]
         n_parsets = len(parset_keys)
 
         # Set the top-level comment and section name
@@ -579,9 +582,9 @@ class NewParSet:
 
         min_lines = len(lines)
 
-        # First add all the parameters that are not NewParSets
+        # First add all the parameters that are not ParSets
         for key in self.keys():
-            # Skip it if this element is a NewParSet
+            # Skip it if this element is a ParSet
             if n_parsets > 0 and key in parset_keys:
                 continue
 
@@ -596,7 +599,7 @@ class NewParSet:
                     argvalue += ','
                 lines += [component_indent + key + ' = ' + argvalue]
 
-        # Then add the items that are NewParSets as subsections
+        # Then add the items that are ParSets as subsections
         for key in parset_keys:
             section_comment = None
             if include_descr:
@@ -626,8 +629,8 @@ class NewParSet:
             The top-level comment used for this section of the configuration
             file.  If None, use :attr:`default_comment`.
         section_level : :obj:`int`, optional
-            The top level of this :class:`NewParSet`.  Used for recursive output
-            of nested :class:`NewParSet` instances.
+            The top level of this :class:`~pypeit.par.newparset.ParSet`.  Used for recursive output
+            of nested :class:`~pypeit.par.newparset.ParSet` instances.
         exclude_defaults : :obj:`bool`, optional
             Do not include any parameters that are identical to the default
             values.
@@ -651,8 +654,8 @@ class NewParSet:
             log.warning("Selected configuration file already exists and will be overwritten!")
 
         config_output = []
-        if all(isinstance(d, NewParSet) or d is None for d in self.data.values()):
-            # All the elements are NewParSets themselves, so just iterate
+        if all(isinstance(d, ParSet) or d is None for d in self.data.values()):
+            # All the elements are ParSets themselves, so just iterate
             # through each one
             for key in self.keys():
                 if self.data[key] is None:
@@ -687,14 +690,14 @@ class NewParSet:
         """
         Return a dictionary with the contents of the parameter set.
 
-        This method recursively handles nexted :class:`NewParSet` subclasses.
+        This method recursively handles nexted :class:`~pypeit.par.newparset.ParSet` subclasses.
 
         Returns
         -------
         dict
             The contents in dictionary form.
         """
-        return {key: v.to_dict() if isinstance(v, NewParSet) else v for key, v in self.data.items()}
+        return {key: v.to_dict() if isinstance(v, ParSet) else v for key, v in self.data.items()}
 
     @classmethod
     def from_dict(cls, cfg):
@@ -702,10 +705,10 @@ class NewParSet:
         Instantiate from a dictionary.
 
         This recursively handles elements of the dictionary that are expected to
-        be (subclasses of) :class:`NewParSet` objects by calling their
+        be (subclasses of) :class:`~pypeit.par.newparset.ParSet` objects by calling their
         :func:`from_dict` methods.
 
-        For subclasses that do not have any nested :class:`NewParSet` objects, note
+        For subclasses that do not have any nested :class:`~pypeit.par.newparset.ParSet` objects, note
         that ``cls(**cfg)`` and ``cls.from_dict(cfg)`` are identical.
 
         Parameters
@@ -717,7 +720,7 @@ class NewParSet:
         for i, key in enumerate(pars):
             if key not in cls.parameters.keys():
                 raise KeyError(f'{key} is not a valid {cls.__name__} parameter!')
-            if isinstance(values[i], dict) and issubclass(cls.parameters[key]['dtype'][0], NewParSet):
+            if isinstance(values[i], dict) and issubclass(cls.parameters[key]['dtype'][0], ParSet):
                 values[i] = cls.parameters[key]['dtype'][0].from_dict(values[i])
         return cls(**dict(zip(pars, values)))
     
@@ -735,7 +738,7 @@ class NewParSet:
         ------
         ValueError
             Raised if :attr:`card_prefix` is None for this subclass of
-            :class:`NewParSet`.
+            :class:`~pypeit.par.newparset.ParSet`.
         """
         if cls.card_prefix is None:
             raise ValueError(
@@ -759,7 +762,7 @@ class NewParSet:
         ------
         ValueError
             Raised if :attr:`card_prefix` is None for this subclass of
-            :class:`NewParSet`.
+            :class:`~pypeit.par.newparset.ParSet`.
         """
         if cls.card_prefix is None:
             raise ValueError(
@@ -774,7 +777,7 @@ class NewParSet:
         This adds two header cards:
 
             - ``self.class_header_card()``: This is the full name of the class
-              for the :class:`NewParSet` subclass, including the module.
+              for the :class:`~pypeit.par.newparset.ParSet` subclass, including the module.
 
             - ``self.dict_header_card()``: This is a string representation of
               the dictionary version of the parameter set, as given by
@@ -800,7 +803,7 @@ class NewParSet:
     @classmethod
     def from_header(cls, hdr):
         """
-        Instantiate a :class:`NewParSet` from a FITS header.
+        Instantiate a :class:`~pypeit.par.newparset.ParSet` from a FITS header.
 
         This looks for the header cards with the provided prefix and uses
         the information in those cards to instantiate the parameter set.
@@ -814,7 +817,7 @@ class NewParSet:
         ------
         ValueError
             Raised if :attr:`card_prefix` is None for this subclass of
-            :class:`NewParSet`, or if the class header card does not match the
+            :class:`~pypeit.par.newparset.ParSet`, or if the class header card does not match the
             expected class.
         """
         if cls.card_prefix is None:
@@ -824,7 +827,7 @@ class NewParSet:
         expected_cls = hdr.get(cls.class_header_card())
         if expected_cls is None:
             raise ValueError(
-                'Header does not include card specifying the NewParSet class: '
+                'Header does not include card specifying the ParSet class: '
                 f'{cls.class_header_card()}.'
             )
         if expected_cls != f'{cls.__module__}.{cls.__name__}':
@@ -835,7 +838,7 @@ class NewParSet:
         contents = hdr.get(cls.dict_header_card())
         if contents is None:
             raise ValueError(
-                'Header does not include card specifying the NewParSet contents: '
+                'Header does not include card specifying the ParSet contents: '
                 f'{cls.dict_header_card()}.'
             )
         cfg = util.ast_literal_eval(contents)

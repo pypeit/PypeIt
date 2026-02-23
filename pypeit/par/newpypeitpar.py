@@ -4,6 +4,7 @@ functionality.
 """
 from pathlib import Path
 
+from configobj import ConfigObj
 from IPython import embed
 import numpy as np
 import os
@@ -13,9 +14,10 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit.core import parse
 from pypeit.par import newparset
+from pypeit.par import util
 
 
-class NewTelescopePar(newparset.NewParSet):
+class TelescopePar(newparset.ParSet):
     """
     New-style parameter set for the salient properties of a telescope.
 
@@ -68,7 +70,7 @@ class NewTelescopePar(newparset.NewParSet):
     }
 
 
-class NewScatteredLightPar(newparset.NewParSet):
+class ScatteredLightPar(newparset.ParSet):
     """
     The parameter set used to hold arguments for modelling the scattered light.
 
@@ -149,12 +151,12 @@ class NewScatteredLightPar(newparset.NewParSet):
     }
 
 
-class NewProcessImagesPar(newparset.NewParSet):
+class ProcessImagesPar(newparset.ParSet):
     """
-    New-style parameter set for basic image processing using `newparset.NewParSet`.
+    New-style parameter set for basic image processing using `newparset.ParSet`.
 
     This replaces the old instance-driven __init__ with a class-level
-    `parameters` specification. The `newparset.NewParSet` base class handles defaulting,
+    `parameters` specification. The `newparset.ParSet` base class handles defaulting,
     type/options validation, and instantiation.
     """
 
@@ -279,8 +281,8 @@ class NewProcessImagesPar(newparset.NewParSet):
             ),
         ),
         'scattlight': newparset.set_parameter_definition(
-            dtype=NewScatteredLightPar,
-            default=NewScatteredLightPar(),
+            dtype=ScatteredLightPar,
+            default=ScatteredLightPar(),
             descr='Scattered light subtraction parameters.',
         ),
         'empirical_rn': newparset.set_parameter_definition(
@@ -497,7 +499,7 @@ class NewProcessImagesPar(newparset.NewParSet):
             )
 
 
-class NewFrameGroupPar(newparset.NewParSet):
+class FrameGroupPar(newparset.ParSet):
     """
     New-style parameter set for grouping frames (replacement for FrameGroupPar).
     """
@@ -519,14 +521,14 @@ class NewFrameGroupPar(newparset.NewParSet):
             raise ValueError('exprng must be a list with two items.')
 
 
-class BiasFramePar(NewFrameGroupPar):
+class BiasFramePar(FrameGroupPar):
     frametype = 'bias'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 use_biasimage=False,
                 shot_noise=False,
                 use_pixelflat=False,
@@ -539,14 +541,14 @@ class BiasFramePar(NewFrameGroupPar):
     }
 
 
-class DarkFramePar(NewFrameGroupPar):
+class DarkFramePar(FrameGroupPar):
     frametype = 'dark'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 use_pixelflat=False,
                 use_illumflat=False,
                 use_specillum=False,
@@ -557,14 +559,14 @@ class DarkFramePar(NewFrameGroupPar):
     }
 
 
-class ScatteredLightFramePar(NewFrameGroupPar):
+class ScatteredLightFramePar(FrameGroupPar):
     frametype = 'scattlight'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 satpix='nothing',
                 use_pixelflat=False,
                 use_illumflat=False,
@@ -575,14 +577,14 @@ class ScatteredLightFramePar(NewFrameGroupPar):
     }
 
 
-class PixelFlatFramePar(NewFrameGroupPar):
+class PixelFlatFramePar(FrameGroupPar):
     frametype = 'pixelflat'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 satpix='nothing',
                 use_pixelflat=False,
                 use_illumflat=False,
@@ -593,14 +595,14 @@ class PixelFlatFramePar(NewFrameGroupPar):
     }
 
 
-class IllumFlatFramePar(NewFrameGroupPar):
+class IllumFlatFramePar(FrameGroupPar):
     frametype = 'illumflat'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 satpix='nothing',
                 use_pixelflat=False,
                 use_illumflat=False,
@@ -611,14 +613,14 @@ class IllumFlatFramePar(NewFrameGroupPar):
     }
 
 
-class LampOffFlatsFramePar(NewFrameGroupPar):
+class LampOffFlatsFramePar(FrameGroupPar):
     frametype = 'lampoffflats'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 satpix='nothing',
                 use_pixelflat=False,
                 use_illumflat=False,
@@ -629,14 +631,14 @@ class LampOffFlatsFramePar(NewFrameGroupPar):
     }
 
 
-class SlitlessPixFlatFramePar(NewFrameGroupPar):
+class SlitlessPixFlatFramePar(FrameGroupPar):
     frametype = 'slitless_pixflat'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 satpix='nothing',
                 use_pixelflat=False,
                 use_illumflat=False,
@@ -648,27 +650,27 @@ class SlitlessPixFlatFramePar(NewFrameGroupPar):
     }
 
 
-class PinholeFramePar(NewFrameGroupPar):
+class PinholeFramePar(FrameGroupPar):
     frametype = 'pinhole'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(),
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(),
             descr='Low level parameters used for basic image processing',
         ),
     }
 
 
-class AlignFramePar(NewFrameGroupPar):
+class AlignFramePar(FrameGroupPar):
     frametype = 'align'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 satpix='nothing',
                 use_pixelflat=False,
                 use_illumflat=False,
@@ -679,14 +681,14 @@ class AlignFramePar(NewFrameGroupPar):
     }
 
 
-class ArcFramePar(NewFrameGroupPar):
+class ArcFramePar(FrameGroupPar):
     frametype = 'arc'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 use_pixelflat=False,
                 use_illumflat=False,
                 use_specillum=False,
@@ -696,14 +698,14 @@ class ArcFramePar(NewFrameGroupPar):
     }
 
 
-class TiltFramePar(NewFrameGroupPar):
+class TiltFramePar(FrameGroupPar):
     frametype = 'tilt'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 use_pixelflat=False,
                 use_illumflat=False,
                 use_specillum=False,
@@ -713,14 +715,14 @@ class TiltFramePar(NewFrameGroupPar):
     }
 
 
-class TraceFramePar(NewFrameGroupPar):
+class TraceFramePar(FrameGroupPar):
     frametype = 'trace'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 use_pixelflat=False,
                 use_illumflat=False,
                 use_specillum=False,
@@ -730,14 +732,14 @@ class TraceFramePar(NewFrameGroupPar):
     }
 
 
-class StandardFramePar(NewFrameGroupPar):
+class StandardFramePar(FrameGroupPar):
     frametype = 'standard'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 noise_floor=0.01,
                 mask_cr=True,
             ),
@@ -746,14 +748,14 @@ class StandardFramePar(NewFrameGroupPar):
     }
 
 
-class SkyFramePar(NewFrameGroupPar):
+class SkyFramePar(FrameGroupPar):
     frametype = 'sky'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 noise_floor=0.01,
                 mask_cr=True,
             ),
@@ -762,14 +764,14 @@ class SkyFramePar(NewFrameGroupPar):
     }
 
 
-class ScienceFramePar(NewFrameGroupPar):
+class ScienceFramePar(FrameGroupPar):
     frametype = 'science'
     default_key = f'{frametype}frame'
 
-    parameters = NewFrameGroupPar.parameters | {
+    parameters = FrameGroupPar.parameters | {
         'process': newparset.set_parameter_definition(
-            dtype=NewProcessImagesPar,
-            default=NewProcessImagesPar(
+            dtype=ProcessImagesPar,
+            default=ProcessImagesPar(
                 noise_floor=0.01,
                 mask_cr=True,
             ),
@@ -778,7 +780,7 @@ class ScienceFramePar(NewFrameGroupPar):
     }
 
 
-class NewFlatFieldPar(newparset.NewParSet):
+class FlatFieldPar(newparset.ParSet):
     """
     New-style parameter set for flat-fielding (replacement for FlatFieldPar).
 
@@ -1007,7 +1009,7 @@ class NewFlatFieldPar(newparset.NewParSet):
             )
 
 
-class NewFlexurePar(newparset.NewParSet):
+class FlexurePar(newparset.ParSet):
     """
     New-style parameter set for flexure correction parameters.
 
@@ -1090,7 +1092,7 @@ class NewFlexurePar(newparset.NewParSet):
     }
 
 
-class NewAlignPar(newparset.NewParSet):
+class AlignPar(newparset.ParSet):
     """
     New-style parameter set for alignment tracing (replacement for AlignPar).
 
@@ -1128,7 +1130,7 @@ class NewAlignPar(newparset.NewParSet):
     }
 
 
-class NewCoadd1DPar(newparset.NewParSet):
+class Coadd1DPar(newparset.ParSet):
     """
     New-style parameter set for 1D coaddition (replacement for Coadd1DPar).
 
@@ -1375,7 +1377,7 @@ class NewCoadd1DPar(newparset.NewParSet):
     }
 
 
-class NewCoadd2DPar(newparset.NewParSet):
+class Coadd2DPar(newparset.ParSet):
     """
     New-style parameter set for 2D coaddition (replacement for Coadd2DPar).
 
@@ -1520,7 +1522,7 @@ class NewCoadd2DPar(newparset.NewParSet):
             self.data['manual'] = ';'.join(parse.fix_config_par_image_location(self.data['manual']))
 
 
-class NewCubePar(newparset.NewParSet):
+class CubePar(newparset.ParSet):
     """
     New-style parameter set for cube generation (replacement for CubePar).
 
@@ -1804,7 +1806,7 @@ class NewCubePar(newparset.NewParSet):
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
 
 
-class NewFluxCalibratePar(newparset.NewParSet):
+class FluxCalibratePar(newparset.ParSet):
     """
     New-style parameter set holding the arguments for how to perform the flux
     calibration (replacement for FluxCalibratePar).
@@ -1860,7 +1862,7 @@ class NewFluxCalibratePar(newparset.NewParSet):
     }
 
 
-class NewSensfuncUVISPar(newparset.NewParSet):
+class SensfuncUVISPar(newparset.ParSet):
     """
     New-style parameter set for sensitivity function computation using the UV algorithm
     (replacement for SensfuncUVISPar).
@@ -1961,7 +1963,7 @@ class NewSensfuncUVISPar(newparset.NewParSet):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(self.data['sensfunc']))
 
 
-class NewTelluricPar(newparset.NewParSet):
+class TelluricPar(newparset.ParSet):
     """
     New-style parameter set holding telluric-correction arguments (replacement for TelluricPar).
 
@@ -2260,7 +2262,7 @@ class NewTelluricPar(newparset.NewParSet):
                              ', valid options are: {}.'.format(', '.join(self.valid_teltype)))
 
 
-class NewSensFuncPar(newparset.NewParSet):
+class SensFuncPar(newparset.ParSet):
     """
     New-style parameter set holding the arguments for sensitivity function computation
     using the UV algorithm (replacement for SensFuncPar).
@@ -2347,13 +2349,13 @@ class NewSensFuncPar(newparset.NewParSet):
             ),
         ),
         'UVIS': newparset.set_parameter_definition(
-            dtype=NewSensfuncUVISPar,
-            default=NewSensfuncUVISPar(),
+            dtype=SensfuncUVISPar,
+            default=SensfuncUVISPar(),
             descr='Parameters for the UVIS sensfunc algorithm',
         ),
         'IR': newparset.set_parameter_definition(
-            dtype=NewTelluricPar,
-            default=NewTelluricPar(),
+            dtype=TelluricPar,
+            default=TelluricPar(),
             descr='Parameters for the IR sensfunc algorithm',
         ),
         'polyorder': newparset.set_parameter_definition(
@@ -2416,7 +2418,7 @@ class NewSensFuncPar(newparset.NewParSet):
                 raise ValueError("`trim_std_pixs` must be a list or tuple of two integers.")
 
 
-class NewSlitMaskPar(newparset.NewParSet):
+class SlitMaskPar(newparset.ParSet):
     """
     New-style parameter set holding the arguments for slitmask ingestion and object assignment
 
@@ -2518,7 +2520,7 @@ class NewSlitMaskPar(newparset.NewParSet):
     }
 
 
-class NewReduxPar(newparset.NewParSet):
+class ReduxPar(newparset.ParSet):
     """
     New-style parameter set for global reduction settings (replacement for ReduxPar).
 
@@ -2643,7 +2645,7 @@ class NewReduxPar(newparset.NewParSet):
                 self.data['maskIDs'] = [self.data['maskIDs']]
 
 
-class NewWavelengthSolutionPar(newparset.NewParSet):
+class WavelengthSolutionPar(newparset.ParSet):
     """
     New-style parameter set for wavelength solution settings (replacement for WavelengthSolutionPar).
 
@@ -3046,7 +3048,7 @@ class NewWavelengthSolutionPar(newparset.NewParSet):
     
 
 
-class NewEdgeTracePar(newparset.NewParSet):
+class EdgeTracePar(newparset.ParSet):
     """
     New-style parameter set for slit edge tracing (replacement for EdgeTracePar).
 
@@ -3821,7 +3823,7 @@ class NewEdgeTracePar(newparset.NewParSet):
 
 
 
-class NewWaveTiltsPar(newparset.NewParSet):
+class WaveTiltsPar(newparset.ParSet):
     """
     New-style parameter set for tracing the monochromatic tilt along the slit
 
@@ -3955,7 +3957,7 @@ class NewWaveTiltsPar(newparset.NewParSet):
                                  'two-element list/array.')
 
 
-class NewFindObjPar(newparset.NewParSet):
+class FindObjPar(newparset.ParSet):
     """
     New-style parameter set for finding and tracing objects (replacement for FindObjPar).
 
@@ -4165,7 +4167,7 @@ class NewFindObjPar(newparset.NewParSet):
                 raise ValueError(f'{self.data["std_spec1d"]} does not exist!')
 
 
-class NewSkySubPar(newparset.NewParSet):
+class SkySubPar(newparset.ParSet):
     """
     New-style parameter set for sky subtraction (replacement for SkySubPar).
 
@@ -4250,7 +4252,7 @@ class NewSkySubPar(newparset.NewParSet):
     }
 
 
-class NewExtractionPar(newparset.NewParSet):
+class ExtractionPar(newparset.ParSet):
     """
     New-style parameter set for extraction (replacement for ExtractionPar).
 
@@ -4334,7 +4336,7 @@ class NewExtractionPar(newparset.NewParSet):
     }
 
 
-class NewCollate1DPar(newparset.NewParSet):
+class Collate1DPar(newparset.ParSet):
     """
     New-style parameter set for collating, coadding, and archiving 1D spectra.
 
@@ -4436,7 +4438,7 @@ class NewCollate1DPar(newparset.NewParSet):
     }
 
 
-class NewReducePar(newparset.NewParSet):
+class ReducePar(newparset.ParSet):
     """
     New-style parameter set for sky subtraction, object finding and extraction.
 
@@ -4447,28 +4449,28 @@ class NewReducePar(newparset.NewParSet):
 
     parameters = {
         'findobj': newparset.set_parameter_definition(
-            dtype=NewFindObjPar,
-            default=NewFindObjPar(),
+            dtype=FindObjPar,
+            default=FindObjPar(),
             descr='Parameters for the find object and tracing algorithms',
         ),
         'skysub': newparset.set_parameter_definition(
-            dtype=NewSkySubPar,
-            default=NewSkySubPar(),
+            dtype=SkySubPar,
+            default=SkySubPar(),
             descr='Parameters for sky subtraction algorithms',
         ),
         'extraction': newparset.set_parameter_definition(
-            dtype=NewExtractionPar,
-            default=NewExtractionPar(),
+            dtype=ExtractionPar,
+            default=ExtractionPar(),
             descr='Parameters for extraction algorithms',
         ),
         'slitmask': newparset.set_parameter_definition(
-            dtype=NewSlitMaskPar,
-            default=NewSlitMaskPar(),
+            dtype=SlitMaskPar,
+            default=SlitMaskPar(),
             descr='Parameters for slitmask',
         ),
         'cube': newparset.set_parameter_definition(
-            dtype=NewCubePar,
-            default=NewCubePar(),
+            dtype=CubePar,
+            default=CubePar(),
             descr='Parameters for cube generation algorithms',
         ),
         'trim_edge': newparset.set_parameter_definition(
@@ -4481,7 +4483,7 @@ class NewReducePar(newparset.NewParSet):
     }
 
 
-class NewCalibrationsPar(newparset.NewParSet):
+class CalibrationsPar(newparset.ParSet):
     """
     New-style parameter set for calibration frame groups and related settings.
 
@@ -4589,8 +4591,8 @@ class NewCalibrationsPar(newparset.NewParSet):
             ),
         ),
         'alignment': newparset.set_parameter_definition(
-            dtype=NewAlignPar,
-            default=NewAlignPar(),
+            dtype=AlignPar,
+            default=AlignPar(),
             descr='Define the procedure for the alignment of traces',
         ),
         'scattlight_pad': newparset.set_parameter_definition(
@@ -4599,23 +4601,365 @@ class NewCalibrationsPar(newparset.NewParSet):
             descr='Number of unbinned pixels to extend the slit edges by when masking the slits.',
         ),
         'flatfield': newparset.set_parameter_definition(
-            dtype=NewFlatFieldPar,
-            default=NewFlatFieldPar(),
+            dtype=FlatFieldPar,
+            default=FlatFieldPar(),
             descr='Parameters used to set the flat-field procedure',
         ),
         'wavelengths': newparset.set_parameter_definition(
-            dtype=NewWavelengthSolutionPar,
-            default=NewWavelengthSolutionPar(),
+            dtype=WavelengthSolutionPar,
+            default=WavelengthSolutionPar(),
             descr='Parameters used to derive the wavelength solution',
         ),
         'slitedges': newparset.set_parameter_definition(
-            dtype=NewEdgeTracePar,
-            default=NewEdgeTracePar(),
+            dtype=EdgeTracePar,
+            default=EdgeTracePar(),
             descr='Slit-edge tracing parameters',
         ),
         'tilts': newparset.set_parameter_definition(
-            dtype=NewWaveTiltsPar,
-            default=NewWaveTiltsPar(),
+            dtype=WaveTiltsPar,
+            default=WaveTiltsPar(),
             descr='Define how to trace the slit tilts using the trace frames',
         ),
     }
+
+
+class PypeItPar(newparset.ParSet):
+    """
+    New-style superset of parameters used by PypeIt.
+
+    This is a single object used as a container for all the
+    user-specified arguments used by PypeIt.
+    """
+
+    default_key = 'pypeit'
+
+    parameters = {
+        'rdx': newparset.set_parameter_definition(
+            dtype=ReduxPar,
+            default=ReduxPar(),
+            descr='PypeIt reduction rules.',
+        ),
+        'calibrations': newparset.set_parameter_definition(
+            dtype=CalibrationsPar,
+            default=CalibrationsPar(),
+            descr='Parameters for the calibration algorithms',
+        ),
+        'scienceframe': newparset.set_parameter_definition(
+            dtype=ScienceFramePar,
+            default=ScienceFramePar(),
+            descr='The frames and combination rules for the science observations',
+        ),
+        'reduce': newparset.set_parameter_definition(
+            dtype=ReducePar,
+            default=ReducePar(),
+            descr='Parameters determining sky-subtraction, object finding, and extraction',
+        ),
+        'flexure': newparset.set_parameter_definition(
+            dtype=FlexurePar,
+            default=FlexurePar(),
+            descr=(
+                'Parameters used by the flexure-correction procedure.  Flexure '
+                'corrections are not performed by default.  To turn on, either '
+                "set the parameters in the 'flexure' parameter group or set 'flexure = True' "
+                'in the ' "'rdx'" ' parameter group to use the default flexure-correction parameters.'
+            ),
+        ),
+        'fluxcalib': newparset.set_parameter_definition(
+            dtype=FluxCalibratePar,
+            default=FluxCalibratePar(),
+            descr=(
+                'Parameters used by the flux-calibration procedure.  Flux '
+                'calibration is not performed by default.  To turn on, either '
+                "set the parameters in the 'fluxcalib' parameter group or set 'fluxcalib = True' "
+                'in the ' "'rdx'" ' parameter group to use the default flux-calibration parameters.'
+            ),
+        ),
+        'coadd1d': newparset.set_parameter_definition(
+            dtype=Coadd1DPar,
+            default=Coadd1DPar(),
+            descr='Par set to control 1D coadds.  Only used in the after-burner script.',
+        ),
+        'coadd2d': newparset.set_parameter_definition(
+            dtype=Coadd2DPar,
+            default=Coadd2DPar(),
+            descr='Par set to control 2D coadds.  Only used in the after-burner script.',
+        ),
+        'sensfunc': newparset.set_parameter_definition(
+            dtype=SensFuncPar,
+            default=SensFuncPar(),
+            descr=(
+                'Par set to control sensitivity function computation.  Only used in '
+                'the after-burner script.'
+            ),
+        ),
+        'telluric': newparset.set_parameter_definition(
+            dtype=TelluricPar,
+            default=TelluricPar(),
+            descr=(
+                'Par set to control telluric fitting.  Only used in the '
+                'pypeit_sensfunc and pypeit_telluric after-burner scripts.'
+            ),
+        ),
+        'collate1d': newparset.set_parameter_definition(
+            dtype=Collate1DPar,
+            default=Collate1DPar(),
+            descr=(
+                'Par set to control collating 1d spectra.  Only used in the '
+                'after-burner script.'
+            ),
+        ),
+    }
+
+    # TODO: I'm not sure if the warning in the docstring is still valid.
+    @classmethod
+    def from_cfg_file(cls, cfg_file=None, merge_with=None, evaluate=True):
+        """
+        Construct the parameter set using a configuration file.
+
+        Note that the following assert statement should always pass:
+
+        .. code-block::
+
+            default = PypeItPar()
+            nofile = PypeItPar.from_cfg_file()
+            assert default.data == nofile.data, 'This should always pass.'
+
+        .. warning::
+
+            When ``evaluate`` is true, the function runs
+            :func:`~pypeit.par.util.eval_tuple` or
+            :func:`~pypeit.par.util.ast_literal_eval` on all the entries in the
+            `ConfigObj`_ dictionary, done using
+            :func:`~pypeit.par.util.recursive_dict_evaluate`.  This has the
+            potential to go haywire if the name of a parameter unintentionally
+            happens to be identical to an imported or system-level function.  Of
+            course, this can be useful by allowing one to define the function to
+            use as a parameter, but it also means one has to be careful with the
+            values that the parameters should be allowed to have.  The current
+            way around this is to provide a list of strings that should be
+            ignored during the evaluation, done using
+            :func:`~pypeit.par.util._eval_ignore`.
+
+        Parameters
+        ----------
+        cfg_file : :obj:`str`, optional
+            The name of the configuration file that defines the default
+            parameters.  This can be used to load a pypeit config file from a
+            previous run that was constructed and output by pypeit.  This has to
+            contain the full set of parameters, not just the subset you want to
+            change.  For the latter, use `merge_with` to provide one or more
+            config files to merge with the defaults to construct the full
+            parameter set.
+        merge_with : :obj:`str`, :obj:`list`, optional
+            One or more config files with the modifications to either default
+            parameters (`cfg_file` is None) or the parameters provided by
+            `cfg_file`.  The modifications are performed in series so the list
+            order of the config files is important.
+
+        evaluate : :obj:`bool`, optional
+            Evaluate the values in the config object before assigning them in
+            the subsequent parameter sets.  The parameters in the config file
+            are *always* read as strings, so this should almost always be true;
+            however, see the warning below.
+
+        Returns
+        -------
+        :class:`~pypeit.par.pypeitpar.PypeItPar`
+            The instance of the parameter set.
+        """
+        # Get the base parameters in a ConfigObj instance
+        cfg = ConfigObj(cls().to_config() if cfg_file is None else cfg_file)
+
+        # Get the list of other configuration parameters to merge it with
+        _merge_with = [] if merge_with is None else \
+                        ([merge_with] if isinstance(merge_with, str) else merge_with)
+        merge_cfg = ConfigObj()
+        for f in _merge_with:
+            merge_cfg.merge(ConfigObj(f))
+
+        # Merge with the defaults
+        cfg.merge(merge_cfg)
+
+        # Evaluate the strings if requested
+        if evaluate:
+            cfg = util.recursive_dict_evaluate(cfg)
+
+        # Instantiate the object based on the configuration dictionary
+        return cls.from_dict(cfg)
+
+    # TODO: This seems to be the main function that is used.  Can we consolidate
+    # between `from_cfg_file` and `from_cfg_lines`?
+    @classmethod
+    def from_cfg_lines(cls, cfg_lines=None, merge_with=None, evaluate=True):
+        """
+        Construct the parameter set using the list of string lines read
+        from a config file.
+
+        Note that the following assert statement should always pass:
+
+        .. code-block::
+
+            default = PypeItPar()
+            nofile = PypeItPar.from_cfg_lines()
+            assert default.data == nofile.data, 'This should always pass.'
+
+        .. warning::
+
+            When ``evaluate`` is true, the function runs
+            :func:`~pypeit.par.util.eval_tuple` or
+            :func:`~pypeit.par.util.ast_literal_eval` on all the entries in the
+            `ConfigObj`_ dictionary, done using
+            :func:`~pypeit.par.util.recursive_dict_evaluate`.  This has the
+            potential to go haywire if the name of a parameter unintentionally
+            happens to be identical to an imported or system-level function.  Of
+            course, this can be useful by allowing one to define the function to
+            use as a parameter, but it also means one has to be careful with the
+            values that the parameters should be allowed to have.  The current
+            way around this is to provide a list of strings that should be
+            ignored during the evaluation, done using
+            :func:`~pypeit.par.util._eval_ignore`.
+
+        Parameters
+        ----------
+        cfg_lines : :obj:`list`, optional
+            A list of strings with lines read, or made to look like they are,
+            from a configuration file.  This can be used to load lines from a
+            previous run of pypeit that was constructed and output by pypeit.
+            This has to contain the full set of parameters, not just the subset
+            to change.  For the latter, leave this as the default value (None)
+            and use `merge_with` to provide a set of lines to merge with the
+            defaults to construct the full parameter set.
+        merge_with : :obj:`tuple`, :obj:`list`, optional
+            A tuple containing one more lists of strings with lines read, or
+            made to look like they are, from a configuration file that should be
+            merged with the lines provided by `cfg_lines`, or the default
+            parameters.  The order of the lists in the tuple is important, as it
+            sets the order in which the lines are merged.  Last in line has
+            *highest* priority.  Or the input may be a list which will be taken
+            as a single item described above.
+        evaluate : :obj:`bool`, optional
+            Evaluate the values in the config object before assigning them in
+            the subsequent parameter sets.  The parameters in the config file
+            are *always* read as strings, so this should almost always be true;
+            however, see the warning below.
+
+        Returns
+        -------
+        :class:`~pypeit.par.pypeitpar.PypeItPar`
+            The instance of the parameter set.
+        """
+        # Get the base parameters in a ConfigObj instance
+        cfg = ConfigObj(cls().to_config() if cfg_lines is None else cfg_lines)
+
+        # Merge in additional parameters
+        if merge_with is not None:
+            # Check it is a tuple
+            if isinstance(merge_with, list):
+                merge_with = (merge_with,)
+            if not isinstance(merge_with, tuple):
+                raise PypeItError('Input merge_with must be a tuple.')
+            # Proceed
+            for f in merge_with:
+                cfg.merge(ConfigObj(f))
+
+        # Evaluate the strings if requested
+        if evaluate:
+            cfg = util.recursive_dict_evaluate(cfg)
+
+        # Instantiate the object based on the configuration dictionary
+        return cls.from_dict(cfg)
+    
+    def reset_all_processimages_par(self, **kwargs):
+        """
+        Change image processing parameter for *all* frame types.
+
+        This function iteratively changes the value of all image processing
+        parameters for all frame types in the :class:`CalibrationsPar`, as well
+        as the science frames.
+
+        Parameters
+        ----------
+        **kwargs:
+            The list of keywords and values to change for all image processing
+            parameters.
+
+        Examples
+        --------
+        To turn off the slit-illumination correction for all frames:
+
+        >>> from pypeit.spectrographs.util import load_spectrograph
+        >>> spec = load_spectrograph('shane_kast_blue')
+        >>> par = spec.default_pypeit_par()
+        >>> par.reset_all_processimages_par(use_illumflat=False)
+
+        """
+        # Calibrations
+        for _key in self['calibrations'].keys():
+            if isinstance(self['calibrations'][_key], ParSet) \
+                    and 'process' in self['calibrations'][_key].keys():
+                for key,value in kwargs.items():
+                    self['calibrations'][_key]['process'][key] = value
+        # Science frame
+        for _key in self.keys():
+            if isinstance(self[_key], ParSet) and 'process' in self[_key].keys():
+                for key,value in kwargs.items():
+                    self[_key]['process'][key] = value
+
+    def sync_processing(self, proc_par):
+        """
+        Sync the processing of all the frame types based on the input
+        :class:`~pypeit.par.pypeitpar.ProcessImagesPar` parameters.
+
+        The parameters are merged in sequence starting from the parameter
+        defaults, then including global adjustments provided by ``process``, and
+        ending with the parameters that may have already been changed for each
+        frame.
+
+        This function can be used at anytime, but is most useful with the
+        :class:`~pypeit.par.parset.from_dict` method where a ``baseprocess``
+        group can be supplied to change the processing parameters for all frames
+        away from the defaults.
+
+        Parameters
+        ----------
+        proc_par : :class:`~pypeit.par.pypeitpar.ProcessImagesPar`
+            Effectively a new set of default image processing parameters for all
+            frames.
+
+        Raises
+        ------
+        TypeError
+            Raised if the provided parameter set is not an instance of
+            :class:`~pypeit.par.pypeitpar.ProcessImagesPar`.
+        """
+        # Checks
+        if not isinstance(proc_par, ProcessImagesPar):
+            raise TypeError('Must provide an instance of ProcessImagesPar')
+
+        # All the relevant ParSets are already ProcessImagesPar objects,
+        # so we can work directly with the internal dictionaries.
+
+        # Find the keys in the input that are different from the default
+        default = ProcessImagesPar()
+        base_diff = [key for key in proc_par.keys() if default[key] != proc_par[key]]
+
+        # Calibration frames
+        frames = [key for key in self['calibrations'].keys() if 'frame' in key]
+        for f in frames:
+            # Find the keys in self that are the same as the default
+            frame_same = [
+                key for key in proc_par.keys()
+                if self['calibrations'][f]['process'].data[key] == default[key]
+            ]
+            to_change = list(set(base_diff) & set(frame_same))
+            for key in to_change:
+                self['calibrations'][f]['process'].data[key] = proc_par[key]
+
+        # Science frames
+        frame_same = [
+            key for key in proc_par.keys()
+            if self['scienceframe']['process'].data[key] == default[key]
+        ]
+        to_change = list(set(base_diff) & set(frame_same))
+        for key in to_change:
+            self['scienceframe']['process'].data[key] = proc_par[key]
