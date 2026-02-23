@@ -3454,3 +3454,138 @@ class NewEdgeTracePar(newparset.NewParSet):
 
 
 
+class NewWaveTiltsPar(newparset.NewParSet):
+    """
+    New-style parameter set for tracing the monochromatic tilt along the slit
+
+    Mirrors the legacy `WaveTiltsPar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'wavetilts'
+
+    parameters = {
+        'idsonly': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Only use the arc lines that have an identified wavelength to trace '
+                'tilts (CURRENTLY NOT USED!)'
+            ),
+        ),
+        'tracethresh': newparset.set_parameter_definition(
+            dtype=[int, float, list, np.ndarray],
+            default=20.0,
+            descr=(
+                'Significance threshold for arcs to be used in tracing wavelength tilts. '
+                'This can be a single number or a list/array providing the value for each slit/order.'
+            ),
+        ),
+        'sig_neigh': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=10.0,
+            descr=(
+                'Significance threshold for arcs to be used in line identification for the purpose of identifying neighboring lines. '
+                'The tracethresh parameter above determines the significance threshold of lines that will be traced, but these lines '
+                ' must be at least nfwhm_neigh fwhm away from neighboring lines. This parameter determines the significance above which '
+                ' a line must be to be considered a possible colliding neighbor. A low value of sig_neigh will result in an overall '
+                ' larger number of lines, which will result in more lines above tracethresh getting rejected'
+            ),
+        ),
+        'nfwhm_neigh': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=3.0,
+            descr=(
+                'Required separation between neighboring arc lines for them to be considered for tilt tracing in units of the '
+                'the spectral fwhm (see wavelength parset where fwhm is defined)'
+            ),
+        ),
+        'maxdev_tracefit': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=0.2,
+            descr=(
+                'Maximum absolute deviation (in units of fwhm) for the legendre polynomial fits to individual '
+                'arc line tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)'
+            ),
+        ),
+        'sigrej_trace': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=3.0,
+            descr=(
+                'Outlier rejection significance to determine which traced arc lines should be included in the global fit'
+            ),
+        ),
+        'spat_order': newparset.set_parameter_definition(
+            dtype=[int, float, list, np.ndarray],
+            default=3,
+            descr=(
+                'Order of the legendre polynomial to be fit to the tilt of an arc line. This parameter determines '
+                'both the order of the *individual* arc line tilts, as well as the order of the spatial direction of the '
+                '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the '
+                'slit/order. This can be a single number or a list/array providing the value for each slit'
+            ),
+        ),
+        'spec_order': newparset.set_parameter_definition(
+            dtype=[int, float, list, np.ndarray],
+            default=4,
+            descr=(
+                'Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is '
+                'fit to obtain a global solution for the tilts across the slit/order. '
+                'This can be a single number or a list/array providing the value for each slit'
+            ),
+        ),
+        'minmax_extrap': newparset.set_parameter_definition(
+            dtype=[list, np.ndarray],
+            default=[150.0, 1000.0],
+            descr=(
+                'Sets how far below the last measured tilt line is extrapolated in tracewave.fit_tilts()'
+            ),
+        ),
+        'func2d': newparset.set_parameter_definition(
+            dtype=str,
+            default='legendre2d',
+            descr=(
+                'Type of function for 2D fit'
+            ),
+        ),
+        'maxdev2d': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=0.25,
+            descr=(
+                'Maximum absolute deviation (in units of fwhm) rejection threshold used to determines which pixels in global 2d fits to '
+                'arc line tilts are rejected because they deviate from the model by more than this value'
+            ),
+        ),
+        'sigrej2d': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=3.0,
+            descr=(
+                'Outlier rejection significance determining which pixels on a fit to an arc line tilt '
+                'are rejected by the global 2D fit'
+            ),
+        ),
+        'rm_continuum': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Before tracing the line center at each spatial position, '
+                'remove any low-order continuum in the 2D spectra.'
+            ),
+        ),
+        'cont_rej': newparset.set_parameter_definition(
+            dtype=[int, float, list, np.ndarray],
+            default=[3, 1.5],
+            descr=(
+                'The sigma threshold for rejection.  Can be a single number or two '
+                'numbers that give the low and high sigma rejection, respectively.'
+            ),
+        ),
+    }
+
+    def validate(self):
+        if hasattr(self.data['cont_rej'], '__len__'):
+            if len(self.data['cont_rej']) != 2:
+                raise ValueError('Continuum rejection threshold must be a single number or a '
+                                 'two-element list/array.')
+
+
+
