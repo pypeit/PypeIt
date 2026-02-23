@@ -5,8 +5,8 @@ Dynamically build the rst documentation of the pypeit parameters.
 from importlib import resources
 import textwrap
 
-from pypeit.par import pypeitpar
-from pypeit.par.parset import ParSet
+from pypeit.par import newpypeitpar as pypeitpar
+from pypeit.par.newparset import ParSet
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import available_spectrographs
 
