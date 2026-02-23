@@ -13,6 +13,59 @@ from pypeit import log
 from pypeit.core import parse
 
 
+class NewTelescopePar(newparset.NewParSet):
+    """
+    New-style parameter set for the salient properties of a telescope.
+
+    Mirrors the legacy `TelescopePar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'telescope'
+
+    valid_telescopes = [
+        'AAT', 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT',
+        'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT',
+        'LDT', 'JWST', 'HILTNER', 'SUBARU'
+    ]
+
+    parameters = {
+        'name': newparset.set_parameter_definition(
+            dtype=str,
+            default='KECK',
+            options=valid_telescopes,
+            descr=(
+                'Name of the telescope used to obtain the observations.  '
+                'Options are: AAT, GEMINI-N, GEMINI-S, KECK, SHANE, WHT, APF, TNG, VLT, '
+                'MAGELLAN, LBT, MMT, KPNO, NOT, P200, BOK, GTC, SOAR, NTT, LDT, JWST, HILTNER, SUBARU'
+            ),
+        ),
+        'longitude': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr='Longitude of the telescope on Earth in degrees.',
+        ),
+        'latitude': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr='Latitude of the telescope on Earth in degrees.',
+        ),
+        'elevation': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr='Elevation of the telescope in m',
+        ),
+        'fratio': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr='f-ratio of the telescope',
+        ),
+        'diameter': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr='Diameter of the telescope in m',
+        ),
+        'eff_aperture': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr='Effective aperture of the telescope in m^2',
+        ),
+    }
+
+
 class NewScatteredLightPar(newparset.NewParSet):
     """
     The parameter set used to hold arguments for modelling the scattered light.
@@ -3587,5 +3640,530 @@ class NewWaveTiltsPar(newparset.NewParSet):
                 raise ValueError('Continuum rejection threshold must be a single number or a '
                                  'two-element list/array.')
 
+
+class NewFindObjPar(newparset.NewParSet):
+    """
+    New-style parameter set for finding and tracing objects (replacement for FindObjPar).
+
+    Mirrors the legacy `FindObjPar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'findobj'
+
+    parameters = {
+        'trace_npoly': newparset.set_parameter_definition(
+            dtype=int,
+            default=5,
+            descr='Order of legendre polynomial fits to object traces.',
+        ),
+        'maxnumber_sci': newparset.set_parameter_definition(
+            dtype=int,
+            default=10,
+            descr=(
+                'Maximum number of objects to extract in a science frame.  Use '
+                'None for no limit. This parameter can be useful in situations where systematics lead to '
+                'spurious extra objects. Setting this parameter means they will be trimmed. '
+                'For mulitslit maxnumber applies per slit, for echelle observations this '
+                'applies per order. Note that objects on a slit/order impact the sky-modeling and so '
+                'maxnumber should never be lower than the true number of detectable objects on your slit. '
+                'For image differenced observations with positive and negative object traces, maxnumber applies '
+                'to the number of positive (or negative) traces individually. In other words, if you had two positive objects and '
+                'one negative object, then you would set maxnumber to be equal to two (not three). Note that if manually '
+                'extracted apertures are explicitly requested, they do not count against this maxnumber. If more than '
+                'maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept. '
+                'For multislit observations the choice here depends on the slit length. For echelle observations '
+                'with short slits we set the default to be 1'
+            ),
+        ),
+        'maxnumber_std': newparset.set_parameter_definition(
+            dtype=int,
+            default=5,
+            descr=(
+                'Maximum number of objects to extract in a standard star frame.  Same functionality as '
+                'maxnumber_sci documented above. For multislit observations the default here is 5, for echelle '
+                'observations the default is 1'
+            ),
+        ),
+        'snr_thresh': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=10.0,
+            descr='S/N threshold for object finding in wavelength direction smashed image.',
+        ),
+        'find_trim_edge': newparset.set_parameter_definition(
+            dtype=list,
+            default=[5, 5],
+            descr='Trim the slit by this number of pixels left/right before finding objects',
+        ),
+        'trace_extrap_npoly': newparset.set_parameter_definition(
+            dtype=int,
+            default=3,
+            descr=(
+                'Polynomial order used for trace extrapolation.  NOTE: Not consumed by the code at present. (For ``pypeit<=1.18.x``, this '
+                'parameter was called ``find_extrap_npoly``.)'
+            ),
+        ),
+        'trace_maxdev': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=2.0,
+            descr=(
+                'Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.  (For ``pypeit<=1.18.x``, this '
+                'parameter was called ``find_maxdev``.)'
+            ),
+        ),
+        'trace_maxshift': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=1.0,
+            descr=(
+                'Maximum shift allowed between the input and recalculated centroid in trace fitting.  This parameter may be increased to '
+                'allow the fiter to follow curved traces (*e.g.*, for wide spectral ranges at high airmass).'
+            ),
+        ),
+        'trace_min_max': newparset.set_parameter_definition(
+            dtype=list,
+            default=None,
+            descr=(
+                'It defines the minimum and maximum pixel in the spectral direction with useable data for this slit/order. '
+                'This parameter limits the range over which the trace is fit, and may be useful if the selected slit/order '
+                'would include regions without expected signal (*e.g.* bluer than the atmospheric cutoff or redder than the '
+                'silicon cutoff).'
+            ),
+        ),
+        'find_numiterfit': newparset.set_parameter_definition(
+            dtype=int,
+            default=9,
+            descr='Number of iterations to perform on the trace fitting.',
+        ),
+        'find_fwhm': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=5.0,
+            descr='Indicates roughly the fwhm of objects in pixels for object finding',
+        ),
+        'fof_link': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=1.5,
+            descr='The linking distance, in arcseconds, for the Friends of Friends algorithm to link objects across traces in Echelle spectrographs. ',
+        ),
+        'ech_find_max_snr': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=1.0,
+            descr=(
+                'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than this value '
+                ' or satisfy the min_snr criteria described by the min_snr parameters. If maxnumber is set (see above) then these criteria '
+                'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
+            ),
+        ),
+        'ech_find_min_snr': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=0.3,
+            descr=(
+                'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value '
+                ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders. If maxnumber is set (see above) then these criteria '
+                'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
+            ),
+        ),
+        'ech_find_nabove_min_snr': newparset.set_parameter_definition(
+            dtype=int,
+            default=2,
+            descr=(
+                'Criteria for keeping echelle objects. They must either have a maximum S/N across '
+                'all the orders greater than ech_find_max_snr,  value '
+                ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders. '
+                'If maxnumber is set (see above) then these criteria '
+                'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept.'
+            ),
+        ),
+        'skip_second_find': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr='Only perform one round of object finding (mainly for quick_look)'
+        ),
+        'skip_final_global': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'If True, do not update initial sky to get global sky using updated noise model. This '
+                'should be True for quicklook to save time. This should also be True for near-IR '
+                'reductions which perform difference imaging, since there we fit sky-residuals rather '
+                'than the sky itself, so there is no noise model to update. '
+            ),
+        ),
+        'skip_skysub': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'If True, do not sky subtract when performing object finding. This should be set to '
+                'True for example when running on data that is already sky-subtracted. '
+                'Note that for near-IR difference imaging one still wants to remove sky-residuals via '
+                'sky-subtraction, and so this is typically set to False'
+            ),
+        ),
+        'find_negative': newparset.set_parameter_definition(
+            dtype=[bool],
+            default=None,
+            descr=(
+                'Identify negative objects in object finding for spectra that are differenced. This is used to manually '
+                'override the default behavior in PypeIt for object finding by setting this parameter to something other than None '
+                'The default behavior is that PypeIt will search for negative object traces if background frames '
+                'are present in the PypeIt file that are classified as "science" '
+                '(i.e. via pypeit_setup -b, and setting bkg_id in the PypeIt file). If background frames are present '
+                'that are classified as "sky", then PypeIt will NOT search for negative object traces. If one wishes '
+                'to explicitly override this default behavior, set this parameter to True to find negative objects or False to ignore '
+                'them.'
+            ),
+        ),
+        'find_min_max': newparset.set_parameter_definition(
+            dtype=list,
+            default=None,
+            descr=(
+                'It defines the minimum and maximum of your object in pixels in the spectral direction on the '
+                'detector. It only used for object finding. This parameter is helpful if your object only '
+                'has emission lines or at high redshift and the trace only shows in part of the detector.'
+            ),
+        ),
+        'use_std_trace': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'If True, the trace of the standard star spectrum is used as a crutch for '
+                'tracing the object spectra. This is useful when a direct trace is not possible '
+                '(i.e., faint sources). Note that a standard star exposure must be included in your '
+                'pypeit file, or the ``std_spec1d`` parameter must be set for this to work. '
+                ),
+        ),
+        'std_spec1d': newparset.set_parameter_definition(
+            dtype=str,
+            default=None,
+            descr=(
+                'A PypeIt spec1d file of a previously reduced standard star. '
+                'This can be used to trace the object spectra, but the ``use_std_trace`` '
+                'parameter must be set to True. If provided, this overrides use of '
+                'any standards included in your pypeit file; the standard exposures '
+                'will still be reduced.'
+            ),
+        ),
+    }
+
+    def validate(self):
+        if self.data['std_spec1d'] is not None:
+            if not self.data.get('use_std_trace', True):
+                raise ValueError('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
+            elif not Path(self.data['std_spec1d']).absolute().exists():
+                raise ValueError(f'{self.data["std_spec1d"]} does not exist!')
+
+
+class NewSkySubPar(newparset.NewParSet):
+    """
+    New-style parameter set for sky subtraction (replacement for SkySubPar).
+
+    Mirrors the legacy `SkySubPar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'skysub'
+
+    parameters = {
+        'bspline_spacing': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=0.6,
+            descr='Break-point spacing for the bspline sky subtraction fits.',
+        ),
+        'sky_sigrej': newparset.set_parameter_definition(
+            dtype=float,
+            default=3.0,
+            descr='Rejection parameter for local sky subtraction',
+        ),
+        'global_sky_std': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'Global sky subtraction will be performed on standard stars. This should be turned '
+                'off for example for near-IR reductions with narrow slits, since bright standards can '
+                'fill the slit causing global sky-subtraction to fail. In these situations we go '
+                'straight to local sky-subtraction since it is designed to deal with such situations'
+            ),
+        ),
+        'no_poly': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr='Turn off polynomial basis (Legendre) in global sky subtraction',
+        ),
+        'no_local_sky': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr='If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction',
+        ),
+        'user_regions': newparset.set_parameter_definition(
+            dtype=[str, list],
+            default=None,
+            descr=(
+                'Provides a user-defined mask defining sky regions.  By '
+                'default, the sky regions are identified automatically.  To '
+                'specify sky regions for *all* slits, provide a comma separated '
+                'list of percentages.  For example, setting user_regions = '
+                ':10,35:65,80: selects the first 10%, the inner 30%, and the '
+                'final 20% of *all* slits as containing sky.  Setting '
+                'user_regions = user will attempt to load any SkyRegions '
+                'files generated by the user via the pypeit_skysub_regions tool.'
+            ),
+        ),
+        'mask_by_boxcar': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr='In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).',
+        ),
+        'joint_fit': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Perform a simultaneous joint fit to sky regions using all available slits. '
+                'Currently, this parameter is only used for IFU data reduction. Note that the '
+                'current implementation does not account for variations in the instrument FWHM '
+                'in different slits. This will be addressed by Issue #1660.'
+            ),
+        ),
+        'max_mask_frac': newparset.set_parameter_definition(
+            dtype=float,
+            default=0.80,
+            descr=(
+                'Maximum fraction of total pixels on a slit that can be masked by the input masks. '
+                'If more than this threshold is masked the code will return zeros and throw a warning.'
+            ),
+        ),
+        'local_maskwidth': newparset.set_parameter_definition(
+            dtype=float,
+            default=4.0,
+            descr='Initial width of the region in units of FWHM that will be used for local sky subtraction',
+        ),
+    }
+
+
+class NewExtractionPar(newparset.NewParSet):
+    """
+    New-style parameter set for extraction (replacement for ExtractionPar).
+
+    Mirrors the legacy `ExtractionPar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'extraction'
+
+    parameters = {
+        'boxcar_radius': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=1.5,
+            descr='Boxcar radius in arcseconds used for boxcar extraction',
+        ),
+        'skip_extraction': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr='Do not perform an object extraction',
+        ),
+        'skip_optimal': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr='Perform boxcar extraction only (i.e. skip Optimal and local skysub)',
+        ),
+        'std_prof_nsigma': newparset.set_parameter_definition(
+            dtype=float,
+            default=30.0,
+            descr='prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection. ' \
+                    'NOTE: Not consumed by the code at present.',
+        ),
+        'min_frac_prof': newparset.set_parameter_definition(
+            dtype=float,
+            default=0.05,
+            descr=(
+                'For each spectral pixel, if the sum of the normalized object profile' \
+                ' across the spatial direction is less than this value,' \
+                ' the optimal extraction will also be masked. '
+            ),
+        ),
+        'sn_gauss': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=4.0,
+            descr=(
+                'S/N threshold for performing the more sophisticated optimal extraction which performs a ' \
+                'b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extract' \
+                'with a Gaussian with FWHM determined from the object finding.'
+            ),
+        ),
+        'model_full_slit': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will ' \
+                'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
+                'observations using narrow slits or echelle observations with narrow slits'
+            ),
+        ),
+        'use_2dmodel_mask': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'Mask pixels rejected during profile fitting when extracting.' \
+                'Turning this off may help with bright emission lines.'
+            ),
+        ),
+        'use_user_fwhm': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Boolean indicating if PypeIt should use the FWHM provided by the user ' \
+                '(``find_fwhm`` in `FindObjPar`) for the optimal extraction. ' \
+                'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each ' \
+                'detected object, and uses ``find_fwhm`` as initial guess.'
+            ),
+        ),
+        'return_negative': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr='If ``True`` the negative traces will be extracted and saved to disk',
+        ),
+    }
+
+
+class NewCollate1DPar(newparset.NewParSet):
+    """
+    New-style parameter set for collating, coadding, and archiving 1D spectra.
+
+    Mirrors the legacy `Collate1DPar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'collate1d'
+    
+    valid_refframes = ['observed', 'heliocentric', 'barycentric']
+
+    parameters = {
+        'tolerance': newparset.set_parameter_definition(
+            dtype=[str, float, int],
+            default=1.0,
+            descr=(
+                "The tolerance used when comparing the coordinates of objects. If two "
+                "objects are within this distance from each other, they "
+                "are considered the same object. If match_using is 'ra/dec' (the default) "
+                "this is an angular distance. The defaults units are arcseconds but "
+                "other units supported by astropy.coordinates.Angle can be used "
+                "(`e.g.`, '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float."
+            ),
+        ),
+        'dry_run': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                "If set, the script will display the matching File and Object Ids "
+                "but will not flux, coadd or archive."
+            ),
+        ),
+        'ignore_flux': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                "If set, the script will only coadd non-fluxed spectra even if flux data is present. "
+                "Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated."
+            ),
+        ),
+        'flux': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                "If set, the script will flux calibrate using archived sensfuncs before coadding."
+            ),
+        ),
+        'outdir': newparset.set_parameter_definition(
+            dtype=str,
+            default=os.getcwd(),
+            descr=(
+                "The path where all coadded output files and report files will be placed."
+            ),
+        ),
+        'spec1d_outdir': newparset.set_parameter_definition(
+            dtype=str,
+            default=None,
+            descr=(
+                "The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for."
+            ),
+        ),
+        'exclude_slit_trace_bm': newparset.set_parameter_definition(
+            dtype=[list, str],
+            default=[],
+            descr=(
+                "A list of slit trace bitmask bits that should be excluded."
+            ),
+        ),
+        'exclude_serendip': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                "Whether to exclude SERENDIP objects from collating."
+            ),
+        ),
+        'wv_rms_thresh': newparset.set_parameter_definition(
+            dtype=float,
+            default=None,
+            descr=(
+                "If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted."
+            ),
+        ),
+        'match_using': newparset.set_parameter_definition(
+            dtype=str,
+            default='ra/dec',
+            options=['pixel', 'ra/dec'],
+            descr=(
+                "Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'."
+            ),
+        ),
+        'refframe': newparset.set_parameter_definition(
+            dtype=str,
+            default=None,
+            options=valid_refframes,
+            descr=(
+                'Perform reference frame correction prior to coadding.  '
+                f'Options are: {", ".join(valid_refframes)}'
+            ),
+        ),
+    }
+
+
+class NewReducePar(newparset.NewParSet):
+    """
+    New-style parameter set for sky subtraction, object finding and extraction.
+
+    Mirrors the legacy `ReducePar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'reduce'
+
+    parameters = {
+        'findobj': newparset.set_parameter_definition(
+            dtype=NewFindObjPar,
+            default=NewFindObjPar(),
+            descr='Parameters for the find object and tracing algorithms',
+        ),
+        'skysub': newparset.set_parameter_definition(
+            dtype=NewSkySubPar,
+            default=NewSkySubPar(),
+            descr='Parameters for sky subtraction algorithms',
+        ),
+        'extraction': newparset.set_parameter_definition(
+            dtype=NewExtractionPar,
+            default=NewExtractionPar(),
+            descr='Parameters for extraction algorithms',
+        ),
+        'slitmask': newparset.set_parameter_definition(
+            dtype=NewSlitMaskPar,
+            default=NewSlitMaskPar(),
+            descr='Parameters for slitmask',
+        ),
+        'cube': newparset.set_parameter_definition(
+            dtype=NewCubePar,
+            default=NewCubePar(),
+            descr='Parameters for cube generation algorithms',
+        ),
+        'trim_edge': newparset.set_parameter_definition(
+            dtype=list,
+            default=[3, 3],
+            descr=(
+                'Trim the slit by this number of pixels left/right when performing sky subtraction'
+            )
+        ),
+    }
 
 
