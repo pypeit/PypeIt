@@ -8,9 +8,11 @@ from IPython import embed
 import numpy as np
 import os
 
-from pypeit.par import newparset
+from pypeit import dataPaths
 from pypeit import log
+from pypeit import PypeItError
 from pypeit.core import parse
+from pypeit.par import newparset
 
 
 class NewTelescopePar(newparset.NewParSet):
@@ -772,6 +774,318 @@ class ScienceFramePar(NewFrameGroupPar):
                 mask_cr=True,
             ),
             descr='Low level parameters used for basic image processing',
+        ),
+    }
+
+
+class NewFlatFieldPar(newparset.NewParSet):
+    """
+    New-style parameter set for flat-fielding (replacement for FlatFieldPar).
+
+    Mirrors the legacy `FlatFieldPar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'flatfield'
+
+    valid_methods = ['bspline', 'skip']
+
+    valid_tweak_methods = ['threshold', 'gradient']
+    
+    valid_saturated_slits_methods = ['crash', 'mask', 'continue']
+
+    parameters = {
+        'method': newparset.set_parameter_definition(
+            dtype=str,
+            default='bspline',
+            options=valid_methods,
+            descr=(
+                'Method used to flat field the data; use skip to skip flat-fielding.  '
+                f'Options are: None, {", ".join(valid_methods)}'
+            ),
+        ),
+        'pixelflat_file': newparset.set_parameter_definition(
+            dtype=str,
+            default=None,
+            descr='Filename of the image to use for pixel-level field flattening',
+        ),
+        'spec_samp_fine': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=1.2,
+            descr='bspline break point spacing in units of pixels for spectral fit to flat field blaze function.',
+        ),
+        'spec_samp_coarse': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=50.0,
+            descr=(
+                'bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to '
+                'flat field image residuals. This should be a large number unless you are trying to '
+                'fit a sky flat with lots of narrow spectral features.'
+            ),
+        ),
+        'spat_samp': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=5.0,
+            descr=(
+                'Spatial sampling for slit illumination function. This is the width of the median '
+                'filter in pixels used to determine the slit illumination function, and thus sets the '
+                'minimum scale on which the illumination function will have features.'
+            ),
+        ),
+        'pixelflat_min_wave': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=None,
+            descr='All values of the normalized pixel flat are set to 1 for wavelengths below this value.',
+        ),
+        'pixelflat_max_wave': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=None,
+            descr='All values of the normalized pixel flat are set to 1 for wavelengths above this value.',
+        ),
+        'tweak_slits': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'Use the illumination flat field to tweak the slit edges. '
+                'This will work even if illumflatten is set to False '
+            ),
+        ),
+        'tweak_method': newparset.set_parameter_definition(
+            dtype=str,
+            default='threshold',
+            options=valid_tweak_methods,
+            descr=(
+                'Method used to tweak the slit edges (when "tweak_slits" is set to True).  '
+                f'Options include: {", ".join(valid_tweak_methods)}.  '
+                'The "threshold" method determines when the left and right slit edges '
+                'fall below a threshold relative to the peak illumination. ' 
+                'The "gradient" method determines where the gradient is the highest at '
+                'the left and right slit edges. This method performs better when there is '
+                'systematic vignetting in the spatial direction. '
+            ),
+        ),
+        'tweak_slits_thresh': newparset.set_parameter_definition(
+            dtype=float,
+            default=0.93,
+            descr=(
+                'If tweak_slits is True, this sets the illumination function threshold used to '
+                'tweak the slit boundaries based on the illumination flat. '
+                'It should be a number less than 1.0'
+            ),
+        ),
+        'tweak_slits_maxfrac': newparset.set_parameter_definition(
+            dtype=float,
+            default=0.10,
+            descr=(
+                'If tweak_slit is True, this sets the maximum fractional amount (of a slits width) '
+                'allowed for trimming each (i.e. left and right) slit boundary, i.e. the default is 10% '
+                'which means slits would shrink or grow by at most 20% (10% on each side)'
+            ),
+        ),
+        'rej_sticky': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Propagate the rejected pixels through the stages of the '
+                'flat-field fitting (i.e, from the spectral fit, to the spatial '
+                'fit, and finally to the 2D residual fit).  If False, pixels '
+                'rejected in each stage are included in each subsequent stage.'
+            ),
+        ),
+        'slit_trim': newparset.set_parameter_definition(
+            dtype=[int, float, tuple],
+            default=3.0,
+            descr=(
+                'The number of pixels to trim each side of the slit when '
+                'selecting pixels to use for fitting the spectral response '
+                'function.  Single values are used for both slit edges; a '
+                'two-tuple can be used to trim the left and right sides differently.'
+            ),
+        ),
+        'slit_illum_pad': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=5.0,
+            descr='The number of pixels to pad the slit edges when constructing the slit-illumination profile. Single value applied to both edges.',
+        ),
+        'slit_illum_finecorr': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'If True, a fine correction to the spatial illumination profile '
+                'will be performed. The fine correction is a low order 2D polynomial '
+                'fit to account for a gradual change to the spatial illumination '
+                'profile as a function of wavelength.'
+            ),
+        ),
+        'slit_illum_relative': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Generate an image of the relative spectral illumination '
+                'for a multi-slit setup.  If you set ``use_specillum = '
+                'True`` for any of the frames that use the flatfield '
+                'model, this *must* be set to True. Currently, this is '
+                'only used for SlicerIFU reductions.'
+            ),
+        ),
+        'illum_iter': newparset.set_parameter_definition(
+            dtype=int,
+            default=0,
+            descr='The number of rejection iterations to perform when constructing the slit-illumination profile.  No rejection iterations are performed if 0.  WARNING: Functionality still being tested.',
+        ),
+        'illum_rej': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=5.0,
+            descr='The sigma threshold used in the rejection iterations used to refine the slit-illumination profile.  Rejection iterations are only performed if ``illum_iter > 0``.',
+        ),
+        'twod_fit_npoly': newparset.set_parameter_definition(
+            dtype=int,
+            default=None,
+            descr=(
+                'Order of polynomial used in the 2D bspline-polynomial fit to '
+                'flat-field image residuals. The code determines the order of '
+                'these polynomials to each slit automatically depending on '
+                'the slit width, which is why the default is None. Alter '
+                'this paramter at your own risk!'
+            ),
+        ),
+        'saturated_slits': newparset.set_parameter_definition(
+            dtype=str,
+            default='crash',
+            options=valid_saturated_slits_methods,
+            descr=(
+                'Behavior when a slit is encountered with a large fraction '
+                'of saturated pixels in the flat-field.  The options are: '
+                "'crash' - Raise an error and halt the data reduction; "
+                "'mask' - Mask the slit, meaning no science data will be "
+                "extracted from the slit; 'continue' - ignore the "
+                'flat-field correction, but continue with the reduction.'
+            ),
+        ),
+        'slit_illum_ref_idx': newparset.set_parameter_definition(
+            dtype=int,
+            default=0,
+            descr='The index of a reference slit (0-indexed) used for estimating the relative spectral sensitivity (or the relative blaze). This parameter is only used if ``slit_illum_relative = True``.',
+        ),
+        'slit_illum_smooth_npix': newparset.set_parameter_definition(
+            dtype=int,
+            default=10,
+            descr='The number of pixels used to determine smoothly varying relative weights is given by ``nspec/slit_illum_smooth_npix``, where nspec is the number of spectral pixels.',
+        ),
+        'fit_2d_det_response': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Set this variable to True if you want to compute and '
+                'account for the detector response in the flatfield image. '
+                'Note that ``detector response`` refers to pixel sensitivity '
+                'variations that primarily depend on (x,y) detector coordinates. '
+                'In most cases, the default 2D bspline is sufficient to account '
+                'for detector response (i.e. set this parameter to False). Note '
+                'that this correction will _only_ be performed for the spectrographs '
+                'that have a dedicated response correction implemented. Currently,'
+                'this correction is only implemented for Keck+KCWI.'
+            ),
+        ),
+    }
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        if self.data['pixelflat_file'] is None:
+            return
+
+        # Check the frame exists
+        file_path = dataPaths.pixelflat.get_file_path(
+            self.data['pixelflat_file'], return_none=True
+        )
+        if file_path is None:
+            raise PypeItError(
+                f'Provided pixelflat file, {self.data["pixelflat_file"]} not found. It is not a '
+                'direct path, a cached file, or a file that can be downloaded from a PypeIt '
+                'repository.'
+            )
+
+
+class NewFlexurePar(newparset.NewParSet):
+    """
+    New-style parameter set for flexure correction parameters.
+
+    Mirrors the legacy `FlexurePar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'flexure'
+
+    valid_methods = ['boxcar', 'slitcen', 'skip']
+
+    valid_excessive_shift_methods = ['crash', 'set_to_zero', 'continue', 'use_median']
+
+    parameters = {
+        'spec_method': newparset.set_parameter_definition(
+            dtype=str,
+            default='skip',
+            options=valid_methods,
+            descr=(
+                'Method used to correct for flexure. Use skip for no correction.  If '
+                'slitcen is used, the flexure correction is performed before the '
+                'extraction of objects (not recommended).  '
+                f'Options are: {", ".join(valid_methods)}'
+            ),
+        ),
+        'spec_maxshift': newparset.set_parameter_definition(
+            dtype=int,
+            default=20,
+            descr='Maximum allowed spectral flexure shift in pixels.',
+        ),
+        'spectrum': newparset.set_parameter_definition(
+            dtype=str,
+            default='paranal_sky.fits',
+            descr=(
+                'Archive sky spectrum to be used for the flexure correction. '
+                'See ``pypeit/data/sky_spec/`` for a list of available sky spectra. '
+                'If ``model`` is used, a model sky spectrum will be generated '
+                'using :func:`~pypeit.wavemodel.nearIR_modelsky` and the spectral'
+                'resolution of the spectrum to be flexure corrected.'
+            ),
+        ),
+        'excessive_shift': newparset.set_parameter_definition(
+            dtype=str,
+            default='use_median',
+            options=valid_excessive_shift_methods,
+            descr=(
+                'Behavior when the measured spectral flexure shift is '
+                'larger than ``spec_maxshift``.  The options are: '
+                "'crash' - Raise an error and halt the data reduction; "
+                "'set_to_zero' - Set the flexure shift to zero and continue "
+                "with the reduction; 'continue' - Use the large "
+                "flexure value whilst issuing a warning; and 'use_median' - "
+                "Use the median flexure shift among all the objects in the same slit "
+                "(if more than one object is detected) or among all "
+                "the other slits; if not available, the flexure correction will not be applied."
+            ),
+        ),
+        'minwave': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=None,
+            descr=(
+                'Minimum wavelength to use for the correlation.  If ``None`` or less than '
+                'the minimum wavelength of either the object or archive sky spectrum, this '
+                'this parameter has no effect.'
+            ),
+        ),
+        'maxwave': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=None,
+            descr=(
+                'Maximum wavelength to use for the correlation.  If ``None`` or greater than '
+                'the maximum wavelength of either the object or archive sky spectrum, this '
+                'this parameter has no effect.'
+            ),
+        ),
+        'multi_min_SN': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=1,
+            descr='Minimum S/N for analyzing sky spectrum for flexure',
         ),
     }
 
@@ -4167,3 +4481,141 @@ class NewReducePar(newparset.NewParSet):
     }
 
 
+class NewCalibrationsPar(newparset.NewParSet):
+    """
+    New-style parameter set for calibration frame groups and related settings.
+
+    Mirrors the legacy `CalibrationsPar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'calibrations'
+
+    parameters = {
+        'calib_dir': newparset.set_parameter_definition(
+            dtype=str,
+            default='Calibrations',
+            descr=(
+                'The name of the directory for the processed calibration frames.  '
+                'The host path for the directory is set by the redux_path (see ' 
+                ':class:`~pypeit.par.pypeitpar.ReduxPar`).  Beware that success '
+                'when changing the default value is not well tested!'
+            ),
+        ),
+        'raise_chk_error': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr='Raise an error if the calibration check fails',
+        ),
+        'bpm_usebias': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr='Make a bad pixel mask from bias frames? Bias frames must be provided.',
+        ),
+
+        'biasframe': newparset.set_parameter_definition(
+            dtype=BiasFramePar,
+            default=BiasFramePar(),
+            descr='The frames and combination rules for the bias correction',
+        ),
+        'darkframe': newparset.set_parameter_definition(
+            dtype=DarkFramePar,
+            default=DarkFramePar(),
+            descr='The frames and combination rules for the dark-current correction',
+        ),
+        'scattlightframe': newparset.set_parameter_definition(
+            dtype=ScatteredLightFramePar,
+            default=ScatteredLightFramePar(),
+            descr='The frames and combination rules for the scattered light frames',
+        ),
+        'pixelflatframe': newparset.set_parameter_definition(
+            dtype=PixelFlatFramePar,
+            default=PixelFlatFramePar(),
+            descr='The frames and combination rules for the pixel flat',
+        ),
+        'illumflatframe': newparset.set_parameter_definition(
+            dtype=IllumFlatFramePar,
+            default=IllumFlatFramePar(),
+            descr='The frames and combination rules for the illumination flat',
+        ),
+        'lampoffflatsframe': newparset.set_parameter_definition(
+            dtype=LampOffFlatsFramePar,
+            default=LampOffFlatsFramePar(),
+            descr='The frames and combination rules for the lamp off flats',
+        ),
+        'slitless_pixflatframe': newparset.set_parameter_definition(
+            dtype=SlitlessPixFlatFramePar,
+            default=SlitlessPixFlatFramePar(),
+            descr='The frames and combination rules for the slitless pixel flat',
+        ),
+        'pinholeframe': newparset.set_parameter_definition(
+            dtype=PinholeFramePar,
+            default=PinholeFramePar(),
+            descr='The frames and combination rules for the pinholes',
+        ),
+        'alignframe': newparset.set_parameter_definition(
+            dtype=AlignFramePar,
+            default=AlignFramePar(),
+            descr='The frames and combination rules for the align frames',
+        ),
+        'arcframe': newparset.set_parameter_definition(
+            dtype=ArcFramePar,
+            default=ArcFramePar(),
+            descr='The frames and combination rules for the wavelength calibration',
+        ),
+        'tiltframe': newparset.set_parameter_definition(
+            dtype=TiltFramePar,
+            default=TiltFramePar(),
+            descr='The frames and combination rules for the wavelength tilts',
+        ),
+        'traceframe': newparset.set_parameter_definition(
+            dtype=TraceFramePar,
+            default=TraceFramePar(),
+            descr='The frames and combination rules for images used for slit tracing',
+        ),
+        'standardframe': newparset.set_parameter_definition(
+            dtype=StandardFramePar,
+            default=StandardFramePar(),
+            descr=(
+                'The frames and combination rules for the spectrophotometric '
+                'standard observations'
+            ),
+        ),
+        'skyframe': newparset.set_parameter_definition(
+            dtype=SkyFramePar,
+            default=SkyFramePar(),
+            descr=(
+                'The frames and combination rules for the sky background '
+                'observations'
+            ),
+        ),
+        'alignment': newparset.set_parameter_definition(
+            dtype=NewAlignPar,
+            default=NewAlignPar(),
+            descr='Define the procedure for the alignment of traces',
+        ),
+        'scattlight_pad': newparset.set_parameter_definition(
+            dtype=int,
+            default=5,
+            descr='Number of unbinned pixels to extend the slit edges by when masking the slits.',
+        ),
+        'flatfield': newparset.set_parameter_definition(
+            dtype=NewFlatFieldPar,
+            default=NewFlatFieldPar(),
+            descr='Parameters used to set the flat-field procedure',
+        ),
+        'wavelengths': newparset.set_parameter_definition(
+            dtype=NewWavelengthSolutionPar,
+            default=NewWavelengthSolutionPar(),
+            descr='Parameters used to derive the wavelength solution',
+        ),
+        'slitedges': newparset.set_parameter_definition(
+            dtype=NewEdgeTracePar,
+            default=NewEdgeTracePar(),
+            descr='Slit-edge tracing parameters',
+        ),
+        'tilts': newparset.set_parameter_definition(
+            dtype=NewWaveTiltsPar,
+            default=NewWaveTiltsPar(),
+            descr='Define how to trace the slit tilts using the trace frames',
+        ),
+    }

@@ -365,7 +365,7 @@ def compare_old_new(opar, npar):
 #    assert opar.descr == ndescr, f'{comp} descr dictionaries are different'
 
 def test_old_new_parsets():
-    compare_old_new(pypeitpar.ReducePar(), newpypeitpar.NewReducePar())
+    compare_old_new(pypeitpar.CalibrationsPar(), newpypeitpar.NewCalibrationsPar())
     return
     print('    ')
     print('    ')
@@ -424,6 +424,12 @@ def test_old_new_parsets():
     compare_old_new(par['scienceframe'], newpypeitpar.ScienceFramePar())
     print('    ')
     print('    ')
+    compare_old_new(pypeitpar.FlatFieldPar(), newpypeitpar.NewFlatFieldPar())
+    print('    ')
+    print('    ')
+    compare_old_new(pypeitpar.FlexurePar(), newpypeitpar.NewFlexurePar())
+    print('    ')
+    print('    ')
     compare_old_new(pypeitpar.AlignPar(), newpypeitpar.NewAlignPar())
     print('    ')
     print('    ')
@@ -476,6 +482,9 @@ def test_old_new_parsets():
     print('    ')
     print('    ')
     compare_old_new(pypeitpar.TelescopePar(), newpypeitpar.NewTelescopePar())
+    print('    ')
+    print('    ')
+    compare_old_new(pypeitpar.ReducePar(), newpypeitpar.NewReducePar())
     print('    ')
     print('    ')
 
