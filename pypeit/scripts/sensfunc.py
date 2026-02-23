@@ -96,7 +96,8 @@ class SensFunc(scriptbase.ScriptBase):
         from pypeit import PypeItError
         from pypeit import inputfiles
         from pypeit import io
-        from pypeit.par import pypeitpar
+        from pypeit.par import newpypeitpar as pypeitpar
+        #from pypeit.par import pypeitpar
         from pypeit import sensfunc
         from pypeit.spectrographs.util import load_spectrograph
 

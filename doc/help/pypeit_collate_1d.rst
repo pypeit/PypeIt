@@ -6,8 +6,8 @@
                              [--spec1d_files [SPEC1D_FILES ...]]
                              [--par_outfile PAR_OUTFILE] [--outdir OUTDIR]
                              [--spec1d_outdir SPEC1D_OUTDIR] [--tolerance TOLERANCE]
-                             [--match_using MATCH_USING] [--dry_run] [--ignore_flux]
-                             [--flux]
+                             [--match_using {pixel,ra/dec}] [--dry_run]
+                             [--ignore_flux] [--flux]
                              [--exclude_slit_trace_bm EXCLUDE_SLIT_TRACE_BM]
                              [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
                              [--refframe {observed,heliocentric,barycentric}]
@@ -79,7 +79,7 @@
                             units supported by astropy.coordinates.Angle can be used
                             (`e.g.`, '0.003d' or '0h1m30s'). If match_using is
                             'pixel' this is a float.
-      --match_using MATCH_USING
+      --match_using {pixel,ra/dec}
                             Determines how 1D spectra are matched as being the same
                             object. Must be either 'pixel' or 'ra/dec'.
       --dry_run             If set, the script will display the matching File and

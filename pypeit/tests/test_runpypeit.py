@@ -15,7 +15,8 @@ from pypeit.scripts.run_pypeit import RunPypeIt
 from pypeit.scripts.sensfunc import SensFunc
 from pypeit.scripts.flux_calib import FluxCalib
 from pypeit import specobjs, sensfunc
-from pypeit.par import pypeitpar 
+from pypeit.par import newpypeitpar as pypeitpar
+#from pypeit.par import pypeitpar 
 from pypeit.tests import tstutils
 
 def test_run_pypeit():

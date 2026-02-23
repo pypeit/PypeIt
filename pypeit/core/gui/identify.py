@@ -21,7 +21,8 @@ from matplotlib.widgets import Button, Slider
 
 from IPython import embed
 
-from pypeit.par import pypeitpar
+from pypeit.par import newpypeitpar as pypeitpar
+#from pypeit.par import pypeitpar
 from pypeit.core.wavecal import wv_fitting, waveio, wvutils
 from pypeit import log
 from astropy.io import ascii as ascii_io

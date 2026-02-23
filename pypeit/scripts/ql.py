@@ -57,7 +57,8 @@ from pypeit import inputfiles
 from pypeit import outputfiles
 from pypeit import pypeit
 from pypeit import coadd2d
-from pypeit.par.pypeitpar import PypeItPar
+from pypeit.par import newpypeitpar as pypeitpar
+#from pypeit.par.pypeitpar import PypeItPar
 from pypeit.calibframe import CalibFrame
 from pypeit.core.parse import parse_binning
 from pypeit.scripts import scriptbase
@@ -451,7 +452,7 @@ def calib_manifest(calib_dir, spectrograph):
         # Remove the 'Setup *' entry
         del setups[pypeitFile.setup_name][f'Setup {pypeitFile.setup_name}']
         # Add the calibrations directory
-        par = PypeItPar.from_cfg_lines(pypeitFile.cfg_lines)
+        par = pypeitpar.PypeItPar.from_cfg_lines(pypeitFile.cfg_lines)
         setups[pypeitFile.setup_name]['calib_dir'] \
                 = pypeit_file.parent / par['calibrations']['calib_dir']
         # If the calibrations directory doesn't exist, ignore the directory!

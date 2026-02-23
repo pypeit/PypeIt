@@ -10,7 +10,8 @@ import numpy as np
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.par import pypeitpar
+from pypeit.par import newpypeitpar as pypeitpar
+#from pypeit.par import pypeitpar
 from pypeit.images import rawimage
 from pypeit.images import combineimage
 from pypeit.images import pypeitimage
@@ -244,10 +245,10 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
         raise PypeItError('Provided ParSet must be type FrameGroupPar, not '
                    f'{frame_par.__class__.__name__}.')
-    if not valid_frametype(frame_par['frametype'], quiet=True):
-        # NOTE: This should not be necessary because FrameGroupPar explicitly
-        # requires frametype to be valid
-        raise PypeItError(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
+#    if not valid_frametype(frame_par['frametype'], quiet=True):
+#        # NOTE: This should not be necessary because FrameGroupPar explicitly
+#        # requires frametype to be valid
+#        raise PypeItError(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
 
     # Should the detectors be reformatted into a single image mosaic?
     if mosaic is None:
@@ -267,8 +268,10 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])
     pypeitImage = combineImage.run(maxiters=maxiters, ignore_saturation=ignore_saturation)
     # Return class type, if returning any of the frame_image_classes
-    cls = frame_image_classes[frame_par['frametype']] \
-            if frame_par['frametype'] in frame_image_classes.keys() else None
+#    cls = frame_image_classes[frame_par['frametype']] \
+#            if frame_par['frametype'] in frame_image_classes.keys() else None
+    cls = frame_image_classes[frame_par.frametype] \
+            if frame_par.frametype in frame_image_classes.keys() else None
 
     # Either return the image directly, or decorate and return according to the
     # type of calibration.  For the latter, this specific use of

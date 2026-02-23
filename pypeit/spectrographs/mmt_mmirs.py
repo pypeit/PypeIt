@@ -22,7 +22,8 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
-from pypeit.par import parset
+from pypeit.par import newparset as parset
+#from pypeit.par import parset
 
 
 class MMTMMIRSSpectrograph(spectrograph.Spectrograph):

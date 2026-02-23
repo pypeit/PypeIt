@@ -19,7 +19,8 @@ from pypeit.core import framematch
 from pypeit.core import meta
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from pypeit.par import parset
+from pypeit.par import newparset as parset
+#from pypeit.par import parset
 
 from IPython import embed
 

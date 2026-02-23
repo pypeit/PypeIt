@@ -19,7 +19,8 @@ from pypeit import utils
 from pypeit import io
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from pypeit.par import parset
+from pypeit.par import newparset as parset
+#from pypeit.par import parset
 from pypeit.spectrographs.slitmask import SlitMask
 
 from IPython import embed

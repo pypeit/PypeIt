@@ -7,26 +7,27 @@ Fit telluric absorption to observed spectra
 from IPython import embed
 
 from pypeit.scripts import scriptbase
-from pypeit.par.pypeitpar import TelluricPar
+from pypeit.par import newpypeitpar as pypeitpar
+#from pypeit.par.pypeitpar import TelluricPar
 
 class TellFit(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        par = TelluricPar()
+        par = pypeitpar.TelluricPar()
         parser = super().get_parser(description='Telluric correct a spectrum',
                                     width=width, formatter=scriptbase.SmartFormatter,
                                     default_log_file=True)
         parser.add_argument("spec1dfile", type=str,
                             help="spec1d or coadd file that will be used for telluric correction.")
         parser.add_argument("--objmodel", type=str, default=None,
-                            choices=['qso', 'star', 'poly'], help=par.descr['objmodel'])
+                            choices=['qso', 'star', 'poly'], help=par.parameters['objmodel']['descr'])
         parser.add_argument("-r", "--redshift", type=float, default=None,
-                            help=par.descr['redshift'])
+                            help=par.parameters['redshift']['descr'])
         parser.add_argument("-g", "--tell_grid", type=str, default=None,
-                            help=par.descr['telgridfile'])
+                            help=par.parameters['telgridfile']['descr'])
         parser.add_argument("-p", "--pca_file", type=str, default=None,
-                            help=par.default['pca_file'])
+                            help=par.parameters['pca_file']['descr'])
         parser.add_argument("-t", "--tell_file", type=str,
                             help='R|Configuration file to change default telluric parameters.  '
                                  'The format is identical to any telluric parameters in your '

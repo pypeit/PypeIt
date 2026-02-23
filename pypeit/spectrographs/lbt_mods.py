@@ -15,7 +15,8 @@ from pypeit import telescopes
 from pypeit import utils
 from pypeit import io
 from pypeit.core import framematch
-from pypeit.par import parset
+from pypeit.par import newparset as parset
+#from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images.detector_container import DetectorContainer

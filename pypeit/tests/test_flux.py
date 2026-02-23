@@ -5,7 +5,8 @@ Module to run tests on a few flux routines
 import numpy as np
 
 from pypeit.core import flux_calib
-from pypeit.par.pypeitpar import Coadd1DPar
+from pypeit.par import newpypeitpar as pypeitpar
+#from pypeit.par.pypeitpar import Coadd1DPar
 
 
 def test_filter_scale():
@@ -14,7 +15,7 @@ def test_filter_scale():
     flux = np.ones_like(wave)
     gdm = np.ones_like(wave, dtype=bool)
     #
-    par = Coadd1DPar()
+    par = pypeitpar.Coadd1DPar()
     par['filter'] = 'DECAM-R'
     par['filter_mag'] = 17.
     # Run

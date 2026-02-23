@@ -12,7 +12,8 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
+from pypeit.par import newpypeitpar as pypeitpar
+#from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
