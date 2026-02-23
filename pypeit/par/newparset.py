@@ -16,6 +16,42 @@ from pypeit import log
 from pypeit.par import util
 
 
+def tuple_force(par):
+    """
+    Cast object as tuple.
+
+    Args:
+        par (object):
+            Object to cast as a tuple.  Can be None; if so, the returned value
+            is also None (*not* an empty tuple).  If this is already a tuple,
+            this is the returned value.  If the input is a list with one tuple,
+            the returned value is just the single tuple in the list (i.e, this
+            does not convert the result to a tuple of one tuple).
+
+    Returns:
+        :obj:`tuple`: Casted result.
+    """
+    # Already has correct type
+    if par is None or isinstance(par, tuple):
+        return par
+
+    # If the value is a list of one tuple, return the tuple.
+    # TODO: This is a hack, and we should probably revisit how this is done.
+    # The issue is that pypeit.par.util.eval_tuple always returns a list of
+    # tuples, something that's required for allowing lists of detector mosaics.
+    # But elements of TelluricPar are forced to be tuples.  When constructing
+    # the parameters to use in a given run, the sequence of merging the
+    # defaults, configuration-specific, and user-provided parameters leads to
+    # converting these TelluricPar parameters into multiply nested tuples.  This
+    # hook avoids that.
+    if isinstance(par, list) and len(par) == 1 and isinstance(par[0], tuple):
+        return par[0]
+
+    return tuple(par)
+
+
+# TODO: May need to disallow parameters being either a tuple or list.  Because
+# of issues with ConfigObj, these may need to be mutually exclusive.
 def set_parameter_definition(dtype=None, default=None, options=None, descr=None):
     """
     Define a parameter for a :class:`~pypeit.par.newparset.ParSet`.
@@ -141,7 +177,11 @@ class ParSet:
 
         # Now set all the user-defined values.
         for key in kwargs.keys():
-            self.__setitem__(key, kwargs[key])
+            try:
+                self.__setitem__(key, kwargs[key])
+            except:
+                embed(header='setting item in init')
+                exit()
 
         # Finally, we validate
         self.validate()
@@ -705,11 +745,12 @@ class ParSet:
         Instantiate from a dictionary.
 
         This recursively handles elements of the dictionary that are expected to
-        be (subclasses of) :class:`~pypeit.par.newparset.ParSet` objects by calling their
-        :func:`from_dict` methods.
+        be (subclasses of) :class:`~pypeit.par.newparset.ParSet` objects by
+        calling their :func:`from_dict` methods.
 
-        For subclasses that do not have any nested :class:`~pypeit.par.newparset.ParSet` objects, note
-        that ``cls(**cfg)`` and ``cls.from_dict(cfg)`` are identical.
+        For subclasses that do not have any nested
+        :class:`~pypeit.par.newparset.ParSet` objects, note that ``cls(**cfg)``
+        and ``cls.from_dict(cfg)`` are identical.
 
         Parameters
         ----------
@@ -722,6 +763,8 @@ class ParSet:
                 raise KeyError(f'{key} is not a valid {cls.__name__} parameter!')
             if isinstance(values[i], dict) and issubclass(cls.parameters[key]['dtype'][0], ParSet):
                 values[i] = cls.parameters[key]['dtype'][0].from_dict(values[i])
+            if len(cls.parameters[key]['dtype']) == 1 and cls.parameters[key]['dtype'][0] is tuple:
+                values[i] = tuple_force(values[i])
         return cls(**dict(zip(pars, values)))
     
     @classmethod

@@ -13,6 +13,7 @@ from pypeit import dataPaths
 from pypeit import log
 from pypeit import PypeItError
 from pypeit.core import parse
+from pypeit.core.framematch import FrameTypeBitMask
 from pypeit.par import newparset
 from pypeit.par import util
 
@@ -501,8 +502,15 @@ class ProcessImagesPar(newparset.ParSet):
 
 class FrameGroupPar(newparset.ParSet):
     """
-    New-style parameter set for grouping frames (replacement for FrameGroupPar).
+    The abstract base class for each frame type and the details of how they
+    should be processed.
     """
+
+    frametype = None
+    """
+    The frametype for this ParSet, which must be overwritten by the subclass
+    """
+
     parameters = {
         'exprng': newparset.set_parameter_definition(
             dtype=list,
@@ -515,10 +523,27 @@ class FrameGroupPar(newparset.ParSet):
             ),
         ),
     }
+    """
+    The base-class only defines the exposure range for the frametype.
+    """
 
     def validate(self):
-        if len(self.data['exprng']) != 2:
+        """
+        Validate the frame parameters.
+
+        The ``exprng`` must be valid, and the frametype must be one of the
+        allowed values.
+        """
+        if self.data['exprng'] is not None and len(self.data['exprng']) != 2:
             raise ValueError('exprng must be a list with two items.')
+
+        if self.frametype is None:
+            raise ValueError('CODING ERROR: Subclasses of FrameGroupPar must define the frametype')
+        valid_frametypes = FrameTypeBitMask().keys()
+        if self.frametype not in valid_frametypes:
+            raise ValueError(
+                f'{self.frametype} is not a valid frametype.  Options are: {valid_frametypes}'
+            )
 
 
 class BiasFramePar(FrameGroupPar):
@@ -4514,6 +4539,7 @@ class CalibrationsPar(newparset.ParSet):
             descr='Make a bad pixel mask from bias frames? Bias frames must be provided.',
         ),
 
+        # TODO: Change the dict keys so that CalibrationsPar uses the FrameGroupPar.default_key?
         'biasframe': newparset.set_parameter_definition(
             dtype=BiasFramePar,
             default=BiasFramePar(),
@@ -4895,13 +4921,13 @@ class PypeItPar(newparset.ParSet):
         """
         # Calibrations
         for _key in self['calibrations'].keys():
-            if isinstance(self['calibrations'][_key], ParSet) \
+            if isinstance(self['calibrations'][_key], newparset.ParSet) \
                     and 'process' in self['calibrations'][_key].keys():
                 for key,value in kwargs.items():
                     self['calibrations'][_key]['process'][key] = value
         # Science frame
         for _key in self.keys():
-            if isinstance(self[_key], ParSet) and 'process' in self[_key].keys():
+            if isinstance(self[_key], newparset.ParSet) and 'process' in self[_key].keys():
                 for key,value in kwargs.items():
                     self[_key]['process'][key] = value
 

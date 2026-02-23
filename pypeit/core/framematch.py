@@ -5,8 +5,6 @@ Routines for matching frames to certain types or each other.
 """
 # TODO -- Move this out of core?
 
-from collections import OrderedDict
-
 import numpy as np
 
 from pypeit import log
@@ -16,33 +14,33 @@ from pypeit.bitmask import BitMask
 class FrameTypeBitMask(BitMask):
     """
     Define a bitmask to set the frame types.
-
-    Frame types can be arc, bias, dark, pinhole, pixelflat, science,
-    standard, or trace.
     """
     def __init__(self):
-        # TODO JFH: We need a background image type
-        frame_types = OrderedDict([
-                       ('align', 'Trace constant spatial positions along the slit'),
-                         ('arc', 'Arc lamp observation used for wavelength calibration'),
-                        ('bias', 'Bias readout for detector bias subtraction'),
-                        ('dark', 'Shuttered exposure to measure dark current'),
-                     ('pinhole', 'Pinhole observation used for tracing slit centers'),
-                   ('pixelflat', 'Flat-field exposure used for pixel-to-pixel response'),
-                   ('illumflat', 'Flat-field exposure used for illumination flat'),
-                ('lampoffflats', 'Flat-field exposure with lamps off used to remove '
-                                 'persistence from lamp on flat exposures and/or thermal emission '
-                                 'from the telescope and dome'),
-            ('slitless_pixflat', 'Flat-field exposure without slitmask used for pixel-to-pixel response'),
-                  ('scattlight', 'Frame (ideally with lots of counts) used to determine the scattered light model'),
-                     ('science', 'On-sky observation of a primary target'),
-                    ('standard', 'On-sky observation of a flux calibrator'),
-                       ('trace', 'High-count exposure used to trace slit positions'),
-                        ('tilt', 'Exposure used to trace the tilt in the wavelength solution'),
-                         ('sky', 'On-sky observation of the sky used for background subtraction'),
-                                  ])
-        super(FrameTypeBitMask, self).__init__(list(frame_types.keys()),
-                                               descr=list(frame_types.values()))
+        frame_types = {
+            'align': 'Trace constant spatial positions along the slit',
+            'arc': 'Arc lamp observation used for wavelength calibration',
+            'bias': 'Bias readout for detector bias subtraction',
+            'dark': 'Shuttered exposure to measure dark current',
+            'pinhole': 'Pinhole observation used for tracing slit centers',
+            'pixelflat': 'Flat-field exposure used for pixel-to-pixel response',
+            'illumflat': 'Flat-field exposure used for illumination flat',
+            'lampoffflats': (
+                 'Flat-field exposure with lamps off used to remove persistence from lamp on '
+                 'flat exposures and/or thermal emission from the telescope and dome'
+            ),
+            'slitless_pixflat': (
+                 'Flat-field exposure without slitmask used for pixel-to-pixel response'
+            ),
+            'scattlight': (
+                 'Frame (ideally with lots of counts) used to determine the scattered light model'
+            ),
+            'science': 'On-sky observation of a primary target',
+            'standard': 'On-sky observation of a flux calibrator',
+            'trace': 'High-count exposure used to trace slit positions',
+            'tilt': 'Exposure used to trace the tilt in the wavelength solution',
+            'sky': 'On-sky observation of the sky used for background subtraction',
+        }
+        super().__init__(list(frame_types.keys()), descr=list(frame_types.values()))
 
     def type_names(self, type_bits, join=True):
         """
