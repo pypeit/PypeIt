@@ -365,7 +365,7 @@ def compare_old_new(opar, npar):
 #    assert opar.descr == ndescr, f'{comp} descr dictionaries are different'
 
 def test_old_new_parsets():
-    compare_old_new(pypeitpar.ReduxPar(), newpypeitpar.NewReduxPar())
+    compare_old_new(pypeitpar.EdgeTracePar(), newpypeitpar.NewEdgeTracePar())
     return
     print('    ')
     print('    ')
@@ -449,6 +449,15 @@ def test_old_new_parsets():
     print('    ')
     print('    ')
     compare_old_new(pypeitpar.SlitMaskPar(), newpypeitpar.NewSlitMaskPar())
+    print('    ')
+    print('    ')
+    compare_old_new(pypeitpar.ReduxPar(), newpypeitpar.NewReduxPar())
+    print('    ')
+    print('    ')
+    compare_old_new(pypeitpar.WavelengthSolutionPar(), newpypeitpar.NewWavelengthSolutionPar())
+    print('    ')
+    print('    ')
+    compare_old_new(pypeitpar.EdgeTracePar(), newpypeitpar.NewEdgeTracePar())
     print('    ')
     print('    ')
 

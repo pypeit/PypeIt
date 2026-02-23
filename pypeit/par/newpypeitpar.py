@@ -2275,3 +2275,1182 @@ class NewReduxPar(newparset.NewParSet):
             if not isinstance(self.data['maskIDs'], list):
                 self.data['maskIDs'] = [self.data['maskIDs']]
 
+
+class NewWavelengthSolutionPar(newparset.NewParSet):
+    """
+    New-style parameter set for wavelength solution settings (replacement for WavelengthSolutionPar).
+
+    Mirrors the legacy `WavelengthSolutionPar` in :mod:`pypeit.par.pypeitpar`.
+    """
+    
+    valid_methods = ['holy-grail', 'identify', 'reidentify', 'echelle', 'full_template']
+
+    parameters = {
+        'reference': newparset.set_parameter_definition(
+            dtype=str,
+            default='arc',
+            options=['arc', 'sky', 'pixel'],
+            descr=(
+                'Perform wavelength calibration with an arc, sky frame.  Use '
+                '\'pixel\' for no wavelength solution.'
+            ),
+        ),
+        'method': newparset.set_parameter_definition(
+            dtype=str,
+            default='holy-grail',
+            options=valid_methods,
+            descr=(
+                'Method to use to fit the individual arc lines.  Note that some of '
+                'the available methods should not be used; they are unstable and '
+                'require significant parameter tweaking to succeed.  You should use '
+                'one of \'holy-grail\', \'reidentify\', or \'full_template\'.  '
+                '\'holy-grail\' attempts to get a first guess at line IDs by looking '
+                'for patterns in the line locations.  It is fully automated.  When '
+                'it works, it works well; however, it can fail catastrophically.  '
+                'Instead, \'reidentify\' and \'full_template\' are the preferred '
+                'methods.  They require an archived wavelength solution for your '
+                'specific instrument/grating combination as a reference.  '
+                'This is used to anchor the wavelength solution for the data being '
+                f"reduced.  All options are: {', '.join(valid_methods)}."
+            ),
+        ),
+        'echelle': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Is this an echelle spectrograph? If yes an additional 2-d fit '
+                'wavelength fit will be performed as a function of spectral pixel '
+                'and order number to improve the wavelength solution'
+            ),
+        ),
+        'ech_2dfit': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'By default, a 2D fit to the echelle orders will be performed. If set to False, '
+                'then even if this is an echelle spectrograph, the 2-d fit will not be generated. '
+                'Set this to False if you wish to use the arxiv solution exactly as it '
+                'was saved with pypeit_identify.'
+            ),
+        ),
+        'ech_separate_2d': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
+            ),
+        ),
+        'ech_nspec_coeff': newparset.set_parameter_definition(
+            dtype=int,
+            default=4,
+            descr=(
+                'For echelle spectrographs, this is the order of the final '
+                '2d fit to the spectral dimension.  You should choose this '
+                'to be the n_final of the fits to the individual orders.'
+            ),
+        ),
+        'ech_norder_coeff': newparset.set_parameter_definition(
+            dtype=int,
+            default=4,
+            descr=(
+                'For echelle spectrographs, this is the order of the final '
+                '2d fit to the order dimension.'
+            ),
+        ),
+        'ech_sigrej': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=2.0,
+            descr=(
+                'For echelle spectrographs, this is the sigma-clipping rejection '
+                'threshold in the 2d fit to spectral and order dimensions'
+            ),
+        ),
+        'bad_orders_maxfrac': newparset.set_parameter_definition(
+            dtype=float,
+            default=0.25,
+            descr=(
+                'For echelle spectrographs (i.e., ``echelle=True``), '
+                'this is the maximum fraction of orders (per detector) with failed 1D fit, '
+                'for PypeIt to attempt a refit.'
+            ),
+        ),
+        'frac_rms_thresh': newparset.set_parameter_definition(
+            dtype=float,
+            default=1.5,
+            descr=(
+                'For echelle spectrographs (i.e., ``echelle=True``), '
+                'this is the fractional change in the RMS threshold used '
+                'when a 1D fit is re-attempted for failed orders.'
+            ),
+        ),
+        'lamps': newparset.set_parameter_definition(
+            dtype=list,
+            default=None,
+            descr=(
+                'Name of one or more ions used for the wavelength calibration.  Use '
+                '``None`` for no calibration. Choose ``use_header`` to use the list of lamps '
+                'recorded in the header of the arc frames (this is currently '
+                'available only for Keck DEIMOS, Keck LRIS, MMT Blue Channel, and LDT DeVeny).'
+            ),
+        ),
+        'use_instr_flag': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'If True, restrict to lines matching the instrument.  WARNING: This '
+                'is only implemented for shane_kast_red + HolyGrail.  Do not use it '
+                'unless you really know what you are doing.'
+            ),
+        ),
+        'sigdetect': newparset.set_parameter_definition(
+            dtype=[int, float, list, np.ndarray],
+            default=5.0,
+            descr=(
+                'Sigma threshold above fluctuations for arc-line detection.  Arcs are '
+                'continuum subtracted and the fluctuations are computed after continuum '
+                'subtraction.  This can be a single number or a vector (list or numpy '
+                'array) that provides the detection threshold for each slit.'
+            ),
+        ),
+        'fwhm': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=4.0,
+            descr=(
+                'Spectral sampling of the arc lines. This is the FWHM of an arcline in '
+                'binned pixels of the input arc image. Note that this is used also in the '
+                'wave tilts calibration.'
+            ),
+        ),
+        'fwhm_fromlines': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'Estimate spectral resolution in each slit using the arc lines. '
+                'If True, the estimated FWHM will override ``fwhm`` in '
+                'the determination of the wavelength solution (including the '
+                'calculation of the threshold for the solution RMS, see '
+                '``rms_thresh_frac_fwhm``), and ALSO for the wave tilts calibration.'
+            ),
+        ),
+        'fwhm_spat_order': newparset.set_parameter_definition(
+            dtype=int,
+            default=0,
+            descr=(
+                'This parameter determines the spatial polynomial order to use in the '
+                '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spec_order.'
+            ),
+        ),
+        'fwhm_spec_order': newparset.set_parameter_definition(
+            dtype=int,
+            default=1,
+            descr=(
+                'This parameter determines the spectral polynomial order to use in the '
+                '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spat_order.'
+            ),
+        ),
+        'reid_arxiv': newparset.set_parameter_definition(
+            dtype=str,
+            default=None,
+            descr=(
+                'Name of the archival wavelength solution file that will be used '
+                'for the wavelength reidentification.  Only used if ``method`` is '
+                '\'reidentify\' or \'full_template\'.'
+            ),
+        ),
+        'nreid_min': newparset.set_parameter_definition(
+            dtype=int,
+            default=1,
+            descr=(
+                'Minimum number of times that a given candidate reidentified line must be properly '
+                'matched with a line in the arxiv to be considered a good reidentification. If there '
+                'is a lot of duplication in the arxiv of the spectra in question (i.e. multislit) set '
+                'this to a number like 1-4. For echelle this depends on the number of solutions in the '
+                'arxiv.  Set this to 1 for fixed format echelle spectrographs.  For an echelle with a '
+                'tiltable grating, this will depend on the number of solutions in the arxiv.'
+            ),
+        ),
+        'reid_cont_sub': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'If True, continuum subtract the arc and arxiv spectrum before '
+                'the wavelength reidentification. '
+            ),
+        ),
+        'wvrng_arxiv': newparset.set_parameter_definition(
+            dtype=list,
+            default=None,
+            descr=(
+                'Cut the arxiv template down to this specified wavelength range [min,max]'
+            ),
+        ),
+        'nsnippet': newparset.set_parameter_definition(
+            dtype=int,
+            default=2,
+            descr=(
+                "Number of spectra to chop the arc spectrum into when ``method`` is 'full_template'"
+            ),
+        ),
+        'cc_shift_range': newparset.set_parameter_definition(
+            dtype=tuple,
+            default=None,
+            descr=(
+                'Range of pixel shifts allowed when cross-correlating the '
+                'input arc spectrum with the archive spectrum.  If None, '
+                '``cc_offset_minmax`` will be used to determine this range.'
+            ),
+        ),
+        'cc_thresh': newparset.set_parameter_definition(
+            dtype=[float, list, np.ndarray],
+            default=0.70,
+            descr=(
+                'Threshold for the *global* cross-correlation coefficient between '
+                'an input spectrum and member of the archive required to attempt '
+                'reidentification.  Spectra from the archive with a lower '
+                'cross-correlation are not used for reidentification. This can be '
+                'a single number or a list/array providing the value for each slit.'
+            ),
+        ),
+        'cc_local_thresh': newparset.set_parameter_definition(
+            dtype=float,
+            default=0.70,
+            descr=(
+                'Threshold for the *local* cross-correlation coefficient, '
+                'evaluated at each reidentified line,  between an input '
+                'spectrum and the shifted and stretched archive spectrum '
+                'above which a line must be to be considered a good line '
+                'for reidentification. The local cross-correlation is '
+                'evaluated at each candidate reidentified line (using a '
+                'window of nlocal_cc), and is then used to score the the '
+                'reidentified lines to arrive at the final set of good '
+                'reidentifications.'
+            ),
+        ),
+        'nlocal_cc': newparset.set_parameter_definition(
+            dtype=int,
+            default=11,
+            descr=(
+                'Size of pixel window used for local cross-correlation computation for each arc line. '
+                'If not an odd number one will be added to it to make it odd.'
+            ),
+        ),
+        'rms_thresh_frac_fwhm': newparset.set_parameter_definition(
+            dtype=float,
+            default=0.15,
+            descr=(
+                'Maximum RMS (expressed as fraction of the FWHM) for keeping '
+                'a slit/order solution. If ``fwhm_fromlines`` is True, '
+                'FWHM will be computed from the arc lines in each slits, otherwise ``fwhm`` '
+                'will be used. This parameter is used for the \'holy-grail\', '
+                '\'reidentify\', and \'echelle\' methods and  when re-analyzing '
+                'a slit using the ``redo_slits`` parameter. '
+            ),
+        ),
+        'match_toler': newparset.set_parameter_definition(
+            dtype=float,
+            default=2.0,
+            descr=(
+                'Matching tolerance in pixels when searching for new lines. This '
+                'is the difference in pixels between the wavlength assigned to '
+                'an arc line by an iteration of the wavelength solution to the '
+                'wavelength in the line list.  This parameter is also used as '
+                'the matching tolerance in pixels for a line reidentification.  '
+                'A good line match must match within this tolerance to the '
+                'shifted and stretched archive spectrum, and the archive '
+                'wavelength solution at this match must be within match_toler '
+                'dispersion elements from the line in line list.'
+            ),
+        ),
+        'func': newparset.set_parameter_definition(
+            dtype=str,
+            default='legendre',
+            descr=(
+                'Function used for wavelength solution fits'
+            ),
+        ),
+        'n_first': newparset.set_parameter_definition(
+            dtype=int,
+            default=2,
+            descr=(
+                'Order of first guess fit to the wavelength solution.'
+            ),
+        ),
+        'sigrej_first': newparset.set_parameter_definition(
+            dtype=float,
+            default=2.0,
+            descr=(
+                'Number of sigma for rejection for the first guess to the wavelength solution.'
+            ),
+        ),
+        'n_final': newparset.set_parameter_definition(
+            dtype=[int, float, list, np.ndarray],
+            default=4,
+            descr=(
+                'Order of final fit to the wavelength solution (there are n_final+1 parameters '
+                'in the fit). This can be a single number or a list/array providing the value '
+                'for each slit'
+            ),
+        ),
+        'sigrej_final': newparset.set_parameter_definition(
+            dtype=float,
+            default=3.0,
+            descr=(
+                'Number of sigma for rejection for the final guess to the wavelength solution.'
+            ),
+        ),
+        'numsearch': newparset.set_parameter_definition(
+            dtype=int,
+            default=20,
+            descr=(
+                'Number of brightest arc lines to search for in preliminary identification'
+            ),
+        ),
+        'nfitpix': newparset.set_parameter_definition(
+            dtype=int,
+            default=5,
+            descr=(
+                'Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)'
+            ),
+        ),
+        'refframe': newparset.set_parameter_definition(
+            dtype=str,
+            default='heliocentric',
+            options=['observed', 'heliocentric', 'barycentric'],
+            descr=(
+                'Frame of reference for the wavelength calibration.  Options are: observed, heliocentric, barycentric'
+            ),
+        ),
+        'redo_slits': newparset.set_parameter_definition(
+            dtype=[int, list],
+            descr=(
+                'Redo the input slit(s) [multislit] or order(s) [echelle]'
+            ),
+        ),
+        'qa_log': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
+                'If True, the scaling will be log, if False linear'
+            ),
+        ),
+        'cc_percent_ceil': newparset.set_parameter_definition(
+            dtype=float,
+            default=50.0,
+            descr=(
+                'Determines the percentile at which to cap lines used in cross correlation, '
+                'to prevent large lines from dominating. If 100, all lines are allowed at their '
+                'maximum heights. May produce spurious peaks in xcorr'
+            ),
+        ),
+        'echelle_pad': newparset.set_parameter_definition(
+            dtype=int,
+            default=3,
+            descr=(
+                'Number of orders by which to pad the echellogram reference in the echelle '
+                'method. Values > 0 allow for some error in the reddest order guess, but '
+                'require sufficient reference orders.'
+            ),
+        ),
+        'cc_offset_minmax': newparset.set_parameter_definition(
+            dtype=float,
+            default=1.0,
+            descr=(
+                'Fraction of the total spectral pixels used to determine the range of '
+                'pixel shifts allowed when cross-correlating the input arc spectrum with '
+                'the archive spectrum. Restricting this can be crucial if there are few '
+                'reference lines and the cross correlation can get confused. '
+                'This parameter is only used if ``cc_shift_range`` is None.'
+            ),
+        ),
+        'stretch_func': newparset.set_parameter_definition(
+            dtype=str,
+            default='quadratic',
+            options=['linear', 'quadratic'],
+            descr=(
+                'Whether to use a linear (linear) or quadratic (quad) function to stretch '
+                'the extracted arcs when identifying emission lines with reidentify. For '
+                'NIRSPEC, the quadratic mode tends to do better because the wavelength '
+                'solution is typically at least 2nd or 3rd order.'
+            ),
+        ),
+    }
+
+    
+
+
+class NewEdgeTracePar(newparset.NewParSet):
+    """
+    New-style parameter set for slit edge tracing (replacement for EdgeTracePar).
+
+    Mirrors the legacy `EdgeTracePar` in :mod:`pypeit.par.pypeitpar`.
+    """
+
+    default_key = 'edgetrace'
+
+    parameters = {
+        'filt_iter': newparset.set_parameter_definition(
+            dtype=int,
+            default=0,
+            descr=(
+                'Number of median-filtering iterations to perform on sqrt(trace) '
+                'image before applying to Sobel filter to detect slit/order edges.'
+            ),
+        ),
+        'sobel_mode': newparset.set_parameter_definition(
+            dtype=str,
+            default='nearest',
+            options=['nearest', 'constant'],
+            descr=(
+                'Mode for Sobel filtering.  Default is \'nearest\'; note we find'
+                '\'constant\' works best for DEIMOS.'
+            ),
+        ),
+        'edge_thresh': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=20.0,
+            descr=(
+                'Threshold for finding edges in the Sobel-filtered significance image.'
+            ),
+        ),
+        'sobel_enhance': newparset.set_parameter_definition(
+            dtype=int,
+            default=0,
+            descr=(
+                'Enhance the sobel filtering? A value of 0 will not enhance the sobel filtering. '
+                'Any other value > 0 will sum the sobel values. For example, a value of 3 will '
+                'combine the sobel values for the 3 nearest pixels. This is useful when a slit '
+                'edge is poorly defined (e.g. vignetted).'
+            ),
+        ),
+        'exclude_regions': newparset.set_parameter_definition(
+            dtype=[list, str],
+            default=None,
+            descr=(
+                'User-defined regions to exclude from the slit tracing. To set this parameter, '
+                'the text should be a comma separated list of pixel ranges (in the x direction) '
+                'to be excluded and the detector number. For example, the following string '
+                '1:0:20,1:300:400  would select two regions in det=1 between pixels 0 and 20 '
+                'and between 300 and 400.'
+            ),
+        ),
+        'follow_span': newparset.set_parameter_definition(
+            dtype=int,
+            default=20,
+            descr=(
+                'In the initial connection of spectrally adjacent edge '
+                'detections, this sets the number of previous spectral rows '
+                'to consider when following slits forward.'
+            ),
+        ),
+        'det_min_spec_length': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=0.33,
+            descr=(
+                'The minimum spectral length (as a fraction of the ' 
+                'detector size) of a trace determined by direct ' 
+                'measurements of the detector data (as opposed to what ' 
+                'should be included in any modeling approach; see ' 
+                'fit_min_spec_length).'
+            ),
+        ),
+        'trim_spec': newparset.set_parameter_definition(
+            dtype=list,
+            default=None,
+            descr=(
+                'User-defined truncation of all slits in the spectral direction.'
+                'Should be two integers, e.g. 100,150 trims 100 pixels from the '
+                'short wavelength end and 150 pixels from the long wavelength '
+                'end of the spectral axis of the detector.'
+            ),
+        ),
+        'mask_off_detector': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Mask spectral regions in each slit/order where more than '
+                '50% of the slit spatial coverage falls off the detector. '
+            ),
+        ),
+        'max_shift_abs': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=0.5,
+            descr=(
+                'Maximum spatial shift in pixels between an input edge '
+                'location and the recentroided value.'
+            ),
+        ),
+        'max_shift_adj': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=0.15,
+            descr=(
+                'Maximum spatial shift in pixels between the edges in '
+                'adjacent spectral positions.'
+            ),
+        ),
+        'max_spat_error': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Maximum error in the spatial position of edges in pixels.'
+            ),
+        ),
+        'match_tol': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=3.0,
+            descr=(
+                'Same-side slit edges below this separation in pixels are '
+                'considered part of the same edge.'
+            ),
+        ),
+        'fit_function': newparset.set_parameter_definition(
+            dtype=str,
+            default='legendre',
+            options=['polynomial', 'legendre', 'chebyshev'],
+            descr=(
+                'Function fit to edge measurements.  Options are: polynomial, legendre, chebyshev'
+            ),
+        ),
+        'fit_order': newparset.set_parameter_definition(
+            dtype=int,
+            default=5,
+            descr=(
+                'Order of the function fit to edge measurements.'
+            ),
+        ),
+        'fit_maxdev': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=5.0,
+            descr=(
+                'Maximum deviation between the fitted and measured edge position '
+                'for rejection in spatial pixels.'
+            ),
+        ),
+        'fit_maxiter': newparset.set_parameter_definition(
+            dtype=int,
+            default=25,
+            descr=(
+                'Maximum number of rejection iterations during edge fitting.'
+            ),
+        ),
+        'fit_niter': newparset.set_parameter_definition(
+            dtype=int,
+            default=1,
+            descr=(
+                'Number of iterations of re-measuring and re-fitting the edge '
+                'data; see :func:`~pypeit.core.trace.fit_trace`.'
+            ),
+        ),
+        'fit_min_spec_length': newparset.set_parameter_definition(
+            dtype=float,
+            default=0.6,
+            descr=(
+                'Minimum unmasked spectral length of a traced slit edge '
+                'to use in any modeling procedure (polynomial fitting '
+                'or PCA decomposition).'
+            ),
+        ),
+        'auto_pca': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'During automated tracing, attempt to construct a PCA decomposition '
+                'of the traces. When True, the edge traces resulting from the '
+                'initial detection, centroid refinement, and polynomial fitting '
+                'must meet a set of criteria for performing the pca; see ' 
+                ':func:`pypeit.edgetrace.EdgeTraceSet.can_pca`.  If False, the '
+                '``sync_predict`` parameter *cannot* be set to ``pca``; if it is '
+                'not, the value is set to ``nearest`` and a warning is issued when '
+                'validating the parameter set.'
+            ),
+        ),
+        'left_right_pca': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Construct a PCA decomposition for the left and right traces '
+                'separately.  This can be important for cross-dispersed '
+                'echelle spectrographs (e.g., Keck-NIRES)'
+            ),
+        ),
+        'pca_min_edges': newparset.set_parameter_definition(
+            dtype=int,
+            default=4,
+            descr=(
+                'Minimum number of edge traces required to perform a PCA '
+                'decomposition of the trace form.  If left_right_pca is True, '
+                'this minimum applies to the number of left and right traces '
+                'separately.'
+            ),
+        ),
+        'pca_n': newparset.set_parameter_definition(
+            dtype=int,
+            descr=(
+                'The number of PCA components to keep, which must be less than the '
+                'number of detected traces.  If not provided, determined by '
+                'calculating the minimum number of components required to explain a '
+                'given percentage of variance in the edge data; see `pca_var_percent`.'
+            ),
+        ),
+        'pca_var_percent': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=99.8,
+            descr=(
+                'The percentage (i.e., not the fraction) of the variance in '
+                'the edge data accounted for by the PCA used to truncate '
+                'the number of PCA coefficients to keep (see `pca_n`).  '
+                'Ignored if `pca_n` is provided directly.'
+            ),
+        ),
+        'pca_function': newparset.set_parameter_definition(
+            dtype=str,
+            default='polynomial',
+            options=['polynomial', 'legendre', 'chebyshev'],
+            descr=(
+                'Type of function fit to the PCA coefficients for each '
+                'component.  Options are: polynomial, legendre, chebyshev'
+            ),
+        ),
+        'pca_order': newparset.set_parameter_definition(
+            dtype=int,
+            default=2,
+            descr=(
+                'Order of the function fit to the PCA coefficients.'
+            ),
+        ),
+        'pca_sigrej': newparset.set_parameter_definition(
+            dtype=[int, float, list],
+            default=[2.0, 2.0],
+            descr=(
+                'Sigma rejection threshold for fitting PCA components. Individual '
+                'numbers are used for both lower and upper rejection. A list of '
+                'two numbers sets these explicitly (e.g., [2., 3.]).'
+            ),
+        ),
+        'pca_maxrej': newparset.set_parameter_definition(
+            dtype=int,
+            default=1,
+            descr=(
+                'Maximum number of PCA coefficients rejected during a given fit '
+                'iteration.'
+            ),
+        ),
+        'pca_maxiter': newparset.set_parameter_definition(
+            dtype=int,
+            default=25,
+            descr=(
+                'Maximum number of rejection iterations when fitting the PCA '
+                'coefficients.'
+            ),
+        ),
+        'smash_range': newparset.set_parameter_definition(
+            dtype=list,
+            default=[0.0, 1.0],
+            descr=(
+                'Range of the slit in the spectral direction (in fractional '
+                'units) to smash when searching for slit edges.  If the '
+                'spectrum covers only a portion of the image, use that range.'
+            ),
+        ),
+        'edge_detect_clip': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Sigma clipping level for peaks detected in the collapsed, '
+                'Sobel-filtered significance image.'
+            ),
+        ),
+        'trace_median_frac': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'After detection of peaks in the rectified Sobel-filtered ' 
+                'image and before refitting the edge traces, the rectified ' 
+                'image is median filtered with a kernel width of ' 
+                '`trace_median_frac*nspec` along the spectral dimension.'
+            ),
+        ),
+        'trace_thresh': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'After rectification and median filtering of the Sobel-filtered ' 
+                'image (see `trace_median_frac`), values in the median-filtered ' 
+                'image *below* this threshold are masked in the refitting of ' 
+                'the edge trace data.  If None, no masking applied.'
+            ),
+        ),
+        'trace_rms_tol': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'After retracing edges using peaks detected in the rectified ' 
+                'and collapsed image, the RMS difference (in pixels) between ' 
+                'the original and refit traces are calculated.  This sets the ' 
+                'upper limit of the RMS for traces that will be removed.  If ' 
+                'None, no limit is set and all new traces are kept.'
+            ),
+        ),
+        'fwhm_uniform': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=3.0,
+            descr=(
+                'The `fwhm` parameter to use when using uniform weighting in ' 
+                ':func:`~pypeit.core.trace.fit_trace` when refining the PCA ' 
+                'predictions of edges.  See description of ' 
+                ':func:`~pypeit.core.trace.peak_trace`.'
+            ),
+        ),
+        'niter_uniform': newparset.set_parameter_definition(
+            dtype=int,
+            default=9,
+            descr=(
+                'The number of iterations of ' 
+                ':func:`~pypeit.core.trace.fit_trace` to use when using ' 
+                'uniform weighting.'
+            ),
+        ),
+        'fwhm_gaussian': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=3.0,
+            descr=(
+                'The `fwhm` parameter to use when using Gaussian weighting in ' 
+                ':func:`~pypeit.core.trace.fit_trace` when refining the PCA ' 
+                'predictions of edges.  See description of ' 
+                ':func:`~pypeit.core.trace.peak_trace`.'
+            ),
+        ),
+        'niter_gaussian': newparset.set_parameter_definition(
+            dtype=int,
+            default=6,
+            descr=(
+                'The number of iterations of ' 
+                ':func:`~pypeit.core.trace.fit_trace` to use when using ' 
+                'Gaussian weighting.'
+            ),
+        ),
+        'min_edge_side_sep': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=5.0,
+            descr=(
+                'Minimum separation between same-side edges (e.g., the ' 
+                'minimum separation between two subsequent right-edge ' 
+                'detections) in units of ``fwhm_gaussian``.  For example, ' 
+                'if ``fwhm_gaussian = 3.0`` and ``min_edge_sid_sep = 5.``, ' 
+                'the separation between subsequent right edges must be at ' 
+                'least 15 pixels.'
+            ),
+        ),
+        'det_buffer': newparset.set_parameter_definition(
+            dtype=int,
+            default=5,
+            descr=(
+                'The minimum separation between the detector edges and a slit ' 
+                'edge for any added edge traces.  Must be positive.'
+            ),
+        ),
+        'max_nudge': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'If parts of any (predicted) trace fall off the detector edge, '
+                'allow them to be nudged away from the detector edge up to and '
+                'including this maximum number of pixels.  If None, no limit is '
+                'set; otherwise should be 0 or larger.'
+            ),
+        ),
+        'sync_predict': newparset.set_parameter_definition(
+            dtype=str,
+            default='pca',
+            options=['pca', 'nearest', 'auto'],
+            descr=(
+                'Mode to use when predicting the form of the trace to insert.  '
+                'Use `pca` to use the PCA decomposition, `nearest` to '
+                'reproduce the shape of the nearest trace, or `auto` to let PypeIt '
+                'decide which mode to use between `pca` and `nearest`. In general, '
+                'it will first try `pca`, and if that is not possible, it will use `nearest`.'
+            ),
+        ),
+        'sync_center': newparset.set_parameter_definition(
+            dtype=str,
+            default='median',
+            options=['median', 'nearest', 'gap'],
+            descr=(
+                'Mode to use for determining the location of traces to insert.  '
+                'Use `median` to use the median of the matched left and right '
+                'edge pairs, `nearest` to use the length of the nearest slit, '
+                'or `gap` to offset by a fixed gap width from the next slit edge.'
+            ),
+        ),
+        'gap_offset': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=5.0,
+            descr=(
+                'Offset (pixels) used for the slit edge gap width when inserting '
+                'slit edges (see `sync_center`) or when nudging predicted slit '
+                'edges to avoid slit overlaps.  This should be larger than '
+                '`minimum_slit_gap` when converted to arcseconds.'
+            ),
+        ),
+        'sync_to_edge': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'If adding a first left edge or a last right edge, ignore '
+                '`center_mode` for these edges and place them at the edge of '
+                'the detector (with the relevant shape).'
+            ),
+        ),
+        'bound_detector': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'When the code is ready to synchronize the left/right trace '
+                'edges, the traces should have been constructed, vetted, and '
+                'cleaned. This can sometimes lead to *no* valid traces. This '
+                'parameter dictates what to do next. If ``bound_detector`` is '
+                'True, the code will artificially add left and right edges '
+                'that bound the detector; if False, the code identifies the '
+                'slit-edge tracing as being unsuccessful, warns the user, and '
+                'ends gracefully. Note that setting ``bound_detector`` to '
+                'True is needed for some long-slit data where the slit '
+                'edges are, in fact, beyond the edges of the detector.'
+            ),
+        ),
+        'minimum_slit_dlength': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Minimum *change* in the slit length (arcsec) as a '
+                'function of wavelength in arcsec.  This is mostly '
+                'meant to catch cases when the polynomial fit to the '
+                'detected edges becomes ill-conditioned (e.g., when '
+                'the slits run off the edge of the detector) and leads '
+                'to wild traces.  If reducing the order of the '
+                'polynomial (``fit_order``) does not help, try using '
+                'this to remove poorly constrained slits.'
+            ),
+        ),
+        'dlength_range': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Similar to ``minimum_slit_dlength``, but constrains the '
+                '*fractional* change in the slit length as a function of '
+                'wavelength.  For example, a value of 0.2 means that slit '
+                'length should not vary more than 20%'
+                'as a function of wavelength.  '
+            ),
+        ),
+        'minimum_slit_length': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Minimum slit length in arcsec.  Slit lengths are '
+                'determined by the median difference between the left '
+                'and right edge locations for the unmasked trace '
+                'locations.  This is used to identify traces that are '
+                '*erroneously* matched together to form slits.  Short '
+                'slits are expected to be ignored or removed (see '
+                ' ``clip``).  If None, no minimum slit length applied.'
+            ),
+        ),
+        'minimum_slit_length_sci': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Minimum slit length in arcsec for a science slit.  '
+                'Slit lengths are determined by the median difference '
+                'between the left and right edge locations for the '
+                'unmasked trace locations.  Used in combination with '
+                '``minimum_slit_length``, this parameter is used to '
+                'identify box or alignment slits; i.e., those slits '
+                'that are shorter than ``minimum_slit_length_sci`` but '
+                'larger than ``minimum_slit_length`` are box/alignment '
+                'slits.  Box slits are *never* removed (see ``clip``), '
+                'but no spectra are extracted from them.  If None, no '
+                'minimum science slit length is applied.'
+            ),
+        ),
+        'length_range': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Allowed range in slit length compared to the median slit '
+                'length.  For example, a value of 0.3 means that slit lengths '
+                'should not vary more than 30%.  Relatively shorter or longer '
+                'slits are masked or clipped.  Most useful for echelle or '
+                'multi-slit data where the slits should have similar or '
+                'identical lengths.'
+            ),
+        ),
+        'minimum_slit_gap': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Minimum slit gap in arcsec.  Gaps between slits are '
+                'determined by the median difference between the right '
+                'and left edge locations of adjacent slits.  Slits with '
+                'small gaps are merged by removing the intervening traces.'
+                'If None, no minimum slit gap is applied.  This should be '
+                'smaller than `gap_offset` when converted to pixels.'
+            ),
+        ),
+        'clip': newparset.set_parameter_definition(
+            dtype=bool,
+            default=True,
+            descr=(
+                'Remove traces flagged as bad, instead of only masking them.  This '
+                'is currently only used by ' 
+                ':func:`~pypeit.edgetrace.EdgeTraceSet.centroid_refine`.'
+            ),
+        ),
+        'order_match': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Orders for *fixed-format* echelle spectrographs are always '
+                'matched to a predefined expectation for the number of orders '
+                'found and their relative placement in the detector.  This sets '
+                'the tolerance allowed for matching identified "slits" to '
+                'echelle orders. Must be relative to the fraction of the '
+                'detector spatial scale (i.e., a value of 0.05 means that the '
+                'order locations must be within 5% of the expected value).  If '
+                'None, no limit is used.'
+            ),
+        ),
+        'order_offset': newparset.set_parameter_definition(
+            dtype=[int, float],
+            descr=(
+                'Orders for *fixed-format* echelle spectrographs are always '
+                'matched to a predefined expectation for the number of orders '
+                'found and their relative placement in the detector.  This sets '
+                'the offset to introduce to the expected order positions to '
+                'improve the match for this specific data. This is an additive '
+                'offset to the measured slit positions; i.e., this should '
+                'minimize the difference between the expected order positions '
+                'and ``self.slit_spatial_center() + offset``. Must be in the '
+                'fraction of the detector spatial scale. If None, no offset '
+                'is applied.'
+            ),
+        ),
+        'add_missed_orders': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'For any Echelle spectrograph (fixed-format or otherwise), '
+                'attempt to add orders that have been missed by the '
+                'automated edge tracing algorithm.  For *fixed-format* '
+                'echelles, this is based on the expected positions on '
+                'on the detector.  Otherwise, the detected orders are '
+                'modeled and used to predict the locations of missed '
+                'orders; see additional parameters '
+                '``order_width_poly``, ``order_gap_poly``, '
+                '``order_fitrej``, ``order_outlier``, and '
+                '``order_spat_range``.'
+            ),
+        ),
+        'order_width_poly': newparset.set_parameter_definition(
+            dtype=int,
+            default=2,
+            descr=(
+                'Order of the Legendre polynomial used to model the '
+                'spatial width of each order as a function of spatial '
+                'pixel position.  See ``add_missed_orders``.'
+            ),
+        ),
+        'order_gap_poly': newparset.set_parameter_definition(
+            dtype=int,
+            default=3,
+            descr=(
+                'Order of the Legendre polynomial used to model the spatial '
+                'gap between orders as a function of the order spatial '
+                'position.  See ``add_missed_orders``.'
+            ),
+        ),
+        'order_fitrej': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=3.0,
+            descr=(
+                'When fitting the width of and gap beteween echelle orders with '
+                'Legendre polynomials, this is the sigma-clipping threshold '
+                'when excluding data from the fit.  See ``add_missed_orders``.'
+            ),
+        ),
+        'order_outlier': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=None,
+            descr=(
+                'When fitting the width of echelle orders with Legendre '
+                'polynomials, this is the sigma-clipping threshold used to '
+                'identify outliers.  Orders clipped by this threshold are '
+                '*removed* from further consideration, whereas orders clipped '
+                'by ``order_fitrej`` are excluded from the polynomial fit '
+                'but are not removed.  Note this is *only applied to the order '
+                'widths*, not the order gaps.  If None, no "outliers" are '
+                'identified/removed.  Should be larger or equal to '
+                '``order_fitrej``.'
+            ),
+        ),
+        'order_spat_range': newparset.set_parameter_definition(
+            dtype=list,
+            descr=(
+                'The spatial range of the detector/mosaic over which to '
+                'predict order locations.  If None, the full '
+                'detector/mosaic range is used.  See ``add_missed_orders``.'
+            ),
+        ),
+        'overlap': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Assume slits identified as abnormally short are actually due to '
+                'overlaps between adjacent slits/orders.  If set to True, you *must* '
+                'have also used ``length_range`` to identify left-right edge pairs '
+                'that have an abnormally short separation.  For those short slits, '
+                'the code attempts to convert the short slits into slit gaps.  This '
+                'is particularly useful for blue orders in Keck-HIRES data.'
+            ),
+        ),
+        'max_overlap': newparset.set_parameter_definition(
+            dtype=float,
+            default=None,
+            descr=(
+                'When adding missing echelle orders based on where existing '
+                'orders are found, the prediction can yield overlapping orders.  '
+                'The edges of these orders are adjusted to eliminate the '
+                'overlap, and orders can be added up over the spatial range of '
+                'the detector set by ``order_spate_range``.  If this value is '
+                'None, orders are added regardless of how much they overlap.  '
+                'If not None, this defines the maximum fraction of an order '
+                'spatial width that can overlap with other orders.  For example, '
+                'if ``max_overlap=0.5``, any order that overlaps its neighboring '
+                'orders by more than 50% will not be added as a missing order.'
+            ),
+        ),
+        'use_maskdesign': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'Use slit-mask designs to identify slits.'
+            ),
+        ),
+        'maskdesign_filename': newparset.set_parameter_definition(
+            dtype=[str, list],
+            default=None,
+            descr=(
+                'Mask design info contained in this file or files (comma separated)'
+            ),
+        ),
+        'maskdesign_maxsep': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=50,
+            descr=(
+                'Maximum allowed offset in pixels between the slit edges '
+                'defined by the slit-mask design and the traced edges.'
+            ),
+        ),
+        'maskdesign_step': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=1,
+            descr=(
+                'Step in pixels used to generate a list of possible offsets '
+                '(within +/- `maskdesign_maxsep`) between the slit edges defined '
+                'by the mask design and the traced edges.'
+            ),
+        ),
+        'maskdesign_sigrej': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=3,
+            descr=(
+                'Number of sigma for sigma-clipping rejection during slit-mask '
+                'design matching.'
+            ),
+        ),
+        'maskdesign_trim': newparset.set_parameter_definition(
+            dtype=bool,
+            default=False,
+            descr=(
+                'If True, the mask design information is used to trim each '
+                'slit in the spectral direction. This functionality is '
+                'only used for spectrographs with slit-mask designs that '
+                'have information on the spectral extent of each slit (currently, '
+                'only Gemini GMOS N/S).'
+            ),
+        ),
+        'maskdesign_trim_shift': newparset.set_parameter_definition(
+            dtype=[int, float],
+            default=0,
+            descr=(
+                'Shift in pixels to apply to the mask design information '
+                'when trimming the slits in the spectral direction.  This '
+                'is useful for cases where the mask design information '
+                'is not perfectly aligned with the detector.  This '
+                'functionality is only used for spectrographs with '
+                'slit-mask designs that have information on the spectral '
+                'extent of each slit (currently, only Gemini GMOS N/S).'
+            ),
+        ),
+        'pad': newparset.set_parameter_definition(
+            dtype=int,
+            default=0,
+            descr=(
+                'Integer number of pixels to consider beyond the slit edges when '
+                "selecting pixels that are 'on' the slit."
+            ),
+        ),
+        'add_slits': newparset.set_parameter_definition(
+            dtype=[str, list],
+            descr=(
+                'Add one or more user-defined slits.  The syntax to define a '
+                'slit to add is: \'det:spec:spat_left:spat_right\' where '
+                'det=detector, spec=spectral pixel, spat_left=spatial pixel of '
+                'left slit boundary, and spat_righ=spatial pixel of right slit '
+                'boundary.  **Multiple entries must be separated by a semi-colon.** '
+                'For example, \'2:2000:2121:2322; 3:2000:1201:1500\' will add a '
+                'slit to detector 2 passing through spec=2000 extending spatially '
+                'from 2121 to 2322 and another on detector 3 at spec=2000 '
+                'extending from 1201 to 1500.  For mosaics, use the tuple '
+                'definition of the mosaic.  For example, '
+                '\'(1,2,3):1537:297.2:353.5\', adds a slit that passes through '
+                '(1537,297.2) on the left and (1537,353.5) on the right in the '
+                'mosaic made up of detectors 1, 2, and 3.'
+            ),
+        ),
+        'add_predict': newparset.set_parameter_definition(
+            dtype=str,
+            default='nearest',
+            descr=(
+                'Sets the method used to predict the shape of the left and right ' 
+                'traces for a user-defined slit inserted.  Options are (1) ' 
+                '``straight`` inserts traces with a constant spatial pixels ' 
+                'position, (2) ``nearest`` inserts traces with a form identical ' 
+                'to the automatically identified trace at the nearest spatial ' 
+                'position to the inserted slit, or (3) ``pca`` uses the PCA ' 
+                'decomposition to predict the shape of the traces.'
+            ),
+        ),
+        'rm_slits': newparset.set_parameter_definition(
+            dtype=[str, list],
+            descr=(
+                'Remove one or more user-specified slits.  The syntax used to ' 
+                'define a slit to remove is: \'det:spec:spat\' where det=detector, ' 
+                'spec=spectral pixel, spat=spatial pixel.  **Multiple entries must ' 
+                'be separated by a semi-colon.**  For example, ' 
+                "'2:2000:2121; 3:2000:1500' will remove the slit on detector 2 " 
+                'that contains pixel (spec,spat)=(2000,2121) and on detector 3 ' 
+                'that contains pixel (2000,1500).  For mosaics, use the tuple ' 
+                'definition of the mosaic.  For example \'(1,2,3):1500:331\', ' 
+                'removes the slit that contains pixel (1500,331) in the mosaic made ' 
+                'up of detectors 1, 2, and 3.'
+            ),
+        ),
+    }
+
+    def validate(self):
+        # Check if the user defined a slit to remove in a mosaic
+        for k in ['rm_slits', 'add_slits']:
+            if self.data.get(k) is None:
+                continue
+            self.data[k] = ';'.join(parse.fix_config_par_image_location(self.data[k]))
+
+        if not self.data.get('auto_pca', True) and self.data.get('sync_predict') == 'pca':
+            import warnings
+            warnings.warn('sync_predict cannot be pca if auto_pca is False.  Setting to nearest.')
+            self.data['sync_predict'] = 'nearest'
+
+        if self.data.get('max_overlap') is not None and (self.data['max_overlap'] < 0 or self.data['max_overlap'] > 1):
+            raise ValueError('If defined, max_overlap must be in the range [0,1].')
+
+        if self.data.get('order_outlier') is not None and self.data.get('order_outlier') < self.data.get('order_fitrej', 0):
+            log.warning('Order outlier threshold should not be less than the rejection threshold.')
+
+
+
