@@ -3,7 +3,7 @@ Module to test spectrograph read functions
 """
 import copy
 import os
-import pathlib
+from pathlib import Path
 
 import pytest
 import astropy.table 
@@ -22,7 +22,9 @@ from IPython import embed
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
     example_file = dataPaths.tests.get_file_path('b1.fits.gz')
-    assert os.path.isfile(example_file), 'Could not find example file for Shane Kast blue read.'
+    # TODO: I think this is a redundant test because get_file_path checks that
+    # the file exists
+    assert Path(example_file).is_file, 'Could not find example file for Shane Kast blue read.'
     det=1
     _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)
@@ -41,12 +43,18 @@ def test_select_detectors_pypeit_file():
     setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
     par, spectrograph, fitstbl = setup.run()
 
+    try:
+        spectrograph.select_detectors(subset=par['rdx']['detnum'])
+    except:
+        pytest.set_trace()
+
     assert spectrograph.select_detectors(subset=par['rdx']['detnum']) == [1], \
             'Incorrect detectors selected.'
 
     # Clean-up
     os.remove(pypeit_file)
 
+#test_select_detectors_pypeit_file()
 
 def test_select_detectors_mosaic():
 

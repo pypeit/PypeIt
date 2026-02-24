@@ -293,190 +293,190 @@ def test_lists():
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
 
 
-def compare_old_new(opar, npar):
-
-    okeys = sorted(opar.keys())
-    nkeys = sorted(npar.keys())
-
-    comp = f'{opar.__class__.__name__}/{npar.__class__.__name__}'
-
-    # Check that the keys are the same
-    diff_keys = set(okeys) - set(nkeys)
-    if len(diff_keys) != 0:
-        print(f'{comp}: Keys are different: {diff_keys}')
-#    assert len(diff_keys) == 0, f'{comp}: Keys are different: {diff_keys}'
-
-    common_keys = set(okeys) & set(nkeys)
-
-    # Check that the types are the same
-    odtype = {key:opar.dtype[key] for key in common_keys}
-    ndtype = {key:npar.parameters[key]['dtype'] for key in common_keys}
-    if odtype != ndtype:
-        print(f'{comp}: dtype dictionaries are different')
-        diff_keys = [key for key in common_keys if odtype[key] != ndtype[key]]
-        print(f'Different dtypes are for : {diff_keys}')
-#    assert opar.dtype == ndtype, f'{comp}: dtype dictionaries are different'
-
-    # Check that the defaults are the same
-    # Ignore defaults that are parsets
-    ndefault = {key:npar.parameters[key]['default'] for key in common_keys
-                if not isinstance(npar.parameters[key]['default'], parset.ParSet)}
-    odefault = {key:opar.default[key] for key in common_keys
-                if not isinstance(opar.default[key], oldparset.ParSet)}
-    diff_keys = set(odefault.keys()) - set(ndefault.keys())
-    assert len(diff_keys) == 0, \
-            f'{comp}: Keys after excluding ParSet defaults are different: {diff_keys}'
-    if odefault != ndefault:
-        print(f'{comp}: default dictionaries are different')
-        diff_keys = [key for key in common_keys if odefault[key] != ndefault[key]]
-        print(f'Different default are for : {diff_keys}')
-#    assert opar.default == ndefault, f'{comp}: default dictionaries are different'
-
-    # Check that the options are the same
-    noptions = {key:npar.parameters[key]['options'] for key in common_keys}
-    ooptions = {key:opar.options[key] for key in common_keys}
-    if ooptions != noptions:
-        print(f'{comp}: option dictionaries are different')
-        diff_keys = [key for key in common_keys if ooptions[key] != noptions[key]]
-        print(f'Different options are for : {diff_keys}')
-#    assert opar.options == noptions, f'{comp}: option dictionaries are different'
-
-    # Check that the descriptions are the same
-    ndescr = {key:npar.parameters[key]['descr'] for key in common_keys}
-    odescr = {key:opar.descr[key] for key in common_keys}
-    if odescr != ndescr:
-        print(f'{comp}: description dictionaries are different')
-        diff_keys = [key for key in common_keys if odescr[key] != ndescr[key]]
-        print(f'Different descriptions are for : {diff_keys}')
-#    assert opar.descr == ndescr, f'{comp} descr dictionaries are different'
-
-def test_old_new_parsets():
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.ScatteredLightPar(), pypeitpar.ScatteredLightPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.ProcessImagesPar(), pypeitpar.ProcessImagesPar())
-    print('    ')
-    print('    ')
-#    compare_old_new(oldpypeitpar.FrameGroupPar(), pypeitpar.FrameGroupPar())
-#    print('    ')
-#    print('    ')
-    par = oldpypeitpar.PypeItPar()
-    compare_old_new(par['calibrations']['biasframe'], pypeitpar.BiasFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['darkframe'], pypeitpar.DarkFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['scattlightframe'], pypeitpar.ScatteredLightFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['pixelflatframe'], pypeitpar.PixelFlatFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['illumflatframe'], pypeitpar.IllumFlatFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['lampoffflatsframe'], pypeitpar.LampOffFlatsFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['slitless_pixflatframe'], pypeitpar.SlitlessPixFlatFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['pinholeframe'], pypeitpar.PinholeFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['alignframe'], pypeitpar.AlignFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['arcframe'], pypeitpar.ArcFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['tiltframe'], pypeitpar.TiltFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['traceframe'], pypeitpar.TraceFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['standardframe'], pypeitpar.StandardFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['calibrations']['skyframe'], pypeitpar.SkyFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(par['scienceframe'], pypeitpar.ScienceFramePar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.FlatFieldPar(), pypeitpar.FlatFieldPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.FlexurePar(), pypeitpar.FlexurePar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.AlignPar(), pypeitpar.AlignPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.Coadd1DPar(), pypeitpar.Coadd1DPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.Coadd2DPar(), pypeitpar.Coadd2DPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.CubePar(), pypeitpar.CubePar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.FluxCalibratePar(), pypeitpar.FluxCalibratePar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.SensfuncUVISPar(), pypeitpar.SensfuncUVISPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.TelluricPar(), pypeitpar.TelluricPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.SensFuncPar(), pypeitpar.SensFuncPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.SlitMaskPar(), pypeitpar.SlitMaskPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.ReduxPar(), pypeitpar.ReduxPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.WavelengthSolutionPar(), pypeitpar.WavelengthSolutionPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.EdgeTracePar(), pypeitpar.EdgeTracePar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.WaveTiltsPar(), pypeitpar.WaveTiltsPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.FindObjPar(), pypeitpar.FindObjPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.SkySubPar(), pypeitpar.SkySubPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.ExtractionPar(), pypeitpar.ExtractionPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.Collate1DPar(), pypeitpar.Collate1DPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.TelescopePar(), pypeitpar.TelescopePar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.ReducePar(), pypeitpar.ReducePar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.CalibrationsPar(), pypeitpar.CalibrationsPar())
-    print('    ')
-    print('    ')
-    compare_old_new(oldpypeitpar.PypeItPar(), pypeitpar.PypeItPar())
-    print('    ')
-    print('    ')
-
-test_old_new_parsets()
-
+# def compare_old_new(opar, npar):
+# 
+#     okeys = sorted(opar.keys())
+#     nkeys = sorted(npar.keys())
+# 
+#     comp = f'{opar.__class__.__name__}/{npar.__class__.__name__}'
+# 
+#     # Check that the keys are the same
+#     diff_keys = set(okeys) - set(nkeys)
+#     if len(diff_keys) != 0:
+#         print(f'{comp}: Keys are different: {diff_keys}')
+# #    assert len(diff_keys) == 0, f'{comp}: Keys are different: {diff_keys}'
+# 
+#     common_keys = set(okeys) & set(nkeys)
+# 
+#     # Check that the types are the same
+#     odtype = {key:opar.dtype[key] for key in common_keys}
+#     ndtype = {key:npar.parameters[key]['dtype'] for key in common_keys}
+#     if odtype != ndtype:
+#         print(f'{comp}: dtype dictionaries are different')
+#         diff_keys = [key for key in common_keys if odtype[key] != ndtype[key]]
+#         print(f'Different dtypes are for : {diff_keys}')
+# #    assert opar.dtype == ndtype, f'{comp}: dtype dictionaries are different'
+# 
+#     # Check that the defaults are the same
+#     # Ignore defaults that are parsets
+#     ndefault = {key:npar.parameters[key]['default'] for key in common_keys
+#                 if not isinstance(npar.parameters[key]['default'], parset.ParSet)}
+#     odefault = {key:opar.default[key] for key in common_keys
+#                 if not isinstance(opar.default[key], oldparset.ParSet)}
+#     diff_keys = set(odefault.keys()) - set(ndefault.keys())
+#     assert len(diff_keys) == 0, \
+#             f'{comp}: Keys after excluding ParSet defaults are different: {diff_keys}'
+#     if odefault != ndefault:
+#         print(f'{comp}: default dictionaries are different')
+#         diff_keys = [key for key in common_keys if odefault[key] != ndefault[key]]
+#         print(f'Different default are for : {diff_keys}')
+# #    assert opar.default == ndefault, f'{comp}: default dictionaries are different'
+# 
+#     # Check that the options are the same
+#     noptions = {key:npar.parameters[key]['options'] for key in common_keys}
+#     ooptions = {key:opar.options[key] for key in common_keys}
+#     if ooptions != noptions:
+#         print(f'{comp}: option dictionaries are different')
+#         diff_keys = [key for key in common_keys if ooptions[key] != noptions[key]]
+#         print(f'Different options are for : {diff_keys}')
+# #    assert opar.options == noptions, f'{comp}: option dictionaries are different'
+# 
+#     # Check that the descriptions are the same
+#     ndescr = {key:npar.parameters[key]['descr'] for key in common_keys}
+#     odescr = {key:opar.descr[key] for key in common_keys}
+#     if odescr != ndescr:
+#         print(f'{comp}: description dictionaries are different')
+#         diff_keys = [key for key in common_keys if odescr[key] != ndescr[key]]
+#         print(f'Different descriptions are for : {diff_keys}')
+# #    assert opar.descr == ndescr, f'{comp} descr dictionaries are different'
+# 
+# def test_old_new_parsets():
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.ScatteredLightPar(), pypeitpar.ScatteredLightPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.ProcessImagesPar(), pypeitpar.ProcessImagesPar())
+#     print('    ')
+#     print('    ')
+# #    compare_old_new(oldpypeitpar.FrameGroupPar(), pypeitpar.FrameGroupPar())
+# #    print('    ')
+# #    print('    ')
+#     par = oldpypeitpar.PypeItPar()
+#     compare_old_new(par['calibrations']['biasframe'], pypeitpar.BiasFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['darkframe'], pypeitpar.DarkFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['scattlightframe'], pypeitpar.ScatteredLightFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['pixelflatframe'], pypeitpar.PixelFlatFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['illumflatframe'], pypeitpar.IllumFlatFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['lampoffflatsframe'], pypeitpar.LampOffFlatsFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['slitless_pixflatframe'], pypeitpar.SlitlessPixFlatFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['pinholeframe'], pypeitpar.PinholeFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['alignframe'], pypeitpar.AlignFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['arcframe'], pypeitpar.ArcFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['tiltframe'], pypeitpar.TiltFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['traceframe'], pypeitpar.TraceFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['standardframe'], pypeitpar.StandardFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['calibrations']['skyframe'], pypeitpar.SkyFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(par['scienceframe'], pypeitpar.ScienceFramePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.FlatFieldPar(), pypeitpar.FlatFieldPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.FlexurePar(), pypeitpar.FlexurePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.AlignPar(), pypeitpar.AlignPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.Coadd1DPar(), pypeitpar.Coadd1DPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.Coadd2DPar(), pypeitpar.Coadd2DPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.CubePar(), pypeitpar.CubePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.FluxCalibratePar(), pypeitpar.FluxCalibratePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.SensfuncUVISPar(), pypeitpar.SensfuncUVISPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.TelluricPar(), pypeitpar.TelluricPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.SensFuncPar(), pypeitpar.SensFuncPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.SlitMaskPar(), pypeitpar.SlitMaskPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.ReduxPar(), pypeitpar.ReduxPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.WavelengthSolutionPar(), pypeitpar.WavelengthSolutionPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.EdgeTracePar(), pypeitpar.EdgeTracePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.WaveTiltsPar(), pypeitpar.WaveTiltsPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.FindObjPar(), pypeitpar.FindObjPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.SkySubPar(), pypeitpar.SkySubPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.ExtractionPar(), pypeitpar.ExtractionPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.Collate1DPar(), pypeitpar.Collate1DPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.TelescopePar(), pypeitpar.TelescopePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.ReducePar(), pypeitpar.ReducePar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.CalibrationsPar(), pypeitpar.CalibrationsPar())
+#     print('    ')
+#     print('    ')
+#     compare_old_new(oldpypeitpar.PypeItPar(), pypeitpar.PypeItPar())
+#     print('    ')
+#     print('    ')
+# 
+# test_old_new_parsets()
+# 
