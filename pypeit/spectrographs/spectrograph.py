@@ -156,6 +156,11 @@ class Spectrograph:
     Defines the allowed extensions for the input fits files.
     """
 
+    add_bg_columns = False
+    """
+    Add background columns to PypeIt file by default
+    """
+
     def __init__(self):
         self.dispname = None
         self.rawdatasec_img = None
