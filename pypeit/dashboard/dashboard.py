@@ -331,48 +331,36 @@ class MainWindow(QWidget):
         items = [str(item) for item in directory_path.iterdir()]
         self.dashboard_widget.science_widget.addItems(items)
 
-    def update_state(self, state: tuple):
-        # TODO change this so it is better
-        if state[0] == "Step":
-            self.dashboard_widget.status_widget.update_meta_step(state[1])
-        elif state[0] == "Calibration ID":
-            self.dashboard_widget.status_widget.update_calibration_id(state[1])
-        elif state[0] == "Calibration Step":
-            self.dashboard_widget.status_widget.update_calibration_step(state[1])
-        elif state[0] == "Detector":
-            self.dashboard_widget.status_widget.update_detector_step(state[1])
 
 # ------------------------------------------------------------------------
 # these are classes and functions for multiprocessing and threading
-class QtLogHandler(logging.Handler, QObject):
+class QtLogHandler(QObject, logging.Handler):
+
     log_signal = pyqtSignal(str)
+    step_signal = pyqtSignal(str)
 
     def __init__(self):
         QObject.__init__(self)
         logging.Handler.__init__(self)
 
     def emit(self, record):
-        self.log_signal.emit(self.format(record))
+        msg = self.format(record)
 
-def start_pypeit_process(file_path,log_queue,msg_queue):
-    p = Process(target=PypeItWorker,args=(f'{file_path}',log_queue,msg_queue),daemon=True)
+        if record.levelname == "STEP":
+            self.step_signal.emit(msg)
+            print("hello")
+        else:
+            self.log_signal.emit(msg)
+
+def start_pypeit_process(file_path,log_queue):
+    p = Process(target=PypeItWorker,args=(f'{file_path}',log_queue),daemon=True)
     p.start()
     return p
 
-def message_listener(msg_queue, handler):
-    while True:
-        msg = msg_queue.get()
-        if msg == "STOP":
-                    break
-        if msg[0] == "file path":
-            if msg[1] == 'QA':
-                handler.update_qa_tab(msg[2])
-            if msg[1] == 'Science':
-                handler.update_science_tab(msg[2])
-        else:
-            handler.update_state(msg)
-# --------------------------------------------
+def step_listener(step):
+    print(step)
 
+# --------------------------------------------
 def main():
         # Note QT expects the program name as arg 0
     import signal
@@ -405,25 +393,19 @@ def main():
     qt_handler.setFormatter(logging.Formatter(
         " %(levelname)s | %(message)s"
     ))
+
     qt_handler.log_signal.connect(main_window.update_logs)
+    qt_handler.step_signal.connect(step_listener)
 
     log_listener = QueueListener(log_queue, qt_handler)
     log_listener.start()
     # ----------------- STEP TRACKER ----------
-    msg_queue = Queue()
 
-    step_listener = threading.Thread(
-            target=message_listener,
-            args=(msg_queue,main_window),
-            daemon=True
-            )
-    step_listener.start()
 
     main_window.setup_widget.run_all_button.clicked.connect(
             lambda: start_pypeit_process(
                 main_window.setup_file_path,
-                log_queue,
-                msg_queue
+                log_queue
             )
         )
     # --------------------- this is for the SetupGUIController ----------------         
