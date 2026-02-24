@@ -863,7 +863,6 @@ class FlatFieldPar(parset.ParSet):
         ),
         'pixelflat_file': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr='Filename of the image to use for pixel-level field flattening',
         ),
         'spec_samp_fine': parset.set_parameter_definition(
@@ -896,7 +895,6 @@ class FlatFieldPar(parset.ParSet):
         ),
         'pixelflat_min_wave': parset.set_parameter_definition(
             dtype=[int, float],
-            default=None,
             descr=(
                 'All values of the normalized pixel flat are set to 1 for '
                 'wavelengths below this value.'
@@ -904,7 +902,6 @@ class FlatFieldPar(parset.ParSet):
         ),
         'pixelflat_max_wave': parset.set_parameter_definition(
             dtype=[int, float],
-            default=None,
             descr=(
                 'All values of the normalized pixel flat are set to 1 for '
                 'wavelengths above this value.'
@@ -1020,7 +1017,6 @@ class FlatFieldPar(parset.ParSet):
         ),
         'twod_fit_npoly': parset.set_parameter_definition(
             dtype=int,
-            default=None,
             descr=(
                 'Order of polynomial used in the 2D bspline-polynomial fit to '
                 'flat-field image residuals. The code determines the order of '
@@ -1155,7 +1151,6 @@ class FlexurePar(parset.ParSet):
         ),
         'minwave': parset.set_parameter_definition(
             dtype=[int, float],
-            default=None,
             descr=(
                 'Minimum wavelength to use for the correlation.  If ``None`` or less than '
                 'the minimum wavelength of either the object or archive sky spectrum, this '
@@ -1164,7 +1159,6 @@ class FlexurePar(parset.ParSet):
         ),
         'maxwave': parset.set_parameter_definition(
             dtype=[int, float],
-            default=None,
             descr=(
                 'Maximum wavelength to use for the correlation.  If ``None`` or greater than '
                 'the maximum wavelength of either the object or archive sky spectrum, this '
@@ -1478,7 +1472,6 @@ class Coadd2DPar(parset.ParSet):
     parameters = {
         'only_slits': parset.set_parameter_definition(
             dtype=[str, list],
-            default=None,
             descr=(
                 'Restrict coaddition to one or more of slits. Example syntax -- '
                 'DET01:175,DET02:205 or MSC02:2234. This and ``exclude_slits`` '
@@ -1487,7 +1480,6 @@ class Coadd2DPar(parset.ParSet):
         ),
         'exclude_slits': parset.set_parameter_definition(
             dtype=[str, list],
-            default=None,
             descr=(
                 'Exclude one or more slits from the coaddition. Example syntax -- '
                 'DET01:175,DET02:205 or MSC02:2234. This and ``only_slits`` '
@@ -1538,7 +1530,6 @@ class Coadd2DPar(parset.ParSet):
         ),
         'user_obj_ids': parset.set_parameter_definition(
             dtype=list,
-            default=None,
             descr=(
                 'List of unique object identifiers that the user wants to use '
                 'to compute the weights and/or the offsets for coadding images. '
@@ -1556,7 +1547,6 @@ class Coadd2DPar(parset.ParSet):
         ),
         'manual': parset.set_parameter_definition(
             dtype=[str, list],
-            default=None,
             descr=(
                 'Manual extraction parameters for eac aperture to extract.  For a ' 
                 'single detector, use det:spat:spec:fwhm:boxcar_radius.  For a ' 
@@ -1571,7 +1561,6 @@ class Coadd2DPar(parset.ParSet):
         ),
         'wave_method': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             options=['iref', 'velocity', 'log10', 'linear'],
             descr=(
                 "Argument to :func:`~pypeit.core.wavecal.wvutils.get_wave_grid` method, which determines how "
@@ -1685,7 +1674,6 @@ class CubePar(parset.ParSet):
         ),
         'sensfile': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=(
                 'Filename of a sensitivity function to use to flux calibrate your datacube. '
                 'The sensitivity function file will also be used to correct the relative scales '
@@ -1694,7 +1682,6 @@ class CubePar(parset.ParSet):
         ),
         'reference_image': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=(
                 'White light image of a previously combined datacube. The white light '
                 'image will be used as a reference when calculating the offsets of the '
@@ -1783,7 +1770,6 @@ class CubePar(parset.ParSet):
         ),
         'ra_min': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 'Minimum RA to use when generating the WCS. If None, the default is minimum RA '
                 'based on the WCS of all spaxels. Units should be degrees.'
@@ -1791,7 +1777,6 @@ class CubePar(parset.ParSet):
         ),
         'ra_max': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 'Maximum RA to use when generating the WCS. If None, the default is maximum RA '
                 'based on the WCS of all spaxels. Units should be degrees.'
@@ -1799,7 +1784,6 @@ class CubePar(parset.ParSet):
         ),
         'dec_min': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 'Minimum DEC to use when generating the WCS. If None, the default is minimum DEC '
                 'based on the WCS of all spaxels. Units should be degrees.'
@@ -1807,7 +1791,6 @@ class CubePar(parset.ParSet):
         ),
         'dec_max': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 'Maximum DEC to use when generating the WCS. If None, the default is maximum DEC '
                 'based on the WCS of all spaxels. Units should be degrees.'
@@ -1815,7 +1798,6 @@ class CubePar(parset.ParSet):
         ),
         'wave_min': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 'Minimum wavelength to use when generating the WCS. If None, the default is '
                 'minimum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
@@ -1823,7 +1805,6 @@ class CubePar(parset.ParSet):
         ),
         'wave_max': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 'Maximum wavelength to use when generating the WCS. If None, the default is '
                 'maximum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
@@ -1831,7 +1812,6 @@ class CubePar(parset.ParSet):
         ),
         'spatial_delta': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 'The spatial size of each spaxel to use when generating the WCS (in arcsec). '
                 'If None, the default is set by the spectrograph file.'
@@ -1839,7 +1819,6 @@ class CubePar(parset.ParSet):
         ),
         'wave_delta': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 'The wavelength step to use when generating the WCS (in Angstroms). '
                 'If None, the default is set by the wavelength solution.'
@@ -1854,7 +1833,6 @@ class CubePar(parset.ParSet):
         ),
         'scale_corr': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=(
                 'This option performs a small correction for the relative spectral illumination '
                 'scale of different spec2D files. Specify the relative path+file to the spec2D '
@@ -1924,7 +1902,6 @@ class FluxCalibratePar(parset.ParSet):
         ),
         'extinct_correct': parset.set_parameter_definition(
             dtype=bool,
-            default=None,
             descr=(
                 'The default behavior for atmospheric extinction corrections is that if UVIS algorithm is used '
                 '(which does not correct for telluric absorption) than an atmospheric extinction model '
@@ -1970,17 +1947,14 @@ class SensfuncUVISPar(parset.ParSet):
     parameters = {
         'std_file': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr='Standard star file to generate sensfunc',
         ),
         'std_obj_id': parset.set_parameter_definition(
             dtype=[str, int],
-            default=None,
             descr=('Specifies object in spec1d file to use as standard. The brightest object found is used otherwise.'),
         ),
         'sensfunc': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr='FITS file that contains or will contain the sensitivity function.',
         ),
         'extinct_correct': parset.set_parameter_definition(
@@ -2072,7 +2046,6 @@ class TelluricPar(parset.ParSet):
     parameters = {
         'telgridfile': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=(
                 'File with the telluric model spectra to use.  Generally, these do '
                 'not need to be set; reasonable defaults are provided for each '
@@ -2118,7 +2091,6 @@ class TelluricPar(parset.ParSet):
         ),
         'resln_guess': parset.set_parameter_definition(
             dtype=[int, float],
-            default=None,
             descr=(
                 'A guess for the resolution of your spectrum expressed as '
                 'lambda/dlambda. The resolution is fit explicitly as part of the '
@@ -2246,12 +2218,10 @@ class TelluricPar(parset.ParSet):
         ),
         'only_orders': parset.set_parameter_definition(
             dtype=[int, list, np.ndarray],
-            default=None,
             descr='Order number, or list of order numbers if you only want to fit specific orders.',
         ),
         'objmodel': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=('The object model to be used for telluric fitting. Currently the options are: ``qso``, ``star``, and ``poly``.  For ``qso``, you might need to set ``redshift`` and ``bal_wv_min_max``.  For ``star``, you must set ``star_type``, ``star_ra``, ``star_dec``, and ``star_mag``.  For ``poly``, you might need to set ``fit_wv_min_max`` and ``norder``.'),
         ),
         'redshift': parset.set_parameter_definition(
@@ -2276,7 +2246,6 @@ class TelluricPar(parset.ParSet):
         ),
         'bal_wv_min_max': parset.set_parameter_definition(
             dtype=[list, np.ndarray],
-            default=None,
             descr='Min/max wavelength of broad absorption features. If there are several BAL features, the format for this mask is ``[wave_min_bal1, wave_max_bal1, wave_min_bal2, wave_max_bal2,...]``. These masked pixels will be ignored during the fitting.',
         ),
         'bounds_norm': parset.set_parameter_definition(
@@ -2306,22 +2275,18 @@ class TelluricPar(parset.ParSet):
         ),
         'star_type': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr='stellar type',
         ),
         'star_mag': parset.set_parameter_definition(
             dtype=[float, int],
-            default=None,
             descr='AB magnitude in V band',
         ),
         'star_ra': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr='Object right-ascension in decimal deg',
         ),
         'star_dec': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr='Object declination in decimal deg',
         ),
         'func': parset.set_parameter_definition(
@@ -2341,7 +2306,6 @@ class TelluricPar(parset.ParSet):
         ),
         'fit_wv_min_max': parset.set_parameter_definition(
             dtype=list,
-            default=None,
             descr='Pixels within this mask will be used during the fitting. The format is the same with ``bal_wv_min_max``, but this mask is good pixel masks.',
         ),
     }
@@ -2411,7 +2375,6 @@ class SensFuncPar(parset.ParSet):
         ),
         'multi_spec_det': parset.set_parameter_definition(
             dtype=list,
-            default=None,
             descr=(
                 'List of detectors (identified by their string name, like '
                 "'DET01') to splice together for multi-detector instruments "
@@ -2423,7 +2386,6 @@ class SensFuncPar(parset.ParSet):
         ),
         'trim_std_pixs': parset.set_parameter_definition(
             dtype=[list, tuple],
-            default=None,
             descr=(
                 'List or tuple of two integers specifying the number of pixels to trim'
                 'from the start and end of the 1D standard star spectrum. '
@@ -2460,22 +2422,18 @@ class SensFuncPar(parset.ParSet):
         ),
         'star_type': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr='Spectral type of the standard star (for near-IR mainly)',
         ),
         'star_mag': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr='Magnitude of the standard star (for near-IR mainly)',
         ),
         'star_ra': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr='RA of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)',
         ),
         'star_dec': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr='DEC of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)',
         ),
         'mask_hydrogen_lines': parset.set_parameter_definition(
@@ -2560,7 +2518,6 @@ class SlitMaskPar(parset.ParSet):
         ),
         'slitmask_offset': parset.set_parameter_definition(
             dtype=[int, float],
-            default=None,
             descr=(
                 'User-provided slitmask offset (pixels) from the position expected by '
                 'the slitmask design. This is optional, and if set PypeIt will NOT compute '
@@ -2580,7 +2537,6 @@ class SlitMaskPar(parset.ParSet):
         ),
         'bright_maskdef_id': parset.set_parameter_definition(
             dtype=int,
-            default=None,
             descr=(
                 '`maskdef_id` (corresponding e.g., to `dSlitId` and `Slit_Number` '
                 'in the DEIMOS/LRIS and MOSFIRE slitmask design, respectively) of a '
@@ -2597,7 +2553,6 @@ class SlitMaskPar(parset.ParSet):
         ),
         'missing_objs_fwhm': parset.set_parameter_definition(
             dtype=[int, float],
-            default=None,
             descr=(
                 'Indicates the FWHM in arcsec for the force extraction of undetected objects. '
                 'PypeIt will try to determine the FWHM from the flux profile '
@@ -2630,7 +2585,6 @@ class ReduxPar(parset.ParSet):
     parameters = {
         'spectrograph': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=(
                 'Spectrograph that provided the data to be reduced.  '
                 'See :ref:`instruments` for valid options.'
@@ -2647,7 +2601,6 @@ class ReduxPar(parset.ParSet):
         ),
         'detnum': parset.set_parameter_definition(
             dtype=[int, list],
-            default=None,
             descr=(
                 'Restrict reduction to a list of detector indices. '
                 'In case of mosaic reduction (currently only available for '
@@ -2659,7 +2612,6 @@ class ReduxPar(parset.ParSet):
         ),
         'slitspatnum': parset.set_parameter_definition(
             dtype=[str, list],
-            default=None,
             descr=(
                 'Restrict reduction to a set of slit DET:SPAT values (closest slit is used). '
                 'Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, '
@@ -2668,7 +2620,6 @@ class ReduxPar(parset.ParSet):
         ),
         'maskIDs': parset.set_parameter_definition(
             dtype=[str, int, list],
-            default=None,
             descr=(
                 'Restrict reduction to a set of slitmask IDs '
                 'Example syntax -- ``maskIDs = 818006,818015`` '
@@ -2677,7 +2628,6 @@ class ReduxPar(parset.ParSet):
         ),
         'sortroot': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=(
                 'A filename given to output the details of the sorted files.  If '
                 'None, the default is the root name of the pypeit file.  If off, '
@@ -2854,7 +2804,6 @@ class WavelengthSolutionPar(parset.ParSet):
         ),
         'lamps': parset.set_parameter_definition(
             dtype=list,
-            default=None,
             descr=(
                 'Name of one or more ions used for the wavelength calibration.  Use '
                 '``None`` for no calibration. Choose ``use_header`` to use the list of lamps '
@@ -2919,7 +2868,6 @@ class WavelengthSolutionPar(parset.ParSet):
         ),
         'reid_arxiv': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=(
                 'Name of the archival wavelength solution file that will be used '
                 'for the wavelength reidentification.  Only used if ``method`` is '
@@ -2948,7 +2896,6 @@ class WavelengthSolutionPar(parset.ParSet):
         ),
         'wvrng_arxiv': parset.set_parameter_definition(
             dtype=list,
-            default=None,
             descr=(
                 'Cut the arxiv template down to this specified wavelength range [min,max]'
             ),
@@ -2962,7 +2909,6 @@ class WavelengthSolutionPar(parset.ParSet):
         ),
         'cc_shift_range': parset.set_parameter_definition(
             dtype=tuple,
-            default=None,
             descr=(
                 'Range of pixel shifts allowed when cross-correlating the '
                 'input arc spectrum with the archive spectrum.  If None, '
@@ -3197,7 +3143,6 @@ class EdgeTracePar(parset.ParSet):
         ),
         'exclude_regions': parset.set_parameter_definition(
             dtype=[list, str],
-            default=None,
             descr=(
                 'User-defined regions to exclude from the slit tracing. To set this parameter, '
                 'the text should be a comma separated list of pixel ranges (in the x direction) '
@@ -3228,7 +3173,6 @@ class EdgeTracePar(parset.ParSet):
         ),
         'trim_spec': parset.set_parameter_definition(
             dtype=list,
-            default=None,
             descr=(
                 'User-defined truncation of all slits in the spectral direction.'
                 'Should be two integers, e.g. 100,150 trims 100 pixels from the '
@@ -3738,7 +3682,6 @@ class EdgeTracePar(parset.ParSet):
         ),
         'order_outlier': parset.set_parameter_definition(
             dtype=[int, float],
-            default=None,
             descr=(
                 'When fitting the width of echelle orders with Legendre '
                 'polynomials, this is the sigma-clipping threshold used to '
@@ -3773,7 +3716,6 @@ class EdgeTracePar(parset.ParSet):
         ),
         'max_overlap': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 'When adding missing echelle orders based on where existing '
                 'orders are found, the prediction can yield overlapping orders.  '
@@ -3796,7 +3738,6 @@ class EdgeTracePar(parset.ParSet):
         ),
         'maskdesign_filename': parset.set_parameter_definition(
             dtype=[str, list],
-            default=None,
             descr=(
                 'Mask design info contained in this file or files (comma separated)'
             ),
@@ -4139,7 +4080,6 @@ class FindObjPar(parset.ParSet):
         ),
         'trace_min_max': parset.set_parameter_definition(
             dtype=list,
-            default=None,
             descr=(
                 'It defines the minimum and maximum pixel in the spectral direction with useable data for this slit/order. '
                 'This parameter limits the range over which the trace is fit, and may be useful if the selected slit/order '
@@ -4218,7 +4158,6 @@ class FindObjPar(parset.ParSet):
         ),
         'find_negative': parset.set_parameter_definition(
             dtype=[bool],
-            default=None,
             descr=(
                 'Identify negative objects in object finding for spectra that are differenced. This is used to manually '
                 'override the default behavior in PypeIt for object finding by setting this parameter to something other than None '
@@ -4232,7 +4171,6 @@ class FindObjPar(parset.ParSet):
         ),
         'find_min_max': parset.set_parameter_definition(
             dtype=list,
-            default=None,
             descr=(
                 'It defines the minimum and maximum of your object in pixels in the spectral direction on the '
                 'detector. It only used for object finding. This parameter is helpful if your object only '
@@ -4251,7 +4189,6 @@ class FindObjPar(parset.ParSet):
         ),
         'std_spec1d': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=(
                 'A PypeIt spec1d file of a previously reduced standard star. '
                 'This can be used to trace the object spectra, but the ``use_std_trace`` '
@@ -4312,7 +4249,6 @@ class SkySubPar(parset.ParSet):
         ),
         'user_regions': parset.set_parameter_definition(
             dtype=[str, list],
-            default=None,
             descr=(
                 'Provides a user-defined mask defining sky regions.  By '
                 'default, the sky regions are identified automatically.  To '
@@ -4495,7 +4431,6 @@ class Collate1DPar(parset.ParSet):
         ),
         'spec1d_outdir': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             descr=(
                 "The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for."
             ),
@@ -4516,7 +4451,6 @@ class Collate1DPar(parset.ParSet):
         ),
         'wv_rms_thresh': parset.set_parameter_definition(
             dtype=float,
-            default=None,
             descr=(
                 "If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted."
             ),
@@ -4531,7 +4465,6 @@ class Collate1DPar(parset.ParSet):
         ),
         'refframe': parset.set_parameter_definition(
             dtype=str,
-            default=None,
             options=valid_refframes,
             descr=(
                 'Perform reference frame correction prior to coadding.  '
