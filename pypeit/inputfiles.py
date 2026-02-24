@@ -859,7 +859,7 @@ class PypeItFile(InputFile):
                 'definition, raw data files.  Calls to `get_pypeitpar` cannot indicate that the '
                 'files are output FITS files produced by PypeIt.'
             )
-        
+
         # NOTE: self.filenames is a property function that generates the full
         # set of file names each time they are requested.  Generate the set here
         # so that it only needs to be done once.
@@ -936,7 +936,7 @@ class PypeItFile(InputFile):
         par = pypeitpar.PypeItPar.from_cfg_lines(
             cfg_lines=spec_par.to_config(), merge_with=(self.cfg_lines,)
         )
-        return spec, par, _config_specific_file
+        return spec, par, _config_specific_file        
 
 
 class SensFile(InputFile):
