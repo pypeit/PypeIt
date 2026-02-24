@@ -85,8 +85,10 @@ class TelescopePar(parset.ParSet):
         If either of these is not available, the function returns
         `None`.
         """
-        return None if self['fratio'] is None or self['diameter'] is None \
-                else 206265/self['fratio']/self['diameter']/1e3
+        return (
+            None if self['fratio'] is None or self['diameter'] is None
+            else 206265/self['fratio']/self['diameter']/1e3
+        )
 
     # TODO This method is a place holder until we can get effective apertures
     # for all of the telescopes. I did my best but could not find them all
@@ -95,14 +97,15 @@ class TelescopePar(parset.ParSet):
         """
         Return the effective aperture of the telescope in square meters.
         """
-        return np.pi*self['diameter']**2/4.0 if self['eff_aperture'] is None \
-                else self['eff_aperture']
+        return (
+            np.pi*self['diameter']**2/4.0 if self['eff_aperture'] is None else self['eff_aperture']
+        )
 
 
 
 class ScatteredLightPar(parset.ParSet):
     """
-    The parameter set used to hold arguments for modelling the scattered light.
+    The parameter set used to hold arguments for modeling the scattered light.
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
@@ -1365,9 +1368,11 @@ class Coadd1DPar(parset.ParSet):
         'maxiter_reject': parset.set_parameter_definition(
             dtype=int,
             default=5,
-            descr='Maximum number of iterations for stacking and rejection. The code stops iterating ' \
-                  'either when the output mask does not change betweeen successive iterations or when ' \
-                  'maxiter_reject is reached.',
+            descr=(
+                'Maximum number of iterations for stacking and rejection. The code stops iterating '
+                'either when the output mask does not change betweeen successive iterations or when '
+                'maxiter_reject is reached.'
+            )
         ),
         'lower': parset.set_parameter_definition(
             dtype=[int, float],
@@ -1476,8 +1481,10 @@ class Coadd2DPar(parset.ParSet):
         'spat_toler': parset.set_parameter_definition(
             dtype=int,
             default=5,
-            descr='This parameter provides the desired tolerance in spatial pixel used ' \
-                  'to identify slits in different exposures',
+            descr=(
+                'This parameter provides the desired tolerance in spatial pixel used to identify '
+                'slits in different exposures'
+            )
         ),
         'use_slits4wvgrid': parset.set_parameter_definition(
             dtype=bool,
@@ -1507,13 +1514,13 @@ class Coadd2DPar(parset.ParSet):
                 'to compute the weights and/or the offsets for coadding images. '
                 'For longslit/multislit spectroscopy, provide the ``SPAT_PIXPOS_ID`` '
                 'of the object in each of the exposures. For echelle spectroscopy, '
-                'provide the ``ECH_FRACPOS_ID`` of the object in each exposure. ' \
-                'These unique object identifiers can be found in the spec1d*.txt ' \
-                'files for each exposure. See :doc:`out_spec1D` for more info about ' \
-                '``SPAT_PIXPOS_ID`` and ``ECH_FRACPOS_ID``. This parameter must always ' \
-                'be a list of the same length as the number of exposures being coadded. ' \
-                'If this parameter is not ``None``, it will be used to compute the offsets ' \
-                'only if ``offsets = auto``, and it will used to compute the weights ' \
+                'provide the ``ECH_FRACPOS_ID`` of the object in each exposure. '
+                'These unique object identifiers can be found in the spec1d*.txt '
+                'files for each exposure. See :doc:`out_spec1D` for more info about '
+                '``SPAT_PIXPOS_ID`` and ``ECH_FRACPOS_ID``. This parameter must always '
+                'be a list of the same length as the number of exposures being coadded. '
+                'If this parameter is not ``None``, it will be used to compute the offsets '
+                'only if ``offsets = auto``, and it will used to compute the weights '
                 'only if ``weights = auto``.'
             ),
         ),
@@ -1551,9 +1558,9 @@ class Coadd2DPar(parset.ParSet):
             dtype=float,
             default=1.0,
             descr=(
-                "Make the wavelength grid sampling finer (``spec_samp_fact`` less than 1.0)" \
-                "or coarser (``spec_samp_fact`` greater than 1.0) by this sampling factor." \
-                "This  multiples the 'native' spectral pixel size by ``spec_samp_fact``," \
+                "Make the wavelength grid sampling finer (``spec_samp_fact`` less than 1.0)"
+                "or coarser (``spec_samp_fact`` greater than 1.0) by this sampling factor."
+                "This  multiples the 'native' spectral pixel size by ``spec_samp_fact``,"
                 "i.e. the units of ``spec_samp_fact`` are pixels."
             ),
         ),
@@ -1561,10 +1568,10 @@ class Coadd2DPar(parset.ParSet):
             dtype=float,
             default=1.0,
             descr=(
-                "Make the spatial sampling finer (``spat_samp_fact`` less" \
-                "than 1.0) or coarser (``spat_samp_fact`` greather than 1.0) by" \
-                "this sampling factor. This basically multiples the 'native'" \
-                "spatial pixel size by ``spat_samp_fact``, i.e. the units of" \
+                "Make the spatial sampling finer (``spat_samp_fact`` less"
+                "than 1.0) or coarser (``spat_samp_fact`` greather than 1.0) by"
+                "this sampling factor. This basically multiples the 'native'"
+                "spatial pixel size by ``spat_samp_fact``, i.e. the units of"
                 "``spat_samp_fact`` are pixels."
             ),
         ),
@@ -1854,10 +1861,14 @@ class CubePar(parset.ParSet):
         allowed_skysub_options = ["none", "image", ""]
         if self.data['skysub_frame'] not in allowed_skysub_options:
             if not Path(self.data['skysub_frame']).absolute().is_file():
-                raise ValueError("The 'skysub_frame' must be one of:\n" + ", ".join(allowed_skysub_options) +
-                                 "\nor, the relative path to a spec2d file.")
+                raise ValueError(
+                    'The "skysub_frame" must be one of the following options: '
+                    f'{", ".join(allowed_skysub_options)} or, the relative path to a spec2d file.'
+                )
         if len(self.data['whitelight_range']) != 2:
-            raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
+            raise ValueError(
+                "The 'whitelight_range' must be a two element list of either NoneType or float"
+            )
 
 
 class FluxCalibratePar(parset.ParSet):
@@ -2372,10 +2383,10 @@ class SensFuncPar(parset.ParSet):
             dtype=list,
             default=None,
             descr=(
-                'List of detectors (identified by their string name, like ' \
+                'List of detectors (identified by their string name, like '
                 "'DET01') to splice together for multi-detector instruments "
-                '(e.g. DEIMOS). It is assumed that there is *no* overlap in ' \
-                'wavelength across detectors (might be ok if there is).  If ' \
+                '(e.g. DEIMOS). It is assumed that there is *no* overlap in '
+                'wavelength across detectors (might be ok if there is).  If '
                 "entered as a list of integers, they should be converted to ' "
                 'the detector name.  **Cannot be used with detector mosaics.**'
             ),
@@ -2464,11 +2475,14 @@ class SensFuncPar(parset.ParSet):
         # Validate extraction choice
         allowed_extractions = ['BOX', 'OPT']
         if self.data['extr'] not in allowed_extractions:
-            raise ValueError("'extr' must be one of:\n" + ", ".join(allowed_extractions))
+            raise ValueError(f"'extr' must be one of: {', '.join(allowed_extractions)}")
 
         # check trim_std_pixs format
         if self.data['trim_std_pixs'] is not None:
-            if not isinstance(self.data['trim_std_pixs'], (list, tuple)) or len(self.data['trim_std_pixs']) != 2:
+            if (
+                not isinstance(self.data['trim_std_pixs'], (list, tuple))
+                or len(self.data['trim_std_pixs']) != 2
+            ):
                 raise ValueError("`trim_std_pixs` must be a list or tuple of two integers.")
 
 
@@ -3056,8 +3070,8 @@ class WavelengthSolutionPar(parset.ParSet):
             dtype=bool,
             default=True,
             descr=(
-                'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
-                'If True, the scaling will be log, if False linear'
+                'Governs whether the wavelength solution arc line QA plots will have log or '
+                'linear scaling.  If True, the scaling will be log, if False linear'
             ),
         ),
         'cc_percent_ceil': parset.set_parameter_definition(
@@ -4339,15 +4353,15 @@ class ExtractionPar(parset.ParSet):
         'std_prof_nsigma': parset.set_parameter_definition(
             dtype=float,
             default=30.0,
-            descr='prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection. ' \
+            descr='prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection. '
                     'NOTE: Not consumed by the code at present.',
         ),
         'min_frac_prof': parset.set_parameter_definition(
             dtype=float,
             default=0.05,
             descr=(
-                'For each spectral pixel, if the sum of the normalized object profile' \
-                ' across the spatial direction is less than this value,' \
+                'For each spectral pixel, if the sum of the normalized object profile'
+                ' across the spatial direction is less than this value,'
                 ' the optimal extraction will also be masked. '
             ),
         ),
@@ -4355,8 +4369,8 @@ class ExtractionPar(parset.ParSet):
             dtype=[int, float],
             default=4.0,
             descr=(
-                'S/N threshold for performing the more sophisticated optimal extraction which performs a ' \
-                'b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extract' \
+                'S/N threshold for performing the more sophisticated optimal extraction which performs a '
+                'b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extract'
                 'with a Gaussian with FWHM determined from the object finding.'
             ),
         ),
@@ -4364,8 +4378,8 @@ class ExtractionPar(parset.ParSet):
             dtype=bool,
             default=False,
             descr=(
-                'If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will ' \
-                'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
+                'If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will '
+                'be applied to only a restricted region around each object. This should be set to True for either multislit '
                 'observations using narrow slits or echelle observations with narrow slits'
             ),
         ),
@@ -4373,7 +4387,7 @@ class ExtractionPar(parset.ParSet):
             dtype=bool,
             default=True,
             descr=(
-                'Mask pixels rejected during profile fitting when extracting.' \
+                'Mask pixels rejected during profile fitting when extracting.'
                 'Turning this off may help with bright emission lines.'
             ),
         ),
@@ -4381,9 +4395,9 @@ class ExtractionPar(parset.ParSet):
             dtype=bool,
             default=False,
             descr=(
-                'Boolean indicating if PypeIt should use the FWHM provided by the user ' \
-                '(``find_fwhm`` in `FindObjPar`) for the optimal extraction. ' \
-                'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each ' \
+                'Boolean indicating if PypeIt should use the FWHM provided by the user '
+                '(``find_fwhm`` in `FindObjPar`) for the optimal extraction. '
+                'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each '
                 'detected object, and uses ``find_fwhm`` as initial guess.'
             ),
         ),
@@ -4831,8 +4845,10 @@ class PypeItPar(parset.ParSet):
         cfg = ConfigObj(cls().to_config() if cfg_file is None else cfg_file)
 
         # Get the list of other configuration parameters to merge it with
-        _merge_with = [] if merge_with is None else \
-                        ([merge_with] if isinstance(merge_with, str) else merge_with)
+        _merge_with = (
+            [] if merge_with is None
+            else ([merge_with] if isinstance(merge_with, str) else merge_with)
+        )
         merge_cfg = ConfigObj()
         for f in _merge_with:
             merge_cfg.merge(ConfigObj(f))
@@ -4955,8 +4971,10 @@ class PypeItPar(parset.ParSet):
         """
         # Calibrations
         for _key in self['calibrations'].keys():
-            if isinstance(self['calibrations'][_key], parset.ParSet) \
-                    and 'process' in self['calibrations'][_key].keys():
+            if (
+                isinstance(self['calibrations'][_key], parset.ParSet)
+                and 'process' in self['calibrations'][_key].keys()
+            ):
                 for key,value in kwargs.items():
                     self['calibrations'][_key]['process'][key] = value
         # Science frame
