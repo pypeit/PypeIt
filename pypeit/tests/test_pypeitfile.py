@@ -4,6 +4,7 @@ import os
 import pytest
 
 from astropy.table import Table
+from IPython import embed
 
 from pypeit import dataPaths
 from pypeit.inputfiles import PypeItFile
@@ -44,15 +45,15 @@ def test_instantiate():
     assert pypeItFile.setup_name == 'A'
 
 def test_read_pypeit_file():
-    # Read the PypeIt file (backwards compatability)
-    pypeItFile = PypeItFile.from_file(
-                    dataPaths.tests.get_file_path('example_pypeit_file.pypeit'))
+    # Read the PypeIt file
+    pypeItFile = PypeItFile.from_file(dataPaths.tests.get_file_path('example_pypeit_file.pypeit'))
     assert isinstance(pypeItFile.config, dict)
 
 def test_read_backwards_pypeit_file():
     # Read the PypeIt file (backwards compatability)
     pypeItFile = PypeItFile.from_file(
-                    dataPaths.tests.get_file_path('example_pypeit_file_backwards.pypeit'))
+        dataPaths.tests.get_file_path('example_pypeit_file_backwards.pypeit')
+    )
     assert isinstance(pypeItFile.config, dict)
 
 def test_write_pypeit_file():

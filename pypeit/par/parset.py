@@ -798,6 +798,8 @@ class ParSet:
         pars, values = map(lambda x : list(x), zip(*cfg.items()))
         for i, key in enumerate(pars):
             if key not in cls.parameters.keys():
+                embed()
+                exit()
                 raise KeyError(f'{key} is not a valid {cls.__name__} parameter!')
             if isinstance(values[i], dict) and issubclass(cls.parameters[key]['dtype'][0], ParSet):
                 values[i] = cls.parameters[key]['dtype'][0].from_dict(values[i])

@@ -41,9 +41,8 @@ class TelescopePar(parset.ParSet):
             default='KECK',
             options=valid_telescopes,
             descr=(
-                'Name of the telescope used to obtain the observations.  '
-                'Options are: AAT, GEMINI-N, GEMINI-S, KECK, SHANE, WHT, APF, TNG, VLT, '
-                'MAGELLAN, LBT, MMT, KPNO, NOT, P200, BOK, GTC, SOAR, NTT, LDT, JWST, HILTNER, SUBARU'
+                'Name of the telescope used to obtain the observations.  Options are: '
+                f'{valid_telescopes}'
             ),
         ),
         'longitude': parset.set_parameter_definition(
@@ -870,14 +869,18 @@ class FlatFieldPar(parset.ParSet):
         'spec_samp_fine': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.2,
-            descr='bspline break point spacing in units of pixels for spectral fit to flat field blaze function.',
+            descr=(
+                'bspline break point spacing in units of pixels for spectral fit to '
+                'flat field blaze function.'
+            ),
         ),
         'spec_samp_coarse': parset.set_parameter_definition(
             dtype=[int, float],
             default=50.0,
             descr=(
-                'bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to '
-                'flat field image residuals. This should be a large number unless you are trying to '
+                'bspline break point spacing in units of pixels for 2-d '
+                'bspline-polynomial fit to flat field image residuals. '
+                'This should be a large number unless you are trying to '
                 'fit a sky flat with lots of narrow spectral features.'
             ),
         ),
@@ -885,20 +888,27 @@ class FlatFieldPar(parset.ParSet):
             dtype=[int, float],
             default=5.0,
             descr=(
-                'Spatial sampling for slit illumination function. This is the width of the median '
-                'filter in pixels used to determine the slit illumination function, and thus sets the '
-                'minimum scale on which the illumination function will have features.'
+                'Spatial sampling for slit illumination function. This is the width of the '
+                'median filter in pixels used to determine the slit illumination function, '
+                'and thus sets the minimum scale on which the illumination function will '
+                'have features.'
             ),
         ),
         'pixelflat_min_wave': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
-            descr='All values of the normalized pixel flat are set to 1 for wavelengths below this value.',
+            descr=(
+                'All values of the normalized pixel flat are set to 1 for '
+                'wavelengths below this value.'
+            ),
         ),
         'pixelflat_max_wave': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
-            descr='All values of the normalized pixel flat are set to 1 for wavelengths above this value.',
+            descr=(
+                'All values of the normalized pixel flat are set to 1 for '
+                'wavelengths above this value.'
+            ),
         ),
         'tweak_slits': parset.set_parameter_definition(
             dtype=bool,
@@ -913,13 +923,13 @@ class FlatFieldPar(parset.ParSet):
             default='threshold',
             options=valid_tweak_methods,
             descr=(
-                'Method used to tweak the slit edges (when "tweak_slits" is set to True).  '
-                f'Options include: {", ".join(valid_tweak_methods)}.  '
+                'Method used to tweak the slit edges (when "tweak_slits" is set to True). '
+                f'Options include: {", ".join(valid_tweak_methods)}. '
                 'The "threshold" method determines when the left and right slit edges '
-                'fall below a threshold relative to the peak illumination. ' 
+                'fall below a threshold relative to the peak illumination. '
                 'The "gradient" method determines where the gradient is the highest at '
                 'the left and right slit edges. This method performs better when there is '
-                'systematic vignetting in the spatial direction. '
+                'systematic vignetting in the spatial direction.'
             ),
         ),
         'tweak_slits_thresh': parset.set_parameter_definition(
@@ -935,9 +945,10 @@ class FlatFieldPar(parset.ParSet):
             dtype=float,
             default=0.10,
             descr=(
-                'If tweak_slit is True, this sets the maximum fractional amount (of a slits width) '
-                'allowed for trimming each (i.e. left and right) slit boundary, i.e. the default is 10% '
-                'which means slits would shrink or grow by at most 20% (10% on each side)'
+                'If tweak_slit is True, this sets the maximum fractional amount '
+                '(of a slits width) allowed for trimming each (i.e. left and right) '
+                'slit boundary, i.e. the default is 10% which means slits would '
+                'shrink or grow by at most 20% (10% on each side)'
             ),
         ),
         'rej_sticky': parset.set_parameter_definition(
@@ -963,7 +974,10 @@ class FlatFieldPar(parset.ParSet):
         'slit_illum_pad': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
-            descr='The number of pixels to pad the slit edges when constructing the slit-illumination profile. Single value applied to both edges.',
+            descr=(
+                'The number of pixels to pad the slit edges when constructing the '
+                'slit-illumination profile. Single value applied to both edges.'
+            ),
         ),
         'slit_illum_finecorr': parset.set_parameter_definition(
             dtype=bool,
@@ -989,12 +1003,20 @@ class FlatFieldPar(parset.ParSet):
         'illum_iter': parset.set_parameter_definition(
             dtype=int,
             default=0,
-            descr='The number of rejection iterations to perform when constructing the slit-illumination profile.  No rejection iterations are performed if 0.  WARNING: Functionality still being tested.',
+            descr=(
+                'The number of rejection iterations to perform when constructing the '
+                'slit-illumination profile.  No rejection iterations are performed '
+                'if 0.  WARNING: Functionality still being tested.'
+            ),
         ),
         'illum_rej': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
-            descr='The sigma threshold used in the rejection iterations used to refine the slit-illumination profile.  Rejection iterations are only performed if ``illum_iter > 0``.',
+            descr=(
+                'The sigma threshold used in the rejection iterations used to refine '
+                'the slit-illumination profile.  Rejection iterations are only '
+                'performed if ``illum_iter > 0``.'
+            ),
         ),
         'twod_fit_npoly': parset.set_parameter_definition(
             dtype=int,
@@ -1023,12 +1045,20 @@ class FlatFieldPar(parset.ParSet):
         'slit_illum_ref_idx': parset.set_parameter_definition(
             dtype=int,
             default=0,
-            descr='The index of a reference slit (0-indexed) used for estimating the relative spectral sensitivity (or the relative blaze). This parameter is only used if ``slit_illum_relative = True``.',
+            descr=(
+                'The index of a reference slit (0-indexed) used for estimating the '
+                'relative spectral sensitivity (or the relative blaze). This parameter '
+                'is only used if ``slit_illum_relative = True``.'
+            ),
         ),
         'slit_illum_smooth_npix': parset.set_parameter_definition(
             dtype=int,
             default=10,
-            descr='The number of pixels used to determine smoothly varying relative weights is given by ``nspec/slit_illum_smooth_npix``, where nspec is the number of spectral pixels.',
+            descr=(
+                'The number of pixels used to determine smoothly varying relative '
+                'weights is given by ``nspec/slit_illum_smooth_npix``, where nspec is '
+                'the number of spectral pixels.'
+            ),
         ),
         'fit_2d_det_response': parset.set_parameter_definition(
             dtype=bool,
@@ -4783,6 +4813,20 @@ class PypeItPar(parset.ParSet):
             ),
         ),
     }
+
+    @classmethod
+    def from_dict(cls, cfg):
+        """
+        Overwrite the base class method to deal with the baseprocess
+        functionality.
+        """
+        if 'baseprocess' not in cfg.keys():
+            return super().from_dict(cfg)
+        bp = cfg.pop('baseprocess')
+        self = super().from_dict(cfg)
+        baseproc = ProcessImagesPar.from_dict(bp)
+        self.sync_processing(baseproc)
+        return self
 
     # TODO: I'm not sure if the warning in the docstring is still valid.
     @classmethod
