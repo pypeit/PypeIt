@@ -863,11 +863,20 @@ class PypeItFile(InputFile):
         # NOTE: self.filenames is a property function that generates the full
         # set of file names each time they are requested.  Generate the set here
         # so that it only needs to be done once.
-        filenames = self.filenames
+        try:
+            filenames = self.filenames
+        except Exception as e:
+            log.warning(
+                'Unable to define filenames.  Proceeding by assuming filenames are not defined.  '
+                f'Original exception raised is: {e}'
+            )
+            filenames = None
 
         if config_specific_file is None:
-            if 'frametype' not in self.data.keys():
-                _config_specific_file = None if filenames is None else filenames[0]
+            if filenames is None:
+                _config_specific_file = None
+            elif 'frametype' not in self.data.keys():
+                _config_specific_file = filenames[0]
             else:
                 # Search for the first science/standard frame
                 _config_specific_file = None
@@ -908,25 +917,26 @@ class PypeItFile(InputFile):
         # Load the spectrograph
         spec = self.get_spectrograph()
 
-        # Check file extensions
-        if _config_specific_file is not None:
+        if _config_specific_file is None:
+            spec_par = spec.default_pypeit_par() 
+        else:
+            # Check file extensions
             spec._check_extensions(_config_specific_file)
 
-        # Send the Row of the metadata table corresponding to the file
-        # NOTE: csf_indx needs to be a single element array/list such that
-        # `self.data[csf_indx]` returns a Table object.  If it is an integer,
-        # `self.data[csf_indx]` returns a Row object, which does not have a
-        # `copy()` method.
-        data_row = self.data[csf_indx].copy()
-        # Use the full path to the ``config_specific_file`` for insurance
-        data_row['filename'] = str(_config_specific_file)
-        spec_par = spec.default_pypeit_par() if _config_specific_file is None \
-                    else spec.config_specific_par(data_row)
+            # Send the Row of the metadata table corresponding to the file
+            # NOTE: csf_indx needs to be a single element array/list such that
+            # `self.data[csf_indx]` returns a Table object.  If it is an
+            # integer, `self.data[csf_indx]` returns a Row object, which does
+            # not have a `copy()` method.
+            data_row = self.data[csf_indx].copy()
+            # Use the full path to the ``config_specific_file`` for insurance
+            data_row['filename'] = str(_config_specific_file)
+            spec_par = spec.config_specific_par(data_row)
 
         par = pypeitpar.PypeItPar.from_cfg_lines(
             cfg_lines=spec_par.to_config(), merge_with=(self.cfg_lines,)
         )
-        return spec, par, config_specific_file
+        return spec, par, _config_specific_file
 
 
 class SensFile(InputFile):

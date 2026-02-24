@@ -100,7 +100,8 @@ def test_read_backwards_pypeitfile():
     # Read the PypeIt file (backwards compatibility)
     ifile = dataPaths.tests.get_file_path('example_pypeit_file_backwards.pypeit')
     pypeItFile = inputfiles.PypeItFile.from_file(ifile)
-    assert isinstance(pypeItFile.config, dict), 'Backwards-format PypeIt file should parse to a dict'
+    assert isinstance(pypeItFile.config, dict), \
+        'Backwards-format PypeIt file should parse to a dict'
 
 
 def test_write_pypeitfile():
