@@ -10,8 +10,7 @@ import numpy as np
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par import pypeitpar
+from pypeit.par import pypeitpar
 from pypeit.images import rawimage
 from pypeit.images import combineimage
 from pypeit.images import pypeitimage

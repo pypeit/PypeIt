@@ -44,8 +44,8 @@ from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.core import standard
 from pypeit.core.atmextinction import AtmosphericExtinction
-from pypeit.par import newparset as parset
-from pypeit.par import newpypeitpar as pypeitpar
+from pypeit.par import parset
+from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 

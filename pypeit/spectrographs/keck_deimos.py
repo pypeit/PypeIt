@@ -36,8 +36,7 @@ from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
 from pypeit import utils
 
-from pypeit.par import newparset as parset
-#from pypeit.par import parset
+from pypeit.par import parset
 from pypeit.spectrographs import slitmask 
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 

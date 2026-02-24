@@ -19,8 +19,7 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
-from pypeit.par import newparset as parset
-#from pypeit.par import parset
+from pypeit.par import parset
 
 
 class SOARGoodmanSpectrograph(spectrograph.Spectrograph):

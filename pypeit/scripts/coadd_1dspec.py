@@ -18,8 +18,7 @@ from pypeit import PypeItError
 from pypeit import inputfiles
 from pypeit import coadd1d
 from pypeit import inputfiles
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par import pypeitpar
+from pypeit.par import pypeitpar
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs.util import load_spectrograph
 

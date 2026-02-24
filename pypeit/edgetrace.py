@@ -54,7 +54,7 @@ from pypeit.datamodel import DataContainer
 from pypeit import calibframe
 from pypeit.bitmask import BitMask
 from pypeit.display import display
-from pypeit.par import newpypeitpar as pypeitpar
+from pypeit.par import pypeitpar
 from pypeit.core import parse, procimg, trace, slitdesign_matching
 from pypeit.core import fitting
 from pypeit.images.buildimage import TraceImage

@@ -57,8 +57,7 @@ from pypeit import inputfiles
 from pypeit import outputfiles
 from pypeit import pypeit
 from pypeit import coadd2d
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par.pypeitpar import PypeItPar
+from pypeit.par import pypeitpar
 from pypeit.calibframe import CalibFrame
 from pypeit.core.parse import parse_binning
 from pypeit.scripts import scriptbase

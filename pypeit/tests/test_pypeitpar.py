@@ -7,12 +7,10 @@ from IPython import embed
 
 import pytest
 
-#from pypeit.par import newparset
-#from pypeit.par import newpypeitpar
-#from pypeit.par import pypeitpar
-#from pypeit.par import parset
-from pypeit.par import newpypeitpar as pypeitpar
-from pypeit.par import newparset as parset
+#from pypeit.par import oldparset
+#from pypeit.par import oldpypeitpar
+from pypeit.par import pypeitpar
+from pypeit.par import parset
 from pypeit.par import util
 from pypeit.spectrographs.util import load_spectrograph
 

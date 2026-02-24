@@ -24,7 +24,7 @@ from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import meta
 from pypeit.io import dict_to_lines
-from pypeit.par import PypeItPar
+from pypeit.par import pypeitpar
 from pypeit.bitmask import BitMask
 
 
@@ -53,7 +53,7 @@ class PypeItMetaData:
             The spectrograph used to collect the data save to each file.
             The class is used to provide the header keyword data to
             include in the table and specify any validation checks.
-        par (:obj:`pypeit.par.pypeitpar.PypeItPar`):
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             PypeIt parameters used to set the code behavior.
         files (:obj:`str`, :obj:`list`, optional):
             The list of files to include in the table.
@@ -108,7 +108,7 @@ class PypeItMetaData:
             # for each spectrograph independently, so it's currently not defined for all spectrographs
             self.spectrograph.check_spectrograph(files if isinstance(files, str) else files[0])
         self.par = par
-        if not isinstance(self.par, PypeItPar):
+        if not isinstance(self.par, pypeitpar.PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
 

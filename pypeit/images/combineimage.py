@@ -12,8 +12,7 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit.core import combine
 from pypeit.core import procimg
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par import pypeitpar
+from pypeit.par import pypeitpar
 from pypeit import utils
 from pypeit.images import pypeitimage
 from pypeit.images import imagebitmask

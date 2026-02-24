@@ -24,8 +24,7 @@ from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
 from pypeit.spectrographs.slitmask import SlitMask
-from pypeit.par import newparset as parset
-#from pypeit.par import parset
+from pypeit.par import parset
 
 from IPython import embed
 

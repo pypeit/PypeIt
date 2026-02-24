@@ -15,8 +15,7 @@ from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_excl
 from pypeit.scripts.collate_1d import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.sensfilearchive import SensFileArchive
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par import pypeitpar
+from pypeit.par import pypeitpar
 from pypeit import PypeItError
 from pypeit.images.detector_container import DetectorContainer
 from pypeit import fluxcalibrate

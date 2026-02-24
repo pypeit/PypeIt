@@ -16,8 +16,7 @@ from astropy.io import fits
 from pypeit import dataPaths
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par import pypeitpar
+from pypeit.par import pypeitpar
 from pypeit.tests.tstutils import data_output_path
 from pypeit import specobjs, specobj
 from pypeit import inputfiles 

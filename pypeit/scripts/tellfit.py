@@ -7,8 +7,7 @@ Fit telluric absorption to observed spectra
 from IPython import embed
 
 from pypeit.scripts import scriptbase
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par.pypeitpar import TelluricPar
+from pypeit.par import pypeitpar
 
 class TellFit(scriptbase.ScriptBase):
 
@@ -73,7 +72,7 @@ class TellFit(scriptbase.ScriptBase):
         from pypeit import log
         from pypeit import PypeItError
         from pypeit import dataPaths
-        from pypeit.par import pypeitpar
+        #from pypeit.par import pypeitpar
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core import telluric
         from pypeit import inputfiles

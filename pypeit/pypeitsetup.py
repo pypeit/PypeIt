@@ -14,7 +14,7 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit.metadata import PypeItMetaData
 from pypeit import inputfiles
-from pypeit.par import PypeItPar
+from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -89,7 +89,7 @@ class PypeItSetup:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             An instance of the `Spectrograph` class used throughout the
             reduction procedures.
-        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             An instance of the `PypeitPar` class that provides the
             parameters to all the algorthms that pypeit uses to reduce
             the data.
@@ -112,8 +112,10 @@ class PypeItSetup:
         self.user_cfg = cfg_lines
 
         # Determine the spectrograph name
-        _spectrograph_name = spectrograph_name if cfg_lines is None \
-                    else PypeItPar.from_cfg_lines(merge_with=(cfg_lines,))['rdx']['spectrograph']
+        _spectrograph_name = (
+            spectrograph_name if cfg_lines is None
+            else pypeitpar.PypeItPar.from_cfg_lines(merge_with=(cfg_lines,))['rdx']['spectrograph']
+        )
 
         # Cannot proceed without spectrograph name
         if _spectrograph_name is None:
@@ -132,8 +134,9 @@ class PypeItSetup:
 
         # Instantiate the pypeit parameters.  The user input
         # configuration (cfg_lines) can be None.
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
-                                            merge_with=(cfg_lines,))
+        self.par = pypeitpar.PypeItPar.from_cfg_lines(
+            cfg_lines=spectrograph_cfg_lines, merge_with=(cfg_lines,)
+        )
 
         # Prepare internals for execution
         self.fitstbl = None

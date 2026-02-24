@@ -27,8 +27,7 @@ from pypeit.spectrographs import spectrograph
 from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
 from pypeit import dataPaths
-from pypeit.par import newparset as parset
-#from pypeit.par import parset
+from pypeit.par import parset
 
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):

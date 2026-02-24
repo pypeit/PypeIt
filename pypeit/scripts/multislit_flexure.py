@@ -13,8 +13,7 @@ import numpy as np
 from pypeit import log
 from pypeit import inputfiles
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par import pypeitpar
+from pypeit.par import pypeitpar
 from pypeit.core import flexure
 from pypeit.scripts import scriptbase
 

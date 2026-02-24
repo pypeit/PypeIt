@@ -1,11 +1,10 @@
 # encoding: utf-8
 """
-Define the telescopes parameters used by Pypit.
+Define the telescopes parameters used by PypeIt.
 
 NOTE: Longitudes are measured increasing to the east, so west longitudes are negative.
 """
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par.pypeitpar import TelescopePar
+from pypeit.par import pypeitpar
 from astropy.coordinates import EarthLocation
 from astropy import units
 

@@ -11,8 +11,7 @@ from pypeit import dataPaths
 from pypeit import calibrations
 from pypeit import pypeitsetup
 from pypeit.images import buildimage
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par import pypeitpar
+from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit.tests.tstutils import data_output_path

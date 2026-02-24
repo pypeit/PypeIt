@@ -16,8 +16,7 @@ import scipy.spatial
 from IPython import embed
 
 
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par import pypeitpar
+from pypeit.par import pypeitpar
 from pypeit.core.wavecal import kdtree_generator
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
@@ -26,7 +25,6 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core import arc
 from pypeit.core import fitting
 
-from pypeit.core import pca
 from pypeit import utils
 
 from pypeit import log

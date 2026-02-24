@@ -17,8 +17,7 @@ import numpy as np
 from astropy.coordinates import Angle
 from astropy.time import Time
 
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par import pypeitpar
+from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import coadd1d
 from pypeit import log

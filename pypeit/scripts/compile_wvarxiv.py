@@ -5,12 +5,6 @@ into a PypeIt arxiv solution that can be used with the full_template method.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import time
-from pypeit import log
-from pypeit import PypeItError
-from pypeit import par
-from pypeit import inputfiles
-from pypeit import utils
 from pypeit.scripts import scriptbase
 
 
@@ -47,6 +41,9 @@ class CompileWVarxiv(scriptbase.ScriptBase):
         from astropy.table import Table, join
         from importlib_resources import files as imres_files
         import glob, os
+
+        from pypeit import log
+        from pypeit import PypeItError
 
         # Initialize the log
         cls.init_log(args)

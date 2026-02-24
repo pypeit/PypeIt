@@ -20,8 +20,7 @@ from pypeit.io import files_from_extension
 from pypeit import log, __version__
 from pypeit import PypeItError
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par.pypeitpar import PypeItPar
+from pypeit.par import pypeitpar
 
 from IPython import embed
 

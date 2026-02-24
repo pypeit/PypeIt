@@ -5,8 +5,7 @@ Module to run tests on a few flux routines
 import numpy as np
 
 from pypeit.core import flux_calib
-from pypeit.par import newpypeitpar as pypeitpar
-#from pypeit.par.pypeitpar import Coadd1DPar
+from pypeit.par import pypeitpar
 
 
 def test_filter_scale():

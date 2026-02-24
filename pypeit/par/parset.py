@@ -54,10 +54,10 @@ def tuple_force(par):
 # of issues with ConfigObj, these may need to be mutually exclusive.
 def set_parameter_definition(dtype=None, default=None, options=None, descr=None):
     """
-    Define a parameter for a :class:`~pypeit.par.newparset.ParSet`.
+    Define a parameter for a :class:`~pypeit.par.parset.ParSet`.
 
     This should be used by the ``parameters`` attribute of
-    :class:`~pypeit.par.newparset.ParSet` subclasses to ensure each parameter
+    :class:`~pypeit.par.parset.ParSet` subclasses to ensure each parameter
     has all its necessary components.
 
     Parameters
@@ -65,11 +65,10 @@ def set_parameter_definition(dtype=None, default=None, options=None, descr=None)
     dtype : type, list, optional
         A single type or list of types that are allowed for the parameter.
         Parameters cannot be dictionaries; instead create a new
-        :class:`~pypeit.par.newparset.ParSet` subclass for that parameter.  If a
-        parameter is a :class:`~pypeit.par.newparset.ParSet`, it
+        :class:`~pypeit.par.parset.ParSet` subclass for that parameter.  If a
+        parameter is a :class:`~pypeit.par.parset.ParSet`, it
         *cannot have any other type* and it must be a single
-        *:class:`~pypeit.par.newparset.ParSet`
-        subclass.
+        :class:`~pypeit.par.parset.ParSet` subclass.
     default : object, optional
         The default value for the parameter.
     options : object, list, optional
@@ -532,13 +531,13 @@ class ParSet:
         """
         Construct a reStructuredText table describing the parameter set.
 
-        This works recursively for nested :class:`~pypeit.par.newparset.ParSet` instances.
+        This works recursively for nested :class:`~pypeit.par.parset.ParSet` instances.
         
         Parameters
         ----------
         parsets_listed : :obj:`list`, optional
-            For nested :class:`~pypeit.par.newparset.ParSet` instances, this is the list of
-            :class:`~pypeit.par.newparset.ParSet` subclass names that already have already a table in
+            For nested :class:`~pypeit.par.parset.ParSet` instances, this is the list of
+            :class:`~pypeit.par.parset.ParSet` subclass names that already have already a table in
             the string list (so that they're not repeated).
         
         Returns
@@ -708,8 +707,8 @@ class ParSet:
             The top-level comment used for this section of the configuration
             file.  If None, use :attr:`default_comment`.
         section_level : :obj:`int`, optional
-            The top level of this :class:`~pypeit.par.newparset.ParSet`.  Used for recursive output
-            of nested :class:`~pypeit.par.newparset.ParSet` instances.
+            The top level of this :class:`~pypeit.par.parset.ParSet`.  Used for recursive output
+            of nested :class:`~pypeit.par.parset.ParSet` instances.
         exclude_defaults : :obj:`bool`, optional
             Do not include any parameters that are identical to the default
             values.
@@ -769,7 +768,7 @@ class ParSet:
         """
         Return a dictionary with the contents of the parameter set.
 
-        This method recursively handles nexted :class:`~pypeit.par.newparset.ParSet` subclasses.
+        This method recursively handles nexted :class:`~pypeit.par.parset.ParSet` subclasses.
 
         Returns
         -------
@@ -784,11 +783,11 @@ class ParSet:
         Instantiate from a dictionary.
 
         This recursively handles elements of the dictionary that are expected to
-        be (subclasses of) :class:`~pypeit.par.newparset.ParSet` objects by
+        be (subclasses of) :class:`~pypeit.par.parset.ParSet` objects by
         calling their :func:`from_dict` methods.
 
         For subclasses that do not have any nested
-        :class:`~pypeit.par.newparset.ParSet` objects, note that ``cls(**cfg)``
+        :class:`~pypeit.par.parset.ParSet` objects, note that ``cls(**cfg)``
         and ``cls.from_dict(cfg)`` are identical.
 
         Parameters
@@ -820,7 +819,7 @@ class ParSet:
         ------
         ValueError
             Raised if :attr:`card_prefix` is None for this subclass of
-            :class:`~pypeit.par.newparset.ParSet`.
+            :class:`~pypeit.par.parset.ParSet`.
         """
         if cls.card_prefix is None:
             raise ValueError(
@@ -844,7 +843,7 @@ class ParSet:
         ------
         ValueError
             Raised if :attr:`card_prefix` is None for this subclass of
-            :class:`~pypeit.par.newparset.ParSet`.
+            :class:`~pypeit.par.parset.ParSet`.
         """
         if cls.card_prefix is None:
             raise ValueError(
@@ -859,7 +858,7 @@ class ParSet:
         This adds two header cards:
 
             - ``self.class_header_card()``: This is the full name of the class
-              for the :class:`~pypeit.par.newparset.ParSet` subclass, including the module.
+              for the :class:`~pypeit.par.parset.ParSet` subclass, including the module.
 
             - ``self.dict_header_card()``: This is a string representation of
               the dictionary version of the parameter set, as given by
@@ -885,7 +884,7 @@ class ParSet:
     @classmethod
     def from_header(cls, hdr):
         """
-        Instantiate a :class:`~pypeit.par.newparset.ParSet` from a FITS header.
+        Instantiate a :class:`~pypeit.par.parset.ParSet` from a FITS header.
 
         This looks for the header cards with the provided prefix and uses
         the information in those cards to instantiate the parameter set.
@@ -899,7 +898,7 @@ class ParSet:
         ------
         ValueError
             Raised if :attr:`card_prefix` is None for this subclass of
-            :class:`~pypeit.par.newparset.ParSet`, or if the class header card does not match the
+            :class:`~pypeit.par.parset.ParSet`, or if the class header card does not match the
             expected class.
         """
         if cls.card_prefix is None:

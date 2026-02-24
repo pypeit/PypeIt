@@ -1,6 +1,8 @@
 """
 Defines parameter sets used to set the behavior for core pypeit
 functionality.
+
+.. include:: ../include/links.rst
 """
 from pathlib import Path
 
@@ -14,11 +16,11 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit.core import parse
 from pypeit.core.framematch import FrameTypeBitMask
-from pypeit.par import newparset
+from pypeit.par import parset
 from pypeit.par import util
 
 
-class TelescopePar(newparset.ParSet):
+class TelescopePar(parset.ParSet):
     """
     New-style parameter set for the salient properties of a telescope.
 
@@ -34,7 +36,7 @@ class TelescopePar(newparset.ParSet):
     ]
 
     parameters = {
-        'name': newparset.set_parameter_definition(
+        'name': parset.set_parameter_definition(
             dtype=str,
             default='KECK',
             options=valid_telescopes,
@@ -44,27 +46,27 @@ class TelescopePar(newparset.ParSet):
                 'MAGELLAN, LBT, MMT, KPNO, NOT, P200, BOK, GTC, SOAR, NTT, LDT, JWST, HILTNER, SUBARU'
             ),
         ),
-        'longitude': newparset.set_parameter_definition(
+        'longitude': parset.set_parameter_definition(
             dtype=[int, float],
             descr='Longitude of the telescope on Earth in degrees.',
         ),
-        'latitude': newparset.set_parameter_definition(
+        'latitude': parset.set_parameter_definition(
             dtype=[int, float],
             descr='Latitude of the telescope on Earth in degrees.',
         ),
-        'elevation': newparset.set_parameter_definition(
+        'elevation': parset.set_parameter_definition(
             dtype=[int, float],
             descr='Elevation of the telescope in m',
         ),
-        'fratio': newparset.set_parameter_definition(
+        'fratio': parset.set_parameter_definition(
             dtype=[int, float],
             descr='f-ratio of the telescope',
         ),
-        'diameter': newparset.set_parameter_definition(
+        'diameter': parset.set_parameter_definition(
             dtype=[int, float],
             descr='Diameter of the telescope in m',
         ),
-        'eff_aperture': newparset.set_parameter_definition(
+        'eff_aperture': parset.set_parameter_definition(
             dtype=[int, float],
             descr='Effective aperture of the telescope in m^2',
         ),
@@ -98,7 +100,7 @@ class TelescopePar(newparset.ParSet):
 
 
 
-class ScatteredLightPar(newparset.ParSet):
+class ScatteredLightPar(parset.ParSet):
     """
     The parameter set used to hold arguments for modelling the scattered light.
 
@@ -121,7 +123,7 @@ class ScatteredLightPar(newparset.ParSet):
     card_prefix = 'SCLT'
 
     parameters = {
-        'method': newparset.set_parameter_definition(
+        'method': parset.set_parameter_definition(
             dtype=str,
             default='model',
             options=valid_scattlight_methods,
@@ -136,7 +138,7 @@ class ScatteredLightPar(newparset.ParSet):
                 'currently available for all spectrographs).'
             )
         ),
-        'finecorr_method': newparset.set_parameter_definition(
+        'finecorr_method': parset.set_parameter_definition(
             dtype=str,
             options=valid_finecorr_scattlight_methods,
             descr=(
@@ -149,7 +151,7 @@ class ScatteredLightPar(newparset.ParSet):
                 '(see also, "finecorr_pad").'
             )
         ),
-        'finecorr_pad': newparset.set_parameter_definition(
+        'finecorr_pad': parset.set_parameter_definition(
             dtype=int,
             default=4,
             descr=(
@@ -157,7 +159,7 @@ class ScatteredLightPar(newparset.ParSet):
                 'slits for the fine correction to the scattered light.'
             )
         ),
-        'finecorr_order': newparset.set_parameter_definition(
+        'finecorr_order': parset.set_parameter_definition(
             dtype=int,
             default=2,
             descr=(
@@ -165,7 +167,7 @@ class ScatteredLightPar(newparset.ParSet):
                 'subtraction. It should be a low value.'
             )
         ),
-        'finecorr_mask': newparset.set_parameter_definition(
+        'finecorr_mask': parset.set_parameter_definition(
             dtype=[int, list],
             descr=(
                 'The inter-slit regions to mask during the fine correction to the scattered '
@@ -179,12 +181,12 @@ class ScatteredLightPar(newparset.ParSet):
     }
 
 
-class ProcessImagesPar(newparset.ParSet):
+class ProcessImagesPar(parset.ParSet):
     """
-    New-style parameter set for basic image processing using `newparset.ParSet`.
+    New-style parameter set for basic image processing using `parset.ParSet`.
 
     This replaces the old instance-driven __init__ with a class-level
-    `parameters` specification. The `newparset.ParSet` base class handles defaulting,
+    `parameters` specification. The `parset.ParSet` base class handles defaulting,
     type/options validation, and instantiation.
     """
 
@@ -208,32 +210,32 @@ class ProcessImagesPar(newparset.ParSet):
     card_prefix = 'IPRC'
 
     parameters = {
-        'trim': newparset.set_parameter_definition(
+        'trim': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Trim the image to the detector supplied region',
         ),
-        'apply_gain': newparset.set_parameter_definition(
+        'apply_gain': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Convert the ADUs to electrons using the detector gain',
         ),
-        'orient': newparset.set_parameter_definition(
+        'orient': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Orient the raw image into the PypeIt frame',
         ),
-        'use_biasimage': newparset.set_parameter_definition(
+        'use_biasimage': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Use a bias image.  If True, one or more must be supplied in the PypeIt file.',
         ),
-        'use_overscan': newparset.set_parameter_definition(
+        'use_overscan': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Subtract off the overscan.  Detector *must* have one or code will crash.',
         ),
-        'overscan_method': newparset.set_parameter_definition(
+        'overscan_method': parset.set_parameter_definition(
             dtype=str,
             default='savgol',
             options=valid_overscan_methods,
@@ -243,7 +245,7 @@ class ProcessImagesPar(newparset.ParSet):
                 'is identical to "chebyshev"; the former is deprecated and will be removed.'
             ),
         ),
-        'overscan_par': newparset.set_parameter_definition(
+        'overscan_par': parset.set_parameter_definition(
             dtype=[int, list],
             default=[5, 65],
             descr=(
@@ -253,7 +255,7 @@ class ProcessImagesPar(newparset.ParSet):
                 "for 'median', set overscan_par = None or omit the keyword."
             ),
         ),
-        'correct_nonlinear': newparset.set_parameter_definition(
+        'correct_nonlinear': parset.set_parameter_definition(
             dtype=list,
             descr=(
                 'Correct for non-linear response of the detector.  If None, '
@@ -264,12 +266,12 @@ class ProcessImagesPar(newparset.ParSet):
                 'hard-coded for a given spectrograph, and should otherwise be left as None.'
             ),
         ),
-        'use_darkimage': newparset.set_parameter_definition(
+        'use_darkimage': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Subtract off a dark image.  If True, one or more darks must be provided.',
         ),
-        'dark_expscale': newparset.set_parameter_definition(
+        'dark_expscale': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -281,7 +283,7 @@ class ProcessImagesPar(newparset.ParSet):
                 'time as your science frames, so use this option with care!'
             ),
         ),
-        'use_pattern': newparset.set_parameter_definition(
+        'use_pattern': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -290,7 +292,7 @@ class ProcessImagesPar(newparset.ParSet):
                 'constant across the detector.'
             ),
         ),
-        'subtract_continuum': newparset.set_parameter_definition(
+        'subtract_continuum': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -299,7 +301,7 @@ class ProcessImagesPar(newparset.ParSet):
                 'For all other cases, this parameter should probably be False.'
             ),
         ),
-        'subtract_scattlight': newparset.set_parameter_definition(
+        'subtract_scattlight': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -308,12 +310,12 @@ class ProcessImagesPar(newparset.ParSet):
                 'scattered light. For all other cases, this parameter should be False.'
             ),
         ),
-        'scattlight': newparset.set_parameter_definition(
+        'scattlight': parset.set_parameter_definition(
             dtype=ScatteredLightPar,
             default=ScatteredLightPar(),
             descr='Scattered light subtraction parameters.',
         ),
-        'empirical_rn': newparset.set_parameter_definition(
+        'empirical_rn': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -321,7 +323,7 @@ class ProcessImagesPar(newparset.ParSet):
                 'measure an empirical readnoise to use in the noise model.'
             ),
         ),
-        'shot_noise': newparset.set_parameter_definition(
+        'shot_noise': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -329,7 +331,7 @@ class ProcessImagesPar(newparset.ParSet):
                 'electron count shot noise in the image processing error budget'
             ),
         ),
-        'noise_floor': newparset.set_parameter_definition(
+        'noise_floor': parset.set_parameter_definition(
             dtype=float,
             default=0.0,
             descr=(
@@ -339,7 +341,7 @@ class ProcessImagesPar(newparset.ParSet):
                 'image will never be greater than 100.'
             ),
         ),
-        'use_pixelflat': newparset.set_parameter_definition(
+        'use_pixelflat': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -347,12 +349,12 @@ class ProcessImagesPar(newparset.ParSet):
                 'pixelflat image must be provied.'
             ),
         ),
-        'use_illumflat': newparset.set_parameter_definition(
+        'use_illumflat': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Use the illumination flat to correct for the illumination profile of each slit.',
         ),
-        'use_specillum': newparset.set_parameter_definition(
+        'use_specillum': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -362,7 +364,7 @@ class ProcessImagesPar(newparset.ParSet):
                 '``slit_illum_relative=True`` in the ``flatfield`` parameter set!'
             ),
         ),
-        'skip_write_2d': newparset.set_parameter_definition(
+        'skip_write_2d': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -372,17 +374,17 @@ class ProcessImagesPar(newparset.ParSet):
                 'after ensuring the quality of the resulting reductions.'
             ),
         ),
-        'spat_flexure_correct': newparset.set_parameter_definition(
+        'spat_flexure_correct': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Correct slits, illumination flat, etc. for flexure',
         ),
-        'spat_flexure_maxlag': newparset.set_parameter_definition(
+        'spat_flexure_maxlag': parset.set_parameter_definition(
             dtype=int,
             default=20,
             descr='Maximum of possible spatial flexure correction, in pixels',
         ),
-        'spat_flexure_sigdetect': newparset.set_parameter_definition(
+        'spat_flexure_sigdetect': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
             descr=(
@@ -392,7 +394,7 @@ class ProcessImagesPar(newparset.ParSet):
                 'for which the spatial flexure is computed.'
             ),
         ),
-        'spat_flexure_vrange': newparset.set_parameter_definition(
+        'spat_flexure_vrange': parset.set_parameter_definition(
             dtype=tuple,
             descr=(
                 'This parameter is used when generating the QA plot for the spatial flexure. '
@@ -400,7 +402,7 @@ class ProcessImagesPar(newparset.ParSet):
                 'spectral image. If None, the range is set automatically.'
             ),
         ),
-        'combine': newparset.set_parameter_definition(
+        'combine': parset.set_parameter_definition(
             dtype=str,
             default='mean',
             options=valid_combine_methods,
@@ -409,24 +411,24 @@ class ProcessImagesPar(newparset.ParSet):
                 f'{", ".join(valid_combine_methods)}'
             ),
         ),
-        'clip': newparset.set_parameter_definition(
+        'clip': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Perform sigma clipping when combining.  Only used with combine=mean',
         ),
-        'scale_to_mean': newparset.set_parameter_definition(
+        'scale_to_mean': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='If True, scale the input images to have the same mean before combining.',
         ),
-        'comb_sigrej': newparset.set_parameter_definition(
+        'comb_sigrej': parset.set_parameter_definition(
             dtype=float,
             descr=(
                 'Sigma-clipping level for when clip=True; '
                 'Use None for automatic limit (recommended).  '
             ),
         ),
-        'satpix': newparset.set_parameter_definition(
+        'satpix': parset.set_parameter_definition(
             dtype=str,
             default='reject',
             options=valid_saturation_handling,
@@ -435,12 +437,12 @@ class ProcessImagesPar(newparset.ParSet):
                 f'{", ".join(valid_saturation_handling)}'
             ),
         ),
-        'mask_cr': newparset.set_parameter_definition(
+        'mask_cr': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Identify CRs and mask them',
         ),
-        'n_lohi': newparset.set_parameter_definition(
+        'n_lohi': parset.set_parameter_definition(
             dtype=list,
             default=[0, 0],
             descr=(
@@ -448,12 +450,12 @@ class ProcessImagesPar(newparset.ParSet):
                 'distribution; i.e., n_lohi = low, high.  Use None for no limit.'
             ),
         ),
-        'lamaxiter': newparset.set_parameter_definition(
+        'lamaxiter': parset.set_parameter_definition(
             dtype=int,
             default=1,
             descr='Maximum number of iterations for LA cosmics routine.',
         ),
-        'grow': newparset.set_parameter_definition(
+        'grow': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.5,
             descr=(
@@ -461,22 +463,22 @@ class ProcessImagesPar(newparset.ParSet):
                 'LA cosmics routine.'
             ),
         ),
-        'rmcompact': newparset.set_parameter_definition(
+        'rmcompact': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Remove compact detections in LA cosmics routine',
         ),
-        'sigclip': newparset.set_parameter_definition(
+        'sigclip': parset.set_parameter_definition(
             dtype=[int, float],
             default=4.5,
             descr='Sigma level for rejection in LA cosmics routine',
         ),
-        'sigfrac': newparset.set_parameter_definition(
+        'sigfrac': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.3,
             descr='Fraction for the lower clipping threshold in LA cosmics routine.',
         ),
-        'objlim': newparset.set_parameter_definition(
+        'objlim': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr='Object detection limit in LA cosmics routine',
@@ -527,7 +529,7 @@ class ProcessImagesPar(newparset.ParSet):
             )
 
 
-class FrameGroupPar(newparset.ParSet):
+class FrameGroupPar(parset.ParSet):
     """
     The abstract base class for each frame type and the details of how they
     should be processed.
@@ -539,7 +541,7 @@ class FrameGroupPar(newparset.ParSet):
     """
 
     parameters = {
-        'exprng': newparset.set_parameter_definition(
+        'exprng': parset.set_parameter_definition(
             dtype=list,
             default=[None, None],
             descr=(
@@ -578,7 +580,7 @@ class BiasFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 use_biasimage=False,
@@ -598,7 +600,7 @@ class DarkFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 use_pixelflat=False,
@@ -616,7 +618,7 @@ class ScatteredLightFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 satpix='nothing',
@@ -634,7 +636,7 @@ class PixelFlatFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 satpix='nothing',
@@ -652,7 +654,7 @@ class IllumFlatFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 satpix='nothing',
@@ -670,7 +672,7 @@ class LampOffFlatsFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 satpix='nothing',
@@ -688,7 +690,7 @@ class SlitlessPixFlatFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 satpix='nothing',
@@ -707,7 +709,7 @@ class PinholeFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(),
             descr='Low level parameters used for basic image processing',
@@ -720,7 +722,7 @@ class AlignFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 satpix='nothing',
@@ -738,7 +740,7 @@ class ArcFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 use_pixelflat=False,
@@ -755,7 +757,7 @@ class TiltFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 use_pixelflat=False,
@@ -772,7 +774,7 @@ class TraceFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 use_pixelflat=False,
@@ -789,7 +791,7 @@ class StandardFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 noise_floor=0.01,
@@ -805,7 +807,7 @@ class SkyFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 noise_floor=0.01,
@@ -821,7 +823,7 @@ class ScienceFramePar(FrameGroupPar):
     default_key = f'{frametype}frame'
 
     parameters = FrameGroupPar.parameters | {
-        'process': newparset.set_parameter_definition(
+        'process': parset.set_parameter_definition(
             dtype=ProcessImagesPar,
             default=ProcessImagesPar(
                 noise_floor=0.01,
@@ -832,7 +834,7 @@ class ScienceFramePar(FrameGroupPar):
     }
 
 
-class FlatFieldPar(newparset.ParSet):
+class FlatFieldPar(parset.ParSet):
     """
     New-style parameter set for flat-fielding (replacement for FlatFieldPar).
 
@@ -848,7 +850,7 @@ class FlatFieldPar(newparset.ParSet):
     valid_saturated_slits_methods = ['crash', 'mask', 'continue']
 
     parameters = {
-        'method': newparset.set_parameter_definition(
+        'method': parset.set_parameter_definition(
             dtype=str,
             default='bspline',
             options=valid_methods,
@@ -857,17 +859,17 @@ class FlatFieldPar(newparset.ParSet):
                 f'Options are: None, {", ".join(valid_methods)}'
             ),
         ),
-        'pixelflat_file': newparset.set_parameter_definition(
+        'pixelflat_file': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr='Filename of the image to use for pixel-level field flattening',
         ),
-        'spec_samp_fine': newparset.set_parameter_definition(
+        'spec_samp_fine': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.2,
             descr='bspline break point spacing in units of pixels for spectral fit to flat field blaze function.',
         ),
-        'spec_samp_coarse': newparset.set_parameter_definition(
+        'spec_samp_coarse': parset.set_parameter_definition(
             dtype=[int, float],
             default=50.0,
             descr=(
@@ -876,7 +878,7 @@ class FlatFieldPar(newparset.ParSet):
                 'fit a sky flat with lots of narrow spectral features.'
             ),
         ),
-        'spat_samp': newparset.set_parameter_definition(
+        'spat_samp': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
             descr=(
@@ -885,17 +887,17 @@ class FlatFieldPar(newparset.ParSet):
                 'minimum scale on which the illumination function will have features.'
             ),
         ),
-        'pixelflat_min_wave': newparset.set_parameter_definition(
+        'pixelflat_min_wave': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
             descr='All values of the normalized pixel flat are set to 1 for wavelengths below this value.',
         ),
-        'pixelflat_max_wave': newparset.set_parameter_definition(
+        'pixelflat_max_wave': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
             descr='All values of the normalized pixel flat are set to 1 for wavelengths above this value.',
         ),
-        'tweak_slits': newparset.set_parameter_definition(
+        'tweak_slits': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -903,7 +905,7 @@ class FlatFieldPar(newparset.ParSet):
                 'This will work even if illumflatten is set to False '
             ),
         ),
-        'tweak_method': newparset.set_parameter_definition(
+        'tweak_method': parset.set_parameter_definition(
             dtype=str,
             default='threshold',
             options=valid_tweak_methods,
@@ -917,7 +919,7 @@ class FlatFieldPar(newparset.ParSet):
                 'systematic vignetting in the spatial direction. '
             ),
         ),
-        'tweak_slits_thresh': newparset.set_parameter_definition(
+        'tweak_slits_thresh': parset.set_parameter_definition(
             dtype=float,
             default=0.93,
             descr=(
@@ -926,7 +928,7 @@ class FlatFieldPar(newparset.ParSet):
                 'It should be a number less than 1.0'
             ),
         ),
-        'tweak_slits_maxfrac': newparset.set_parameter_definition(
+        'tweak_slits_maxfrac': parset.set_parameter_definition(
             dtype=float,
             default=0.10,
             descr=(
@@ -935,7 +937,7 @@ class FlatFieldPar(newparset.ParSet):
                 'which means slits would shrink or grow by at most 20% (10% on each side)'
             ),
         ),
-        'rej_sticky': newparset.set_parameter_definition(
+        'rej_sticky': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -945,7 +947,7 @@ class FlatFieldPar(newparset.ParSet):
                 'rejected in each stage are included in each subsequent stage.'
             ),
         ),
-        'slit_trim': newparset.set_parameter_definition(
+        'slit_trim': parset.set_parameter_definition(
             dtype=[int, float, tuple],
             default=3.0,
             descr=(
@@ -955,12 +957,12 @@ class FlatFieldPar(newparset.ParSet):
                 'two-tuple can be used to trim the left and right sides differently.'
             ),
         ),
-        'slit_illum_pad': newparset.set_parameter_definition(
+        'slit_illum_pad': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
             descr='The number of pixels to pad the slit edges when constructing the slit-illumination profile. Single value applied to both edges.',
         ),
-        'slit_illum_finecorr': newparset.set_parameter_definition(
+        'slit_illum_finecorr': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -970,7 +972,7 @@ class FlatFieldPar(newparset.ParSet):
                 'profile as a function of wavelength.'
             ),
         ),
-        'slit_illum_relative': newparset.set_parameter_definition(
+        'slit_illum_relative': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -981,17 +983,17 @@ class FlatFieldPar(newparset.ParSet):
                 'only used for SlicerIFU reductions.'
             ),
         ),
-        'illum_iter': newparset.set_parameter_definition(
+        'illum_iter': parset.set_parameter_definition(
             dtype=int,
             default=0,
             descr='The number of rejection iterations to perform when constructing the slit-illumination profile.  No rejection iterations are performed if 0.  WARNING: Functionality still being tested.',
         ),
-        'illum_rej': newparset.set_parameter_definition(
+        'illum_rej': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
             descr='The sigma threshold used in the rejection iterations used to refine the slit-illumination profile.  Rejection iterations are only performed if ``illum_iter > 0``.',
         ),
-        'twod_fit_npoly': newparset.set_parameter_definition(
+        'twod_fit_npoly': parset.set_parameter_definition(
             dtype=int,
             default=None,
             descr=(
@@ -1002,7 +1004,7 @@ class FlatFieldPar(newparset.ParSet):
                 'this paramter at your own risk!'
             ),
         ),
-        'saturated_slits': newparset.set_parameter_definition(
+        'saturated_slits': parset.set_parameter_definition(
             dtype=str,
             default='crash',
             options=valid_saturated_slits_methods,
@@ -1015,17 +1017,17 @@ class FlatFieldPar(newparset.ParSet):
                 'flat-field correction, but continue with the reduction.'
             ),
         ),
-        'slit_illum_ref_idx': newparset.set_parameter_definition(
+        'slit_illum_ref_idx': parset.set_parameter_definition(
             dtype=int,
             default=0,
             descr='The index of a reference slit (0-indexed) used for estimating the relative spectral sensitivity (or the relative blaze). This parameter is only used if ``slit_illum_relative = True``.',
         ),
-        'slit_illum_smooth_npix': newparset.set_parameter_definition(
+        'slit_illum_smooth_npix': parset.set_parameter_definition(
             dtype=int,
             default=10,
             descr='The number of pixels used to determine smoothly varying relative weights is given by ``nspec/slit_illum_smooth_npix``, where nspec is the number of spectral pixels.',
         ),
-        'fit_2d_det_response': newparset.set_parameter_definition(
+        'fit_2d_det_response': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -1061,7 +1063,7 @@ class FlatFieldPar(newparset.ParSet):
             )
 
 
-class FlexurePar(newparset.ParSet):
+class FlexurePar(parset.ParSet):
     """
     New-style parameter set for flexure correction parameters.
 
@@ -1075,7 +1077,7 @@ class FlexurePar(newparset.ParSet):
     valid_excessive_shift_methods = ['crash', 'set_to_zero', 'continue', 'use_median']
 
     parameters = {
-        'spec_method': newparset.set_parameter_definition(
+        'spec_method': parset.set_parameter_definition(
             dtype=str,
             default='skip',
             options=valid_methods,
@@ -1086,12 +1088,12 @@ class FlexurePar(newparset.ParSet):
                 f'Options are: {", ".join(valid_methods)}'
             ),
         ),
-        'spec_maxshift': newparset.set_parameter_definition(
+        'spec_maxshift': parset.set_parameter_definition(
             dtype=int,
             default=20,
             descr='Maximum allowed spectral flexure shift in pixels.',
         ),
-        'spectrum': newparset.set_parameter_definition(
+        'spectrum': parset.set_parameter_definition(
             dtype=str,
             default='paranal_sky.fits',
             descr=(
@@ -1102,7 +1104,7 @@ class FlexurePar(newparset.ParSet):
                 'resolution of the spectrum to be flexure corrected.'
             ),
         ),
-        'excessive_shift': newparset.set_parameter_definition(
+        'excessive_shift': parset.set_parameter_definition(
             dtype=str,
             default='use_median',
             options=valid_excessive_shift_methods,
@@ -1118,7 +1120,7 @@ class FlexurePar(newparset.ParSet):
                 "the other slits; if not available, the flexure correction will not be applied."
             ),
         ),
-        'minwave': newparset.set_parameter_definition(
+        'minwave': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
             descr=(
@@ -1127,7 +1129,7 @@ class FlexurePar(newparset.ParSet):
                 'this parameter has no effect.'
             ),
         ),
-        'maxwave': newparset.set_parameter_definition(
+        'maxwave': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
             descr=(
@@ -1136,7 +1138,7 @@ class FlexurePar(newparset.ParSet):
                 'this parameter has no effect.'
             ),
         ),
-        'multi_min_SN': newparset.set_parameter_definition(
+        'multi_min_SN': parset.set_parameter_definition(
             dtype=[int, float],
             default=1,
             descr='Minimum S/N for analyzing sky spectrum for flexure',
@@ -1144,7 +1146,7 @@ class FlexurePar(newparset.ParSet):
     }
 
 
-class AlignPar(newparset.ParSet):
+class AlignPar(parset.ParSet):
     """
     New-style parameter set for alignment tracing (replacement for AlignPar).
 
@@ -1154,22 +1156,22 @@ class AlignPar(newparset.ParSet):
     default_key = 'align'
 
     parameters = {
-        'locations': newparset.set_parameter_definition(
+        'locations': parset.set_parameter_definition(
             dtype=[list, np.ndarray],
             default=[0.0, 1.0],
             descr='Locations of the bars, in a list, specified as a fraction of the slit width',
         ),
-        'trace_npoly': newparset.set_parameter_definition(
+        'trace_npoly': parset.set_parameter_definition(
             dtype=int,
             default=4,
             descr='Order of the polynomial to use when fitting the trace of a single bar',
         ),
-        'trim_edge': newparset.set_parameter_definition(
+        'trim_edge': parset.set_parameter_definition(
             dtype=list,
             default=[0, 0],
             descr='Trim the slit by this number of pixels left/right before finding alignment bars',
         ),
-        'snr_thresh': newparset.set_parameter_definition(
+        'snr_thresh': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.0,
             descr=(
@@ -1182,7 +1184,7 @@ class AlignPar(newparset.ParSet):
     }
 
 
-class Coadd1DPar(newparset.ParSet):
+class Coadd1DPar(parset.ParSet):
     """
     New-style parameter set for 1D coaddition (replacement for Coadd1DPar).
 
@@ -1200,23 +1202,23 @@ class Coadd1DPar(newparset.ParSet):
     default_key = 'coadd1d'
 
     parameters = {
-        'ex_value': newparset.set_parameter_definition(
+        'ex_value': parset.set_parameter_definition(
             dtype=str,
             default='OPT',
             options=valid_extractions,
             descr="The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'",
         ),
-        'flux_value': newparset.set_parameter_definition(
+        'flux_value': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the spec1d files. If False, it will coadd the counts.',
         ),
-        'nmaskedge': newparset.set_parameter_definition(
+        'nmaskedge': parset.set_parameter_definition(
             dtype=int,
             default=2,
             descr='Number of edge pixels to mask. This should be removed/fixed.',
         ),
-        'sn_smooth_npix': newparset.set_parameter_definition(
+        'sn_smooth_npix': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Number of pixels to median filter by when computing S/N used to decide how to scale '
@@ -1225,7 +1227,7 @@ class Coadd1DPar(newparset.ParSet):
                 'this neff.'
             ),
         ),
-        'sigrej_exp': newparset.set_parameter_definition(
+        'sigrej_exp': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma '
@@ -1233,7 +1235,7 @@ class Coadd1DPar(newparset.ParSet):
                 'only available for multi-slit observations.'
             ),
         ),
-        'wave_method': newparset.set_parameter_definition(
+        'wave_method': parset.set_parameter_definition(
             dtype=str,
             default='linear',
             options=valid_wave_methods,
@@ -1248,40 +1250,40 @@ class Coadd1DPar(newparset.ParSet):
                 "'concatenate' -- Meld the input wavelength arrays"
             ),
         ),
-        'dv': newparset.set_parameter_definition(
+        'dv': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 "Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option), "
                 "otherwise a median value is computed from the data."
             ),
         ),
-        'dwave': newparset.set_parameter_definition(
+        'dwave': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 "Dispersion in Angstroms in case you want to specify it in the get_wave_grid  (for the 'linear' option), "
                 "otherwise a median value is computed from the data."
             ),
         ),
-        'dloglam': newparset.set_parameter_definition(
+        'dloglam': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 "Dispersion in units of log10(wave) in case you want to specify it in the get_wave_grid  (for the 'velocity' or 'log10' options), "
                 "otherwise a median value is computed from the data."
             ),
         ),
-        'wave_grid_min': newparset.set_parameter_definition(
+        'wave_grid_min': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Used in case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data'
             ),
         ),
-        'wave_grid_max': newparset.set_parameter_definition(
+        'wave_grid_max': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Used in case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data'
             ),
         ),
-        'spec_samp_fact': newparset.set_parameter_definition(
+        'spec_samp_fact': parset.set_parameter_definition(
             dtype=float,
             default=1.0,
             descr=(
@@ -1290,7 +1292,7 @@ class Coadd1DPar(newparset.ParSet):
                 "spectral pixels by spec_samp_fact, i.e. units spec_samp_fact are pixels."
             ),
         ),
-        'ref_percentile': newparset.set_parameter_definition(
+        'ref_percentile': parset.set_parameter_definition(
             dtype=[int, float],
             default=70.0,
             descr=(
@@ -1301,17 +1303,17 @@ class Coadd1DPar(newparset.ParSet):
                 'ratio of two spectra.  This must be a number between 0 and 100.'
             ),
         ),
-        'maxiter_scale': newparset.set_parameter_definition(
+        'maxiter_scale': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr='Maximum number of iterations performed for rescaling spectra.',
         ),
-        'sigrej_scale': newparset.set_parameter_definition(
+        'sigrej_scale': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr='Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.',
         ),
-        'scale_method': newparset.set_parameter_definition(
+        'scale_method': parset.set_parameter_definition(
             dtype=str,
             default='auto',
             options=valid_scale_methods,
@@ -1325,17 +1327,17 @@ class Coadd1DPar(newparset.ParSet):
                 "'hand' -- Pass in hand scaling factors. This option is not well tested."
             ),
         ),
-        'sn_min_medscale': newparset.set_parameter_definition(
+        'sn_min_medscale': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.5,
             descr='For scale method set to ``auto``, this sets the minimum SNR for which median scaling is attempted.',
         ),
-        'sn_min_polyscale': newparset.set_parameter_definition(
+        'sn_min_polyscale': parset.set_parameter_definition(
             dtype=[int, float],
             default=2.0,
             descr='For scale method set to ``auto``, this sets the minimum SNR for which polynomial scaling is attempted.',
         ),
-        'weight_method': newparset.set_parameter_definition(
+        'weight_method': parset.set_parameter_definition(
             dtype=str,
             default='auto',
             options=valid_weight_methods,
@@ -1360,24 +1362,24 @@ class Coadd1DPar(newparset.ParSet):
                 "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
             ),
         ),
-        'maxiter_reject': newparset.set_parameter_definition(
+        'maxiter_reject': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr='Maximum number of iterations for stacking and rejection. The code stops iterating ' \
                   'either when the output mask does not change betweeen successive iterations or when ' \
                   'maxiter_reject is reached.',
         ),
-        'lower': newparset.set_parameter_definition(
+        'lower': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr='Lower rejection threshold used for rejecting pixels when combining spectra in units of sigma.',
         ),
-        'upper': newparset.set_parameter_definition(
+        'upper': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr='Upper rejection threshold used for rejecting pixels when combining spectra in units of sigma.',
         ),
-        'maxrej': newparset.set_parameter_definition(
+        'maxrej': parset.set_parameter_definition(
             dtype=int,
             descr=(
                 'Coadding performs iterative rejection by comparing each exposure to a preliminary stack of '
@@ -1385,7 +1387,7 @@ class Coadd1DPar(newparset.ParSet):
                 'per iteration of this rejection. The default is None, which means no maximum on rejected pixels.'
             ),
         ),
-        'sn_clip': newparset.set_parameter_definition(
+        'sn_clip': parset.set_parameter_definition(
             dtype=[int, float],
             default=30.0,
             descr=(
@@ -1394,42 +1396,42 @@ class Coadd1DPar(newparset.ParSet):
                 'at a level greater than the formal S/N due to systematics.'
             ),
         ),
-        'nbests': newparset.set_parameter_definition(
+        'nbests': parset.set_parameter_definition(
             dtype=[list, int],
             descr=(
                 'Number of orders to use for estimating the per exposure weights. Default is None, '
                 'which will just use one fourth of the total number of orders. This is only used for Echelle'
             ),
         ),
-        'filter': newparset.set_parameter_definition(
+        'filter': parset.set_parameter_definition(
             dtype=str,
             default='none',
             descr='Filter for scaling.  See flux_calib.load_fitler_file() for naming.  Ignore if none',
         ),
-        'mag_type': newparset.set_parameter_definition(
+        'mag_type': parset.set_parameter_definition(
             dtype=str,
             default='AB',
             descr='Magnitude type.  AB is the only option currently allowed',
         ),
-        'filter_mag': newparset.set_parameter_definition(
+        'filter_mag': parset.set_parameter_definition(
             dtype=float,
             descr='Magnitude of the source in the given filter',
         ),
-        'filter_mask': newparset.set_parameter_definition(
+        'filter_mask': parset.set_parameter_definition(
             dtype=[str, list],
             descr=(
                 'List of wavelength regions to mask when doing the scaling (`i.e.`, occasional junk pixels). '
                 'Colon and comma separateed, e.g.   5552:5559,6010:6030'
             ),
         ),
-        'coaddfile': newparset.set_parameter_definition(
+        'coaddfile': parset.set_parameter_definition(
             dtype=str,
             descr='Output filename',
         ),
     }
 
 
-class Coadd2DPar(newparset.ParSet):
+class Coadd2DPar(parset.ParSet):
     """
     New-style parameter set for 2D coaddition (replacement for Coadd2DPar).
 
@@ -1439,7 +1441,7 @@ class Coadd2DPar(newparset.ParSet):
     default_key = 'coadd2d'
 
     parameters = {
-        'only_slits': newparset.set_parameter_definition(
+        'only_slits': parset.set_parameter_definition(
             dtype=[str, list],
             default=None,
             descr=(
@@ -1448,7 +1450,7 @@ class Coadd2DPar(newparset.ParSet):
                 'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
             ),
         ),
-        'exclude_slits': newparset.set_parameter_definition(
+        'exclude_slits': parset.set_parameter_definition(
             dtype=[str, list],
             default=None,
             descr=(
@@ -1457,7 +1459,7 @@ class Coadd2DPar(newparset.ParSet):
                 'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
             ),
         ),
-        'offsets': newparset.set_parameter_definition(
+        'offsets': parset.set_parameter_definition(
             dtype=[str, list],
             default='auto',
             descr=(
@@ -1471,18 +1473,18 @@ class Coadd2DPar(newparset.ParSet):
                 'If a list of offsets is provided, PypeIt will use it.'
             ),
         ),
-        'spat_toler': newparset.set_parameter_definition(
+        'spat_toler': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr='This parameter provides the desired tolerance in spatial pixel used ' \
                   'to identify slits in different exposures',
         ),
-        'use_slits4wvgrid': newparset.set_parameter_definition(
+        'use_slits4wvgrid': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='If True, use the slits to set the trace down the center',
         ),
-        'weights': newparset.set_parameter_definition(
+        'weights': parset.set_parameter_definition(
             dtype=[str, list],
             default='auto',
             descr=(
@@ -1497,7 +1499,7 @@ class Coadd2DPar(newparset.ParSet):
                 'is not found, the code will use uniform weights. '
             ),
         ),
-        'user_obj_ids': newparset.set_parameter_definition(
+        'user_obj_ids': parset.set_parameter_definition(
             dtype=list,
             default=None,
             descr=(
@@ -1515,7 +1517,7 @@ class Coadd2DPar(newparset.ParSet):
                 'only if ``weights = auto``.'
             ),
         ),
-        'manual': newparset.set_parameter_definition(
+        'manual': parset.set_parameter_definition(
             dtype=[str, list],
             default=None,
             descr=(
@@ -1530,7 +1532,7 @@ class Coadd2DPar(newparset.ParSet):
                 'is optional and **in pixels (not arcsec!)**.'
             ),
         ),
-        'wave_method': newparset.set_parameter_definition(
+        'wave_method': parset.set_parameter_definition(
             dtype=str,
             default=None,
             options=['iref', 'velocity', 'log10', 'linear'],
@@ -1545,7 +1547,7 @@ class Coadd2DPar(newparset.ParSet):
                 "* 'linear' -- Grid is uniform in wavelength"
             ),
         ),
-        'spec_samp_fact': newparset.set_parameter_definition(
+        'spec_samp_fact': parset.set_parameter_definition(
             dtype=float,
             default=1.0,
             descr=(
@@ -1555,7 +1557,7 @@ class Coadd2DPar(newparset.ParSet):
                 "i.e. the units of ``spec_samp_fact`` are pixels."
             ),
         ),
-        'spat_samp_fact': newparset.set_parameter_definition(
+        'spat_samp_fact': parset.set_parameter_definition(
             dtype=float,
             default=1.0,
             descr=(
@@ -1574,7 +1576,7 @@ class Coadd2DPar(newparset.ParSet):
             self.data['manual'] = ';'.join(parse.fix_config_par_image_location(self.data['manual']))
 
 
-class CubePar(newparset.ParSet):
+class CubePar(parset.ParSet):
     """
     New-style parameter set for cube generation (replacement for CubePar).
 
@@ -1586,7 +1588,7 @@ class CubePar(newparset.ParSet):
     valid_weight_methods = ['auto', 'constant', 'uniform', 'wave_dependent', 'relative', 'ivar']
 
     parameters = {
-        'slit_spec': newparset.set_parameter_definition(
+        'slit_spec': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -1594,7 +1596,7 @@ class CubePar(newparset.ParSet):
                 'If the data uses fibres for all spaxels, set this to False.'
             ),
         ),
-        'weight_method': newparset.set_parameter_definition(
+        'weight_method': parset.set_parameter_definition(
             dtype=str,
             default='auto',
             options=valid_weight_methods,
@@ -1619,7 +1621,7 @@ class CubePar(newparset.ParSet):
                 "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
             ),
         ),
-        'align': newparset.set_parameter_definition(
+        'align': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -1630,12 +1632,12 @@ class CubePar(newparset.ParSet):
                 'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
             ),
         ),
-        'combine': newparset.set_parameter_definition(
+        'combine': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='If set to True, the input frames will be combined. Otherwise, a separate datacube will be generated for each input spec2d file, and will be saved as a spec3d file.',
         ),
-        'output_filename': newparset.set_parameter_definition(
+        'output_filename': parset.set_parameter_definition(
             dtype=str,
             default="",
             descr=(
@@ -1644,7 +1646,7 @@ class CubePar(newparset.ParSet):
                 'prefixed with ``spec3d_*``'
             ),
         ),
-        'sensfile': newparset.set_parameter_definition(
+        'sensfile': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=(
@@ -1653,7 +1655,7 @@ class CubePar(newparset.ParSet):
                 'of the slits.'
             ),
         ),
-        'reference_image': newparset.set_parameter_definition(
+        'reference_image': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=(
@@ -1664,7 +1666,7 @@ class CubePar(newparset.ParSet):
                 'so they are identical to the reference image).'
             ),
         ),
-        'save_whitelight': newparset.set_parameter_definition(
+        'save_whitelight': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -1676,7 +1678,7 @@ class CubePar(newparset.ParSet):
                 'If combine=False, the individual spec3d files will have a suffix "_whitelight".'
             ),
         ),
-        'whitelight_range': newparset.set_parameter_definition(
+        'whitelight_range': parset.set_parameter_definition(
             dtype=list,
             default=[None, None],
             descr=(
@@ -1690,7 +1692,7 @@ class CubePar(newparset.ParSet):
                 'line map to register two frames.'
             ),
         ),
-        'method': newparset.set_parameter_definition(
+        'method': parset.set_parameter_definition(
             dtype=str,
             default='subpixel',
             options=['subpixel', 'ngp'],
@@ -1711,7 +1713,7 @@ class CubePar(newparset.ParSet):
                 'pixels).'
             ),
         ),
-        'spec_subpixel': newparset.set_parameter_definition(
+        'spec_subpixel': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr=(
@@ -1722,7 +1724,7 @@ class CubePar(newparset.ParSet):
                 'See also, spat_subpixel and slice_subpixel.'
             ),
         ),
-        'spat_subpixel': newparset.set_parameter_definition(
+        'spat_subpixel': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr=(
@@ -1733,7 +1735,7 @@ class CubePar(newparset.ParSet):
                 'See also, spec_subpixel and slice_subpixel.'
             ),
         ),
-        'slice_subpixel': newparset.set_parameter_definition(
+        'slice_subpixel': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr=(
@@ -1742,7 +1744,7 @@ class CubePar(newparset.ParSet):
                 'during datacube creation. See also, spec_subpixel and spat_subpixel.'
             ),
         ),
-        'ra_min': newparset.set_parameter_definition(
+        'ra_min': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
@@ -1750,7 +1752,7 @@ class CubePar(newparset.ParSet):
                 'based on the WCS of all spaxels. Units should be degrees.'
             ),
         ),
-        'ra_max': newparset.set_parameter_definition(
+        'ra_max': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
@@ -1758,7 +1760,7 @@ class CubePar(newparset.ParSet):
                 'based on the WCS of all spaxels. Units should be degrees.'
             ),
         ),
-        'dec_min': newparset.set_parameter_definition(
+        'dec_min': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
@@ -1766,7 +1768,7 @@ class CubePar(newparset.ParSet):
                 'based on the WCS of all spaxels. Units should be degrees.'
             ),
         ),
-        'dec_max': newparset.set_parameter_definition(
+        'dec_max': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
@@ -1774,7 +1776,7 @@ class CubePar(newparset.ParSet):
                 'based on the WCS of all spaxels. Units should be degrees.'
             ),
         ),
-        'wave_min': newparset.set_parameter_definition(
+        'wave_min': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
@@ -1782,7 +1784,7 @@ class CubePar(newparset.ParSet):
                 'minimum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
             ),
         ),
-        'wave_max': newparset.set_parameter_definition(
+        'wave_max': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
@@ -1790,7 +1792,7 @@ class CubePar(newparset.ParSet):
                 'maximum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
             ),
         ),
-        'spatial_delta': newparset.set_parameter_definition(
+        'spatial_delta': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
@@ -1798,7 +1800,7 @@ class CubePar(newparset.ParSet):
                 'If None, the default is set by the spectrograph file.'
             ),
         ),
-        'wave_delta': newparset.set_parameter_definition(
+        'wave_delta': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
@@ -1806,14 +1808,14 @@ class CubePar(newparset.ParSet):
                 'If None, the default is set by the wavelength solution.'
             ),
         ),
-        'astrometric': newparset.set_parameter_definition(
+        'astrometric': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
                 'If true, an astrometric correction will be applied using the alignment frames.'
             ),
         ),
-        'scale_corr': newparset.set_parameter_definition(
+        'scale_corr': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=(
@@ -1824,14 +1826,14 @@ class CubePar(newparset.ParSet):
                 'You should choose the same frame for both the standards and science frames.'
             ),
         ),
-        'correct_dar': newparset.set_parameter_definition(
+        'correct_dar': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
                 'If True, the data will be corrected for differential atmospheric refraction (DAR).'
             ),
         ),
-        'skysub_frame': newparset.set_parameter_definition(
+        'skysub_frame': parset.set_parameter_definition(
             dtype=str,
             default='image',
             descr=(
@@ -1858,7 +1860,7 @@ class CubePar(newparset.ParSet):
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
 
 
-class FluxCalibratePar(newparset.ParSet):
+class FluxCalibratePar(parset.ParSet):
     """
     New-style parameter set holding the arguments for how to perform the flux
     calibration (replacement for FluxCalibratePar).
@@ -1869,7 +1871,7 @@ class FluxCalibratePar(newparset.ParSet):
     default_key = 'fluxcalibrate'
 
     parameters = {
-        'extrap_sens': newparset.set_parameter_definition(
+        'extrap_sens': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -1879,7 +1881,7 @@ class FluxCalibratePar(newparset.ParSet):
                 "can be extended. If True the code will blindly extrapolate."
             ),
         ),
-        'extinct_correct': newparset.set_parameter_definition(
+        'extinct_correct': parset.set_parameter_definition(
             dtype=bool,
             default=None,
             descr=(
@@ -1892,7 +1894,7 @@ class FluxCalibratePar(newparset.ParSet):
                 'if ``extinct_correct=True``, and will not perform an extinction correction if ``extinct_correct=False``.'
             ),
         ),
-        'extinct_file': newparset.set_parameter_definition(
+        'extinct_file': parset.set_parameter_definition(
             dtype=str,
             default='closest',
             descr=(
@@ -1906,7 +1908,7 @@ class FluxCalibratePar(newparset.ParSet):
                 'be set to the name of the custom extinction file.'
             ),
         ),
-        'use_archived_sens': newparset.set_parameter_definition(
+        'use_archived_sens': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Use an archived sensfunc to flux calibration',
@@ -1914,7 +1916,7 @@ class FluxCalibratePar(newparset.ParSet):
     }
 
 
-class SensfuncUVISPar(newparset.ParSet):
+class SensfuncUVISPar(parset.ParSet):
     """
     New-style parameter set for sensitivity function computation using the UV algorithm
     (replacement for SensfuncUVISPar).
@@ -1925,22 +1927,22 @@ class SensfuncUVISPar(newparset.ParSet):
     default_key = 'sensfunc_uvis'
 
     parameters = {
-        'std_file': newparset.set_parameter_definition(
+        'std_file': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr='Standard star file to generate sensfunc',
         ),
-        'std_obj_id': newparset.set_parameter_definition(
+        'std_obj_id': parset.set_parameter_definition(
             dtype=[str, int],
             default=None,
             descr=('Specifies object in spec1d file to use as standard. The brightest object found is used otherwise.'),
         ),
-        'sensfunc': newparset.set_parameter_definition(
+        'sensfunc': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr='FITS file that contains or will contain the sensitivity function.',
         ),
-        'extinct_correct': newparset.set_parameter_definition(
+        'extinct_correct': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -1949,7 +1951,7 @@ class SensfuncUVISPar(newparset.ParSet):
                 'sense if one is telluric correcting and this shold be set to False'
             ),
         ),
-        'extinct_file': newparset.set_parameter_definition(
+        'extinct_file': parset.set_parameter_definition(
             dtype=str,
             default='closest',
             descr=(
@@ -1963,7 +1965,7 @@ class SensfuncUVISPar(newparset.ParSet):
                 'be set to the name of the custom extinction file.'
             ),
         ),
-        'telluric_correct': newparset.set_parameter_definition(
+        'telluric_correct': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -1971,7 +1973,7 @@ class SensfuncUVISPar(newparset.ParSet):
                 "sensfunc dictionary and apply it to the data."
             ),
         ),
-        'telluric': newparset.set_parameter_definition(
+        'telluric': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -1979,27 +1981,27 @@ class SensfuncUVISPar(newparset.ParSet):
                 'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
             ),
         ),
-        'polycorrect': newparset.set_parameter_definition(
+        'polycorrect': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions',
         ),
-        'polyfunc': newparset.set_parameter_definition(
+        'polyfunc': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Whether you want to use the polynomial fit as your final SENSFUNC',
         ),
-        'nresln': newparset.set_parameter_definition(
+        'nresln': parset.set_parameter_definition(
             dtype=[int, float],
             default=20,
             descr='Parameter governing the spacing of the bspline breakpoints in terms of number of resolution elements.',
         ),
-        'resolution': newparset.set_parameter_definition(
+        'resolution': parset.set_parameter_definition(
             dtype=[int, float],
             default=3000.0,
             descr='Expected resolution of the standard star spectrum. This should be measured from the data.',
         ),
-        'trans_thresh': newparset.set_parameter_definition(
+        'trans_thresh': parset.set_parameter_definition(
             dtype=float,
             default=0.9,
             descr=(
@@ -2015,7 +2017,7 @@ class SensfuncUVISPar(newparset.ParSet):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(self.data['sensfunc']))
 
 
-class TelluricPar(newparset.ParSet):
+class TelluricPar(parset.ParSet):
     """
     New-style parameter set holding telluric-correction arguments (replacement for TelluricPar).
 
@@ -2027,7 +2029,7 @@ class TelluricPar(newparset.ParSet):
     valid_teltype = ['pca', 'grid']
 
     parameters = {
-        'telgridfile': newparset.set_parameter_definition(
+        'telgridfile': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=(
@@ -2041,12 +2043,12 @@ class TelluricPar(newparset.ParSet):
                 'use (e.g., TellPCA_3000_26000_R10000.fits).'
             ),
         ),
-        'tell_npca': newparset.set_parameter_definition(
+        'tell_npca': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr='Number of telluric PCA components used. Can be set to any number from 1 to 10.',
         ),
-        'teltype': newparset.set_parameter_definition(
+        'teltype': parset.set_parameter_definition(
             dtype=str,
             default='pca',
             options=valid_teltype,
@@ -2059,7 +2061,7 @@ class TelluricPar(newparset.ParSet):
                 'lighter telgridfile.'
             ),
         ),
-        'sn_clip': newparset.set_parameter_definition(
+        'sn_clip': parset.set_parameter_definition(
             dtype=[int, float],
             default=30.0,
             descr=(
@@ -2073,7 +2075,7 @@ class TelluricPar(newparset.ParSet):
                 'models are only good to about 3%.'
             ),
         ),
-        'resln_guess': newparset.set_parameter_definition(
+        'resln_guess': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
             descr=(
@@ -2086,7 +2088,7 @@ class TelluricPar(newparset.ParSet):
                 'per resolution element.'
             ),
         ),
-        'resln_frac_bounds': newparset.set_parameter_definition(
+        'resln_frac_bounds': parset.set_parameter_definition(
             dtype=tuple,
             default=(0.6, 1.4),
             descr=(
@@ -2096,17 +2098,17 @@ class TelluricPar(newparset.ParSet):
                 'range ``bounds_resln = (0.6*resln_guess, 1.4*resln_guess)``.'
             ),
         ),
-        'pix_shift_bounds': newparset.set_parameter_definition(
+        'pix_shift_bounds': parset.set_parameter_definition(
             dtype=tuple,
             default=(-5.0, 5.0),
             descr='Bounds for the pixel shift optimization in the telluric model fit in units of pixels.  The atmosphere will be allowed to shift within this range during the fit.',
         ),
-        'delta_coeff_bounds': newparset.set_parameter_definition(
+        'delta_coeff_bounds': parset.set_parameter_definition(
             dtype=tuple,
             default=(-20.0, 20.0),
             descr='Parameters setting the polynomial coefficient bounds for sensfunc optimization.',
         ),
-        'minmax_coeff_bounds': newparset.set_parameter_definition(
+        'minmax_coeff_bounds': parset.set_parameter_definition(
             dtype=tuple,
             default=(-5.0, 5.0),
             descr=(
@@ -2122,12 +2124,12 @@ class TelluricPar(newparset.ParSet):
                 "obj_params['minmax_coeff_bounds'][1]))]``."
             ),
         ),
-        'maxiter': newparset.set_parameter_definition(
+        'maxiter': parset.set_parameter_definition(
             dtype=int,
             default=2,
             descr='Maximum number of iterations for the telluric + object model fitting.  The code performs multiple iterations rejecting outliers at each step.  The fit is then performed anew to the remaining good pixels.  For this reason if you run with the ``disp=True`` option, you will see that the f(x) loss function gets progressively better during the iterations.',
         ),
-        'sticky': newparset.set_parameter_definition(
+        'sticky': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -2147,7 +2149,7 @@ class TelluricPar(newparset.ParSet):
                 'are too small to approach a reasonable fit.'
             ),
         ),
-        'lower': newparset.set_parameter_definition(
+        'lower': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
@@ -2166,137 +2168,137 @@ class TelluricPar(newparset.ParSet):
                 'from the formal noise which is used to determine chi.'
             ),
         ),
-        'upper': newparset.set_parameter_definition(
+        'upper': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr='Upper rejection threshold in units of ``sigma_corr*sigma``, where ``sigma`` is the formal noise of the spectrum, and ``sigma_corr`` is an empirically determined correction to the formal error. See ``lower`` for additional detail.',
         ),
-        'seed': newparset.set_parameter_definition(
+        'seed': parset.set_parameter_definition(
             dtype=int,
             default=777,
             descr='An initial seed for the differential evolution optimization, which is a random process.  The default is 777, which will be used to generate a unique seed for every order.  A specific seed is used because otherwise the random number generator will use the time for the seed, and the results will not be reproducible.',
         ),
-        'tol': newparset.set_parameter_definition(
+        'tol': parset.set_parameter_definition(
             dtype=float,
             default=1e-3,
             descr='Relative tolerance for converage of the differential evolution optimization. See `scipy.optimize.differential_evolution`_ for details.',
         ),
-        'popsize': newparset.set_parameter_definition(
+        'popsize': parset.set_parameter_definition(
             dtype=int,
             default=30,
             descr='A multiplier for setting the total population size for the differential evolution optimization. See `scipy.optimize.differential_evolution`_ for details.',
         ),
-        'recombination': newparset.set_parameter_definition(
+        'recombination': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.7,
             descr='The recombination constant for the differential evolution optimization. This should be in the range between 0 and 1. See `scipy.optimize.differential_evolution`_ for details.',
         ),
-        'polish': newparset.set_parameter_definition(
+        'polish': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='If True then differential evolution will perform an additional optimization at the end to polish the best fit at the end, which can improve the optimization slightly. See `scipy.optimize.differential_evolution`_ for details.',
         ),
-        'disp': newparset.set_parameter_definition(
+        'disp': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Argument for `scipy.optimize.differential_evolution`_ that will display status messages to the screen indicating the status of the optimization.  See documentation for :class:`~pypeit.core.telluric.Telluric` for a description of the output and how to know if things are working well.',
         ),
-        'only_orders': newparset.set_parameter_definition(
+        'only_orders': parset.set_parameter_definition(
             dtype=[int, list, np.ndarray],
             default=None,
             descr='Order number, or list of order numbers if you only want to fit specific orders.',
         ),
-        'objmodel': newparset.set_parameter_definition(
+        'objmodel': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=('The object model to be used for telluric fitting. Currently the options are: ``qso``, ``star``, and ``poly``.  For ``qso``, you might need to set ``redshift`` and ``bal_wv_min_max``.  For ``star``, you must set ``star_type``, ``star_ra``, ``star_dec``, and ``star_mag``.  For ``poly``, you might need to set ``fit_wv_min_max`` and ``norder``.'),
         ),
-        'redshift': newparset.set_parameter_definition(
+        'redshift': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.0,
             descr='The redshift for the object model. This is currently only used by the QSO model.',
         ),
-        'delta_redshift': newparset.set_parameter_definition(
+        'delta_redshift': parset.set_parameter_definition(
             dtype=float,
             default=0.1,
             descr='Range within the redshift can be varied for telluric fitting, i.e. the code performs a bounded optimization within the redshift +- delta_redshift.',
         ),
-        'pca_file': newparset.set_parameter_definition(
+        'pca_file': parset.set_parameter_definition(
             dtype=str,
             default='qso_pca_1200_3100.fits',
             descr='Fits file containing quasar PCA model. Needed for the QSO model.  If you change the default, you might need to set ``pca_lower`` and ``pca_upper``.',
         ),
-        'npca': newparset.set_parameter_definition(
+        'npca': parset.set_parameter_definition(
             dtype=int,
             default=8,
             descr='Number of pca for the objmodel=qso qso PCA fit',
         ),
-        'bal_wv_min_max': newparset.set_parameter_definition(
+        'bal_wv_min_max': parset.set_parameter_definition(
             dtype=[list, np.ndarray],
             default=None,
             descr='Min/max wavelength of broad absorption features. If there are several BAL features, the format for this mask is ``[wave_min_bal1, wave_max_bal1, wave_min_bal2, wave_max_bal2,...]``. These masked pixels will be ignored during the fitting.',
         ),
-        'bounds_norm': newparset.set_parameter_definition(
+        'bounds_norm': parset.set_parameter_definition(
             dtype=tuple,
             default=(0.1, 3.0),
             descr='Normalization bounds for scaling the initial object model.',
         ),
-        'tell_norm_thresh': newparset.set_parameter_definition(
+        'tell_norm_thresh': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.9,
             descr='Threshold of telluric absorption region',
         ),
-        'pca_lower': newparset.set_parameter_definition(
+        'pca_lower': parset.set_parameter_definition(
             dtype=[int, float],
             default=1220.0,
             descr='Minimum wavelength for the qso pca model',
         ),
-        'pca_upper': newparset.set_parameter_definition(
+        'pca_upper': parset.set_parameter_definition(
             dtype=[int, float],
             default=3100.0,
             descr='Maximum wavelength for the qso pca model',
         ),
-        'mask_lyman_a': newparset.set_parameter_definition(
+        'mask_lyman_a': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Mask the blueward of Lyman-alpha line during the fitting?',
         ),
-        'star_type': newparset.set_parameter_definition(
+        'star_type': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr='stellar type',
         ),
-        'star_mag': newparset.set_parameter_definition(
+        'star_mag': parset.set_parameter_definition(
             dtype=[float, int],
             default=None,
             descr='AB magnitude in V band',
         ),
-        'star_ra': newparset.set_parameter_definition(
+        'star_ra': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr='Object right-ascension in decimal deg',
         ),
-        'star_dec': newparset.set_parameter_definition(
+        'star_dec': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr='Object declination in decimal deg',
         ),
-        'func': newparset.set_parameter_definition(
+        'func': parset.set_parameter_definition(
             dtype=str,
             default='legendre',
             descr='Polynomial model function',
         ),
-        'model': newparset.set_parameter_definition(
+        'model': parset.set_parameter_definition(
             dtype=str,
             default='exp',
             descr='Types of polynomial model. Options are ``poly``, ``square``, ``exp`` corresponding to normal polynomial, squared polynomial, or exponentiated polynomial.',
         ),
-        'polyorder': newparset.set_parameter_definition(
+        'polyorder': parset.set_parameter_definition(
             dtype=int,
             default=3,
             descr='Order of the polynomial model fit',
         ),
-        'fit_wv_min_max': newparset.set_parameter_definition(
+        'fit_wv_min_max': parset.set_parameter_definition(
             dtype=list,
             default=None,
             descr='Pixels within this mask will be used during the fitting. The format is the same with ``bal_wv_min_max``, but this mask is good pixel masks.',
@@ -2314,7 +2316,7 @@ class TelluricPar(newparset.ParSet):
                              ', valid options are: {}.'.format(', '.join(self.valid_teltype)))
 
 
-class SensFuncPar(newparset.ParSet):
+class SensFuncPar(parset.ParSet):
     """
     New-style parameter set holding the arguments for sensitivity function computation
     using the UV algorithm (replacement for SensFuncPar).
@@ -2325,12 +2327,12 @@ class SensFuncPar(newparset.ParSet):
     default_key = 'sensfunc'
 
     parameters = {
-        'use_flat': newparset.set_parameter_definition(
+        'use_flat': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='If True, the flatfield spectrum will be used when computing the sensitivity function.',
         ),
-        'extr': newparset.set_parameter_definition(
+        'extr': parset.set_parameter_definition(
             dtype=str,
             default='OPT',
             descr=(
@@ -2338,7 +2340,7 @@ class SensFuncPar(newparset.ParSet):
                 "'OPT' (optimal extraction), 'BOX' (boxcar extraction). Default is 'OPT'."
             ),
         ),
-        'extrap_blu': newparset.set_parameter_definition(
+        'extrap_blu': parset.set_parameter_definition(
             dtype=float,
             default=0.1,
             descr=(
@@ -2348,7 +2350,7 @@ class SensFuncPar(newparset.ParSet):
                 ' (1.0 - ``extrap_blu``) * ``wave_min``'
             ),
         ),
-        'extrap_red': newparset.set_parameter_definition(
+        'extrap_red': parset.set_parameter_definition(
             dtype=float,
             default=0.1,
             descr=(
@@ -2358,7 +2360,7 @@ class SensFuncPar(newparset.ParSet):
                 ' (1.0 + ``extrap_red``) * ``wave_max``'
             ),
         ),
-        'samp_fact': newparset.set_parameter_definition(
+        'samp_fact': parset.set_parameter_definition(
             dtype=float,
             default=1.5,
             descr=(
@@ -2366,7 +2368,7 @@ class SensFuncPar(newparset.ParSet):
                 'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
             ),
         ),
-        'multi_spec_det': newparset.set_parameter_definition(
+        'multi_spec_det': parset.set_parameter_definition(
             dtype=list,
             default=None,
             descr=(
@@ -2378,7 +2380,7 @@ class SensFuncPar(newparset.ParSet):
                 'the detector name.  **Cannot be used with detector mosaics.**'
             ),
         ),
-        'trim_std_pixs': newparset.set_parameter_definition(
+        'trim_std_pixs': parset.set_parameter_definition(
             dtype=[list, tuple],
             default=None,
             descr=(
@@ -2388,7 +2390,7 @@ class SensFuncPar(newparset.ParSet):
                 'and 5 pixels from the end (red side) of the spectrum. '
             ),
         ),
-        'algorithm': newparset.set_parameter_definition(
+        'algorithm': parset.set_parameter_definition(
             dtype=str,
             default='UVIS',
             options=['UVIS', 'IR'],
@@ -2400,42 +2402,42 @@ class SensFuncPar(newparset.ParSet):
                 "Peforms joint fit for sensitivity function and telluric absorption using HITRAN models."
             ),
         ),
-        'UVIS': newparset.set_parameter_definition(
+        'UVIS': parset.set_parameter_definition(
             dtype=SensfuncUVISPar,
             default=SensfuncUVISPar(),
             descr='Parameters for the UVIS sensfunc algorithm',
         ),
-        'IR': newparset.set_parameter_definition(
+        'IR': parset.set_parameter_definition(
             dtype=TelluricPar,
             default=TelluricPar(),
             descr='Parameters for the IR sensfunc algorithm',
         ),
-        'polyorder': newparset.set_parameter_definition(
+        'polyorder': parset.set_parameter_definition(
             dtype=[int, list],
             default=5,
             descr='Polynomial order for sensitivity function fitting',
         ),
-        'star_type': newparset.set_parameter_definition(
+        'star_type': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr='Spectral type of the standard star (for near-IR mainly)',
         ),
-        'star_mag': newparset.set_parameter_definition(
+        'star_mag': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr='Magnitude of the standard star (for near-IR mainly)',
         ),
-        'star_ra': newparset.set_parameter_definition(
+        'star_ra': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr='RA of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)',
         ),
-        'star_dec': newparset.set_parameter_definition(
+        'star_dec': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr='DEC of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)',
         ),
-        'mask_hydrogen_lines': newparset.set_parameter_definition(
+        'mask_hydrogen_lines': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -2443,12 +2445,12 @@ class SensFuncPar(newparset.ParSet):
                 'A region equal to ``hydrogen_mask_wid`` on either side of the line center is masked.'
             ),
         ),
-        'hydrogen_mask_wid': newparset.set_parameter_definition(
+        'hydrogen_mask_wid': parset.set_parameter_definition(
             dtype=float,
             default=10.0,
             descr='Mask width from line center for hydrogen recombination lines in Angstroms (total mask width is 2x this value).',
         ),
-        'mask_helium_lines': newparset.set_parameter_definition(
+        'mask_helium_lines': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -2470,7 +2472,7 @@ class SensFuncPar(newparset.ParSet):
                 raise ValueError("`trim_std_pixs` must be a list or tuple of two integers.")
 
 
-class SlitMaskPar(newparset.ParSet):
+class SlitMaskPar(parset.ParSet):
     """
     New-style parameter set holding the arguments for slitmask ingestion and object assignment
 
@@ -2480,7 +2482,7 @@ class SlitMaskPar(newparset.ParSet):
     default_key = 'slitmask'
 
     parameters = {
-        'obj_toler': newparset.set_parameter_definition(
+        'obj_toler': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.0,
             descr=(
@@ -2489,12 +2491,12 @@ class SlitMaskPar(newparset.ParSet):
                 'the desired tolerance (arcsec) to match sources to targeted objects'
             ),
         ),
-        'assign_obj': newparset.set_parameter_definition(
+        'assign_obj': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='If SlitMask object was generated, assign RA,DEC,name to detected objects',
         ),
-        'use_alignbox': newparset.set_parameter_definition(
+        'use_alignbox': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -2503,7 +2505,7 @@ class SlitMaskPar(newparset.ParSet):
                 'the offset using ``snr_thrshd`` or ``bright_maskdef_id``'
             ),
         ),
-        'snr_thrshd': newparset.set_parameter_definition(
+        'snr_thrshd': parset.set_parameter_definition(
             dtype=[int, float],
             default=50.0,
             descr=(
@@ -2512,7 +2514,7 @@ class SlitMaskPar(newparset.ParSet):
                 ' unless ``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
             ),
         ),
-        'slitmask_offset': newparset.set_parameter_definition(
+        'slitmask_offset': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
             descr=(
@@ -2521,7 +2523,7 @@ class SlitMaskPar(newparset.ParSet):
                 'the offset using ``snr_thrshd`` or ``bright_maskdef_id``.'
             ),
         ),
-        'use_dither_offset': newparset.set_parameter_definition(
+        'use_dither_offset': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -2532,7 +2534,7 @@ class SlitMaskPar(newparset.ParSet):
                 'However, it is ignored if ``slitmask_offset`` is provided. '
             ),
         ),
-        'bright_maskdef_id': newparset.set_parameter_definition(
+        'bright_maskdef_id': parset.set_parameter_definition(
             dtype=int,
             default=None,
             descr=(
@@ -2543,13 +2545,13 @@ class SlitMaskPar(newparset.ParSet):
                 'if ``slitmask_offset`` is provided.'
             ),
         ),
-        'extract_missing_objs': newparset.set_parameter_definition(
+        'extract_missing_objs': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Force extraction of undetected objects at the location expected '
                   'from the slitmask design.',
         ),
-        'missing_objs_fwhm': newparset.set_parameter_definition(
+        'missing_objs_fwhm': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
             descr=(
@@ -2563,7 +2565,7 @@ class SlitMaskPar(newparset.ParSet):
                 'the median FWHM of all the detected objects.'
             ),
         ),
-        'missing_objs_boxcar_rad': newparset.set_parameter_definition(
+        'missing_objs_boxcar_rad': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.0,
             descr='Indicates the boxcar radius in arcsec for the force '
@@ -2572,7 +2574,7 @@ class SlitMaskPar(newparset.ParSet):
     }
 
 
-class ReduxPar(newparset.ParSet):
+class ReduxPar(parset.ParSet):
     """
     New-style parameter set for global reduction settings (replacement for ReduxPar).
 
@@ -2582,7 +2584,7 @@ class ReduxPar(newparset.ParSet):
     default_key = 'redux'
 
     parameters = {
-        'spectrograph': newparset.set_parameter_definition(
+        'spectrograph': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=(
@@ -2590,7 +2592,7 @@ class ReduxPar(newparset.ParSet):
                 'See :ref:`instruments` for valid options.'
             ),
         ),
-        'quicklook': newparset.set_parameter_definition(
+        'quicklook': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -2599,7 +2601,7 @@ class ReduxPar(newparset.ParSet):
                 'estimate of the data quality.'
             ),
         ),
-        'detnum': newparset.set_parameter_definition(
+        'detnum': parset.set_parameter_definition(
             dtype=[int, list],
             default=None,
             descr=(
@@ -2611,7 +2613,7 @@ class ReduxPar(newparset.ParSet):
                 'Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``'
             ),
         ),
-        'slitspatnum': newparset.set_parameter_definition(
+        'slitspatnum': parset.set_parameter_definition(
             dtype=[str, list],
             default=None,
             descr=(
@@ -2620,7 +2622,7 @@ class ReduxPar(newparset.ParSet):
                 '(i.e. modifying one slit) you *must* have the precise SPAT_ID index.'
             ),
         ),
-        'maskIDs': newparset.set_parameter_definition(
+        'maskIDs': parset.set_parameter_definition(
             dtype=[str, int, list],
             default=None,
             descr=(
@@ -2629,7 +2631,7 @@ class ReduxPar(newparset.ParSet):
                 'This must be used with detnum (for now).'
             ),
         ),
-        'sortroot': newparset.set_parameter_definition(
+        'sortroot': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=(
@@ -2638,7 +2640,7 @@ class ReduxPar(newparset.ParSet):
                 'no output is produced.'
             ),
         ),
-        'calwin': newparset.set_parameter_definition(
+        'calwin': parset.set_parameter_definition(
             dtype=[int, float],
             default=0,
             descr=(
@@ -2646,23 +2648,23 @@ class ReduxPar(newparset.ParSet):
                 'science frame'
             ),
         ),
-        'ignore_bad_headers': newparset.set_parameter_definition(
+        'ignore_bad_headers': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Ignore bad headers (NOT recommended unless you know it is safe).',
         ),
-        'scidir': newparset.set_parameter_definition(
+        'scidir': parset.set_parameter_definition(
             dtype=str,
             default='Science',
             descr='Directory relative to calling directory to write science files.',
         ),
-        'qadir': newparset.set_parameter_definition(
+        'qadir': parset.set_parameter_definition(
             dtype=str,
             default='QA',
             descr='Directory relative to calling directory to write quality '
                   'assessment files.',
         ),
-        'redux_path': newparset.set_parameter_definition(
+        'redux_path': parset.set_parameter_definition(
             dtype=str,
             default=os.getcwd(),
             descr=(
@@ -2670,7 +2672,7 @@ class ReduxPar(newparset.ParSet):
                 'current working directory.'
             ),
         ),
-        'chk_version': newparset.set_parameter_definition(
+        'chk_version': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -2697,7 +2699,7 @@ class ReduxPar(newparset.ParSet):
                 self.data['maskIDs'] = [self.data['maskIDs']]
 
 
-class WavelengthSolutionPar(newparset.ParSet):
+class WavelengthSolutionPar(parset.ParSet):
     """
     New-style parameter set for wavelength solution settings (replacement for WavelengthSolutionPar).
 
@@ -2709,7 +2711,7 @@ class WavelengthSolutionPar(newparset.ParSet):
     valid_reference_frames = ['observed', 'heliocentric', 'barycentric']
 
     parameters = {
-        'reference': newparset.set_parameter_definition(
+        'reference': parset.set_parameter_definition(
             dtype=str,
             default='arc',
             options=['arc', 'sky', 'pixel'],
@@ -2718,7 +2720,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 '\'pixel\' for no wavelength solution.'
             ),
         ),
-        'method': newparset.set_parameter_definition(
+        'method': parset.set_parameter_definition(
             dtype=str,
             default='holy-grail',
             options=valid_methods,
@@ -2737,7 +2739,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 f"reduced.  All options are: {', '.join(valid_methods)}."
             ),
         ),
-        'echelle': newparset.set_parameter_definition(
+        'echelle': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -2746,7 +2748,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'and order number to improve the wavelength solution'
             ),
         ),
-        'ech_2dfit': newparset.set_parameter_definition(
+        'ech_2dfit': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -2756,14 +2758,14 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'was saved with pypeit_identify.'
             ),
         ),
-        'ech_separate_2d': newparset.set_parameter_definition(
+        'ech_separate_2d': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
                 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
             ),
         ),
-        'ech_nspec_coeff': newparset.set_parameter_definition(
+        'ech_nspec_coeff': parset.set_parameter_definition(
             dtype=int,
             default=4,
             descr=(
@@ -2772,7 +2774,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'to be the n_final of the fits to the individual orders.'
             ),
         ),
-        'ech_norder_coeff': newparset.set_parameter_definition(
+        'ech_norder_coeff': parset.set_parameter_definition(
             dtype=int,
             default=4,
             descr=(
@@ -2780,7 +2782,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 '2d fit to the order dimension.'
             ),
         ),
-        'ech_sigrej': newparset.set_parameter_definition(
+        'ech_sigrej': parset.set_parameter_definition(
             dtype=[int, float],
             default=2.0,
             descr=(
@@ -2788,7 +2790,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'threshold in the 2d fit to spectral and order dimensions'
             ),
         ),
-        'bad_orders_maxfrac': newparset.set_parameter_definition(
+        'bad_orders_maxfrac': parset.set_parameter_definition(
             dtype=float,
             default=0.25,
             descr=(
@@ -2797,7 +2799,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'for PypeIt to attempt a refit.'
             ),
         ),
-        'frac_rms_thresh': newparset.set_parameter_definition(
+        'frac_rms_thresh': parset.set_parameter_definition(
             dtype=float,
             default=1.5,
             descr=(
@@ -2806,7 +2808,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'when a 1D fit is re-attempted for failed orders.'
             ),
         ),
-        'lamps': newparset.set_parameter_definition(
+        'lamps': parset.set_parameter_definition(
             dtype=list,
             default=None,
             descr=(
@@ -2816,7 +2818,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'available only for Keck DEIMOS, Keck LRIS, MMT Blue Channel, and LDT DeVeny).'
             ),
         ),
-        'use_instr_flag': newparset.set_parameter_definition(
+        'use_instr_flag': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -2825,7 +2827,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'unless you really know what you are doing.'
             ),
         ),
-        'sigdetect': newparset.set_parameter_definition(
+        'sigdetect': parset.set_parameter_definition(
             dtype=[int, float, list, np.ndarray],
             default=5.0,
             descr=(
@@ -2835,7 +2837,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'array) that provides the detection threshold for each slit.'
             ),
         ),
-        'fwhm': newparset.set_parameter_definition(
+        'fwhm': parset.set_parameter_definition(
             dtype=[int, float],
             default=4.0,
             descr=(
@@ -2844,7 +2846,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'wave tilts calibration.'
             ),
         ),
-        'fwhm_fromlines': newparset.set_parameter_definition(
+        'fwhm_fromlines': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -2855,7 +2857,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 '``rms_thresh_frac_fwhm``), and ALSO for the wave tilts calibration.'
             ),
         ),
-        'fwhm_spat_order': newparset.set_parameter_definition(
+        'fwhm_spat_order': parset.set_parameter_definition(
             dtype=int,
             default=0,
             descr=(
@@ -2863,7 +2865,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spec_order.'
             ),
         ),
-        'fwhm_spec_order': newparset.set_parameter_definition(
+        'fwhm_spec_order': parset.set_parameter_definition(
             dtype=int,
             default=1,
             descr=(
@@ -2871,7 +2873,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spat_order.'
             ),
         ),
-        'reid_arxiv': newparset.set_parameter_definition(
+        'reid_arxiv': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=(
@@ -2880,7 +2882,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 '\'reidentify\' or \'full_template\'.'
             ),
         ),
-        'nreid_min': newparset.set_parameter_definition(
+        'nreid_min': parset.set_parameter_definition(
             dtype=int,
             default=1,
             descr=(
@@ -2892,7 +2894,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'tiltable grating, this will depend on the number of solutions in the arxiv.'
             ),
         ),
-        'reid_cont_sub': newparset.set_parameter_definition(
+        'reid_cont_sub': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -2900,21 +2902,21 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'the wavelength reidentification. '
             ),
         ),
-        'wvrng_arxiv': newparset.set_parameter_definition(
+        'wvrng_arxiv': parset.set_parameter_definition(
             dtype=list,
             default=None,
             descr=(
                 'Cut the arxiv template down to this specified wavelength range [min,max]'
             ),
         ),
-        'nsnippet': newparset.set_parameter_definition(
+        'nsnippet': parset.set_parameter_definition(
             dtype=int,
             default=2,
             descr=(
                 "Number of spectra to chop the arc spectrum into when ``method`` is 'full_template'"
             ),
         ),
-        'cc_shift_range': newparset.set_parameter_definition(
+        'cc_shift_range': parset.set_parameter_definition(
             dtype=tuple,
             default=None,
             descr=(
@@ -2923,7 +2925,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 '``cc_offset_minmax`` will be used to determine this range.'
             ),
         ),
-        'cc_thresh': newparset.set_parameter_definition(
+        'cc_thresh': parset.set_parameter_definition(
             dtype=[float, list, np.ndarray],
             default=0.70,
             descr=(
@@ -2934,7 +2936,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'a single number or a list/array providing the value for each slit.'
             ),
         ),
-        'cc_local_thresh': newparset.set_parameter_definition(
+        'cc_local_thresh': parset.set_parameter_definition(
             dtype=float,
             default=0.70,
             descr=(
@@ -2949,7 +2951,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'reidentifications.'
             ),
         ),
-        'nlocal_cc': newparset.set_parameter_definition(
+        'nlocal_cc': parset.set_parameter_definition(
             dtype=int,
             default=11,
             descr=(
@@ -2957,7 +2959,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'If not an odd number one will be added to it to make it odd.'
             ),
         ),
-        'rms_thresh_frac_fwhm': newparset.set_parameter_definition(
+        'rms_thresh_frac_fwhm': parset.set_parameter_definition(
             dtype=float,
             default=0.15,
             descr=(
@@ -2969,7 +2971,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'a slit using the ``redo_slits`` parameter. '
             ),
         ),
-        'match_toler': newparset.set_parameter_definition(
+        'match_toler': parset.set_parameter_definition(
             dtype=float,
             default=2.0,
             descr=(
@@ -2984,28 +2986,28 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'dispersion elements from the line in line list.'
             ),
         ),
-        'func': newparset.set_parameter_definition(
+        'func': parset.set_parameter_definition(
             dtype=str,
             default='legendre',
             descr=(
                 'Function used for wavelength solution fits'
             ),
         ),
-        'n_first': newparset.set_parameter_definition(
+        'n_first': parset.set_parameter_definition(
             dtype=int,
             default=2,
             descr=(
                 'Order of first guess fit to the wavelength solution.'
             ),
         ),
-        'sigrej_first': newparset.set_parameter_definition(
+        'sigrej_first': parset.set_parameter_definition(
             dtype=float,
             default=2.0,
             descr=(
                 'Number of sigma for rejection for the first guess to the wavelength solution.'
             ),
         ),
-        'n_final': newparset.set_parameter_definition(
+        'n_final': parset.set_parameter_definition(
             dtype=[int, float, list, np.ndarray],
             default=4,
             descr=(
@@ -3014,28 +3016,28 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'for each slit'
             ),
         ),
-        'sigrej_final': newparset.set_parameter_definition(
+        'sigrej_final': parset.set_parameter_definition(
             dtype=float,
             default=3.0,
             descr=(
                 'Number of sigma for rejection for the final guess to the wavelength solution.'
             ),
         ),
-        'numsearch': newparset.set_parameter_definition(
+        'numsearch': parset.set_parameter_definition(
             dtype=int,
             default=20,
             descr=(
                 'Number of brightest arc lines to search for in preliminary identification'
             ),
         ),
-        'nfitpix': newparset.set_parameter_definition(
+        'nfitpix': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr=(
                 'Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)'
             ),
         ),
-        'refframe': newparset.set_parameter_definition(
+        'refframe': parset.set_parameter_definition(
             dtype=str,
             default='heliocentric',
             options=valid_reference_frames,
@@ -3044,13 +3046,13 @@ class WavelengthSolutionPar(newparset.ParSet):
                 f'{", ".join(valid_reference_frames)}'
             )
         ),
-        'redo_slits': newparset.set_parameter_definition(
+        'redo_slits': parset.set_parameter_definition(
             dtype=[int, list],
             descr=(
                 'Redo the input slit(s) [multislit] or order(s) [echelle]'
             ),
         ),
-        'qa_log': newparset.set_parameter_definition(
+        'qa_log': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -3058,7 +3060,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'If True, the scaling will be log, if False linear'
             ),
         ),
-        'cc_percent_ceil': newparset.set_parameter_definition(
+        'cc_percent_ceil': parset.set_parameter_definition(
             dtype=float,
             default=50.0,
             descr=(
@@ -3067,7 +3069,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'maximum heights. May produce spurious peaks in xcorr'
             ),
         ),
-        'echelle_pad': newparset.set_parameter_definition(
+        'echelle_pad': parset.set_parameter_definition(
             dtype=int,
             default=3,
             descr=(
@@ -3076,7 +3078,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'require sufficient reference orders.'
             ),
         ),
-        'cc_offset_minmax': newparset.set_parameter_definition(
+        'cc_offset_minmax': parset.set_parameter_definition(
             dtype=float,
             default=1.0,
             descr=(
@@ -3087,7 +3089,7 @@ class WavelengthSolutionPar(newparset.ParSet):
                 'This parameter is only used if ``cc_shift_range`` is None.'
             ),
         ),
-        'stretch_func': newparset.set_parameter_definition(
+        'stretch_func': parset.set_parameter_definition(
             dtype=str,
             default='quadratic',
             options=['linear', 'quadratic'],
@@ -3103,7 +3105,7 @@ class WavelengthSolutionPar(newparset.ParSet):
     
 
 
-class EdgeTracePar(newparset.ParSet):
+class EdgeTracePar(parset.ParSet):
     """
     New-style parameter set for slit edge tracing (replacement for EdgeTracePar).
 
@@ -3115,7 +3117,7 @@ class EdgeTracePar(newparset.ParSet):
     card_prefix = 'ETP'
 
     parameters = {
-        'filt_iter': newparset.set_parameter_definition(
+        'filt_iter': parset.set_parameter_definition(
             dtype=int,
             default=0,
             descr=(
@@ -3123,7 +3125,7 @@ class EdgeTracePar(newparset.ParSet):
                 'image before applying to Sobel filter to detect slit/order edges.'
             ),
         ),
-        'sobel_mode': newparset.set_parameter_definition(
+        'sobel_mode': parset.set_parameter_definition(
             dtype=str,
             default='nearest',
             options=['nearest', 'constant'],
@@ -3132,14 +3134,14 @@ class EdgeTracePar(newparset.ParSet):
                 '\'constant\' works best for DEIMOS.'
             ),
         ),
-        'edge_thresh': newparset.set_parameter_definition(
+        'edge_thresh': parset.set_parameter_definition(
             dtype=[int, float],
             default=20.0,
             descr=(
                 'Threshold for finding edges in the Sobel-filtered significance image.'
             ),
         ),
-        'sobel_enhance': newparset.set_parameter_definition(
+        'sobel_enhance': parset.set_parameter_definition(
             dtype=int,
             default=0,
             descr=(
@@ -3149,7 +3151,7 @@ class EdgeTracePar(newparset.ParSet):
                 'edge is poorly defined (e.g. vignetted).'
             ),
         ),
-        'exclude_regions': newparset.set_parameter_definition(
+        'exclude_regions': parset.set_parameter_definition(
             dtype=[list, str],
             default=None,
             descr=(
@@ -3160,7 +3162,7 @@ class EdgeTracePar(newparset.ParSet):
                 'and between 300 and 400.'
             ),
         ),
-        'follow_span': newparset.set_parameter_definition(
+        'follow_span': parset.set_parameter_definition(
             dtype=int,
             default=20,
             descr=(
@@ -3169,7 +3171,7 @@ class EdgeTracePar(newparset.ParSet):
                 'to consider when following slits forward.'
             ),
         ),
-        'det_min_spec_length': newparset.set_parameter_definition(
+        'det_min_spec_length': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.33,
             descr=(
@@ -3180,7 +3182,7 @@ class EdgeTracePar(newparset.ParSet):
                 'fit_min_spec_length).'
             ),
         ),
-        'trim_spec': newparset.set_parameter_definition(
+        'trim_spec': parset.set_parameter_definition(
             dtype=list,
             default=None,
             descr=(
@@ -3190,7 +3192,7 @@ class EdgeTracePar(newparset.ParSet):
                 'end of the spectral axis of the detector.'
             ),
         ),
-        'mask_off_detector': newparset.set_parameter_definition(
+        'mask_off_detector': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -3198,7 +3200,7 @@ class EdgeTracePar(newparset.ParSet):
                 '50% of the slit spatial coverage falls off the detector. '
             ),
         ),
-        'max_shift_abs': newparset.set_parameter_definition(
+        'max_shift_abs': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.5,
             descr=(
@@ -3206,7 +3208,7 @@ class EdgeTracePar(newparset.ParSet):
                 'location and the recentroided value.'
             ),
         ),
-        'max_shift_adj': newparset.set_parameter_definition(
+        'max_shift_adj': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.15,
             descr=(
@@ -3214,13 +3216,13 @@ class EdgeTracePar(newparset.ParSet):
                 'adjacent spectral positions.'
             ),
         ),
-        'max_spat_error': newparset.set_parameter_definition(
+        'max_spat_error': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Maximum error in the spatial position of edges in pixels.'
             ),
         ),
-        'match_tol': newparset.set_parameter_definition(
+        'match_tol': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
@@ -3228,7 +3230,7 @@ class EdgeTracePar(newparset.ParSet):
                 'considered part of the same edge.'
             ),
         ),
-        'fit_function': newparset.set_parameter_definition(
+        'fit_function': parset.set_parameter_definition(
             dtype=str,
             default='legendre',
             options=['polynomial', 'legendre', 'chebyshev'],
@@ -3236,14 +3238,14 @@ class EdgeTracePar(newparset.ParSet):
                 'Function fit to edge measurements.  Options are: polynomial, legendre, chebyshev'
             ),
         ),
-        'fit_order': newparset.set_parameter_definition(
+        'fit_order': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr=(
                 'Order of the function fit to edge measurements.'
             ),
         ),
-        'fit_maxdev': newparset.set_parameter_definition(
+        'fit_maxdev': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
             descr=(
@@ -3251,14 +3253,14 @@ class EdgeTracePar(newparset.ParSet):
                 'for rejection in spatial pixels.'
             ),
         ),
-        'fit_maxiter': newparset.set_parameter_definition(
+        'fit_maxiter': parset.set_parameter_definition(
             dtype=int,
             default=25,
             descr=(
                 'Maximum number of rejection iterations during edge fitting.'
             ),
         ),
-        'fit_niter': newparset.set_parameter_definition(
+        'fit_niter': parset.set_parameter_definition(
             dtype=int,
             default=1,
             descr=(
@@ -3266,7 +3268,7 @@ class EdgeTracePar(newparset.ParSet):
                 'data; see :func:`~pypeit.core.trace.fit_trace`.'
             ),
         ),
-        'fit_min_spec_length': newparset.set_parameter_definition(
+        'fit_min_spec_length': parset.set_parameter_definition(
             dtype=float,
             default=0.6,
             descr=(
@@ -3275,7 +3277,7 @@ class EdgeTracePar(newparset.ParSet):
                 'or PCA decomposition).'
             ),
         ),
-        'auto_pca': newparset.set_parameter_definition(
+        'auto_pca': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -3289,7 +3291,7 @@ class EdgeTracePar(newparset.ParSet):
                 'validating the parameter set.'
             ),
         ),
-        'left_right_pca': newparset.set_parameter_definition(
+        'left_right_pca': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -3298,7 +3300,7 @@ class EdgeTracePar(newparset.ParSet):
                 'echelle spectrographs (e.g., Keck-NIRES)'
             ),
         ),
-        'pca_min_edges': newparset.set_parameter_definition(
+        'pca_min_edges': parset.set_parameter_definition(
             dtype=int,
             default=4,
             descr=(
@@ -3308,7 +3310,7 @@ class EdgeTracePar(newparset.ParSet):
                 'separately.'
             ),
         ),
-        'pca_n': newparset.set_parameter_definition(
+        'pca_n': parset.set_parameter_definition(
             dtype=int,
             descr=(
                 'The number of PCA components to keep, which must be less than the '
@@ -3317,7 +3319,7 @@ class EdgeTracePar(newparset.ParSet):
                 'given percentage of variance in the edge data; see `pca_var_percent`.'
             ),
         ),
-        'pca_var_percent': newparset.set_parameter_definition(
+        'pca_var_percent': parset.set_parameter_definition(
             dtype=[int, float],
             default=99.8,
             descr=(
@@ -3327,7 +3329,7 @@ class EdgeTracePar(newparset.ParSet):
                 'Ignored if `pca_n` is provided directly.'
             ),
         ),
-        'pca_function': newparset.set_parameter_definition(
+        'pca_function': parset.set_parameter_definition(
             dtype=str,
             default='polynomial',
             options=['polynomial', 'legendre', 'chebyshev'],
@@ -3336,14 +3338,14 @@ class EdgeTracePar(newparset.ParSet):
                 'component.  Options are: polynomial, legendre, chebyshev'
             ),
         ),
-        'pca_order': newparset.set_parameter_definition(
+        'pca_order': parset.set_parameter_definition(
             dtype=int,
             default=2,
             descr=(
                 'Order of the function fit to the PCA coefficients.'
             ),
         ),
-        'pca_sigrej': newparset.set_parameter_definition(
+        'pca_sigrej': parset.set_parameter_definition(
             dtype=[int, float, list],
             default=[2.0, 2.0],
             descr=(
@@ -3352,7 +3354,7 @@ class EdgeTracePar(newparset.ParSet):
                 'two numbers sets these explicitly (e.g., [2., 3.]).'
             ),
         ),
-        'pca_maxrej': newparset.set_parameter_definition(
+        'pca_maxrej': parset.set_parameter_definition(
             dtype=int,
             default=1,
             descr=(
@@ -3360,7 +3362,7 @@ class EdgeTracePar(newparset.ParSet):
                 'iteration.'
             ),
         ),
-        'pca_maxiter': newparset.set_parameter_definition(
+        'pca_maxiter': parset.set_parameter_definition(
             dtype=int,
             default=25,
             descr=(
@@ -3368,7 +3370,7 @@ class EdgeTracePar(newparset.ParSet):
                 'coefficients.'
             ),
         ),
-        'smash_range': newparset.set_parameter_definition(
+        'smash_range': parset.set_parameter_definition(
             dtype=list,
             default=[0.0, 1.0],
             descr=(
@@ -3377,14 +3379,14 @@ class EdgeTracePar(newparset.ParSet):
                 'spectrum covers only a portion of the image, use that range.'
             ),
         ),
-        'edge_detect_clip': newparset.set_parameter_definition(
+        'edge_detect_clip': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Sigma clipping level for peaks detected in the collapsed, '
                 'Sobel-filtered significance image.'
             ),
         ),
-        'trace_median_frac': newparset.set_parameter_definition(
+        'trace_median_frac': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'After detection of peaks in the rectified Sobel-filtered ' 
@@ -3393,7 +3395,7 @@ class EdgeTracePar(newparset.ParSet):
                 '`trace_median_frac*nspec` along the spectral dimension.'
             ),
         ),
-        'trace_thresh': newparset.set_parameter_definition(
+        'trace_thresh': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'After rectification and median filtering of the Sobel-filtered ' 
@@ -3402,7 +3404,7 @@ class EdgeTracePar(newparset.ParSet):
                 'the edge trace data.  If None, no masking applied.'
             ),
         ),
-        'trace_rms_tol': newparset.set_parameter_definition(
+        'trace_rms_tol': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'After retracing edges using peaks detected in the rectified ' 
@@ -3412,7 +3414,7 @@ class EdgeTracePar(newparset.ParSet):
                 'None, no limit is set and all new traces are kept.'
             ),
         ),
-        'fwhm_uniform': newparset.set_parameter_definition(
+        'fwhm_uniform': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
@@ -3422,7 +3424,7 @@ class EdgeTracePar(newparset.ParSet):
                 ':func:`~pypeit.core.trace.peak_trace`.'
             ),
         ),
-        'niter_uniform': newparset.set_parameter_definition(
+        'niter_uniform': parset.set_parameter_definition(
             dtype=int,
             default=9,
             descr=(
@@ -3431,7 +3433,7 @@ class EdgeTracePar(newparset.ParSet):
                 'uniform weighting.'
             ),
         ),
-        'fwhm_gaussian': newparset.set_parameter_definition(
+        'fwhm_gaussian': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
@@ -3441,7 +3443,7 @@ class EdgeTracePar(newparset.ParSet):
                 ':func:`~pypeit.core.trace.peak_trace`.'
             ),
         ),
-        'niter_gaussian': newparset.set_parameter_definition(
+        'niter_gaussian': parset.set_parameter_definition(
             dtype=int,
             default=6,
             descr=(
@@ -3450,7 +3452,7 @@ class EdgeTracePar(newparset.ParSet):
                 'Gaussian weighting.'
             ),
         ),
-        'min_edge_side_sep': newparset.set_parameter_definition(
+        'min_edge_side_sep': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
             descr=(
@@ -3462,7 +3464,7 @@ class EdgeTracePar(newparset.ParSet):
                 'least 15 pixels.'
             ),
         ),
-        'det_buffer': newparset.set_parameter_definition(
+        'det_buffer': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr=(
@@ -3470,7 +3472,7 @@ class EdgeTracePar(newparset.ParSet):
                 'edge for any added edge traces.  Must be positive.'
             ),
         ),
-        'max_nudge': newparset.set_parameter_definition(
+        'max_nudge': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'If parts of any (predicted) trace fall off the detector edge, '
@@ -3479,7 +3481,7 @@ class EdgeTracePar(newparset.ParSet):
                 'set; otherwise should be 0 or larger.'
             ),
         ),
-        'sync_predict': newparset.set_parameter_definition(
+        'sync_predict': parset.set_parameter_definition(
             dtype=str,
             default='pca',
             options=['pca', 'nearest', 'auto'],
@@ -3491,7 +3493,7 @@ class EdgeTracePar(newparset.ParSet):
                 'it will first try `pca`, and if that is not possible, it will use `nearest`.'
             ),
         ),
-        'sync_center': newparset.set_parameter_definition(
+        'sync_center': parset.set_parameter_definition(
             dtype=str,
             default='median',
             options=['median', 'nearest', 'gap'],
@@ -3502,7 +3504,7 @@ class EdgeTracePar(newparset.ParSet):
                 'or `gap` to offset by a fixed gap width from the next slit edge.'
             ),
         ),
-        'gap_offset': newparset.set_parameter_definition(
+        'gap_offset': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
             descr=(
@@ -3512,7 +3514,7 @@ class EdgeTracePar(newparset.ParSet):
                 '`minimum_slit_gap` when converted to arcseconds.'
             ),
         ),
-        'sync_to_edge': newparset.set_parameter_definition(
+        'sync_to_edge': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -3521,7 +3523,7 @@ class EdgeTracePar(newparset.ParSet):
                 'the detector (with the relevant shape).'
             ),
         ),
-        'bound_detector': newparset.set_parameter_definition(
+        'bound_detector': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -3537,7 +3539,7 @@ class EdgeTracePar(newparset.ParSet):
                 'edges are, in fact, beyond the edges of the detector.'
             ),
         ),
-        'minimum_slit_dlength': newparset.set_parameter_definition(
+        'minimum_slit_dlength': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Minimum *change* in the slit length (arcsec) as a '
@@ -3550,7 +3552,7 @@ class EdgeTracePar(newparset.ParSet):
                 'this to remove poorly constrained slits.'
             ),
         ),
-        'dlength_range': newparset.set_parameter_definition(
+        'dlength_range': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Similar to ``minimum_slit_dlength``, but constrains the '
@@ -3560,7 +3562,7 @@ class EdgeTracePar(newparset.ParSet):
                 'as a function of wavelength.  '
             ),
         ),
-        'minimum_slit_length': newparset.set_parameter_definition(
+        'minimum_slit_length': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Minimum slit length in arcsec.  Slit lengths are '
@@ -3572,7 +3574,7 @@ class EdgeTracePar(newparset.ParSet):
                 ' ``clip``).  If None, no minimum slit length applied.'
             ),
         ),
-        'minimum_slit_length_sci': newparset.set_parameter_definition(
+        'minimum_slit_length_sci': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Minimum slit length in arcsec for a science slit.  '
@@ -3588,7 +3590,7 @@ class EdgeTracePar(newparset.ParSet):
                 'minimum science slit length is applied.'
             ),
         ),
-        'length_range': newparset.set_parameter_definition(
+        'length_range': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Allowed range in slit length compared to the median slit '
@@ -3599,7 +3601,7 @@ class EdgeTracePar(newparset.ParSet):
                 'identical lengths.'
             ),
         ),
-        'minimum_slit_gap': newparset.set_parameter_definition(
+        'minimum_slit_gap': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Minimum slit gap in arcsec.  Gaps between slits are '
@@ -3610,7 +3612,7 @@ class EdgeTracePar(newparset.ParSet):
                 'smaller than `gap_offset` when converted to pixels.'
             ),
         ),
-        'clip': newparset.set_parameter_definition(
+        'clip': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -3619,7 +3621,7 @@ class EdgeTracePar(newparset.ParSet):
                 ':func:`~pypeit.edgetrace.EdgeTraceSet.centroid_refine`.'
             ),
         ),
-        'order_match': newparset.set_parameter_definition(
+        'order_match': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Orders for *fixed-format* echelle spectrographs are always '
@@ -3632,7 +3634,7 @@ class EdgeTracePar(newparset.ParSet):
                 'None, no limit is used.'
             ),
         ),
-        'order_offset': newparset.set_parameter_definition(
+        'order_offset': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
                 'Orders for *fixed-format* echelle spectrographs are always '
@@ -3647,7 +3649,7 @@ class EdgeTracePar(newparset.ParSet):
                 'is applied.'
             ),
         ),
-        'add_missed_orders': newparset.set_parameter_definition(
+        'add_missed_orders': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -3663,7 +3665,7 @@ class EdgeTracePar(newparset.ParSet):
                 '``order_spat_range``.'
             ),
         ),
-        'order_width_poly': newparset.set_parameter_definition(
+        'order_width_poly': parset.set_parameter_definition(
             dtype=int,
             default=2,
             descr=(
@@ -3672,7 +3674,7 @@ class EdgeTracePar(newparset.ParSet):
                 'pixel position.  See ``add_missed_orders``.'
             ),
         ),
-        'order_gap_poly': newparset.set_parameter_definition(
+        'order_gap_poly': parset.set_parameter_definition(
             dtype=int,
             default=3,
             descr=(
@@ -3681,7 +3683,7 @@ class EdgeTracePar(newparset.ParSet):
                 'position.  See ``add_missed_orders``.'
             ),
         ),
-        'order_fitrej': newparset.set_parameter_definition(
+        'order_fitrej': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
@@ -3690,7 +3692,7 @@ class EdgeTracePar(newparset.ParSet):
                 'when excluding data from the fit.  See ``add_missed_orders``.'
             ),
         ),
-        'order_outlier': newparset.set_parameter_definition(
+        'order_outlier': parset.set_parameter_definition(
             dtype=[int, float],
             default=None,
             descr=(
@@ -3705,7 +3707,7 @@ class EdgeTracePar(newparset.ParSet):
                 '``order_fitrej``.'
             ),
         ),
-        'order_spat_range': newparset.set_parameter_definition(
+        'order_spat_range': parset.set_parameter_definition(
             dtype=list,
             descr=(
                 'The spatial range of the detector/mosaic over which to '
@@ -3713,7 +3715,7 @@ class EdgeTracePar(newparset.ParSet):
                 'detector/mosaic range is used.  See ``add_missed_orders``.'
             ),
         ),
-        'overlap': newparset.set_parameter_definition(
+        'overlap': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -3725,7 +3727,7 @@ class EdgeTracePar(newparset.ParSet):
                 'is particularly useful for blue orders in Keck-HIRES data.'
             ),
         ),
-        'max_overlap': newparset.set_parameter_definition(
+        'max_overlap': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
@@ -3741,21 +3743,21 @@ class EdgeTracePar(newparset.ParSet):
                 'orders by more than 50% will not be added as a missing order.'
             ),
         ),
-        'use_maskdesign': newparset.set_parameter_definition(
+        'use_maskdesign': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
                 'Use slit-mask designs to identify slits.'
             ),
         ),
-        'maskdesign_filename': newparset.set_parameter_definition(
+        'maskdesign_filename': parset.set_parameter_definition(
             dtype=[str, list],
             default=None,
             descr=(
                 'Mask design info contained in this file or files (comma separated)'
             ),
         ),
-        'maskdesign_maxsep': newparset.set_parameter_definition(
+        'maskdesign_maxsep': parset.set_parameter_definition(
             dtype=[int, float],
             default=50,
             descr=(
@@ -3763,7 +3765,7 @@ class EdgeTracePar(newparset.ParSet):
                 'defined by the slit-mask design and the traced edges.'
             ),
         ),
-        'maskdesign_step': newparset.set_parameter_definition(
+        'maskdesign_step': parset.set_parameter_definition(
             dtype=[int, float],
             default=1,
             descr=(
@@ -3772,7 +3774,7 @@ class EdgeTracePar(newparset.ParSet):
                 'by the mask design and the traced edges.'
             ),
         ),
-        'maskdesign_sigrej': newparset.set_parameter_definition(
+        'maskdesign_sigrej': parset.set_parameter_definition(
             dtype=[int, float],
             default=3,
             descr=(
@@ -3780,7 +3782,7 @@ class EdgeTracePar(newparset.ParSet):
                 'design matching.'
             ),
         ),
-        'maskdesign_trim': newparset.set_parameter_definition(
+        'maskdesign_trim': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -3791,7 +3793,7 @@ class EdgeTracePar(newparset.ParSet):
                 'only Gemini GMOS N/S).'
             ),
         ),
-        'maskdesign_trim_shift': newparset.set_parameter_definition(
+        'maskdesign_trim_shift': parset.set_parameter_definition(
             dtype=[int, float],
             default=0,
             descr=(
@@ -3804,7 +3806,7 @@ class EdgeTracePar(newparset.ParSet):
                 'extent of each slit (currently, only Gemini GMOS N/S).'
             ),
         ),
-        'pad': newparset.set_parameter_definition(
+        'pad': parset.set_parameter_definition(
             dtype=int,
             default=0,
             descr=(
@@ -3812,7 +3814,7 @@ class EdgeTracePar(newparset.ParSet):
                 "selecting pixels that are 'on' the slit."
             ),
         ),
-        'add_slits': newparset.set_parameter_definition(
+        'add_slits': parset.set_parameter_definition(
             dtype=[str, list],
             descr=(
                 'Add one or more user-defined slits.  The syntax to define a '
@@ -3830,7 +3832,7 @@ class EdgeTracePar(newparset.ParSet):
                 'mosaic made up of detectors 1, 2, and 3.'
             ),
         ),
-        'add_predict': newparset.set_parameter_definition(
+        'add_predict': parset.set_parameter_definition(
             dtype=str,
             default='nearest',
             descr=(
@@ -3843,7 +3845,7 @@ class EdgeTracePar(newparset.ParSet):
                 'decomposition to predict the shape of the traces.'
             ),
         ),
-        'rm_slits': newparset.set_parameter_definition(
+        'rm_slits': parset.set_parameter_definition(
             dtype=[str, list],
             descr=(
                 'Remove one or more user-specified slits.  The syntax used to ' 
@@ -3880,7 +3882,7 @@ class EdgeTracePar(newparset.ParSet):
 
 
 
-class WaveTiltsPar(newparset.ParSet):
+class WaveTiltsPar(parset.ParSet):
     """
     New-style parameter set for tracing the monochromatic tilt along the slit
 
@@ -3890,7 +3892,7 @@ class WaveTiltsPar(newparset.ParSet):
     default_key = 'wavetilts'
 
     parameters = {
-        'idsonly': newparset.set_parameter_definition(
+        'idsonly': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -3898,7 +3900,7 @@ class WaveTiltsPar(newparset.ParSet):
                 'tilts (CURRENTLY NOT USED!)'
             ),
         ),
-        'tracethresh': newparset.set_parameter_definition(
+        'tracethresh': parset.set_parameter_definition(
             dtype=[int, float, list, np.ndarray],
             default=20.0,
             descr=(
@@ -3906,7 +3908,7 @@ class WaveTiltsPar(newparset.ParSet):
                 'This can be a single number or a list/array providing the value for each slit/order.'
             ),
         ),
-        'sig_neigh': newparset.set_parameter_definition(
+        'sig_neigh': parset.set_parameter_definition(
             dtype=[int, float],
             default=10.0,
             descr=(
@@ -3917,7 +3919,7 @@ class WaveTiltsPar(newparset.ParSet):
                 ' larger number of lines, which will result in more lines above tracethresh getting rejected'
             ),
         ),
-        'nfwhm_neigh': newparset.set_parameter_definition(
+        'nfwhm_neigh': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
@@ -3925,7 +3927,7 @@ class WaveTiltsPar(newparset.ParSet):
                 'the spectral fwhm (see wavelength parset where fwhm is defined)'
             ),
         ),
-        'maxdev_tracefit': newparset.set_parameter_definition(
+        'maxdev_tracefit': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.2,
             descr=(
@@ -3933,14 +3935,14 @@ class WaveTiltsPar(newparset.ParSet):
                 'arc line tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)'
             ),
         ),
-        'sigrej_trace': newparset.set_parameter_definition(
+        'sigrej_trace': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
                 'Outlier rejection significance to determine which traced arc lines should be included in the global fit'
             ),
         ),
-        'spat_order': newparset.set_parameter_definition(
+        'spat_order': parset.set_parameter_definition(
             dtype=[int, float, list, np.ndarray],
             default=3,
             descr=(
@@ -3950,7 +3952,7 @@ class WaveTiltsPar(newparset.ParSet):
                 'slit/order. This can be a single number or a list/array providing the value for each slit'
             ),
         ),
-        'spec_order': newparset.set_parameter_definition(
+        'spec_order': parset.set_parameter_definition(
             dtype=[int, float, list, np.ndarray],
             default=4,
             descr=(
@@ -3959,21 +3961,21 @@ class WaveTiltsPar(newparset.ParSet):
                 'This can be a single number or a list/array providing the value for each slit'
             ),
         ),
-        'minmax_extrap': newparset.set_parameter_definition(
+        'minmax_extrap': parset.set_parameter_definition(
             dtype=[list, np.ndarray],
             default=[150.0, 1000.0],
             descr=(
                 'Sets how far below the last measured tilt line is extrapolated in tracewave.fit_tilts()'
             ),
         ),
-        'func2d': newparset.set_parameter_definition(
+        'func2d': parset.set_parameter_definition(
             dtype=str,
             default='legendre2d',
             descr=(
                 'Type of function for 2D fit'
             ),
         ),
-        'maxdev2d': newparset.set_parameter_definition(
+        'maxdev2d': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.25,
             descr=(
@@ -3981,7 +3983,7 @@ class WaveTiltsPar(newparset.ParSet):
                 'arc line tilts are rejected because they deviate from the model by more than this value'
             ),
         ),
-        'sigrej2d': newparset.set_parameter_definition(
+        'sigrej2d': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
@@ -3989,7 +3991,7 @@ class WaveTiltsPar(newparset.ParSet):
                 'are rejected by the global 2D fit'
             ),
         ),
-        'rm_continuum': newparset.set_parameter_definition(
+        'rm_continuum': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -3997,7 +3999,7 @@ class WaveTiltsPar(newparset.ParSet):
                 'remove any low-order continuum in the 2D spectra.'
             ),
         ),
-        'cont_rej': newparset.set_parameter_definition(
+        'cont_rej': parset.set_parameter_definition(
             dtype=[int, float, list, np.ndarray],
             default=[3, 1.5],
             descr=(
@@ -4014,7 +4016,7 @@ class WaveTiltsPar(newparset.ParSet):
                                  'two-element list/array.')
 
 
-class FindObjPar(newparset.ParSet):
+class FindObjPar(parset.ParSet):
     """
     New-style parameter set for finding and tracing objects (replacement for FindObjPar).
 
@@ -4024,12 +4026,12 @@ class FindObjPar(newparset.ParSet):
     default_key = 'findobj'
 
     parameters = {
-        'trace_npoly': newparset.set_parameter_definition(
+        'trace_npoly': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr='Order of legendre polynomial fits to object traces.',
         ),
-        'maxnumber_sci': newparset.set_parameter_definition(
+        'maxnumber_sci': parset.set_parameter_definition(
             dtype=int,
             default=10,
             descr=(
@@ -4048,7 +4050,7 @@ class FindObjPar(newparset.ParSet):
                 'with short slits we set the default to be 1'
             ),
         ),
-        'maxnumber_std': newparset.set_parameter_definition(
+        'maxnumber_std': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr=(
@@ -4057,17 +4059,17 @@ class FindObjPar(newparset.ParSet):
                 'observations the default is 1'
             ),
         ),
-        'snr_thresh': newparset.set_parameter_definition(
+        'snr_thresh': parset.set_parameter_definition(
             dtype=[int, float],
             default=10.0,
             descr='S/N threshold for object finding in wavelength direction smashed image.',
         ),
-        'find_trim_edge': newparset.set_parameter_definition(
+        'find_trim_edge': parset.set_parameter_definition(
             dtype=list,
             default=[5, 5],
             descr='Trim the slit by this number of pixels left/right before finding objects',
         ),
-        'trace_extrap_npoly': newparset.set_parameter_definition(
+        'trace_extrap_npoly': parset.set_parameter_definition(
             dtype=int,
             default=3,
             descr=(
@@ -4075,7 +4077,7 @@ class FindObjPar(newparset.ParSet):
                 'parameter was called ``find_extrap_npoly``.)'
             ),
         ),
-        'trace_maxdev': newparset.set_parameter_definition(
+        'trace_maxdev': parset.set_parameter_definition(
             dtype=[int, float],
             default=2.0,
             descr=(
@@ -4083,7 +4085,7 @@ class FindObjPar(newparset.ParSet):
                 'parameter was called ``find_maxdev``.)'
             ),
         ),
-        'trace_maxshift': newparset.set_parameter_definition(
+        'trace_maxshift': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.0,
             descr=(
@@ -4091,7 +4093,7 @@ class FindObjPar(newparset.ParSet):
                 'allow the fiter to follow curved traces (*e.g.*, for wide spectral ranges at high airmass).'
             ),
         ),
-        'trace_min_max': newparset.set_parameter_definition(
+        'trace_min_max': parset.set_parameter_definition(
             dtype=list,
             default=None,
             descr=(
@@ -4101,22 +4103,22 @@ class FindObjPar(newparset.ParSet):
                 'silicon cutoff).'
             ),
         ),
-        'find_numiterfit': newparset.set_parameter_definition(
+        'find_numiterfit': parset.set_parameter_definition(
             dtype=int,
             default=9,
             descr='Number of iterations to perform on the trace fitting.',
         ),
-        'find_fwhm': newparset.set_parameter_definition(
+        'find_fwhm': parset.set_parameter_definition(
             dtype=[int, float],
             default=5.0,
             descr='Indicates roughly the fwhm of objects in pixels for object finding',
         ),
-        'fof_link': newparset.set_parameter_definition(
+        'fof_link': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.5,
             descr='The linking distance, in arcseconds, for the Friends of Friends algorithm to link objects across traces in Echelle spectrographs. ',
         ),
-        'ech_find_max_snr': newparset.set_parameter_definition(
+        'ech_find_max_snr': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.0,
             descr=(
@@ -4125,7 +4127,7 @@ class FindObjPar(newparset.ParSet):
                 'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
             ),
         ),
-        'ech_find_min_snr': newparset.set_parameter_definition(
+        'ech_find_min_snr': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.3,
             descr=(
@@ -4134,7 +4136,7 @@ class FindObjPar(newparset.ParSet):
                 'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
             ),
         ),
-        'ech_find_nabove_min_snr': newparset.set_parameter_definition(
+        'ech_find_nabove_min_snr': parset.set_parameter_definition(
             dtype=int,
             default=2,
             descr=(
@@ -4145,12 +4147,12 @@ class FindObjPar(newparset.ParSet):
                 'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept.'
             ),
         ),
-        'skip_second_find': newparset.set_parameter_definition(
+        'skip_second_find': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Only perform one round of object finding (mainly for quick_look)'
         ),
-        'skip_final_global': newparset.set_parameter_definition(
+        'skip_final_global': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -4160,7 +4162,7 @@ class FindObjPar(newparset.ParSet):
                 'than the sky itself, so there is no noise model to update. '
             ),
         ),
-        'skip_skysub': newparset.set_parameter_definition(
+        'skip_skysub': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -4170,7 +4172,7 @@ class FindObjPar(newparset.ParSet):
                 'sky-subtraction, and so this is typically set to False'
             ),
         ),
-        'find_negative': newparset.set_parameter_definition(
+        'find_negative': parset.set_parameter_definition(
             dtype=[bool],
             default=None,
             descr=(
@@ -4184,7 +4186,7 @@ class FindObjPar(newparset.ParSet):
                 'them.'
             ),
         ),
-        'find_min_max': newparset.set_parameter_definition(
+        'find_min_max': parset.set_parameter_definition(
             dtype=list,
             default=None,
             descr=(
@@ -4193,7 +4195,7 @@ class FindObjPar(newparset.ParSet):
                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
             ),
         ),
-        'use_std_trace': newparset.set_parameter_definition(
+        'use_std_trace': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -4203,7 +4205,7 @@ class FindObjPar(newparset.ParSet):
                 'pypeit file, or the ``std_spec1d`` parameter must be set for this to work. '
                 ),
         ),
-        'std_spec1d': newparset.set_parameter_definition(
+        'std_spec1d': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=(
@@ -4224,7 +4226,7 @@ class FindObjPar(newparset.ParSet):
                 raise ValueError(f'{self.data["std_spec1d"]} does not exist!')
 
 
-class SkySubPar(newparset.ParSet):
+class SkySubPar(parset.ParSet):
     """
     New-style parameter set for sky subtraction (replacement for SkySubPar).
 
@@ -4234,17 +4236,17 @@ class SkySubPar(newparset.ParSet):
     default_key = 'skysub'
 
     parameters = {
-        'bspline_spacing': newparset.set_parameter_definition(
+        'bspline_spacing': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.6,
             descr='Break-point spacing for the bspline sky subtraction fits.',
         ),
-        'sky_sigrej': newparset.set_parameter_definition(
+        'sky_sigrej': parset.set_parameter_definition(
             dtype=float,
             default=3.0,
             descr='Rejection parameter for local sky subtraction',
         ),
-        'global_sky_std': newparset.set_parameter_definition(
+        'global_sky_std': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -4254,17 +4256,17 @@ class SkySubPar(newparset.ParSet):
                 'straight to local sky-subtraction since it is designed to deal with such situations'
             ),
         ),
-        'no_poly': newparset.set_parameter_definition(
+        'no_poly': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Turn off polynomial basis (Legendre) in global sky subtraction',
         ),
-        'no_local_sky': newparset.set_parameter_definition(
+        'no_local_sky': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction',
         ),
-        'user_regions': newparset.set_parameter_definition(
+        'user_regions': parset.set_parameter_definition(
             dtype=[str, list],
             default=None,
             descr=(
@@ -4278,12 +4280,12 @@ class SkySubPar(newparset.ParSet):
                 'files generated by the user via the pypeit_skysub_regions tool.'
             ),
         ),
-        'mask_by_boxcar': newparset.set_parameter_definition(
+        'mask_by_boxcar': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).',
         ),
-        'joint_fit': newparset.set_parameter_definition(
+        'joint_fit': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -4293,7 +4295,7 @@ class SkySubPar(newparset.ParSet):
                 'in different slits. This will be addressed by Issue #1660.'
             ),
         ),
-        'max_mask_frac': newparset.set_parameter_definition(
+        'max_mask_frac': parset.set_parameter_definition(
             dtype=float,
             default=0.80,
             descr=(
@@ -4301,7 +4303,7 @@ class SkySubPar(newparset.ParSet):
                 'If more than this threshold is masked the code will return zeros and throw a warning.'
             ),
         ),
-        'local_maskwidth': newparset.set_parameter_definition(
+        'local_maskwidth': parset.set_parameter_definition(
             dtype=float,
             default=4.0,
             descr='Initial width of the region in units of FWHM that will be used for local sky subtraction',
@@ -4309,7 +4311,7 @@ class SkySubPar(newparset.ParSet):
     }
 
 
-class ExtractionPar(newparset.ParSet):
+class ExtractionPar(parset.ParSet):
     """
     New-style parameter set for extraction (replacement for ExtractionPar).
 
@@ -4319,28 +4321,28 @@ class ExtractionPar(newparset.ParSet):
     default_key = 'extraction'
 
     parameters = {
-        'boxcar_radius': newparset.set_parameter_definition(
+        'boxcar_radius': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.5,
             descr='Boxcar radius in arcseconds used for boxcar extraction',
         ),
-        'skip_extraction': newparset.set_parameter_definition(
+        'skip_extraction': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Do not perform an object extraction',
         ),
-        'skip_optimal': newparset.set_parameter_definition(
+        'skip_optimal': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Perform boxcar extraction only (i.e. skip Optimal and local skysub)',
         ),
-        'std_prof_nsigma': newparset.set_parameter_definition(
+        'std_prof_nsigma': parset.set_parameter_definition(
             dtype=float,
             default=30.0,
             descr='prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection. ' \
                     'NOTE: Not consumed by the code at present.',
         ),
-        'min_frac_prof': newparset.set_parameter_definition(
+        'min_frac_prof': parset.set_parameter_definition(
             dtype=float,
             default=0.05,
             descr=(
@@ -4349,7 +4351,7 @@ class ExtractionPar(newparset.ParSet):
                 ' the optimal extraction will also be masked. '
             ),
         ),
-        'sn_gauss': newparset.set_parameter_definition(
+        'sn_gauss': parset.set_parameter_definition(
             dtype=[int, float],
             default=4.0,
             descr=(
@@ -4358,7 +4360,7 @@ class ExtractionPar(newparset.ParSet):
                 'with a Gaussian with FWHM determined from the object finding.'
             ),
         ),
-        'model_full_slit': newparset.set_parameter_definition(
+        'model_full_slit': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -4367,7 +4369,7 @@ class ExtractionPar(newparset.ParSet):
                 'observations using narrow slits or echelle observations with narrow slits'
             ),
         ),
-        'use_2dmodel_mask': newparset.set_parameter_definition(
+        'use_2dmodel_mask': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
@@ -4375,7 +4377,7 @@ class ExtractionPar(newparset.ParSet):
                 'Turning this off may help with bright emission lines.'
             ),
         ),
-        'use_user_fwhm': newparset.set_parameter_definition(
+        'use_user_fwhm': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -4385,7 +4387,7 @@ class ExtractionPar(newparset.ParSet):
                 'detected object, and uses ``find_fwhm`` as initial guess.'
             ),
         ),
-        'return_negative': newparset.set_parameter_definition(
+        'return_negative': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='If ``True`` the negative traces will be extracted and saved to disk',
@@ -4393,7 +4395,7 @@ class ExtractionPar(newparset.ParSet):
     }
 
 
-class Collate1DPar(newparset.ParSet):
+class Collate1DPar(parset.ParSet):
     """
     New-style parameter set for collating, coadding, and archiving 1D spectra.
 
@@ -4405,7 +4407,7 @@ class Collate1DPar(newparset.ParSet):
     valid_refframes = ['observed', 'heliocentric', 'barycentric']
 
     parameters = {
-        'tolerance': newparset.set_parameter_definition(
+        'tolerance': parset.set_parameter_definition(
             dtype=[str, float, int],
             default=1.0,
             descr=(
@@ -4417,7 +4419,7 @@ class Collate1DPar(newparset.ParSet):
                 "(`e.g.`, '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float."
             ),
         ),
-        'dry_run': newparset.set_parameter_definition(
+        'dry_run': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -4425,7 +4427,7 @@ class Collate1DPar(newparset.ParSet):
                 "but will not flux, coadd or archive."
             ),
         ),
-        'ignore_flux': newparset.set_parameter_definition(
+        'ignore_flux': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
@@ -4433,49 +4435,49 @@ class Collate1DPar(newparset.ParSet):
                 "Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated."
             ),
         ),
-        'flux': newparset.set_parameter_definition(
+        'flux': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
                 "If set, the script will flux calibrate using archived sensfuncs before coadding."
             ),
         ),
-        'outdir': newparset.set_parameter_definition(
+        'outdir': parset.set_parameter_definition(
             dtype=str,
             default=os.getcwd(),
             descr=(
                 "The path where all coadded output files and report files will be placed."
             ),
         ),
-        'spec1d_outdir': newparset.set_parameter_definition(
+        'spec1d_outdir': parset.set_parameter_definition(
             dtype=str,
             default=None,
             descr=(
                 "The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for."
             ),
         ),
-        'exclude_slit_trace_bm': newparset.set_parameter_definition(
+        'exclude_slit_trace_bm': parset.set_parameter_definition(
             dtype=[list, str],
             default=[],
             descr=(
                 "A list of slit trace bitmask bits that should be excluded."
             ),
         ),
-        'exclude_serendip': newparset.set_parameter_definition(
+        'exclude_serendip': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
                 "Whether to exclude SERENDIP objects from collating."
             ),
         ),
-        'wv_rms_thresh': newparset.set_parameter_definition(
+        'wv_rms_thresh': parset.set_parameter_definition(
             dtype=float,
             default=None,
             descr=(
                 "If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted."
             ),
         ),
-        'match_using': newparset.set_parameter_definition(
+        'match_using': parset.set_parameter_definition(
             dtype=str,
             default='ra/dec',
             options=['pixel', 'ra/dec'],
@@ -4483,7 +4485,7 @@ class Collate1DPar(newparset.ParSet):
                 "Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'."
             ),
         ),
-        'refframe': newparset.set_parameter_definition(
+        'refframe': parset.set_parameter_definition(
             dtype=str,
             default=None,
             options=valid_refframes,
@@ -4495,7 +4497,7 @@ class Collate1DPar(newparset.ParSet):
     }
 
 
-class ReducePar(newparset.ParSet):
+class ReducePar(parset.ParSet):
     """
     New-style parameter set for sky subtraction, object finding and extraction.
 
@@ -4505,32 +4507,32 @@ class ReducePar(newparset.ParSet):
     default_key = 'reduce'
 
     parameters = {
-        'findobj': newparset.set_parameter_definition(
+        'findobj': parset.set_parameter_definition(
             dtype=FindObjPar,
             default=FindObjPar(),
             descr='Parameters for the find object and tracing algorithms',
         ),
-        'skysub': newparset.set_parameter_definition(
+        'skysub': parset.set_parameter_definition(
             dtype=SkySubPar,
             default=SkySubPar(),
             descr='Parameters for sky subtraction algorithms',
         ),
-        'extraction': newparset.set_parameter_definition(
+        'extraction': parset.set_parameter_definition(
             dtype=ExtractionPar,
             default=ExtractionPar(),
             descr='Parameters for extraction algorithms',
         ),
-        'slitmask': newparset.set_parameter_definition(
+        'slitmask': parset.set_parameter_definition(
             dtype=SlitMaskPar,
             default=SlitMaskPar(),
             descr='Parameters for slitmask',
         ),
-        'cube': newparset.set_parameter_definition(
+        'cube': parset.set_parameter_definition(
             dtype=CubePar,
             default=CubePar(),
             descr='Parameters for cube generation algorithms',
         ),
-        'trim_edge': newparset.set_parameter_definition(
+        'trim_edge': parset.set_parameter_definition(
             dtype=list,
             default=[3, 3],
             descr=(
@@ -4540,7 +4542,7 @@ class ReducePar(newparset.ParSet):
     }
 
 
-class CalibrationsPar(newparset.ParSet):
+class CalibrationsPar(parset.ParSet):
     """
     New-style parameter set for calibration frame groups and related settings.
 
@@ -4550,7 +4552,7 @@ class CalibrationsPar(newparset.ParSet):
     default_key = 'calibrations'
 
     parameters = {
-        'calib_dir': newparset.set_parameter_definition(
+        'calib_dir': parset.set_parameter_definition(
             dtype=str,
             default='Calibrations',
             descr=(
@@ -4560,79 +4562,79 @@ class CalibrationsPar(newparset.ParSet):
                 'when changing the default value is not well tested!'
             ),
         ),
-        'raise_chk_error': newparset.set_parameter_definition(
+        'raise_chk_error': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr='Raise an error if the calibration check fails',
         ),
-        'bpm_usebias': newparset.set_parameter_definition(
+        'bpm_usebias': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr='Make a bad pixel mask from bias frames? Bias frames must be provided.',
         ),
 
         # TODO: Change the dict keys so that CalibrationsPar uses the FrameGroupPar.default_key?
-        'biasframe': newparset.set_parameter_definition(
+        'biasframe': parset.set_parameter_definition(
             dtype=BiasFramePar,
             default=BiasFramePar(),
             descr='The frames and combination rules for the bias correction',
         ),
-        'darkframe': newparset.set_parameter_definition(
+        'darkframe': parset.set_parameter_definition(
             dtype=DarkFramePar,
             default=DarkFramePar(),
             descr='The frames and combination rules for the dark-current correction',
         ),
-        'scattlightframe': newparset.set_parameter_definition(
+        'scattlightframe': parset.set_parameter_definition(
             dtype=ScatteredLightFramePar,
             default=ScatteredLightFramePar(),
             descr='The frames and combination rules for the scattered light frames',
         ),
-        'pixelflatframe': newparset.set_parameter_definition(
+        'pixelflatframe': parset.set_parameter_definition(
             dtype=PixelFlatFramePar,
             default=PixelFlatFramePar(),
             descr='The frames and combination rules for the pixel flat',
         ),
-        'illumflatframe': newparset.set_parameter_definition(
+        'illumflatframe': parset.set_parameter_definition(
             dtype=IllumFlatFramePar,
             default=IllumFlatFramePar(),
             descr='The frames and combination rules for the illumination flat',
         ),
-        'lampoffflatsframe': newparset.set_parameter_definition(
+        'lampoffflatsframe': parset.set_parameter_definition(
             dtype=LampOffFlatsFramePar,
             default=LampOffFlatsFramePar(),
             descr='The frames and combination rules for the lamp off flats',
         ),
-        'slitless_pixflatframe': newparset.set_parameter_definition(
+        'slitless_pixflatframe': parset.set_parameter_definition(
             dtype=SlitlessPixFlatFramePar,
             default=SlitlessPixFlatFramePar(),
             descr='The frames and combination rules for the slitless pixel flat',
         ),
-        'pinholeframe': newparset.set_parameter_definition(
+        'pinholeframe': parset.set_parameter_definition(
             dtype=PinholeFramePar,
             default=PinholeFramePar(),
             descr='The frames and combination rules for the pinholes',
         ),
-        'alignframe': newparset.set_parameter_definition(
+        'alignframe': parset.set_parameter_definition(
             dtype=AlignFramePar,
             default=AlignFramePar(),
             descr='The frames and combination rules for the align frames',
         ),
-        'arcframe': newparset.set_parameter_definition(
+        'arcframe': parset.set_parameter_definition(
             dtype=ArcFramePar,
             default=ArcFramePar(),
             descr='The frames and combination rules for the wavelength calibration',
         ),
-        'tiltframe': newparset.set_parameter_definition(
+        'tiltframe': parset.set_parameter_definition(
             dtype=TiltFramePar,
             default=TiltFramePar(),
             descr='The frames and combination rules for the wavelength tilts',
         ),
-        'traceframe': newparset.set_parameter_definition(
+        'traceframe': parset.set_parameter_definition(
             dtype=TraceFramePar,
             default=TraceFramePar(),
             descr='The frames and combination rules for images used for slit tracing',
         ),
-        'standardframe': newparset.set_parameter_definition(
+        'standardframe': parset.set_parameter_definition(
             dtype=StandardFramePar,
             default=StandardFramePar(),
             descr=(
@@ -4640,7 +4642,7 @@ class CalibrationsPar(newparset.ParSet):
                 'standard observations'
             ),
         ),
-        'skyframe': newparset.set_parameter_definition(
+        'skyframe': parset.set_parameter_definition(
             dtype=SkyFramePar,
             default=SkyFramePar(),
             descr=(
@@ -4648,32 +4650,32 @@ class CalibrationsPar(newparset.ParSet):
                 'observations'
             ),
         ),
-        'alignment': newparset.set_parameter_definition(
+        'alignment': parset.set_parameter_definition(
             dtype=AlignPar,
             default=AlignPar(),
             descr='Define the procedure for the alignment of traces',
         ),
-        'scattlight_pad': newparset.set_parameter_definition(
+        'scattlight_pad': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr='Number of unbinned pixels to extend the slit edges by when masking the slits.',
         ),
-        'flatfield': newparset.set_parameter_definition(
+        'flatfield': parset.set_parameter_definition(
             dtype=FlatFieldPar,
             default=FlatFieldPar(),
             descr='Parameters used to set the flat-field procedure',
         ),
-        'wavelengths': newparset.set_parameter_definition(
+        'wavelengths': parset.set_parameter_definition(
             dtype=WavelengthSolutionPar,
             default=WavelengthSolutionPar(),
             descr='Parameters used to derive the wavelength solution',
         ),
-        'slitedges': newparset.set_parameter_definition(
+        'slitedges': parset.set_parameter_definition(
             dtype=EdgeTracePar,
             default=EdgeTracePar(),
             descr='Slit-edge tracing parameters',
         ),
-        'tilts': newparset.set_parameter_definition(
+        'tilts': parset.set_parameter_definition(
             dtype=WaveTiltsPar,
             default=WaveTiltsPar(),
             descr='Define how to trace the slit tilts using the trace frames',
@@ -4681,7 +4683,7 @@ class CalibrationsPar(newparset.ParSet):
     }
 
 
-class PypeItPar(newparset.ParSet):
+class PypeItPar(parset.ParSet):
     """
     New-style superset of parameters used by PypeIt.
 
@@ -4692,27 +4694,27 @@ class PypeItPar(newparset.ParSet):
     default_key = 'pypeit'
 
     parameters = {
-        'rdx': newparset.set_parameter_definition(
+        'rdx': parset.set_parameter_definition(
             dtype=ReduxPar,
             default=ReduxPar(),
             descr='PypeIt reduction rules.',
         ),
-        'calibrations': newparset.set_parameter_definition(
+        'calibrations': parset.set_parameter_definition(
             dtype=CalibrationsPar,
             default=CalibrationsPar(),
             descr='Parameters for the calibration algorithms',
         ),
-        'scienceframe': newparset.set_parameter_definition(
+        'scienceframe': parset.set_parameter_definition(
             dtype=ScienceFramePar,
             default=ScienceFramePar(),
             descr='The frames and combination rules for the science observations',
         ),
-        'reduce': newparset.set_parameter_definition(
+        'reduce': parset.set_parameter_definition(
             dtype=ReducePar,
             default=ReducePar(),
             descr='Parameters determining sky-subtraction, object finding, and extraction',
         ),
-        'flexure': newparset.set_parameter_definition(
+        'flexure': parset.set_parameter_definition(
             dtype=FlexurePar,
             default=FlexurePar(),
             descr=(
@@ -4722,7 +4724,7 @@ class PypeItPar(newparset.ParSet):
                 'in the ' "'rdx'" ' parameter group to use the default flexure-correction parameters.'
             ),
         ),
-        'fluxcalib': newparset.set_parameter_definition(
+        'fluxcalib': parset.set_parameter_definition(
             dtype=FluxCalibratePar,
             default=FluxCalibratePar(),
             descr=(
@@ -4732,17 +4734,17 @@ class PypeItPar(newparset.ParSet):
                 'in the ' "'rdx'" ' parameter group to use the default flux-calibration parameters.'
             ),
         ),
-        'coadd1d': newparset.set_parameter_definition(
+        'coadd1d': parset.set_parameter_definition(
             dtype=Coadd1DPar,
             default=Coadd1DPar(),
             descr='Par set to control 1D coadds.  Only used in the after-burner script.',
         ),
-        'coadd2d': newparset.set_parameter_definition(
+        'coadd2d': parset.set_parameter_definition(
             dtype=Coadd2DPar,
             default=Coadd2DPar(),
             descr='Par set to control 2D coadds.  Only used in the after-burner script.',
         ),
-        'sensfunc': newparset.set_parameter_definition(
+        'sensfunc': parset.set_parameter_definition(
             dtype=SensFuncPar,
             default=SensFuncPar(),
             descr=(
@@ -4750,7 +4752,7 @@ class PypeItPar(newparset.ParSet):
                 'the after-burner script.'
             ),
         ),
-        'telluric': newparset.set_parameter_definition(
+        'telluric': parset.set_parameter_definition(
             dtype=TelluricPar,
             default=TelluricPar(),
             descr=(
@@ -4758,7 +4760,7 @@ class PypeItPar(newparset.ParSet):
                 'pypeit_sensfunc and pypeit_telluric after-burner scripts.'
             ),
         ),
-        'collate1d': newparset.set_parameter_definition(
+        'collate1d': parset.set_parameter_definition(
             dtype=Collate1DPar,
             default=Collate1DPar(),
             descr=(
@@ -4953,13 +4955,13 @@ class PypeItPar(newparset.ParSet):
         """
         # Calibrations
         for _key in self['calibrations'].keys():
-            if isinstance(self['calibrations'][_key], newparset.ParSet) \
+            if isinstance(self['calibrations'][_key], parset.ParSet) \
                     and 'process' in self['calibrations'][_key].keys():
                 for key,value in kwargs.items():
                     self['calibrations'][_key]['process'][key] = value
         # Science frame
         for _key in self.keys():
-            if isinstance(self[_key], newparset.ParSet) and 'process' in self[_key].keys():
+            if isinstance(self[_key], parset.ParSet) and 'process' in self[_key].keys():
                 for key,value in kwargs.items():
                     self[_key]['process'][key] = value
 

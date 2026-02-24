@@ -22,8 +22,7 @@ from pypeit.core import framematch
 from pypeit.core import standard
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from pypeit.par import newparset as parset
-#from pypeit.par import parset
+from pypeit.par import parset
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
 
