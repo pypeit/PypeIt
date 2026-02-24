@@ -146,6 +146,10 @@ class FileFormatter(logging.Formatter):
         logging.Formatter.__init__(self, fmt, datefmt='%Y-%m-%d %H:%M:%S')
 
 
+# ------------ step logging level ---------------------
+STEP_LEVEL = 5 # logging level is just below debug (debug is 10)
+logging.addLevelName(STEP_LEVEL,"STEP") # add the level and the name to the python logger
+
 class PypeItLogger(logging.Logger):
     """
     Custom logging system for pypeit.
@@ -358,6 +362,13 @@ class PypeItLogger(logging.Logger):
         self.removeHandler(self.fh)
         if self.fh in self.warnings_logger.handlers:
             self.warnings_logger.removeHandler(self.fh)
+
+    def step(self,msg):
+        """
+        logging level used to track the current step that pypeit is on
+        """
+        if self.isEnabledFor(STEP_LEVEL):
+            self.log(STEP_LEVEL,msg)
 
 
 # NOTE: If we allow warning and exception capture to be optional, remember to

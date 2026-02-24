@@ -362,7 +362,6 @@ def start_pypeit_process(file_path,log_queue,msg_queue):
 def message_listener(msg_queue, handler):
     while True:
         msg = msg_queue.get()
-        print(msg)
         if msg == "STOP":
                     break
         if msg[0] == "file path":

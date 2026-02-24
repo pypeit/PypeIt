@@ -169,6 +169,8 @@ class PypeIt:
         Provides an avenue to process the calibrations for a dataset 
         without (or omitting) any science/standard frames.
         """
+        log.step(f'calib all called')
+
         self.tstart = time.perf_counter()
 
         # Frame indices
