@@ -7,8 +7,8 @@ from IPython import embed
 
 import pytest
 
-from pypeit.par import oldparset
-from pypeit.par import oldpypeitpar
+#from pypeit.par import oldparset
+#from pypeit.par import oldpypeitpar
 from pypeit.par import pypeitpar
 from pypeit.par import parset
 from pypeit.par import util
