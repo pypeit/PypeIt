@@ -187,7 +187,7 @@ class PypeIt:
                 log.info(f'Working on detector {self.det}')
 
                 caliBrate = pypeit_steps.calib_one(self.spectrograph, self.fitstbl, self.par,
-                                       self.det, calib_ID, self.calibrations_path)
+                                       self.det, calib_ID, self.calibrations_path, show=self.show)
                                        
 
         # Finish

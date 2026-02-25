@@ -1108,6 +1108,10 @@ class Calibrations:
                                                           raw_lampoff_files, dark=self.msdark,
                                                           bias=self.msbias, bpm=self.msbpm)
             traceImage = traceImage.sub(lampoff_flat)
+        
+        # Show the traceImage if requested
+        if self.show:
+            traceImage.show()
 
         edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
                                        qa_path=self.qa_path, auto=True)
@@ -1261,6 +1265,11 @@ class Calibrations:
         # wavelength calibration.  Create EchelleCalibrations and
         # EchelleBuildWaveCalib subclasses instead..
         log.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
+
+        log.test(f"Relevant information:\n{self.par['wavelengths']}\n{self.spectrograph.pypeline}")
+
+        log.test(f"self.slits: {self.slits}")
+
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], lamps, meta_dict=meta_dict,
                                              det=self.det, qa_path=self.qa_path)

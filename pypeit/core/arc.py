@@ -338,20 +338,25 @@ def resize_mask2arc(shape_arc, slitmask_orig):
         Slitmask with shape corresponding to that of the arc
 
     """
-    (nspec, nspat) = shape_arc
+    nspec, nspat = shape_arc
+
     # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
     # be a different size
-    (nspec_orig,nspat_orig) = slitmask_orig.shape
-    if nspec_orig != nspec:
-        if ((nspec_orig > nspec) & (nspec_orig % nspec != 0)) | ((nspec > nspec_orig) & (nspec % nspec_orig != 0)):
-            raise PypeItError('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
-        else:
-            log.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
-        slitmask = utils.rebin_slice(slitmask_orig, (nspec, nspat))
-    else:
-        slitmask = slitmask_orig
+    # TODO: There is no check on change in SPATIAL shape... do we need to worry?
+    nspec_orig,_ = slitmask_orig.shape
 
-    return slitmask
+    # If unchanged, return the input
+    if nspec_orig == nspec:
+        return slitmask_orig
+
+    # Check for problem with images' sizes.
+    if ((nspec_orig > nspec) & (nspec_orig % nspec != 0)) | ((nspec > nspec_orig) & (nspec % nspec_orig != 0)):
+        raise PypeItError('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
+
+    # Log and return
+    log.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
+    return utils.rebin_slice(slitmask_orig, (nspec, nspat))
+
 
 def resize_slits2arc(shape_arc, shape_orig, trace_orig):
     """
@@ -497,7 +502,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             arc_spec[:,islit] = np.nan
             continue
         left, right = np.clip([indx[0]-4, indx[-1]+5], 0, nspat)
-        
+
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
         arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
                                                       mask=np.logical_not(arcmask[:,left:right]),
