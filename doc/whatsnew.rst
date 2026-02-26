@@ -5,13 +5,11 @@
 What's New in PypeIt
 ********************
 
-.. contents:: Version Notes
-    :depth: 1
-    :local:
+.. include:: releases/2.1.0dev.rst
 
 ----
 
-.. include:: releases/1.18.2dev.rst
+.. include:: releases/2.0.0.rst
 
 ----
 
