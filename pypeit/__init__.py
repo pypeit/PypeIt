@@ -5,7 +5,7 @@ The current main purpose of this is to provide package-level globals
 that can be imported by submodules.
 """
 
-from .version import version
+from .pkginit.version import version
 
 # Set version
 __version__ = version
@@ -14,15 +14,18 @@ __version__ = version
 # TODO: How old is this?  Can we update it automatically?
 __coverage__ = 0.55
 
+# Start the log
 import logging
-from pypeit import logger
-log = logger.get_logger(level=logging.DEBUG)
-# Import all the exceptions
-from pypeit.exceptions import *
+from .pkginit.logger import get_logger
+log = get_logger(level=logging.DEBUG)
+
+# Expose all the exceptions
+from .pkginit.exceptions import *
 
 # Import and instantiate the data path parser
 # NOTE: This *MUST* come after log and __version__ are defined above
-from pypeit import pypeitdata
+#from pypeit import pypeitdata
+from .pkginit import pypeitdata
 dataPaths = pypeitdata.PypeItDataPaths()
 
 ## Imports for signal and log handling

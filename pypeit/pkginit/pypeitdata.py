@@ -55,12 +55,12 @@ Data directories that *MUST* exist as part of the package distribution are:
 """
 import pathlib
 import shutil
+import warnings
 
 from IPython import embed
 
-from pypeit import log
-from pypeit import PypeItError, PypeItPathError
-from pypeit import cache
+from .exceptions import *
+from . import cache
 
 # NOTE: A better approach may be to subclass from Path.  I briefly tried that,
 # but quickly realized it was going to be more complicated than I'd hoped.  This
@@ -226,7 +226,7 @@ class PypeItDataPath:
         return _f.suffix.replace('.','').lower()
 
     def get_file_path(self, data_file, force_update=False, to_pkg=None, return_format=False,
-                      return_none=False, quiet=False):
+                      return_none=False):
         """
         Return the path to a file.
 
@@ -271,8 +271,6 @@ class PypeItDataPath:
             return_none (:obj:`bool`, optional):
                 If True, return None if the file does not exist.  If False, an
                 error is raised if the file does not exist.
-            quiet (:obj:`bool`, optional):
-                Suppress messages
 
         Returns:
             `Path`_, tuple: The file path and, if requested, the file format;
@@ -294,12 +292,6 @@ class PypeItDataPath:
             # Return the full path and the file format
             return self._get_file_path_return(_data_file, return_format)
 
-        # If it does not, inform the user and download it into the cache.
-        # NOTE: This should not be required for from-source (dev) installations.
-        if not quiet:
-            log.info(f'{data_file} does not exist in the expected package directory '
-                      f'({self.path}).  Checking cache or downloading the file now.')
-
         # Get the path to the cached file
         # NOTE: fetch_remote_file will only return the name of the cached file
         # if the file exists in the cache and force_update is False.
@@ -307,7 +299,7 @@ class PypeItDataPath:
         _cached_file = cache.fetch_remote_file(data_file, subdir, remote_host=self.host,
                                                force_update=force_update, return_none=return_none)
         if _cached_file is None:
-            log.warning(f'File {data_file} not found in the cache.')
+            warnings.warn(f'File {data_file} not found in the cache.')
             return None
 
         # If we've made it this far, the file is being pulled from the cache.

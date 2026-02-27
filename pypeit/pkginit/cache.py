@@ -30,6 +30,7 @@ import pathlib
 import urllib.error
 from urllib.parse import urljoin, urlparse
 from datetime import datetime
+import warnings
 
 import packaging
 
@@ -56,9 +57,11 @@ else:
 # NOTE: To avoid circular imports, avoid (if possible) importing anything from
 # pypeit into this module!  Objects created or available in pypeit/__init__.py
 # are the exceptions, for now.
-from pypeit import log
-from pypeit import PypeItError, PypeItPathError
-from pypeit import __version__
+#from pypeit import log
+from .exceptions import *
+from .version import version as __version__
+#from pypeit import PypeItError, PypeItPathError
+#from pypeit import __version__
 
 
 __PYPEIT_DATA__ = resources.files('pypeit') / 'data'
@@ -179,7 +182,7 @@ def git_most_recent_tag():
     tags = [packaging.version.parse(ref.split('/')[-1]) \
                 for ref in repo.references if 'refs/tags' in ref]
     if len(tags) == 0:
-        log.warning('Unable to find any tags in pypeit repository.')
+        warnings.warn('Unable to find any tags in pypeit repository.')
         return __version__, None
     latest_version = str(sorted(tags)[-1])
     timestamp = repo.resolve_refish(f'refs/tags/{latest_version}')[0].author.time
@@ -239,7 +242,7 @@ def fetch_remote_file(
     if remote_host == "s3_cloud" and not install_script:
         # Display a warning that this may take a while, and the user may wish to
         # download use an install script
-        log.warning(f'Note: If this file takes a while to download, you may wish to used one of '
+        warnings.warn(f'Note: If this file takes a while to download, you may wish to used one of '
                   'the install scripts (e.g., pypeit_install_telluric) to install the file '
                   'independent of this processing script.')
 
@@ -388,7 +391,7 @@ def remove_from_cache(cache_url=None, pattern=None, allow_multiple=False):
     if cache_url is None:
         _url = search_cache(pattern, path_only=False)
         if len(_url) == 0:
-            log.warning(f'Cache does not include a file matching the pattern {pattern}.')
+            warnings.warn(f'Cache does not include a file matching the pattern {pattern}.')
             return
         _url = list(_url.keys())
     elif not isinstance(cache_url, list):
@@ -397,7 +400,7 @@ def remove_from_cache(cache_url=None, pattern=None, allow_multiple=False):
         _url = cache_url
 
     if len(_url) > 1 and not allow_multiple:
-        log.warning('Function found or was provided with multiple entries to be removed.  Either '
+        warnings.warn('Function found or was provided with multiple entries to be removed.  Either '
                   'set allow_multiple=True, or try again with a single url or more specific '
                   'pattern.  URLs passed/found are:\n' + '\n'.join(_url))
         return
@@ -452,7 +455,7 @@ def parse_cache_url(url):
         return 's3_cloud', None, None, str(sub_path.parent), sub_path.name
 
     # Unknown host
-    log.warning(f'URL not recognized as a pypeit cache url:\n\t{url}')
+    warnings.warn(f'URL not recognized as a pypeit cache url:\n\t{url}')
     return None, None, None, None, None
 
 
@@ -567,4 +570,3 @@ def _get_s3_hostname() -> str:
     # Open the file and return the URL
     with open(filepath, "r", encoding="utf-8") as fileobj:
         return fileobj.read().strip()
-
