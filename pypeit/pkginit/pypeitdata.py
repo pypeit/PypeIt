@@ -59,7 +59,7 @@ import warnings
 
 from IPython import embed
 
-from .exceptions import *
+from .exceptions import PypeItError, PypeItPathError
 from . import cache
 
 # NOTE: A better approach may be to subclass from Path.  I briefly tried that,

@@ -19,14 +19,15 @@ import logging
 from .pkginit.logger import get_logger
 log = get_logger(level=logging.DEBUG)
 
-# Expose all the exceptions
-from .pkginit.exceptions import *
-
 # Import and instantiate the data path parser
 # NOTE: This *MUST* come after log and __version__ are defined above
 #from pypeit import pypeitdata
-from .pkginit import pypeitdata
-dataPaths = pypeitdata.PypeItDataPaths()
+#from .pkginit.pypeitdata import PypeItDataPaths
+from .pkginit.cache import PypeItDataPaths
+dataPaths = PypeItDataPaths()
+
+# Expose all the exceptions
+from .pkginit.exceptions import *
 
 ## Imports for signal and log handling
 #import sys
