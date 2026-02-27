@@ -2199,7 +2199,7 @@ class HolyGrail:
         """
 
         # Load the linelist KD Tree
-        lsttree, lindex = waveio.load_tree(polygon=polygon, numsearch=lstsrch)
+        lsttree, lindex = kdtree_generator.load_tree(polygon=polygon, numsearch=lstsrch)
 
         # Set the search error to be 5 pixels
         err = pixtol / self._npix
