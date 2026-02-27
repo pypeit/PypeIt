@@ -133,9 +133,10 @@ in the :ref:`pypeit_file`.
 The mask definition file must be the output generated from 
 GMMPRS and in FITS format. We do not support ASCII 
 mask files currently. Additionally, it must be either:
- (1) located in the path(s) of the raw files provided in the :ref:`data_block`;
- (2) located in the current working directory; and/or
- (3) be named with the full path.
+
+    1. located in the path(s) of the raw files provided in the :ref:`data_block`;
+    2. located in the current working directory; and/or
+    3. be named with the full path.
 
 The modifications to the :ref:`pypeit_file` will look like:
 

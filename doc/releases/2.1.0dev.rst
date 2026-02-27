@@ -31,12 +31,16 @@ Script Changes
 Testing
 -------
 
+- Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 
 
 Under-the-hood Improvements
 ---------------------------
 
+- Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
+  the pypeit-specific uses of :class:`~pypeit.core.pydl.TraceSet`.  This was
+  primarily done to avoid a circular import.
 
 Bug Fixes
 ---------
