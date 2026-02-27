@@ -41,6 +41,9 @@ Under-the-hood Improvements
 - Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
   the pypeit-specific uses of :class:`~pypeit.core.pydl.TraceSet`.  This was
   primarily done to avoid a circular import.
+- Separated previous functions in :mod:`~pypeit.core.extract` that have to do
+  with modeling the spatial profile of the object into a new module,
+  :mod:`~pypeit.core.spatialprofile`.
 
 Bug Fixes
 ---------
@@ -48,4 +51,8 @@ Bug Fixes
 - Avoid a circular import by moving
   :func:`~pypeit.core.wavecal.autoid.arc_fit_qa` out of
   :mod:`~pypeit.core.wavecal.wv_fitting`.
+- Avoid a circular import by (1) removing the use of the
+  :class:`~pypeit.specobj.SpecObj` object in the :mod:`~pypeit.core.extract`
+  functions and (2) pulling :class:`~pypeit.multislit_flexure.MultiSlitFlexure`
+  into its own file (removing it from :mod:`~pypeit.core.flexure`).
 
