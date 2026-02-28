@@ -14,6 +14,7 @@ import sys
 import warnings
 import gzip
 import shutil
+import time
 from packaging import version
 
 from IPython import embed
@@ -28,8 +29,6 @@ from astropy.table import Table
 import scipy
 import astropy
 import sklearn
-import pypeit
-import time
 
 from pypeit import log
 from pypeit import PypeItError

@@ -5,16 +5,18 @@ General utility functions.
 .. include:: ../include/links.rst
 
 """
+import ast
 import os
 import json
 import gzip
 import inspect
-import pickle
+#import pickle
 import pathlib
 import itertools
 import glob
 import colorsys
 import collections.abc
+from typing import Type
 
 from astropy import convolution
 from astropy import stats
@@ -1713,22 +1715,22 @@ def save_pickle(fname, obj):
         log.info('File saved: {0:s}'.format(fname))
 
 
-def load_pickle(fname):
-    """Load a python pickle file
-
-    Parameters
-    ----------
-    fname : :class:`str`
-        Filename
-
-    Returns
-    -------
-    :class:`object`
-        An object suitable for pickle serialization.
-    """
-    log.info('Loading file: {0:s}'.format(fname))
-    with open(fname, 'rb') as f:
-        return pickle.load(f)
+# def load_pickle(fname):
+#     """Load a python pickle file
+# 
+#     Parameters
+#     ----------
+#     fname : :class:`str`
+#         Filename
+# 
+#     Returns
+#     -------
+#     :class:`object`
+#         An object suitable for pickle serialization.
+#     """
+#     log.info('Loading file: {0:s}'.format(fname))
+#     with open(fname, 'rb') as f:
+#         return pickle.load(f)
 
 
 ##
@@ -2255,3 +2257,90 @@ def loadjson(filename):
             return json.loads(f.read().decode("ascii"))
     with open(_file, 'rt') as f:
         return json.load(f)
+
+
+def ast_literal_eval(inp):
+    """
+    A wrapper for :func:`ast.literal_eval` that returns the input if it raises a
+    ValueError.
+    """
+    try:
+        return ast.literal_eval(inp)
+    except ValueError:
+        return inp
+
+
+def _eval_iter(inp:list[str], left:str, right:str, otype:Type) -> list:
+    """
+    Convenience function used to abstract the core functionality of
+    :func:`eval_tuple` and :func:`eval_list`.
+
+    Parameters
+    ----------
+    inp
+        Input list of strings
+    left
+        Left bracket delimeter
+    right
+        Right bracket delimeter
+    otype
+        Return type for the components of the list
+
+    Returns
+    -------
+        A list of objects with type ``otype`` as converted from the provided
+        strings.
+    """
+    grps = [
+        i for i in list(itertools.chain(*[s.split(right) for s in ','.join(inp).split(left)]))
+        if len(i) > 1
+    ]
+    return list(otype(map(ast_literal_eval, g.split(','))) for g in grps)
+
+
+def eval_tuple(inp:list[str]) -> list[tuple]:
+    """
+    Evaluate the input to one or more tuples.
+
+    This allows conversion of one or more tuples provided to a configuration
+    parameters.
+
+    .. warning::
+
+        - Currently can only handle tuples with integers, floats, or strings!
+
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of tuples.  The
+        parentheses must be within the list of elements.
+
+    Returns
+    -------
+        A list of tuples with the converted elements.
+    """
+    return _eval_iter(inp, '(', ')', tuple)
+
+
+def eval_list(inp:list[str]) -> list[list]:
+    """
+    Evaluate the input to one or more lists.
+
+    This allows conversion of one or more lists provided to a configuration
+    parameters.
+
+    .. warning::
+
+        - Currently can only handle lists with integers, floats, or strings!
+
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of lists.  The square
+        brackets must be within the list of elements.
+
+    Returns
+    -------
+        A list of lists with the converted elements.
+    """
+    return _eval_iter(inp, '[', ']', list)
