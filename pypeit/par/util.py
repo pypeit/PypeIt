@@ -79,14 +79,14 @@ def recursive_dict_evaluate(d):
                     replacement += [ v ]
                 else:
                     try:
-                        replacement += [ ast_literal_eval(v) ]
+                        replacement += [ utils.ast_literal_eval(v) ]
                     except:
                         replacement += [ v ]
             d[k] = replacement
             continue
 
         try:
-            d[k] = ast_literal_eval(d[k]) if d[k] not in ignore else d[k]
+            d[k] = utils.ast_literal_eval(d[k]) if d[k] not in ignore else d[k]
         except:
             pass
 

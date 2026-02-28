@@ -307,7 +307,7 @@ def initialize_header(hdr=None):
     hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
     hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
     hdr['VERSSKL'] = (sklearn.__version__, 'Scikit-learn version')
-    hdr['VERSPYP'] = (pypeit.__version__, 'PypeIt version')
+    hdr['VERSPYP'] = (__version__, 'PypeIt version')
 
     # Save the date of the reduction
     hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
@@ -348,7 +348,7 @@ def header_version_check(hdr, warning_only=True):
                     hdr['VERSPYP']]
     sys_versions = ['.'.join([ str(v) for v in sys.version_info[:3]]), numpy.__version__,
                     scipy.__version__, astropy.__version__, sklearn.__version__,
-                    pypeit.__version__]
+                    __version__]
 
     # Run the check and either issue warnings or exceptions
     all_identical = True
