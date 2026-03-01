@@ -31,8 +31,6 @@ Script Changes
 Testing
 -------
 
-- Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
-
 
 Under-the-hood Improvements
 ---------------------------
