@@ -1,11 +1,12 @@
 .. code-block:: console
 
     $ pypeit_identify -h
-    usage: pypeit_identify [-h] [--lamps LAMPS] [-s] [--wmin WMIN] [--wmax WMAX]
-                           [--slits SLITS] [-m] [-n] [--det DET] [--rmstol RMSTOL]
-                           [--fwhm FWHM] [--sigdetect SIGDETECT] [--pixtol PIXTOL]
-                           [--linear] [--force_save] [--rescale_resid]
-                           [-v VERBOSITY] [--try_old]
+    usage: pypeit_identify [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                           [--log_level LOG_LEVEL] [--lamps LAMPS] [-s]
+                           [--wmin WMIN] [--wmax WMAX] [--slits SLITS] [-m] [-n]
+                           [--det DET] [--rmstol RMSTOL] [--fwhm FWHM]
+                           [--sigdetect SIGDETECT] [--pixtol PIXTOL] [--linear]
+                           [--force_save] [--rescale_resid] [--try_old]
                            arc_file slits_file
     
     Launch PypeIt pypeit_identify tool, display extracted Arc, and load linelist.
@@ -16,6 +17,18 @@
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: default)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
       --lamps LAMPS         Comma separated list of calibration lamps (no spaces)
                             (default: None)
       -s, --solution        Load a wavelength solution from the arc_file (if it
@@ -41,10 +54,6 @@
       --force_save          Save the solutions, despite the RMS (default: False)
       --rescale_resid       Rescale the residual plot to include all points?
                             (default: False)
-      -v, --verbosity VERBOSITY
-                            Verbosity level between 0 [none] and 2 [all]. Default:
-                            1. Level 2 writes a log with filename identify_YYYYMMDD-
-                            HHMM.log (default: 1)
       --try_old             Attempt to load old datamodel versions. A crash may
                             ensue.. (default: False)
     

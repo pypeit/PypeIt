@@ -73,7 +73,8 @@ from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit.core import parse
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import dataPaths
 
 
@@ -369,11 +370,11 @@ class ProcessImagesPar(ParSet):
         defaults['spat_flexure_correct'] = False
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
-
+        
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
         descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
-
+        
         defaults['spat_flexure_sigdetect'] = 5.
         dtypes['spat_flexure_sigdetect'] = [int, float]
         descr['spat_flexure_sigdetect'] = 'Sigma threshold above fluctuations in the '  \
@@ -561,50 +562,6 @@ class ProcessImagesPar(ParSet):
                 and (self.data['use_illumflat'] or self.data['use_specillum']):
             raise ValueError('To apply a slit-illumination or spectral flat-field correction, '
                              'you must also apply the pixel-flat correction.')
-
-    # TODO: Are these out of date or is this a purposeful subselection of the
-    # full parameter set?
-    def to_header(self, hdr):
-        """
-        Write the parameters to a header object.
-        """
-        hdr['OSCANMET'] = (self.data['overscan'], 'Method used for overscan subtraction')
-        hdr['OSCANPAR'] = (','.join([ '{0:d}'.format(p) for p in self.data['overscan_par'] ]),
-                                'Overscan method parameters')
-        hdr['COMBMAT'] = ('{0}'.format(self.data['match']), 'Frame combination matching')
-        hdr['COMBMETH'] = (self.data['combine'], 'Method used to combine frames')
-        hdr['COMBSATP'] = (self.data['satpix'], 'Saturated pixel handling when combining frames')
-        hdr['COMBSIGR'] = ('{0}'.format(self.data['sigrej']),
-                                'Cosmic-ray sigma rejection when combining')
-        hdr['COMBNLH'] = (','.join([ '{0}'.format(n) for n in self.data['n_lohi']]),
-                                'N low and high pixels rejected when combining')
-        hdr['COMBSRJ'] = (self.data['comb_sigrej'], 'Sigma rejection when combining')
-#        hdr['COMBREPL'] = (self.data['replace'], 'Method used to replace pixels when combining')
-        hdr['LACMAXI'] = ('{0}'.format(self.data['lamaxiter']), 'Max iterations for LA cosmic')
-        hdr['LACGRW'] = ('{0:.1f}'.format(self.data['grow']), 'Growth radius for LA cosmic')
-        hdr['LACRMC'] = (str(self.data['rmcompact']), 'Compact objects removed by LA cosmic')
-        hdr['LACSIGC'] = ('{0:.1f}'.format(self.data['sigclip']), 'Sigma clip for LA cosmic')
-        hdr['LACSIGF'] = ('{0:.1f}'.format(self.data['sigfrac']),
-                            'Lower clip threshold for LA cosmic')
-        hdr['LACOBJL'] = ('{0:.1f}'.format(self.data['objlim']),
-                            'Object detect limit for LA cosmic')
-
-    @classmethod
-    def from_header(cls, hdr):
-        """
-        Instantiate the object from parameters read from a fits header.
-        """
-        return cls(overscan=hdr['OSCANMET'],
-                   overscan_par=[int(p) for p in hdr['OSCANPAR'].split(',')],
-                   match=eval(hdr['COMBMAT']),
-                   combine=hdr['COMBMETH'], satpix=hdr['COMBSATP'],
-                   n_lohi=[int(p) for p in hdr['COMBNLH'].split(',')],
-                   comb_sigrej=float(hdr['COMBSRJ']),
-#                   replace=hdr['COMBREPL'],
-#                   cr_sigrej=eval(hdr['LASIGR']),
-                   lamaxiter=int(hdr['LACMAXI']), grow=float(hdr['LACGRW']),
-                   rmcompact=eval(hdr['LACRMC']), sigclip=float(hdr['LACSIGC']),
-                   sigfrac=float(hdr['LACSIGF']), objlim=float(hdr['LACOBJL']))
 
 
 class FlatFieldPar(ParSet):
@@ -867,7 +824,7 @@ class FlatFieldPar(ParSet):
         # in the right place (data/pixelflats)
         file_path = dataPaths.pixelflat.get_file_path(self.data['pixelflat_file'], return_none=True)
         if file_path is None:
-            msgs.error(
+            raise PypeItError(
                 f'Provided pixelflat file, {self.data["pixelflat_file"]} not found. It is not a direct path, '
                 'a cached file, or a file that can be downloaded from a PypeIt repository.')
 
@@ -2162,12 +2119,12 @@ class SensFuncPar(ParSet):
         """
         allowed_extractions = ['BOX', 'OPT']
         if self.data['extr'] not in allowed_extractions:
-            msgs.error("'extr' must be one of:\n" + ", ".join(allowed_extractions))
+            raise PypeItError("'extr' must be one of:\n" + ", ".join(allowed_extractions))
 
         # check trim_std_pixs format
         if self.data['trim_std_pixs'] is not None:
             if not isinstance(self.data['trim_std_pixs'], (list, tuple)) or len(self.data['trim_std_pixs']) != 2:
-                msgs.error("`trim_std_pixs` must be a list or tuple of two integers.")
+                raise PypeItError("`trim_std_pixs` must be a list or tuple of two integers.")
 
     @staticmethod
     def valid_algorithms():
@@ -3361,7 +3318,8 @@ class EdgeTracePar(ParSet):
                  add_missed_orders=None, order_width_poly=None, order_gap_poly=None,
                  order_fitrej=None, order_outlier=None, order_spat_range=None, overlap=None,
                  max_overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
-                 maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
+                 maskdesign_step=None, maskdesign_sigrej=None, maskdesign_trim=None,
+                 maskdesign_trim_shift=None, pad=None, add_slits=None,
                  add_predict=None, rm_slits=None, maskdesign_filename=None, mask_off_detector=None):
 
         # Grab the parameter names and values from the function
@@ -3849,6 +3807,23 @@ class EdgeTracePar(ParSet):
         descr['maskdesign_sigrej'] = 'Number of sigma for sigma-clipping rejection during slit-mask ' \
                                      'design matching.'
 
+        defaults['maskdesign_trim'] = False
+        dtypes['maskdesign_trim'] = bool
+        descr['maskdesign_trim'] = 'If True, the mask design information is used to trim each ' \
+                                   'slit in the spectral direction. This functionality is ' \
+                                   'only used for spectrographs with slit-mask designs that ' \
+                                   'have information on the spectral extent of each slit (currently, ' \
+                                   'only Gemini GMOS N/S).'
+        defaults['maskdesign_trim_shift'] = 0
+        dtypes['maskdesign_trim_shift'] = [int, float]
+        descr['maskdesign_trim_shift'] = 'Shift in pixels to apply to the mask design information ' \
+                                         'when trimming the slits in the spectral direction.  This ' \
+                                         'is useful for cases where the mask design information ' \
+                                         'is not perfectly aligned with the detector.  This ' \
+                                         'functionality is only used for spectrographs with ' \
+                                         'slit-mask designs that have information on the spectral ' \
+                                        'extent of each slit (currently, only Gemini GMOS N/S).'
+
 #        # Force trim to be a tuple
 #        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
 #            try:
@@ -3965,8 +3940,8 @@ class EdgeTracePar(ParSet):
                    'add_missed_orders', 'order_width_poly', 'order_gap_poly', 'order_fitrej',
                    'order_outlier', 'order_spat_range','overlap', 'max_overlap', 'use_maskdesign',
                    'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                   'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits',
-                   'mask_off_detector']
+                   'maskdesign_filename', 'maskdesign_trim', 'maskdesign_trim_shift',
+                   'pad', 'add_slits', 'add_predict', 'rm_slits', 'mask_off_detector']
 
         # Find the list of keywords provded in `cfg` that are *not* valid
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -4017,10 +3992,10 @@ class EdgeTracePar(ParSet):
             self['sync_predict'] = 'nearest'
 
         if self['max_overlap'] is not None and (self['max_overlap'] < 0 or self['max_overlap'] > 1):
-            msgs.error('If defined, max_overlap must be in the range [0,1].')
+            raise PypeItError('If defined, max_overlap must be in the range [0,1].')
 
         if self['order_outlier'] is not None and self['order_outlier'] < self['order_fitrej']:
-            msgs.warn('Order outlier threshold should not be less than the rejection threshold.')
+            log.warning('Order outlier threshold should not be less than the rejection threshold.')
 
 
 class WaveTiltsPar(ParSet):
@@ -4297,12 +4272,12 @@ class FindObjPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
-                 find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
+    def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None, trace_maxshift=None,
+                 trace_maxdev=None, trace_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None, find_numiterfit=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
-                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None,
-                 use_std_trace=None, fof_link = None):
+                 skip_skysub=None, find_negative=None, find_min_max=None, trace_min_max=None,
+                 std_spec1d=None, use_std_trace=None, fof_link = None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4351,13 +4326,27 @@ class FindObjPar(ParSet):
         dtypes['find_trim_edge'] = list
         descr['find_trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
 
-        defaults['find_extrap_npoly'] = 3
-        dtypes['find_extrap_npoly'] = int
-        descr['find_extrap_npoly'] = 'Polynomial order used for trace extrapolation'
+        defaults['trace_extrap_npoly'] = 3
+        dtypes['trace_extrap_npoly'] = int
+        descr['trace_extrap_npoly'] = 'Polynomial order used for trace extrapolation.  NOTE: Not consumed by the code at present. (For ``pypeit<=1.18.x``, this ' \
+                                      'parameter was called ``find_extrap_npoly``.)'
 
-        defaults['find_maxdev'] = 2.0
-        dtypes['find_maxdev'] = [int, float]
-        descr['find_maxdev'] = 'Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.'
+        defaults['trace_maxdev'] = 2.0
+        dtypes['trace_maxdev'] = [int, float]
+        descr['trace_maxdev'] = 'Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.  (For ``pypeit<=1.18.x``, this ' \
+                                      'parameter was called ``find_maxdev``.)'
+
+        defaults['trace_maxshift'] = 1.0
+        dtypes['trace_maxshift'] = [int, float]
+        descr['trace_maxshift'] = 'Maximum shift allowed between the input and recalculated centroid in trace fitting.  This parameter may be increased to ' \
+                                 'allow the fiter to follow curved traces (*e.g.*, for wide spectral ranges at high airmass).'
+
+        defaults['trace_min_max'] = None
+        dtypes['trace_min_max'] = list
+        descr['trace_min_max'] = 'It defines the minimum and maximum pixel in the spectral direction with useable data for this slit/order. ' \
+                                'This parameter limits the range over which the trace is fit, and may be useful if the selected slit/order ' \
+                                'would include regions without expected signal (*e.g.* bluer than the atmospheric cutoff or redder than the ' \
+                                'silicon cutoff).'
 
         defaults['find_numiterfit'] = 9
         dtypes['find_numiterfit'] = int
@@ -4460,11 +4449,11 @@ class FindObjPar(ParSet):
 
         # Basic keywords
         parkeys = ['trace_npoly', 'snr_thresh', 'find_trim_edge',
-                   'find_extrap_npoly', 'maxnumber_sci', 'maxnumber_std',
-                   'find_maxdev', 'find_numiterfit', 'find_fwhm', 'ech_find_max_snr',
+                   'trace_extrap_npoly', 'maxnumber_sci', 'maxnumber_std', 'trace_maxshift',
+                   'trace_maxdev', 'find_numiterfit', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'std_spec1d', 'use_std_trace', 'fof_link']
+                   'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4478,9 +4467,9 @@ class FindObjPar(ParSet):
     def validate(self):
         if self.data['std_spec1d'] is not None:
             if not self.data['use_std_trace']:
-                msgs.error('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
+                raise PypeItError('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
             elif not Path(self.data['std_spec1d']).absolute().exists():
-                msgs.error(f'{self.data["std_spec1d"]} does not exist!')
+                raise PypeItError(f'{self.data["std_spec1d"]} does not exist!')
 
 
 class SkySubPar(ParSet):
@@ -5242,7 +5231,7 @@ class PypeItPar(ParSet):
             if isinstance(merge_with, list):
                 merge_with = (merge_with,)
             if not isinstance(merge_with, tuple):
-                msgs.error('Input merge_with must be a tuple.')
+                raise PypeItError('Input merge_with must be a tuple.')
             # Proceed
             for f in merge_with:
                 cfg.merge(ConfigObj(f))

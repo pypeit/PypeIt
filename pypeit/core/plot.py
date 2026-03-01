@@ -21,6 +21,19 @@ KREJ = 2.5
 MAX_ITERATIONS = 5
 
 
+def set_fontsize(ax, fsz):
+    """
+    Set the fontsize throughout an Axis
+
+    Args:
+        ax (Matplotlib Axis):
+        fsz (float): Font size
+
+    """
+    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+                 ax.get_xticklabels() + ax.get_yticklabels()):
+        item.set_fontsize(fsz)
+
 def zscale(image, nsamples=1000, contrast=0.25, bpmask=None, 
            zmask=None):
     """

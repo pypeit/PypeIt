@@ -17,17 +17,6 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile 
 
 
-# Tests require the bspline c extension
-try:
-    from pypeit.bspline import utilc
-except:
-    bspline_ext = False
-else:
-    bspline_ext = True
-bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not import C extension')
-# ----------------------------------------------------------------------
-
-
 # NOTE: Now that the test data files are kept remotely, we have to distinguish
 # between paths to files that are *written* (data_output_path) as part of the
 # tests and those that are *read* (data_input_path) as part of the tests.  I.e.,

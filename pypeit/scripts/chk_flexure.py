@@ -26,14 +26,18 @@ class ChkFlexure(scriptbase.ScriptBase):
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         from IPython import embed
         from astropy.io import fits
-        from pypeit import msgs
+        from pypeit import log
+        from pypeit import PypeItError
         from pypeit import specobjs
         from pypeit import spec2dobj
+
+        # Initialize the log
+        cls.init_log(args)
 
         chk_version = not args.try_old
         flexure_type = 'spat' if args.spat else 'spec'
@@ -41,7 +45,7 @@ class ChkFlexure(scriptbase.ScriptBase):
         # Loop over the input files
         for in_file in args.input_file:
 
-            msgs.info(f'Checking fluxure for file: {in_file}')
+            log.info(f'Checking fluxure for file: {in_file}')
 
             # What kind of file are we??
             hdul = fits.open(in_file)
@@ -53,13 +57,13 @@ class ChkFlexure(scriptbase.ScriptBase):
                 allspec2D.flexure_diagnostics(flexure_type=flexure_type)
             elif 'DMODCLS' in head0.keys() and head0['DMODCLS'].strip() == 'SpecObjs':
                 if flexure_type == 'spat':
-                    msgs.error("Spat flexure not available in the spec1d file, try with a "
+                    raise PypeItError("Spat flexure not available in the spec1d file, try with a "
                                "spec2d file")
                 # load the spec1d file
                 sobjs = specobjs.SpecObjs.from_fitsfile(in_file, chk_version=chk_version)
                 sobjs.flexure_diagnostics()
             else:
-                msgs.error("Bad file type input!")
+                raise PypeItError("Bad file type input!")
 
             #  space between files for clarity
             print('')

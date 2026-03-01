@@ -30,7 +30,7 @@ def write_dependency_table(project_file, path):
     lines = string_table(data_table, delimeter='rst', has_header=False)
     with open(ofile, 'w') as f:
         f.write(lines)
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 def main():

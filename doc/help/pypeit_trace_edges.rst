@@ -1,15 +1,28 @@
 .. code-block:: console
 
     $ pypeit_trace_edges -h
-    usage: pypeit_trace_edges [-h] (-f PYPEIT_FILE | -t TRACE_FILE) [-g GROUP]
-                              [-d [DETECTOR ...]] [-s SPECTROGRAPH] [-b BINNING]
-                              [-p REDUX_PATH] [-c CALIB_DIR] [-o] [--debug DEBUG]
-                              [--show] [-v VERBOSITY]
+    usage: pypeit_trace_edges [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                              [--log_level LOG_LEVEL] (-f PYPEIT_FILE |
+                              -t TRACE_FILE) [-g GROUP] [-d [DETECTOR ...]]
+                              [-s SPECTROGRAPH] [-b BINNING] [-p REDUX_PATH]
+                              [-c CALIB_DIR] [-o] [--debug DEBUG]
     
     Trace slit edges
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: default)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
       -f, --pypeit_file PYPEIT_FILE
                             PypeIt reduction file (default: None)
       -t, --trace_file TRACE_FILE
@@ -68,10 +81,4 @@
                             and the slit and order matching. (3) Also show the
                             individual polynomial fits to the detected edges.
                             (default: 0)
-      --show                DEPRECATED! If set, the code will assume you mean to set
-                            --debug 1. (default: False)
-      -v, --verbosity VERBOSITY
-                            Verbosity level between 0 [none] and 2 [all]. Default:
-                            1. Level 2 writes a log with filename
-                            trace_edges_YYYYMMDD-HHMM.log (default: 1)
     

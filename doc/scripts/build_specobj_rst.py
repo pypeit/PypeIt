@@ -3,7 +3,6 @@ Dynamically build the rst documentation for the specobj and spec2dobj objects
 """
 
 from importlib import resources
-import time
 
 import numpy
 
@@ -17,8 +16,6 @@ from IPython import embed
 #-----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    t = time.perf_counter()
-
     # Set the output directory
     output_root = resources.files('pypeit').parent / 'doc' / 'include'
 
@@ -32,7 +29,7 @@ if __name__ == '__main__':
 
         # Start to append the automatically generated documentation
         lines += ['']
-        lines += ['Version: {:s}'.format(obj.version)]
+        lines += [f'Version: {obj.version}']
         lines += ['']
 
         keys = list(obj.datamodel.keys())
@@ -70,8 +67,7 @@ if __name__ == '__main__':
         with open(ofile, 'w') as f:
             f.write('\n'.join(lines))
 
-        print('Wrote: {}'.format(ofile))
-    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
+        print(f'Wrote: {ofile}')
 
 
 
