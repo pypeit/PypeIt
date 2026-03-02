@@ -21,10 +21,7 @@ from pypeit.datamodel import DataContainer
 
 from IPython import embed
 
-# TODO:
-#   - Allow xpos to be 1D and ypos to be 2D?
-#   - Make this a data container?
-#   - Parallelize the fits?
+
 class PypeItFitCollection:
     """
     A collection of 1D fits to a set of data.
@@ -45,7 +42,8 @@ class PypeItFitCollection:
     Parameters
     ----------
     xpos : :class:`numpy.ndarray`
-        The x positions of the data to be fit.  Can be 1D or 2D.
+        The x positions of the data to be fit.  Can be 1D or 2D; if the latter,
+        fits are performed along the 2nd axis (see class description).
     ypos : :class:`numpy.ndarray`
         The y positions of the data to be fit.  Must have the same shape as
         ``xpos``.
@@ -92,12 +90,22 @@ class PypeItFitCollection:
         self, xpos, ypos, ivar=None, gpm=None, func='legendre', order=3, xmin=None, xmax=None,
         maxiter=10, maxdev=None, lower=None, upper=None
     ):
-
+        
         self.xpos = xpos
         self.nfit = xpos.shape[0]
 
+        if ypos.shape != self.xpos.shape:
+            raise PypeItError(
+                'Shape of the ypos array must match the xpos array in PypeItFitCollection.'
+            )
         self.ypos = ypos
+
+        if ivar is not None and ivar.shape != self.xpos.shape:
+            raise PypeItError(
+                'Shape of the ivar array must match the xpos array in PypeItFitCollection.'
+            )
         self.ivar = ivar 
+
         if gpm is None:
             self.gpm = (
                 np.ones(self.ypos.shape, dtype=bool)
@@ -106,6 +114,10 @@ class PypeItFitCollection:
             )
         else:
             self.gpm = gpm
+        if self.gpm.shape != self.xpos.shape:
+            raise PypeItError(
+                'Shape of the gpm array must match the xpos array in PypeItFitCollection.'
+            )
 
         self.func = func
         self.order = order

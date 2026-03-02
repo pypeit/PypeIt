@@ -3002,13 +3002,14 @@ class HolyGrail:
 
                 # Plot
                 tmp_list = np.vstack([self._line_lists, self._unknwns])
+                qa_file = f'{self._outroot}{slittxt}.pdf'
                 match_qa(
                     self._spec[:, slit], use_tcent, tmp_list,
                     self._all_patt_dict[str(slit)]['IDs'],
                     self._all_patt_dict[str(slit)]['scores'],
-                    outfile=self._outroot + slittxt + '.pdf'
+                    outfile=qa_file
                 )
-                log.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
+                log.info(f'Wrote: {qa_file}')
             # Perform the final fit for the best solution
             best_final_fit = wv_fitting.fit_slit(
                 self._spec[:, slit], self._all_patt_dict[str(slit)], use_tcent, self._line_lists

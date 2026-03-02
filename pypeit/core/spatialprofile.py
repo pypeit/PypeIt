@@ -1,5 +1,5 @@
 """
-Module for PypeIt extraction code
+Module to model the spatial profile of sources, used for optimal extraction.
 
 .. include:: ../include/links.rst
 
