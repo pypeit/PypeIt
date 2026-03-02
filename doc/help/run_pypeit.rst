@@ -6,7 +6,7 @@
                       pypeit_file
     
     PypeIt: The Python Spectroscopic Data Reduction Pipeline
-    Version 2.0.1.dev112+g1dcec1c2b
+    Version 2.0.1.dev157+ge1b9d7fd9
     
     Available spectrographs include:
         aat_uhrf, apf_levy, bok_bc, gemini_flamingos1, gemini_flamingos2,

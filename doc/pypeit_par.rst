@@ -1472,19 +1472,16 @@ Alterations to the default parameters are:
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
-          exprng = None, 60.0,
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = None, 60.0,
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60.0,
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
@@ -1514,7 +1511,6 @@ Alterations to the default parameters are:
           fwhm = 2.5
           reid_arxiv = apf_levy_ech.fits
           rms_thresh_frac_fwhm = 0.2
-          n_final = 3
           refframe = observed
       [[slitedges]]
           edge_thresh = 1.0
@@ -1522,19 +1518,12 @@ Alterations to the default parameters are:
           fit_order = 4
           left_right_pca = True
           smash_range = 0.35, 0.65,
-          sync_predict = nearest
-          bound_detector = True
-      [[tilts]]
-          spat_order = 4
-          spec_order = 1
   [scienceframe]
-      exprng = 61, None,
       [[process]]
           use_biasimage = False
           noise_floor = 0.01
           use_illumflat = False
           mask_cr = True
-          sigclip = 10.0
   [reduce]
       [[findobj]]
           maxnumber_sci = 1
@@ -1544,10 +1533,7 @@ Alterations to the default parameters are:
           find_fwhm = 4.0
           skip_skysub = True
       [[skysub]]
-          bspline_spacing = 3.0
           global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
           mask_by_boxcar = True
       [[extraction]]
           boxcar_radius = 1.728
@@ -1638,14 +1624,12 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = None, 60.0,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60.0,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -1666,31 +1650,13 @@ Alterations to the default parameters are:
               noise_floor = 0.01
               use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_slits = False
-          slit_trim = 0
-          slit_illum_finecorr = False
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
           lamps = NeI, ArI, ArII, HeI,
           fwhm = 2.6
-          reid_arxiv = apf_levy_ech.fits
           rms_thresh_frac_fwhm = 0.19
-          n_final = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          max_shift_adj = 0.5
-          fit_order = 4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
           sync_predict = nearest
-          bound_detector = True
-      [[tilts]]
-          spat_order = 4
-          spec_order = 1
   [scienceframe]
       exprng = 90, None,
       [[process]]
@@ -1703,19 +1669,11 @@ Alterations to the default parameters are:
           objlim = 2.0
   [reduce]
       [[findobj]]
-          maxnumber_sci = 1
-          maxnumber_std = 1
           snr_thresh = 5.0
-          find_fwhm = 4.0
-          skip_skysub = True
       [[skysub]]
           sky_sigrej = 5.0
           global_sky_std = False
           no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-      [[extraction]]
-          boxcar_radius = 1.728
   [sensfunc]
       polyorder = 7
 
@@ -1731,7 +1689,6 @@ Alterations to the default parameters are:
       spectrograph = gemini_flamingos1
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -1760,7 +1717,6 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
@@ -1785,7 +1741,6 @@ Alterations to the default parameters are:
               combine = median
               satpix = nothing
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -1805,14 +1760,12 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = None, 60.0,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60.0,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -1833,35 +1786,19 @@ Alterations to the default parameters are:
               noise_floor = 0.01
               use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_slits = False
-          slit_trim = 0
-          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = ArI, ArII, ThAr, NeI,
           sigdetect = 3
           fwhm = 20
           reid_arxiv = magellan_fire_long.fits
           rms_thresh_frac_fwhm = 0.05
           match_toler = 5.0
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          max_shift_adj = 0.5
-          fit_order = 4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
           trace_thresh = 5.0
           sync_predict = nearest
-          bound_detector = True
       [[tilts]]
           tracethresh = 5
-          spat_order = 4
-          spec_order = 1
   [scienceframe]
       exprng = 20, None,
       [[process]]
@@ -1870,26 +1807,10 @@ Alterations to the default parameters are:
           noise_floor = 0.01
           use_illumflat = False
           mask_cr = True
-          sigclip = 5.0
-          objlim = 2.0
   [reduce]
       [[findobj]]
-          maxnumber_sci = 1
-          maxnumber_std = 1
           snr_thresh = 5.0
           find_trim_edge = 50, 50,
-          find_fwhm = 4.0
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-      [[extraction]]
-          boxcar_radius = 1.728
-  [sensfunc]
-      polyorder = 7
 
 .. _instr_par-gemini_flamingos2:
 
@@ -1903,7 +1824,6 @@ Alterations to the default parameters are:
       spectrograph = gemini_flamingos2
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -1932,7 +1852,6 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
@@ -1957,7 +1876,6 @@ Alterations to the default parameters are:
               combine = median
               satpix = nothing
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -1984,7 +1902,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60.0,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -2005,35 +1922,19 @@ Alterations to the default parameters are:
               noise_floor = 0.01
               use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_slits = False
-          slit_trim = 0
-          slit_illum_finecorr = False
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = OH_NIRES,
           fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
           rms_thresh_frac_fwhm = 0.1
           match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 200.0
-          max_shift_adj = 0.5
-          fit_order = 4
           fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
           sync_predict = nearest
-          bound_detector = True
       [[tilts]]
           tracethresh = 5
           spat_order = 4
-          spec_order = 1
   [scienceframe]
       exprng = 20, None,
       [[process]]
@@ -2042,24 +1943,12 @@ Alterations to the default parameters are:
           noise_floor = 0.01
           use_illumflat = False
           mask_cr = True
-          sigclip = 5.0
-          objlim = 2.0
   [reduce]
       [[findobj]]
-          maxnumber_sci = 1
-          maxnumber_std = 1
           snr_thresh = 5.0
           find_trim_edge = 10, 10,
-          find_fwhm = 4.0
-          skip_skysub = True
       [[skysub]]
           sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-      [[extraction]]
-          boxcar_radius = 1.728
   [sensfunc]
       algorithm = IR
       polyorder = 8
@@ -2079,176 +1968,92 @@ Alterations to the default parameters are:
       detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60.0,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_slits = False
-          slit_trim = 0
-          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = CuI, ArI, ArII,
           fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
           nsnippet = 1
           rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 100.0
           follow_span = 80
-          max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
-          bound_detector = True
           minimum_slit_length = 1.8
       [[tilts]]
           tracethresh = 10.0
-          spat_order = 4
-          spec_order = 1
   [scienceframe]
-      exprng = 20, None,
       [[process]]
-          use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
           mask_cr = True
-          sigclip = 5.0
-          objlim = 2.0
-  [reduce]
-      [[findobj]]
-          maxnumber_sci = 1
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_trim_edge = 10, 10,
-          find_fwhm = 4.0
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-      [[extraction]]
-          boxcar_radius = 1.728
   [flexure]
       spec_method = boxcar
   [sensfunc]
       extrap_blu = 0.05
       extrap_red = 0.05
       trim_std_pixs = 20, 20,
-      algorithm = IR
-      polyorder = 8
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-gemini_gmos_north_ham:
 
@@ -2263,176 +2068,92 @@ Alterations to the default parameters are:
       detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60.0,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_slits = False
-          slit_trim = 0
-          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = CuI, ArI, ArII,
           fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
           nsnippet = 1
           rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 100.0
           follow_span = 80
-          max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
-          bound_detector = True
           minimum_slit_length = 1.8
       [[tilts]]
           tracethresh = 10.0
-          spat_order = 4
-          spec_order = 1
   [scienceframe]
-      exprng = 20, None,
       [[process]]
-          use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
           mask_cr = True
-          sigclip = 5.0
-          objlim = 2.0
-  [reduce]
-      [[findobj]]
-          maxnumber_sci = 1
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_trim_edge = 10, 10,
-          find_fwhm = 4.0
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-      [[extraction]]
-          boxcar_radius = 1.728
   [flexure]
       spec_method = boxcar
   [sensfunc]
       extrap_blu = 0.05
       extrap_red = 0.05
       trim_std_pixs = 20, 20,
-      algorithm = IR
-      polyorder = 8
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-gemini_gmos_north_ham_ns:
 
@@ -2447,176 +2168,92 @@ Alterations to the default parameters are:
       detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60.0,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_slits = False
-          slit_trim = 0
-          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = CuI, ArI, ArII,
           fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
           nsnippet = 1
           rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 100.0
           follow_span = 80
-          max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
-          bound_detector = True
           minimum_slit_length = 1.8
       [[tilts]]
           tracethresh = 10.0
-          spat_order = 4
-          spec_order = 1
   [scienceframe]
-      exprng = 20, None,
       [[process]]
-          use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
           mask_cr = True
-          sigclip = 5.0
-          objlim = 2.0
-  [reduce]
-      [[findobj]]
-          maxnumber_sci = 1
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_trim_edge = 10, 10,
-          find_fwhm = 4.0
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-      [[extraction]]
-          boxcar_radius = 1.728
   [flexure]
       spec_method = boxcar
   [sensfunc]
       extrap_blu = 0.05
       extrap_red = 0.05
       trim_std_pixs = 20, 20,
-      algorithm = IR
-      polyorder = 8
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-gemini_gmos_south_ham:
 
@@ -2631,166 +2268,87 @@ Alterations to the default parameters are:
       detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60.0,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_slits = False
-          slit_trim = 0
-          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = CuI, ArI, ArII,
           fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
           nsnippet = 1
           rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 100.0
           follow_span = 80
-          max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
           bound_detector = True
           minimum_slit_length = 1.8
       [[tilts]]
           tracethresh = 10.0
-          spat_order = 4
-          spec_order = 1
   [scienceframe]
-      exprng = 20, None,
       [[process]]
-          use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
           mask_cr = True
-          sigclip = 5.0
-          objlim = 2.0
-  [reduce]
-      [[findobj]]
-          maxnumber_sci = 1
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_trim_edge = 10, 10,
-          find_fwhm = 4.0
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-      [[extraction]]
-          boxcar_radius = 1.728
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -2798,7 +2356,6 @@ Alterations to the default parameters are:
       extrap_red = 0.05
       trim_std_pixs = 20, 20,
       algorithm = IR
-      polyorder = 8
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 
@@ -2812,10 +2369,8 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gemini_gnirs_echelle
-      detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -2824,7 +2379,6 @@ Alterations to the default parameters are:
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -2845,7 +2399,6 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
@@ -2870,7 +2423,6 @@ Alterations to the default parameters are:
               combine = median
               satpix = nothing
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -2883,14 +2435,12 @@ Alterations to the default parameters are:
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
-          exprng = 50, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -2918,38 +2468,9 @@ Alterations to the default parameters are:
               use_illumflat = False
               mask_cr = True
       [[flatfield]]
-          spat_samp = 0.7
-          tweak_slits = False
           tweak_slits_thresh = 0.9
-          slit_trim = 0
-          slit_illum_finecorr = False
-      [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          lamps = CuI, ArI, ArII,
-          fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
-          nsnippet = 1
-          rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
-          refframe = observed
-      [[slitedges]]
-          edge_thresh = 100.0
-          follow_span = 80
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
-          bound_detector = True
-          minimum_slit_length = 1.8
       [[tilts]]
-          tracethresh = 10.0
           spat_order = 1
-          spec_order = 1
   [scienceframe]
       exprng = 30, None,
       [[process]]
@@ -2958,30 +2479,18 @@ Alterations to the default parameters are:
           noise_floor = 0.01
           use_illumflat = False
           mask_cr = True
-          sigclip = 5.0
-          objlim = 2.0
   [reduce]
       [[findobj]]
           maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5.0
           find_trim_edge = 2, 2,
-          find_fwhm = 4.0
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 5.0
           global_sky_std = False
           no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
       [[extraction]]
-          boxcar_radius = 1.728
           model_full_slit = True
   [sensfunc]
-      extrap_blu = 0.05
-      extrap_red = 0.05
-      trim_std_pixs = 20, 20,
       algorithm = IR
       polyorder = 6
       [[IR]]
@@ -2997,10 +2506,8 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gemini_gnirs_ifu
-      detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -3009,7 +2516,6 @@ Alterations to the default parameters are:
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -3030,7 +2536,6 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
@@ -3055,7 +2560,6 @@ Alterations to the default parameters are:
               combine = median
               satpix = nothing
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -3068,14 +2572,12 @@ Alterations to the default parameters are:
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
-          exprng = 50, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -3103,37 +2605,12 @@ Alterations to the default parameters are:
               use_illumflat = False
               mask_cr = True
       [[flatfield]]
-          spat_samp = 0.7
           tweak_method = gradient
           tweak_slits_thresh = 0.0
           tweak_slits_maxfrac = 0.0
           slit_trim = 2
           slit_illum_finecorr = False
-      [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          lamps = CuI, ArI, ArII,
-          fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
-          nsnippet = 1
-          rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
-          refframe = observed
-      [[slitedges]]
-          edge_thresh = 100.0
-          follow_span = 80
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
-          bound_detector = True
-          minimum_slit_length = 1.8
       [[tilts]]
-          tracethresh = 10.0
           spat_order = 1
           spec_order = 1
   [scienceframe]
@@ -3150,26 +2627,16 @@ Alterations to the default parameters are:
       [[findobj]]
           maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5.0
           find_trim_edge = 2, 2,
-          find_fwhm = 4.0
-          skip_skysub = True
       [[skysub]]
-          sky_sigrej = 5.0
           global_sky_std = False
           no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
       [[extraction]]
-          boxcar_radius = 1.728
           skip_extraction = True
           model_full_slit = True
   [flexure]
       spec_maxshift = 0
   [sensfunc]
-      extrap_blu = 0.05
-      extrap_red = 0.05
-      trim_std_pixs = 20, 20,
       algorithm = IR
       polyorder = 6
       [[UVIS]]
@@ -3187,13 +2654,11 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gtc_maat
-      detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
@@ -3201,140 +2666,87 @@ Alterations to the default parameters are:
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
       [[traceframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
           exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
       [[flatfield]]
-          spat_samp = 0.7
           tweak_method = gradient
           tweak_slits_thresh = 0.0
           tweak_slits_maxfrac = 0.0
-          slit_trim = 2
           slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = XeI, HgI, NeI, ArI,
-          fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
           reid_cont_sub = False
-          nsnippet = 1
-          rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 100.0
-          follow_span = 80
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
           sync_predict = nearest
           bound_detector = True
-          minimum_slit_length = 1.8
       [[tilts]]
-          tracethresh = 10.0
           spat_order = 1
           spec_order = 1
   [scienceframe]
       exprng = 90, None,
       [[process]]
           use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
           use_illumflat = False
           mask_cr = True
@@ -3342,23 +2754,13 @@ Alterations to the default parameters are:
           objlim = 1.5
   [reduce]
       [[findobj]]
-          maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5.0
-          find_trim_edge = 2, 2,
-          find_fwhm = 4.0
           skip_final_global = True
           skip_skysub = True
       [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
           no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
       [[extraction]]
-          boxcar_radius = 1.728
           skip_extraction = True
-          model_full_slit = True
   [flexure]
       spec_maxshift = 3
   [fluxcalib]
@@ -3366,7 +2768,6 @@ Alterations to the default parameters are:
   [sensfunc]
       extrap_blu = 0.0
       extrap_red = 0.0
-      trim_std_pixs = 20, 20,
       algorithm = IR
       polyorder = 13
       [[UVIS]]
@@ -3384,13 +2785,11 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gtc_osiris
-      detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
@@ -3398,176 +2797,95 @@ Alterations to the default parameters are:
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
       [[traceframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
           exprng = None, 180,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
-          slit_trim = 2
-          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = XeI, HgI, NeI, ArI,
-          fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
           reid_cont_sub = False
-          nsnippet = 1
-          rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 100.0
-          follow_span = 80
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
           sync_predict = nearest
           bound_detector = True
-          minimum_slit_length = 1.8
       [[tilts]]
-          tracethresh = 10.0
           spat_order = 5
           spec_order = 5
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
           mask_cr = True
-          sigclip = 4.0
-          objlim = 1.5
   [reduce]
       [[findobj]]
-          maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5.0
-          find_trim_edge = 2, 2,
-          find_fwhm = 4.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
           no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-      [[extraction]]
-          boxcar_radius = 1.728
-          skip_extraction = True
-          model_full_slit = True
-  [flexure]
-      spec_maxshift = 3
   [fluxcalib]
       extrap_sens = True
   [sensfunc]
       extrap_blu = 0.0
       extrap_red = 0.0
-      trim_std_pixs = 20, 20,
       algorithm = IR
       polyorder = 13
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 
@@ -3581,13 +2899,11 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gtc_osiris_plus
-      detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
@@ -3595,176 +2911,95 @@ Alterations to the default parameters are:
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
       [[traceframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
           exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
-          slit_trim = 2
-          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = XeI, HgI, NeI, ArI,
-          fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
           reid_cont_sub = False
-          nsnippet = 1
-          rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 100.0
-          follow_span = 80
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
           sync_predict = nearest
           bound_detector = True
-          minimum_slit_length = 1.8
       [[tilts]]
-          tracethresh = 10.0
           spat_order = 5
           spec_order = 5
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
           mask_cr = True
-          sigclip = 4.0
-          objlim = 1.5
   [reduce]
       [[findobj]]
-          maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5.0
-          find_trim_edge = 2, 2,
-          find_fwhm = 4.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
           no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-      [[extraction]]
-          boxcar_radius = 1.728
-          skip_extraction = True
-          model_full_slit = True
-  [flexure]
-      spec_maxshift = 3
   [fluxcalib]
       extrap_sens = True
   [sensfunc]
       extrap_blu = 0.0
       extrap_red = 0.0
-      trim_std_pixs = 20, 20,
       algorithm = IR
       polyorder = 13
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 
@@ -3778,194 +3013,92 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = jwst_nircam
-      detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[traceframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
-          slit_trim = 2
-          slit_illum_finecorr = False
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          lamps = XeI, HgI, NeI, ArI,
-          fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
           refframe = observed
-      [[slitedges]]
-          edge_thresh = 100.0
-          follow_span = 80
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
-          bound_detector = True
-          minimum_slit_length = 1.8
-      [[tilts]]
-          tracethresh = 10.0
-          spat_order = 5
-          spec_order = 5
   [scienceframe]
-      exprng = 90, None,
       [[process]]
-          use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
           sigclip = 5.0
           objlim = 2.0
   [reduce]
       trim_edge = 0, 0,
       [[findobj]]
           maxnumber_sci = 2
-          maxnumber_std = 1
           find_trim_edge = 0, 0,
           find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 1.2
           sky_sigrej = 4.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
           max_mask_frac = 0.95
       [[extraction]]
           boxcar_radius = 0.25
-          skip_extraction = True
           sn_gauss = 6.0
           model_full_slit = True
           use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 20, 20,
-      algorithm = IR
-      polyorder = 13
-      [[UVIS]]
-          extinct_correct = False
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-jwst_nirspec:
 
@@ -3977,195 +3110,93 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = jwst_nirspec
-      detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              combine = median
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[traceframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
-          slit_trim = 2
-          slit_illum_finecorr = False
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          lamps = XeI, HgI, NeI, ArI,
-          fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          rms_thresh_frac_fwhm = 0.08
-          match_toler = 5.0
           refframe = observed
-      [[slitedges]]
-          edge_thresh = 100.0
-          follow_span = 80
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
-          bound_detector = True
-          minimum_slit_length = 1.8
-      [[tilts]]
-          tracethresh = 10.0
-          spat_order = 5
-          spec_order = 5
   [scienceframe]
-      exprng = 90, None,
       [[process]]
-          use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
           sigclip = 5.0
           objlim = 2.0
   [reduce]
       trim_edge = 0, 0,
       [[findobj]]
           maxnumber_sci = 2
-          maxnumber_std = 1
           find_trim_edge = 0, 0,
           find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 5.0
           sky_sigrej = 4.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
           mask_by_boxcar = True
           max_mask_frac = 0.95
       [[extraction]]
           boxcar_radius = 0.2
-          skip_extraction = True
           sn_gauss = 5.0
           model_full_slit = True
           use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 20, 20,
-      algorithm = IR
-      polyorder = 13
-      [[UVIS]]
-          extinct_correct = False
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-keck_deimos:
 
@@ -4180,34 +3211,27 @@ Alterations to the default parameters are:
       detnum = (1, 5), (2, 6), (3, 7), (4, 8),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
-          exprng = None, 30,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
@@ -4216,159 +3240,80 @@ Alterations to the default parameters are:
       [[illumflatframe]]
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
       [[traceframe]]
-          exprng = None, 30,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = None, 300,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
-          slit_trim = 2
-          slit_illum_finecorr = False
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_sigrej = 3.0
           lamps = ArI, NeI, KrI, XeI,
-          fwhm = 5.0
-          reid_arxiv = magellan_fire_long.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          rms_thresh_frac_fwhm = 0.08
           match_toler = 2.5
           n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
           follow_span = 1000
-          max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
-          bound_detector = True
-          minimum_slit_length = 1.8
           minimum_slit_length_sci = 4.0
           minimum_slit_gap = 0.25
       [[tilts]]
           tracethresh = 10
-          spat_order = 5
-          spec_order = 5
   [scienceframe]
-      exprng = 90, None,
       [[process]]
           use_biasimage = False
-          use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
+          mask_cr = True
           sigclip = 4.0
           objlim = 1.5
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 0, 0,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 5.0
-          sky_sigrej = 4.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.2
-          skip_extraction = True
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 20, 20,
-      algorithm = IR
-      polyorder = 13
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
 
@@ -4382,13 +3327,10 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_esi
-      detnum = (1, 5), (2, 6), (3, 7), (4, 8),
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
@@ -4396,111 +3338,64 @@ Alterations to the default parameters are:
       [[darkframe]]
           exprng = 1, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 10.0
               satpix = nothing
       [[illumflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
               satpix = nothing
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
           exprng = 300, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[traceframe]]
-          exprng = None, 30,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
           exprng = None, 60,
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-      [[flatfield]]
-          spat_samp = 0.7
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
-          slit_trim = 2
-          slit_illum_finecorr = False
       [[wavelengths]]
           method = reidentify
           echelle = True
@@ -4508,83 +3403,35 @@ Alterations to the default parameters are:
           lamps = CuI, ArI, NeI, HgI, XeI, ArII,
           fwhm = 2.9
           reid_arxiv = keck_esi_ECH.fits
-          reid_cont_sub = False
-          nsnippet = 1
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.103
-          match_toler = 2.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 5.0
-          follow_span = 1000
           det_min_spec_length = 0.2
           max_shift_adj = 3.0
           fit_min_spec_length = 0.4
           left_right_pca = True
           pca_order = 3
           pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          sync_predict = nearest
-          bound_detector = True
-          minimum_slit_length = 1.8
-          minimum_slit_length_sci = 4.0
-          minimum_slit_gap = 0.25
           add_missed_orders = True
       [[tilts]]
           tracethresh = 10.0
-          spat_order = 5
-          spec_order = 5
   [scienceframe]
       exprng = 60, None,
       [[process]]
-          use_biasimage = False
-          use_overscan = False
           subtract_scattlight = True
           noise_floor = 0.01
-          use_illumflat = False
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 1.5
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
           maxnumber_sci = 2
           maxnumber_std = 1
           find_trim_edge = 4, 4,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 5.0
-          sky_sigrej = 4.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.2
-          skip_extraction = True
-          sn_gauss = 5.0
           model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 20, 20,
-      algorithm = IR
-      polyorder = 13
-      [[UVIS]]
-          extinct_correct = False
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R15000.fits
 
 .. _instr_par-keck_hires:
 
@@ -4608,7 +3455,6 @@ Alterations to the default parameters are:
               use_illumflat = False
               combine = median
       [[darkframe]]
-          exprng = 1, None,
           [[[process]]]
               use_biasimage = False
               overscan_method = median
@@ -4627,18 +3473,14 @@ Alterations to the default parameters are:
           [[[process]]]
               use_biasimage = False
               overscan_method = median
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 10.0
               satpix = nothing
       [[illumflatframe]]
           exprng = None, 60,
           [[[process]]]
               use_biasimage = False
               overscan_method = median
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
@@ -4663,7 +3505,6 @@ Alterations to the default parameters are:
           [[[process]]]
               use_biasimage = False
               overscan_method = median
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
@@ -4672,23 +3513,17 @@ Alterations to the default parameters are:
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
-          exprng = 300, None,
           [[[process]]]
               use_biasimage = False
               overscan_method = median
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
               use_biasimage = False
               overscan_method = median
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[traceframe]]
           exprng = None, 60,
           [[[process]]]
@@ -4702,19 +3537,15 @@ Alterations to the default parameters are:
               use_biasimage = False
               overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               use_biasimage = False
               overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
       [[flatfield]]
-          spat_samp = 0.7
-          tweak_method = gradient
           tweak_slits_thresh = 0.9
-          slit_trim = 2
           slit_illum_finecorr = False
       [[wavelengths]]
           method = echelle
@@ -4724,38 +3555,23 @@ Alterations to the default parameters are:
           ech_norder_coeff = 3
           bad_orders_maxfrac = 0.5
           lamps = ThAr,
-          fwhm = 2.9
-          reid_arxiv = keck_esi_ECH.fits
           reid_cont_sub = False
-          nsnippet = 1
           cc_shift_range = (-80.0, 80.0)
           cc_thresh = 0.6
           cc_local_thresh = 0.25
           rms_thresh_frac_fwhm = 0.1
           match_toler = 1.5
           n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 8.0
-          follow_span = 1000
-          det_min_spec_length = 0.2
           mask_off_detector = True
           max_shift_adj = 0.5
           fit_order = 8
-          fit_min_spec_length = 0.4
           left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
           max_nudge = 0.0
-          sync_predict = nearest
-          bound_detector = True
           dlength_range = 0.25
-          minimum_slit_length = 1.8
-          minimum_slit_length_sci = 4.0
           length_range = 0.3
-          minimum_slit_gap = 0.25
           add_missed_orders = True
           overlap = True
       [[tilts]]
@@ -4766,37 +3582,18 @@ Alterations to the default parameters are:
       [[process]]
           use_biasimage = False
           overscan_method = median
-          subtract_scattlight = True
           noise_floor = 0.01
-          use_illumflat = False
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 1.5
+          mask_cr = True
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
           maxnumber_sci = 2
           maxnumber_std = 1
           find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
-          sky_sigrej = 4.0
           global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.2
-          skip_extraction = True
           min_frac_prof = 0.9
-          sn_gauss = 5.0
           model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
   [fluxcalib]
       extrap_sens = True
   [coadd1d]
@@ -4808,8 +3605,6 @@ Alterations to the default parameters are:
       algorithm = IR
       polyorder = 7
       mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_10500_R120000.fits
           pix_shift_bounds = (-40.0, 40.0)
@@ -4827,13 +3622,11 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_kcrm
-      detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              overscan_method = median
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
@@ -4841,216 +3634,95 @@ Alterations to the default parameters are:
       [[darkframe]]
           exprng = 0.01, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[pixelflatframe]]
-          exprng = None, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 10.0
               satpix = nothing
       [[illumflatframe]]
-          exprng = None, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              subtract_scattlight = True
               use_illumflat = False
               satpix = nothing
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
       [[arcframe]]
-          exprng = 300, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
       [[traceframe]]
-          exprng = None, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = 1, 600,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
       [[alignment]]
           locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
           spec_samp_coarse = 20.0
-          spat_samp = 0.7
           tweak_method = gradient
           tweak_slits_thresh = 0.0
           tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
           slit_illum_relative = True
           slit_illum_ref_idx = 14
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_separate_2d = True
-          ech_nspec_coeff = 5
-          ech_norder_coeff = 3
-          bad_orders_maxfrac = 0.5
           lamps = FeI, ArI, ArII,
-          fwhm = 2.9
           fwhm_spat_order = 2
-          reid_arxiv = keck_esi_ECH.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.6
-          cc_local_thresh = 0.25
-          rms_thresh_frac_fwhm = 0.1
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 5
-          follow_span = 1000
-          det_min_spec_length = 0.2
-          mask_off_detector = True
-          max_shift_adj = 0.5
           fit_order = 4
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          max_nudge = 0.0
-          sync_predict = nearest
-          bound_detector = True
-          dlength_range = 0.25
-          minimum_slit_length = 1.8
-          minimum_slit_length_sci = 4.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 15
-          spec_order = 5
   [scienceframe]
-      exprng = 601, None,
       [[process]]
-          overscan_method = median
-          subtract_scattlight = True
           noise_floor = 0.01
           use_specillum = True
-          satpix = nothing
+          mask_cr = True
           sigclip = 4.0
           objlim = 1.5
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.4
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.2
           skip_extraction = True
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
   [flexure]
       spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
   [sensfunc]
-      extrap_blu = 0.01
-      extrap_red = 0.01
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 7
-      mask_hydrogen_lines = False
       [[UVIS]]
           extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_kcwi:
 
@@ -5062,156 +3734,83 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_kcwi
-      detnum = (1, 2, 3),
   [calibrations]
       scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
-              overscan_method = median
               use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 0.01, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = None, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               use_pattern = True
               subtract_scattlight = True
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 300, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = 1, 600,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               use_pattern = True
               noise_floor = 0.01
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignment]]
           locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
@@ -5220,112 +3819,37 @@ Alterations to the default parameters are:
           tweak_method = gradient
           tweak_slits_thresh = 0.0
           tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
           slit_illum_relative = True
           slit_illum_ref_idx = 14
           fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_separate_2d = True
-          ech_nspec_coeff = 5
-          ech_norder_coeff = 3
-          bad_orders_maxfrac = 0.5
           lamps = FeI, ArI, ArII,
-          fwhm = 2.9
           fwhm_spat_order = 2
-          reid_arxiv = keck_esi_ECH.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.6
-          cc_local_thresh = 0.25
-          rms_thresh_frac_fwhm = 0.1
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 5
-          follow_span = 1000
-          det_min_spec_length = 0.2
-          mask_off_detector = True
-          max_shift_adj = 0.5
           fit_order = 4
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          max_nudge = 0.0
-          sync_predict = nearest
-          bound_detector = True
-          dlength_range = 0.25
-          minimum_slit_length = 1.8
-          minimum_slit_length_sci = 4.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 15
-          spec_order = 5
   [scienceframe]
-      exprng = 601, None,
       [[process]]
-          overscan_method = median
           correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
           use_pattern = True
           noise_floor = 0.01
           use_specillum = True
-          satpix = nothing
+          mask_cr = True
           sigclip = 4.0
           objlim = 1.5
           [[[scattlight]]]
               finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.2
           skip_extraction = True
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
   [flexure]
       spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
   [sensfunc]
-      extrap_blu = 0.01
-      extrap_red = 0.01
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 7
-      mask_hydrogen_lines = False
       [[UVIS]]
           extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_lris_blue:
 
@@ -5337,277 +3861,107 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_blue
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 1,
           [[[process]]]
               use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
           exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
-              use_illumflat = False
-              satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[lampoffflatsframe]]
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
+      [[lampoffflatsframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+              satpix = nothing
       [[slitless_pixflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
               scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 300, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 901,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_illumflat = False
               spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
           slit_illum_finecorr = False
-          slit_illum_relative = True
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_separate_2d = True
-          ech_nspec_coeff = 5
-          ech_norder_coeff = 3
-          bad_orders_maxfrac = 0.5
-          lamps = FeI, ArI, ArII,
           sigdetect = 10.0
-          fwhm = 2.9
-          fwhm_spat_order = 2
-          reid_arxiv = keck_esi_ECH.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.6
-          cc_local_thresh = 0.25
           rms_thresh_frac_fwhm = 0.06
-          match_toler = 1.5
           n_first = 3
           n_final = 5
-          refframe = observed
       [[slitedges]]
           edge_thresh = 15.0
-          follow_span = 1000
           det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
           fit_order = 3
           fit_min_spec_length = 0.2
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          max_nudge = 0.0
-          sync_predict = nearest
           sync_center = gap
-          bound_detector = True
-          dlength_range = 0.25
           minimum_slit_length = 3.0
           minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 15
-          spec_order = 5
   [scienceframe]
       exprng = 61, None,
       [[process]]
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_specillum = True
           spat_flexure_correct = True
-          satpix = nothing
-          sigclip = 4.0
-          objlim = 1.5
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.2
-          skip_extraction = True
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
   [sensfunc]
-      extrap_blu = 0.01
-      extrap_red = 0.01
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 7
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_lris_blue_orig:
 
@@ -5619,277 +3973,107 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_blue_orig
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 1,
           [[[process]]]
               use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
           exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
-              use_illumflat = False
-              satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[lampoffflatsframe]]
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
+      [[lampoffflatsframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+              satpix = nothing
       [[slitless_pixflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
               scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 300, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = None, 300,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 901,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_illumflat = False
               spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
           slit_illum_finecorr = False
-          slit_illum_relative = True
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_separate_2d = True
-          ech_nspec_coeff = 5
-          ech_norder_coeff = 3
-          bad_orders_maxfrac = 0.5
-          lamps = FeI, ArI, ArII,
           sigdetect = 10.0
-          fwhm = 2.9
-          fwhm_spat_order = 2
-          reid_arxiv = keck_esi_ECH.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.6
-          cc_local_thresh = 0.25
           rms_thresh_frac_fwhm = 0.06
-          match_toler = 1.5
           n_first = 3
           n_final = 5
-          refframe = observed
       [[slitedges]]
           edge_thresh = 15.0
-          follow_span = 1000
           det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
           fit_order = 3
           fit_min_spec_length = 0.2
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          max_nudge = 0.0
-          sync_predict = nearest
           sync_center = gap
-          bound_detector = True
-          dlength_range = 0.25
           minimum_slit_length = 3.0
           minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 15
-          spec_order = 5
   [scienceframe]
       exprng = 61, None,
       [[process]]
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_specillum = True
           spat_flexure_correct = True
-          satpix = nothing
-          sigclip = 4.0
-          objlim = 1.5
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.2
-          skip_extraction = True
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
   [sensfunc]
-      extrap_blu = 0.01
-      extrap_red = 0.01
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 7
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_lris_red:
 
@@ -5901,215 +4085,93 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_red
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 1,
           [[[process]]]
               use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
-              use_illumflat = False
-              satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[lampoffflatsframe]]
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
+      [[lampoffflatsframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+              satpix = nothing
       [[slitless_pixflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
               scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 300, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 61,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_illumflat = False
               spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
           slit_illum_finecorr = False
-          slit_illum_relative = True
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_separate_2d = True
-          ech_nspec_coeff = 5
-          ech_norder_coeff = 3
-          bad_orders_maxfrac = 0.5
-          lamps = FeI, ArI, ArII,
           sigdetect = 10.0
-          fwhm = 2.9
-          fwhm_spat_order = 2
-          reid_arxiv = keck_esi_ECH.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.6
-          cc_local_thresh = 0.25
           rms_thresh_frac_fwhm = 0.05
-          match_toler = 1.5
           n_first = 3
           n_final = 5
-          refframe = observed
       [[slitedges]]
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.2
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          max_nudge = 0.0
-          sync_predict = nearest
           sync_center = gap
-          bound_detector = True
-          dlength_range = 0.25
           minimum_slit_length = 3.0
           minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -6120,62 +4182,21 @@ Alterations to the default parameters are:
   [scienceframe]
       exprng = 61, None,
       [[process]]
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_specillum = True
           spat_flexure_correct = True
-          satpix = nothing
+          mask_cr = True
           sigclip = 5.0
           objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.2
-          skip_extraction = True
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
   [sensfunc]
-      extrap_blu = 0.01
-      extrap_red = 0.01
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 9
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_lris_red_mark4:
 
@@ -6187,215 +4208,93 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_red_mark4
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 1,
           [[[process]]]
               use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
-              use_illumflat = False
-              satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[lampoffflatsframe]]
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
+      [[lampoffflatsframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+              satpix = nothing
       [[slitless_pixflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
               scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 300, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 61,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_illumflat = False
               spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
           slit_illum_finecorr = False
-          slit_illum_relative = True
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_separate_2d = True
-          ech_nspec_coeff = 5
-          ech_norder_coeff = 3
-          bad_orders_maxfrac = 0.5
-          lamps = FeI, ArI, ArII,
           sigdetect = 10.0
-          fwhm = 2.9
-          fwhm_spat_order = 2
-          reid_arxiv = keck_esi_ECH.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.6
-          cc_local_thresh = 0.25
           rms_thresh_frac_fwhm = 0.05
-          match_toler = 1.5
           n_first = 3
           n_final = 5
-          refframe = observed
       [[slitedges]]
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.2
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          max_nudge = 0.0
-          sync_predict = nearest
           sync_center = gap
-          bound_detector = True
-          dlength_range = 0.25
           minimum_slit_length = 3.0
           minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -6406,62 +4305,21 @@ Alterations to the default parameters are:
   [scienceframe]
       exprng = 61, None,
       [[process]]
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_specillum = True
           spat_flexure_correct = True
-          satpix = nothing
+          mask_cr = True
           sigclip = 5.0
           objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.2
-          skip_extraction = True
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
   [sensfunc]
-      extrap_blu = 0.01
-      extrap_red = 0.01
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 9
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_lris_red_orig:
 
@@ -6473,215 +4331,93 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_red_orig
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 1,
           [[[process]]]
               use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
-              use_illumflat = False
-              satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[lampoffflatsframe]]
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
+      [[lampoffflatsframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+              satpix = nothing
       [[slitless_pixflatframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
               scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 300, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, 60,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 61,
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_illumflat = False
               spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              use_biasimage = False
-              overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
           slit_illum_finecorr = False
-          slit_illum_relative = True
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_separate_2d = True
-          ech_nspec_coeff = 5
-          ech_norder_coeff = 3
-          bad_orders_maxfrac = 0.5
-          lamps = FeI, ArI, ArII,
           sigdetect = 10.0
-          fwhm = 2.9
-          fwhm_spat_order = 2
-          reid_arxiv = keck_esi_ECH.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.6
-          cc_local_thresh = 0.25
           rms_thresh_frac_fwhm = 0.05
-          match_toler = 1.5
           n_first = 3
           n_final = 5
-          refframe = observed
       [[slitedges]]
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.2
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          max_nudge = 0.0
-          sync_predict = nearest
           sync_center = gap
-          bound_detector = True
-          dlength_range = 0.25
           minimum_slit_length = 3.0
           minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -6692,62 +4428,21 @@ Alterations to the default parameters are:
   [scienceframe]
       exprng = 61, None,
       [[process]]
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_specillum = True
           spat_flexure_correct = True
-          satpix = nothing
+          mask_cr = True
           sigclip = 5.0
           objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.2
-          skip_extraction = True
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
   [sensfunc]
-      extrap_blu = 0.01
-      extrap_red = 0.01
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 9
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_mosfire:
 
@@ -6759,293 +4454,130 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_mosfire
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 1, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
+              use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 1, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 50, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 20,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               noise_floor = 0.01
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_relative = True
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_separate_2d = True
-          ech_nspec_coeff = 5
-          ech_norder_coeff = 3
-          bad_orders_maxfrac = 0.5
           lamps = OH_NIRES,
           fwhm = 5.0
-          fwhm_spat_order = 2
-          reid_arxiv = keck_esi_ECH.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.6
-          cc_local_thresh = 0.25
           rms_thresh_frac_fwhm = 0.11
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.2
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          max_nudge = 0.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.25
-          minimum_slit_length = 3.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 25
-          maxdev_tracefit = 1.0
-          spat_order = 4
-          spec_order = 7
-          maxdev2d = 1.0
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 20, None,
       [[process]]
           use_biasimage = False
           use_overscan = False
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_specillum = True
-          spat_flexure_correct = True
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.2
-          skip_extraction = True
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
   [fluxcalib]
       extrap_sens = True
-  [coadd1d]
-      wave_method = log10
   [sensfunc]
       extrap_blu = 0.0
       extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 13
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_nires:
 
@@ -7057,299 +4589,148 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_nires
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 1, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
+              use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 61, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
           exprng = 61, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
               use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               noise_floor = 0.01
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.0
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_relative = True
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = reidentify
           echelle = True
-          ech_separate_2d = True
           ech_norder_coeff = 6
           ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = OH_NIRES,
           fwhm = 2.2
-          fwhm_spat_order = 2
           reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.6
-          cc_local_thresh = 0.25
           rms_thresh_frac_fwhm = 0.136
-          match_toler = 1.5
-          n_first = 3
           n_final = 3, 4, 4, 4, 4,
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 3
           fit_min_spec_length = 0.4
           left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
           fwhm_gaussian = 4.0
-          max_nudge = 0.0
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.25
-          minimum_slit_length = 3.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 10.0
-          maxdev_tracefit = 1.0
-          spat_order = 4
-          spec_order = 7
-          maxdev2d = 1.0
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 61, None,
       [[process]]
           use_biasimage = False
           use_overscan = False
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
           use_illumflat = False
-          use_specillum = True
-          spat_flexure_correct = True
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          maxnumber_sci = 2
           maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
           boxcar_radius = 0.75
-          skip_extraction = True
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
   [coadd1d]
       wave_method = log10
   [coadd2d]
       offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_nirspec_high:
 
@@ -7361,298 +4742,148 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_nirspec_high
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[skyframe]]
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = median
               noise_floor = 0.01
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_pixelflat = False
+              use_illumflat = False
+              mask_cr = True
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
           tweak_slits_thresh = 0.8
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = echelle
           echelle = True
           ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = NIRSPEC-ArNeKrXe,
           fwhm = 3.0
           fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 3.0
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 100.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
           max_shift_adj = 0.5
           fit_order = 4
-          fit_min_spec_length = 0.4
           left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
-          fwhm_gaussian = 4.0
           max_nudge = 10.0
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
           dlength_range = 0.25
-          minimum_slit_length = 3.0
-          minimum_slit_length_sci = 5.0
           length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
           overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 1.0
-          spat_order = 4
-          spec_order = 7
-          maxdev2d = 1.0
-          sigrej2d = 5.0
   [scienceframe]
       [[process]]
           use_biasimage = False
           use_overscan = False
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
           use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
           fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_9300_55100_R60000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_nirspec_high_old:
 
@@ -7664,297 +4895,147 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_nirspec_high_old
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[skyframe]]
-          [[[process]]]
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = median
               noise_floor = 0.01
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_pixelflat = False
+              use_illumflat = False
+              mask_cr = True
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
           tweak_slits_thresh = 0.8
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = echelle
           echelle = True
           ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = NIRSPEC-ArNeKrXe,
           fwhm = 3.0
           fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
           cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 3.0
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
           max_shift_adj = 0.5
           fit_order = 8
-          fit_min_spec_length = 0.4
           left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
-          fwhm_gaussian = 4.0
           max_nudge = 10.0
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
           dlength_range = 0.1
-          minimum_slit_length = 3.0
-          minimum_slit_length_sci = 5.0
           length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
           overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 1.0
-          spat_order = 4
-          spec_order = 7
-          maxdev2d = 1.0
-          sigrej2d = 5.0
   [scienceframe]
       [[process]]
           use_biasimage = False
           use_overscan = False
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
           use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
           fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_9300_55100_R60000.fits
-          pix_shift_bounds = (-40.0, 40.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-keck_nirspec_low:
 
@@ -7966,298 +5047,134 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_nirspec_low
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 20,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
           tweak_slits_thresh = 0.8
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = OH_NIRES,
           fwhm = 3.5
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.06
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 200.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 3.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 1.0
-          spat_order = 4
-          spec_order = 7
-          maxdev2d = 1.0
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 20, None,
       [[process]]
           use_biasimage = False
           use_overscan = False
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R25000.fits
           pix_shift_bounds = (-8.0, 8.0)
   [telluric]
-      resln_frac_bounds = (0.25, 1.25)
       pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_luci1:
@@ -8270,301 +5187,136 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_luci1
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               spat_flexure_correct = True
               spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = None, 20,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
           tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = OH_NIRES,
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.07
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 30.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
           minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 1.0
-          spat_order = 4
-          spec_order = 7
-          maxdev2d = 1.0
-          sigrej2d = 5.0
   [scienceframe]
-      exprng = 20, None,
       [[process]]
           use_biasimage = False
           use_overscan = False
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
           use_illumflat = False
           spat_flexure_correct = True
           spat_flexure_sigdetect = 100
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          maxnumber_sci = 2
           maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
           global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
           std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_luci2:
 
@@ -8576,300 +5328,135 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_luci2
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               spat_flexure_correct = True
               spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = None, 20,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
               noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
           tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = OH_NIRES,
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.07
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 30.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
           minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 1.0
-          spat_order = 4
-          spec_order = 7
-          maxdev2d = 1.0
-          sigrej2d = 5.0
   [scienceframe]
-      exprng = 20, None,
       [[process]]
           use_biasimage = False
           use_overscan = False
-          overscan_method = median
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
           use_illumflat = False
           spat_flexure_correct = True
           spat_flexure_sigdetect = 100
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          maxnumber_sci = 2
           maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
           std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_mods1b:
 
@@ -8881,32 +5468,24 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods1b
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
               use_biasimage = False
               overscan_method = odd_even
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               overscan_method = odd_even
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               use_biasimage = False
@@ -8914,34 +5493,21 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               use_biasimage = False
@@ -8949,8 +5515,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
           exprng = 0, None,
           [[[process]]]
@@ -8959,19 +5523,12 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
               use_biasimage = False
               overscan_method = odd_even
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               use_biasimage = False
@@ -8979,33 +5536,20 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
@@ -9013,154 +5557,40 @@ Alterations to the default parameters are:
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               use_biasimage = False
               overscan_method = odd_even
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HgI_MODS, ArI_MODS, NeI_MODS, KrI_MODS, XeI_MODS,
           sigdetect = 10.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.09
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
           maxdev_tracefit = 0.02
           spat_order = 5
           spec_order = 5
           maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 1, None,
       [[process]]
           use_biasimage = False
           overscan_method = odd_even
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_mods1b_proc:
 
@@ -9172,9 +5602,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods1b_proc
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
@@ -9183,13 +5611,10 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
@@ -9198,12 +5623,9 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               trim = False
@@ -9214,8 +5636,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
@@ -9224,30 +5644,19 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               trim = False
               apply_gain = False
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               trim = False
@@ -9258,8 +5667,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
           exprng = 0, None,
           [[[process]]]
@@ -9271,10 +5678,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
@@ -9285,8 +5689,6 @@ Alterations to the default parameters are:
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               trim = False
@@ -9297,8 +5699,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
               trim = False
@@ -9306,30 +5706,19 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               trim = False
               apply_gain = False
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
@@ -9340,8 +5729,6 @@ Alterations to the default parameters are:
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
@@ -9350,14 +5737,10 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               trim = False
@@ -9369,68 +5752,18 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HgI_MODS, ArI_MODS, NeI_MODS, KrI_MODS, XeI_MODS,
           sigdetect = 10.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.09
-          match_toler = 1.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
           maxdev_tracefit = 0.02
           spat_order = 5
           spec_order = 5
           maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 1, None,
       [[process]]
@@ -9439,64 +5772,12 @@ Alterations to the default parameters are:
           use_biasimage = False
           use_overscan = False
           overscan_method = odd_even
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
           use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_mods1r:
 
@@ -9508,316 +5789,135 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods1r
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HgI_MODS, ArI_MODS, NeI_MODS, KrI_MODS, XeI_MODS,
           fwhm = 10.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.09
           match_toler = 2.5
           n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
           maxdev_tracefit = 0.02
           spat_order = 5
           spec_order = 5
           maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 1, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
           overscan_method = odd_even
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_mods1r_proc:
 
@@ -9829,9 +5929,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods1r_proc
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
@@ -9840,13 +5938,10 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
@@ -9855,12 +5950,9 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               trim = False
@@ -9871,8 +5963,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
@@ -9881,30 +5971,19 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               trim = False
               apply_gain = False
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               trim = False
@@ -9915,8 +5994,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
           exprng = 0, None,
           [[[process]]]
@@ -9928,10 +6005,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
@@ -9942,8 +6016,6 @@ Alterations to the default parameters are:
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               trim = False
@@ -9954,8 +6026,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
               trim = False
@@ -9963,30 +6033,19 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               trim = False
               apply_gain = False
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
@@ -9997,8 +6056,6 @@ Alterations to the default parameters are:
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
@@ -10007,14 +6064,10 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               trim = False
@@ -10026,68 +6079,20 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HgI_MODS, ArI_MODS, NeI_MODS, KrI_MODS, XeI_MODS,
           fwhm = 10.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.09
           match_toler = 2.5
           n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
           maxdev_tracefit = 0.02
           spat_order = 5
           spec_order = 5
           maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 1, None,
       [[process]]
@@ -10096,64 +6101,16 @@ Alterations to the default parameters are:
           use_biasimage = False
           use_overscan = False
           overscan_method = odd_even
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
           use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_mods2b:
 
@@ -10165,317 +6122,129 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods2b
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HgI_MODS, ArI_MODS, NeI_MODS, KrI_MODS, XeI_MODS,
           sigdetect = 10.0
-          fwhm = 10.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.09
-          match_toler = 2.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
           maxdev_tracefit = 0.02
           spat_order = 5
           spec_order = 5
           maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 1, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
           overscan_method = odd_even
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_mods2b_proc:
 
@@ -10487,9 +6256,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods2b_proc
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
@@ -10498,13 +6265,10 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
@@ -10513,12 +6277,9 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               trim = False
@@ -10529,8 +6290,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
@@ -10539,30 +6298,19 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               trim = False
               apply_gain = False
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               trim = False
@@ -10573,8 +6321,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
           exprng = 0, None,
           [[[process]]]
@@ -10586,10 +6332,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
@@ -10600,8 +6343,6 @@ Alterations to the default parameters are:
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               trim = False
@@ -10612,8 +6353,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
               trim = False
@@ -10621,30 +6360,19 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               trim = False
               apply_gain = False
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
@@ -10655,8 +6383,6 @@ Alterations to the default parameters are:
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
@@ -10665,14 +6391,10 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               trim = False
@@ -10684,69 +6406,18 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HgI_MODS, ArI_MODS, NeI_MODS, KrI_MODS, XeI_MODS,
           sigdetect = 10.0
-          fwhm = 10.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.09
-          match_toler = 2.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
           maxdev_tracefit = 0.02
           spat_order = 5
           spec_order = 5
           maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 1, None,
       [[process]]
@@ -10755,64 +6426,12 @@ Alterations to the default parameters are:
           use_biasimage = False
           use_overscan = False
           overscan_method = odd_even
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
           use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_mods2r:
 
@@ -10824,316 +6443,135 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods2r
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HgI_MODS, ArI_MODS, NeI_MODS, KrI_MODS, XeI_MODS,
           fwhm = 10.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.22
           match_toler = 2.5
           n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
           maxdev_tracefit = 0.02
           spat_order = 5
           spec_order = 5
           maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 1, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
           overscan_method = odd_even
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-lbt_mods2r_proc:
 
@@ -11145,9 +6583,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods2r_proc
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
@@ -11156,13 +6592,10 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
@@ -11171,12 +6604,9 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
               trim = False
@@ -11187,8 +6617,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
@@ -11197,30 +6625,19 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
               trim = False
               apply_gain = False
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
               trim = False
@@ -11231,8 +6648,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
           exprng = 0, None,
           [[[process]]]
@@ -11244,10 +6659,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
@@ -11258,8 +6670,6 @@ Alterations to the default parameters are:
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
               trim = False
@@ -11270,8 +6680,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
               trim = False
@@ -11279,30 +6687,19 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
               trim = False
               apply_gain = False
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
@@ -11313,8 +6710,6 @@ Alterations to the default parameters are:
               overscan_method = odd_even
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
@@ -11323,14 +6718,10 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               overscan_method = odd_even
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
               trim = False
@@ -11342,68 +6733,20 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HgI_MODS, ArI_MODS, NeI_MODS, KrI_MODS, XeI_MODS,
           fwhm = 10.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.22
           match_toler = 2.5
           n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 10.0
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 10.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
           maxdev_tracefit = 0.02
           spat_order = 5
           spec_order = 5
           maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 1, None,
       [[process]]
@@ -11412,64 +6755,16 @@ Alterations to the default parameters are:
           use_biasimage = False
           use_overscan = False
           overscan_method = odd_even
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
           use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          find_trim_edge = 3, 3,
-          find_fwhm = 2.0
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 3
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-ldt_deveny:
 
@@ -11481,307 +6776,134 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = ldt_deveny
-      detnum = (1, 2, 3),
   [calibrations]
       bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = 1, 200,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[skyframe]]
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
               overscan_method = chebyshev
               overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
+      [[skyframe]]
+          [[[process]]]
+              overscan_method = chebyshev
+              overscan_par = 1
+              noise_floor = 0.01
+              use_illumflat = False
+              mask_cr = True
       [[flatfield]]
           spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
           pixelflat_min_wave = 3000.0
           tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
           slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = use_header,
           fwhm = 3.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = keck_nires.fits
-          reid_cont_sub = False
           nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.22
-          match_toler = 2.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
           max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
           minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 0.02
           spat_order = 4
           spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
-      exprng = 1, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          use_overscan = False
           overscan_method = chebyshev
           overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
+          mask_cr = True
           sigclip = 5.0
           objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
           trace_npoly = 3
           maxnumber_sci = 5
@@ -11789,47 +6911,18 @@ Alterations to the default parameters are:
           snr_thresh = 50.0
           find_trim_edge = 0, 0,
           find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
-          bspline_spacing = 0.8
           sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
           boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
           use_2dmodel_mask = False
   [flexure]
       spec_method = boxcar
       spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
       [[UVIS]]
-          extinct_correct = False
           polycorrect = False
           nresln = 15
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-magellan_fire:
 
@@ -11841,357 +6934,147 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = magellan_fire
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[skyframe]]
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_illumflat = False
+              mask_cr = True
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_norder_coeff = 6
           ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = OH_FIRE_Echelle,
           sigdetect = 5, 5, 10, 10, 10, 20, 30, 30, 30, 30, 30, 10, 30, 30, 60, 30, 30, 10, 20, 30, 10,
-          fwhm = 3.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
           reid_arxiv = magellan_fire_echelle.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
           cc_thresh = 0.35
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.25
-          match_toler = 2.5
           n_final = 3, 2, 3, 2, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 6, 6, 4,
-          refframe = observed
       [[slitedges]]
           edge_thresh = 3.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
           max_shift_adj = 0.5
           fit_min_spec_length = 0.5
           left_right_pca = True
           pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 5
-          maxdev_tracefit = 0.02
-          spat_order = 4
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 20, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
           use_overscan = False
-          overscan_method = chebyshev
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          trace_npoly = 3
           maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 50.0
-          find_trim_edge = 0, 0,
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
           model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
   [coadd1d]
       wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-magellan_fire_long:
 
@@ -12203,358 +7086,136 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = magellan_fire_long
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 1, 50,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[skyframe]]
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_illumflat = False
+              mask_cr = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = Ar_IR_MOSFIRE, Ne_IR_MOSFIRE,
           sigdetect = 3
           fwhm = 10
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
           reid_arxiv = magellan_fire_long.fits
-          reid_cont_sub = False
           nsnippet = 4
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.35
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.05
           match_toler = 5.0
           n_first = 3
           n_final = 6
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 3.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_min_spec_length = 0.5
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 5
-          maxdev_tracefit = 0.02
-          spat_order = 4
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 20, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
           use_overscan = False
-          overscan_method = chebyshev
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
+          mask_cr = True
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
           snr_thresh = 5
           find_trim_edge = 50, 50,
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-magellan_mage:
 
@@ -12566,356 +7227,106 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = magellan_mage
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              comb_sigrej = 10.0
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 20,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = ThAr_MagE,
           fwhm = 3.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
           reid_arxiv = magellan_mage.fits
-          reid_cont_sub = False
-          nsnippet = 4
-          cc_shift_range = (-80.0, 80.0)
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.133
-          match_toler = 5.0
-          n_first = 3
-          n_final = 6
-          refframe = observed
       [[slitedges]]
           edge_thresh = 10.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
           max_shift_adj = 3.0
           fit_min_spec_length = 0.3
           left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          spat_order = 4
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 20, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          use_overscan = False
-          overscan_method = chebyshev
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
           satpix = nothing
+          mask_cr = True
           sigclip = 20.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          trace_npoly = 3
           maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5
           find_trim_edge = 4, 4,
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
           model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
   [coadd1d]
       wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-mdm_modspec:
 
@@ -12927,355 +7338,96 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mdm_modspec
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               comb_sigrej = 3.0
               satpix = nothing
               n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = None, 20,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
           slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = ArI, XeI, NeI,
-          fwhm = 3.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
           reid_arxiv = mdm_modspec_1200_5100.fits
-          reid_cont_sub = False
-          nsnippet = 4
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.133
-          match_toler = 5.0
-          n_first = 3
           n_final = 9
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 10.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          spat_order = 4
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 10, 600,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          use_overscan = False
-          overscan_method = chebyshev
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5
-          find_trim_edge = 4, 4,
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
+          mask_cr = True
 
 .. _instr_par-mdm_osmos_mdm4k:
 
@@ -13287,357 +7439,88 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mdm_osmos_mdm4k
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = chebyshev
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = ArI, XeI,
           sigdetect = 10.0
-          fwhm = 3.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
           reid_arxiv = mdm_osmos_mdm4k.fits
-          reid_cont_sub = False
-          nsnippet = 4
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.133
-          match_toler = 5.0
-          n_first = 3
-          n_final = 9
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 10.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          spat_order = 4
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          use_overscan = False
-          overscan_method = chebyshev
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5
-          find_trim_edge = 4, 4,
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
+          mask_cr = True
 
 .. _instr_par-mdm_osmos_r4k:
 
@@ -13649,355 +7532,119 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mdm_osmos_r4k
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 1,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
               overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HgI, NeI,
-          fwhm = 3.0
-          fwhm_spat_order = 2
           reid_arxiv = mdm_osmos_r4k.fits
-          reid_cont_sub = False
           nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.133
-          match_toler = 5.0
-          n_first = 3
-          n_final = 9
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 10.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          spat_order = 4
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
-          use_overscan = False
           overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          sigclip = 20.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5
-          find_trim_edge = 4, 4,
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 4.0
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
+          mask_cr = True
 
 .. _instr_par-mmt_binospec:
 
@@ -14009,358 +7656,116 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mmt_binospec
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 0, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 100,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HeI, NeI, ArI, ArII,
-          fwhm_spat_order = 2
-          reid_arxiv = mdm_osmos_r4k.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.125
-          match_toler = 5.0
-          n_first = 3
-          n_final = 9
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 10.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 10.0
-          maxdev_tracefit = 0.02
           spat_order = 6
           spec_order = 6
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 20, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
-          use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
+          mask_cr = True
           sigclip = 5.0
           objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5
-          find_trim_edge = 4, 4,
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
           global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
       polyorder = 7
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-mmt_bluechannel:
 
@@ -14372,357 +7777,114 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mmt_bluechannel
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 300, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
           exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 61, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[skyframe]]
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              noise_floor = 0.01
+              use_illumflat = False
+              mask_cr = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = use_header,
           fwhm = 3.1
-          fwhm_spat_order = 2
-          reid_arxiv = mdm_osmos_r4k.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          match_toler = 5.0
-          n_first = 3
-          n_final = 9
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 10.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          spat_order = 6
-          spec_order = 6
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
-      exprng = 20, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
-          use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
+          mask_cr = True
           sigclip = 5.0
           objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5
-          find_trim_edge = 4, 4,
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 4.0
           global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_method = boxcar
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
       polyorder = 7
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-mmt_mmirs:
 
@@ -14734,353 +7896,140 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mmt_mmirs
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 30, None,
           [[[process]]]
-              trim = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 60, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
           exprng = 60, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[skyframe]]
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_illumflat = False
+              mask_cr = True
       [[wavelengths]]
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = OH_NIRES,
-          fwhm_spat_order = 2
-          reid_arxiv = mdm_osmos_r4k.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.125
           match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 100.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
           fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 0.25
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 5
-          maxdev_tracefit = 0.02
           spat_order = 7
           spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 30, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
           use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
+          mask_cr = True
           grow = 0.5
           sigclip = 5.0
           objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
           snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
-          bspline_spacing = 0.8
           sky_sigrej = 5.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-not_alfosc:
 
@@ -15092,354 +8041,110 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = not_alfosc
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 1,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 60, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HeI, NeI, ArI,
           sigdetect = 10.0
-          fwhm_spat_order = 2
-          reid_arxiv = mdm_osmos_r4k.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.125
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 30
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
           minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 5
-          maxdev_tracefit = 0.02
-          spat_order = 7
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 10, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
           use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          grow = 0.5
-          sigclip = 5.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
+          mask_cr = True
 
 .. _instr_par-not_alfosc_vert:
 
@@ -15451,354 +8156,110 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = not_alfosc_vert
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 1,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 60, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.85
-          tweak_slits_maxfrac = 0.0
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HeI, NeI, ArI,
           sigdetect = 10.0
-          fwhm_spat_order = 2
-          reid_arxiv = mdm_osmos_r4k.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.125
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 30
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
           minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 5
-          maxdev_tracefit = 0.02
-          spat_order = 7
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 10, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
           use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          grow = 0.5
-          sigclip = 5.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
+          mask_cr = True
 
 .. _instr_par-ntt_efosc2:
 
@@ -15810,352 +8271,93 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = ntt_efosc2
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 1,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 60, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
           tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HeI, ArI,
           sigdetect = 10.0
-          fwhm_spat_order = 2
-          reid_arxiv = mdm_osmos_r4k.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.07
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 75.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.4
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 25.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
-      exprng = 10, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          satpix = nothing
-          grow = 0.5
-          sigclip = 5.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
+          mask_cr = True
   [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           sky_sigrej = 5.0
           global_sky_std = False
           no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 15
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-p200_dbsp_blue:
 
@@ -16167,352 +8369,94 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_dbsp_blue
-      detnum = (1, 2, 3),
   [calibrations]
       bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 60, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = FeI, ArI, ArII,
-          sigdetect = 10.0
-          fwhm_spat_order = 2
-          reid_arxiv = mdm_osmos_r4k.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.07
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 75.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
           fit_min_spec_length = 0.55
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 25.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
           combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 5.0
-          objlim = 2.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_method = boxcar
-      spec_maxshift = 30
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
+          mask_cr = True
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
       [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
           nresln = 5
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-p200_dbsp_red:
 
@@ -16524,351 +8468,97 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_dbsp_red
-      detnum = (1, 2, 3),
   [calibrations]
       bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 60, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = ArI, ArII, NeI, HeI,
-          sigdetect = 10.0
-          fwhm_spat_order = 2
-          reid_arxiv = mdm_osmos_r4k.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.07
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 75.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.55
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 170.0
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 25.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
           combine = median
-          satpix = nothing
-          grow = 0.5
+          mask_cr = True
           sigclip = 4.0
           objlim = 1.5
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_method = boxcar
-      spec_maxshift = 30
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      polyorder = 8
-      mask_hydrogen_lines = False
       [[UVIS]]
-          extinct_correct = False
           polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-p200_ngps_i:
 
@@ -16880,353 +8570,93 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_ngps_i
-      detnum = (1, 2, 3),
   [calibrations]
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 60, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = ThAr,
-          sigdetect = 10.0
-          fwhm_spat_order = 2
           reid_arxiv = wvarxiv_p200_ngps_20250131T1354.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 1.0
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.55
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
           min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
           minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 25.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
           combine = median
-          satpix = nothing
-          grow = 0.5
+          mask_cr = True
           sigclip = 4.0
           objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_method = boxcar
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-p200_ngps_r:
 
@@ -17238,354 +8668,94 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_ngps_r
-      detnum = (1, 2, 3),
   [calibrations]
       bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[pinholeframe]]
-          exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 60, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = ThAr,
-          sigdetect = 10.0
-          fwhm_spat_order = 2
           reid_arxiv = wvarxiv_p200_ngps_20250131T1227.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 1.0
-          match_toler = 5.0
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.55
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
           min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
           minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 25.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
           combine = median
-          satpix = nothing
-          grow = 0.5
+          mask_cr = True
           sigclip = 4.0
           objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 1.9
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_method = boxcar
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-p200_tspec:
 
@@ -17597,359 +8767,149 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_tspec
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
           exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = None, 600,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 60,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[skyframe]]
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_illumflat = False
+              mask_cr = True
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_norder_coeff = 6
           ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = OH_NIRES,
           fwhm = 2.9
-          fwhm_spat_order = 2
           reid_arxiv = p200_triplespec.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.103
-          match_toler = 5.0
           n_final = 3, 4, 4, 4, 4,
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
           fit_min_spec_length = 0.3
           left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 5.0
           fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 60, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
           use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
           satpix = nothing
-          grow = 0.5
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          trace_npoly = 3
           maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
           boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
           model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-  [fluxcalib]
-      extrap_sens = True
   [coadd1d]
       wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-shane_kast_blue:
 
@@ -17961,363 +8921,102 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = shane_kast_blue
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 61,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 61,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = CdI, HgI, HeI,
-          fwhm = 2.9
-          fwhm_spat_order = 2
-          reid_arxiv = p200_triplespec.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.07
           match_toler = 2.5
           n_first = 3
-          n_final = 3, 4, 4, 4, 4,
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 5.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
-          tracethresh = 10.0
           maxdev_tracefit = 0.02
           spec_order = 5
           maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 61, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 30
       spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-shane_kast_red:
 
@@ -18329,363 +9028,93 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = shane_kast_red
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 61,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 61,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = NeI, HgI, HeI, ArI,
-          fwhm = 2.9
-          fwhm_spat_order = 2
-          reid_arxiv = p200_triplespec.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.07
-          match_toler = 2.5
-          n_first = 3
-          n_final = 3, 4, 4, 4, 4,
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 5.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 61, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-shane_kast_red_ret:
 
@@ -18697,364 +9126,95 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = shane_kast_red_ret
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 61,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 61,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          method = full_template
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = NeI, HgI, HeI, ArI,
           use_instr_flag = True
-          fwhm = 2.9
-          fwhm_spat_order = 2
-          reid_arxiv = p200_triplespec.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.09
-          match_toler = 2.5
-          n_first = 3
-          n_final = 3, 4, 4, 4, 4,
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 5.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 61, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          use_overscan = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-soar_goodman_blue:
 
@@ -19066,348 +9226,105 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = soar_goodman_blue
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 30,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = NeI, ArI, HgI,
-          use_instr_flag = True
           fwhm = 5.0
-          fwhm_spat_order = 2
-          reid_arxiv = p200_triplespec.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.17
-          match_toler = 2.5
-          n_first = 3
-          n_final = 3, 4, 4, 4, 4,
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 5.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-soar_goodman_red:
 
@@ -19419,348 +9336,107 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = soar_goodman_red
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 30,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = odd_even
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
           slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = NeI, ArI, HgI,
-          use_instr_flag = True
           fwhm = 5.0
-          fwhm_spat_order = 2
-          reid_arxiv = p200_triplespec.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.17
-          match_toler = 2.5
-          n_first = 3
-          n_final = 3, 4, 4, 4, 4,
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 3.0
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 5.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
           bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 10.0
-          maxdev_tracefit = 0.02
-          spec_order = 5
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
-          overscan_method = odd_even
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-subaru_focas:
 
@@ -19772,346 +9448,115 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = subaru_focas
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = 1, 61,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
           tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = ThAr,
-          use_instr_flag = True
           sigdetect = 10.0
-          fwhm_spat_order = 2
-          reid_arxiv = p200_triplespec.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.17
-          match_toler = 2.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
           max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 5.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 25.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 61, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
           overscan_method = median
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_10500_R120000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-tng_dolores:
 
@@ -20123,346 +9568,85 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = tng_dolores
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
-          [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
               subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
               clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = 1, 61,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
-              overscan_method = median
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
-      [[wavelengths]]
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
-          lamps = ThAr,
-          use_instr_flag = True
-          sigdetect = 10.0
-          fwhm_spat_order = 2
-          reid_arxiv = p200_triplespec.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_thresh_frac_fwhm = 0.17
-          match_toler = 2.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 5.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-      [[tilts]]
-          tracethresh = 25.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 1, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          overscan_method = median
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_method = boxcar
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
-      [[IR]]
-          telgridfile = TellPCA_3000_10500_R120000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
+          mask_cr = True
 
 .. _instr_par-vlt_fors2:
 
@@ -20474,346 +9658,108 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_fors2
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = 1, 61,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
           tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = HeI, ArI,
-          use_instr_flag = True
           sigdetect = 10.0
-          fwhm_spat_order = 2
-          reid_arxiv = p200_triplespec.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.07
-          match_toler = 2.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
           max_shift_adj = 0.5
           fit_order = 3
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 5.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
       [[tilts]]
           tracethresh = 25.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
-      exprng = 1, None,
       [[process]]
-          trim = False
-          apply_gain = False
-          use_biasimage = False
-          overscan_method = median
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 4.4
-          fof_link = 0.2
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.8
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          model_full_slit = True
-          use_2dmodel_mask = False
+          mask_cr = True
   [flexure]
       spec_method = boxcar
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-vlt_sinfoni:
 
@@ -20825,370 +9771,144 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_sinfoni
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 20, None,
           [[[process]]]
-              trim = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
               mask_cr = True
               sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
               mask_cr = True
               sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 20,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
               sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_norder_coeff = 6
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = OH_FIRE_Echelle,
-          use_instr_flag = True
           fwhm = 5.0
-          fwhm_spat_order = 2
           reid_arxiv = vlt_sinfoni_K.fits
-          reid_cont_sub = False
           nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.1
-          match_toler = 2.5
-          n_first = 3
-          refframe = observed
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 3
-          fit_min_spec_length = 0.3
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 5.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
           rm_slits = 1:1024:983
       [[tilts]]
           tracethresh = 5.0
-          maxdev_tracefit = 0.02
-          maxdev2d = 0.02
-          sigrej2d = 5.0
   [scienceframe]
       exprng = 20, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
           use_overscan = False
-          overscan_method = median
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
           satpix = nothing
-          grow = 0.5
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          trace_npoly = 3
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
           find_fwhm = 10
-          fof_link = 0.2
           skip_second_find = True
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.9
-          sky_sigrej = 5.0
           global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
           sn_gauss = 5.0
           model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 7
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
-          pix_shift_bounds = (-8.0, 8.0)
-  [telluric]
-      resln_frac_bounds = (0.25, 1.25)
-      pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-vlt_xshooter_nir:
 
@@ -21200,367 +9920,153 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_xshooter_nir
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
-              trim = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = None, 20,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
           tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_nspec_coeff = 5
           ech_norder_coeff = 5
           ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = OH_XSHOOTER,
-          use_instr_flag = True
           sigdetect = 10.0
           fwhm_fromlines = False
-          fwhm_spat_order = 2
           reid_arxiv = vlt_xshooter_nir.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
           cc_thresh = 0.5
           cc_local_thresh = 0.5
-          match_toler = 2.5
-          n_first = 3
-          refframe = observed
           qa_log = False
       [[slitedges]]
           edge_thresh = 50.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
           max_shift_adj = 0.5
           fit_order = 8
           fit_min_spec_length = 0.5
           left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
           length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-          rm_slits = 1:1024:983
       [[tilts]]
           tracethresh = 25.0
           maxdev_tracefit = 0.04
           maxdev2d = 0.04
-          sigrej2d = 5.0
           rm_continuum = True
   [scienceframe]
-      exprng = 20, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_biasimage = False
           use_overscan = False
-          overscan_method = median
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          use_pixelflat = False
           use_illumflat = False
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
           satpix = nothing
-          grow = 0.5
+          mask_cr = True
           sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
           trace_npoly = 10
           maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5.0
-          find_fwhm = 10
-          fof_link = 0.2
-          skip_second_find = True
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.8
-          sky_sigrej = 5.0
           global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
           model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
   [coadd1d]
       wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R25000.fits
           pix_shift_bounds = (-10.0, 10.0)
@@ -21578,353 +10084,147 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_xshooter_uvb
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
-              trim = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = None, 20,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               noise_floor = 0.01
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
           tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = ThAr_XSHOOTER_UVB,
-          use_instr_flag = True
           sigdetect = 3.0
           fwhm = 3.8
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
           reid_arxiv = vlt_xshooter_uvb1x1.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_thresh_frac_fwhm = 0.184
-          match_toler = 2.5
-          n_first = 3
           n_final = 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-          refframe = observed
       [[slitedges]]
           edge_thresh = 8.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
           max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.5
           left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
           length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-          rm_slits = 1:1024:983
-      [[tilts]]
-          tracethresh = 25.0
-          maxdev_tracefit = 0.04
-          maxdev2d = 0.04
-          sigrej2d = 5.0
-          rm_continuum = True
   [scienceframe]
-      exprng = 20, None,
       [[process]]
-          trim = False
-          apply_gain = False
           overscan_method = median
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
+          mask_cr = True
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          trace_npoly = 10
           maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5.0
           find_trim_edge = 3, 3,
-          find_fwhm = 10
-          fof_link = 0.2
-          skip_second_find = True
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.5
-          sky_sigrej = 5.0
           global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
           model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
   [coadd1d]
       wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R25000.fits
           pix_shift_bounds = (-8.0, 8.0)
   [telluric]
-      resln_frac_bounds = (0.4, 2.0)
       pix_shift_bounds = (-8.0, 8.0)
 
 .. _instr_par-vlt_xshooter_vis:
@@ -21937,347 +10237,145 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_xshooter_vis
-      detnum = (1, 2, 3),
   [calibrations]
-      bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
-          exprng = 20, None,
           [[[process]]]
-              trim = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
-              combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
-          exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
-          exprng = 20, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
-          exprng = None, 20,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               overscan_method = median
-              overscan_par = 1
               noise_floor = 0.01
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
       [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
           tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = ThAr_XSHOOTER_VIS,
-          use_instr_flag = True
           fwhm = 8.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
           reid_arxiv = vlt_xshooter_vis1x1.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
           cc_thresh = 0.5
           cc_local_thresh = 0.5
-          match_toler = 2.5
-          n_first = 3
           n_final = 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3,
-          refframe = observed
       [[slitedges]]
           edge_thresh = 8.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
           max_shift_adj = 0.5
           fit_order = 8
-          fit_min_spec_length = 0.5
           left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
           trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
-          sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
           length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-          rm_slits = 1:1024:983
       [[tilts]]
           tracethresh = 15
-          maxdev_tracefit = 0.04
           spec_order = 5
-          maxdev2d = 0.04
-          sigrej2d = 5.0
-          rm_continuum = True
   [scienceframe]
-      exprng = 20, None,
       [[process]]
-          trim = False
-          apply_gain = False
           overscan_method = median
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
+          mask_cr = True
   [reduce]
-      trim_edge = 0, 0,
       [[findobj]]
-          trace_npoly = 10
           maxnumber_sci = 2
           maxnumber_std = 1
-          snr_thresh = 5.0
           find_trim_edge = 3, 3,
-          find_fwhm = 10
-          fof_link = 0.2
-          skip_second_find = True
-          skip_final_global = True
-          skip_skysub = True
       [[skysub]]
           bspline_spacing = 0.5
-          sky_sigrej = 5.0
           global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
       [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
           model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [fluxcalib]
-      extrap_sens = True
   [coadd1d]
       wave_method = log10
-  [coadd2d]
-      offsets = header
   [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
       algorithm = IR
       polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
       [[IR]]
           telgridfile = TellPCA_3000_26000_R25000.fits
           pix_shift_bounds = (-10.0, 10.0)
@@ -22295,367 +10393,107 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = wht_isis_blue
-      detnum = (1, 2, 3),
   [calibrations]
       bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = NeI, ArI, ArII, CuI,
-          use_instr_flag = True
           sigdetect = 10.0
-          fwhm = 8.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = vlt_xshooter_vis1x1.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          match_toler = 2.5
           n_first = 3
           n_final = 5
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 8.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.5
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-          rm_slits = 1:1024:983
-      [[tilts]]
-          tracethresh = 15
-          maxdev_tracefit = 0.04
-          spec_order = 5
-          maxdev2d = 0.04
-          sigrej2d = 5.0
-          rm_continuum = True
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_overscan = False
-          overscan_method = median
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 10
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_trim_edge = 3, 3,
-          find_fwhm = 10
-          fof_link = 0.2
-          skip_second_find = True
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.5
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R25000.fits
-          pix_shift_bounds = (-10.0, 10.0)
-  [telluric]
-      resln_frac_bounds = (0.4, 2.0)
-      pix_shift_bounds = (-10.0, 10.0)
+          mask_cr = True
 
 .. _instr_par-wht_isis_red:
 
@@ -22667,365 +10505,103 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = wht_isis_red
-      detnum = (1, 2, 3),
   [calibrations]
       bpm_usebias = True
-      scattlight_pad = 6
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
-              trim = False
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pattern = True
               use_pixelflat = False
               use_illumflat = False
               mask_cr = True
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[scattlightframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pixelflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              comb_sigrej = 3.0
               satpix = nothing
-              n_lohi = 1, 1,
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[illumflatframe]]
-          exprng = 1, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
-              subtract_scattlight = True
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[lampoffflatsframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[slitless_pixflatframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               combine = median
-              scale_to_mean = True
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[pinholeframe]]
           exprng = 999999, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              use_pixelflat = False
-              use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[alignframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
               satpix = nothing
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[arcframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[tiltframe]]
-          exprng = 100, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              subtract_continuum = True
               use_pixelflat = False
               use_illumflat = False
-              spat_flexure_correct = True
-              spat_flexure_sigdetect = 100
-              clip = False
-              mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[traceframe]]
-          exprng = 0, None,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               use_pixelflat = False
               use_illumflat = False
-              [[[[scattlight]]]]
-                  finecorr_method = median
       [[standardframe]]
           exprng = None, 120,
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
-              correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-              use_pattern = True
               noise_floor = 0.01
-              spat_flexure_correct = True
-              combine = median
-              [[[[scattlight]]]]
-                  finecorr_method = median
+              mask_cr = True
       [[skyframe]]
           [[[process]]]
-              trim = False
-              apply_gain = False
-              use_biasimage = False
               use_overscan = False
-              overscan_method = median
-              overscan_par = 1
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
               mask_cr = True
-              sigclip = 20.0
-              [[[[scattlight]]]]
-                  finecorr_method = median
-      [[alignment]]
-          locations = 0.1, 0.3, 0.5, 0.7, 0.9,
-      [[flatfield]]
-          spec_samp_fine = 30
-          spec_samp_coarse = 20.0
-          spat_samp = 1.0
-          pixelflat_min_wave = 3000.0
-          tweak_slits = False
-          tweak_method = gradient
-          tweak_slits_thresh = 0.9
-          slit_illum_finecorr = False
-          slit_illum_ref_idx = 14
-          fit_2d_det_response = True
       [[wavelengths]]
           method = full_template
-          echelle = True
-          ech_sigrej = 3.0
-          bad_orders_maxfrac = 0.5
           lamps = NeI, ArI, ArII, CuI,
-          use_instr_flag = True
           sigdetect = 10.0
-          fwhm = 8.0
-          fwhm_fromlines = False
-          fwhm_spat_order = 2
-          reid_arxiv = vlt_xshooter_vis1x1.fits
-          reid_cont_sub = False
-          nsnippet = 1
-          cc_shift_range = (-80.0, 80.0)
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          match_toler = 2.5
-          n_first = 3
-          n_final = 5
-          refframe = observed
       [[slitedges]]
-          edge_thresh = 8.0
-          follow_span = 1000
-          det_min_spec_length = 0.1
-          mask_off_detector = True
-          max_shift_adj = 0.5
-          fit_order = 8
-          fit_min_spec_length = 0.5
-          left_right_pca = True
-          pca_order = 3
-          pca_sigrej = 1.5
-          smash_range = 0.35, 0.65,
-          trace_thresh = 10.0
-          fwhm_gaussian = 4.0
-          min_edge_side_sep = 1.0
-          max_nudge = 5
           sync_predict = nearest
-          sync_center = gap
-          bound_detector = True
-          dlength_range = 0.1
-          minimum_slit_length = 100
-          minimum_slit_length_sci = 5.0
-          length_range = 0.3
-          minimum_slit_gap = 15
-          add_missed_orders = True
-          overlap = True
-          rm_slits = 1:1024:983
-      [[tilts]]
-          tracethresh = 15
-          maxdev_tracefit = 0.04
-          spec_order = 5
-          maxdev2d = 0.04
-          sigrej2d = 5.0
-          rm_continuum = True
   [scienceframe]
       exprng = 90, None,
       [[process]]
-          trim = False
-          apply_gain = False
           use_overscan = False
-          overscan_method = median
-          overscan_par = 1
-          correct_nonlinear = -1.4e-07, -1.4e-07, -1.2e-07, -1.8e-07,
-          use_pattern = True
           noise_floor = 0.01
-          spat_flexure_correct = True
-          spat_flexure_sigdetect = 100
-          combine = median
-          satpix = nothing
-          grow = 0.5
-          sigclip = 20.0
-          objlim = 5.0
-          [[[scattlight]]]
-              finecorr_method = median
-  [reduce]
-      trim_edge = 0, 0,
-      [[findobj]]
-          trace_npoly = 10
-          maxnumber_sci = 2
-          maxnumber_std = 1
-          snr_thresh = 5.0
-          find_trim_edge = 3, 3,
-          find_fwhm = 10
-          fof_link = 0.2
-          skip_second_find = True
-          skip_final_global = True
-          skip_skysub = True
-      [[skysub]]
-          bspline_spacing = 0.5
-          sky_sigrej = 5.0
-          global_sky_std = False
-          no_poly = True
-          user_regions = :10,75:
-          mask_by_boxcar = True
-          max_mask_frac = 0.95
-      [[extraction]]
-          boxcar_radius = 0.75
-          skip_extraction = True
-          std_prof_nsigma = 100.0
-          min_frac_prof = 0.9
-          sn_gauss = 5.0
-          model_full_slit = True
-          use_2dmodel_mask = False
-  [flexure]
-      spec_maxshift = 30
-      spectrum = sky_kastb_600.fits
-  [coadd1d]
-      wave_method = log10
-  [coadd2d]
-      offsets = header
-  [sensfunc]
-      extrap_blu = 0.0
-      extrap_red = 0.0
-      trim_std_pixs = 4, 40,
-      algorithm = IR
-      polyorder = 8
-      mask_hydrogen_lines = False
-      [[UVIS]]
-          extinct_correct = False
-          polycorrect = False
-          nresln = 5
-      [[IR]]
-          telgridfile = TellPCA_3000_26000_R25000.fits
-          pix_shift_bounds = (-10.0, 10.0)
-  [telluric]
-      resln_frac_bounds = (0.4, 2.0)
-      pix_shift_bounds = (-10.0, 10.0)
+          mask_cr = True
 
