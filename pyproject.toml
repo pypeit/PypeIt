@@ -185,7 +185,7 @@ include-package-data = true
 find = {}
 
 [tool.setuptools_scm]
-version_file = "pypeit/pkginit/version.py"
+version_file = "pypeit/pkg/version.py"
 
 [tool.pytest.ini_options]
 minversion = 7.0

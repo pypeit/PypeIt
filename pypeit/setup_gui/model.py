@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 
 from pypeit import log
 from pypeit import spectrographs
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import available_spectrographs
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile

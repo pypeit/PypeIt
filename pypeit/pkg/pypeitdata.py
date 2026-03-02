@@ -5,7 +5,7 @@ package distribution in PyPI by enabling on-demand downloading of reference
 files needed for specific data-reduction steps.  This module provides the class
 used to access to the data files in the code base.
 
-The :mod:`~pypeit.cache` module implements the low-level function used to
+The :mod:`~pypeit.pkg.cache` module implements the low-level function used to
 interface with the PypeIt cache.  To get the location of your pypeit cache (by
 default ``~/.pypeit/cache``) you can run:
 
@@ -237,7 +237,7 @@ class PypeItDataPath:
         If ``data_file`` is a valid path to a file or is a file within
         :attr:`path`, the full path is returned.  Otherwise, it is assumed that
         the file is accessible remotely in the GitHub repository and can be
-        downloaded using :func:`~pypeit.cache.fetch_remote_file`.  Note,
+        downloaded using :func:`~pypeit.pkg.cache.fetch_remote_file`.  Note,
         ``data_file`` *must* be a file, not a subdirectory within :attr:`path`.
 
         Throughout the code base, this is the main function that should be used

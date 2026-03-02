@@ -12,7 +12,7 @@ from qtpy.QtWidgets import QAction, QAbstractItemView, QStyledItemDelegate, QBut
 from qtpy.QtGui import QDesktopServices, QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
 from qtpy.QtCore import Qt, QUrl, QObject, QEvent, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
-from pypeit.spectrographs import  available_spectrographs
+from pypeit.spectrographs.util import  available_spectrographs
 
 from pypeit.setup_gui.model import ModelState, PypeItMetadataModel
 from pypeit.setup_gui.text_viewer import LogWindow, TextViewerWindow

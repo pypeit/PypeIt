@@ -1,7 +1,7 @@
-pypeit.cache module
-===================
+pypeit.loader module
+====================
 
-.. automodule:: pypeit.cache
+.. automodule:: pypeit.loader
    :members:
    :private-members:
    :show-inheritance:
