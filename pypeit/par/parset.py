@@ -143,12 +143,12 @@ class ParSet:
                 f'CODING ERROR: The parameters attribute for {self.__class__.__name__} has not '
                 'been defined!'
             )
-
+        
         # The keys of self.parameters define the allowed keywords.
         allowed_keys = self.keys()
         badkeys = np.array([key for key in kwargs.keys() if key not in allowed_keys])
         if np.any(badkeys):
-            raise TypeError(
+            raise KeyError(
                 f'One or more unrecognized parameters for {self.__class__.__name__}: {badkeys}'
             )
         
@@ -156,13 +156,18 @@ class ParSet:
         self.npar = len(self.parameters)
         # Instantiate the data dictionary with the keys provided by the
         # parameters attribute
-        self.data = dict.fromkeys(allowed_keys)
+        self._data = dict.fromkeys(allowed_keys)
         # First set all the parameters to their default values; this ensures
         # that the defaults in the parameters attribute adhere to their
         # definition, just as any user-defined value should.
-        for key in self.data.keys():
+        for key in self._data.keys():
             try:
                 self.__setitem__(key, self.parameters[key]['default'])
+            except KeyError as e:
+                raise KeyError(
+                    f'Setting the value for {key} in {self.__class__.__name__} caused an error: '
+                    f'{e}'
+                ) from e
             except TypeError as e:
                 raise TypeError(
                     f'CODING ERROR: The object type for the default value of {key} in '
@@ -190,7 +195,7 @@ class ParSet:
         key : str
             Keyword of the parameter
         """
-        return self.data[key]
+        return self._data[key]
 
     def __setitem__(self, key, value):
         """
@@ -218,9 +223,9 @@ class ParSet:
         if key not in self.parameters.keys():
             raise KeyError(f'{key} is not a valid parameter for {self.__class__.__name__}!')
 
-        # Set the value to None
+        # Always allow the value to be set to None, regardless of the dtype
         if value is None:
-            self.data[key] = value
+            self._data[key] = value
             return
 
         # Check that the value has an allowed data type
@@ -230,6 +235,12 @@ class ParSet:
                 f'Unable to set {key} in {self.__class__.__name__} to an object with type '
                 f'{type(value)}.'
             )
+
+        # If the value is itself a parameter set, create a new instance of the
+        # class such that assigned value is a shallow copy.
+        if isinstance(value, ParSet):
+            self._data[key] = self.parameters[key]['dtype'][0](**value._data)
+            return
 
         # Disallow elements of a list to be ParSets or dicts 
         if (
@@ -250,7 +261,7 @@ class ParSet:
                     )
 
         # Otherwise, set the value
-        self.data[key] = value
+        self._data[key] = value
 
     def __len__(self):
         """Return the number of parameters."""
@@ -258,7 +269,7 @@ class ParSet:
         
     def __iter__(self):
         """Return an iterable to the parameter values."""
-        return iter(self.data.values())
+        return iter(self._data.values())
 
     def __repr__(self):
         """Return a string representation of the parameters."""
@@ -297,16 +308,16 @@ class ParSet:
         additional_par_strings = []
         for i, key in enumerate(self.keys()):
             data_table[i+1,0] = key
-            if isinstance(self.data[key], ParSet):
+            if isinstance(self._data[key], ParSet):
                 _header = key if header is None else '{0}:{1}'.format(header, key)
                 additional_par_strings += [
-                    self.data[key]._output_string(header=_header, value_only=value_only)
+                    self._data[key]._output_string(header=_header, value_only=value_only)
                 ]
                 data_table[i+1,1] = 'see below'
                 if not value_only:
                     data_table[i+1,2] = 'see below'
             else:
-                data_table[i+1,1] = ParSet._data_string(self.data[key])
+                data_table[i+1,1] = ParSet._data_string(self._data[key])
                 if not value_only:
                     data_table[i+1,2] = ParSet._data_string(self.parameters[key]['default'])
             if value_only:
@@ -515,7 +526,7 @@ class ParSet:
 
         if can_be_None is not None:
             should_not_be_None = np.array([
-                self.data[key] is None and key not in can_be_None for key in self.keys()
+                self._data[key] is None and key not in can_be_None for key in self.keys()
             ])
             if np.any(should_not_be_None):
                 raise ValueError(
@@ -547,12 +558,12 @@ class ParSet:
         sorted_keys = np.sort(self.keys())
         for i, key in enumerate(sorted_keys):
             data_table[i+1,0] = ParSet._data_string(key, use_repr=False, verbatim=True)
-            if isinstance(self.data[key], ParSet):
-                if type(self.data[key]).__name__ not in parsets_listed:
+            if isinstance(self._data[key], ParSet):
+                if type(self._data[key]).__name__ not in parsets_listed:
                     new_parsets += [key]
-                parsets_listed += [ type(self.data[key]).__name__ ]
-                data_table[i+1,1] = type(self.data[key])._rst_class_name()
-                data_table[i+1,3] = f'`{type(self.data[key]).__name__} Keywords`_'
+                parsets_listed += [ type(self._data[key]).__name__ ]
+                data_table[i+1,1] = type(self._data[key])._rst_class_name()
+                data_table[i+1,3] = f'`{type(self._data[key]).__name__} Keywords`_'
             else: 
                 data_table[i+1,1] = (
                     '..' if self.parameters[key]['dtype'] is None
@@ -589,7 +600,7 @@ class ParSet:
         for k in new_parsets:
             output += ['----']
             output += ['']
-            output += self.data[k].to_rst_table(parsets_listed=parsets_listed)
+            output += self._data[k].to_rst_table(parsets_listed=parsets_listed)
         return output
 
     def info(self, basekey=None):
@@ -598,11 +609,11 @@ class ParSet:
         """
         tcols = int(0.9*shutil.get_terminal_size(fallback=(80, 25)).columns)
         for key in self.parameters.keys():
-            if isinstance(self.data[key], ParSet):
-                self.data[key].info(basekey=key)
+            if isinstance(self._data[key], ParSet):
+                self._data[key].info(basekey=key)
                 continue
             print(f'{key}' if basekey is None else f'{basekey}:{key}')
-            self._wrap_print('        Value: ', self.data[key], tcols)
+            self._wrap_print('        Value: ', self._data[key], tcols)
             self._wrap_print('      Default: ', self.parameters[key]['default'], tcols)
             self._wrap_print(
                 '      Options: ',
@@ -645,7 +656,7 @@ class ParSet:
             The list of the lines to write to a configuration file.
         """
         # Get the list of parameters that are ParSets
-        parset_keys = [key for key in self.keys() if isinstance(self.data[key], ParSet)]
+        parset_keys = [key for key in self.keys() if isinstance(self._data[key], ParSet)]
         n_parsets = len(parset_keys)
 
         # Set the top-level comment and section name
@@ -670,9 +681,9 @@ class ParSet:
                 lines += self._config_comment(self.parameters[key]['descr'], component_indent)
 
             # Add the parameter and its value
-            if not exclude_defaults or self.data[key] != self.parameters[key]['default']:
-                argvalue = self._data_string(self.data[key])
-                if isinstance(self.data[key], list):
+            if not exclude_defaults or self._data[key] != self.parameters[key]['default']:
+                argvalue = self._data_string(self._data[key])
+                if isinstance(self._data[key], list):
                     argvalue += ','
                 lines += [component_indent + key + ' = ' + argvalue]
 
@@ -681,7 +692,7 @@ class ParSet:
             section_comment = None
             if include_descr:
                 section_comment = self.parameters[key]['descr']
-            lines += self.data[key].config_lines(
+            lines += self._data[key].config_lines(
                 section_name=key, section_comment=section_comment, section_level=section_level+1,
                 exclude_defaults=exclude_defaults, include_descr=include_descr
             )
@@ -731,14 +742,14 @@ class ParSet:
             log.warning("Selected configuration file already exists and will be overwritten!")
 
         config_output = []
-        if all(isinstance(d, ParSet) or d is None for d in self.data.values()):
+        if all(isinstance(d, ParSet) or d is None for d in self._data.values()):
             # All the elements are ParSets themselves, so just iterate
             # through each one
             for key in self.keys():
-                if self.data[key] is None:
+                if self._data[key] is None:
                     continue
                 comment = self.parameters[key]['descr'] if include_descr else None
-                config_output += self.data[key].config_lines(
+                config_output += self._data[key].config_lines(
                     section_name=key, section_comment=comment, section_level=section_level,
                     exclude_defaults=exclude_defaults, include_descr=include_descr
                 )
@@ -774,7 +785,7 @@ class ParSet:
         dict
             The contents in dictionary form.
         """
-        return {key: v.to_dict() if isinstance(v, ParSet) else v for key, v in self.data.items()}
+        return {key: v.to_dict() if isinstance(v, ParSet) else v for key, v in self._data.items()}
 
     @classmethod
     def from_dict(cls, cfg):

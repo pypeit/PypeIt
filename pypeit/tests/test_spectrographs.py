@@ -42,20 +42,12 @@ def test_select_detectors_pypeit_file():
     # Perform the setup
     setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
     par, spectrograph, fitstbl = setup.run()
-
-#    try:
-#        spectrograph.select_detectors(subset=par['rdx']['detnum'])
-#    except Exception as e:
-#        print(e)
-#        pytest.set_trace()
-
     assert spectrograph.select_detectors(subset=par['rdx']['detnum']) == [1], \
             'Incorrect detectors selected.'
 
     # Clean-up
     os.remove(pypeit_file)
 
-#test_select_detectors_pypeit_file()
 
 def test_select_detectors_mosaic():
 

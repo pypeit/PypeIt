@@ -491,39 +491,39 @@ class ProcessImagesPar(parset.ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        if self.data['n_lohi'] is not None and len(self.data['n_lohi']) != 2:
+        if self['n_lohi'] is not None and len(self['n_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
 
         # Check the overscan methods
-        if self.data['use_overscan']:
-            if self.data['overscan_par'] is None:
+        if self['use_overscan']:
+            if self['overscan_par'] is None:
                 raise ValueError('No overscan method parameters defined!')
 
             # Convert param to list
             # TODO: We should impose this using the dtype
-            if isinstance(self.data['overscan_par'], int):
-                self.data['overscan_par'] = [self.data['overscan_par']]
+            if isinstance(self['overscan_par'], int):
+                self['overscan_par'] = [self['overscan_par']]
 
             if (
-                self.data['overscan_method'] in ['polynomial', 'chebyshev']
-                and len(self.data['overscan_par']) != 1
+                self['overscan_method'] in ['polynomial', 'chebyshev']
+                and len(self['overscan_par']) != 1
             ):
                 raise ValueError(
                     'For chebyshev/polynomial overscan method, set overscan_par = order'
                 )
 
-            if self.data['overscan_method'] == 'savgol' and len(self.data['overscan_par']) != 2:
+            if self['overscan_method'] == 'savgol' and len(self['overscan_par']) != 2:
                 raise ValueError(
                     'For savgol overscan method, set overscan_par = order, window size'
                 )
 
-            if self.data['overscan_method'] == 'median' and self.data['overscan_par'] is not None:
+            if self['overscan_method'] == 'median' and self['overscan_par'] is not None:
                 log.warning('No parameters necessary for median overscan method.  Ignoring input.')
 
         # Check the consistency of the flat-fielding approach
         if (
-            not self.data['use_pixelflat']
-            and (self.data['use_illumflat'] or self.data['use_specillum'])
+            not self['use_pixelflat']
+            and (self['use_illumflat'] or self['use_specillum'])
         ):
             raise ValueError(
                 'To apply a slit-illumination or spectral flat-field correction, you must also '
@@ -565,7 +565,7 @@ class FrameGroupPar(parset.ParSet):
         The ``exprng`` must be valid, and the frametype must be one of the
         allowed values.
         """
-        if self.data['exprng'] is not None and len(self.data['exprng']) != 2:
+        if self['exprng'] is not None and len(self['exprng']) != 2:
             raise ValueError('exprng must be a list with two items.')
 
         if self.frametype is None:
@@ -1077,16 +1077,16 @@ class FlatFieldPar(parset.ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        if self.data['pixelflat_file'] is None:
+        if self['pixelflat_file'] is None:
             return
 
         # Check the frame exists
         file_path = dataPaths.pixelflat.get_file_path(
-            self.data['pixelflat_file'], return_none=True
+            self['pixelflat_file'], return_none=True
         )
         if file_path is None:
             raise PypeItError(
-                f'Provided pixelflat file, {self.data["pixelflat_file"]} not found. It is not a '
+                f'Provided pixelflat file, {self["pixelflat_file"]} not found. It is not a '
                 'direct path, a cached file, or a file that can be downloaded from a PypeIt '
                 'repository.'
             )
@@ -1598,8 +1598,8 @@ class Coadd2DPar(parset.ParSet):
 
     def validate(self):
         # Normalize manual extraction entries if provided
-        if self.data['manual'] is not None:
-            self.data['manual'] = ';'.join(parse.fix_config_par_image_location(self.data['manual']))
+        if self['manual'] is not None:
+            self['manual'] = ';'.join(parse.fix_config_par_image_location(self['manual']))
 
 
 class CubePar(parset.ParSet):
@@ -1867,13 +1867,13 @@ class CubePar(parset.ParSet):
     def validate(self):
         # Check the skysub options
         allowed_skysub_options = ["none", "image", ""]
-        if self.data['skysub_frame'] not in allowed_skysub_options:
-            if not Path(self.data['skysub_frame']).absolute().is_file():
+        if self['skysub_frame'] not in allowed_skysub_options:
+            if not Path(self['skysub_frame']).absolute().is_file():
                 raise ValueError(
                     'The "skysub_frame" must be one of the following options: '
                     f'{", ".join(allowed_skysub_options)} or, the relative path to a spec2d file.'
                 )
-        if len(self.data['whitelight_range']) != 2:
+        if len(self['whitelight_range']) != 2:
             raise ValueError(
                 "The 'whitelight_range' must be a two element list of either NoneType or float"
             )
@@ -2028,8 +2028,8 @@ class SensfuncUVISPar(parset.ParSet):
     }
 
     def validate(self):
-        if self.data['sensfunc'] is not None and self.data['std_file'] is None and not Path(self.data['sensfunc']).absolute().is_file():
-            raise ValueError('Provided sensitivity function does not exist: {0}.'.format(self.data['sensfunc']))
+        if self['sensfunc'] is not None and self['std_file'] is None and not Path(self['sensfunc']).absolute().is_file():
+            raise ValueError('Provided sensitivity function does not exist: {0}.'.format(self['sensfunc']))
 
 
 class TelluricPar(parset.ParSet):
@@ -2311,13 +2311,13 @@ class TelluricPar(parset.ParSet):
     }
 
     def validate(self):
-        if self.data['tell_npca'] < 1 or self.data['tell_npca'] > 10:
-            raise ValueError('Invalid value {:d} for tell_npca '.format(self.data['tell_npca'])+
+        if self['tell_npca'] < 1 or self['tell_npca'] > 10:
+            raise ValueError('Invalid value {:d} for tell_npca '.format(self['tell_npca'])+
                              '(must be between 1 and 10).')
 
-        self.data['teltype'] = self.data['teltype'].lower()
-        if self.data['teltype'] not in self.valid_teltype:
-            raise ValueError('Invalid teltype "{}"'.format(self.data['teltype'])+
+        self['teltype'] = self['teltype'].lower()
+        if self['teltype'] not in self.valid_teltype:
+            raise ValueError('Invalid teltype "{}"'.format(self['teltype'])+
                              ', valid options are: {}.'.format(', '.join(self.valid_teltype)))
 
 
@@ -2462,14 +2462,14 @@ class SensFuncPar(parset.ParSet):
     def validate(self):
         # Validate extraction choice
         allowed_extractions = ['BOX', 'OPT']
-        if self.data['extr'] not in allowed_extractions:
+        if self['extr'] not in allowed_extractions:
             raise ValueError(f"'extr' must be one of: {', '.join(allowed_extractions)}")
 
         # check trim_std_pixs format
-        if self.data['trim_std_pixs'] is not None:
+        if self['trim_std_pixs'] is not None:
             if (
-                not isinstance(self.data['trim_std_pixs'], (list, tuple))
-                or len(self.data['trim_std_pixs']) != 2
+                not isinstance(self['trim_std_pixs'], (list, tuple))
+                or len(self['trim_std_pixs']) != 2
             ):
                 raise ValueError("`trim_std_pixs` must be a list or tuple of two integers.")
 
@@ -2682,15 +2682,15 @@ class ReduxPar(parset.ParSet):
     }
 
     def validate(self):
-        if self.data['slitspatnum'] is not None:
-            if self.data['maskIDs'] is not None:
+        if self['slitspatnum'] is not None:
+            if self['maskIDs'] is not None:
                 raise ValueError("You cannot assign both splitspatnum and maskIDs")
-        if self.data['maskIDs'] is not None:
-            if self.data['detnum'] is None:
+        if self['maskIDs'] is not None:
+            if self['detnum'] is None:
                 raise ValueError("You must assign detnum with maskIDs (for now)")
             # Recast as a list
-            if not isinstance(self.data['maskIDs'], list):
-                self.data['maskIDs'] = [self.data['maskIDs']]
+            if not isinstance(self['maskIDs'], list):
+                self['maskIDs'] = [self['maskIDs']]
 
 
 class WavelengthSolutionPar(parset.ParSet):
@@ -3850,19 +3850,19 @@ class EdgeTracePar(parset.ParSet):
     def validate(self):
         # Check if the user defined a slit to remove in a mosaic
         for k in ['rm_slits', 'add_slits']:
-            if self.data.get(k) is None:
+            if self[k] is None:
                 continue
-            self.data[k] = ';'.join(parse.fix_config_par_image_location(self.data[k]))
+            self[k] = ';'.join(parse.fix_config_par_image_location(self[k]))
 
-        if not self.data.get('auto_pca', True) and self.data.get('sync_predict') == 'pca':
+        if not self['auto_pca'] and self['sync_predict'] == 'pca':
             import warnings
             warnings.warn('sync_predict cannot be pca if auto_pca is False.  Setting to nearest.')
-            self.data['sync_predict'] = 'nearest'
+            self['sync_predict'] = 'nearest'
 
-        if self.data.get('max_overlap') is not None and (self.data['max_overlap'] < 0 or self.data['max_overlap'] > 1):
+        if self['max_overlap'] is not None and (self['max_overlap'] < 0 or self['max_overlap'] > 1):
             raise ValueError('If defined, max_overlap must be in the range [0,1].')
 
-        if self.data.get('order_outlier') is not None and self.data.get('order_outlier') < self.data.get('order_fitrej', 0):
+        if self['order_outlier'] is not None and self['order_outlier'] < self['order_fitrej']:
             log.warning('Order outlier threshold should not be less than the rejection threshold.')
 
 
@@ -3995,8 +3995,8 @@ class WaveTiltsPar(parset.ParSet):
     }
 
     def validate(self):
-        if hasattr(self.data['cont_rej'], '__len__'):
-            if len(self.data['cont_rej']) != 2:
+        if hasattr(self['cont_rej'], '__len__'):
+            if len(self['cont_rej']) != 2:
                 raise ValueError('Continuum rejection threshold must be a single number or a '
                                  'two-element list/array.')
 
@@ -4200,11 +4200,11 @@ class FindObjPar(parset.ParSet):
     }
 
     def validate(self):
-        if self.data['std_spec1d'] is not None:
-            if not self.data.get('use_std_trace', True):
+        if self['std_spec1d'] is not None:
+            if not self['use_std_trace']:
                 raise ValueError('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
-            elif not Path(self.data['std_spec1d']).absolute().exists():
-                raise ValueError(f'{self.data["std_spec1d"]} does not exist!')
+            elif not Path(self['std_spec1d']).absolute().exists():
+                raise ValueError(f'{self["std_spec1d"]} does not exist!')
 
 
 class SkySubPar(parset.ParSet):
@@ -4773,7 +4773,7 @@ class PypeItPar(parset.ParSet):
 
             default = PypeItPar()
             nofile = PypeItPar.from_cfg_file()
-            assert default.data == nofile.data, 'This should always pass.'
+            assert default._data == nofile._data, 'This should always pass.'
 
         .. warning::
 
@@ -4854,7 +4854,7 @@ class PypeItPar(parset.ParSet):
 
             default = PypeItPar()
             nofile = PypeItPar.from_cfg_lines()
-            assert default.data == nofile.data, 'This should always pass.'
+            assert default._data == nofile._data, 'This should always pass.'
 
         .. warning::
 
@@ -5004,17 +5004,17 @@ class PypeItPar(parset.ParSet):
             # Find the keys in self that are the same as the default
             frame_same = [
                 key for key in proc_par.keys()
-                if self['calibrations'][f]['process'].data[key] == default[key]
+                if self['calibrations'][f]['process'][key] == default[key]
             ]
             to_change = list(set(base_diff) & set(frame_same))
             for key in to_change:
-                self['calibrations'][f]['process'].data[key] = proc_par[key]
+                self['calibrations'][f]['process'][key] = proc_par[key]
 
         # Science frames
         frame_same = [
             key for key in proc_par.keys()
-            if self['scienceframe']['process'].data[key] == default[key]
+            if self['scienceframe']['process'][key] == default[key]
         ]
         to_change = list(set(base_diff) & set(frame_same))
         for key in to_change:
-            self['scienceframe']['process'].data[key] = proc_par[key]
+            self['scienceframe']['process'][key] = proc_par[key]
