@@ -138,7 +138,7 @@ class ScatteredLightPar(parset.ParSet):
                 'the scattered light directly from that frame.  Select "archive" to use an '
                 'archival model parameter solution for the scattered light (this option is not '
                 'currently available for all spectrographs).'
-            )
+            ),
         ),
         'finecorr_method': parset.set_parameter_definition(
             dtype=str,
@@ -151,7 +151,7 @@ class ScatteredLightPar(parset.ParSet):
                 'not on slits (see also, "finecorr_pad").  Select "poly" to fit a polynomial to '
                 'the scattered light in each row, based on the pixels that are not on slits '
                 '(see also, "finecorr_pad").'
-            )
+            ),
         ),
         'finecorr_pad': parset.set_parameter_definition(
             dtype=int,
@@ -159,7 +159,7 @@ class ScatteredLightPar(parset.ParSet):
             descr=(
                 'Number of unbinned pixels by which to extend the slit edges by when masking the '
                 'slits for the fine correction to the scattered light.'
-            )
+            ),
         ),
         'finecorr_order': parset.set_parameter_definition(
             dtype=int,
@@ -167,7 +167,7 @@ class ScatteredLightPar(parset.ParSet):
             descr=(
                 'Polynomial order to use for the fine correction to the scattered light '
                 'subtraction. It should be a low value.'
-            )
+            ),
         ),
         'finecorr_mask': parset.set_parameter_definition(
             dtype=[int, list],
@@ -178,7 +178,7 @@ class ScatteredLightPar(parset.ParSet):
                 'all pixels between the first and second slit (counting from the left).  Provide '
                 'either a single integer value or a list of integer values. The default (None) '
                 'means that no inter-slit regions will be masked.'
-            )
+            ),
         ),
     }
 
@@ -215,7 +215,7 @@ class ProcessImagesPar(parset.ParSet):
         'trim': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Trim the image to the detector supplied region',
+            descr='Trim the image, removing its overscan region',
         ),
         'apply_gain': parset.set_parameter_definition(
             dtype=bool,
@@ -225,7 +225,7 @@ class ProcessImagesPar(parset.ParSet):
         'orient': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Orient the raw image into the PypeIt frame',
+            descr='Orient the raw image so that it follows the PypeIt convention',
         ),
         'use_biasimage': parset.set_parameter_definition(
             dtype=bool,
@@ -235,7 +235,10 @@ class ProcessImagesPar(parset.ParSet):
         'use_overscan': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Subtract off the overscan.  Detector *must* have one or code will crash.',
+            descr=(
+                'Subtract off the overscan.  Detector *must* have a valid overscan region '
+                'defined or the code will crash.'
+            ),
         ),
         'overscan_method': parset.set_parameter_definition(
             dtype=str,
@@ -354,7 +357,9 @@ class ProcessImagesPar(parset.ParSet):
         'use_illumflat': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Use the illumination flat to correct for the illumination profile of each slit.',
+            descr=(
+                'Use the illumination flat to correct for the illumination profile of each slit.'
+            ),
         ),
         'use_specillum': parset.set_parameter_definition(
             dtype=bool,
@@ -1196,7 +1201,9 @@ class AlignPar(parset.ParSet):
         'trim_edge': parset.set_parameter_definition(
             dtype=list,
             default=[0, 0],
-            descr='Trim the slit by this number of pixels left/right before finding alignment bars',
+            descr=(
+                'Trim the slit by this number of pixels left/right before finding alignment bars'
+            ),
         ),
         'snr_thresh': parset.set_parameter_definition(
             dtype=[int, float],
@@ -1238,7 +1245,10 @@ class Coadd1DPar(parset.ParSet):
         'flux_value': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the spec1d files. If False, it will coadd the counts.',
+            descr=(
+                'If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the '
+                'spec1d files. If False, it will coadd the counts.'
+            ),
         ),
         'nmaskedge': parset.set_parameter_definition(
             dtype=int,
@@ -1248,18 +1258,18 @@ class Coadd1DPar(parset.ParSet):
         'sn_smooth_npix': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
-                'Number of pixels to median filter by when computing S/N used to decide how to scale '
-                'and weight spectra. If set to None (default), the code will determine the effective '
-                'number of good pixels per spectrum in the stack that is being co-added and use 10% of '
-                'this neff.'
+                'Number of pixels to median filter by when computing S/N used to decide how to '
+                'scale and weight spectra. If set to None (default), the code will determine the '
+                'effective number of good pixels per spectrum in the stack that is being co-added '
+                'and use 10% of this neff.'
             ),
         ),
         'sigrej_exp': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
-                'Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma '
-                'above the median S/N. If None (the default), no rejection is performed. Currently, '
-                'only available for multi-slit observations.'
+                'Rejection threshold used for rejecting exposures with S/N more than '
+                'sigrej_exp*sigma above the median S/N. If None (the default), no rejection is '
+                'performed. Currently, only available for multi-slit observations.'
             ),
         ),
         'wave_method': parset.set_parameter_definition(
@@ -1267,47 +1277,48 @@ class Coadd1DPar(parset.ParSet):
             default='linear',
             options=valid_wave_methods,
             descr=(
-                'Method used to construct wavelength grid for coadding spectra. The routine that creates '
-                'the wavelength is :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`. The options are:'
-                " "
-                "'iref' -- Use the first wavelength array.  "
-                "'velocity' -- Grid is uniform in velocity.  "
-                "'log10' -- Grid is uniform in log10(wave). This is the same as velocity.  "
-                "'linear' -- Grid is uniform in lambda.  "
-                "'concatenate' -- Meld the input wavelength arrays"
+                'Method used to construct wavelength grid for coadding spectra. The routine that '
+                'creates the wavelength is :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`. '
+                "The options are: 'iref' - Use the first wavelength array; 'velocity' - Grid is "
+                "uniform in velocity; 'log10' - Grid is uniform in log10(wave). This is the same "
+                "as velocity; 'linear' - Grid is uniform in lambda; 'concatenate' - Meld the "
+                "input wavelength arrays."
             ),
         ),
         'dv': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
-                "Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option), "
-                "otherwise a median value is computed from the data."
+                "Dispersion in units of km/s in case you want to specify it in the get_wave_grid "
+                "(for the 'velocity' option), otherwise a median value is computed from the data."
             ),
         ),
         'dwave': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
-                "Dispersion in Angstroms in case you want to specify it in the get_wave_grid  (for the 'linear' option), "
-                "otherwise a median value is computed from the data."
+                "Dispersion in Angstroms in case you want to specify it in the get_wave_grid (for "
+                "the 'linear' option), otherwise a median value is computed from the data."
             ),
         ),
         'dloglam': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
-                "Dispersion in units of log10(wave) in case you want to specify it in the get_wave_grid  (for the 'velocity' or 'log10' options), "
-                "otherwise a median value is computed from the data."
+                "Dispersion in units of log10(wave) in case you want to specify it in the "
+                "get_wave_grid  (for the 'velocity' or 'log10' options), otherwise a median "
+                "value is computed from the data."
             ),
         ),
         'wave_grid_min': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
-                'Used in case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data'
+                'Used in case you want to specify the minimum wavelength in your wavelength grid, '
+                'default=None computes from data'
             ),
         ),
         'wave_grid_max': parset.set_parameter_definition(
             dtype=[int, float],
             descr=(
-                'Used in case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data'
+                'Used in case you want to specify the maximum wavelength in your wavelength grid, '
+                'default=None computes from data'
             ),
         ),
         'spec_samp_fact': parset.set_parameter_definition(
@@ -1315,19 +1326,19 @@ class Coadd1DPar(parset.ParSet):
             default=1.0,
             descr=(
                 "Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser "
-                "(spec_samp_fact > 1.0) by this sampling factor. This basically multiples the 'native' "
-                "spectral pixels by spec_samp_fact, i.e. units spec_samp_fact are pixels."
+                "(spec_samp_fact > 1.0) by this sampling factor. This basically multiples the "
+                "'native' spectral pixels by spec_samp_fact, i.e. units spec_samp_fact are pixels."
             ),
         ),
         'ref_percentile': parset.set_parameter_definition(
             dtype=[int, float],
             default=70.0,
             descr=(
-                'Percentile used for selecting the minimum SNR cut from a reference spectrum used to '
-                'robustly determine the median ratio between spectra. This parameter is used by '
-                'coadd1d.robust_median_ratio as part of the automatic rescaling procedure. Pixels '
-                'above this percentile cut are deemed the "good" pixels and are used to compute the '
-                'ratio of two spectra.  This must be a number between 0 and 100.'
+                'Percentile used for selecting the minimum SNR cut from a reference spectrum used '
+                'to robustly determine the median ratio between spectra. This parameter is used '
+                'by coadd1d.robust_median_ratio as part of the automatic rescaling procedure.  '
+                'Pixels above this percentile cut are deemed the "good" pixels and are used to '
+                'compute the ratio of two spectra.  This must be a number between 0 and 100.'
             ),
         ),
         'maxiter_scale': parset.set_parameter_definition(
@@ -1338,104 +1349,120 @@ class Coadd1DPar(parset.ParSet):
         'sigrej_scale': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
-            descr='Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.',
+            descr=(
+                'Rejection threshold used for rejecting pixels when rescaling spectra with '
+                'scale_spec.'
+            ),
         ),
         'scale_method': parset.set_parameter_definition(
             dtype=str,
             default='auto',
             options=valid_scale_methods,
             descr=(
-                "Method used to rescale the spectra prior to coadding. The options are:" 
-                " "
-                "'auto' -- Determine the scaling method automatically based on the S/N ratio which works well.  "
-                "'poly' -- Polynomial rescaling.  " 
-                "'median' -- Median rescaling  " 
-                "'none' -- Do not rescale.  " 
-                "'hand' -- Pass in hand scaling factors. This option is not well tested."
+                "Method used to rescale the spectra prior to coadding. The options are: 'auto' - "
+                "Determine the scaling method automatically based on the S/N ratio which works "
+                "well; 'poly' - Polynomial rescaling; 'median' - Median rescaling; 'none' - Do "
+                "not rescale; 'hand' - Pass in hand scaling factors. This option is not well "
+                "tested."
             ),
         ),
         'sn_min_medscale': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.5,
-            descr='For scale method set to ``auto``, this sets the minimum SNR for which median scaling is attempted.',
+            descr=(
+                'For scale method set to ``auto``, this sets the minimum SNR for which median '
+                'scaling is attempted.'
+            ),
         ),
         'sn_min_polyscale': parset.set_parameter_definition(
             dtype=[int, float],
             default=2.0,
-            descr='For scale method set to ``auto``, this sets the minimum SNR for which polynomial scaling is attempted.',
+            descr=(
+                'For scale method set to ``auto``, this sets the minimum SNR for which polynomial '
+                'scaling is attempted.'
+            ),
         ),
         'weight_method': parset.set_parameter_definition(
             dtype=str,
             default='auto',
             options=valid_weight_methods,
             descr=(
-                "Method used to weight the spectra for coadding. The options are:" 
-                " " 
-                "'auto' -- Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent." 
-                "'constant' -- Constant weights based on rms_sn**2" 
-                "'uniform' --  Uniform weighting" 
-                "'wave_dependent' -- Wavelength dependent weights will be used irrespective of the rms_" 
-                "sn ratio. This option will not work well at low S/N ratio although it is useful for " 
-                "objects where only a small fraction of the spectral coverage has high S/N ratio " 
-                "(like high-z quasars)." 
-                "'relative' -- Apply relative weights implying one reference exposure will receive unit " 
-                "weight at all wavelengths and all others receive relatively wavelength dependent "
-                "weights . Note, relative weighting will only work well " 
-                "when there is at least one spectrum with a reasonable S/N, and a continuum. " 
-                "This option may only be better when the object being used has a strong " 
-                "continuum + emission lines. This is particularly useful if you " 
-                "are dealing with highly variable spectra (e.g. emission lines) and" 
-                "require a precision better than ~1 per cent." 
-                "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
+                "Method used to weight the spectra for coadding. The options are: 'auto' - Use "
+                "constant weights if rms_sn < 3.0, otherwise use wavelength dependent; "
+                "'constant' - Constant weights based on rms_sn**2; 'uniform' - Uniform weighting "
+                "'wave_dependent' - Wavelength dependent weights will be used irrespective of "
+                "the rms_sn ratio (this option will not work well at low S/N ratio although it "
+                "is useful for objects where only a small fraction of the spectral coverage has "
+                "high S/N ratio, like high-z quasars); 'relative' - Apply relative weights "
+                "implying one reference exposure will receive unit weight at all wavelengths and "
+                "all others receive relatively wavelength dependent weights (note that relative "
+                "weighting will only work well when there is at least one spectrum with a "
+                "reasonable S/N, and a continuum. This option may only be better when the object "
+                "being used has a strong continuum + emission lines. This is particularly useful "
+                "if you are dealing with highly variable spectra, e.g. emission lines, and "
+                "require a precision better than ~1 per cent); 'ivar' - Use inverse variance "
+                "weighting (this is not well tested and should probably be deprecated)."
             ),
         ),
         'maxiter_reject': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr=(
-                'Maximum number of iterations for stacking and rejection. The code stops iterating '
-                'either when the output mask does not change betweeen successive iterations or when '
-                'maxiter_reject is reached.'
-            )
+                'Maximum number of iterations for stacking and rejection. The code stops '
+                'iterating either when the output mask does not change betweeen successive '
+                'iterations or when maxiter_reject is reached.'
+            ),
         ),
         'lower': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
-            descr='Lower rejection threshold used for rejecting pixels when combining spectra in units of sigma.',
+            descr=(
+                'Lower rejection threshold used for rejecting pixels when combining spectra in '
+                'units of sigma.'
+            ),
         ),
         'upper': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
-            descr='Upper rejection threshold used for rejecting pixels when combining spectra in units of sigma.',
+            descr=(
+                'Upper rejection threshold used for rejecting pixels when combining spectra in '
+                'units of sigma.'
+            ),
         ),
         'maxrej': parset.set_parameter_definition(
             dtype=int,
             descr=(
-                'Coadding performs iterative rejection by comparing each exposure to a preliminary stack of '
-                'all the exposures. If this parameter is set then it will not reject more than maxrej pixels '
-                'per iteration of this rejection. The default is None, which means no maximum on rejected pixels.'
+                'Coadding performs iterative rejection by comparing each exposure to a '
+                'preliminary stack of all the exposures. If this parameter is set then it will '
+                'not reject more than maxrej pixels per iteration of this rejection. The '
+                'default is None, which means no maximum on rejected pixels.'
             ),
         ),
         'sn_clip': parset.set_parameter_definition(
             dtype=[int, float],
             default=30.0,
             descr=(
-                'Errors are capped during rejection so that the S/N is never greater than sn_clip. This '
-                'prevents overly aggressive rejection in high S/N ratio spectrum which neverthless differ '
-                'at a level greater than the formal S/N due to systematics.'
+                'Errors are capped during rejection so that the S/N is never greater than '
+                'sn_clip. This prevents overly aggressive rejection in high S/N ratio spectrum '
+                'which neverthless differ at a level greater than the formal S/N due to '
+                'systematics.'
             ),
         ),
         'nbests': parset.set_parameter_definition(
             dtype=[list, int],
             descr=(
-                'Number of orders to use for estimating the per exposure weights. Default is None, '
-                'which will just use one fourth of the total number of orders. This is only used for Echelle'
+                'Number of orders to use for estimating the per exposure weights. Default is '
+                'None, which will just use one fourth of the total number of orders. This is '
+                'only used for Echelle'
             ),
         ),
         'filter': parset.set_parameter_definition(
             dtype=str,
             default='none',
-            descr='Filter for scaling.  See flux_calib.load_fitler_file() for naming.  Ignore if none',
+            descr=(
+                'Filter for scaling.  See flux_calib.load_fitler_file() for naming.  Ignore '
+                'if none.'
+            ),
         ),
         'mag_type': parset.set_parameter_definition(
             dtype=str,
@@ -1449,8 +1476,8 @@ class Coadd1DPar(parset.ParSet):
         'filter_mask': parset.set_parameter_definition(
             dtype=[str, list],
             descr=(
-                'List of wavelength regions to mask when doing the scaling (`i.e.`, occasional junk pixels). '
-                'Colon and comma separateed, e.g.   5552:5559,6010:6030'
+                'List of wavelength regions to mask when doing the scaling (`i.e.`, occasional '
+                'junk pixels). Colon and comma separated, e.g. 5552:5559,6010:6030'
             ),
         ),
         'coaddfile': parset.set_parameter_definition(
@@ -1491,13 +1518,14 @@ class Coadd2DPar(parset.ParSet):
             default='auto',
             descr=(
                 'Offsets for the images being combined (spat pixels). Options are: '
-                '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. '
-                'Use ``maskdef_offsets`` to use the offsets computed during the slitmask design matching '
-                '(currently available for these :ref:`slitmask_info_instruments` only). If equal '
-                'to ``header``, the dither offsets recorded in the header, when available, will be used. '
-                'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object '
-                'with the highest S/N, or using a list of object ids selected by the user (see ``user_obj_ids``). '
-                'If a list of offsets is provided, PypeIt will use it.'
+                '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets.  Use '
+                '``maskdef_offsets`` to use the offsets computed during the slitmask design '
+                'matching (currently available for these :ref:`slitmask_info_instruments` '
+                'only). If equal to ``header``, the dither offsets recorded in the header, when '
+                'available, will be used.  If ``auto`` is chosen, PypeIt will try to compute '
+                'the offsets using a reference object with the highest S/N, or using a list of '
+                'object ids selected by the user (see ``user_obj_ids``).  If a list of offsets '
+                'is provided, PypeIt will use it.'
             ),
         ),
         'spat_toler': parset.set_parameter_definition(
@@ -1563,14 +1591,14 @@ class Coadd2DPar(parset.ParSet):
             dtype=str,
             options=['iref', 'velocity', 'log10', 'linear'],
             descr=(
-                "Argument to :func:`~pypeit.core.wavecal.wvutils.get_wave_grid` method, which determines how "
-                "the 2d coadd wavelength grid is constructed. The default is None, which will use a linear grid" 
-                "for longslit/multislit coadds and a log10 grid for echelle coadds. " 
-                "Currently supported options with 2d coadding are:" 
-                "* 'iref' -- Use one of the exposures (the first) as the reference for the wavelength grid " 
-                "* 'velocity' -- Grid is uniform in velocity" 
-                "* 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity." 
-                "* 'linear' -- Grid is uniform in wavelength"
+                "Argument to :func:`~pypeit.core.wavecal.wvutils.get_wave_grid` method, which "
+                "determines how the 2d coadd wavelength grid is constructed. The default is None, "
+                "which will use a linear grid for longslit/multislit coadds and a log10 grid for "
+                "echelle coadds.  Currently supported options with 2d coadding are: 'iref' - Use "
+                "one of the exposures (the first) as the reference for the wavelength grid; "
+                "'velocity' - Grid is uniform in velocity; 'log10' - Grid is uniform in "
+                "log10(wave). This is the same as velocity; 'linear' -- Grid is uniform in "
+                "wavelength."
             ),
         ),
         'spec_samp_fact': parset.set_parameter_definition(
@@ -1627,41 +1655,43 @@ class CubePar(parset.ParSet):
             default='auto',
             options=valid_weight_methods,
             descr=(
-                "Method used to weight the spectra for coadding. The options are:"
-                " "
-                "'auto' -- Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent."
-                "'constant' -- Constant weights based on rms_sn**2"
-                "'uniform' --  Uniform weighting"
-                "'wave_dependent' -- Wavelength dependent weights will be used irrespective of the rms_"
-                                    "sn ratio. This option will not work well at low S/N ratio although it is useful for "
-                                    "objects where only a small fraction of the spectral coverage has high S/N ratio "
-                                    "(like high-z quasars)."
-                "'relative' -- Apply relative weights implying one reference exposure will receive unit "
-                                    "weight at all wavelengths and all others receive relatively wavelength dependent "
-                                    "weights . Note, relative weighting will only work well "
-                                    "when there is at least one spectrum with a reasonable S/N, and a continuum. "
-                                    "This option may only be better when the object being used has a strong "
-                                    "continuum + emission lines. This is particularly useful if you "
-                                    "are dealing with highly variable spectra (e.g. emission lines) and"
-                                    "require a precision better than ~1 per cent."
-                "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
+                "Method used to weight the spectra for coadding. The options are: 'auto' - Use "
+                "constant weights if rms_sn < 3.0, otherwise use wavelength dependent; "
+                "'constant' - Constant weights based on rms_sn**2; 'uniform' - Uniform weighting; "
+                "'wave_dependent' - Wavelength dependent weights will be used irrespective of the "
+                "rms_sn ratio (this option will not work well at low S/N ratio although it is "
+                "useful for objects where only a small fraction of the spectral coverage has high "
+                "S/N ratio, like high-z quasars); 'relative' - Apply relative weights implying "
+                "one reference exposure will receive unit weight at all wavelengths and all "
+                "others receive relatively wavelength dependent weights (note that relative "
+                "weighting will only work well when there is at least one spectrum with a "
+                "reasonable S/N, and a continuum.  This option may only be better when the object "
+                "being used has a strong continuum + emission lines.  This is particularly useful "
+                "if you are dealing with highly variable spectra, e.g. emission lines, and "
+                "require a precision better than ~1 per cent.); 'ivar' - Use inverse variance "
+                "weighting (This is not well tested and should probably be deprecated)."
             ),
         ),
         'align': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
-                'If set to True, the input frames will be spatially aligned by cross-correlating the '
-                'whitelight images with either a reference image (see ``reference_image``) or the whitelight '
-                'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, '
-                'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) '
-                'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
+                'If set to True, the input frames will be spatially aligned by cross-correlating '
+                'the whitelight images with either a reference image (see ``reference_image``) or '
+                'the whitelight image that is generated using the first spec2d listed in the '
+                'coadd3d file. Alternatively, the user can specify the offsets (i.e. Delta RA x '
+                'cos(dec) and Delta Dec, both in arcsec) in the spec2d block of the coadd3d '
+                'file. See the documentation for examples of this usage.'
             ),
         ),
         'combine': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='If set to True, the input frames will be combined. Otherwise, a separate datacube will be generated for each input spec2d file, and will be saved as a spec3d file.',
+            descr=(
+                'If set to True, the input frames will be combined. Otherwise, a separate '
+                'datacube will be generated for each input spec2d file, and will be saved as a '
+                'spec3d file.'
+            ),
         ),
         'output_filename': parset.set_parameter_definition(
             dtype=str,
@@ -1721,20 +1751,21 @@ class CubePar(parset.ParSet):
             default='subpixel',
             options=['subpixel', 'ngp'],
             descr=(
-                'What method should be used to generate the datacube. There are currently two options: '
-                '(1) "subpixel" (default) - this algorithm divides each pixel in the spec2d frames '
-                'into subpixels, and assigns each subpixel to a voxel of the datacube. Flux is conserved, '
-                'but voxels are correlated, and the error spectrum does not account for covariance between '
-                'adjacent voxels. See also, spec_subpixel and spat_subpixel. '
-                '(2) "ngp" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is '
-                'conserved, voxels are not correlated, however this option suffers the same downsides as '
-                'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm '
-                'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the '
-                'datacube. Depending on the binning used, some voxels may be empty (zero flux) while a '
-                'neighboring voxel might contain the flux from two spec2d pixels. Note that all spec2d '
-                'pixels that contribute to the same voxel are inverse variance weighted (e.g. if two '
-                'pixels have the same variance, the voxel would be assigned the average flux of the two '
-                'pixels).'
+                'What method should be used to generate the datacube. There are currently two '
+                'options: (1) "subpixel" (default) - this algorithm divides each pixel in the '
+                'spec2d frames into subpixels, and assigns each subpixel to a voxel of the '
+                'datacube. Flux is conserved, but voxels are correlated, and the error spectrum '
+                'does not account for covariance between adjacent voxels. See also, spec_subpixel '
+                'and spat_subpixel. (2) "ngp" (nearest grid point) - this algorithm is '
+                'effectively a 3D histogram. Flux is conserved, voxels are not correlated, '
+                'however this option suffers the same downsides as any histogram; the choice of '
+                'bin sizes can change how the datacube appears. This algorithm takes each pixel '
+                'on the spec2d frame and puts the flux of this pixel into one voxel in the '
+                'datacube. Depending on the binning used, some voxels may be empty (zero flux) '
+                'while a neighboring voxel might contain the flux from two spec2d pixels. Note '
+                'that all spec2d pixels that contribute to the same voxel are inverse variance '
+                'weighted (e.g. if two pixels have the same variance, the voxel would be assigned '
+                'the average flux of the two pixels).'
             ),
         ),
         'spec_subpixel': parset.set_parameter_definition(
@@ -1837,15 +1868,17 @@ class CubePar(parset.ParSet):
                 'This option performs a small correction for the relative spectral illumination '
                 'scale of different spec2D files. Specify the relative path+file to the spec2D '
                 'file that you would like to use for the relative scaling. If you want to perform '
-                'this correction, it is best to use the spec2d file with the highest S/N sky spectrum. '
-                'You should choose the same frame for both the standards and science frames.'
+                'this correction, it is best to use the spec2d file with the highest S/N sky ' 
+                'spectrum. You should choose the same frame for both the standards and science '
+                'frames.'
             ),
         ),
         'correct_dar': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
-                'If True, the data will be corrected for differential atmospheric refraction (DAR).'
+                'If True, the data will be corrected for differential atmospheric refraction '
+                '(DAR).'
             ),
         ),
         'skysub_frame': parset.set_parameter_definition(
@@ -1855,11 +1888,12 @@ class CubePar(parset.ParSet):
                 'Set the sky subtraction to be implemented. The default behaviour is to subtract '
                 'the sky using the model that is derived from each individual image (i.e. set '
                 'this parameter to "image"). To turn off sky subtraction completely, set this '
-                'parameter to "none" (all lowercase). Finally, if you want to use a different frame '
-                'for the sky subtraction, specify the relative path+file to the spec2D file that you '
-                'would like to use for the sky subtraction. The model fit to the sky of the specified '
-                'frame will be used. Note, the sky and science frames do not need to have the same '
-                'exposure time; the sky model will be scaled to the science frame based on the relative exposure time.'
+                'parameter to "none" (all lowercase). Finally, if you want to use a different '
+                'frame for the sky subtraction, specify the relative path+file to the spec2D file '
+                'that you would like to use for the sky subtraction. The model fit to the sky of '
+                'the specified frame will be used. Note, the sky and science frames do not need '
+                'to have the same exposure time; the sky model will be scaled to the science '
+                'frame based on the relative exposure time.'
             ),
         ),
     }
@@ -1903,27 +1937,30 @@ class FluxCalibratePar(parset.ParSet):
         'extinct_correct': parset.set_parameter_definition(
             dtype=bool,
             descr=(
-                'The default behavior for atmospheric extinction corrections is that if UVIS algorithm is used '
-                '(which does not correct for telluric absorption) than an atmospheric extinction model '
-                'is used to correct for extinction below 10,000A, whereas if the IR algorithm is used, then '
-                'no extinction correction is applied since the atmosphere is modeled directly. To follow these '
-                'defaults based on the algorithm this parameter should be set to ``extinct_correct=None``. If instead this '
-                'parameter is set, this overide this default behavior. In other words, it will force an extinction correction '
-                'if ``extinct_correct=True``, and will not perform an extinction correction if ``extinct_correct=False``.'
+                'The default behavior for atmospheric extinction corrections is that if UVIS '
+                'algorithm is used (which does not correct for telluric absorption) than an '
+                'atmospheric extinction model is used to correct for extinction below 10,000A, '
+                'whereas if the IR algorithm is used, then no extinction correction is applied '
+                'since the atmosphere is modeled directly. To follow these defaults based on the '
+                'algorithm this parameter should be set to ``extinct_correct=None``. If instead '
+                'this parameter is set, this overide this default behavior. In other words, it '
+                'will force an extinction correction if ``extinct_correct=True``, and will not '
+                'perform an extinction correction if ``extinct_correct=False``.'
             ),
         ),
         'extinct_file': parset.set_parameter_definition(
             dtype=str,
             default='closest',
             descr=(
-                'If ``extinct_file=\'closest\'`` the code will select the PypeIt-included extinction '
-                'file for the closest observatory (within 5 deg, geographic coordinates) to the telescope '
-                'identified in ``std_file`` (see :ref:`extinction_correction` for the list of currently '
-                'included files).  If constructing a sesitivity function for a telescope not within 5 deg '
-                'of a listed observatory, this parameter may be set to the name of one of the listed '
-                'extinction files.  Alternatively, a custom extinction file may be installed in the '
-                'PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter may then '
-                'be set to the name of the custom extinction file.'
+                'If ``extinct_file=\'closest\'`` the code will select the PypeIt-included '
+                'extinction file for the closest observatory (within 5 deg, geographic '
+                'coordinates) to the telescope identified in ``std_file`` (see '
+                ':ref:`extinction_correction` for the list of currently included files).  If '
+                'constructing a sesitivity function for a telescope not within 5 deg of a listed '
+                'observatory, this parameter may be set to the name of one of the listed '
+                'extinction files.  Alternatively, a custom extinction file may be installed in '
+                'the PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter '
+                'may then be set to the name of the custom extinction file.'
             ),
         ),
         'use_archived_sens': parset.set_parameter_definition(
@@ -1951,7 +1988,10 @@ class SensfuncUVISPar(parset.ParSet):
         ),
         'std_obj_id': parset.set_parameter_definition(
             dtype=[str, int],
-            descr=('Specifies object in spec1d file to use as standard. The brightest object found is used otherwise.'),
+            descr=(
+                'Specifies object in spec1d file to use as standard. The brightest object found '
+                'is used otherwise.'
+            ),
         ),
         'sensfunc': parset.set_parameter_definition(
             dtype=str,
@@ -1970,36 +2010,41 @@ class SensfuncUVISPar(parset.ParSet):
             dtype=str,
             default='closest',
             descr=(
-                'If ``extinct_file=\'closest\'`` the code will select the PypeIt-included extinction '
-                'file for the closest observatory (within 5 deg, geographic coordinates) to the telescope '
-                'identified in ``std_file`` (see :ref:`extinction_correction` for the list of currently '
-                'included files).  If constructing a sesitivity function for a telescope not within 5 deg '
-                'of a listed observatory, this parameter may be set to the name of one of the listed '
-                'extinction files.  Alternatively, a custom extinction file may be installed in the '
-                'PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter may then '
-                'be set to the name of the custom extinction file.'
+                'If ``extinct_file=\'closest\'`` the code will select the PypeIt-included '
+                'extinction file for the closest observatory (within 5 deg, geographic '
+                'coordinates) to the telescope identified in ``std_file`` (see '
+                ':ref:`extinction_correction` for the list of currently included files).  If '
+                'constructing a sesitivity function for a telescope not within 5 deg of a listed '
+                'observatory, this parameter may be set to the name of one of the listed '
+                'extinction files.  Alternatively, a custom extinction file may be installed in '
+                'the PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter '
+                'may then be set to the name of the custom extinction file.'
             ),
         ),
         'telluric_correct': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
-                "If ``telluric_correct=True`` the code will grab the sens_dict['telluric'] tag from the "
-                "sensfunc dictionary and apply it to the data."
+                "If ``telluric_correct=True`` the code will grab the sens_dict['telluric'] tag "
+                "from the sensfunc dictionary and apply it to the data."
             ),
         ),
         'telluric': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
-                'If ``telluric=True`` the code creates a synthetic standard star spectrum using the Kurucz models, '
-                'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
+                'If ``telluric=True`` the code creates a synthetic standard star spectrum using '
+                'the Kurucz models, the sens func is created setting nresln=1.5 it contains the '
+                'correction for telluric lines.'
             ),
         ),
         'polycorrect': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions',
+            descr=(
+                'Whether you want to correct the sensfunc with polynomial in the telluric and '
+                'recombination line regions'
+            ),
         ),
         'polyfunc': parset.set_parameter_definition(
             dtype=bool,
@@ -2009,27 +2054,37 @@ class SensfuncUVISPar(parset.ParSet):
         'nresln': parset.set_parameter_definition(
             dtype=[int, float],
             default=20,
-            descr='Parameter governing the spacing of the bspline breakpoints in terms of number of resolution elements.',
+            descr=(
+                'Parameter governing the spacing of the bspline breakpoints in terms of number '
+                'of resolution elements.'
+            ),
         ),
         'resolution': parset.set_parameter_definition(
             dtype=[int, float],
             default=3000.0,
-            descr='Expected resolution of the standard star spectrum. This should be measured from the data.',
+            descr=(
+                'Expected resolution of the standard star spectrum. This should be measured from '
+                'the data.'
+            ),
         ),
         'trans_thresh': parset.set_parameter_definition(
             dtype=float,
             default=0.9,
             descr=(
                 'Parameter for selecting telluric regions which are masked. Locations below this '
-                'transmission value are masked. If you have significant telluric absorption you should '
-                'be using telluric.sensnfunc_telluric'
+                'transmission value are masked. If you have significant telluric absorption you '
+                'should be using telluric.sensnfunc_telluric'
             ),
         ),
     }
 
     def validate(self):
-        if self['sensfunc'] is not None and self['std_file'] is None and not Path(self['sensfunc']).absolute().is_file():
-            raise ValueError('Provided sensitivity function does not exist: {0}.'.format(self['sensfunc']))
+        if (
+            self['sensfunc'] is not None
+            and self['std_file'] is None
+            and not Path(self['sensfunc']).absolute().is_file()
+        ):
+            raise ValueError(f'Provided sensitivity function does not exist: {self["sensfunc"]}.')
 
 
 class TelluricPar(parset.ParSet):
@@ -2114,12 +2169,18 @@ class TelluricPar(parset.ParSet):
         'pix_shift_bounds': parset.set_parameter_definition(
             dtype=tuple,
             default=(-5.0, 5.0),
-            descr='Bounds for the pixel shift optimization in the telluric model fit in units of pixels.  The atmosphere will be allowed to shift within this range during the fit.',
+            descr=(
+                'Bounds for the pixel shift optimization in the telluric model fit in units of '
+                'pixels.  The atmosphere will be allowed to shift within this range during the '
+                'fit.'
+            ),
         ),
         'delta_coeff_bounds': parset.set_parameter_definition(
             dtype=tuple,
             default=(-20.0, 20.0),
-            descr='Parameters setting the polynomial coefficient bounds for sensfunc optimization.',
+            descr=(
+                'Parameters setting the polynomial coefficient bounds for sensfunc optimization.'
+            ),
         ),
         'minmax_coeff_bounds': parset.set_parameter_definition(
             dtype=tuple,
@@ -2140,7 +2201,13 @@ class TelluricPar(parset.ParSet):
         'maxiter': parset.set_parameter_definition(
             dtype=int,
             default=2,
-            descr='Maximum number of iterations for the telluric + object model fitting.  The code performs multiple iterations rejecting outliers at each step.  The fit is then performed anew to the remaining good pixels.  For this reason if you run with the ``disp=True`` option, you will see that the f(x) loss function gets progressively better during the iterations.',
+            descr=(
+                'Maximum number of iterations for the telluric + object model fitting.  The code '
+                'performs multiple iterations rejecting outliers at each step.  The fit is then '
+                'performed anew to the remaining good pixels.  For this reason if you run with '
+                'the ``disp=True`` option, you will see that the f(x) loss function gets '
+                'progressively better during the iterations.'
+            ),
         ),
         'sticky': parset.set_parameter_definition(
             dtype=bool,
@@ -2184,60 +2251,105 @@ class TelluricPar(parset.ParSet):
         'upper': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
-            descr='Upper rejection threshold in units of ``sigma_corr*sigma``, where ``sigma`` is the formal noise of the spectrum, and ``sigma_corr`` is an empirically determined correction to the formal error. See ``lower`` for additional detail.',
+            descr=(
+                'Upper rejection threshold in units of ``sigma_corr*sigma``, where ``sigma`` is '
+                'the formal noise of the spectrum, and ``sigma_corr`` is an empirically '
+                'determined correction to the formal error. See ``lower`` for additional detail.'
+            ),
         ),
         'seed': parset.set_parameter_definition(
             dtype=int,
             default=777,
-            descr='An initial seed for the differential evolution optimization, which is a random process.  The default is 777, which will be used to generate a unique seed for every order.  A specific seed is used because otherwise the random number generator will use the time for the seed, and the results will not be reproducible.',
+            descr=(
+                'An initial seed for the differential evolution optimization, which is a random '
+                'process.  The default is 777, which will be used to generate a unique seed for '
+                'every order.  A specific seed is used because otherwise the random number '
+                'generator will use the time for the seed, and the results will not be '
+                'reproducible.'
+            ),
         ),
         'tol': parset.set_parameter_definition(
             dtype=float,
             default=1e-3,
-            descr='Relative tolerance for converage of the differential evolution optimization. See `scipy.optimize.differential_evolution`_ for details.',
+            descr=(
+                'Relative tolerance for converage of the differential evolution optimization. '
+                'See `scipy.optimize.differential_evolution`_ for details.'
+            ),
         ),
         'popsize': parset.set_parameter_definition(
             dtype=int,
             default=30,
-            descr='A multiplier for setting the total population size for the differential evolution optimization. See `scipy.optimize.differential_evolution`_ for details.',
+            descr=(
+                'A multiplier for setting the total population size for the differential '
+                'evolution optimization. See `scipy.optimize.differential_evolution`_ for details.'
+            ),
         ),
         'recombination': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.7,
-            descr='The recombination constant for the differential evolution optimization. This should be in the range between 0 and 1. See `scipy.optimize.differential_evolution`_ for details.',
+            descr=(
+                'The recombination constant for the differential evolution optimization. This '
+                'should be in the range between 0 and 1. See '
+                ':class:`scipy.optimize.differential_evolution`_ for details.'
+            ),
         ),
         'polish': parset.set_parameter_definition(
             dtype=bool,
             default=True,
-            descr='If True then differential evolution will perform an additional optimization at the end to polish the best fit at the end, which can improve the optimization slightly. See `scipy.optimize.differential_evolution`_ for details.',
+            descr=(
+                'If True then differential evolution will perform an additional optimization at '
+                'the end to polish the best fit at the end, which can improve the optimization '
+                'slightly. See `scipy.optimize.differential_evolution`_ for details.'
+            ),
         ),
         'disp': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='Argument for `scipy.optimize.differential_evolution`_ that will display status messages to the screen indicating the status of the optimization.  See documentation for :class:`~pypeit.core.telluric.Telluric` for a description of the output and how to know if things are working well.',
+            descr=(
+                'Argument for `scipy.optimize.differential_evolution`_ that will display status '
+                'messages to the screen indicating the status of the optimization.  See '
+                'documentation for :class:`~pypeit.core.telluric.Telluric` for a description of '
+                'the output and how to know if things are working well.'
+            ),
         ),
         'only_orders': parset.set_parameter_definition(
             dtype=[int, list, np.ndarray],
-            descr='Order number, or list of order numbers if you only want to fit specific orders.',
+            descr=(
+                'Order number, or list of order numbers if you only want to fit specific orders.'
+            ),
         ),
         'objmodel': parset.set_parameter_definition(
             dtype=str,
-            descr=('The object model to be used for telluric fitting. Currently the options are: ``qso``, ``star``, and ``poly``.  For ``qso``, you might need to set ``redshift`` and ``bal_wv_min_max``.  For ``star``, you must set ``star_type``, ``star_ra``, ``star_dec``, and ``star_mag``.  For ``poly``, you might need to set ``fit_wv_min_max`` and ``norder``.'),
+            descr=(
+                'The object model to be used for telluric fitting. Currently the options are: '
+                '``qso``, ``star``, and ``poly``.  For ``qso``, you might need to set '
+                '``redshift`` and ``bal_wv_min_max``.  For ``star``, you must set ``star_type``, '
+                '``star_ra``, ``star_dec``, and ``star_mag``.  For ``poly``, you might need to '
+                'set ``fit_wv_min_max`` and ``norder``.'
+            ),
         ),
         'redshift': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.0,
-            descr='The redshift for the object model. This is currently only used by the QSO model.',
+            descr=(
+                'The redshift for the object model. This is currently only used by the QSO model.'
+            ),
         ),
         'delta_redshift': parset.set_parameter_definition(
             dtype=float,
             default=0.1,
-            descr='Range within the redshift can be varied for telluric fitting, i.e. the code performs a bounded optimization within the redshift +- delta_redshift.',
+            descr=(
+                'Range within the redshift can be varied for telluric fitting, i.e. the code '
+                'performs a bounded optimization within the redshift +- delta_redshift.'
+            ),
         ),
         'pca_file': parset.set_parameter_definition(
             dtype=str,
             default='qso_pca_1200_3100.fits',
-            descr='Fits file containing quasar PCA model. Needed for the QSO model.  If you change the default, you might need to set ``pca_lower`` and ``pca_upper``.',
+            descr=(
+                'Fits file containing quasar PCA model. Needed for the QSO model.  If you change '
+                'the default, you might need to set ``pca_lower`` and ``pca_upper``.'
+            ),
         ),
         'npca': parset.set_parameter_definition(
             dtype=int,
@@ -2246,7 +2358,12 @@ class TelluricPar(parset.ParSet):
         ),
         'bal_wv_min_max': parset.set_parameter_definition(
             dtype=[list, np.ndarray],
-            descr='Min/max wavelength of broad absorption features. If there are several BAL features, the format for this mask is ``[wave_min_bal1, wave_max_bal1, wave_min_bal2, wave_max_bal2,...]``. These masked pixels will be ignored during the fitting.',
+            descr=(
+                'Min/max wavelength of broad absorption features. If there are several BAL '
+                'features, the format for this mask is ``[wave_min_bal1, wave_max_bal1, '
+                'wave_min_bal2, wave_max_bal2,...]``. These masked pixels will be ignored during '
+                'the fitting.'
+            ),
         ),
         'bounds_norm': parset.set_parameter_definition(
             dtype=tuple,
@@ -2297,7 +2414,11 @@ class TelluricPar(parset.ParSet):
         'model': parset.set_parameter_definition(
             dtype=str,
             default='exp',
-            descr='Types of polynomial model. Options are ``poly``, ``square``, ``exp`` corresponding to normal polynomial, squared polynomial, or exponentiated polynomial.',
+            descr=(
+                'Types of polynomial model. Options are ``poly``, ``square``, ``exp`` '
+                'corresponding to normal polynomial, squared polynomial, or exponentiated '
+                'polynomial.'
+            ),
         ),
         'polyorder': parset.set_parameter_definition(
             dtype=int,
@@ -2306,7 +2427,10 @@ class TelluricPar(parset.ParSet):
         ),
         'fit_wv_min_max': parset.set_parameter_definition(
             dtype=list,
-            descr='Pixels within this mask will be used during the fitting. The format is the same with ``bal_wv_min_max``, but this mask is good pixel masks.',
+            descr=(
+                'Pixels within this mask will be used during the fitting. The format is the same '
+                'with ``bal_wv_min_max``, but this mask is good pixel masks.'
+            ),
         ),
     }
 
@@ -2335,7 +2459,10 @@ class SensFuncPar(parset.ParSet):
         'use_flat': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='If True, the flatfield spectrum will be used when computing the sensitivity function.',
+            descr=(
+                'If True, the flatfield spectrum will be used when computing the sensitivity '
+                'function.'
+            ),
         ),
         'extr': parset.set_parameter_definition(
             dtype=str,
@@ -2350,9 +2477,9 @@ class SensFuncPar(parset.ParSet):
             default=0.1,
             descr=(
                 'Fraction of minimum wavelength coverage to grow the wavelength coverage of the '
-                'sensitivitity function in the blue direction (`i.e.`, if the standard star spectrum '
-                'cuts off at ``wave_min``) the sensfunc will be extrapolated to cover down to '
-                ' (1.0 - ``extrap_blu``) * ``wave_min``'
+                'sensitivitity function in the blue direction (`i.e.`, if the standard star '
+                'spectrum cuts off at ``wave_min``) the sensfunc will be extrapolated to cover '
+                'down to  (1.0 - ``extrap_blu``) * ``wave_min``.'
             ),
         ),
         'extrap_red': parset.set_parameter_definition(
@@ -2360,17 +2487,18 @@ class SensFuncPar(parset.ParSet):
             default=0.1,
             descr=(
                 'Fraction of maximum wavelength coverage to grow the wavelength coverage of the '
-                'sensitivitity function in the red direction (`i.e.`, if the standard star spectrum'
-                'cuts off at ``wave_max``) the sensfunc will be extrapolated to cover up to '
-                ' (1.0 + ``extrap_red``) * ``wave_max``'
+                'sensitivitity function in the red direction (`i.e.`, if the standard star '
+                'spectrum cuts off at ``wave_max``) the sensfunc will be extrapolated to cover up '
+                'to (1.0 + ``extrap_red``) * ``wave_max``.'
             ),
         ),
         'samp_fact': parset.set_parameter_definition(
             dtype=float,
             default=1.5,
             descr=(
-                'Sampling factor to make the wavelength grid for sensitivity function finer or coarser. '
-                'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
+                'Sampling factor to make the wavelength grid for sensitivity function finer or '
+                'coarser.  samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples '
+                '(coarser).'
             ),
         ),
         'multi_spec_det': parset.set_parameter_definition(
@@ -2399,10 +2527,10 @@ class SensFuncPar(parset.ParSet):
             options=['UVIS', 'IR'],
             descr=(
                 "Specify the algorithm for computing the sensitivity function. The options are: "
-                r" (1) UVIS = Should be used for data with :math:`\lambda < 7000` A. "
-                "No detailed model of telluric absorption but corrects for atmospheric extinction. "
-                r" (2) IR = Should be used for data with :math:`\lambda > 7000` A. "
-                "Peforms joint fit for sensitivity function and telluric absorption using HITRAN models."
+                r" (1) UVIS = Should be used for data with :math:`\lambda < 7000` A.  No detailed "
+                "model of telluric absorption but corrects for atmospheric extinction.  (2) IR = "
+                r"Should be used for data with :math:`\lambda > 7000` A. Peforms joint fit for "
+                "sensitivity function and telluric absorption using HITRAN models."
             ),
         ),
         'UVIS': parset.set_parameter_definition(
@@ -2430,31 +2558,42 @@ class SensFuncPar(parset.ParSet):
         ),
         'star_ra': parset.set_parameter_definition(
             dtype=float,
-            descr='RA of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)',
+            descr=(
+                'RA of the standard star. This will override values in the header (`i.e.`, if '
+                'they are wrong or absent)'
+            ),
         ),
         'star_dec': parset.set_parameter_definition(
             dtype=float,
-            descr='DEC of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)',
+            descr=(
+                'DEC of the standard star. This will override values in the header (`i.e.`, if '
+                'they are wrong or absent)'
+            ),
         ),
         'mask_hydrogen_lines': parset.set_parameter_definition(
             dtype=bool,
             default=True,
             descr=(
-                'Mask hydrogen Balmer, Paschen, Brackett, and Pfund recombination lines in the sensitivity function fit. '
-                'A region equal to ``hydrogen_mask_wid`` on either side of the line center is masked.'
+                'Mask hydrogen Balmer, Paschen, Brackett, and Pfund recombination lines in the '
+                'sensitivity function fit.  A region equal to ``hydrogen_mask_wid`` on either '
+                'side of the line center is masked.'
             ),
         ),
         'hydrogen_mask_wid': parset.set_parameter_definition(
             dtype=float,
             default=10.0,
-            descr='Mask width from line center for hydrogen recombination lines in Angstroms (total mask width is 2x this value).',
+            descr=(
+                'Mask width from line center for hydrogen recombination lines in Angstroms (total '
+                'mask width is 2x this value).'
+            ),
         ),
         'mask_helium_lines': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
-                'Mask certain ``HeII`` recombination lines prominent in O-type stars in the sensitivity function fit '
-                'A region equal to 0.5 * ``hydrogen_mask_wid`` on either side of the line center is masked.'
+                'Mask certain ``HeII`` recombination lines prominent in O-type stars in the '
+                'sensitivity function fit.  A region equal to 0.5 * ``hydrogen_mask_wid`` on '
+                'either side of the line center is masked.'
             ),
         ),
     }
@@ -2614,8 +2753,9 @@ class ReduxPar(parset.ParSet):
             dtype=[str, list],
             descr=(
                 'Restrict reduction to a set of slit DET:SPAT values (closest slit is used). '
-                'Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, '
-                '(i.e. modifying one slit) you *must* have the precise SPAT_ID index.'
+                'Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are '
+                're-running the code, (i.e. modifying one slit) you *must* have the precise '
+                'SPAT_ID index.'
             ),
         ),
         'maskIDs': parset.set_parameter_definition(
@@ -2695,7 +2835,8 @@ class ReduxPar(parset.ParSet):
 
 class WavelengthSolutionPar(parset.ParSet):
     """
-    New-style parameter set for wavelength solution settings (replacement for WavelengthSolutionPar).
+    New-style parameter set for wavelength solution settings (replacement for
+    WavelengthSolutionPar).
 
     Mirrors the legacy `WavelengthSolutionPar` in :mod:`pypeit.par.pypeitpar`.
     """
@@ -2878,12 +3019,13 @@ class WavelengthSolutionPar(parset.ParSet):
             dtype=int,
             default=1,
             descr=(
-                'Minimum number of times that a given candidate reidentified line must be properly '
-                'matched with a line in the arxiv to be considered a good reidentification. If there '
-                'is a lot of duplication in the arxiv of the spectra in question (i.e. multislit) set '
-                'this to a number like 1-4. For echelle this depends on the number of solutions in the '
-                'arxiv.  Set this to 1 for fixed format echelle spectrographs.  For an echelle with a '
-                'tiltable grating, this will depend on the number of solutions in the arxiv.'
+                'Minimum number of times that a given candidate reidentified line must be '
+                'properly matched with a line in the arxiv to be considered a good '
+                'reidentification. If there is a lot of duplication in the arxiv of the spectra '
+                'in question (i.e. multislit) set this to a number like 1-4. For echelle this '
+                'depends on the number of solutions in the arxiv.  Set this to 1 for fixed format '
+                'echelle spectrographs.  For an echelle with a tiltable grating, this will depend '
+                'on the number of solutions in the arxiv.'
             ),
         ),
         'reid_cont_sub': parset.set_parameter_definition(
@@ -2904,7 +3046,8 @@ class WavelengthSolutionPar(parset.ParSet):
             dtype=int,
             default=2,
             descr=(
-                "Number of spectra to chop the arc spectrum into when ``method`` is 'full_template'"
+                "Number of spectra to chop the arc spectrum into when ``method`` is "
+                "'full_template'."
             ),
         ),
         'cc_shift_range': parset.set_parameter_definition(
@@ -2945,8 +3088,8 @@ class WavelengthSolutionPar(parset.ParSet):
             dtype=int,
             default=11,
             descr=(
-                'Size of pixel window used for local cross-correlation computation for each arc line. '
-                'If not an odd number one will be added to it to make it odd.'
+                'Size of pixel window used for local cross-correlation computation for each arc '
+                'line.  If not an odd number one will be added to it to make it odd.'
             ),
         ),
         'rms_thresh_frac_fwhm': parset.set_parameter_definition(
@@ -3024,7 +3167,8 @@ class WavelengthSolutionPar(parset.ParSet):
             dtype=int,
             default=5,
             descr=(
-                'Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)'
+                'Number of pixels to fit when deriving the centroid of the arc lines (an odd '
+                'number is best)'
             ),
         ),
         'refframe': parset.set_parameter_definition(
@@ -3855,11 +3999,13 @@ class EdgeTracePar(parset.ParSet):
             self[k] = ';'.join(parse.fix_config_par_image_location(self[k]))
 
         if not self['auto_pca'] and self['sync_predict'] == 'pca':
-            import warnings
-            warnings.warn('sync_predict cannot be pca if auto_pca is False.  Setting to nearest.')
+            log.warning('sync_predict cannot be pca if auto_pca is False.  Setting to nearest.')
             self['sync_predict'] = 'nearest'
 
-        if self['max_overlap'] is not None and (self['max_overlap'] < 0 or self['max_overlap'] > 1):
+        if (
+            self['max_overlap'] is not None
+            and (self['max_overlap'] < 0 or self['max_overlap'] > 1)
+        ):
             raise ValueError('If defined, max_overlap must be in the range [0,1].')
 
         if self['order_outlier'] is not None and self['order_outlier'] < self['order_fitrej']:
@@ -3890,67 +4036,78 @@ class WaveTiltsPar(parset.ParSet):
             default=20.0,
             descr=(
                 'Significance threshold for arcs to be used in tracing wavelength tilts. '
-                'This can be a single number or a list/array providing the value for each slit/order.'
+                'This can be a single number or a list/array providing the value for each '
+                'slit/order.'
             ),
         ),
         'sig_neigh': parset.set_parameter_definition(
             dtype=[int, float],
             default=10.0,
             descr=(
-                'Significance threshold for arcs to be used in line identification for the purpose of identifying neighboring lines. '
-                'The tracethresh parameter above determines the significance threshold of lines that will be traced, but these lines '
-                ' must be at least nfwhm_neigh fwhm away from neighboring lines. This parameter determines the significance above which '
-                ' a line must be to be considered a possible colliding neighbor. A low value of sig_neigh will result in an overall '
-                ' larger number of lines, which will result in more lines above tracethresh getting rejected'
+                'Significance threshold for arcs to be used in line identification for the '
+                'purpose of identifying neighboring lines.  The tracethresh parameter above '
+                'determines the significance threshold of lines that will be traced, but these '
+                'lines must be at least nfwhm_neigh fwhm away from neighboring lines. This '
+                'parameter determines the significance above which a line must be to be '
+                'considered a possible colliding neighbor. A low value of sig_neigh will result '
+                'in an overall larger number of lines, which will result in more lines above '
+                'tracethresh getting rejected.'
             ),
         ),
         'nfwhm_neigh': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
-                'Required separation between neighboring arc lines for them to be considered for tilt tracing in units of the '
-                'the spectral fwhm (see wavelength parset where fwhm is defined)'
+                'Required separation between neighboring arc lines for them to be considered for '
+                'tilt tracing in units of the spectral fwhm (see wavelength parset where fwhm is '
+                'defined).'
             ),
         ),
         'maxdev_tracefit': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.2,
             descr=(
-                'Maximum absolute deviation (in units of fwhm) for the legendre polynomial fits to individual '
-                'arc line tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)'
+                'Maximum absolute deviation (in units of fwhm) for the legendre polynomial fits '
+                'to individual arc line tilt fits during iterative trace fitting (flux weighted, '
+                'then gaussian weighted).'
             ),
         ),
         'sigrej_trace': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
-                'Outlier rejection significance to determine which traced arc lines should be included in the global fit'
+                'Outlier rejection significance to determine which traced arc lines should be '
+                'included in the global fit'
             ),
         ),
         'spat_order': parset.set_parameter_definition(
             dtype=[int, float, list, np.ndarray],
             default=3,
             descr=(
-                'Order of the legendre polynomial to be fit to the tilt of an arc line. This parameter determines '
-                'both the order of the *individual* arc line tilts, as well as the order of the spatial direction of the '
-                '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the '
-                'slit/order. This can be a single number or a list/array providing the value for each slit'
+                'Order of the legendre polynomial to be fit to the tilt of an arc line. This '
+                'parameter determines both the order of the *individual* arc line tilts, as well '
+                'as the order of the spatial direction of the 2d legendre polynomial (spatial, '
+                'spectral) that is fit to obtain a global solution for the tilts across the '
+                'slit/order. This can be a single number or a list/array providing the value for '
+                'each slit.'
             ),
         ),
         'spec_order': parset.set_parameter_definition(
             dtype=[int, float, list, np.ndarray],
             default=4,
             descr=(
-                'Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is '
-                'fit to obtain a global solution for the tilts across the slit/order. '
-                'This can be a single number or a list/array providing the value for each slit'
+                'Order of the spectral direction of the 2d legendre polynomial (spatial, '
+                'spectral) that is fit to obtain a global solution for the tilts across the '
+                'slit/order.  This can be a single number or a list/array providing the value '
+                'for each slit.'
             ),
         ),
         'minmax_extrap': parset.set_parameter_definition(
             dtype=[list, np.ndarray],
             default=[150.0, 1000.0],
             descr=(
-                'Sets how far below the last measured tilt line is extrapolated in tracewave.fit_tilts()'
+                'Sets how far below the last measured tilt line is extrapolated in '
+                'tracewave.fit_tilts()'
             ),
         ),
         'func2d': parset.set_parameter_definition(
@@ -3964,16 +4121,17 @@ class WaveTiltsPar(parset.ParSet):
             dtype=[int, float],
             default=0.25,
             descr=(
-                'Maximum absolute deviation (in units of fwhm) rejection threshold used to determines which pixels in global 2d fits to '
-                'arc line tilts are rejected because they deviate from the model by more than this value'
+                'Maximum absolute deviation (in units of fwhm) rejection threshold used to '
+                'determines which pixels in global 2d fits to arc line tilts are rejected because '
+                'they deviate from the model by more than this value'
             ),
         ),
         'sigrej2d': parset.set_parameter_definition(
             dtype=[int, float],
             default=3.0,
             descr=(
-                'Outlier rejection significance determining which pixels on a fit to an arc line tilt '
-                'are rejected by the global 2D fit'
+                'Outlier rejection significance determining which pixels on a fit to an arc line '
+                'tilt are rejected by the global 2D fit'
             ),
         ),
         'rm_continuum': parset.set_parameter_definition(
@@ -4020,28 +4178,30 @@ class FindObjPar(parset.ParSet):
             dtype=int,
             default=10,
             descr=(
-                'Maximum number of objects to extract in a science frame.  Use '
-                'None for no limit. This parameter can be useful in situations where systematics lead to '
-                'spurious extra objects. Setting this parameter means they will be trimmed. '
-                'For mulitslit maxnumber applies per slit, for echelle observations this '
-                'applies per order. Note that objects on a slit/order impact the sky-modeling and so '
-                'maxnumber should never be lower than the true number of detectable objects on your slit. '
-                'For image differenced observations with positive and negative object traces, maxnumber applies '
-                'to the number of positive (or negative) traces individually. In other words, if you had two positive objects and '
-                'one negative object, then you would set maxnumber to be equal to two (not three). Note that if manually '
-                'extracted apertures are explicitly requested, they do not count against this maxnumber. If more than '
-                'maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept. '
-                'For multislit observations the choice here depends on the slit length. For echelle observations '
-                'with short slits we set the default to be 1'
+                'Maximum number of objects to extract in a science frame.  Use None for no '
+                'limit.  This parameter can be useful in situations where systematics lead to '
+                'spurious extra objects. Setting this parameter means they will be trimmed.  For '
+                'mulitslit maxnumber applies per slit, for echelle observations this applies per '
+                'order. Note that objects on a slit/order impact the sky-modeling and so '
+                'maxnumber should never be lower than the true number of detectable objects on '
+                'your slit.  For image differenced observations with positive and negative object '
+                'traces, maxnumber applies to the number of positive (or negative) traces '
+                'individually. In other words, if you had two positive objects and one negative '
+                'object, then you would set maxnumber to be equal to two (not three). Note that '
+                'if manually extracted apertures are explicitly requested, they do not count '
+                'against this maxnumber. If more than maxnumber objects are detected, then '
+                'highest S/N ratio objects will be the ones that are kept.  For multislit '
+                'observations the choice here depends on the slit length. For echelle '
+                'observations with short slits we set the default to be 1.'
             ),
         ),
         'maxnumber_std': parset.set_parameter_definition(
             dtype=int,
             default=5,
             descr=(
-                'Maximum number of objects to extract in a standard star frame.  Same functionality as '
-                'maxnumber_sci documented above. For multislit observations the default here is 5, for echelle '
-                'observations the default is 1'
+                'Maximum number of objects to extract in a standard star frame.  Same '
+                'functionality as maxnumber_sci documented above. For multislit observations the '
+                'default here is 5, for echelle observations the default is 1'
             ),
         ),
         'snr_thresh': parset.set_parameter_definition(
@@ -4058,33 +4218,37 @@ class FindObjPar(parset.ParSet):
             dtype=int,
             default=3,
             descr=(
-                'Polynomial order used for trace extrapolation.  NOTE: Not consumed by the code at present. (For ``pypeit<=1.18.x``, this '
-                'parameter was called ``find_extrap_npoly``.)'
+                'Polynomial order used for trace extrapolation.  NOTE: Not consumed by the code '
+                'at present. (For ``pypeit<=1.18.x``, this parameter was called '
+                '``find_extrap_npoly``.)'
             ),
         ),
         'trace_maxdev': parset.set_parameter_definition(
             dtype=[int, float],
             default=2.0,
             descr=(
-                'Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.  (For ``pypeit<=1.18.x``, this '
-                'parameter was called ``find_maxdev``.)'
+                'Maximum deviation of pixels from polynomial fit to trace used to reject bad '
+                'pixels in trace fitting.  (For ``pypeit<=1.18.x``, this parameter was called '
+                '``find_maxdev``.)'
             ),
         ),
         'trace_maxshift': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.0,
             descr=(
-                'Maximum shift allowed between the input and recalculated centroid in trace fitting.  This parameter may be increased to '
-                'allow the fiter to follow curved traces (*e.g.*, for wide spectral ranges at high airmass).'
+                'Maximum shift allowed between the input and recalculated centroid in trace '
+                'fitting.  This parameter may be increased to allow the fiter to follow curved '
+                'traces (*e.g.*, for wide spectral ranges at high airmass).'
             ),
         ),
         'trace_min_max': parset.set_parameter_definition(
             dtype=list,
             descr=(
-                'It defines the minimum and maximum pixel in the spectral direction with useable data for this slit/order. '
-                'This parameter limits the range over which the trace is fit, and may be useful if the selected slit/order '
-                'would include regions without expected signal (*e.g.* bluer than the atmospheric cutoff or redder than the '
-                'silicon cutoff).'
+                'It defines the minimum and maximum pixel in the spectral direction with useable '
+                'data for this slit/order. This parameter limits the range over which the trace '
+                'is fit, and may be useful if the selected slit/order would include regions '
+                'without expected signal (*e.g.* bluer than the atmospheric cutoff or redder than '
+                'the silicon cutoff).'
             ),
         ),
         'find_numiterfit': parset.set_parameter_definition(
@@ -4100,24 +4264,31 @@ class FindObjPar(parset.ParSet):
         'fof_link': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.5,
-            descr='The linking distance, in arcseconds, for the Friends of Friends algorithm to link objects across traces in Echelle spectrographs. ',
+            descr=(
+                'The linking distance, in arcseconds, for the Friends of Friends algorithm to '
+                'link objects across traces in Echelle spectrographs. '
+            ),
         ),
         'ech_find_max_snr': parset.set_parameter_definition(
             dtype=[int, float],
             default=1.0,
             descr=(
-                'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than this value '
-                ' or satisfy the min_snr criteria described by the min_snr parameters. If maxnumber is set (see above) then these criteria '
-                'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
+                'Criteria for keeping echelle objects. They must either have a maximum S/N '
+                'across all the orders greater than this value or satisfy the min_snr criteria '
+                'described by the min_snr parameters. If maxnumber is set (see above) then these '
+                'criteria will be applied but only the maxnumber highest (median) S/N ratio '
+                'objects will be kept.'
             ),
         ),
         'ech_find_min_snr': parset.set_parameter_definition(
             dtype=[int, float],
             default=0.3,
             descr=(
-                'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value '
-                ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders. If maxnumber is set (see above) then these criteria '
-                'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
+                'Criteria for keeping echelle objects. They must either have a maximum S/N '
+                'across all the orders greater than ech_find_max_snr,  value or they must have '
+                'S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders. If maxnumber is '
+                'set (see above) then these criteria will be applied but only the maxnumber '
+                'highest (median) S/N ratio objects will be kept. '
             ),
         ),
         'ech_find_nabove_min_snr': parset.set_parameter_definition(
@@ -4125,10 +4296,10 @@ class FindObjPar(parset.ParSet):
             default=2,
             descr=(
                 'Criteria for keeping echelle objects. They must either have a maximum S/N across '
-                'all the orders greater than ech_find_max_snr,  value '
-                ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders. '
-                'If maxnumber is set (see above) then these criteria '
-                'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept.'
+                'all the orders greater than ech_find_max_snr, value or they must have S/N > '
+                'ech_find_min_snr on >= ech_find_nabove_min_snr orders.  If maxnumber is set (see '
+                'above) then these criteria will be applied but only the maxnumber highest '
+                '(median) S/N ratio objects will be kept.'
             ),
         ),
         'skip_second_find': parset.set_parameter_definition(
@@ -4140,41 +4311,44 @@ class FindObjPar(parset.ParSet):
             dtype=bool,
             default=False,
             descr=(
-                'If True, do not update initial sky to get global sky using updated noise model. This '
-                'should be True for quicklook to save time. This should also be True for near-IR '
-                'reductions which perform difference imaging, since there we fit sky-residuals rather '
-                'than the sky itself, so there is no noise model to update. '
+                'If True, do not update initial sky to get global sky using updated noise model.  '
+                'This should be True for quicklook to save time. This should also be True for '
+                'near-IR reductions which perform difference imaging, since there we fit '
+                'sky-residuals rather than the sky itself, so there is no noise model to update.'
             ),
         ),
         'skip_skysub': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
-                'If True, do not sky subtract when performing object finding. This should be set to '
-                'True for example when running on data that is already sky-subtracted. '
-                'Note that for near-IR difference imaging one still wants to remove sky-residuals via '
-                'sky-subtraction, and so this is typically set to False'
+                'If True, do not sky subtract when performing object finding. This should be set '
+                'to True for example when running on data that is already sky-subtracted. Note '
+                'that for near-IR difference imaging one still wants to remove sky-residuals via '
+                'sky-subtraction, and so this is typically set to False.'
             ),
         ),
         'find_negative': parset.set_parameter_definition(
             dtype=[bool],
             descr=(
-                'Identify negative objects in object finding for spectra that are differenced. This is used to manually '
-                'override the default behavior in PypeIt for object finding by setting this parameter to something other than None '
-                'The default behavior is that PypeIt will search for negative object traces if background frames '
-                'are present in the PypeIt file that are classified as "science" '
-                '(i.e. via pypeit_setup -b, and setting bkg_id in the PypeIt file). If background frames are present '
-                'that are classified as "sky", then PypeIt will NOT search for negative object traces. If one wishes '
-                'to explicitly override this default behavior, set this parameter to True to find negative objects or False to ignore '
+                'Identify negative objects in object finding for spectra that are differenced.  '
+                'This is used to manually override the default behavior in PypeIt for object '
+                'finding by setting this parameter to something other than None.  The default '
+                'behavior is that PypeIt will search for negative object traces if background '
+                'frames are present in the PypeIt file that are classified as "science" (i.e. via '
+                'pypeit_setup -b, and setting bkg_id in the PypeIt file). If background frames '
+                'are present that are classified as "sky", then PypeIt will NOT search for '
+                'negative object traces. If one wishes to explicitly override this default '
+                'behavior, set this parameter to True to find negative objects or False to ignore '
                 'them.'
             ),
         ),
         'find_min_max': parset.set_parameter_definition(
             dtype=list,
             descr=(
-                'It defines the minimum and maximum of your object in pixels in the spectral direction on the '
-                'detector. It only used for object finding. This parameter is helpful if your object only '
-                'has emission lines or at high redshift and the trace only shows in part of the detector.'
+                'It defines the minimum and maximum of your object in pixels in the spectral '
+                'direction on the detector. It only used for object finding. This parameter is '
+                'helpful if your object only has emission lines or at high redshift and the trace '
+                'only shows in part of the detector.'
             ),
         ),
         'use_std_trace': parset.set_parameter_definition(
@@ -4183,9 +4357,9 @@ class FindObjPar(parset.ParSet):
             descr=(
                 'If True, the trace of the standard star spectrum is used as a crutch for '
                 'tracing the object spectra. This is useful when a direct trace is not possible '
-                '(i.e., faint sources). Note that a standard star exposure must be included in your '
-                'pypeit file, or the ``std_spec1d`` parameter must be set for this to work. '
-                ),
+                '(i.e., faint sources). Note that a standard star exposure must be included in '
+                'your pypeit file, or the ``std_spec1d`` parameter must be set for this to work.'
+            ),
         ),
         'std_spec1d': parset.set_parameter_definition(
             dtype=str,
@@ -4202,7 +4376,10 @@ class FindObjPar(parset.ParSet):
     def validate(self):
         if self['std_spec1d'] is not None:
             if not self['use_std_trace']:
-                raise ValueError('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
+                raise ValueError(
+                    'If you provide a standard star spectrum for tracing, you must set '
+                    'use_std_trace=True.'
+                )
             elif not Path(self['std_spec1d']).absolute().exists():
                 raise ValueError(f'{self["std_spec1d"]} does not exist!')
 
@@ -4231,10 +4408,11 @@ class SkySubPar(parset.ParSet):
             dtype=bool,
             default=True,
             descr=(
-                'Global sky subtraction will be performed on standard stars. This should be turned '
-                'off for example for near-IR reductions with narrow slits, since bright standards can '
-                'fill the slit causing global sky-subtraction to fail. In these situations we go '
-                'straight to local sky-subtraction since it is designed to deal with such situations'
+                'Global sky subtraction will be performed on standard stars. This should be '
+                'turned off for example for near-IR reductions with narrow slits, since bright '
+                'standards can fill the slit causing global sky-subtraction to fail. In these '
+                'situations we go straight to local sky-subtraction since it is designed to deal '
+                'with such situations.'
             ),
         ),
         'no_poly': parset.set_parameter_definition(
@@ -4245,7 +4423,10 @@ class SkySubPar(parset.ParSet):
         'no_local_sky': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction',
+            descr=(
+                'If True, turn off local sky model evaluation, but do fit object profile and '
+                'perform optimal extraction.'
+            ),
         ),
         'user_regions': parset.set_parameter_definition(
             dtype=[str, list],
@@ -4263,7 +4444,10 @@ class SkySubPar(parset.ParSet):
         'mask_by_boxcar': parset.set_parameter_definition(
             dtype=bool,
             default=False,
-            descr='In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).',
+            descr=(
+                'In global sky evaluation, mask the sky region around the object by the boxcar '
+                'radius (set in ExtractionPar).'
+            ),
         ),
         'joint_fit': parset.set_parameter_definition(
             dtype=bool,
@@ -4279,14 +4463,18 @@ class SkySubPar(parset.ParSet):
             dtype=float,
             default=0.80,
             descr=(
-                'Maximum fraction of total pixels on a slit that can be masked by the input masks. '
-                'If more than this threshold is masked the code will return zeros and throw a warning.'
+                'Maximum fraction of total pixels on a slit that can be masked by the input '
+                'masks.  If more than this threshold is masked the code will return zeros and '
+                'throw a warning.'
             ),
         ),
         'local_maskwidth': parset.set_parameter_definition(
             dtype=float,
             default=4.0,
-            descr='Initial width of the region in units of FWHM that will be used for local sky subtraction',
+            descr=(
+                'Initial width of the region in units of FWHM that will be used for local sky '
+                'subtraction.'
+            ),
         ),
     }
 
@@ -4319,8 +4507,10 @@ class ExtractionPar(parset.ParSet):
         'std_prof_nsigma': parset.set_parameter_definition(
             dtype=float,
             default=30.0,
-            descr='prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection. '
-                    'NOTE: Not consumed by the code at present.',
+            descr=(
+                'prof_nsigma parameter for Standard star extraction.  Prevents undesired '
+                'rejection. NOTE: Not consumed by the code at present.'
+            ),
         ),
         'min_frac_prof': parset.set_parameter_definition(
             dtype=float,
@@ -4335,18 +4525,20 @@ class ExtractionPar(parset.ParSet):
             dtype=[int, float],
             default=4.0,
             descr=(
-                'S/N threshold for performing the more sophisticated optimal extraction which performs a '
-                'b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extract'
-                'with a Gaussian with FWHM determined from the object finding.'
+                'S/N threshold for performing the more sophisticated optimal extraction which '
+                'performs a b-spline fit to the object profile. For S/N < sn_gauss the code will '
+                'simply optimal extract with a Gaussian with FWHM determined from the object '
+                'finding.'
             ),
         ),
         'model_full_slit': parset.set_parameter_definition(
             dtype=bool,
             default=False,
             descr=(
-                'If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will '
-                'be applied to only a restricted region around each object. This should be set to True for either multislit '
-                'observations using narrow slits or echelle observations with narrow slits'
+                'If True local sky subtraction will be performed on the entire slit. If False, '
+                'local sky subtraction will be applied to only a restricted region around each '
+                'object. This should be set to True for either multislit observations using '
+                'narrow slits or echelle observations with narrow slits.'
             ),
         ),
         'use_2dmodel_mask': parset.set_parameter_definition(
@@ -4411,8 +4603,9 @@ class Collate1DPar(parset.ParSet):
             dtype=bool,
             default=False,
             descr=(
-                "If set, the script will only coadd non-fluxed spectra even if flux data is present. "
-                "Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated."
+                "If set, the script will only coadd non-fluxed spectra even if flux data is "
+                "present.  Otherwise fluxed spectra are coadded if all spec1ds have been fluxed "
+                "calibrated."
             ),
         ),
         'flux': parset.set_parameter_definition(
@@ -4432,7 +4625,8 @@ class Collate1DPar(parset.ParSet):
         'spec1d_outdir': parset.set_parameter_definition(
             dtype=str,
             descr=(
-                "The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for."
+                "The path where all modified spec1d files are placed. These are only created if "
+                "flux calibration or refframe correction are asked for."
             ),
         ),
         'exclude_slit_trace_bm': parset.set_parameter_definition(
@@ -4452,7 +4646,8 @@ class Collate1DPar(parset.ParSet):
         'wv_rms_thresh': parset.set_parameter_definition(
             dtype=float,
             descr=(
-                "If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted."
+                "If set, any objects with a wavelength RMS > this value are skipped, else all "
+                "wavelength RMS values are accepted."
             ),
         ),
         'match_using': parset.set_parameter_definition(
@@ -4460,7 +4655,8 @@ class Collate1DPar(parset.ParSet):
             default='ra/dec',
             options=['pixel', 'ra/dec'],
             descr=(
-                "Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'."
+                "Determines how 1D spectra are matched as being the same object. Must be either "
+                "'pixel' or 'ra/dec'."
             ),
         ),
         'refframe': parset.set_parameter_definition(
@@ -4695,10 +4891,10 @@ class PypeItPar(parset.ParSet):
             dtype=FlexurePar,
             default=FlexurePar(),
             descr=(
-                'Parameters used by the flexure-correction procedure.  Flexure '
-                'corrections are not performed by default.  To turn on, either '
-                "set the parameters in the 'flexure' parameter group or set 'flexure = True' "
-                'in the ' "'rdx'" ' parameter group to use the default flexure-correction parameters.'
+                'Parameters used by the flexure-correction procedure.  Flexure corrections are '
+                'not performed by default.  To turn on, either set the parameters in the '
+                "'flexure' parameter group or set 'flexure = True' in the 'rdx' parameter group "
+                'to use the default flexure-correction parameters.'
             ),
         ),
         'fluxcalib': parset.set_parameter_definition(
@@ -4708,7 +4904,8 @@ class PypeItPar(parset.ParSet):
                 'Parameters used by the flux-calibration procedure.  Flux '
                 'calibration is not performed by default.  To turn on, either '
                 "set the parameters in the 'fluxcalib' parameter group or set 'fluxcalib = True' "
-                'in the ' "'rdx'" ' parameter group to use the default flux-calibration parameters.'
+                'in the ' "'rdx'" ' parameter group to use the default flux-calibration '
+                'parameters.'
             ),
         ),
         'coadd1d': parset.set_parameter_definition(
