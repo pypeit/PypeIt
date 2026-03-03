@@ -2290,7 +2290,7 @@ class TelluricPar(parset.ParSet):
             descr=(
                 'The recombination constant for the differential evolution optimization. This '
                 'should be in the range between 0 and 1. See '
-                ':class:`scipy.optimize.differential_evolution`_ for details.'
+                ':class:`scipy.optimize.differential_evolution` for details.'
             ),
         ),
         'polish': parset.set_parameter_definition(
