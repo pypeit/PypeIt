@@ -20,6 +20,11 @@ from pypeit.par import parset
 from pypeit.par import util
 
 
+# TODO: I'd like to find a way to skip the includes of the "parameters"
+# dictionary in the API documentation.  The formatting is ridiculous.  I tried
+# something suggested by a Google search, but it didn't work.  Punting for
+# now...
+
 class TelescopePar(parset.ParSet):
     """
     New-style parameter set for the salient properties of a telescope.
