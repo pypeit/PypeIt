@@ -244,7 +244,8 @@ class ParSet:
 
         # Disallow elements of a list to be ParSets or dicts 
         if (
-            list in self.parameters[key]['dtype']
+            self.parameters[key]['dtype'] is not None
+            and list in self.parameters[key]['dtype']
             and isinstance(value, list)
             and any(isinstance(v, (ParSet, dict)) for v in value)
         ):
