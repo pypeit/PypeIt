@@ -812,7 +812,11 @@ class ParSet:
                 raise KeyError(f'{key} is not a valid {cls.__name__} parameter!')
             if isinstance(values[i], dict) and issubclass(cls.parameters[key]['dtype'][0], ParSet):
                 values[i] = cls.parameters[key]['dtype'][0].from_dict(values[i])
-            if len(cls.parameters[key]['dtype']) == 1 and cls.parameters[key]['dtype'][0] is tuple:
+            if (
+                cls.parameters[key]['dtype'] is not None
+                and len(cls.parameters[key]['dtype']) == 1
+                and cls.parameters[key]['dtype'][0] is tuple
+            ):
                 values[i] = tuple_force(values[i])
         return cls(**dict(zip(pars, values)))
     
