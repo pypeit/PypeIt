@@ -13,7 +13,7 @@ from IPython import embed
 import numpy as np
 
 from pypeit import log
-from pypeit.par import util
+from pypeit import utils
 
 
 def tuple_force(par):
@@ -932,7 +932,7 @@ class ParSet:
                 'Header does not include card specifying the ParSet contents: '
                 f'{cls.dict_header_card()}.'
             )
-        cfg = util.ast_literal_eval(contents)
+        cfg = utils.ast_literal_eval(contents)
         if not isinstance(cfg, dict):
             raise ValueError(
                 f'Unable to parse the contents of header card {cls.dict_header_card()} as a '

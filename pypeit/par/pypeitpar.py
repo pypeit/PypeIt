@@ -3996,7 +3996,7 @@ class EdgeTracePar(parset.ParSet):
         for k in ['rm_slits', 'add_slits']:
             if self[k] is None:
                 continue
-            self[k] = ';'.join(parse.fix_config_par_image_location(self[k]))
+            self[k] = parse.fix_config_par_image_location(self[k])
 
         if not self['auto_pca'] and self['sync_predict'] == 'pca':
             log.warning('sync_predict cannot be pca if auto_pca is False.  Setting to nearest.')
