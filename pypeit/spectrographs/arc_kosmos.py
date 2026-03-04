@@ -301,7 +301,10 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
             return (good_exp & 
                     ((fitstbl['lampstat03'] == 'on') |
                      (fitstbl['lampstat04'] == 'on') |
-                     (fitstbl['lampstat05'] == 'on') ))
+                     (fitstbl['lampstat05'] == 'on') |
+                     (fitstbl['lampstat07'] == 'on') |
+                     (fitstbl['lampstat08'] == 'on') |
+                     (fitstbl['lampstat09'] == 'on') ))
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
