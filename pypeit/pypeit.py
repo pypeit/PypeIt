@@ -165,7 +165,7 @@ class PypeIt:
         qa.gen_mf_html(self.pypeit_file, self.qa_path)
         qa.gen_exp_html()
 
-    def calib_all(self, status_only=False):
+    def calib_all(self, status_only=False, reload_only=False):
         """
         Process all calibration frames.
 
@@ -177,11 +177,11 @@ class PypeIt:
                 If True, only check whether calibration output files
                 exist and update the state accordingly, without running
                 any calibrations.
+            reload_only (:obj:`bool`, optional):
+                If True, only reload the calibrations, without running any
+                calibrations.
         """
         self.tstart = time.perf_counter()
-
-        status_only = True
-        reload_only = True
 
         # Frame indices
         for calib_ID in self.fitstbl.calib_groups:
