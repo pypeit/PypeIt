@@ -181,6 +181,7 @@ class PypeIt:
         self.tstart = time.perf_counter()
 
         status_only = True
+        reload_only = True
 
         # Frame indices
         for calib_ID in self.fitstbl.calib_groups:
@@ -200,7 +201,8 @@ class PypeIt:
                 caliBrate = pypeit_steps.calib_one(self.spectrograph, self.fitstbl, self.par,
                                        self.det, calib_ID, self.calibrations_path,
                                        run_state=self.run_state,
-                                       status_only=status_only)
+                                       status_only=status_only,
+                                       reload_only=reload_only)
 
         # Finish
         self.print_end_time()

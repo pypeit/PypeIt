@@ -124,7 +124,8 @@ def set_bkg_negative(fitstbl, par, bg_frames:list):
 def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
               reuse_calibs:bool=True,
               qa_path:str=None, show:bool=False, run_state=None,
-              stop_at_step:str=None, status_only:bool=False):
+              stop_at_step:str=None, status_only:bool=False,
+              reload_only:bool=False):
     """
     Run Calibration for a single detector, calib_ID pair
 
@@ -158,6 +159,9 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             If True, only check whether calibration output files exist
             and update the state accordingly, without running any
             calibrations.
+        reload_only (:obj:`bool`, optional):
+            If True, only reload the calibrations, without running any
+            calibrations.
 
     Returns:
         caliBrate (:class:`~pypeit.calibrations.Calibrations`)
@@ -184,10 +188,10 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
         state=run_state)
 
     # Status check only?
-    if status_only:
-        caliBrate.check_status()
-        embed(header='189 pypeit_steps')
-        return caliBrate
+    #if status_only:
+    #    caliBrate.check_status()
+    #    embed(header='189 pypeit_steps')
+    #    return caliBrate
 
     # Check
     if stop_at_step is not None and stop_at_step not in caliBrate.steps:
@@ -197,7 +201,10 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
         )
 
     # Run
-    caliBrate.run_the_steps(stop_at_step=stop_at_step)
+    caliBrate.run_the_steps(stop_at_step=stop_at_step,
+        reload_only=reload_only, status_only=status_only)
+
+    embed(header='207 pypeit_steps')
 
 
     # Success?

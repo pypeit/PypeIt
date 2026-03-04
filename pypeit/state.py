@@ -177,4 +177,3 @@ class RunPypeItState(BaseModel):
             #f.write(json.dumps(obj, sort_keys=True, indent=4,
             #                   separators=(',', ': '), **kwargs))
             f.write(json_string)
-        
