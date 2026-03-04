@@ -24,6 +24,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit import outputfiles
 from pypeit import exposure
 from pypeit import pypeit_steps
+from pypeit import state
 
 
 class PypeIt:
@@ -66,12 +67,11 @@ class PypeIt:
         self.pypeit_file = pypeit_file
 
         # State
-        #self.run_state = state.RunPypeItState(pypeit_file=pypeit_file, 
-        #                                      current_step='init',
-        #                                      current_det=-1,
-        #                                      current_calibID=-1)
+        self.run_state = state.RunPypeItState(pypeit_file=pypeit_file,
+                                              current_step='init',
+                                              current_det=-1,
+                                              current_calibID=-1)
         #self.run_state = self.run_state.load()
-        self.run_state = None
         
         # Load up PypeIt file
         self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
@@ -107,7 +107,7 @@ class PypeIt:
             self.pypeItFile.frametypes, 
             self.pypeItFile.setup_name)
 
-        # Other Internals
+        # Other Interna
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for
@@ -122,6 +122,9 @@ class PypeIt:
         if not self.calib_only:
             calibrations.check_for_calibs(self.par, self.fitstbl,
                                           raise_error=self.par['calibrations']['raise_chk_error'])
+
+        # Check for required calibrations
+        self.run_state = calibrations.required_calibs(self.par, self.fitstbl, self.spectrograph, self.run_state)
 
         # --------------------------------------------------------------
         #   - Write .calib file (For QA naming amongst other things)
@@ -162,14 +165,22 @@ class PypeIt:
         qa.gen_mf_html(self.pypeit_file, self.qa_path)
         qa.gen_exp_html()
 
-    def calib_all(self):
+    def calib_all(self, status_only=False):
         """
         Process all calibration frames.
 
-        Provides an avenue to process the calibrations for a dataset 
+        Provides an avenue to process the calibrations for a dataset
         without (or omitting) any science/standard frames.
+
+        Args:
+            status_only (:obj:`bool`, optional):
+                If True, only check whether calibration output files
+                exist and update the state accordingly, without running
+                any calibrations.
         """
         self.tstart = time.perf_counter()
+
+        status_only = True
 
         # Frame indices
         for calib_ID in self.fitstbl.calib_groups:
@@ -178,7 +189,7 @@ class PypeIt:
             if not any(in_grp):
                 continue
             # Find the detectors to reduce
-            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'] if self.par['rdx']['slitspatnum'] is None 
+            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'] if self.par['rdx']['slitspatnum'] is None
                                               else self.par['rdx']['slitspatnum'])
             log.info(f'Detectors to work on: {detectors}')
 
@@ -187,8 +198,9 @@ class PypeIt:
                 log.info(f'Working on detector {self.det}')
 
                 caliBrate = pypeit_steps.calib_one(self.spectrograph, self.fitstbl, self.par,
-                                       self.det, calib_ID, self.calibrations_path)
-                                       
+                                       self.det, calib_ID, self.calibrations_path,
+                                       run_state=self.run_state,
+                                       status_only=status_only)
 
         # Finish
         self.print_end_time()
