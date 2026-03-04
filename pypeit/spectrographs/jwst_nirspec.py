@@ -3,6 +3,9 @@ Module for JWST NIRSpec specific methods.
 
 .. include:: ../include/links.rst
 """
+import copy
+from pathlib import Path
+
 import numpy as np
 
 from pypeit import log
@@ -10,13 +13,18 @@ from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
 from pypeit.core import framematch
+from pypeit.core import parse
+from pypeit.core import procimg
+from pypeit.core import flat
 from pypeit import io
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.images import pypeitimage
 from pypeit.images.mosaic import Mosaic
 from IPython import embed
+
 
 class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     """
@@ -155,6 +163,26 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         #               np.array(msc_tfm), msc_ord)
         return Mosaic(mosaic_id, detectors, None, np.array(0.0), np.array(0.0), np.array(0.0), msc_ord)
 
+    def validate_det(self, det):
+        """
+        Validate the detector specification and return the number of images
+        and a standardized detector tuple.
+
+        Args:
+            det (:obj:`int`, :obj:`tuple`):
+                Detector number or tuple of detector numbers.
+
+        Returns:
+            :obj:`tuple`: Number of images and the validated detector
+            specification.
+        """
+        if isinstance(det, (int, np.integer)):
+            return 1, (det,)
+        elif isinstance(det, (tuple, list)):
+            return len(det), tuple(det)
+        else:
+            raise PypeItError(f'Invalid detector specification: {det}')
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -236,11 +264,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         self.meta['dithpos'] = dict(ext=0, card=None, compound=True)
         self.meta['dithoff'] = dict(ext=0, card=None, compound=True)
 
-        # used for arc and continuum lamps
-        # self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
-
-
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -507,3 +531,27 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         return mosaic
 
+    @staticmethod
+    def get_slit_slice(cal_data, slit_name):
+        """
+        Get the pixel slice for a named slit from JWST calibration data.
+
+        Args:
+            cal_data: JWST MultiSlitModel calibration data
+            slit_name (:obj:`str`): The slit name, e.g. 'S200A1'.
+
+        Returns:
+            :obj:`tuple`: A tuple of two slices ``(spec_slice, spat_slice)``.
+        """
+        slit_names = np.array([slit.name for slit in cal_data.slits])
+        if slit_name not in slit_names:
+            raise PypeItError(f'Slit name {slit_name} not found in '
+                              f'calibration data {cal_data.meta.filename}')
+
+        indx = np.where(slit_names == slit_name)[0][0]
+        this_slit = cal_data.slits[indx]
+        spec_lo = this_slit.xstart - 1
+        spec_hi = spec_lo + this_slit.xsize
+        spat_lo = this_slit.ystart - 1
+        spat_hi = spat_lo + this_slit.ysize
+        return slice(spec_lo, spec_hi), slice(spat_lo, spat_hi)
