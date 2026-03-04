@@ -818,6 +818,18 @@ class Calibrations:
 
         return self.msscattlight
 
+    def flats_state(self):
+        if self.flatimages is None:
+            self.state.update_calib('flats', self.calib_ID, self.det, 'status', 'undone')
+            return
+        # Bare minimum
+        self.state.update_calib('flats', self.calib_ID, self.det, 'status', 'success')
+        self.state.update_calib('flats', self.calib_ID, self.det,
+                                'output_file', self.flatimages.get_path())
+        # Types
+        if self.flatimages.pixelflat_norm is not None:
+            self.state.update_calib('flats', self.calib_ID, self.det, 
+                                'types', 'pixelflat')
 
     def get_flats(self, force:str=None):
         """
@@ -977,12 +989,12 @@ class Calibrations:
             self.flatimages = pixelflatImages
 
             # State
-            if self.state is not None:
-                self.state.update_calib('flats', self.calib_ID, self.det, 
-                                'types', 'pixelflat')
-                if pix_is_illum:
-                    self.state.update_calib('flats', self.calib_ID, self.det, 
-                                'types', 'illumflat')
+            #if self.state is not None:
+            #    self.state.update_calib('flats', self.calib_ID, self.det, 
+            #                    'types', 'pixelflat')
+            #    if pix_is_illum:
+            #        self.state.update_calib('flats', self.calib_ID, self.det, 
+            #                    'types', 'illumflat')
 
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(raw_illum_files) > 0:
@@ -1028,9 +1040,9 @@ class Calibrations:
             illumflatImages = illumFlatField.run(doqa=self.write_qa, show=self.show)
 
             # State
-            if self.state is not None:
-                self.state.update_calib('flats', self.calib_ID, self.det, 
-                                'types', 'illumflat')
+            #if self.state is not None:
+            #    self.state.update_calib('flats', self.calib_ID, self.det, 
+            #                    'types', 'illumflat')
 
         # Merge the illum flat with the pixel flat
         if pixelflatImages is not None:
@@ -1051,9 +1063,9 @@ class Calibrations:
             # Save slits too, in case they were tweaked
             self.slits.to_file()
             # State
-            if self.state is not None:
-                self.state.update_calib('flats', self.calib_ID, self.det, 
-                                'output_file', self.flatimages.get_path())
+            #if self.state is not None:
+            #    self.state.update_calib('flats', self.calib_ID, self.det, 
+            #                    'output_file', self.flatimages.get_path())
 
         # Apply user-supplied images
         # NOTE: These are the *final* images, not just a stack, and it will

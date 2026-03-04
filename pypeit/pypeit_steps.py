@@ -204,7 +204,7 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
     caliBrate.run_the_steps(stop_at_step=stop_at_step,
         reload_only=reload_only, status_only=status_only)
 
-    embed(header='207 pypeit_steps')
+    #embed(header='207 pypeit_steps')
 
 
     # Success?
