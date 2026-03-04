@@ -345,10 +345,9 @@ class QtLogHandler(QObject, logging.Handler):
 
     def emit(self, record):
         msg = self.format(record)
-
+        
         if record.levelname == "STEP":
             self.step_signal.emit(msg)
-            print("hello")
         else:
             self.log_signal.emit(msg)
 
@@ -358,7 +357,8 @@ def start_pypeit_process(file_path,log_queue):
     return p
 
 def step_listener(step):
-    print(step)
+    # print(step)
+    pass
 
 # --------------------------------------------
 def main():
