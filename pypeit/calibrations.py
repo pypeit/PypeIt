@@ -1485,44 +1485,6 @@ class Calibrations:
         if force == 'reload' or (self.reuse_calibs and _cal_file.exists()): 
             return frame['class'].from_file(_cal_file, chk_version=self.chk_version)
 
-    def check_status(self):
-        """
-        Check which calibration output files exist and update state.
-
-        This is a read-only operation that does not load or generate
-        any calibration data.  For each step in :attr:`steps`, the
-        expected output file path is determined via
-        :func:`find_calibrations` and its existence is checked.
-        The state is updated to "complete" if the file exists,
-        or "undone" if it does not.
-        """
-        if self.state is None:
-            return
-        #self.state.current_det = self.det
-        #self.state.current_calibID = self.calib_ID
-        for step in self.steps:
-            # Grab the frame information
-            frame_info = self.step_frame_map.get(step)
-            if frame_info is None:
-                # bpm has no output file; always generated at runtime
-                self.state.update_calib(step, self.calib_ID, self.det,
-                                        'status', 'undone')
-                continue
-            frametype, frameclass = frame_info
-            # Determine expected output path
-            self.raw_files, cal_file, calib_key, setup, calib_id, detname \
-                = self.find_calibrations(frametype, frameclass)
-            # Check existence
-            if cal_file is not None and Path(cal_file).exists():
-                self.state.update_calib(step, self.calib_ID, self.det,
-                                        'status', 'success')
-                self.state.update_calib(step, self.calib_ID, self.det,
-                                        'output_file', str(cal_file))
-            else:
-                self.state.update_calib(step, self.calib_ID, self.det,
-                                        'status', 'undone')
-        # Write once at the end
-        #self.state.write()
 
     def run_the_steps(self, stop_at_step:str=None, reload_only:bool=False,
         status_only:bool=False):
