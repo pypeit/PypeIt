@@ -77,15 +77,14 @@ class PypeIt:
         Returns:
             :class:`PypeIt`: The appropriate subclass instance.
         """
-        spectrograph = inputfiles.PipeItFile.from_file(pypeit_file).get_spectrograph()
+        spectrograph = inputfiles.PypeItFile.from_file(pypeit_file).get_spectrograph()
         if spectrograph.pypeline == 'NIRSpecSlit':
             return NIRSpecSlitPypeIt(pypeit_file, **kwargs)
         return PypeIt(pypeit_file, **kwargs)
 
     def __init__(
         self, pypeit_file, overwrite=True, reuse_calibs=False, show=False, redux_path=None,
-        calib_only=False
-    ):
+        calib_only=False):
 
         # Set up logging
         self.pypeit_file = pypeit_file
@@ -99,7 +98,7 @@ class PypeIt:
         self.run_state = None
         
         # Load up PypeIt file
-        self.pypeItFile = inputfiles.PipeItFile.from_file(pypeit_file)
+        self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
         self.calib_only = calib_only
 
         # Build the spectrograph and the parameters
@@ -531,9 +530,14 @@ def reduce_calibID_nirspec(spectrograph, par, fitstbl, calib_ID, calibrations_pa
 
     for comb_id in u_combid:
         frames = np.where(fitstbl['comb_id'] == comb_id)[0]
-        bg_frames = np.where(
-            (fitstbl['comb_id'] == fitstbl['bkg_id'][frames][0])
-            & (fitstbl['comb_id'] >= 0))[0]
+        # bg_frames = np.where(
+        #     (fitstbl['comb_id'] == fitstbl['bkg_id'][frames][0])
+        #     & (fitstbl['comb_id'] >= 0))[0]
+        # Find all frames whose comb_id matches the current frames bkg_id.
+        # TODO TESTING!!!!
+        bg_frames = \
+        np.where((np.isin(fitstbl['comb_id'], [int(b) for b in fitstbl['bkg_id'][frames][0].split(',')]))
+                 & (fitstbl['comb_id'] >= 0))[0]
 
         has_bg = len(bg_frames) > 0
         bkg_redux = has_bg
@@ -573,40 +577,68 @@ def reduce_calibID_nirspec(spectrograph, par, fitstbl, calib_ID, calibrations_pa
             _par['reduce']['findobj']['skip_skysub'] = True
             _par['reduce']['extraction']['skip_optimal'] = True
 
-        # Get unique slit names and their detector association
-        slit_names_nrs1 = np.array([
-            [s.name for s in cd.slits]
-            for cd in cal_data
-            if cd.meta.instrument.detector == 'NRS1'
-        ]).flatten() if any(
-            cd.meta.instrument.detector == 'NRS1' for cd in cal_data
-        ) else np.array([])
+        # get slits and sources names
+        # we slit slit_names between NRS1 and NRS2 because we need them later to determine which detector to use,
+        # but we don't need to do that for the sources
+        slit_names_nrs1 = np.array([[slit.name for slit in cal_data[i].slits] for i in range(cal_data.size) if
+                                    cal_data[i] is not None and cal_data[i].meta.instrument.detector == 'NRS1']).flatten()
+        slit_names_nrs2 = np.array([[slit.name for slit in cal_data[i].slits] for i in range(cal_data.size) if
+                                    cal_data[i] is not None and cal_data[i].meta.instrument.detector == 'NRS2']).flatten()
+        slit_names = np.hstack([slit_names_nrs1, slit_names_nrs2])
+        source_names = np.hstack([[slit.source_name for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
+        source_ids = np.hstack([[slit.source_id for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
+        source_aliases = np.hstack([[slit.source_alias for slit in cal_data[i].slits] for i in range(cal_data.size) if cal_data[i] is not None])
+        # Find the unique slit names and the unique sources aligned with those slits
+        slit_names_uni, uni_indx = np.unique(slit_names, return_index=True)
+        source_names_uni = source_names[uni_indx]
+        source_ids_uni = source_ids[uni_indx]
+        source_aliases_uni = source_aliases[uni_indx]
+        slit_sources_uni = [(slit, source_name, source_id, source_alias)
+                            for slit, source_name, source_id, source_alias in
+                            zip(slit_names_uni, source_names_uni, source_ids_uni, source_aliases_uni)]
 
-        slit_names_nrs2 = np.array([
-            [s.name for s in cd.slits]
-            for cd in cal_data
-            if cd.meta.instrument.detector == 'NRS2'
-        ]).flatten() if any(
-            cd.meta.instrument.detector == 'NRS2' for cd in cal_data
-        ) else np.array([])
 
-        all_slit_names = np.unique(np.hstack([slit_names_nrs1, slit_names_nrs2]))
-
-        # Filter by maskIDs if specified
         if _par['rdx']['maskIDs'] is not None:
-            maskIDs = [str(m).strip() for m in _par['rdx']['maskIDs']]
-            all_slit_names = [
-                sn for sn in all_slit_names
-                if str(sn).strip() in maskIDs
-            ]
-            if len(all_slit_names) == 0:
-                log.warning(f'No slits found for maskIDs={maskIDs}. Skipping.')
-                continue
+            maskIDs = [str(mid).strip() for mid in _par['rdx']['maskIDs']]
+            gd_slits_sources = [(slt, src_n, src_id, src_alias)
+                                for slt, src_n, src_id, src_alias in slit_sources_uni
+                                if str(slt).strip() in maskIDs or str(src_id) in maskIDs or str(src_alias) in maskIDs]
+            if not gd_slits_sources:
+                log.warning(f'No slits or sources found for maskIDs={_par["rdx"]["maskIDs"]}. '
+                          'Skipping reduction.')
+                return
+            # find if there are maskIDs that are not present in the slit_sources_uni
+            elif len(gd_slits_sources) < len(maskIDs):
+                missing_maskIDs = [mid for mid in maskIDs if mid not in [slt for slt, _, _, _ in gd_slits_sources] and
+                                  mid not in [src_id for _, _, src_id, _ in gd_slits_sources] and
+                                  mid not in [src_alias for _, _, _, src_alias in gd_slits_sources]]
+                log.warning(f'The following maskIDs were not found: {", ".join(missing_maskIDs)}. '
+                          'Reduction will be performed on the available slits and sources.')
 
-        log.info(f'Reducing slits: {", ".join(all_slit_names)}')
+        else:
+            gd_slits_sources = slit_sources_uni
+
+        # MSGS info on which slits and sources are being reduced
+        log.info(f'Reducing the following (slit_name, src_name): '
+                  f'{", ".join([f"({slt}, {src_n})" for slt, src_n, _, _ in gd_slits_sources])}')
 
         # Loop over individual slits
-        for islit in all_slit_names:
+        for ii, (islit, isource, isource_id, isource_alias) in enumerate(gd_slits_sources):
+            # Print status message
+            add_to_msgs = f'Slit name: {islit}' if isource is None else f'SRC name: {isource}'
+            msgs_string = f'Reducing target {fitstbl["target"][frames[0]]} - {add_to_msgs}\n'
+
+            msgs_string += 'Combining frames:\n'
+            for iframe in frames:
+                msgs_string += '{0:s}'.format(fitstbl['filename'][iframe]) + '\n'
+            log.info(msgs_string)
+            if has_bg:
+                bg_msgs_string = ''
+                for iframe in bg_frames:
+                    bg_msgs_string += '{0:s}'.format(fitstbl['filename'][iframe]) + '\n'
+                bg_msgs_string = '\nUsing background from frames:\n' + bg_msgs_string
+                log.info(bg_msgs_string)
+
             # Determine detector for this slit
             if islit in slit_names_nrs1 and islit not in slit_names_nrs2:
                 _det = 1
@@ -639,7 +671,7 @@ def reduce_calibID_nirspec(spectrograph, par, fitstbl, calib_ID, calibrations_pa
                 = _get_nirspec_metadata(fitstbl, spectrograph, frames[0], _det,
                                         slit_name=islit)
 
-            log.info(f'Reducing slit {islit} on detector NRS{_det}')
+            log.info(f'Reducing detector {_det}')
 
             # --- Calibrations ---
             caliBrate = calibrations.Calibrations.get_instance(

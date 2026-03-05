@@ -977,7 +977,7 @@ class QL(scriptbase.ScriptBase):
                     chk_version=chk_version)
 
         # Run it
-        pypeIt = pypeit.PypeIt(sci_pypeit_file, reuse_calibs=True)
+        pypeIt = pypeit.PypeIt.get_instance(sci_pypeit_file, reuse_calibs=True)
         pypeIt.reduce_all()
         pypeIt.build_qa()
 
