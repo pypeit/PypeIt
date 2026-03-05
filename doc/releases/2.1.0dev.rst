@@ -41,5 +41,7 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- None yet.
+- Avoid a circular import by moving
+  :func:`~pypeit.core.wavecal.autoid.arc_fit_qa` out of
+  :mod:`~pypeit.core.wavecal.wv_fitting`.
 
