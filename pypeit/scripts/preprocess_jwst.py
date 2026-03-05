@@ -66,10 +66,12 @@ class PreprocessJWST(scriptbase.ScriptBase):
         }
 
     @staticmethod
-    def _filter_jwst_files(file_list, program=None, observation=None, visit=None):
+    def _filter_jwst_files(file_list, program=None, observation=None, visit=None,
+                           visit_group=None, parallel_seq=None, activity=None,
+                           exposure=None):
         """
-        Filter a list of JWST files by program ID, observation number, and/or
-        visit number using the JWST file naming convention:
+        Filter a list of JWST files by fields in the JWST file naming
+        convention:
         ``jw<ppppp><ooo><vvv>_<gg><s><aa>_<eeeee>_<detector>_<prodType>.fits``.
 
         Parameters
@@ -85,6 +87,20 @@ class PreprocessJWST(scriptbase.ScriptBase):
         visit : :obj:`list`, optional
             List of visit numbers (e.g., ``['001', '002']``).  Matched
             against the 3-digit visit field in the filename.
+        visit_group : :obj:`list`, optional
+            List of visit group numbers (e.g., ``['01', '02']``).  Matched
+            against the 2-digit visit group field in the filename.
+        parallel_seq : :obj:`list`, optional
+            List of parallel sequence IDs (e.g., ``['1', '2']``).  1 means
+            prime, 2-5 are parallel sequences.  Matched against the 1-digit
+            sequence field in the filename.
+        activity : :obj:`list`, optional
+            List of activity numbers in base-36 (e.g., ``['01', 'a1']``).
+            Matched case-insensitively against the 2-character activity field
+            in the filename.
+        exposure : :obj:`list`, optional
+            List of exposure numbers (e.g., ``['00001', '00002']``).
+            Matched against the 5-digit exposure field in the filename.
 
         Returns
         -------
@@ -92,12 +108,19 @@ class PreprocessJWST(scriptbase.ScriptBase):
             Filtered list of `Path` objects.
         """
         import re
-        # Match the JWST naming pattern: jw<ppppp><ooo><vvv>_...
-        pattern = re.compile(r'^jw(\d{5})(\d{3})(\d{3})_')
-        # Zero-pad the filter values
+        # Match the JWST naming pattern:
+        #   jw<ppppp><ooo><vvv>_<gg><s><aa>_<eeeee>_<detector>_<prodType>.fits
+        pattern = re.compile(
+            r'^jw(\d{5})(\d{3})(\d{3})_(\d{2})(\d)([0-9a-z]{2})_(\d{5})_',
+            re.IGNORECASE)
+        # Zero-pad / normalise the filter values
         pid_set = {p.zfill(5) for p in program} if program is not None else None
         obs_set = {o.zfill(3) for o in observation} if observation is not None else None
         vis_set = {v.zfill(3) for v in visit} if visit is not None else None
+        vg_set = {g.zfill(2) for g in visit_group} if visit_group is not None else None
+        pseq_set = set(parallel_seq) if parallel_seq is not None else None
+        act_set = {a.lower().zfill(2) for a in activity} if activity is not None else None
+        exp_set = {e.zfill(5) for e in exposure} if exposure is not None else None
         filtered = []
         for f in file_list:
             match = pattern.match(f.name)
@@ -105,12 +128,20 @@ class PreprocessJWST(scriptbase.ScriptBase):
                 # Skip files that don't match the JWST naming convention
                 # (they can't be filtered)
                 continue
-            prog, obs, vis = match.groups()
+            prog, obs, vis, vg, pseq, act, exp = match.groups()
             if pid_set is not None and prog not in pid_set:
                 continue
             if obs_set is not None and obs not in obs_set:
                 continue
             if vis_set is not None and vis not in vis_set:
+                continue
+            if vg_set is not None and vg not in vg_set:
+                continue
+            if pseq_set is not None and pseq not in pseq_set:
+                continue
+            if act_set is not None and act.lower() not in act_set:
+                continue
+            if exp_set is not None and exp not in exp_set:
                 continue
             filtered.append(f)
         return filtered
@@ -172,6 +203,28 @@ class PreprocessJWST(scriptbase.ScriptBase):
                                  '(e.g., 001 002).  Based on the JWST file naming convention: '
                                  'jw<ppppp><ooo><vvv>_...  If not provided, files are not '
                                  'filtered by visit number.')
+        parser.add_argument('--vg', type=str, nargs='+', default=None,
+                            help='Select only files matching these JWST visit group number(s) '
+                                 '(e.g., 01 02).  Based on the JWST file naming convention: '
+                                 'jw<ppppp><ooo><vvv>_<gg><s><aa>_...  If not provided, files '
+                                 'are not filtered by visit group.')
+        parser.add_argument('--s', type=str, nargs='+', default=None,
+                            help='Select only files matching these JWST parallel sequence ID(s) '
+                                 '(e.g., 1 2).  1 = prime, 2-5 = parallel.  Based on the JWST '
+                                 'file naming convention: '
+                                 'jw<ppppp><ooo><vvv>_<gg><s><aa>_...  If not provided, files '
+                                 'are not filtered by parallel sequence.')
+        parser.add_argument('--a', type=str, nargs='+', default=None,
+                            help='Select only files matching these JWST activity number(s) '
+                                 '(base-36, e.g., 01 02).  Based on the JWST file naming '
+                                 'convention: jw<ppppp><ooo><vvv>_<gg><s><aa>_...  If not '
+                                 'provided, files are not filtered by activity number.')
+        parser.add_argument('--exp', type=str, nargs='+', default=None,
+                            help='Select only files matching these JWST exposure number(s) '
+                                 '(e.g., 00001 00002).  Based on the JWST file naming '
+                                 'convention: jw<ppppp><ooo><vvv>_<gg><s><aa>_<eeeee>_...  '
+                                 'If not provided, files are not filtered by exposure number.')
+
         parser.add_argument('-l', '--list', default=False, action='store_true',
                             help='List the files that would be processed and exit.  No '
                                  'preprocessing is performed.')
@@ -277,13 +330,19 @@ class PreprocessJWST(scriptbase.ScriptBase):
         if len(uncal_list) == 0:
             raise PypeItError(f'No uncalibrated files (*_uncal.fits) found in {raw_dir}.')
 
-        # Filter by program ID, observation number, and/or visit number
-        if args.pid is not None or args.obs is not None or args.vis is not None:
+        # Filter by JWST file naming convention fields
+        _any_filter = any(x is not None for x in [args.pid, args.obs, args.vis,
+                                                   args.vg, args.s, args.a,
+                                                   args.exp])
+        if _any_filter:
             uncal_list = cls._filter_jwst_files(uncal_list, program=args.pid,
-                                                observation=args.obs, visit=args.vis)
+                                                observation=args.obs, visit=args.vis,
+                                                visit_group=args.vg,
+                                                parallel_seq=args.s,
+                                                activity=args.a,
+                                                exposure=args.exp)
             if len(uncal_list) == 0:
-                raise PypeItError('No uncalibrated files match the specified program/observation/'
-                                  'visit filters.')
+                raise PypeItError('No uncalibrated files match the specified filters.')
 
         log.info(f'Found {len(uncal_list)} uncalibrated files to process.')
 
@@ -355,12 +414,15 @@ class PreprocessJWST(scriptbase.ScriptBase):
             raise PypeItError(f'No rate files (*_rate.fits) found in {output_dir}.')
 
         # Apply the same filtering to rate files
-        if args.pid is not None or args.obs is not None or args.vis is not None:
+        if _any_filter:
             rate_list = cls._filter_jwst_files(rate_list, program=args.pid,
-                                               observation=args.obs, visit=args.vis)
+                                               observation=args.obs, visit=args.vis,
+                                               visit_group=args.vg,
+                                               parallel_seq=args.s,
+                                               activity=args.a,
+                                               exposure=args.exp)
             if len(rate_list) == 0:
-                raise PypeItError('No rate files match the specified program/observation/'
-                                  'visit filters.')
+                raise PypeItError('No rate files match the specified filters.')
 
         log.info(f'Found {len(rate_list)} rate files for Stage 2 processing.')
 
