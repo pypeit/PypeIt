@@ -16,8 +16,10 @@ from IPython import embed
 from pypeit.core import basis, pixels, extract
 from pypeit.core import fitting
 from pypeit.core import procimg
-from pypeit import msgs, utils, bspline, slittrace
+from pypeit import log, utils, bspline, slittrace
+from pypeit import PypeItError
 from pypeit.display import display
+
 
 def skysub_npoly(thismask):
     """
@@ -133,17 +135,18 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         inmask = (ivar > 0.0) & thismask & np.isfinite(image) & np.isfinite(ivar)
     elif inmask.dtype != bool:
         # Check that it's of type bool
-        msgs.error("Type of inmask should be bool and is of type: {:}".format(inmask.dtype))
+        raise PypeItError("Type of inmask should be bool and is of type: {:}".format(inmask.dtype))
 
     # Sky pixels for fitting
     gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask) \
             & np.isfinite(image) & np.isfinite(ivar)
     bad_pixel_frac = np.sum(thismask & np.logical_not(gpm))/np.sum(thismask)
     if bad_pixel_frac > max_mask_frac:
-        msgs.warn(f'This slit/order has {100.0*bad_pixel_frac:.3f}% of the pixels masked, which '
-                  f'exceeds the threshold of {100.0*max_mask_frac:.3f}%.'
-                  + msgs.newline() + 'There is likely a problem with this slit. Giving up on '
-                  'global sky-subtraction.')
+        log.warning(
+            f'This slit/order has {100.0*bad_pixel_frac:.3f}% of the pixels masked, which exceeds '
+            f'the threshold of {100.0*max_mask_frac:.3f}%.\nThere is likely a problem with this '
+            'slit. Giving up on global sky-subtraction.'
+        )
         return np.zeros(np.sum(thismask))
 
     # Sub arrays
@@ -170,8 +173,10 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
                                             kwargs_bspline={'bkspace':bsp},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
             if exit_status != 0:
-                msgs.warn('Global sky-subtraction did not exit cleanly for initial positive sky fit.'
-                          + msgs.newline() + 'Initial masking based on positive sky fit will be skipped')
+                log.warning(
+                    'Global sky-subtraction did not exit cleanly for initial positive sky fit.\n'
+                    'Initial masking based on positive sky fit will be skipped'
+                )
             else:
                 res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
                 lmask = (res < 5.0) & (res > -4.0)
@@ -187,7 +192,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         poly_basis = basis.flegendre(2.0*ximg_fit - 1.0, npoly_fit)
 
     # Perform the full fit now
-    msgs.info("Full fit in global sky sub.")
+    log.info("Full fit in global sky sub.")
     skyset, outmask, yfit, _, exit_status = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
                                                                     upper=sigrej, lower=sigrej, maxiter=maxiter,
                                                                     kwargs_bspline={'bkspace':bsp},
@@ -198,9 +203,10 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     # better understand what this functionality is doing, but it makes the rejection much more quickly approach a small
     # chi^2
     if exit_status == 1:
-        msgs.warn('Maximum iterations reached in bspline_profile global sky-subtraction for npoly={:d}.'.format(npoly_fit) +
-                  msgs.newline() +
-                  'Redoing sky-subtraction without polynomial degrees of freedom')
+        log.warning(
+            'Maximum iterations reached in bspline_profile global sky-subtraction for '
+            f'npoly={npoly_fit}.\nRedoing sky-subtraction without polynomial degrees of freedom'
+        )
         poly_basis = np.ones_like(sky)
         # Perform the full fit now
         skyset, outmask, yfit, _, exit_status \
@@ -309,7 +315,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     if nc != nx:
         raise ValueError('Object profile should have oprof.shape[0] equal to nx')
 
-    msgs.info('Iter     Chi^2     Rejected Pts')
+    log.info('Iter     Chi^2     Rejected Pts')
     xmin = 0.0
     xmax = 1.0
 
@@ -339,7 +345,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
                                         relative=relative,
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 5})
     else:
-        msgs.warn('All pixels are masked in skyoptimal. Not performing local sky subtraction.')
+        log.warning('All pixels are masked in skyoptimal. Not performing local sky subtraction.')
         return np.zeros_like(piximg), np.zeros_like(piximg), gpm
 
     chi2 = (data[good] - yfit1) ** 2 * ivar[good]
@@ -349,8 +355,8 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     chi2_sigrej = chi2_srt[sigind]
     mask1 = (chi2 < chi2_sigrej)
 
-    msgs.info('2nd round....')
-    msgs.info('Iter     Chi^2     Rejected Pts')
+    log.info('2nd round....')
+    log.info('Iter     Chi^2     Rejected Pts')
     if np.any(mask1):
         sset, gpm_good, yfit, red_chi, exit_status \
                 = fitting.bspline_profile(piximg[good], data[good], ivar[good], profile_basis[good,:],
@@ -358,7 +364,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
                                         relative=relative,
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 1})
     else:
-        msgs.warn('All pixels are masked in skyoptimal after first round of rejection. Not performing local sky subtraction.')
+        log.warning('All pixels are masked in skyoptimal after first round of rejection. Not performing local sky subtraction.')
         return np.zeros_like(piximg), np.zeros_like(piximg), gpm
 
     ncoeff = npoly + nobj
@@ -437,18 +443,18 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
     fullbkpt_grid = fullbkpt_grid[keep]
     used_grid = False
     if not bkpts_optimal:
-        msgs.info('bkpts_optimal = False --> using uniform bkpt spacing spacing: bsp={:5.3f}'.format(bsp_min))
+        log.info('bkpts_optimal = False --> using uniform bkpt spacing spacing: bsp={:5.3f}'.format(bsp_min))
         fullbkpt = fullbkpt_grid
         used_grid = True
     else:
         piximg_temp = np.ma.array(np.copy(piximg))
-        piximg_temp.mask = np.invert(sampmask)
+        piximg_temp.mask = np.logical_not(sampmask)
         samplmin = np.ma.min(piximg_temp,fill_value=np.inf,axis=1)
-        samplmin = samplmin[np.invert(samplmin.mask)].data
+        samplmin = samplmin[np.logical_not(samplmin.mask)].data
         samplmax = np.ma.max(piximg_temp,fill_value=-np.inf,axis=1)
-        samplmax = samplmax[np.invert(samplmax.mask)].data
+        samplmax = samplmax[np.logical_not(samplmax.mask)].data
         if samplmax.size != samplmin.size:
-            msgs.error('This should not happen')
+            raise PypeItError('This should not happen')
         nbkpt = samplmax.size
         # Determine the sampling. dsamp represents the gap in spectral pixel (wavelength) coverage between
         # subsequent spectral direction pixels in the piximg, i.e. it is the difference between the minimum
@@ -465,8 +471,8 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
         dsamp = scipy.ndimage.convolve(dsamp_med, kernel, mode='reflect')
         # if more than samp_frac of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
         if np.sum(dsamp <= bsp_min) > samp_frac*nbkpt:
-            msgs.info('Sampling of wavelengths is nearly continuous.')
-            msgs.info('Using uniform bkpt spacing: bsp={:5.3f}'.format(bsp_min))
+            log.info('Sampling of wavelengths is nearly continuous.')
+            log.info('Using uniform bkpt spacing: bsp={:5.3f}'.format(bsp_min))
             fullbkpt = fullbkpt_grid
             used_grid = True
         else:
@@ -739,9 +745,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     """
     # Check input
     if model_noise and base_var is None:
-        msgs.error('Must provide base_var to iteratively update and improve the noise model.')
+        raise PypeItError('Must provide base_var to iteratively update and improve the noise model.')
     if base_var is not None and base_var.shape != sciimg.shape:
-        msgs.error('Base variance array does not match science image array shape.')
+        raise PypeItError('Base variance array does not match science image array shape.')
 
     # TODO Force traces near edges to always be extracted with a Gaussian profile.
 
@@ -823,7 +829,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         max_spat_img = max_spat1[:, None]
         localmask = (spat_img > min_spat_img) & (spat_img < max_spat_img) & thismask
         if np.sum(localmask) == 0:
-            msgs.error('There are no pixels on the localmask for group={}. '
+            raise PypeItError('There are no pixels on the localmask for group={}. '
                        'Something is very wrong with either your slit edges or your object traces'.format(group))
         npoly = skysub_npoly(localmask)
 
@@ -842,7 +848,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         obj_profiles = np.zeros((nspec, nspat, objwork), dtype=float)
         sigrej_eff = sigrej
         for iiter in range(1, niter + 1):
-            msgs.info('--------------------------REDUCING: Iteration # ' + '{:2d}'.format(iiter) + ' of ' +
+            log.info('--------------------------REDUCING: Iteration # ' + '{:2d}'.format(iiter) + ' of ' +
                       '{:2d}'.format(niter) + '---------------------------------------------------')
             img_minsky = sciimg - skyimage
             for ii in range(objwork):
@@ -850,10 +856,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                 if iiter == 1:
                     # If this is the first iteration, print status message. Initiate profile fitting with a simple
                     # boxcar extraction.
-                    msgs.info("----------------------------------- PROFILE FITTING --------------------------------------------------------")
-                    msgs.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].OBJID) + " of {:}".format(nobj))
-                    msgs.info("At x = {:5.2f}".format(sobjs[iobj].SPAT_PIXPOS) + " on slit # {:}".format(sobjs[iobj].slit_order))
-                    msgs.info("------------------------------------------------------------------------------------------------------------")
+                    log.info("----------------------------------- PROFILE FITTING --------------------------------------------------------")
+                    log.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].OBJID) + " of {:}".format(nobj))
+                    log.info("At x = {:5.2f}".format(sobjs[iobj].SPAT_PIXPOS) + " on slit # {:}".format(sobjs[iobj].slit_order))
+                    log.info("------------------------------------------------------------------------------------------------------------")
 
                     # TODO -- Use extract_specobj_boxcar to avoid code duplication
                     extract.extract_boxcar(sciimg-skyimage, modelivar, outmask, waveimg, skyimage,
@@ -907,8 +913,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     #sobjs[iobj].maskwidth = maskwidth if sobjs[iobj].prof_nsigma is None else \
                     #    sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
                 else:
-                    msgs.warn("Bad extracted wavelengths in local_skysub_extract")
-                    msgs.warn("Skipping this profile fit and continuing.....")
+                    log.warning("Bad extracted wavelengths in local_skysub_extract")
+                    log.warning("Skipping this profile fit and continuing.....")
 
             # Fit the local sky
             sky_bmodel = np.array(0.0)
@@ -929,12 +935,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                         fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
                 iterbsp = iterbsp + 1
                 if (not sky_bmodel.any()) & (iterbsp <= 3):
-                    msgs.warn('***************************************')
-                    msgs.warn('WARNING: bspline sky-subtraction failed')
-                    msgs.warn('Increasing bkpt spacing by 20%. Retry')
-                    msgs.warn(
+                    log.warning('***************************************')
+                    log.warning('WARNING: bspline sky-subtraction failed')
+                    log.warning('Increasing bkpt spacing by 20%. Retry')
+                    log.warning(
                         'Old bsp = {:5.2f}'.format(bsp_now) + '; New bsp = {:5.2f}'.format(1.2 ** (iterbsp) * bsp))
-                    msgs.warn('***************************************')
+                    log.warning('***************************************')
 
             if sky_bmodel.any():
                 skyimage.flat[isub] = sky_bmodel
@@ -965,28 +971,28 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     sigrej_eff = np.fmax(np.sqrt(chi2_sigrej), sigrej)
                     #  Maximum sigrej is sigrej_ceil (unless this is a standard)
                     #sigrej_eff = np.fmin(sigrej_eff, sigrej_ceil)
-                    msgs.info('Measured effective rejection from distribution of chi^2')
-                    msgs.info('Instead of rejecting sigrej = {:5.2f}'.format(sigrej) +
+                    log.info('Measured effective rejection from distribution of chi^2')
+                    log.info('Instead of rejecting sigrej = {:5.2f}'.format(sigrej) +
                               ', use threshold sigrej_eff = {:5.2f}'.format(sigrej_eff))
                     # Explicitly mask > sigrej outliers using the distribution of chi2 but only in the region that was actually fit.
                     # This prevents e.g. excessive masking of slit edges
                     outmask.flat[isub[igood1]] = outmask.flat[isub[igood1]] & (chi2[igood1] < chi2_sigrej) & (
                                 sciivar.flat[isub[igood1]] > 0.0)
                     nrej = outmask.flat[isub[igood1]].sum()
-                    msgs.info(
+                    log.info(
                         'Iteration = {:d}'.format(iiter) + ', rejected {:d}'.format(nrej) + ' of ' + '{:d}'.format(
                             igood1.sum()) + ' fit pixels')
             elif no_local_sky:
                 pass
             else:
-                msgs.warn('ERROR: Bspline sky subtraction failed after 4 iterations of bkpt spacing')
-                msgs.warn('       Moving on......')
+                log.warning('ERROR: Bspline sky subtraction failed after 4 iterations of bkpt spacing')
+                log.warning('       Moving on......')
                 # obj_profiles = np.zeros_like(obj_profiles)
                 isub, = np.where(localmask.flatten())
                 # Just replace with the global sky
                 skyimage.flat[isub] = global_sky.flat[isub]
                 if iiter == niter:
-                    msgs.warn('WARNING: LOCAL SKY SUBTRACTION NOT PERFORMED')
+                    log.warning('WARNING: LOCAL SKY SUBTRACTION NOT PERFORMED')
 
         outmask_extract = outmask.copy() if use_2dmodel_mask else inmask.copy()
 
@@ -998,7 +1004,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
 
         for ii in range(objwork):
             iobj = group[ii]
-            msgs.info('Extracting obj # {:d}'.format(iobj + 1) + ' of {:d}'.format(nobj) +
+            log.info('Extracting obj # {:d}'.format(iobj + 1) + ' of {:d}'.format(nobj) +
                       ' with objid = {:d}'.format(sobjs[iobj].OBJID) + ' on slit # {:d}'.format(sobjs[iobj].slit_order) +
                       ' at x = {:5.2f}'.format(sobjs[iobj].SPAT_PIXPOS))
             this_profile = obj_profiles[:, :, ii]
@@ -1301,7 +1307,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
 
     # Find the spat IDs
     if norders != len(slitids):
-        msgs.error('The number of orders in the sobjs object does not match the number of good slits in the '
+        raise PypeItError('The number of orders in the sobjs object does not match the number of good slits in the '
                    'slitmask image! There is a problem with the object/slitmask masking. This routine '
                    'requires that all masking is performed in the calling routine.')
 
@@ -1309,7 +1315,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     nleft = left.shape[1]
     nrigh = right.shape[1]
     if nleft != nrigh or norders != nleft or norders != nrigh:
-        msgs.error('The number of left and right edges must be the same as the number of orders. '
+        raise PypeItError('The number of left and right edges must be the same as the number of orders. '
                    'There is likely a problem with your masking')
 
     # Now assign the order_sn, and generate an order_vec aligned with the slitids
@@ -1322,19 +1328,19 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
             ind = (sobjs.SLITID == slitid) & (sobjs.ECH_OBJID == uni_objid[iobj])
             # Check for a missed order and fault if they exist
             if np.sum(ind) == 0:
-                msgs.error('There is a missing order for object {0:d} on slit {1:d}!'.format(iobj, slitid))
+                raise PypeItError('There is a missing order for object {0:d} on slit {1:d}!'.format(iobj, slitid))
             if iobj == 0:
-                order_vec[islit] = sobjs[ind].ECH_ORDER
-            order_snr[islit,iobj] = sobjs[ind].ech_snr
+                order_vec[islit] = sobjs[ind][0].ECH_ORDER
+            order_snr[islit,iobj] = sobjs[ind][0].ech_snr
 
     # Enforce that the number of objects in the sobjs object is an integer multiple of the number of good orders
     if (np.sum(sobjs.sign > 0) % norders) == 0:
         nobjs = int((np.sum(sobjs.sign > 0)/norders))
     else:
-        msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or orders!')
+        raise PypeItError('Number of specobjs in sobjs is not an integer multiple of the number or orders!')
     # Enforce that every object in sobj has an specobj on every good order
     if np.any(np.isnan(order_snr)):
-        msgs.error('There are missing orders for one or more objects in sobjs. There is a problem with how you have '
+        raise PypeItError('There are missing orders for one or more objects in sobjs. There is a problem with how you have '
                    'masked objects in sobjs or slits in slitmask in the calling routine')
 
 
@@ -1352,17 +1358,18 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     # Print out a status message
     str_out = ''
     for iord in srt_order_snr:
-        str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slitids[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
+        str_out += f'{slitids[iord]:<8d}{order_vec[iord]:<8d}{order_snr[iord,ibright]:>10.2f}\n'
     dash = '-'*27
     dash_big = '-'*40
-    msgs.info(msgs.newline() + 'Reducing orders in order of S/N of brightest object:' + msgs.newline() + dash +
-              msgs.newline() + '{:<8s}{:<8s}{:>10s}'.format('slit','order','S/N') + msgs.newline() + dash +
-              msgs.newline() + str_out)
+    log.info(
+        f'\nReducing orders in order of S/N of brightest object:\n{dash}\n'
+        f'{"slit":<8s}{"order":<8s}{"S/N":>10s}\n{dash}\n' + str_out
+    )
     # Loop over orders in order of S/N ratio (from highest to lowest) for the brightest object
     for iord in srt_order_snr:
         order = order_vec[iord]
-        msgs.info("Local sky subtraction and extraction for slit/order: {:d}/{:d}".format(iord,order))
-        other_orders = (fwhm_here > 0) & np.invert(fwhm_was_fit)
+        log.info(f"Local sky subtraction and extraction for slit/order: {iord}/{order}")
+        other_orders = (fwhm_here > 0) & np.logical_not(fwhm_was_fit)
         other_fit    = (fwhm_here > 0) & fwhm_was_fit
         # Loop over objects in order of S/N ratio (from highest to lowest)
         for iobj in srt_obj:
@@ -1399,20 +1406,21 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                         slitids[other_orders], order_vec[other_orders],
                         order_snr[other_orders,ibright], 
                         fwhm_here[other_orders]):
-                        str_out += '{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(slit_now, order_now, snr_now, fwhm_now) + msgs.newline()
-                    msgs.info(msgs.newline() + 'Using' +  fwhm_str + ' for FWHM of object={:d}'.format(uni_objid[iobj]) +
-                              ' on slit/order: {:d}/{:d}'.format(iord,order) + msgs.newline() + dash_big +
-                              msgs.newline() + '{:<8s}{:<8s}{:>10s}{:>10s}'.format('slit', 'order','SNR','FWHM') +
-                              msgs.newline() + dash_big +
-                              msgs.newline() + str_out[:-8] +
-                              fwhm_str.upper() +  ':{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(iord, order, order_snr[iord,ibright], fwhm_this_ord) +
-                              msgs.newline() + dash_big)
+                        str_out += f'{slit_now:<8d}{order_now:<8d}{snr_now:>10.2f}{fwhm_now:>10.2f}'
+                    log.info(
+                        f'\nUsing {fwhm_str} for FWHM of object={uni_objid[iobj]} on slit/order: '
+                        f'{iord}/{order}\n{dash_big}\n'
+                        f'{"slit":<8s}{"order":<8s}{"SNR":>10s}{"FWHM":>10s}\n{dash_big}\n'
+                        f'{str_out[:-8]}{fwhm_str.upper()}'
+                        f':{iord:<8d}{order:<8d}{order_snr[iord,ibright]:>10.2f}'
+                        f'{fwhm_this_ord:>10.2f}\n{dash_big}'
+                    )
                     if show_fwhm:
                         plt.plot(order_vec[other_orders][fit_mask], fwhm_here[other_orders][fit_mask], marker='o', linestyle=' ',
                         color='k', mfc='k', markersize=4.0, label='orders informing fit')
-                        if np.any(np.invert(fit_mask)):
-                            plt.plot(order_vec[other_orders][np.invert(fit_mask)],
-                                     fwhm_here[other_orders][np.invert(fit_mask)], marker='o', linestyle=' ',
+                        if np.any(np.logical_not(fit_mask)):
+                            plt.plot(order_vec[other_orders][np.logical_not(fit_mask)],
+                                     fwhm_here[other_orders][np.logical_not(fit_mask)], marker='o', linestyle=' ',
                                      color='magenta', mfc='magenta', markersize=4.0, label='orders rejected by fit')
                         if np.any(other_fit):
                             plt.plot(order_vec[other_fit], fwhm_here[other_fit], marker='o', linestyle=' ',
@@ -1510,7 +1518,7 @@ def convolve_skymodel(input_img, fwhm_map, thismask, subpixel=5, nsample=10):
         if kk == 0:
             # The first element is the original image
             continue
-        msgs.info(f"Image spectral convolution - Evaluating grid point {kk}/{nsample - 1}")
+        log.info(f"Image spectral convolution - Evaluating grid point {kk}/{nsample - 1}")
         # Generate a kernel and normalise
         kernsize = 2 * int(5 * kernwids[kk] + 0.5) + 1  # Use a Gaussian kernel, covering +/-5sigma
         midp = (kernsize - 1) // 2
@@ -1520,9 +1528,9 @@ def convolve_skymodel(input_img, fwhm_map, thismask, subpixel=5, nsample=10):
         conv_allkern[:, :, kk] = utils.rebinND(utils.convolve_fft(_input_img, kern, _input_msk), input_img.shape)
 
     # Collect all of the images
-    msgs.info(f"Collating all convolution steps")
+    log.info(f"Collating all convolution steps")
     conv_interp = RegularGridInterpolator((np.arange(conv_allkern.shape[0]), np.arange(nspat), kernwids), conv_allkern)
-    msgs.info(f"Applying the convolution solution")
+    log.info(f"Applying the convolution solution")
     eval_spec, eval_spat = np.where(thismask)
     sciimg_conv = np.copy(input_img)
     sciimg_conv[thismask] = conv_interp((eval_spec, eval_spat, sig_exc))

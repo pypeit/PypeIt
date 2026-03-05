@@ -58,7 +58,8 @@ import shutil
 
 from IPython import embed
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError, PypeItPathError
 from pypeit import cache
 
 # NOTE: A better approach may be to subclass from Path.  I briefly tried that,
@@ -96,7 +97,7 @@ class PypeItDataPath:
 
     def __init__(self, subdirs, remote_host=None):
         if remote_host not in [None, 's3_cloud', 'github']:
-            msgs.error(f'Remote host not recognized: {self.host}')
+            raise PypeItError(f'Remote host not recognized: {self.host}')
         self.host = remote_host
         self.subdirs = subdirs
         self.data = self.check_isdir(cache.__PYPEIT_DATA__)
@@ -147,7 +148,7 @@ class PypeItDataPath:
             where the output type is based on the type of ``p``.
 
         Raises:
-            :class:`~pypeit.pypmsgs.PypeItPathError`:
+            :class:`~pypeit.exceptions.PypeItPathError`:
                 Raised if the requested contents *do not exist*.
         """
         if (self.path / p).is_dir():
@@ -157,8 +158,10 @@ class PypeItDataPath:
                                   remote_host=self.host)
         if (self.path / p).is_file():
             return self.path / p
-        msgs.error(f'{str(self.path / p)} is not a valid PypeIt data path or is a file '
-                   'that does not exist.', cls='PypeItPathError')
+        raise PypeItPathError(
+            f'{str(self.path / p)} is not a valid PypeIt data path or is a file that does not '
+            'exist.'
+        )
 
     @staticmethod
     def check_isdir(path:pathlib.Path) -> pathlib.Path:
@@ -173,11 +176,11 @@ class PypeItDataPath:
             `Path`_: The input path is returned if it is valid.
 
         Raises:
-            :class:`~pypeit.pypmsgs.PypeItPathError`:
+            :class:`~pypeit.exceptions.PypeItPathError`:
                 Raised if the path does not exist or is not a directory.
         """
         if not path.is_dir():
-            msgs.error(f"Unable to find {path}.  Check your installation.", cls='PypeItPathError')
+            raise PypeItPathError(f'Unable to find {path}.  Check your installation.')
         return path
 
     @staticmethod
@@ -294,7 +297,7 @@ class PypeItDataPath:
         # If it does not, inform the user and download it into the cache.
         # NOTE: This should not be required for from-source (dev) installations.
         if not quiet:
-            msgs.info(f'{data_file} does not exist in the expected package directory '
+            log.info(f'{data_file} does not exist in the expected package directory '
                       f'({self.path}).  Checking cache or downloading the file now.')
 
         # Get the path to the cached file
@@ -304,7 +307,7 @@ class PypeItDataPath:
         _cached_file = cache.fetch_remote_file(data_file, subdir, remote_host=self.host,
                                                force_update=force_update, return_none=return_none)
         if _cached_file is None:
-            msgs.warn(f'File {data_file} not found in the cache.')
+            log.warning(f'File {data_file} not found in the cache.')
             return None
 
         # If we've made it this far, the file is being pulled from the cache.

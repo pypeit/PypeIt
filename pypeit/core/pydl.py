@@ -5,7 +5,8 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit.core import basis
 from pypeit.core import fitting
@@ -374,7 +375,7 @@ class TraceSet(object):
                 #invvar = np.ones(xpos.shape, dtype=xpos.dtype)
             if 'func' in kwargs:
                 if kwargs['func'] not in allowed_functions:
-                    msgs.error('Unrecognized function.')
+                    raise PypeItError('Unrecognized function.')
                 self.func = kwargs['func']
             else:
                 self.func = 'legendre'
@@ -454,7 +455,7 @@ class TraceSet(object):
                 self.outmask[iTrace, :] = pypeitFit.gpm
 
         else:
-            msgs.error('Wrong number of arguments to TraceSet!')
+            raise PypeItError('Wrong number of arguments to TraceSet!')
 
     def xy(self, xpos=None, ignore_jump=False):
         """Convert from a trace set to an array of x,y positions.
@@ -685,7 +686,7 @@ def djs_reject(data, model, outmask=None, inmask=None,
     # ToDO It would be nice to come up with a way to use MAD but also use the errors in the rejection, i.e. compute the rejection threhsold using the mad.
 
     if upper is None and lower is None and maxdev is None:
-        msgs.warn('upper, lower, and maxdev are all set to None. No rejection performed since no rejection criteria were specified.')
+        log.warning('upper, lower, and maxdev are all set to None. No rejection performed since no rejection criteria were specified.')
 
     if (use_mad and (invvar is not None)):
         raise ValueError('use_mad can only be set to True innvar = None. This code only computes a mad'
@@ -696,7 +697,7 @@ def djs_reject(data, model, outmask=None, inmask=None,
     # ToDo JFH: I think it would actually make more sense for outmask be a required input parameter (named lastmask or something like that).
     if outmask is None:
         outmask = np.ones(data.shape, dtype='bool')
-        msgs.warn('outmask was not specified as an input parameter. Cannot asess convergence of rejection -- qdone is automatically True')
+        log.warning('outmask was not specified as an input parameter. Cannot asess convergence of rejection -- qdone is automatically True')
     else:
         if data.shape != outmask.shape:
             raise ValueError('Dimensions of data and outmask do not agree.')
@@ -1073,7 +1074,7 @@ class chunks(object):
         else:
             cosDecMin = np.cos(np.deg2rad(self.decBounds[0]))
         if cosDecMin <= 0.0:
-            msgs.error("cosDecMin={0:f} not positive in setchunks().".format(cosDecMin))
+            raise PypeItError("cosDecMin={0:f} not positive in setchunks().".format(cosDecMin))
         self.raRange, self.raOffset = self.rarange(ra, minSize/cosDecMin)
         self.raMin, self.raMax = self.getraminmax(ra, self.raOffset)
         #
@@ -1095,7 +1096,7 @@ class chunks(object):
             else:
                 cosDecMin = np.cos(np.deg2rad(self.decBounds[i+1]))
             if cosDecMin <= 0.0:
-                msgs.error("cosDecMin={0:f} not positive in setchunks().".format(cosDecMin))
+                raise PypeItError("cosDecMin={0:f} not positive in setchunks().".format(cosDecMin))
             #
             # Get raBounds array for this declination array, leave an extra
             # cell on each end
@@ -1173,7 +1174,7 @@ class chunks(object):
         to it.
         """
         if marginSize >= self.minSize:
-            msgs.error("marginSize>=minSize ({0:f}={1:f}) in chunks.assign().".format(marginSize, self.minSize))
+            raise PypeItError("marginSize>=minSize ({0:f}={1:f}) in chunks.assign().".format(marginSize, self.minSize))
         chunkDone = [[False for j in range(self.nRa[i])] for i in range(self.nDec)]
         for i in range(ra.size):
             currRa = np.fmod(ra[i] + self.raOffset, 360.0)
@@ -1225,7 +1226,7 @@ class chunks(object):
             (self.decBounds[self.nDec]-self.decBounds[0])))
         decChunkMax = decChunkMin
         if decChunkMin < 0 or decChunkMin > self.nDec - 1:
-            msgs.error("decChunkMin out of range in chunks.getbounds().")
+            raise PypeItError("decChunkMin out of range in chunks.getbounds().")
         #
         # Set minimum and maximum bounds of dec
         #
@@ -1245,7 +1246,7 @@ class chunks(object):
                 (self.raBounds[i][self.nRa[i]] - self.raBounds[i][0])))
             raChunkMax[i-decChunkMin] = raChunkMin[i-decChunkMin]
             if raChunkMin[i-decChunkMin] < 0 or raChunkMin[i-decChunkMin] > self.nRa[i]-1:
-                msgs.error("raChunkMin out of range in chunks.getbounds().")
+                raise PypeItError("raChunkMin out of range in chunks.getbounds().")
             #
             # Set minimum and maximum bounds of ra
             #
@@ -1288,7 +1289,7 @@ class chunks(object):
                 float(self.nRa[decChunk]) /
                 (self.raBounds[decChunk][self.nRa[decChunk]] - self.raBounds[decChunk][0])))
             if raChunk < 0 or raChunk > self.nRa[decChunk]-1:
-                msgs.error("raChunk out of range in chunks.get()")
+                raise PypeItError("raChunk out of range in chunks.get()")
         else:
             raChunk = -1
         return (raChunk, decChunk)
@@ -1350,7 +1351,7 @@ class chunks(object):
                 else:
                     mapGroups[i] = mapGroups[mapGroups[i]]
             else:
-                msgs.error("MapGroups[{0:d}]={1:d} in chunks.friendsoffriends().".format(i, mapGroups[i]))
+                raise PypeItError("MapGroups[{0:d}]={1:d} in chunks.friendsoffriends().".format(i, mapGroups[i]))
         for i in range(nPoints):
             inGroup[i] = mapGroups[inGroup[i]]
         firstGroup = np.zeros(nPoints, dtype='i4') - 1
@@ -1417,9 +1418,9 @@ class groups(object):
             elif separation == 'sphereradec':
                 self.separation = self.sphereradec
             else:
-                msgs.error("Unknown separation function: {0}.".format(separation))
+                raise PypeItError("Unknown separation function: {0}.".format(separation))
         else:
-            msgs.error("Improper type for separation!")
+            raise PypeItError("Improper type for separation!")
         #
         # Save information about the coordinates.
         #
@@ -1524,7 +1525,7 @@ def spheregroup(ra, dec, linklength, chunksize=None):
 
     Raises
     ------
-    msgs.error
+    raise PypeItError
         If the array of coordinates only contains one point.
 
     Notes
@@ -1535,14 +1536,14 @@ def spheregroup(ra, dec, linklength, chunksize=None):
     """
     npoints = ra.size
     if npoints == 1:
-        msgs.error("Cannot group only one point!")
+        raise PypeItError("Cannot group only one point!")
     #
     # Define the chunksize
     #
     if chunksize is not None:
         if chunksize < 4.0*linklength:
             chunksize = 4.0*linklength
-            msgs.warn("chunksize changed to {0:.2f}.".format(chunksize))
+            log.warning("chunksize changed to {0:.2f}.".format(chunksize))
     else:
         chunksize = max(4.0*linklength, 0.1)
     #
@@ -1626,7 +1627,7 @@ def spherematch(ra1, dec1, ra2, dec2, matchlength, chunksize=None,
     # Check input size
     #
     if ra1.size == 1:
-        msgs.error("Change the order of the sets of coordinates!")
+        raise PypeItError("Change the order of the sets of coordinates!")
     #
     # Initialize chunks
     #

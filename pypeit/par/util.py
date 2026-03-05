@@ -4,25 +4,61 @@ Utility functions for PypeIt parameter sets
 
 .. include:: ../include/links.rst
 """
-from IPython import embed
-
-import numpy as np
+import ast
+import itertools
+from typing import Type
 
 from configobj import ConfigObj
+from IPython import embed
 
-from pypeit import msgs, __version__
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 
-#-----------------------------------------------------------------------
-# Parameter utility functions
-#-----------------------------------------------------------------------
 def _eval_ignore():
     """Provides a list of strings that should not be evaluated."""
     return [ 'open', 'file', 'dict', 'list', 'tuple' ]
 
 
-def eval_tuple(inp):
+def ast_literal_eval(inp):
+    """
+    A wrapper for :func:`ast.literal_eval` that returns the input if it raises a
+    ValueError.
+    """
+    try:
+        return ast.literal_eval(inp)
+    except ValueError:
+        return inp
+
+
+def _eval_iter(inp:list[str], left:str, right:str, otype:Type) -> list:
+    """
+    Convenience function used to abstract the core functionality of
+    :func:`eval_tuple` and :func:`eval_list`.
+
+    Parameters
+    ----------
+    inp
+        Input list of strings
+    left
+        Left bracket delimeter
+    right
+        Right bracket delimeter
+    otype
+        Return type for the components of the list
+
+    Returns
+    -------
+        A list of objects with type ``otype`` as converted from the provided
+        strings.
+    """
+    grps = [
+        i for i in list(itertools.chain(*[s.split(right) for s in ','.join(inp).split(left)]))
+        if len(i) > 1
+    ]
+    return list(otype(map(ast_literal_eval, g.split(','))) for g in grps)
+
+
+def eval_tuple(inp:list[str]) -> list[tuple]:
     """
     Evaluate the input to one or more tuples.
 
@@ -30,26 +66,44 @@ def eval_tuple(inp):
     parameters.
 
     .. warning::
-        - Currently can only handle simple components that can also be evaluated
-          (e.g., integers and floats).
 
-    Args:
-        inp (:obj:`list`):
-            A list of strings that are converted into a list of tuples.  The
-            parentheses must be within the list of elements.
+        - Currently can only handle tuples with integers, floats, or strings!
 
-    Return:
-        :obj:`list`: The list of tuples.
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of tuples.  The
+        parentheses must be within the list of elements.
+
+    Returns
+    -------
+        A list of tuples with the converted elements.
     """
-    joined = ','.join(inp)
-    try:
-        basic = eval(joined)
-    except:
-        msgs.error(f'Cannot evaluate {joined} into a valid tuple.')
+    return _eval_iter(inp, '(', ')', tuple)
 
-    # If any element of the basic evaluation is also a tuple, assume the result
-    # of the evaluation is a tuple of tuples.  This is converted to a list.
-    return list(basic) if any([isinstance(e, tuple) for e in basic]) else [basic]
+
+def eval_list(inp:list[str]) -> list[list]:
+    """
+    Evaluate the input to one or more lists.
+
+    This allows conversion of one or more lists provided to a configuration
+    parameters.
+
+    .. warning::
+
+        - Currently can only handle lists with integers, floats, or strings!
+
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of lists.  The square
+        brackets must be within the list of elements.
+
+    Returns
+    -------
+        A list of lists with the converted elements.
+    """
+    return _eval_iter(inp, '[', ']', list)
 
 
 def recursive_dict_evaluate(d):
@@ -69,7 +123,7 @@ def recursive_dict_evaluate(d):
     those listed above in the :func:`_eval_ignore` function.  Any value
     in this list or where::
 
-        eval(d[k]) for k in d.keys()
+        ast_literal_eval(d[k]) for k in d.keys()
 
     raises an exception is returned as the original string.
 
@@ -97,9 +151,13 @@ def recursive_dict_evaluate(d):
             # NOTE: This enables syntax for constructing one or more tuples.
             try:
                 d[k] = eval_tuple(d[k])
-            except PypeItError as e:
+            except (PypeItError, SyntaxError) as e:
                 # The tuple evaluation failed.  Assume that this can be handled
                 # later in the code and leave the dictionary element unaltered.
+                # 
+                # SyntaxError is raised for entries that include a tuple for the
+                # mosaic and a series of locations in the mosaiced image, like
+                # add_slits, rm_slits, and manual.
                 pass
             continue
 
@@ -110,92 +168,18 @@ def recursive_dict_evaluate(d):
                     replacement += [ v ]
                 else:
                     try:
-                        replacement += [ eval(v) ]
+                        replacement += [ ast_literal_eval(v) ]
                     except:
                         replacement += [ v ]
             d[k] = replacement
             continue
 
         try:
-            d[k] = eval(d[k]) if d[k] not in ignore else d[k]
+            d[k] = ast_literal_eval(d[k]) if d[k] not in ignore else d[k]
         except:
             pass
 
     return d
-
-
-# TODO: I don't think this is used.  We should deprecate it.
-def get_parset_list(cfg, pk, parsetclass):
-    """
-    Create a list of ParSets based on a root keyword for a set of
-    defined groups in the configuration file.
-    
-    For example, the :class:`InstrumentPar` group allows for a list of
-    detectors (:class:`DetectorPar`) with keywords like `detector1`,
-    `detector2`, etc.  This function parses the provided configuration
-    object (`cfg`) to find any sections with `detector` (`pk`) as its
-    root.  The remainder of the section name must be able to be
-    converted to an integer and the section itself must be able to setup
-    an instance of `parsetclass`.  The sections must be number
-    sequentially from 1..N.  E.g., the :class:`InstrumentPar`
-    configuration file cannot have `dectector1` and `detector3`, but no
-    `detector2`.  The call to setup the detectors in the
-    :class:`InstrumentPar` is::
-
-        kwargs['detector'] = get_parset_list(cfg, 'detector', DetectorPar)
-
-    Args:
-        cfg (`configobj`_, :obj:`dict`):
-            The top-level configuration that defines a list of
-            sub-ParSets.
-        pk (str):
-            The root of the keywords used to set a list of sub-ParSets.
-        parsetclass (:class:`pypeit.par.parset.ParSet`):
-            The class used to construct each element in the list of
-            parameter subsets.  The class **must** have a `from_dict`
-            method that instantiates the
-            :class:`pypeit.par.parset.ParSet` based on the provide
-            subsection/subdict from cfg.
-
-    Returns:
-        list: A list of instances of `parsetclass` parsed from the
-        provided configuration data.
-
-    Raises:
-        ValueError:
-            Raised if the indices of the subsections are not sequential
-            and 1-indexed.
-    """
-    # Get the full list of keys
-    k = cfg.keys()
-
-    # Iterate through the list of keys to find the appropriate sub
-    # parameter sets and their order.
-    par = []
-    order = []
-    for _k in k:
-        if _k == pk and cfg[_k] is None:
-            continue
-        if pk in _k:
-            try:
-                # Get the order for this subgroup (e.g., 2 for
-                # 'detector2'
-                order += [ int(_k.replace(pk,'')) ]
-                # And instantiate the parameter set
-                par += [ parsetclass.from_dict(cfg[_k]) ]
-            except:
-                continue
-
-    if len(par) > 0:
-        # Make sure the instances are correctly sorted and sequential
-        srt = np.argsort(order)
-        if np.any(np.array(order)[srt]-1 != np.arange(order[srt[-1]])):
-            raise ValueError('Parameter set series must be sequential and 1-indexed.')
-        # Return the sorted instances
-        return [par[i] for i in srt]
-
-    # No such subsets were defined, so return a null result
-    return None
 
 
 def parset_to_dict(par):

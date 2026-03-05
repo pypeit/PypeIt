@@ -21,10 +21,13 @@ class InstallExtinctfile(scriptbase.ScriptBase):
                                  'files with the same root.')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         import numpy as np
-        from pypeit import msgs
+        from pypeit import log
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Grab all the files
         files = np.concatenate([sorted(scriptbase.ScriptBase.expandpath(f)) for f in args.files])
@@ -34,8 +37,8 @@ class InstallExtinctfile(scriptbase.ScriptBase):
         # Loop through the files passed
         for f in files:
             if not f.is_file():
-                msgs.warn(f'{f} is not a file.')
+                log.warning(f'{f} is not a file.')
                 continue
             # Copy the user-created file to the cache
-            msgs.info(f'Installing {f}')
+            log.info(f'Installing {f}')
             cache.write_file_to_cache(str(f), f.name, 'extinction')

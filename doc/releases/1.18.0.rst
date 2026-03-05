@@ -2,6 +2,11 @@
 Version 1.18.0   
 ==============
 
+Organization Updates
+--------------------
+
+- Governance policies drafted
+
 Documentation Updates
 ---------------------
 

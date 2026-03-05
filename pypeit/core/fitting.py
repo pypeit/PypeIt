@@ -15,7 +15,8 @@ from scipy.optimize import curve_fit
 
 from pypeit.core import pydl
 from pypeit import bspline
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.datamodel import DataContainer
 
 from IPython import embed
@@ -98,7 +99,7 @@ class PypeItFit(DataContainer):
         See that func for Args and Returns
         """
         if 'force_to_bintbl' in kwargs and not kwargs['force_to_bintbl']:
-            msgs.warn('PypeItFits objects must always be forced to a BinaryTableHDU for writing.')
+            log.warning('PypeItFits objects must always be forced to a BinaryTableHDU for writing.')
         kwargs['force_to_bintbl'] = True
         return super(PypeItFit, self).to_hdu(**kwargs)
 
@@ -140,7 +141,7 @@ class PypeItFit(DataContainer):
                 self.fitc = np.zeros(self.order[0] + 1, self.order[1] + 1).astype(float)
             else:
                 self.fitc = np.zeros(self.order[0] + 1).astype(float)
-            msgs.warn('Input gpm is masked everywhere. Fit is probably probelmatic')
+            log.warning('Input gpm is masked everywhere. Fit is probably probelmatic')
             self.success = 0
             return self.success
 
@@ -186,8 +187,10 @@ class PypeItFit(DataContainer):
                     xv, y_out, self.order[0], 
                     w=np.sqrt(w_out) if w_out is not None else None) # numpy convention
         else:
-            msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
-                       "Please choose from 'polynomial', 'legendre', 'chebyshev','polynomial2d', 'legendre2d'")
+            raise PypeItError(
+                f"Fitting function '{self.func}' is not implemented yet\nPlease choose from "
+                "'polynomial', 'legendre', 'chebyshev', 'polynomial2d', 'legendre2d', 'chebyshev2d'"
+            )
 
         self.success = 1
         return self.success
@@ -286,7 +289,7 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
             return (np.polynomial.legendre.legval2d(xv, x2v, fitc) if func[:-2] == "legendre"
                     else np.polynomial.chebyshev.chebval2d(xv, x2v, fitc))
         else:
-            msgs.error("Function {0:s} has not yet been implemented for 2d fits".format(func))
+            raise PypeItError("Function {0:s} has not yet been implemented for 2d fits".format(func))
         # TODO: Why is this return here?  The code will never reach this point
         # because of the if/elif/else above.  What should the behavior be, raise
         # an exception or return None?
@@ -298,8 +301,10 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
         return (np.polynomial.legendre.legval(xv, fitc) if func == "legendre"
                 else np.polynomial.chebyshev.chebval(xv, fitc))
     else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
-                   "Please choose from 'polynomial', 'legendre', 'chebyshev', 'polynomial2d', 'legendre2d', 'chebyshev2d'")
+        raise PypeItError(
+            f"Fitting function '{func}' is not implemented yet\nPlease choose from "
+            "'polynomial', 'legendre', 'chebyshev', 'polynomial2d', 'legendre2d', 'chebyshev2d'"
+        )
 
 
 def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
@@ -427,9 +432,9 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     #pypeitFit = None
     while (not qdone) and (iIter < maxiter):
         if np.sum(this_gpm) <= np.sum(order) + 1:
-            msgs.warn("More parameters than data points - fit might be undesirable")
+            log.warning("More parameters than data points - fit might be undesirable")
         if not np.any(this_gpm):
-            msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
+            log.warning("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
         pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
                               func=function, order=np.atleast_1d(order),
                               x2=x2.astype(float) if x2 is not None else x2,
@@ -448,7 +453,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         # Update the iteration
         iIter += 1
     if (iIter == maxiter) & (maxiter != 0) & verbose:
-        msgs.warn(f'Maximum number of iterations maxiter={maxiter} reached in robust_polyfit_djs')
+        log.warning(f'Maximum number of iterations maxiter={maxiter} reached in robust_polyfit_djs')
 
     # Do the final fit
     pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
@@ -601,7 +606,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         elif (len(ret_tuple) == 3):
             result, ymodel, invvar_use = ret_tuple
         else:
-            msgs.error('Invalid return value from fitfunc')
+            raise PypeItError('Invalid return value from fitfunc')
         # Update the
         init_from_last = result
         thismask_iter = thismask.copy()
@@ -609,19 +614,19 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
                                           lower=lower, upper=upper, maxdev=maxdev, maxrej=maxrej,
                                           groupdim=groupdim, groupsize=groupsize, groupbadpix=groupbadpix, grow=grow,
                                           use_mad=use_mad, sticky=sticky)
-        nrej = np.sum(thismask_iter & np.invert(thismask))
-        nrej_tot = np.sum(inmask & np.invert(thismask))
+        nrej = np.sum(thismask_iter & np.logical_not(thismask))
+        nrej_tot = np.sum(inmask & np.logical_not(thismask))
         if verbose:
-            msgs.info(
+            log.info(
                 'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
                 'total pixels'.format(iter, nrej, nrej_tot, nin_good))
         iIter += 1
 
     if (iIter == maxiter) & (maxiter != 0):
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_optimize')
+        log.warning('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_optimize')
     outmask = np.copy(thismask)
     if np.sum(outmask) == 0:
-        msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
+        log.warning('All points were rejected!!! The fits will be zero everywhere.')
 
     # Perform a final fit using the final outmask if new pixels were rejected on the last iteration
     if qdone is False:
@@ -820,14 +825,14 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
         vander = np.polynomial.legendre.legvander2d(xv, yv, deg) if function == 'legendre' \
             else np.polynomial.chebyshev.chebvander2d(xv, yv, deg)
     else:
-        msgs.error("Not ready for this type of {:s}".format(function))
+        raise PypeItError("Not ready for this type of {:s}".format(function))
     # Weights
     if w is not None:
         w = np.asarray(w) + 0.0
         if w.ndim != 1:
-            msgs.bug("fitting.polyfit2d - Expected 1D vector for weights")
+            log.debug("fitting.polyfit2d - Expected 1D vector for weights")
         if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
-            msgs.bug("fitting.polyfit2d - Expected x, y and weights to have same length")
+            log.debug("fitting.polyfit2d - Expected x, y and weights to have same length")
         z = z * w
         vander = vander * w[:,np.newaxis]
     # Reshape
@@ -1114,7 +1119,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
     # Checks
     nx = xdata.size
     if ydata.size != nx:
-        msgs.error('Dimensions of xdata and ydata do not agree.')
+        raise PypeItError('Dimensions of xdata and ydata do not agree.')
 
     # TODO: invvar and profile_basis should be optional
 
@@ -1134,7 +1139,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
 
     npoly = int(profile_basis.size / nx)
     if profile_basis.size != nx * npoly:
-        msgs.error('Profile basis is not a multiple of the number of data points.')
+        raise PypeItError('Profile basis is not a multiple of the number of data points.')
 
     # Init
     yfit = np.zeros(ydata.shape)
@@ -1148,25 +1153,25 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
 
     if not quiet:
         termwidth = 80 - 13
-        msgs.info('B-spline fit:')
-        msgs.info('    npoly = {0} profile basis functions'.format(npoly))
-        msgs.info('    ngood = {0}/{1} measurements'.format(np.sum(ingpm), ingpm.size))
-        msgs.info(' {0:>4}  {1:>8}  {2:>7}  {3:>6} '.format(
+        log.info('B-spline fit:')
+        log.info('    npoly = {0} profile basis functions'.format(npoly))
+        log.info('    ngood = {0}/{1} measurements'.format(np.sum(ingpm), ingpm.size))
+        log.info(' {0:>4}  {1:>8}  {2:>7}  {3:>6} '.format(
             'Iter', 'Chi^2', 'N Rej', 'R. Fac').center(termwidth, '*'))
         hlinestr = ' {0}  {1}  {2}  {3} '.format('-' * 4, '-' * 8, '-' * 7, '-' * 6)
         nullval = '  {0:>8}  {1:>7}  {2:>6} '.format('-' * 2, '-' * 2, '-' * 2)
-        msgs.info(hlinestr.center(termwidth))
+        log.info(hlinestr.center(termwidth))
 
     maskwork = outmask & ingpm & (invvar > 0)
     if not maskwork.any():
-        msgs.error('No valid data points in bspline_profile!.')
+        raise PypeItError('No valid data points in bspline_profile!.')
 
     # Init bspline class
     sset = bspline.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
                    funcname='Bspline longslit special', **kwargs_bspline)
     if maskwork.sum() < sset.nord:
         if not quiet:
-            msgs.warn('Number of good data points fewer than nord.')
+            log.warning('Number of good data points fewer than nord.')
         # TODO: Why isn't maskwork returned?
         return sset, outmask, yfit, reduced_chi, 4
 
@@ -1200,14 +1205,14 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
             if error != 0:
                 bf1, laction, uaction = sset.action(xdata)
                 if np.any(bf1 == -2) or bf1.size != nx * nord:
-                    msgs.error("BSPLINE_ACTION failed!")
+                    raise PypeItError("BSPLINE_ACTION failed!")
                 action = np.copy(action_multiple)
                 for ipoly in range(npoly):
                     action[:, np.arange(nord) * npoly + ipoly] *= bf1
                 del bf1  # Clear the memory
 
             if np.any(np.logical_not(np.isfinite(action))):
-                msgs.error('Infinities in action matrix.  B-spline fit faults.')
+                raise PypeItError('Infinities in action matrix.  B-spline fit faults.')
 
             error, yfit = sset.workit(xdata, ydata, invvar * maskwork, action, laction, uaction)
 
@@ -1215,14 +1220,14 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
 
         if error == -2:
             if not quiet:
-                msgs.warn('All break points lost!!  Bspline fit failed.')
+                log.warning('All break points lost!!  Bspline fit failed.')
             exit_status = 3
             return sset, np.zeros(xdata.shape, dtype=bool), np.zeros(xdata.shape), reduced_chi, \
                    exit_status
 
         if error != 0:
             if not quiet:
-                msgs.info((' {0:4d}'.format(iiter) + nullval).center(termwidth))
+                log.info((' {0:4d}'.format(iiter) + nullval).center(termwidth))
             continue
 
         # Iterate the fit -- next rejection iteration
@@ -1249,7 +1254,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
                                           lower=lower * relative_factor, **kwargs_reject)
         tempin = np.copy(maskwork)
         if not quiet:
-            msgs.info(' {0:4d}  {1:8.3f}  {2:7d}  {3:6.2f} '.format(iiter,
+            log.info(' {0:4d}  {1:8.3f}  {2:7d}  {3:6.2f} '.format(iiter,
                                                                     reduced_chi, np.sum(maskwork == 0),
                                                                     relative_factor).center(termwidth))
 
@@ -1264,10 +1269,10 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
     #    4 = Number of good data points fewer than nord
 
     if not quiet:
-        msgs.info(' {0:>4}  {1:8.3f}  {2:7d}  {3:6.2f} '.format('DONE',
+        log.info(' {0:>4}  {1:8.3f}  {2:7d}  {3:6.2f} '.format('DONE',
                                                                 reduced_chi, np.sum(maskwork == 0),
                                                                 relative_factor).center(termwidth))
-        msgs.info('*' * termwidth)
+        log.info('*' * termwidth)
 
     # Finish
     # TODO: Why not return maskwork directly
