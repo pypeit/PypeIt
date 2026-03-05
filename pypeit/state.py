@@ -177,3 +177,45 @@ class RunPypeItState(BaseModel):
             #f.write(json.dumps(obj, sort_keys=True, indent=4,
             #                   separators=(',', ': '), **kwargs))
             f.write(json_string)
+
+    def print_status(self):
+        """
+        Print a pretty-formatted summary of the calibration status
+        to stdout.
+        """
+        # Collect all unique (calib_id, det) pairs across all steps
+        pairs = set()
+        for step in calib_classes:
+            for item in getattr(self, step):
+                pairs.add((item.calib_id, item.det))
+
+        print(f'PypeIt Reduction Status: {os.path.basename(self.pypeit_file)}')
+        print('=' * 70)
+
+        if len(pairs) == 0:
+            print('  No calibration state entries found.')
+            return
+
+        # Sort by calib_id then det
+        for calib_id, det in sorted(pairs):
+            print(f'\n  Calibration Group: {calib_id}, Detector: {det}')
+            print(f'  {"Step":<14s} {"Required":<10s} {"Status":<10s} {"Output File"}')
+            print(f'  {"----":<14s} {"--------":<10s} {"------":<10s} {"-----------"}')
+            # Loop over steps in the order defined by calib_classes
+            for step in calib_classes:
+                items = getattr(self, step)
+                # Find the entry for this (calib_id, det)
+                entry = None
+                for item in items:
+                    if item.calib_id == calib_id and item.det == det:
+                        entry = item
+                        break
+                if entry is None:
+                    print(f'  {step:<14s} {"--":<10s} {"--":<10s} --')
+                else:
+                    req_str = str(entry.required)
+                    stat_str = entry.status
+                    outfile = os.path.basename(entry.output_file) \
+                        if entry.output_file is not None else '--'
+                    print(f'  {step:<14s} {req_str:<10s} {stat_str:<10s} {outfile}')
+        print()
