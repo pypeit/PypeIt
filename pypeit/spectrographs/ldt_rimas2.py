@@ -93,12 +93,22 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             gain = np.atleast_1d(1.8)  # Hardcoded in the header
             ronoise = np.atleast_1d(4.9)  # Hardcoded in the header
             datasec = np.atleast_1d("[:,:]")  # For 1x1 binning
+            disp = np.atleast_1d("Grism")
 
         else:
             binning = self.get_meta_value(self.get_headarr(hdu), "binning")
             gain = np.atleast_1d(hdu[0].header["GAIN0"])
             ronoise = np.atleast_1d(4.9)
             datasec = np.atleast_1d("[:,:]")
+            disp = np.atleast_1d(
+                hdu[0].header[
+                    "FILTER1" if hdu[0].header["CAMNAME"] == "YJ" else "FILTER2"
+                ]
+            )
+
+        # TODO:
+        # Because of the VPH300 YJ issue, the detector SPECFLIP needs to be
+        #   cased out based on arm, grating, etc.
 
         # Detector 1
         detector_dict1 = dict(
@@ -106,7 +116,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             det=1,  # The YJ channel is DETECTOR #1 (FITS HEADER CHIP = 1)
             dataext=0,
             specaxis=1,  # Native spectrum is along the x-axis
-            specflip=True,  # RIMAS IR FPAs have blue at the right
+            specflip=self.get_specflip(1, disp),  # RIMAS IR FPAs have blue at the right
             spatflip=False,
             platescale=0.19,  # Arcsec / pixel
             darkcurr=0,  # e-/pixel/hour
@@ -124,6 +134,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         detector_dict2.update(
             dict(
                 det=2,  # The HK channel is DETECTOR #2 (FITS HEADER CHIP = 2)
+                specflip=self.get_specflip(2, disp),
                 darkcurr=0.0,  # e-/pixel/hour
             )
         )
@@ -131,6 +142,31 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         detectors = [detector_dict1, detector_dict2]
         # Return
         return detector_container.DetectorContainer(**detectors[det - 1])
+
+    @staticmethod
+    def get_specflip(det: int, disp: str) -> bool:
+        """Get the spectral flip based on grating / arm
+
+        Blah, blah, blah, blah.  Talk about issues with the spectrograph...
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            Detector number (YJ = 1, HK = 2)
+        disp : :obj:`str`
+            Disperser for this arm
+
+        Returns
+        -------
+        :obj:`bool`
+            Whether the spectral direction is "flipped" (RED->BLUE) or not (BLUE->RED)
+        """
+        # The YJ Vph300 grating is installed such that BLUE -> RED
+        if det == 1 and disp == "Vph300":
+            return False
+
+        # Most everything in RIMAS is RED -> BLUE
+        return True
 
     def init_meta(self):
         """
@@ -337,9 +373,11 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         par["calibrations"]["tiltframe"]["process"]["use_darkimage"] = True
         # Do not mask CRs in dark frames -- it actually removes the hot pixels!
         par["calibrations"]["darkframe"]["process"]["mask_cr"] = False
+        # Science frames should use illumflat
+        par["scienceframe"]["process"]["use_illumflat"] = True
 
         # Everybody is going to use OH lines
-        par["calibrations"]["wavelengths"]["lamps"] = ["OH_XSHOOTER"]
+        par["calibrations"]["wavelengths"]["lamps"] = ["OH_GNIRS"]
         # Is this needed below?
         par["scienceframe"]["process"]["sigclip"] = 20.0
         par["scienceframe"]["process"]["satpix"] = "nothing"
@@ -347,9 +385,9 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
 
         # # Tilt parameters
-        par["calibrations"]["arcframe"]["process"]["subtract_continuum"] = True
-        par["calibrations"]["tiltframe"]["process"]["subtract_continuum"] = True
-        par["calibrations"]["tilts"]["rm_continuum"] = True
+        # par["calibrations"]["arcframe"]["process"]["subtract_continuum"] = True
+        # par["calibrations"]["tiltframe"]["process"]["subtract_continuum"] = True
+        # par["calibrations"]["tilts"]["rm_continuum"] = True
         # par["calibrations"]["tilts"]["tracethresh"] = 25.0
         # par["calibrations"]["tilts"]["maxdev_tracefit"] = 0.04
         # par["calibrations"]["tilts"]["maxdev2d"] = 0.04
@@ -622,15 +660,34 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
 
         # For processing the arc frame, these settings allow for the combination of
         #   of frames from different lamps into a comprehensible Master
-        par["calibrations"]["arcframe"]["process"]["clip"] = False
-        par["calibrations"]["arcframe"]["process"]["combine"] = "mean"
-        # par['calibrations']['arcframe']['process']['subtract_continuum'] = True
-        par["calibrations"]["tiltframe"]["process"]["clip"] = False
-        par["calibrations"]["tiltframe"]["process"]["combine"] = "mean"
-        # par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+        par["calibrations"]["arcframe"]["process"]["subtract_continuum"] = False
+        # par["calibrations"]["tiltframe"]["process"]["clip"] = False
+        # par["calibrations"]["tiltframe"]["process"]["combine"] = "mean"
+        par["calibrations"]["tiltframe"]["process"]["subtract_continuum"] = False
 
-        # # Make a bad pixel mask
-        # par["calibrations"]["bpm_usebias"] = True
+        # Wavelengths
+        par["calibrations"]["wavelengths"]["rms_thresh_frac_fwhm"] = 0.4
+        par["calibrations"]["wavelengths"]["sigdetect"] = 5.0
+        par["calibrations"]["wavelengths"]["lamps"] = ["OH_GNIRS"]
+        # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par["calibrations"]["wavelengths"]["n_first"] = 1
+        par["calibrations"]["wavelengths"]["n_final"] = 1
+
+        # # Reidentification parameters
+        # par["calibrations"]["wavelengths"]["method"] = "reidentify"
+        # par["calibrations"]["wavelengths"]["cc_thresh"] = 0.6
+        # par["calibrations"]["wavelengths"]["reid_arxiv"] = "gemini_gnirs.fits"
+
+        # Tilts
+        par["calibrations"]["tilts"]["tracethresh"] = 10
+        par["calibrations"]["tilts"]["sig_neigh"] = 5.0
+        par["calibrations"]["tilts"]["nfwhm_neigh"] = 2.0
+
+        # Sensitivity function parameters
+        par["sensfunc"]["algorithm"] = "IR"
+        par["sensfunc"]["polyorder"] = 8
+        par["sensfunc"]["IR"]["telgridfile"] = "TellPCA_3000_26000_R25000.fits"
+        par["sensfunc"]["IR"]["pix_shift_bounds"] = (-8.0, 8.0)
 
         # # Wavelength Calibration Parameters
         # # Set this as default... but use `holy-grail` for DV4, DV8
@@ -643,7 +700,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
 
         # # Flat-field parameter modification
         # par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0  # Default: None
-        # par["calibrations"]["flatfield"]["slit_illum_finecorr"] = False  # Default: True
+        par["calibrations"]["flatfield"]["slit_illum_finecorr"] = False  # Default: True
         # par["calibrations"]["flatfield"]["spec_samp_fine"] = 30  # Default: 1.2
         # par["calibrations"]["flatfield"]["tweak_slits"] = False  # Default: True
 
@@ -676,10 +733,6 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         # # Flexure Correction Parameters
         # par["flexure"]["spec_method"] = "boxcar"  # Default: 'skip'
         # par["flexure"]["spec_maxshift"] = 30  # Default: 20
-
-        # # Sensitivity Function Parameters
-        # par["sensfunc"]["UVIS"]["nresln"] = 15  # Default: 20
-        # par["sensfunc"]["UVIS"]["polycorrect"] = False  # Default: True
 
         # # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
         # par["calibrations"]["slitedges"]["bound_detector"] = True  # Defualt: False
@@ -799,6 +852,17 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         decker = self.get_meta_value(inp, "decker")
         binning = self.get_meta_value(inp, "binning")
 
+        # Check for the 1.2" long slit... edge tracing is the same for both arms and both gratings
+        if "long" in decker:
+            # Slit-edge settings for long-slit data (75" long)
+            par["calibrations"]["slitedges"]["bound_detector"] = True
+            par["calibrations"]["slitedges"]["sync_predict"] = "nearest"
+            par["calibrations"]["slitedges"]["minimum_slit_length"] = 70.0  # arcsec
+            par["calibrations"]["slitedges"]["max_nudge"] = 5  # Default: None
+            par["calibrations"]["slitedges"]["sobel_enhance"] = 3
+        else:
+            log.warning("We have not set slit edge stuff for the short slits / VPH!")
+
         # Get the arm-specific parameters based on grating and decker
         if arm == "YJ":
             par = self.config_specific_par_vph_yj(par, grating, decker)
@@ -907,23 +971,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             # par["sensfunc"]["UVIS"]["resolution"] = 400
 
         elif grating == "Vph300":
-
-            if "long" in decker:
-                # Slit-edge settings for long-slit data (75" long)
-                par["calibrations"]["slitedges"][
-                    "bound_detector"
-                ] = True  # Defualt: False
-                par["calibrations"]["slitedges"][
-                    "sync_predict"
-                ] = "nearest"  # Default: 'pca'
-                par["calibrations"]["slitedges"]["minimum_slit_length"] = 70.0  # arcsec
-                par["calibrations"]["slitedges"]["max_nudge"] = 5  # Default: None
-
-            else:
-                log.warning(
-                    "We have not set slit edge stuff for the short slits / VPH!"
-                )
-
+            pass
             # # Use this `reid_arxiv` with the `full-template` method:
             # par["calibrations"]["wavelengths"][
             #     "reid_arxiv"

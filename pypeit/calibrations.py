@@ -1268,8 +1268,6 @@ class Calibrations:
 
         log.test(f"Relevant information:\n{self.par['wavelengths']}\n{self.spectrograph.pypeline}")
 
-        log.test(f"self.slits: {self.slits}")
-
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], lamps, meta_dict=meta_dict,
                                              det=self.det, qa_path=self.qa_path)

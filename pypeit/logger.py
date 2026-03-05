@@ -26,6 +26,8 @@ TEST_LEVEL_NUM = 25
 logging.addLevelName(TEST_LEVEL_NUM, "TEST")
 def logtest(self, message, *args, **kwargs):
     """Define TEST_MSG log level for calling"""
+    # Skip this wrapper frame so filename/lineno point at the caller of log.test()
+    kwargs.setdefault("stacklevel", 2)
     self.log(TEST_LEVEL_NUM, message, *args, **kwargs)
 logging.Logger.test = logtest
 

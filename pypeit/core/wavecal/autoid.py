@@ -2140,7 +2140,7 @@ class HolyGrail:
         # Now that all slits have been inspected, cross match (if there are bad fit) to generate a
         # list of all lines in every slit, and refit all spectra
         # in self.cross_match() good fits are cross correlate with each other, so we need to have at least 2 good fits
-        if np.where(good_fit[self._ok_mask])[0].size > 1 and np.any(np.logical_not(good_fit[self._ok_mask])):
+        if self._ok_mask.size > 0 and np.where(good_fit[self._ok_mask])[0].size > 1 and np.any(np.logical_not(good_fit[self._ok_mask])):
             log.info('Checking wavelength solution by cross-correlating with all slits')
 
             log.info('Cross-correlation iteration #1')
