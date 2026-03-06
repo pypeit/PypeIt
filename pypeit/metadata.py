@@ -810,6 +810,10 @@ class PypeItMetaData:
             self['setup'] = fill
             return
 
+        # If the spectrograph defines configurations and `configs` were not passed in...
+        if self.spectrograph.configuration_list() is not None and configs is None:
+            configs = self.spectrograph.configuration_list()
+
         _configs = self.unique_configurations() if configs is None else configs
         for k, cfg in _configs.items():
             if len(set(cfg.keys()) - set(self.keys())) > 0:

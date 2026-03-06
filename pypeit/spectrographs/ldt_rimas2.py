@@ -47,6 +47,7 @@ from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.par import parset
+from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 
 
@@ -637,8 +638,101 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         # Return the corrected table
         return fitstbl[vph_idx]
 
+    @staticmethod
+    def configuration_list() -> dict:
+        """
+        Return the default-ordered list of configurations for this spectrograph
+
+        Returns:
+            :obj:`dict`: Dictionary of default-ordered spectrograph configurations
+        """
+        return {
+            # All of the VPH30 possible combinations first
+            "30YJ12l": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Vph30"),
+                "decker": np.str_("1.2'' long"),
+            },
+            "30HK12l": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Vph30"),
+                "decker": np.str_("1.2'' long"),
+            },
+            "30YJ06": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Vph30"),
+                "decker": np.str_("0.6''"),
+            },
+            "30HK06": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Vph30"),
+                "decker": np.str_("0.6''"),
+            },
+            "30YJ10": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Vph30"),
+                "decker": np.str_("1.0''"),
+            },
+            "30HK10": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Vph30"),
+                "decker": np.str_("1.0''"),
+            },
+            "30YJ20": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Vph30"),
+                "decker": np.str_("2.0''"),
+            },
+            "30HK20": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Vph30"),
+                "decker": np.str_("2.0''"),
+            },
+            # All of the VPH300 possible combinations next
+            "300YJ12l": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Vph300"),
+                "decker": np.str_("1.2'' long"),
+            },
+            "300HK12l": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Vph300"),
+                "decker": np.str_("1.2'' long"),
+            },
+            "300YJ06": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Vph300"),
+                "decker": np.str_("0.6''"),
+            },
+            "300HK06": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Vph300"),
+                "decker": np.str_("0.6''"),
+            },
+            "300YJ10": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Vph300"),
+                "decker": np.str_("1.0''"),
+            },
+            "300HK10": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Vph300"),
+                "decker": np.str_("1.0''"),
+            },
+            "300YJ20": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Vph300"),
+                "decker": np.str_("2.0''"),
+            },
+            "300HK20": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Vph300"),
+                "decker": np.str_("2.0''"),
+            },
+        }
+
     @classmethod
-    def default_pypeit_par(cls):
+    def default_pypeit_par(cls) -> pypeitpar.PypeItPar:
         """
         Return the default parameters to use for this instrument.
 

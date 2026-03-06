@@ -886,6 +886,45 @@ class Spectrograph:
         """
         return ['dispname', 'dichroic', 'decker']
 
+    @staticmethod
+    def configuration_list() -> dict | None:
+        """
+        Return the default-ordered list of configurations for this spectrograph
+
+        This default method returns `None`, which means that :class:`PypeitSetup`
+        will generate the configurations automatically.  For spectrographs that
+        have a limited set of configurations that the developer wants to be
+        generated in a specific order or with specific names each time, the child
+        class may override this method.
+
+        For instance, if a given night's worth of data always produces frames
+        that are classified into multiple configurations, this method will allow
+        the generated configurations to always be in the same order.
+
+        The returned dictionary is nested and of the form:
+        {
+            "A": {
+                "configuration_key1": np.str_("configuration_key1_valueA"),
+                "configuration_key2": np.str_("configuration_key2_valueA"),
+                ...
+            },
+            "B:, {
+                "configuration_key1": np.str_("configuration_key1_valueB"),
+                "configuration_key2": np.str_("configuration_key2_valueB"),
+                ...
+            },
+            ...
+        }
+
+        The advantage of this scheme is that instead of using alpha designations
+        ("A", "B", etc.), the developer can optioanlly give descriptive names to
+        the setups (e.g., "G831_1200").
+ 
+        Returns:
+            :obj:`dict`: Dictionary of default-ordered spectrograph configurations
+        """
+        return None
+
     def same_configuration(self, configs, check_keys=True):
         """
         Check if a set of instrument setup/configurations are all the same,

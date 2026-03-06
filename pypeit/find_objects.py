@@ -23,8 +23,6 @@ from pypeit.core import findobj_skymask
 
 from IPython import embed
 
-import matplotlib.pyplot as plt
-
 
 class FindObjects:
     """
@@ -310,12 +308,10 @@ class FindObjects:
         #self.slits_left = slits_left[:, gpm]
         #self.slits_right = slits_right[:, gpm]
 
-        print(self.slits_left, self.slits_right)
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
-
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
@@ -782,14 +778,12 @@ class MultiSlitFindObjects(FindObjects):
         """
         gdslits = np.where(np.logical_not(self.reduce_bpm))[0]
 
-        # print(self.reduce_bpm)
-
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
 
-        print("Hi :)")
-        print(len(gdslits), gdslits)
-        input()
+        # print("Hi :)")
+        # print(len(gdslits), gdslits)
+        # input()
 
         # Loop on slits
         for slit_idx in gdslits:
