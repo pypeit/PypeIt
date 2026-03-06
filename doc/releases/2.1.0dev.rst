@@ -61,6 +61,4 @@ Bug Fixes
   :func:`~pypeit.core.wavecal.waveio.load_tree` into
   :func:`~pypeit.core.wavecal.kdtree_generator`.
 - Avoid a circular import by moving
-  :func:`~pypeit.loader.load_wmko_std_spectrum` out of
-  :mod:`~pypeit.spectrographs.keck_deimos`.
-
+  :func:`~pypeit.loader.load_wmko_std_spectrum` to the dev-suite repo.
