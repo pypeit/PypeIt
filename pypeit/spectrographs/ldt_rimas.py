@@ -74,7 +74,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["target"] = dict(ext=0, card="OBJNAME")
         self.meta["dispname"] = dict(card=None, compound=True)
         self.meta["decker"] = dict(ext=0, card="FILTER4")  # SLIT filter wheel
-        self.meta["binning"] = dict(card=None, compound=True)
+        self.meta["binning"] = dict(ext=0, card=None, default='1,1', compound=True)
         self.meta["mjd"] = dict(card=None, compound=True)
         self.meta["airmass"] = dict(ext=0, card="SECZ")
         self.meta["exptime"] = dict(ext=0, card="EXPTIMEE")
@@ -415,7 +415,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         detector_par, raw_img, hdu, exptime, rawdatasec_img, oscansec_img = super().get_rawimage(raw_file, det)
 
         # Get the locations of NaN pixels & replace with saturated value
-        nan_idx = not np.isfinite(raw_img)
+        nan_idx = np.logical_not(np.isfinite(raw_img))
         raw_img[nan_idx] = detector_par.saturation
 
         # Return the mess
@@ -870,10 +870,10 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
         par["calibrations"]["slitedges"]["fit_order"] = 2  # Default: 5
         par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
         par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
-        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.6
+        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.4
         par["calibrations"]["slitedges"]["left_right_pca"] = True
         par["calibrations"]["slitedges"]["length_range"] = 0.3
-        par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.6
+        par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.4
         par["calibrations"]["slitedges"]["sync_predict"]="nearest"
         #par["calibrations"]["slitedges"]["sobel_enhance"] = 2 # Default: 0
 
@@ -919,7 +919,7 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
         # Object Finding, Extraction, and Sky Subtraction Parameters
         assumed_seeing = 1.5  # arcsec
         par["reduce"]["findobj"]["trace_npoly"] = 3  # Default: 5
-        par["reduce"]["findobj"]["snr_thresh"] = 50.0  # Default: 10.0
+        par["reduce"]["findobj"]["snr_thresh"] = 10.0  # Default: 10.0
         par["reduce"]["findobj"]["maxnumber_std"] = 1  # Default: 5
         par["reduce"]["findobj"]["maxnumber_sci"] = 5  # Default: 10
         par["reduce"]["findobj"]["find_fwhm"] = np.round(
@@ -986,7 +986,7 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             # The approximate resolution of this grating
             par["sensfunc"]["UVIS"]["resolution"] = 400
 
-            par["calibrations"]["wavelengths"]["lamps"] = ["arc_RIMAS_lines.dat"]
+            par["calibrations"]["wavelengths"]["lamps"] = ["Hg_RIMAS"]
 
         elif grating == "Vph300":
             # Use this `reid_arxiv` with the `full-template` method:
@@ -1002,7 +1002,7 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             par["reduce"]["findobj"]["find_fwhm"] = 7
             par["reduce"]["findobj"]["snr_thresh"] = 1
 
-            par["calibrations"]["wavelengths"]["lamps"] = ["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+            par["calibrations"]["wavelengths"]["lamps"] = [""]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
 
         else:
             pass
