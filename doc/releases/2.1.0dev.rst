@@ -31,12 +31,16 @@ Script Changes
 Testing
 -------
 
+- Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 
 
 Under-the-hood Improvements
 ---------------------------
 
+- Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
+  the pypeit-specific uses of :class:`~pypeit.core.pydl.TraceSet`.  This was
+  primarily done to avoid a circular import.
 
 Bug Fixes
 ---------
@@ -44,4 +48,6 @@ Bug Fixes
 - Avoid a circular import by moving
   :func:`~pypeit.core.wavecal.autoid.arc_fit_qa` out of
   :mod:`~pypeit.core.wavecal.wv_fitting`.
+- Fix an error in the platescale provided for 2D coadded data; the previous
+  calculation did not account for the ``spat_samp_fact`` parameter.
 

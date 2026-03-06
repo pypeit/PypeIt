@@ -9,7 +9,6 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
 from pypeit.core import basis
-from pypeit.core import fitting
 
 """This module corresponds to the image directory in idlutils.
 """
@@ -289,320 +288,6 @@ def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
     return res, yfit
 
 
-# TODO -- This class needs to become a DataContainer
-class TraceSet(object):
-    """Implements the idea of a trace set.
-
-    Attributes
-    ----------
-    func : :class:`str`
-        Name of function type used to fit the trace set.
-    xmin : float-like
-        Minimum x value.
-    xmax : float-like
-        Maximum x value.
-    coeff : array-like
-        Coefficients of the trace set fit.
-    nTrace : :class:`int`
-        Number of traces in the object.
-    ncoeff : :class:`int`
-        Number of coefficients of the trace set fit.
-    xjumplo : float-like
-        Jump value, for BOSS readouts.
-    xjumphi : float-like
-        Jump value, for BOSS readouts.
-    xjumpval : float-like
-        Jump value, for BOSS readouts.
-    lower : `int` or `float`, optional
-        used for robust_polyfit_djs
-        If set, reject points with data < model - lower * sigma.
-    upper : `int` or `float`, optional
-        used for robust_polyfit_djs
-        If set, reject points with data > model + upper * sigma.
-    outmask : array-like
-        When initialized with x,y positions, this contains the rejected
-        points.
-    yfit : array-like
-        When initialized with x,y positions, this contains the fitted y
-        values.
-    pypeitFits : list
-        Holds a list of :class:`~pypeit.core.fitting.PypeItFit` fits
-    """
-    # ToDO Remove the kwargs and put in all the djs_reject parameters here
-    def __init__(self, *args, **kwargs):
-        """This class can be initialized either with a set of xy positions,
-        or with a trace set HDU from a FITS file.
-        """
-        from astropy.io.fits.fitsrec import FITS_rec
-        #from .math import djs_reject
-        allowed_functions = ['polynomial', 'legendre', 'chebyshev']
-        if len(args) == 1 and isinstance(args[0], FITS_rec):
-            #
-            # Initialize with FITS data
-            #
-            self.func = args[0]['FUNC'][0]
-            self.xmin = args[0]['XMIN'][0]
-            self.xmax = args[0]['XMAX'][0]
-            self.coeff = args[0]['COEFF'][0]
-            self.nTrace = self.coeff.shape[0]
-            self.ncoeff = self.coeff.shape[1]
-            if 'XJUMPLO' in args[0].dtype.names:
-                self.xjumplo = args[0]['XJUMPLO'][0]
-                self.xjumphi = args[0]['XJUMPHI'][0]
-                self.xjumpval = args[0]['XJUMPVAL'][0]
-            else:
-                self.xjumplo = None
-                self.xjumphi = None
-                self.xjumpval = None
-            self.lower = None
-            self.upper = None
-            self.outmask = None
-            self.yfit = None
-        elif len(args) == 2:
-            #
-            # Initialize with x, y positions.
-            #
-            xpos = args[0]
-            ypos = args[1]
-
-
-
-            self.nTrace = xpos.shape[0]
-            if 'invvar' in kwargs:
-                invvar = kwargs['invvar']
-            else:
-                invvar = None
-                #invvar = np.ones(xpos.shape, dtype=xpos.dtype)
-            if 'func' in kwargs:
-                if kwargs['func'] not in allowed_functions:
-                    raise PypeItError('Unrecognized function.')
-                self.func = kwargs['func']
-            else:
-                self.func = 'legendre'
-            if 'ncoeff' in kwargs:
-                self.ncoeff = int(kwargs['ncoeff'])
-            else:
-                self.ncoeff = 3
-            if 'xmin' in kwargs:
-                self.xmin = np.float64(kwargs['xmin'])
-            else:
-                self.xmin = xpos.min()
-            if 'xmax' in kwargs:
-                self.xmax = np.float64(kwargs['xmax'])
-            else:
-                self.xmax = xpos.max()
-            if 'maxiter' in kwargs:
-                self.maxiter = int(kwargs['maxiter'])
-            else:
-                self.maxiter = 10
-            if 'maxdev' in kwargs:
-                self.maxdev = kwargs['maxdev']
-            else:
-                self.maxdev = None
-            if 'inmask' in kwargs:
-                inmask = kwargs['inmask']
-            elif invvar is not None:
-                inmask = (invvar > 0.0)
-            else:
-                inmask = np.ones(xpos.shape, dtype=bool)
-            do_jump = False
-            if 'xjumplo' in kwargs:
-                do_jump = True
-                self.xjumplo = np.float64(kwargs['xjumplo'])
-            else:
-                self.xjumplo = None
-            if 'xjumphi' in kwargs:
-                self.xjumphi = np.float64(kwargs['xjumphi'])
-            else:
-                self.xjumphi = None
-            if 'xjumpval' in kwargs:
-                self.xjumpval = np.float64(kwargs['xjumpval'])
-            else:
-                self.xjumpval = None
-            if 'lower' in kwargs:
-                self.lower = np.float64(kwargs['lower'])
-            else:
-                self.lower = None
-            if 'upper' in kwargs:
-                self.upper = np.float64(kwargs['upper'])
-            else:
-                self.upper = None
-
-            self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
-            self.outmask = np.zeros(xpos.shape, dtype=bool)
-            self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
-            self.pypeitFits = []
-            for iTrace in range(self.nTrace):
-                xvec = self.xnorm(xpos[iTrace, :], do_jump)
-                if invvar is None:
-                    thisinvvar = None
-                else:
-                    thisinvvar = invvar[iTrace, :]
-
-                pypeitFit = fitting.robust_fit(xvec, ypos[iTrace, :], self.ncoeff,
-                                                                function=self.func, maxiter = self.maxiter,
-                                                                in_gpm = inmask[iTrace, :], invvar = thisinvvar,
-                                                                lower = self.lower, upper = self.upper,
-                                                                minx = self.xmin, maxx = self.xmax,
-                                                                maxdev=self.maxdev,
-                                                                grow=0,use_mad=False,sticky=False)
-                ycurfit_djs = pypeitFit.eval(xvec)
-                self.pypeitFits.append(pypeitFit)
-
-                # Load
-                self.yfit[iTrace, :] = ycurfit_djs
-                self.coeff[iTrace, :] = pypeitFit.fitc
-                self.outmask[iTrace, :] = pypeitFit.gpm
-
-        else:
-            raise PypeItError('Wrong number of arguments to TraceSet!')
-
-    def xy(self, xpos=None, ignore_jump=False):
-        """Convert from a trace set to an array of x,y positions.
-
-        Parameters
-        ----------
-        xpos : array-like, optional
-            If provided, evaluate the trace set at these positions.  Otherwise
-            the positions will be constructed from the trace set object iself.
-        ignore_jump : :class:`bool`, optional
-            If ``True``, ignore any jump information in the `tset` object
-
-        Returns
-        -------
-        :func:`tuple` of array-like
-            The x, y positions.
-        """
-        #from .misc import djs_laxisgen
-        do_jump = self.has_jump and (not ignore_jump)
-        if xpos is None:
-            xpos = djs_laxisgen([self.nTrace, self.nx], iaxis=1) + self.xmin
-        ypos = np.zeros(xpos.shape, dtype=xpos.dtype)
-        for iTrace in range(self.nTrace):
-            xvec = self.xnorm(xpos[iTrace, :], do_jump)
-            #legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
-            #ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minx=self.xmin, maxx=self.xmax)
-            ypos[iTrace, :] =  self.pypeitFits[iTrace].eval(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
-#            ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
-        return (xpos, ypos)
-
-    @property
-    def has_jump(self):
-        """``True`` if jump conditions are set.
-        """
-        return self.xjumplo is not None
-
-    @property
-    def xRange(self):
-        """Range of x values.
-        """
-        return self.xmax - self.xmin
-
-    @property
-    def nx(self):
-        """Number of x values.
-        """
-        return int(self.xRange + 1)
-
-    # JFH This is no longer ndeeded. Below we changed to robust_polyfit_djs convention for writing this. Same value just one less parameter.
-    @property
-    def xmid(self):
-        """Midpoint of x values.
-        """
-        return 0.5 * (self.xmin + self.xmax)
-
-    def xnorm(self, xinput, jump):
-        """Convert input x coordinates to normalized coordinates suitable
-        for input to special polynomials.
-
-        Parameters
-        ----------
-        xinput : array-like
-            Input coordinates.
-        jump : :class:`bool`
-            Set to ``True`` if there is a jump.
-
-        Returns
-        -------
-        array-like
-            Normalized coordinates.
-        """
-        if jump:
-            # Vector specifying what fraction of the jump has passed:
-            jfrac = np.minimum(np.maximum(((xinput - self.xjumplo) /
-                                (self.xjumphi - self.xjumplo)), 0.), 1.)
-            # Conversion to "natural" x baseline:
-            xnatural = xinput + jfrac * self.xjumpval
-        else:
-            xnatural = xinput
-        return 2.0 * (xnatural - self.xmin)/self.xRange - 1.0
-
-
-def traceset2xy(tset, xpos=None, ignore_jump=False):
-    """Convert from a trace set to an array of x,y positions.
-
-    Parameters
-    ----------
-    tset : :class:`TraceSet`
-        A :class:`TraceSet` object.
-    xpos : array-like, optional
-        If provided, evaluate the trace set at these positions.  Otherwise
-        the positions will be constructed from the trace set object iself.
-    ignore_jump : bool, optional
-        If ``True``, ignore any jump information in the `tset` object
-
-    Returns
-    -------
-    :func:`tuple` of array-like
-        The x, y positions.
-    """
-    return tset.xy(xpos, ignore_jump)
-
-
-def xy2traceset(xpos, ypos, **kwargs):
-    """Convert from x,y positions to a trace set.
-
-    Parameters
-    ----------
-    xpos, ypos : array-like
-        X,Y positions corresponding as [nx,Ntrace] arrays.
-    invvar : array-like, optional
-        Inverse variances for fitting.
-    func : :class:`str`, optional
-        Function type for fitting; defaults to 'legendre'.
-    ncoeff : :class:`int`, optional
-        Number of coefficients to fit.  Defaults to 3.
-    xmin, xmax : :class:`float`, optional
-        Explicitly set minimum and maximum values, instead of computing
-        them from `xpos`.
-    maxiter : :class:`int`, optional
-        Maximum number of rejection iterations; set to 0 for no rejection;
-        default to 10.
-    inmask : array-like, optional
-        Mask set to 1 for good points and 0 for rejected points;
-        same dimensions as `xpos`, `ypos`.  Points rejected by `inmask`
-        are always rejected from the fits (the rejection is "sticky"),
-        and will also be marked as rejected in the outmask attribute.
-    ia, inputans, inputfunc : array-like, optional
-        These arguments will be passed to :func:`func_fit`.
-    xjumplo : :class:`float`, optional
-        x position locating start of an x discontinuity
-    xjumphi : :class:`float`, optional
-        x position locating end of that x discontinuity
-    xjumpval : :class:`float`, optional
-        magnitude of the discontinuity "jump" between those bounds
-        (previous 3 keywords motivated by BOSS 2-phase readout)
-
-    Returns
-    -------
-    :class:`TraceSet`
-        A :class:`TraceSet` object.
-    """
-    return TraceSet(xpos, ypos, **kwargs)
-
-
-
-
 def djs_reject(data, model, outmask=None, inmask=None,
                invvar=None, lower=None, upper=None, percentile=False, maxdev=None,
                maxrej=None, groupdim=None, groupsize=None, groupbadpix=False,
@@ -616,14 +301,18 @@ def djs_reject(data, model, outmask=None, inmask=None,
     model : :class:`numpy.ndarray`
         The model, must have the same number of dimensions as `data`.
     outmask : :class:`numpy.ndarray`, optional
-        Output mask, generated by a previous call to `djs_reject`.  If sticky=True, then bad points accumulate in this mask
-        between calls. Otherwise, this mask is only  used to determine if the rejection iterations are complete (e.g. to set qdone).
-        Although this parameter is technically optional, it will almost always be set. If not supplied,
-        this mask will be initialized to a mask that masks nothing and qdone will always be returned as True.
+        Output mask, generated by a previous call to `djs_reject`.  If
+        sticky=True, then bad points accumulate in this mask between calls.
+        Otherwise, this mask is only  used to determine if the rejection
+        iterations are complete (e.g. to set qdone).  Although this parameter is
+        technically optional, it will almost always be set. If not supplied,
+        this mask will be initialized to a mask that masks nothing and qdone
+        will always be returned as True.
     inmask : :class:`numpy.ndarray`, optional
-        Input mask.  Bad points are marked with a value that evaluates to ``False``.
-        Must have the same number of dimensions as `data`. Points masked as bad "False" in the inmask
-        will also always evaluate to "False" in the outmask
+        Input mask.  Bad points are marked with a value that evaluates to
+        ``False``.  Must have the same number of dimensions as `data`. Points
+        masked as bad "False" in the inmask will also always evaluate to "False"
+        in the outmask
     invvar : :class:`numpy.ndarray`, optional
         Inverse variance of the data, used to reject points based on the values
         of `upper` and `lower`.
@@ -638,14 +327,19 @@ def djs_reject(data, model, outmask=None, inmask=None,
         Maximum number of points to reject in this iteration.  If `groupsize` or
         `groupdim` are set to arrays, this should be an array as well.
     groupdim: class: `int`
-        Dimension along which to group the data; set to 1 to group along the 1st dimension, 2 for the 2nd dimension, etc.
-        If data has shape [100,200], then setting GROUPDIM=2 is equivalent to grouping the data with groupsize=100.
-        In either case, there are 200 groups, specified by ``[*,i]``. NOT WELL TESTED IN PYTHON!
+        Dimension along which to group the data; set to 1 to group along the 1st
+        dimension, 2 for the 2nd dimension, etc.  If data has shape [100,200],
+        then setting GROUPDIM=2 is equivalent to grouping the data with
+        groupsize=100.  In either case, there are 200 groups, specified by
+        ``[*,i]``. NOT WELL TESTED IN PYTHON!
     groupsize: class: `int`
-        If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points, where the grouping is performed in the
-        along the dimension of the data vector. (For use in curve fitting, one probably wants to make sure that data is sorted according to the indpeendent
-        variable. For multi-dimensional arrays where one desires this grouping along each dimension, then groupdim should be set.
-        If groupdim is also set, then this specifies sub-groups within that.
+        If this and maxrej are set, then reject a maximum of maxrej points per
+        group of groupsize points, where the grouping is performed in the along
+        the dimension of the data vector. (For use in curve fitting, one
+        probably wants to make sure that data is sorted according to the
+        indpeendent variable. For multi-dimensional arrays where one desires
+        this grouping along each dimension, then groupdim should be set.  If
+        groupdim is also set, then this specifies sub-groups within that.
     groupbadpix : :class:`bool`, optional
         If set to ``True``, consecutive sets of bad pixels are considered groups,
         overriding the values of `groupsize`.
@@ -653,105 +347,108 @@ def djs_reject(data, model, outmask=None, inmask=None,
         If set to a non-zero integer, N, the N nearest neighbors of rejected
         pixels will also be rejected.
     sticky : :class:`bool`, optional
-        If set to True then points rejected in outmask from a previous call to djs_reject are kept rejected. If
-        set to False, if a fit (model) changes between iterations, points can alternate from being rejected to not rejected.
+        If set to True then points rejected in outmask from a previous call to
+        djs_reject are kept rejected. If set to False, if a fit (model) changes
+        between iterations, points can alternate from being rejected to not
+        rejected.
     use_mad : :class: `bool`, optional, defaul = False
-        It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
-        the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
-        and also pass in values invvar, and the code will return an error if this is done.
+        It set to ``True``, compute the median of the maximum absolute deviation
+        between the data and use this for the rejection instead of the default
+        which is to compute the standard deviation of the yarray - modelfit.
+        Note that it is not possible to specify use_mad=True and also pass in
+        values invvar, and the code will return an error if this is done.
 
     Returns
     -------
-    outmask (np.ndarray, boolean):
+    outmask : np.ndarray, boolean
         mask where rejected data values are ``False``
-    qdone (boolean):
-        a value set to "True" if  `djs_reject` believes there is no
-        further rejection to be done. This will be set to "False" if the
-        points marked as rejected in the outmask have changed. It will
-        be set to "True" when the same points are rejected in outmask as
-        from a previous call.  It will also be set to "False" if model
-        is set to None. Recall that outmask is also an optional input
-        parameter. If it is not set, then qdone will simply return true,
-        so outmask needs to be input from the previous iteration for the
-        routine to do something meaningful.
+    qdone : boolean
+        a value set to "True" if  `djs_reject` believes there is no further
+        rejection to be done. This will be set to "False" if the points marked
+        as rejected in the outmask have changed. It will be set to "True" when
+        the same points are rejected in outmask as from a previous call.  It
+        will also be set to "False" if model is set to None. Recall that outmask
+        is also an optional input parameter. If it is not set, then qdone will
+        simply return true, so outmask needs to be input from the previous
+        iteration for the routine to do something meaningful.
 
     Raises
     ------
     ValueError
         If dimensions of various inputs do not match.
     """
-    #from .misc import djs_laxisnum
-    #
-
-    # ToDO It would be nice to come up with a way to use MAD but also use the errors in the rejection, i.e. compute the rejection threhsold using the mad.
+    # TODO: It would be nice to come up with a way to use MAD but also use the
+    # errors in the rejection, i.e. compute the rejection threhsold using the
+    # mad.
 
     if upper is None and lower is None and maxdev is None:
-        log.warning('upper, lower, and maxdev are all set to None. No rejection performed since no rejection criteria were specified.')
+        log.warning(
+            'upper, lower, and maxdev are all set to None.  No rejection performed since no '
+            'rejection criteria were specified.'
+        )
+        # TODO: Should the function return here?
 
-    if (use_mad and (invvar is not None)):
-        raise ValueError('use_mad can only be set to True innvar = None. This code only computes a mad'
-                         ' if errors are not input')
+    if use_mad and invvar is not None:
+        raise ValueError(
+            'use_mad can only be set to True if invvar is None.  Median absolute deviation is '
+            'only computered if no errors are provided.'
+        )
+
+    # TODO: (JFH) I think it would actually make more sense for outmask be a
+    # required input parameter (named lastmask or something like that).
 
     # Create outmask setting = True for good data.
-    #
-    # ToDo JFH: I think it would actually make more sense for outmask be a required input parameter (named lastmask or something like that).
     if outmask is None:
         outmask = np.ones(data.shape, dtype='bool')
-        log.warning('outmask was not specified as an input parameter. Cannot asess convergence of rejection -- qdone is automatically True')
+        log.warning(
+            'outmask was not specified as an input parameter.  Cannot assess convergence of '
+            'rejection -- qdone is automatically True'
+        )
+
+    # Check input shapes
+    if data.shape != model.shape:
+        raise ValueError('Dimensions of data and model do not agree.')
+    if data.shape != outmask.shape:
+        raise ValueError('Dimensions of data and outmask do not agree.')
+    if inmask is not None and data.shape != inmask.shape:
+        raise ValueError('Dimensions of data and inmask do not agree.')
+
+    if maxrej is None:
+        maxrej1 = None
+        groupsize1 = None
     else:
-        if data.shape != outmask.shape:
-            raise ValueError('Dimensions of data and outmask do not agree.')
-    #
-    # Check other inputs.
-    #
-    if model is None:
-        if inmask is not None:
-            outmask = inmask
-        return (outmask, False)
-    else:
-        if data.shape != model.shape:
-            raise ValueError('Dimensions of data and model do not agree.')
-    if inmask is not None:
-        if data.shape != inmask.shape:
-            raise ValueError('Dimensions of data and inmask do not agree.')
-    if maxrej is not None:
-        if groupdim is not None:
+        maxrej1 = np.atleast_1d(maxrej)
+
+        if groupdim is None:
+            groupdim = []
+        else:
             if len(maxrej) != len(groupdim):
                 raise ValueError('maxrej and groupdim must have the same number of elements.')
-        else:
-            groupdim = []
-        if groupsize is not None:
-            if isinstance(maxrej, (int,float)) | isinstance(groupsize, (int,float)):
-                groupsize1=np.asarray([groupsize])
-            else:
-                if len(maxrej) != len(groupsize):
-                    raise ValueError('maxrej and groupsize must have the same number of elements.')
-                groupsize1=groupsize
-        else:
+
+        if groupsize is None:
             groupsize1 = np.asarray([len(data)])
-        if isinstance(maxrej,(int,float)):
-            maxrej1 = np.asarray([maxrej])
         else:
-            maxrej1 = maxrej
+            groupsize1 = np.atleast_1d(groupsize)
+            if len(maxrej1) != len(groupsize1):
+                raise ValueError('maxrej and groupsize must have the same number of elements.')
+
+    # Get the residuals
+    diff = data - model
+
+    # Approximate the error if not provided
     if invvar is None:
+        igood = outmask
         if inmask is not None:
-            igood = (inmask & outmask)
-        else:
-            igood = outmask
-        if (np.sum(igood) > 1):
-            if use_mad is True:
-                sigma = 1.4826*np.median(np.abs(data[igood] - model[igood]))
-            else:
-                sigma = np.std(data[igood] - model[igood])
+            igood &= inmask
+        if np.sum(igood) > 1:
+            sigma = 1.4826*np.median(np.abs(diff[igood])) if use_mad else np.std(diff[igood])
             invvar = utils.inverse(sigma**2)
         else:
+            # TODO: Why is this set to zero?
             invvar = 0.0
 
-
-    diff = data - model
     chi = diff * np.sqrt(invvar)
 
-    #
     # The working array is badness, which is set to zero for good points
     # (or points already rejected), and positive values for bad points.
     # The values determine just how bad a point is, either corresponding
@@ -761,60 +458,39 @@ def djs_reject(data, model, outmask=None, inmask=None,
     badness = np.zeros(outmask.shape, dtype=data.dtype)
 
     if percentile:
+        igood = outmask
         if inmask is not None:
-            igood = (inmask & outmask)
-        else:
-            igood = outmask
-        if (np.sum(igood)> 1):
-            if lower is not None:
-                lower_chi = np.percentile(chi[igood],lower)
-            else:
-                lower_chi = -np.inf
-            if upper is not None:
-                upper_chi = np.percentile(chi[igood], upper)
-            else:
-                upper_chi = np.inf
-    #
+            igood &= inmask
+        if np.sum(igood)> 1:
+            lower_chi = -np.inf if lower is None else np.percentile(chi[igood],lower)
+            upper_chi = np.inf if upper is None else np.percentile(chi[igood], upper)
+
     # Decide how bad a point is according to lower.
-    #
     if lower is not None:
-        if percentile:
-            qbad = chi < lower_chi
-        else:
-            qbad = chi < -lower
-        badness += np.fmax(-chi,0.0)*qbad
-    #
+        qbad = chi < lower_chi if percentile else chi < -lower
+        badness += np.fmax(-chi,0.0) * qbad
+
     # Decide how bad a point is according to upper.
-    #
     if upper is not None:
-        if percentile:
-            qbad = chi > upper_chi
-        else:
-            qbad = chi > upper
-        badness += np.fmax(chi,0.0)*qbad
-    #
+        qbad = chi > upper_chi if percentile else chi > upper
+        badness += np.fmax(chi,0.0) * qbad
+
     # Decide how bad a point is according to maxdev.
-    #
     if maxdev is not None:
         qbad = np.absolute(diff) > maxdev
         badness += np.absolute(diff) / maxdev * qbad
-    #
-    # Do not consider rejecting points that are already rejected by inmask.
-    # Do not consider rejecting points that are already rejected by outmask,
-    # if sticky is set.
-    #
+
+    # Do not consider rejecting points that are already rejected by inmask, or
+    # by outmask if sticky is set.
     if inmask is not None:
         badness *= inmask
     if sticky:
         badness *= outmask
 
-
-    #
     # Reject a maximum of maxrej (additional) points in all the data, or
     # in each group as specified by groupsize, and optionally along each
     # dimension specified by groupdim.
-    #
-    if maxrej is not None:
+    if maxrej1 is not None:
         #
         # Loop over each dimension of groupdim or loop once if not set.
         #
@@ -912,14 +588,21 @@ def djs_reject(data, model, outmask=None, inmask=None,
     # Set qdone if the input outmask is identical to the output outmask.
     #
     qdone = bool(np.all(newmask == outmask))
-    # JFH This needs to be a python (rather than a numpy) boolean to avoid painful problems when comparing
-    # to python True and False booleans
+
+    # JFH This needs to be a python (rather than a numpy) boolean to avoid
+    # painful problems when comparing to python True and False booleans
+
+    # KBW: We should not be comparing booleans to True or False; instead use the
+    # booleans directly.  I.e., instead of "if qdone is True" or "if qdone is
+    # False", use "if qdone" or "if not qdone", which works with both native
+    # python booleans and numpy booleans.
 
     outmask = newmask
     return outmask, qdone
 
 
-
+# TODO: I don't understand the use case for this function.  I.e., why do we need
+# something that is exactly the same as arange_ndim except when dims is 1D?
 def djs_laxisnum(dims, iaxis=0):
     """Returns an integer array where each element of the array is set equal
     to its index number in the specified axis.
@@ -945,88 +628,93 @@ def djs_laxisnum(dims, iaxis=0):
     Notes
     -----
     For two or more dimensions, there is no difference between this routine
-    and :func:`~pydl.pydlutils.misc.djs_laxisgen`.
+    and :func:`~pypeit.core.pydl.djs_laxisgen`.
 
     Examples
     --------
-    >>> from pydl.pydlutils.misc import djs_laxisnum
-    >>> print(djs_laxisnum([4,4]))
-    [[0 0 0 0]
-     [1 1 1 1]
-     [2 2 2 2]
-     [3 3 3 3]]
+    >>> from pypeit.core.pydl import djs_laxisnum
+    >>> print(djs_laxisnum((5,1), iaxis=0))
+    [[0]
+     [1]
+     [2]
+     [3]
+     [4]]
+    >>> print(djs_laxisnum(5))
+    [0 0 0 0 0]
+    >>> print(djs_laxisnum((5,1), iaxis=1))
+    [[0]
+     [0]
+     [0]
+     [0]
+     [0]]
+    >>> print(djs_laxisnum((1,5), iaxis=1))
+    [[0 1 2 3 4]]
+    >>> print(djs_laxisnum((4,3)))
+    [[0 0 0]
+     [1 1 1]
+     [2 2 2]
+     [3 3 3]]
     """
-    ndimen = len(dims)
-    result = np.zeros(dims, dtype='i4')
-    if ndimen == 1:
-        pass
-    elif ndimen == 2:
-        if iaxis == 0:
-            for k in range(dims[0]):
-                result[k, :] = k
-        elif iaxis == 1:
-            for k in range(dims[1]):
-                result[:, k] = k
-        else:
-            raise ValueError("Bad value for iaxis: {0:d}".format(iaxis))
-    elif ndimen == 3:
-        if iaxis == 0:
-            for k in range(dims[0]):
-                result[k, :, :] = k
-        elif iaxis == 1:
-            for k in range(dims[1]):
-                result[:, k, :] = k
-        elif iaxis == 2:
-            for k in range(dims[2]):
-                result[:, :, k] = k
-        else:
-            raise ValueError("Bad value for iaxis: {0:d}".format(iaxis))
-    else:
-        raise ValueError("{0:d} dimensions not supported.".format(ndimen))
-    return result
+    _dims = tuple(np.atleast_1d(dims).tolist())
+    if len(_dims) == 1:
+        return np.zeros(dims, dtype=int)
+    return arange_ndim(dims, axis=iaxis)
 
 
-
-def djs_laxisgen(dims, iaxis=0):
-    """Returns an integer array where each element of the array is set
-    equal to its index number along the specified axis.
+def arange_ndim(dims, axis=0):
+    """
+    Create an array where the values of the array are the index of the element
+    along the selected axis.
 
     Parameters
     ----------
-    dims : :class:`list`
-        Dimensions of the array to return.
-    iaxis : :class:`int`, optional
-        Index along this dimension.
+    dims : int, tuple, list
+        Shape of the array to return along each dimension.  The length of the
+        tuple or list sets the number of dimensions in the returned array.  If
+        ``dims`` is an integer, this function is identical to `numpy.arange`.
+    axis : int, optional
+        Axis along which to assign the index numbers.
 
     Returns
     -------
-    :class:`numpy.ndarray`
-        An array of indexes with ``dtype=int32``.
+    numpy.ndarray
+        Integer array with the same shape as ``dims`` where each element
+        equals its index number along ``axis``.
 
     Raises
     ------
     ValueError
-        If `iaxis` is greater than or equal to the number of dimensions.
-
-    Notes
-    -----
-    For two or more dimensions, there is no difference between this routine
-    and :func:`~pydl.pydlutils.misc.djs_laxisnum`.
+        Raised if ``axis`` is out of range for the provided ``dims``.
 
     Examples
     --------
-    >>> from pydl.pydlutils.misc import djs_laxisgen
-    >>> print(djs_laxisgen([4,4]))
-    [[0 0 0 0]
-     [1 1 1 1]
-     [2 2 2 2]
-     [3 3 3 3]]
+    >>> from pypeit.core.pydl import arange_ndim
+    >>> print(arange_ndim((4,3)))
+    [[0 0 0]
+     [1 1 1]
+     [2 2 2]
+     [3 3 3]]
+    >>> print(arange_ndim((4,3), axis=1))
+    [[0 1 2]
+     [0 1 2]
+     [0 1 2]
+     [0 1 2]]
     """
-    ndimen = len(dims)
-    if ndimen == 1:
-        return np.arange(dims[0], dtype='i4')
-    return djs_laxisnum(dims, iaxis)
+    _dims = tuple(np.atleast_1d(dims).tolist())
+    ndim = len(_dims)
+    if axis < 0 or axis >= ndim:
+        raise ValueError(f'Axis {axis} not valid for dimensions {_dims}.')
 
+    # Make the index array that will be tiled along multiple dimensions
+    base = np.arange(_dims[axis], dtype=int)
+    if ndim == 1:
+        # Done for 1D
+        return base
+
+    # Expand the index array to include the needed dimensions
+    base = np.expand_dims(base, tuple(range(axis)) + tuple(range(axis+1,ndim)))
+    # Return the tiled index array
+    return np.tile(base, _dims[:axis] + (1,) + _dims[axis+1:])
 
 
 ### Following part are imported from pydl spheregroup
