@@ -26,8 +26,8 @@ from pypeit import PypeItError
 from pypeit import utils
 from pypeit import sampling
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core import moment
-from pypeit.core import pydl
 
 # TODO: Some of these functions could probably just live in pypeit.edges
 
@@ -855,7 +855,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
           For *Gaussian weighting*, all iterations use `width =
           fwhm/2.3548`.
         - Fit the centroid measurements with a 1D function of the
-          provided order. See :func:`pypeit.core.pydl.TraceSet`.
+          provided order. See :func:`pypeit.core.fitting.PypeItFitCollection`.
 
     The number of iterations performed is set by the keyword argument
     `niter`. There is no convergence test, meaning that this number
@@ -909,7 +909,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             If None, no limit is applied.
         function (:obj:`str`, optional):
             The name of the function to fit. Must be a valid
-            selection. See :class`pypeit.core.pydl.TraceSet`.
+            selection. See :class:`pypeit.core.fitting.PypeItFitCollection`.
         maxdev (:obj:`float`, optional):
             If provided, reject points with `abs(data-model) >
             maxdev` during the fitting. If None, no points are
@@ -1041,11 +1041,12 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # instantation of trace_fit_ivar above.
         ################################################################
 
+
         # Fit the data
-        traceset = pydl.TraceSet(trace_coo, cen.T,
-                                 # Removed by keck_run_july:  inmask=np.logical_not(_trace_bpm.T),
-                                 function=function, ncoeff=order, maxdev=maxdev, maxiter=maxiter,
-                                 invvar=trace_fit_ivar.T, xmin=xmin, xmax=xmax)
+        fit_results = fitting.PypeItFitCollection(
+            trace_coo, cen.T, ivar=trace_fit_ivar.T, func=function, order=order, xmin=xmin,
+            xmax=xmax, maxdev=maxdev, maxiter=maxiter
+        )
 
         # TODO: Keep this around for now. I wanted to see how each
         # iteration affected the centroids and fit.
@@ -1070,7 +1071,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # iteration, the values being fit are based on the results of
         # this fit even for the bad traces instead of the original
         # input data.
-        trace_fit = traceset.yfit.T
+        trace_fit = fit_results.yfit.T
 
     # Plot the final fit if requested
     if debug:
@@ -1082,7 +1083,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # Construct boolean flags
         inpgpm = np.logical_not(_trace_bpm)
         cengpm = np.logical_not(msk.astype(bool))
-        fitgpm = traceset.outmask.T
+        fitgpm = fit_results.out_gpm.T
         bpm_fit = _trace_bpm & fitgpm
         bpm_rej = _trace_bpm & np.logical_not(fitgpm)
         gpm_bdcen_fit = inpgpm & np.logical_not(cengpm) & fitgpm
@@ -1149,7 +1150,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
 
     # Returns the fit, the actual weighted traces and errors, and
     # measurement flags for the last iteration
-    return trace_fit, cen, err, msk, traceset
+    return trace_fit, cen, err, msk, fit_results
 
 
 def build_trace_bpm(flux, trace_cen, bpm=None, boxcar=None, thresh=None, median_kernel=None):

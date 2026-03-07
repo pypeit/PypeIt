@@ -341,7 +341,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # refine these traces. This must also be done in a loop since
         # the sub image is different for every aperture, i.e. each
         # aperature has its own image.
-        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, tset_out \
+        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, trace_results \
             = trace.fit_trace(sub_img, tilts_guess_now, spat_order,
                               bpm=np.logical_not(sub_inmask.astype(bool)),
                               trace_bpm=np.logical_not(tilts_sub_mask_box), fwhm=fwhm,
@@ -352,21 +352,25 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # line trace positions
         tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99 * fwhm
 
-        # If gauss is set, do a Gaussian refinement to the
-        # flux-weighted tracing
         if gauss:
-            # Re-check if spatial pixels should be unmasked.
-            if (np.sum(tilts_sub_mask_box) < 0.8 * nsub):
-                tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
-            # Re-measure using Gaussian weighting and refit
-            tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, _ \
-                = trace.fit_trace(sub_img, tilts_sub_fit_out, spat_order,
-                                  bpm=np.logical_not(sub_inmask.astype(bool)),
-                                  trace_bpm=np.logical_not(tilts_sub_mask_box),
-                                  weighting='gaussian', fwhm=fwhm, maxdev=maxdev, niter=3,
-                                  idx=str(iline), debug=show_tracefits, xmin=0.0,
-                                  xmax=float(nsub - 1))
-            tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99 * fwhm
+            raise NotImplementedError(
+                'CODING ERROR: "gauss" option is not implemented correctly in trace_tilts_work.'
+            )
+#        # If gauss is set, do a Gaussian refinement to the
+#        # flux-weighted tracing
+#        if gauss:
+#            # Re-check if spatial pixels should be unmasked.
+#            if (np.sum(tilts_sub_mask_box) < 0.8 * nsub):
+#                tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
+#            # Re-measure using Gaussian weighting and refit
+#            tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, _ \
+#                = trace.fit_trace(sub_img, tilts_sub_fit_out, spat_order,
+#                                  bpm=np.logical_not(sub_inmask.astype(bool)),
+#                                  trace_bpm=np.logical_not(tilts_sub_mask_box),
+#                                  weighting='gaussian', fwhm=fwhm, maxdev=maxdev, niter=3,
+#                                  idx=str(iline), debug=show_tracefits, xmin=0.0,
+#                                  xmax=float(nsub - 1))
+#            tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99 * fwhm
 
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip
@@ -375,7 +379,9 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # TODO: Why is the TraceSet from the first fit used, even when
         # `gauss=True`? I guess in the current usage `gauss` is always
         # False...
-        tilts_sub_fit[:, iline] = tset_out.xy(tilts_sub_spat[:, iline].reshape(1, nsub))[1]
+        tilts_sub_fit[:, iline] = trace_results.eval(
+            xpos=tilts_sub_spat[:, iline].reshape(1, nsub)
+        )[1]
 
         # We use the tset_out.xy to evaluate the trace across the whole
         # sub-image even for pixels off the slit. This guarantees that

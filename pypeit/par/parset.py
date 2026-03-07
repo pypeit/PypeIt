@@ -728,7 +728,8 @@ class ParSet:
                 data_table[i+1,1] = ParSet._rst_class_name(self.data[k])
                 data_table[i+1,3] = '`{0} Keywords`_'.format(type(self.data[k]).__name__)
             else: 
-                data_table[i+1,1] = ', '.join([t.__name__ for t in self.dtype[k]])
+                data_table[i+1,1] = '..' if self.dtype[k] is None \
+                                    else ', '.join([t.__name__ for t in self.dtype[k]])
                 data_table[i+1,3] = '..' if self.default[k] is None \
                                     else ParSet._data_string(self.default[k], use_repr=False,
                                                              verbatim=True, check_dir=True)
