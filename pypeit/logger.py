@@ -20,12 +20,10 @@ from IPython import embed
 # to cause a circular import.
 
 # Add a logging TEST level between INFO and WARNING
-# TODO: The way this is currently written, the output indicates this file rather than
-#       the file from which "log.test()" is called.  Needs a fix.
 TEST_LEVEL_NUM = 25
 logging.addLevelName(TEST_LEVEL_NUM, "TEST")
 def logtest(self, message, *args, **kwargs):
-    """Define TEST_MSG log level for calling"""
+    """Define TEST log level for calling"""
     # Skip this wrapper frame so filename/lineno point at the caller of log.test()
     kwargs.setdefault("stacklevel", 2)
     self.log(TEST_LEVEL_NUM, message, *args, **kwargs)
