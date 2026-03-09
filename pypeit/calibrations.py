@@ -1976,11 +1976,24 @@ class NIRSpecSlitCalibrations(Calibrations):
 
             edges.append(slit)
 
+        # get spec_min and spec_max for the slit trace set
+        specmin = np.asarray([-np.inf])
+        specmax = np.asarray([np.inf])
+        if self.par['slitedges']['trim_spec'] is not None:
+            trim_low, trim_high = self.par['slitedges']['trim_spec']
+            specmin = np.asarray([trim_low],dtype=np.float64)
+            specmax = np.asarray([self.nspec-trim_high],dtype=np.float64)
+        # TODO: Not sure if we can use self.spectrograph.spec_min_max here
+        #  since it is currently defined in the context of echelle reduction.
+        elif self.spectrograph.spec_min_max is not None:
+            specmin = np.asarray([self.spectrograph.spec_min_max[0]])
+            specmax = np.asarray([self.spectrograph.spec_min_max[1]])
+
         self.slits = slittrace.SlitTraceSet(
             edges[0], edges[1], self.spectrograph.pypeline,
             detname=self.spectrograph.get_det_name(self.det),
-            nspat=int(thismask.shape[1]),
-            PYP_SPEC=self.spectrograph.name)
+            nspat=int(thismask.shape[1]), PYP_SPEC=self.spectrograph.name,
+            specmin=specmin, specmax=specmax, pad=self.par['slitedges']['pad'])
 
         return self.slits
 
