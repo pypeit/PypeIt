@@ -1002,7 +1002,7 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
             par["reduce"]["findobj"]["find_fwhm"] = 7
             par["reduce"]["findobj"]["snr_thresh"] = 1
 
-            par["calibrations"]["wavelengths"]["lamps"] = [""]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+            par["calibrations"]["wavelengths"]["lamps"] = ["Hg_RIMAS"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
 
         else:
             pass
