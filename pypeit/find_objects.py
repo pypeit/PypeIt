@@ -256,6 +256,7 @@ class FindObjects:
             subtraction.  True = usable for sky subtraction, False = should be
             masked when sky subtracting.
         """
+        print("find_objects.py:  Creating sky mask!")
         # Instantiate the mask
         skymask = np.ones_like(self.sciImg.image, dtype=bool)
         if sobjs_obj.nobj == 0:
