@@ -11,6 +11,8 @@ import numpy as np
 
 from astropy.io import fits
 
+import os
+
 from pypeit import log
 from pypeit import PypeItError
 from pypeit.images.imagebitmask import ImageBitMaskArray
@@ -51,7 +53,7 @@ class PypeItImage(datamodel.DataContainer):
     functions are provided to interface with the underlying object;  see
     :func:`update_mask` and :func:`select_flag`, as well as
     :class:`~pypeit.images.imagebitmask.ImageBitMask` for the valid flag names.
-    
+
     Additionally, pixels can be flagged on instantiation as being part of a
     bad-pixel mask (``bpm``), a cosmic ray hit (``crmask``), or a user-level
     bad-pixel mask (``usermask``).  Importantly, if both ``fullmask`` and one of
@@ -63,7 +65,7 @@ class PypeItImage(datamodel.DataContainer):
 
     The following lists only those parameters that are *not* part of the class
     datamodel (see above).
-    
+
     Args:
         bpm (`numpy.ndarray`_, optional):
             The image bad-pixel mask, which typically selects image values that
@@ -94,7 +96,7 @@ class PypeItImage(datamodel.DataContainer):
 
     # TODO These docs are confusing. The __init__ method needs to be documented just as it is for
     # every other class that we have written in PypeIt, i.e. the arguments all need to be documented. They are not
-    # documented here and instead we have the odd Args documentation above. 
+    # documented here and instead we have the odd Args documentation above.
     version = '1.3.1'
     """Datamodel version number"""
 
@@ -131,7 +133,7 @@ class PypeItImage(datamodel.DataContainer):
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
                  'spat_flexure': dict(otype=float,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace'), 
+                                            'and SlitTrace'),
                  'filename': dict(otype=str, descr='Filename for the image'),
                  'rel_scaleImg': dict(otype=np.ndarray, atype=np.floating,
                                   descr='Image used to apply a relative scaling to the science '
@@ -177,10 +179,10 @@ class PypeItImage(datamodel.DataContainer):
         # Done
         return self
 
-    # TODO This init method needs proper docs, which includes every optional argument. See my comment above. 
+    # TODO This init method needs proper docs, which includes every optional argument. See my comment above.
     def __init__(self, image, ivar=None, nimg=None, amp_img=None, det_img=None, rn2img=None,
                  base_var=None, img_scale=None, fullmask=None, detector=None, spat_flexure=None,
-                 filename=None, PYP_SPEC=None, units=None, exptime=None, noise_floor=None, 
+                 filename=None, PYP_SPEC=None, units=None, exptime=None, noise_floor=None,
                  shot_noise=None, bpm=None, crmask=None, usermask=None, clean_mask=False):
 
         if image is None:
@@ -340,7 +342,7 @@ class PypeItImage(datamodel.DataContainer):
         Identify and flag cosmic rays in the image.
 
         This is mainly a wrapper to :func:`pypeit.core.procimg.lacosmic`, with
-        the boolean cosmic-ray mask is saved to :attr:`crmask`. 
+        the boolean cosmic-ray mask is saved to :attr:`crmask`.
 
         Args:
             par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
@@ -379,7 +381,17 @@ class PypeItImage(datamodel.DataContainer):
         saturation = self.map_detector_value('saturation')
         nonlinear = self.map_detector_value('nonlinear')
 
-        if self.is_multidetector:
+        crthresh = os.environ.get('PYPEIT_CRTHRESH')
+
+        if crthresh is not None:
+            # FIXME this will fail for multi detector
+            log.info(f'Using cosmic ray threshold {crthresh=}, not L.A.Cosmic...')
+            crmask = use_img > float(crthresh)
+            log.info(f'Masked {crmask.sum} pixels...')
+            import scipy
+            growkernel = np.ones((3, 3), dtype=bool)
+            crmask = scipy.ndimage.binary_dilation(crmask, structure=growkernel)
+        elif self.is_multidetector:
             # If the object has multiple images, need to flag each image individually
             crmask = np.empty(self.shape, dtype=bool)
             for i in range(self.shape[0]):
@@ -539,7 +551,7 @@ class PypeItImage(datamodel.DataContainer):
                 and mincounts.shape != self.shape:
             raise PypeItError('Minimum counts array must have the same shape as the image.')
 
-        # Setup the saturation level 
+        # Setup the saturation level
         if isinstance(saturation, str):
             if saturation != 'default':
                 raise PypeItError(f'Unknown saturation string: {saturation}')
@@ -550,7 +562,7 @@ class PypeItImage(datamodel.DataContainer):
         else:
             _saturation = saturation
 
-        # Setup the minimum counts level 
+        # Setup the minimum counts level
         if isinstance(mincounts, str):
             if mincounts != 'default':
                 raise PypeItError(f'Unknown mincounts string: {mincounts}')
@@ -678,7 +690,7 @@ class PypeItImage(datamodel.DataContainer):
                 good pixels (i.e., a bad-pixel mask).  If True, invert the sense
                 of the mask (i.e., create a good-pixel mask, True for good
                 pixels, False for bad pixels).
-    
+
         Returns:
             `numpy.ndarray`_: Boolean array where pixels with the selected bits
             flagged are returned as True (if ``invert`` is False); i.e., this is
@@ -694,7 +706,7 @@ class PypeItImage(datamodel.DataContainer):
     def sub(self, other):
         """
         Subtract this PypeItImage from another.
-        
+
         The following operations are performed:
 
             - the image data is subtracted (images must have the same shape)
@@ -872,7 +884,7 @@ class PypeItImage(datamodel.DataContainer):
 class PypeItCalibrationImage(PypeItImage, CalibFrame):
     """
     Abstract base class used with PypeIt calibration images.
-    
+
     This class inherits the core datamodel attributes and functionality from
     :class:`PypeItImage`, including the version number, but uses the naming
     conventions driven by :class:`~pypeit.calibframe.CalibFrame`.  Some
@@ -903,7 +915,7 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
     """
     Combines internals from both base classes.
     """
-    
+
     @classmethod
     def from_hdu(cls, hdu, chk_version=True, hdu_prefix=None, **kwargs):
         """
