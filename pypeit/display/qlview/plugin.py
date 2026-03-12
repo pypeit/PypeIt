@@ -60,6 +60,7 @@ class QLTEST(GingaPlugin.LocalPlugin):
         self.backend_mode = "local"
         self.remote_host = ""
         self.remote_port = ""
+        self.remote_api_key = ""
 
         self._raw_name_col_idx = 0
         self._reduced_name_col_idx = 0
@@ -157,20 +158,20 @@ class QLTEST(GingaPlugin.LocalPlugin):
         local_checkbox.setChecked(self.backend_mode == "local")
         layout.addWidget(local_checkbox)
 
-        form_layout = QtGui.QHBoxLayout()
-        host_label = QtGui.QLabel("Host:")
+        form_layout = QtGui.QFormLayout()
         host_edit = QtGui.QLineEdit(self.remote_host)
-        port_label = QtGui.QLabel("Port:")
         port_edit = QtGui.QLineEdit(self.remote_port)
-        form_layout.addWidget(host_label)
-        form_layout.addWidget(host_edit)
-        form_layout.addWidget(port_label)
-        form_layout.addWidget(port_edit)
+        key_edit = QtGui.QLineEdit(self.remote_api_key)
+        key_edit.setPlaceholderText("Leave blank if server has no --api-key set")
+        form_layout.addRow("Host:", host_edit)
+        form_layout.addRow("Port:", port_edit)
+        form_layout.addRow("API Key:", key_edit)
         layout.addLayout(form_layout)
 
         def _toggle_fields(checked: bool) -> None:
             host_edit.setEnabled(not checked)
             port_edit.setEnabled(not checked)
+            key_edit.setEnabled(not checked)
 
         _toggle_fields(local_checkbox.isChecked())
         local_checkbox.toggled.connect(_toggle_fields)
@@ -191,13 +192,32 @@ class QLTEST(GingaPlugin.LocalPlugin):
             self.reduction_backend = LocalReductionBackend()
             self.remote_host = ""
             self.remote_port = ""
+            self.remote_api_key = ""
         else:
+            host = host_edit.text().strip()
+            port = port_edit.text().strip()
+            api_key = key_edit.text().strip() or None
+            base_url = f"http://{host}:{port}"
+
+            # Verify the server is reachable before switching backends.
+            try:
+                from pypeit.display.qlview.backends import _requests
+                resp = _requests.get(f"{base_url}/api/health", timeout=5)
+                resp.raise_for_status()
+            except Exception as exc:
+                QtGui.QMessageBox.critical(
+                    None,
+                    "Backend Unreachable",
+                    f"Could not connect to {base_url}:\n\n{exc}",
+                )
+                return
+
             self.backend_mode = "remote"
-            self.remote_host = host_edit.text().strip()
-            self.remote_port = port_edit.text().strip()
-            base_url = f"http://{self.remote_host}:{self.remote_port}"
-            self.file_backend = RemoteFileBrowserBackend(base_url)
-            self.reduction_backend = RemoteReductionBackend(base_url)
+            self.remote_host = host
+            self.remote_port = port
+            self.remote_api_key = api_key or ""
+            self.file_backend = RemoteFileBrowserBackend(base_url, api_key=api_key)
+            self.reduction_backend = RemoteReductionBackend(base_url, api_key=api_key)
 
         self.file_browser.backend = self.file_backend
 
@@ -331,20 +351,12 @@ class QLTEST(GingaPlugin.LocalPlugin):
         self._make_reduction_row(slit_key, raw_path, now.strftime("%H:%M:%S"))
         self._register_reduction_timer(raw_path, run_dir, slit_key, log_path)
 
-    def _check_log_for_failure(self, log_path: str) -> bool:
-        """Return True if the log contains the 'no science frames' failure string."""
-        try:
-            with open(log_path) as fh:
-                return "No science frames found among the files provided." in fh.read()
-        except OSError:
-            return False
-
     def _register_reduction_timer(
         self, raw_path: str, redux_path: str, slit_key: str, log_path: str
     ) -> None:
         raw_stem = Path(raw_path).name.split(".fits")[0]
         timer_key = f"{raw_stem}_{slit_key}"
-        science_dir = Path(redux_path) / raw_stem / "Science"
+        science_dir = os.path.join(redux_path, raw_stem, "Science")
 
         existing = self.reduction_timers.get(timer_key)
         if existing is not None:
@@ -359,11 +371,13 @@ class QLTEST(GingaPlugin.LocalPlugin):
         timer.set(self.reduction_cadence)
 
     def _check_reduction_complete(
-        self, timer_key: str, science_dir: Path, slit_key: str, log_path: str
+        self, timer_key: str, science_dir: str, slit_key: str, log_path: str
     ) -> None:
         timer = self.reduction_timers.get(timer_key)
 
-        if self._check_log_for_failure(log_path):
+        if self.file_backend.check_log_for_failure(
+            log_path, "No science frames found among the files provided."
+        ):
             self.logger.warning(f"Reduction failed for {timer_key}: no science frames found.")
             control = self.reduction_control_elements.get(slit_key)
             if control is not None:
@@ -373,23 +387,22 @@ class QLTEST(GingaPlugin.LocalPlugin):
                 self.reduction_timers.pop(timer_key, None)
             return
 
-        if science_dir.exists():
-            spec1d_files = list(science_dir.glob("spec1d*.fits*"))
-            if spec1d_files:
-                spec1d_path = str(spec1d_files[0])
-                self.logger.info(f"Reduction complete for {timer_key}: {spec1d_path}")
-                control = self.reduction_control_elements.get(slit_key)
-                if control is not None:
-                    control["label"].set_text(f"Reduced {slit_key}")
-                    control["button"].set_enabled(True)
-                    control["button"].add_callback(
-                        "activated",
-                        lambda w, p=spec1d_path, k=slit_key: self.show_spec1d_cb(w, path=p, slit_key=k),
-                    )
-                if timer is not None:
-                    timer.cancel()
-                    self.reduction_timers.pop(timer_key, None)
-                return
+        spec1d_files = self.file_backend.glob(science_dir, "spec1d*.fits*")
+        if spec1d_files:
+            spec1d_path = spec1d_files[0]
+            self.logger.info(f"Reduction complete for {timer_key}: {spec1d_path}")
+            control = self.reduction_control_elements.get(slit_key)
+            if control is not None:
+                control["label"].set_text(f"Reduced {slit_key}")
+                control["button"].set_enabled(True)
+                control["button"].add_callback(
+                    "activated",
+                    lambda w, p=spec1d_path, k=slit_key: self.show_spec1d_cb(w, path=p, slit_key=k),
+                )
+            if timer is not None:
+                timer.cancel()
+                self.reduction_timers.pop(timer_key, None)
+            return
 
         self.logger.info(
             f"Reduction not complete for {timer_key}; "
