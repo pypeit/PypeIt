@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import configparser
+import datetime
 import os
+import re
 import subprocess
 import threading
 from pathlib import Path
@@ -70,7 +72,7 @@ class QLTEST(GingaPlugin.LocalPlugin):
         self.file_browser = FileBrowserController(self.logger, self.settings, self.file_backend)
         self.reduction_timers: Dict[str, object] = {}
         self.reduction_cadence: float = 5.0
-        self._last_spec1d_path: Optional[str] = None
+        self.reduction_control_elements: Dict[str, dict] = {}
         self._slit_combo_keys: list = []  # slit keys in combo box order
 
         icondir = self.fv.iconpath
@@ -122,10 +124,25 @@ class QLTEST(GingaPlugin.LocalPlugin):
     def create_config_cb(self, w):
         config_file = Path.home() / ".quicklook.cfg"
         config = configparser.ConfigParser()
+
+        raw_path = self.raw_text_entry.get_text()
+        if os.path.isfile(raw_path):
+            raw_path = str(Path(raw_path).parent)
+
+        reduced_path = self.reduced_text_entry.get_text()
+        if re.match(r'^.+_[A-Za-z]$', Path(reduced_path).name):
+            reduced_path = str(Path(reduced_path).parent)
+
         config["DEFAULT"] = {
             "redux_path": self.redux_path_entry.get_text(),
-            "raw_path": self.raw_text_entry.get_text(),
-            "reduced_path": self.reduced_text_entry.get_text(),
+            "raw_path": raw_path,
+            "reduced_path": reduced_path,
+            "raw_show_fits": str(self.raw_show_fits.get_state()),
+            "raw_show_nonfits": str(self.raw_show_nonfits.get_state()),
+            "raw_show_dirs": str(self.raw_show_dirs.get_state()),
+            "reduced_show_fits": str(self.reduced_show_fits.get_state()),
+            "reduced_show_nonfits": str(self.reduced_show_nonfits.get_state()),
+            "reduced_show_dirs": str(self.reduced_show_dirs.get_state()),
         }
         with open(config_file, "w") as f:
             config.write(f)
@@ -241,28 +258,47 @@ class QLTEST(GingaPlugin.LocalPlugin):
             self.logger.error("Reduced path is invalid or not selected.")
             return
         if not redux_path or not os.path.isdir(redux_path):
-            self.logger.error("Redux path is invalid or not found.")
-            return
+            dialog = QtGui.QMessageBox()
+            dialog.setWindowTitle("Reduction Path Not Found")
+            dialog.setIcon(QtGui.QMessageBox.Warning)
+            dialog.setText(
+                f"The reduction output path does not exist:\n\n{redux_path}\n\n"
+                "Would you like to create it?"
+            )
+            create_btn = dialog.addButton("Create Directory", QtGui.QMessageBox.AcceptRole)
+            dialog.addButton("Cancel", QtGui.QMessageBox.RejectRole)
+            dialog.exec_()
+            if dialog.clickedButton() != create_btn:
+                return
+            try:
+                os.makedirs(redux_path)
+            except OSError as exc:
+                QtGui.QMessageBox.critical(None, "Error", f"Could not create directory:\n{exc}")
+                return
 
         if not self.state.slittracesets:
             self.logger.error("No slit traces loaded. Render slits first.")
             return
 
         slit_id = slit_key[1:] if slit_key.startswith("S") else slit_key
-        msc_label: Optional[str] = None
-        for msc_idx, slittrace in self.state.slittracesets.items():
+        det_label: Optional[str] = None
+        for det_idx, slittrace in self.state.slittracesets.items():
             if slittrace is None:
                 continue
             for spat_id in slittrace.spat_id:
                 if slit_key == f"S{spat_id}":
-                    msc_label = f"MSC{msc_idx}"
+                    det_label = f"{self.instrument.detector_prefix}{det_idx}"
                     break
-            if msc_label:
+            if det_label:
                 break
 
-        if not msc_label:
-            self.logger.error(f"Could not resolve mosaic index for slit {slit_key}.")
+        if not det_label:
+            self.logger.error(f"Could not resolve detector index for slit {slit_key}.")
             return
+
+        now = datetime.datetime.now()
+        run_dir = os.path.join(redux_path, f"{det_label}_{slit_id}_{now.strftime('%H%M%S')}")
+        os.makedirs(run_dir, exist_ok=True)
 
         command = [
             "pypeit_ql",
@@ -274,20 +310,21 @@ class QLTEST(GingaPlugin.LocalPlugin):
             "--setup_calib_dir",
             f"{Path(reduced_path).absolute()}/Calibrations",
             "--slitspatnum",
-            f"{msc_label}:{slit_id}",
+            f"{det_label}:{slit_id}",
             "--redux_path",
-            redux_path,
+            run_dir,
             "--skip_display",
             "--snr_thresh",
             self.SNR_box.get_text(),
         ]
 
         self.logger.info("Launching command: {0}".format(" ".join(command)))
-        log_path = os.path.join(redux_path, f"{msc_label}_{slit_id}.log")
+        log_path = os.path.join(run_dir, f"{det_label}_{slit_id}.log")
         with open(log_path, "w") as logfile:
             subprocess.Popen(command, stdout=logfile, stderr=logfile)
 
-        self._register_reduction_timer(raw_path, redux_path)
+        self._make_reduction_row(slit_key, raw_path, now.strftime("%H:%M:%S"))
+        self._register_reduction_timer(raw_path, run_dir, slit_key, log_path)
 
     def reduce_slit_direct(self) -> None:
         slit_key = self.slit_list_box.get_text().split()[0]
@@ -314,20 +351,24 @@ class QLTEST(GingaPlugin.LocalPlugin):
             return
 
         slit_id = slit_key[1:] if slit_key.startswith("S") else slit_key
-        msc_label: Optional[str] = None
-        for msc_idx, slittrace in self.state.slittracesets.items():
+        det_label: Optional[str] = None
+        for det_idx, slittrace in self.state.slittracesets.items():
             if slittrace is None:
                 continue
             for spat_id in slittrace.spat_id:
                 if slit_key == f"S{spat_id}":
-                    msc_label = f"MSC{msc_idx}"
+                    det_label = f"{self.instrument.detector_prefix}{det_idx}"
                     break
-            if msc_label:
+            if det_label:
                 break
 
-        if not msc_label:
-            self.logger.error(f"Could not resolve mosaic index for slit {slit_key}.")
+        if not det_label:
+            self.logger.error(f"Could not resolve detector index for slit {slit_key}.")
             return
+
+        now = datetime.datetime.now()
+        run_dir = os.path.join(redux_path, f"{det_label}_{slit_id}_{now.strftime('%H%M%S')}")
+        os.makedirs(run_dir, exist_ok=True)
 
         args = [
             self.instrument.pypeit_name,
@@ -338,13 +379,15 @@ class QLTEST(GingaPlugin.LocalPlugin):
             "--setup_calib_dir",
             f"{Path(reduced_path).absolute()}/Calibrations",
             "--slitspatnum",
-            f"{msc_label}:{slit_id}",
+            f"{det_label}:{slit_id}",
             "--redux_path",
-            redux_path,
+            run_dir,
             "--skip_display",
             "--snr_thresh",
             self.SNR_box.get_text(),
         ]
+
+        log_path = os.path.join(run_dir, f"{det_label}_{slit_id}.log")
 
         def _run() -> None:
             self.logger.info("Launching direct QL reduction")
@@ -353,11 +396,22 @@ class QLTEST(GingaPlugin.LocalPlugin):
         thread = threading.Thread(target=_run, daemon=True)
         thread.start()
 
-        self._register_reduction_timer(raw_path, redux_path)
+        self._make_reduction_row(slit_key, raw_path, now.strftime("%H:%M:%S"))
+        self._register_reduction_timer(raw_path, run_dir, slit_key, log_path)
 
-    def _register_reduction_timer(self, raw_path: str, redux_path: str) -> None:
+    def _check_log_for_failure(self, log_path: str) -> bool:
+        """Return True if the log contains the 'no science frames' failure string."""
+        try:
+            with open(log_path) as fh:
+                return "No science frames found among the files provided." in fh.read()
+        except OSError:
+            return False
+
+    def _register_reduction_timer(
+        self, raw_path: str, redux_path: str, slit_key: str, log_path: str
+    ) -> None:
         raw_stem = Path(raw_path).name.split(".fits")[0]
-        timer_key = raw_stem
+        timer_key = f"{raw_stem}_{slit_key}"
         science_dir = Path(redux_path) / raw_stem / "Science"
 
         existing = self.reduction_timers.get(timer_key)
@@ -365,19 +419,41 @@ class QLTEST(GingaPlugin.LocalPlugin):
             existing.cancel()
 
         timer = self.fitsimage.make_timer()
-        timer.add_callback("expired", lambda t: self._check_reduction_complete(timer_key, science_dir))
+        timer.add_callback(
+            "expired",
+            lambda t: self._check_reduction_complete(timer_key, science_dir, slit_key, log_path),
+        )
         self.reduction_timers[timer_key] = timer
         timer.set(self.reduction_cadence)
 
-    def _check_reduction_complete(self, timer_key: str, science_dir: Path) -> None:
+    def _check_reduction_complete(
+        self, timer_key: str, science_dir: Path, slit_key: str, log_path: str
+    ) -> None:
         timer = self.reduction_timers.get(timer_key)
+
+        if self._check_log_for_failure(log_path):
+            self.logger.warning(f"Reduction failed for {timer_key}: no science frames found.")
+            control = self.reduction_control_elements.get(slit_key)
+            if control is not None:
+                control["label"].set_text(f"Failed {slit_key}: not a science frame")
+            if timer is not None:
+                timer.cancel()
+                self.reduction_timers.pop(timer_key, None)
+            return
 
         if science_dir.exists():
             spec1d_files = list(science_dir.glob("spec1d*.fits*"))
             if spec1d_files:
-                self.logger.info(f"Reduction complete for {timer_key}: {spec1d_files[0]}")
-                self._last_spec1d_path = str(spec1d_files[0])
-                self.btn_show.set_enabled(True)
+                spec1d_path = str(spec1d_files[0])
+                self.logger.info(f"Reduction complete for {timer_key}: {spec1d_path}")
+                control = self.reduction_control_elements.get(slit_key)
+                if control is not None:
+                    control["label"].set_text(f"Reduced {slit_key}")
+                    control["button"].set_enabled(True)
+                    control["button"].add_callback(
+                        "activated",
+                        lambda w, p=spec1d_path, k=slit_key: self.show_spec1d_cb(w, path=p, slit_key=k),
+                    )
                 if timer is not None:
                     timer.cancel()
                     self.reduction_timers.pop(timer_key, None)
@@ -396,14 +472,55 @@ class QLTEST(GingaPlugin.LocalPlugin):
         self.state.active_slit_key = w.get_text().split()[0]
         self.overlay.activate(self.state.active_slit_key, self.slit_canvas)
 
-    def show_spec1d_cb(self, w):
-        path = self._last_spec1d_path
+    def _make_reduction_row(self, slit_key: str, raw_path: str, start_time: str) -> None:
+        """Add a per-slit status row to vbox_redux.
+
+        Displays the source filename, start time, a status label, a Show
+        button (initially disabled), and a Remove button.
+        """
+        from ginga.gw import Widgets as GWidgets
+
+        filename = Path(raw_path).name
+
+        vbox = GWidgets.VBox()
+
+        # Top line: filename and start time
+        hbox_info = GWidgets.HBox()
+        hbox_info.add_widget(GWidgets.Label(f"{filename}  |  started {start_time}"), stretch=1)
+        vbox.add_widget(hbox_info, stretch=0)
+
+        # Bottom line: status label, Show button, Remove button
+        hbox_controls = GWidgets.HBox()
+        label = GWidgets.Label(f"Reducing {slit_key}...")
+        btn_show = GWidgets.Button("Show")
+        btn_show.set_enabled(False)
+        btn_remove = GWidgets.Button("Remove")
+
+        hbox_controls.add_widget(label, stretch=1)
+        hbox_controls.add_widget(btn_show, stretch=0)
+        hbox_controls.add_widget(btn_remove, stretch=0)
+        vbox.add_widget(hbox_controls, stretch=0)
+
+        self.vbox_redux.add_widget(vbox, stretch=0)
+
+        def _remove(w):
+            self.vbox_redux.remove(vbox)
+            self.reduction_control_elements.pop(slit_key, None)
+
+        btn_remove.add_callback("activated", _remove)
+
+        self.reduction_control_elements[slit_key] = {
+            "label": label,
+            "button": btn_show,
+            "vbox": vbox,
+        }
+
+    def show_spec1d_cb(self, w, path: Optional[str] = None, slit_key: Optional[str] = None):
         if not path or not os.path.isfile(path):
             self.logger.error("No spec1d file available to show.")
             return
         self.logger.info(f"Showing reduced spectrum: {path}")
-        slit_key = self.slit_list_box.get_text().split()[0]
-        ch_name = f"Spec1D{slit_key}"
+        ch_name = f"Spec1D{slit_key}" if slit_key else "Spec1D"
         self.fv.load_file(path, chname=ch_name)
         self.fv.start_local_plugin(ch_name, "Spec1dView")
 
@@ -809,11 +926,18 @@ class QLTEST(GingaPlugin.LocalPlugin):
             raw_path = defaults.get("raw_path", raw_path)
             reduced_path = defaults.get("reduced_path", reduced_path)
             redux_path = defaults.get("redux_path", redux_path)
+            self.raw_show_fits.set_state(defaults.getboolean("raw_show_fits", True))
+            self.raw_show_nonfits.set_state(defaults.getboolean("raw_show_nonfits", False))
+            self.raw_show_dirs.set_state(defaults.getboolean("raw_show_dirs", True))
+            self.reduced_show_fits.set_state(defaults.getboolean("reduced_show_fits", False))
+            self.reduced_show_nonfits.set_state(defaults.getboolean("reduced_show_nonfits", False))
+            self.reduced_show_dirs.set_state(defaults.getboolean("reduced_show_dirs", True))
             self.logger.info(f"Loaded config from {config_file}")
 
         self.raw_text_entry.set_text(raw_path)
         self.reduced_text_entry.set_text(reduced_path)
         self.redux_path_entry.set_text(redux_path)
+
         self._browse_and_update(raw_path, which_tree="raw")
         self._browse_and_update(reduced_path, which_tree="reduced")
         self.instrument_combo.make_callback("activated")
