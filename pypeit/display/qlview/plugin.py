@@ -62,6 +62,14 @@ class QLTEST(GingaPlugin.LocalPlugin):
         self.remote_port = ""
         self.remote_api_key = ""
 
+        # File-filter state (shown/edited in the Settings dialog)
+        self.raw_filter_fits = True
+        self.raw_filter_nonfits = False
+        self.raw_filter_dirs = True
+        self.reduced_filter_fits = False
+        self.reduced_filter_nonfits = False
+        self.reduced_filter_dirs = True
+
         self._raw_name_col_idx = 0
         self._reduced_name_col_idx = 0
         self._compute_name_col_indices()
@@ -74,6 +82,12 @@ class QLTEST(GingaPlugin.LocalPlugin):
         self.reduction_cadence: float = 5.0
         self.reduction_control_elements: Dict[str, dict] = {}
         self._slit_combo_keys: list = []  # slit keys in combo box order
+
+        # Per-reduction trace overlay state
+        self._trace_canvases: Dict[str, DrawingCanvas] = {}
+        self._trace_paths: Dict[str, Dict[int, dict]] = {}
+        self._trace_timers: Dict[str, object] = {}
+        self._trace_last_exten: Dict[str, Optional[int]] = {}
 
         icondir = self.fv.iconpath
         self.file_browser.folderpb = self.fv.get_icon(icondir, "folder.svg")
@@ -134,58 +148,110 @@ class QLTEST(GingaPlugin.LocalPlugin):
             reduced_path = str(Path(reduced_path).parent)
 
         config["DEFAULT"] = {
-            "redux_path": self.redux_path_entry.get_text(),
+            "redux_path": self.state.redux_path,
             "raw_path": raw_path,
             "reduced_path": reduced_path,
-            "raw_show_fits": str(self.raw_show_fits.get_state()),
-            "raw_show_nonfits": str(self.raw_show_nonfits.get_state()),
-            "raw_show_dirs": str(self.raw_show_dirs.get_state()),
-            "reduced_show_fits": str(self.reduced_show_fits.get_state()),
-            "reduced_show_nonfits": str(self.reduced_show_nonfits.get_state()),
-            "reduced_show_dirs": str(self.reduced_show_dirs.get_state()),
+            "raw_show_fits": str(self.raw_filter_fits),
+            "raw_show_nonfits": str(self.raw_filter_nonfits),
+            "raw_show_dirs": str(self.raw_filter_dirs),
+            "reduced_show_fits": str(self.reduced_filter_fits),
+            "reduced_show_nonfits": str(self.reduced_filter_nonfits),
+            "reduced_show_dirs": str(self.reduced_filter_dirs),
         }
         with open(config_file, "w") as f:
             config.write(f)
         self.logger.info(f"Saved default config to {config_file}")
 
-    def open_backend_dialog(self) -> None:
+    def open_settings_dialog(self) -> None:
+        """Open the Settings dialog.
+
+        Contains backend configuration, reduction path, poll cadence, and
+        per-tree file-filter toggles.  Changes are applied on OK.
+        """
         dialog = QtGui.QDialog()
-        dialog.setWindowTitle("Backend Configuration")
+        dialog.setWindowTitle("Settings")
+        dialog.setMinimumWidth(420)
 
-        layout = QtGui.QVBoxLayout()
+        outer = QtGui.QVBoxLayout()
 
+        # ── Backend ──────────────────────────────────────────────────────────
+        backend_group = QtGui.QGroupBox("Backend")
+        backend_form = QtGui.QFormLayout()
         local_checkbox = QtGui.QCheckBox("Use local backend")
         local_checkbox.setChecked(self.backend_mode == "local")
-        layout.addWidget(local_checkbox)
-
-        form_layout = QtGui.QFormLayout()
+        backend_form.addRow(local_checkbox)
         host_edit = QtGui.QLineEdit(self.remote_host)
         port_edit = QtGui.QLineEdit(self.remote_port)
         key_edit = QtGui.QLineEdit(self.remote_api_key)
         key_edit.setPlaceholderText("Leave blank if server has no --api-key set")
-        form_layout.addRow("Host:", host_edit)
-        form_layout.addRow("Port:", port_edit)
-        form_layout.addRow("API Key:", key_edit)
-        layout.addLayout(form_layout)
+        backend_form.addRow("Host:", host_edit)
+        backend_form.addRow("Port:", port_edit)
+        backend_form.addRow("API Key:", key_edit)
+        backend_group.setLayout(backend_form)
+        outer.addWidget(backend_group)
 
-        def _toggle_fields(checked: bool) -> None:
+        def _toggle_backend_fields(checked: bool) -> None:
             host_edit.setEnabled(not checked)
             port_edit.setEnabled(not checked)
             key_edit.setEnabled(not checked)
 
-        _toggle_fields(local_checkbox.isChecked())
-        local_checkbox.toggled.connect(_toggle_fields)
+        _toggle_backend_fields(local_checkbox.isChecked())
+        local_checkbox.toggled.connect(_toggle_backend_fields)
 
-        buttons = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
-        layout.addWidget(buttons)
+        # ── Reduction ─────────────────────────────────────────────────────────
+        reduction_group = QtGui.QGroupBox("Reduction")
+        reduction_form = QtGui.QFormLayout()
+        redux_path_edit = QtGui.QLineEdit(self.state.redux_path)
+        redux_path_edit.setPlaceholderText("Path to the reduction output directory")
+        reduction_form.addRow("Reduction Path:", redux_path_edit)
+        cadence_edit = QtGui.QLineEdit(str(self.reduction_cadence))
+        cadence_edit.setPlaceholderText("Seconds between completion checks")
+        reduction_form.addRow("Poll Cadence (s):", cadence_edit)
+        reduction_group.setLayout(reduction_form)
+        outer.addWidget(reduction_group)
 
-        dialog.setLayout(layout)
+        # ── File Filters ──────────────────────────────────────────────────────
+        filters_group = QtGui.QGroupBox("File Filters")
+        filters_layout = QtGui.QVBoxLayout()
+
+        raw_label = QtGui.QLabel("Raw tree:")
+        raw_fits_cb = QtGui.QCheckBox("FITS Files")
+        raw_fits_cb.setChecked(self.raw_filter_fits)
+        raw_nonfits_cb = QtGui.QCheckBox("Non-FITS Files")
+        raw_nonfits_cb.setChecked(self.raw_filter_nonfits)
+        raw_dirs_cb = QtGui.QCheckBox("Directories")
+        raw_dirs_cb.setChecked(self.raw_filter_dirs)
+
+        reduced_label = QtGui.QLabel("Reduced tree:")
+        red_fits_cb = QtGui.QCheckBox("FITS Files")
+        red_fits_cb.setChecked(self.reduced_filter_fits)
+        red_nonfits_cb = QtGui.QCheckBox("Non-FITS Files")
+        red_nonfits_cb.setChecked(self.reduced_filter_nonfits)
+        red_dirs_cb = QtGui.QCheckBox("Directories")
+        red_dirs_cb.setChecked(self.reduced_filter_dirs)
+
+        filters_layout.addWidget(raw_label)
+        for cb in (raw_fits_cb, raw_nonfits_cb, raw_dirs_cb):
+            filters_layout.addWidget(cb)
+        filters_layout.addWidget(reduced_label)
+        for cb in (red_fits_cb, red_nonfits_cb, red_dirs_cb):
+            filters_layout.addWidget(cb)
+        filters_group.setLayout(filters_layout)
+        outer.addWidget(filters_group)
+
+        # ── Dialog buttons ───────────────────────────────────────────────────
+        buttons = QtGui.QDialogButtonBox(
+            QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel
+        )
+        outer.addWidget(buttons)
+        dialog.setLayout(outer)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
 
         if dialog.exec_() != QtGui.QDialog.Accepted:
             return
 
+        # ── Apply backend ────────────────────────────────────────────────────
         if local_checkbox.isChecked():
             self.backend_mode = "local"
             self.file_backend = LocalFileBrowserBackend()
@@ -199,7 +265,6 @@ class QLTEST(GingaPlugin.LocalPlugin):
             api_key = key_edit.text().strip() or None
             base_url = f"http://{host}:{port}"
 
-            # Verify the server is reachable before switching backends.
             try:
                 from pypeit.display.qlview.backends import _requests
                 resp = _requests.get(f"{base_url}/api/health", timeout=5)
@@ -221,6 +286,38 @@ class QLTEST(GingaPlugin.LocalPlugin):
 
         self.file_browser.backend = self.file_backend
 
+        # ── Apply reduction settings ─────────────────────────────────────────
+        self.state.redux_path = redux_path_edit.text().strip()
+        try:
+            val = float(cadence_edit.text())
+            if val > 0:
+                self.reduction_cadence = val
+        except ValueError:
+            pass
+
+        # ── Apply file filters ────────────────────────────────────────────────
+        self.raw_filter_fits = raw_fits_cb.isChecked()
+        self.raw_filter_nonfits = raw_nonfits_cb.isChecked()
+        self.raw_filter_dirs = raw_dirs_cb.isChecked()
+        self.reduced_filter_fits = red_fits_cb.isChecked()
+        self.reduced_filter_nonfits = red_nonfits_cb.isChecked()
+        self.reduced_filter_dirs = red_dirs_cb.isChecked()
+
+        raw_base = self._get_tree_base_dir(self.state.raw_filepath)
+        if raw_base:
+            self._apply_file_filter(
+                self.raw_treeview, raw_base,
+                self.raw_filter_fits, self.raw_filter_nonfits, self.raw_filter_dirs,
+                name_col_idx=self._raw_name_col_idx,
+            )
+        reduced_base = self._get_tree_base_dir(self.state.reduced_filepath)
+        if reduced_base:
+            self._apply_file_filter(
+                self.reduced_treeview, reduced_base,
+                self.reduced_filter_fits, self.reduced_filter_nonfits, self.reduced_filter_dirs,
+                name_col_idx=self._reduced_name_col_idx,
+            )
+
     def hide_reduced_tree_cb(self, w, val):
         if val:
             self.reduced_treeview.show()
@@ -232,28 +329,6 @@ class QLTEST(GingaPlugin.LocalPlugin):
             self.raw_treeview.show()
         else:
             self.raw_treeview.hide()
-
-    def raw_filter_cb(self, w, val):
-        base_dir = self._get_tree_base_dir(self.state.raw_filepath)
-        if base_dir:
-            self._apply_file_filter(
-                self.raw_treeview, base_dir,
-                self.raw_show_fits.get_state(),
-                self.raw_show_nonfits.get_state(),
-                self.raw_show_dirs.get_state(),
-                name_col_idx=self._raw_name_col_idx,
-            )
-
-    def reduced_filter_cb(self, w, val):
-        base_dir = self._get_tree_base_dir(self.state.reduced_filepath)
-        if base_dir:
-            self._apply_file_filter(
-                self.reduced_treeview, base_dir,
-                self.reduced_show_fits.get_state(),
-                self.reduced_show_nonfits.get_state(),
-                self.reduced_show_dirs.get_state(),
-                name_col_idx=self._reduced_name_col_idx,
-            )
 
     def instrument_combo_cb(self, *args):
         selected = self.instrument_combo.get_text()
@@ -268,7 +343,7 @@ class QLTEST(GingaPlugin.LocalPlugin):
 
         raw_path = self.state.raw_filepath or self.raw_text_entry.get_text()
         reduced_path = self.state.reduced_filepath or self.reduced_text_entry.get_text()
-        redux_path = self.redux_path_entry.get_text() or self.state.redux_path
+        redux_path = self.state.redux_path
 
         if not raw_path or not os.path.isfile(raw_path):
             self.logger.error("Raw file path is invalid or not selected.")
@@ -399,6 +474,11 @@ class QLTEST(GingaPlugin.LocalPlugin):
                     "activated",
                     lambda w, p=spec1d_path, k=slit_key: self.show_spec1d_cb(w, path=p, slit_key=k),
                 )
+                control["btn_traces"].set_enabled(True)
+                control["btn_traces"].add_callback(
+                    "activated",
+                    lambda w, p=spec1d_path, k=slit_key: self.show_traces_cb(w, slit_key=k, spec1d_path=p),
+                )
             if timer is not None:
                 timer.cancel()
                 self.reduction_timers.pop(timer_key, None)
@@ -434,14 +514,17 @@ class QLTEST(GingaPlugin.LocalPlugin):
         hbox_info.add_widget(GWidgets.Label(f"{filename}  |  started {start_time}"), stretch=1)
         vbox.add_widget(hbox_info, stretch=0)
 
-        # Bottom line: status label, Show button, Remove button
+        # Bottom line: status label, Show Traces button, Show button, Remove button
         hbox_controls = GWidgets.HBox()
         label = GWidgets.Label(f"Reducing {slit_key}...")
+        btn_traces = GWidgets.Button("Show Traces")
+        btn_traces.set_enabled(False)
         btn_show = GWidgets.Button("Show")
         btn_show.set_enabled(False)
         btn_remove = GWidgets.Button("Remove")
 
         hbox_controls.add_widget(label, stretch=1)
+        hbox_controls.add_widget(btn_traces, stretch=0)
         hbox_controls.add_widget(btn_show, stretch=0)
         hbox_controls.add_widget(btn_remove, stretch=0)
         vbox.add_widget(hbox_controls, stretch=0)
@@ -451,12 +534,24 @@ class QLTEST(GingaPlugin.LocalPlugin):
         def _remove(w):
             self.vbox_redux.remove(vbox)
             self.reduction_control_elements.pop(slit_key, None)
+            canvas = self._trace_canvases.pop(slit_key, None)
+            if canvas is not None:
+                try:
+                    self.fitsimage.get_canvas().delete_object(canvas)
+                except Exception:
+                    pass
+            timer = self._trace_timers.pop(slit_key, None)
+            if timer is not None:
+                timer.cancel()
+            self._trace_paths.pop(slit_key, None)
+            self._trace_last_exten.pop(slit_key, None)
 
         btn_remove.add_callback("activated", _remove)
 
         self.reduction_control_elements[slit_key] = {
             "label": label,
             "button": btn_show,
+            "btn_traces": btn_traces,
             "vbox": vbox,
         }
 
@@ -469,15 +564,115 @@ class QLTEST(GingaPlugin.LocalPlugin):
         self.fv.load_file(path, chname=ch_name)
         self.fv.start_local_plugin(ch_name, "Spec1dView")
 
-    def cadence_entry_cb(self, w):
+    def show_traces_cb(self, w, *, slit_key: str, spec1d_path: str) -> None:
+        """Load object traces from a spec1d file and overlay them on the raw image.
+
+        Runs file I/O on a background thread, then draws on the GUI thread.
+        A polling timer watches the paired Spec1dView plugin and highlights
+        whichever object is currently selected there.
+        """
+        def _load():
+            try:
+                from pypeit.specobjs import SpecObjs
+                sobjs = SpecObjs.from_fitsfile(spec1d_path, chk_version=False)
+                self.fv.gui_do(self._draw_trace_objects, slit_key, sobjs)
+            except Exception as exc:
+                self.logger.error(
+                    f"Failed to load traces from {spec1d_path}: {exc}", exc_info=True
+                )
+        threading.Thread(target=_load, daemon=True).start()
+
+    def _draw_trace_objects(self, slit_key: str, sobjs) -> None:
+        """Draw per-object extraction traces on the raw image canvas."""
+        canvas = self._trace_canvases.get(slit_key)
+        if canvas is None:
+            canvas = DrawingCanvas()
+            canvas.enable_draw(False)
+            canvas.enable_edit(False)
+            canvas.set_surface(self.fitsimage)
+            self.fitsimage.get_canvas().add(canvas)
+            self._trace_canvases[slit_key] = canvas
+        else:
+            canvas.delete_all_objects()
+
+        paths: Dict[int, dict] = {}
+        step = 10  # subsample spectral rows for canvas performance
+
+        for i in range(sobjs.nobj):
+            sobj = sobjs[i]
+            trace = sobj.TRACE_SPAT
+            if trace is None or len(trace) == 0:
+                continue
+            nspec = len(trace)
+
+            # Compute spatial offset for multi-detector mosaics (0 for single-det)
+            det_str = sobj.DET or "01"
+            det_num = int(det_str[-2:]) if len(det_str) >= 2 else 1
+            slitset = (
+                self.state.slittracesets.get(f"{det_num:02d}")
+                if self.state.slittracesets
+                else None
+            )
+            x_offset = (det_num - 1) * (slitset.nspat if slitset is not None else 0)
+
+            spec_rows = np.arange(nspec)[::step]
+            trace_x = trace[::step] + x_offset
+            pts = list(zip(trace_x.tolist(), spec_rows.tolist()))
+            path = self.dc.Path(pts, color="orange", linewidth=1.5)
+            canvas.add(path, redraw=False)
+
+            mid = nspec // 2
+            name = sobj.NAME or str(i)
+            lbl = self.dc.Text(
+                float(trace[mid]) + x_offset, float(mid), name,
+                color="orange", fontsize=8, rot_deg=90,
+            )
+            canvas.add(lbl, redraw=False)
+            paths[i] = {"path": path, "label": lbl}
+
+        canvas.update_canvas(whence=3)
+        self._trace_paths[slit_key] = paths
+        self._trace_last_exten[slit_key] = None
+
+        # Start polling the paired Spec1dView channel for selection changes.
+        existing = self._trace_timers.get(slit_key)
+        if existing is not None:
+            existing.cancel()
+        timer = self.fitsimage.make_timer()
+        timer.add_callback(
+            "expired",
+            lambda t: self._poll_trace_highlight(slit_key),
+        )
+        self._trace_timers[slit_key] = timer
+        timer.set(0.5)
+
+    def _poll_trace_highlight(self, slit_key: str) -> None:
+        """Poll the paired Spec1dView for its current selection and recolor traces."""
+        ch_name = f"Spec1D{slit_key}"
+        current: Optional[int] = None
         try:
-            val = float(w.get_text())
-            if val <= 0:
-                raise ValueError
-            self.reduction_cadence = val
-        except ValueError:
-            self.logger.error("Invalid cadence value; must be a positive number.")
-            w.set_text(str(self.reduction_cadence))
+            plugin = self.fv.get_channel(ch_name).opmon.get_plugin("Spec1dView")
+            current = plugin.exten
+        except Exception:
+            pass
+
+        last = self._trace_last_exten.get(slit_key)
+        if current != last:
+            canvas = self._trace_canvases.get(slit_key)
+            paths = self._trace_paths.get(slit_key, {})
+            if canvas is not None:
+                if last is not None and last in paths:
+                    paths[last]["path"].color = "orange"
+                    paths[last]["label"].color = "orange"
+                if current is not None and current in paths:
+                    paths[current]["path"].color = "cyan"
+                    paths[current]["label"].color = "cyan"
+                canvas.update_canvas(whence=3)
+            self._trace_last_exten[slit_key] = current
+
+        timer = self._trace_timers.get(slit_key)
+        if timer is not None:
+            timer.set(0.5)
 
     def show_labels_box_cb(self, w, val):
         if self.slit_canvas is not None:
@@ -511,8 +706,10 @@ class QLTEST(GingaPlugin.LocalPlugin):
             subdirs = [x for x in p.iterdir() if x.is_dir()]
             if "Calibrations" in [x.name for x in subdirs]:
                 self.reduced_btn.set_enabled(True)
+                self.show_wavelengths_btn.set_enabled(True)
                 return
         self.reduced_btn.set_enabled(False)
+        self.show_wavelengths_btn.set_enabled(False)
 
     def raw_table_double_click_cb(self, w, res_dict):
         paths = [info.path for key, info in res_dict.items()]
@@ -701,6 +898,119 @@ class QLTEST(GingaPlugin.LocalPlugin):
             self.slit_list_box.append_text(display)
             self._slit_combo_keys.append(slit_key)
 
+    def show_wavelengths_cb(self, w):
+        """Build a wavelength image from calibration files and display it in a new channel.
+
+        Loads WaveCalib, WaveTilts, and Slits files from the selected calibration
+        directory, builds a 2D wavelength image, and displays it using the
+        SlitWavelength Ginga plugin so that hovering over the image shows the
+        wavelength at each pixel.
+        """
+        if not self.state.reduced_filepath:
+            self.logger.error("No reduced filepath set.")
+            return
+
+        cal_path = self.state.reduced_filepath
+        if cal_path.endswith("*"):
+            cal_path = os.path.dirname(cal_path)
+        cal_path = os.path.join(cal_path, "Calibrations")
+        self.logger.info(f"Searching for wavelength calibration files in: {cal_path}")
+
+        import glob as _glob
+        import re
+
+        wv_files = sorted(_glob.glob(os.path.join(cal_path, "WaveCalib_*.fits*")))
+        tilt_files = sorted(_glob.glob(os.path.join(cal_path, "Tilts_*.fits*")))
+        slit_files = sorted(_glob.glob(os.path.join(cal_path, "Slits_*.fits*")))
+
+        if not wv_files:
+            self.logger.error(f"No WaveCalib files found in {cal_path}")
+            return
+        if not tilt_files:
+            self.logger.error(f"No Tilts files found in {cal_path}")
+            return
+        if not slit_files:
+            self.logger.error(f"No Slits files found in {cal_path}")
+            return
+
+        def _suffix(filename):
+            """Extract the _{setup}_{id}_{det} suffix from a calibration filename."""
+            m = re.match(r'(?:WaveCalib|Tilts|Slits)(_[^.]+)', os.path.basename(filename))
+            return m.group(1) if m else ""
+
+        # Build a lookup by suffix for tilts and slits.
+        tilt_by_suffix = {_suffix(f): f for f in tilt_files}
+        slit_by_suffix = {_suffix(f): f for f in slit_files}
+
+        # Find the first WaveCalib that has matching Tilts and Slits.
+        matched = None
+        for wv_file in wv_files:
+            sfx = _suffix(wv_file)
+            if sfx in tilt_by_suffix and sfx in slit_by_suffix:
+                matched = (wv_file, tilt_by_suffix[sfx], slit_by_suffix[sfx])
+                break
+
+        if matched is None:
+            self.logger.error(
+                "Could not find matching WaveCalib/Tilts/Slits triplet in "
+                f"{cal_path}"
+            )
+            return
+
+        wv_file, tilt_file, slit_file = matched
+        self.logger.info(
+            f"Loading wavelength calibration:\n"
+            f"  WaveCalib: {wv_file}\n"
+            f"  Tilts:     {tilt_file}\n"
+            f"  Slits:     {slit_file}"
+        )
+
+        def _build_and_show():
+            try:
+                from pypeit.wavecalib import WaveCalib
+                from pypeit.wavetilts import WaveTilts
+                from pypeit.slittrace import SlitTraceSet
+
+                wvcalib = WaveCalib.from_file(wv_file)
+                wavetilts = WaveTilts.from_file(tilt_file)
+                slits = SlitTraceSet.from_file(slit_file)
+
+                slitmask = slits.slit_img()
+                tilts = wavetilts.fit2tiltimg(slitmask, flexure=wavetilts.spat_flexure)
+                waveimg = wvcalib.build_waveimg(tilts, slits).astype(np.float32)
+
+                self.fv.gui_do(self._display_waveimg, waveimg)
+            except Exception as exc:
+                self.logger.error(f"Failed to build wavelength image: {exc}", exc_info=True)
+
+        threading.Thread(target=_build_and_show, daemon=True).start()
+
+    def _display_waveimg(self, waveimg: np.ndarray) -> None:
+        """Attach a wavelength map to the currently displayed raw image.
+
+        Replaces the current AstroImage in fitsimage with a SlitImage that
+        carries the wavelength array.  When hovering over a pixel, Ginga will
+        show the wavelength value (in Å) in the info bar instead of RA/Dec.
+        """
+        from pypeit.display.slitwavelength import SlitImage
+
+        current = self.fitsimage.get_image()
+        if current is None:
+            self.logger.error("No image currently displayed; open a raw file first.")
+            return
+
+        raw_data = current.get_data()
+        if raw_data.shape != waveimg.shape:
+            self.logger.warning(
+                f"Raw image shape {raw_data.shape} differs from wavelength map "
+                f"shape {waveimg.shape}. Wavelength cursor will only be accurate "
+                "within the overlapping region."
+            )
+
+        wave_img = SlitImage(wav_np=waveimg, logger=self.logger)
+        wave_img.load_data(raw_data)
+        self.fitsimage.set_image(wave_img)
+
     def raw_button_cb(self, w):
         path = self.raw_text_entry.get_text()
         if os.path.isdir(path):
@@ -755,29 +1065,27 @@ class QLTEST(GingaPlugin.LocalPlugin):
             self.reduced_treeview.set_tree(listing)
             if resize:
                 self.reduced_treeview.set_optimal_column_widths()
-            if hasattr(self, "reduced_show_fits"):
-                self._apply_file_filter(
-                    self.reduced_treeview,
-                    self._get_tree_base_dir(self.state.reduced_filepath),
-                    self.reduced_show_fits.get_state(),
-                    self.reduced_show_nonfits.get_state(),
-                    self.reduced_show_dirs.get_state(),
-                    name_col_idx=self._reduced_name_col_idx,
-                )
+            self._apply_file_filter(
+                self.reduced_treeview,
+                self._get_tree_base_dir(self.state.reduced_filepath),
+                self.reduced_filter_fits,
+                self.reduced_filter_nonfits,
+                self.reduced_filter_dirs,
+                name_col_idx=self._reduced_name_col_idx,
+            )
         else:
             self.state.raw_filepath = fullpath
             self.raw_treeview.set_tree(listing)
             if resize:
                 self.raw_treeview.set_optimal_column_widths()
-            if hasattr(self, "raw_show_fits"):
-                self._apply_file_filter(
-                    self.raw_treeview,
-                    self._get_tree_base_dir(self.state.raw_filepath),
-                    self.raw_show_fits.get_state(),
-                    self.raw_show_nonfits.get_state(),
-                    self.raw_show_dirs.get_state(),
-                    name_col_idx=self._raw_name_col_idx,
-                )
+            self._apply_file_filter(
+                self.raw_treeview,
+                self._get_tree_base_dir(self.state.raw_filepath),
+                self.raw_filter_fits,
+                self.raw_filter_nonfits,
+                self.raw_filter_dirs,
+                name_col_idx=self._raw_name_col_idx,
+            )
 
     def _get_tree_base_dir(self, path: Optional[str]) -> Optional[str]:
         if not path:
@@ -870,17 +1178,17 @@ class QLTEST(GingaPlugin.LocalPlugin):
             raw_path = defaults.get("raw_path", raw_path)
             reduced_path = defaults.get("reduced_path", reduced_path)
             redux_path = defaults.get("redux_path", redux_path)
-            self.raw_show_fits.set_state(defaults.getboolean("raw_show_fits", True))
-            self.raw_show_nonfits.set_state(defaults.getboolean("raw_show_nonfits", False))
-            self.raw_show_dirs.set_state(defaults.getboolean("raw_show_dirs", True))
-            self.reduced_show_fits.set_state(defaults.getboolean("reduced_show_fits", False))
-            self.reduced_show_nonfits.set_state(defaults.getboolean("reduced_show_nonfits", False))
-            self.reduced_show_dirs.set_state(defaults.getboolean("reduced_show_dirs", True))
+            self.raw_filter_fits = defaults.getboolean("raw_show_fits", True)
+            self.raw_filter_nonfits = defaults.getboolean("raw_show_nonfits", False)
+            self.raw_filter_dirs = defaults.getboolean("raw_show_dirs", True)
+            self.reduced_filter_fits = defaults.getboolean("reduced_show_fits", False)
+            self.reduced_filter_nonfits = defaults.getboolean("reduced_show_nonfits", False)
+            self.reduced_filter_dirs = defaults.getboolean("reduced_show_dirs", True)
             self.logger.info(f"Loaded config from {config_file}")
 
+        self.state.redux_path = redux_path
         self.raw_text_entry.set_text(raw_path)
         self.reduced_text_entry.set_text(reduced_path)
-        self.redux_path_entry.set_text(redux_path)
 
         self._browse_and_update(raw_path, which_tree="raw")
         self._browse_and_update(reduced_path, which_tree="reduced")
@@ -898,11 +1206,20 @@ class QLTEST(GingaPlugin.LocalPlugin):
         for timer in self.reduction_timers.values():
             timer.cancel()
         self.reduction_timers.clear()
+        for timer in self._trace_timers.values():
+            timer.cancel()
+        self._trace_timers.clear()
         if self.slit_canvas is not None:
             try:
                 self.fitsimage.get_canvas().delete_object(self.slit_canvas)
             except Exception:
                 pass
+        for canvas in self._trace_canvases.values():
+            try:
+                self.fitsimage.get_canvas().delete_object(canvas)
+            except Exception:
+                pass
+        self._trace_canvases.clear()
         self.gui_up = False
 
     def __str__(self):
