@@ -1,3 +1,3 @@
-from .plugin import QLTEST
+from .qlview import QLView
 
-__all__ = ["QLTEST"]
+__all__ = ["QLView"]

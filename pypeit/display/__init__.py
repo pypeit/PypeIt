@@ -38,6 +38,6 @@ def setup_Spec1dView():
                  category='PypeIt', menu='Spec1dView', tab='Spec1dView')
 
 def setup_QLView():
-    return Bunch(module='pypeit.display.qlview.plugin', klass='QLTEST',
+    return Bunch(module='pypeit.display.qlview.qlview', klass='QLView',
                  ptype='local', workspace='right', start=False,
                  category='PypeIt', menu='QLView', tab='QLView')

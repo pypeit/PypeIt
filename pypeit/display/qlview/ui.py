@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING
 from ginga.gw import Widgets
 
 if TYPE_CHECKING:
-    from .plugin import QLTEST
+    from .qlview import QLView
 
 
 class QLViewUI:
-    def __init__(self, plugin: "QLTEST") -> None:
+    def __init__(self, plugin: "QLView") -> None:
         self.plugin = plugin
 
     def build(self, container) -> None:

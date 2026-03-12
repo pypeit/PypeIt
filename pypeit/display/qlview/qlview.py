@@ -32,7 +32,7 @@ from .state import QLViewState
 from .ui import QLViewUI
 
 
-class QLTEST(GingaPlugin.LocalPlugin):
+class QLView(GingaPlugin.LocalPlugin):
     def __init__(self, fv, fitsimage):
         super().__init__(fv, fitsimage)
 
@@ -1223,4 +1223,4 @@ class QLTEST(GingaPlugin.LocalPlugin):
         self.gui_up = False
 
     def __str__(self):
-        return "qltest"
+        return "qlview"
