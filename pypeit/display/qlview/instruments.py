@@ -44,6 +44,7 @@ class Instrument:
 
     pypeit_name: str = ""
     instrume_value: str = ""  # Expected value of the INSTRUME FITS keyword
+    detector_prefix: str = "MSC"  # Prefix for --slitspatnum (MSC for mosaics, DET for single detectors)
 
     def __init__(self, logger) -> None:
         self.logger = logger
@@ -294,6 +295,7 @@ class DEIMOS(Instrument):
 
 class MOSFIRE(Instrument):
     instrume_value = "MOSFIRE"
+    detector_prefix = "DET"
 
     def __init__(self, logger) -> None:
         super().__init__(logger)
