@@ -56,7 +56,7 @@ class Instrument:
             "reduced": list(_BASE_REDUCED_COLUMNS),
         }
 
-    def get_display_image(self, hdul) -> np.ndarray:
+    def get_display_image(self, raw_path: str) -> np.ndarray:
         raise NotImplementedError
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
@@ -240,27 +240,35 @@ class DEIMOS(Instrument):
             ("Last Changed", "st_mtime_str"),
         ]
 
-    def get_display_image(self, hdul) -> np.ndarray:
-        hdr0 = hdul[0].header
-        ext = np.arange(1, 9)
-        binning = hdr0["BINNING"].split(",")
-        precol = int(hdr0["PRECOL"]) // int(binning[0])
-        postpix = int(hdr0["POSTPIX"]) // int(binning[0])
+    def get_display_image(self, raw_path: str) -> np.ndarray:
+        """Build an overscan-subtracted display image of all 8 DEIMOS detectors.
 
-        alldata = []
-        for i in ext:
-            data = hdul[i].data
-            height, width = hdul[i].shape
-            bias = np.median(data[0:height, width - postpix:width], axis=1)
-            bias = np.array(bias, dtype=np.int64)
-            data = data - bias[:, None]
-            data = data[:, precol: width - postpix]
-            alldata.append(data)
+        Opens the file once via ``pypeit.io.fits_open``, reads all 8 chip
+        extensions, subtracts the per-row median overscan bias, trims the
+        pre- and post-scan columns, then assembles the chips into a 2×4 grid
+        (detectors 1–4 on the bottom row, 5–8 on the top row) matching the
+        DEIMOS focal-plane layout.
+        """
+        from pypeit.io import fits_open
 
-        r0 = np.concatenate(alldata[:4], axis=1)
-        r0 = np.flipud(r0)
-        r1 = [np.fliplr(arr) for arr in alldata[4:]]
-        r1 = np.concatenate(r1, axis=1)
+        with fits_open(raw_path) as hdu:
+            hdr0 = hdu[0].header
+            binning = hdr0["BINNING"].split(",")
+            precol = int(hdr0["PRECOL"]) // int(binning[0])
+            postpix = int(hdr0["POSTPIX"]) // int(binning[0])
+
+            chips = []
+            for i in range(1, 9):
+                data = hdu[i].data.astype(float)
+                height, width = data.shape
+                bias = np.median(data[:, width - postpix:], axis=1)
+                data -= bias[:, np.newaxis]
+                chips.append(data[:, precol: width - postpix])
+
+        # Detectors 1–4: concatenate left-to-right, then flip the row upward
+        r0 = np.flipud(np.concatenate(chips[:4], axis=1))
+        # Detectors 5–8: flip each chip left-to-right, then concatenate
+        r1 = np.concatenate([np.fliplr(c) for c in chips[4:]], axis=1)
         return np.concatenate((r1, r0), axis=0)
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
@@ -306,8 +314,20 @@ class MOSFIRE(Instrument):
         with fits.open(path) as hdul:
             return self._read_header_fields(hdul[0].header)
 
-    def get_display_image(self, hdul) -> np.ndarray:
-        return np.rot90(hdul[0].data)
+    def get_display_image(self, raw_path: str) -> np.ndarray:
+        """Build an overscan-subtracted, oriented display image.
+
+        Uses PypeIt's standard ``buildimage_fromlist`` pipeline with
+        ``biasframe`` processing parameters (overscan subtraction, trimming,
+        orientation — no dark or flat calibration).
+        """
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.images import buildimage
+
+        spec = load_spectrograph("keck_mosfire")
+        par = spec.default_pypeit_par()['calibrations']['biasframe']
+        img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
+        return img.image
 
     def get_reduced_info(self, path: str) -> Dict[str, object]:
         if os.path.isdir(path):

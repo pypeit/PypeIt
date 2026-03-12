@@ -846,8 +846,7 @@ class QLTEST(GingaPlugin.LocalPlugin):
         p = Path(path)
         if ".fits" not in p.name:
             return
-        with fits.open(path) as hdul:
-            img_data = self.instrument.get_display_image(hdul)
+        img_data = self.instrument.get_display_image(path)
         img = AstroImage(logger=self.logger)
         img.load_data(img_data)
         self.fitsimage.set_image(img)
