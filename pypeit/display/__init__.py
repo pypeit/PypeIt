@@ -38,7 +38,6 @@ def setup_Spec1dView():
                  category='PypeIt', menu='Spec1dView', tab='Spec1dView')
 
 def setup_QLView():
-    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'ginga_qlview.py'),
-                 module='ginga_qlview', klass='QLView',
+    return Bunch(module='pypeit.display.qlview.plugin', klass='QLTEST',
                  ptype='local', workspace='right', start=False,
                  category='PypeIt', menu='QLView', tab='QLView')
