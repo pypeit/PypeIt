@@ -396,7 +396,6 @@ def get_logger(
 
     try:
         log = logging.getLogger("pypeit")
-        print(f"In init, setting log file path to {log_file}")
         log.init(
             level=level,
             stream=stream,
