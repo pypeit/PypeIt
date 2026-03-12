@@ -4,7 +4,6 @@ import configparser
 import datetime
 import os
 import re
-import subprocess
 import threading
 from pathlib import Path
 from typing import Dict, Optional
@@ -300,75 +299,7 @@ class QLTEST(GingaPlugin.LocalPlugin):
         run_dir = os.path.join(redux_path, f"{det_label}_{slit_id}_{now.strftime('%H%M%S')}")
         os.makedirs(run_dir, exist_ok=True)
 
-        command = [
-            "pypeit_ql",
-            self.instrument.pypeit_name,
-            "--raw_files",
-            str(Path(raw_path).name),
-            "--raw_path",
-            str(Path(raw_path).parent.absolute()),
-            "--setup_calib_dir",
-            f"{Path(reduced_path).absolute()}/Calibrations",
-            "--slitspatnum",
-            f"{det_label}:{slit_id}",
-            "--redux_path",
-            run_dir,
-            "--skip_display",
-            "--snr_thresh",
-            self.SNR_box.get_text(),
-        ]
-
-        self.logger.info("Launching command: {0}".format(" ".join(command)))
-        log_path = os.path.join(run_dir, f"{det_label}_{slit_id}.log")
-        with open(log_path, "w") as logfile:
-            subprocess.Popen(command, stdout=logfile, stderr=logfile)
-
-        self._make_reduction_row(slit_key, raw_path, now.strftime("%H:%M:%S"))
-        self._register_reduction_timer(raw_path, run_dir, slit_key, log_path)
-
-    def reduce_slit_direct(self) -> None:
-        slit_key = self.slit_list_box.get_text().split()[0]
-        if not slit_key:
-            self.logger.error("No slit selected for reduction.")
-            return
-
-        raw_path = self.state.raw_filepath or self.raw_text_entry.get_text()
-        reduced_path = self.state.reduced_filepath or self.reduced_text_entry.get_text()
-        redux_path = self.redux_path_entry.get_text() or self.state.redux_path
-
-        if not raw_path or not os.path.isfile(raw_path):
-            self.logger.error("Raw file path is invalid or not selected.")
-            return
-        if not reduced_path or not os.path.isdir(reduced_path):
-            self.logger.error("Reduced path is invalid or not selected.")
-            return
-        if not redux_path or not os.path.isdir(redux_path):
-            self.logger.error("Redux path is invalid or not found.")
-            return
-
-        if not self.state.slittracesets:
-            self.logger.error("No slit traces loaded. Render slits first.")
-            return
-
-        slit_id = slit_key[1:] if slit_key.startswith("S") else slit_key
-        det_label: Optional[str] = None
-        for det_idx, slittrace in self.state.slittracesets.items():
-            if slittrace is None:
-                continue
-            for spat_id in slittrace.spat_id:
-                if slit_key == f"S{spat_id}":
-                    det_label = f"{self.instrument.detector_prefix}{det_idx}"
-                    break
-            if det_label:
-                break
-
-        if not det_label:
-            self.logger.error(f"Could not resolve detector index for slit {slit_key}.")
-            return
-
-        now = datetime.datetime.now()
-        run_dir = os.path.join(redux_path, f"{det_label}_{slit_id}_{now.strftime('%H%M%S')}")
-        os.makedirs(run_dir, exist_ok=True)
+        log_path = os.path.abspath(os.path.join(run_dir, f"{det_label}_{slit_id}.log"))
 
         args = [
             self.instrument.pypeit_name,
@@ -385,16 +316,17 @@ class QLTEST(GingaPlugin.LocalPlugin):
             "--skip_display",
             "--snr_thresh",
             self.SNR_box.get_text(),
+            "--log_file",
+            log_path,
+            "-v",
+            str(2)
         ]
-
-        log_path = os.path.join(run_dir, f"{det_label}_{slit_id}.log")
+        self.logger.info("Launching reduction: {0}".format(" ".join(args)))
 
         def _run() -> None:
-            self.logger.info("Launching direct QL reduction")
             self.reduction_backend.submit(args)
 
-        thread = threading.Thread(target=_run, daemon=True)
-        thread.start()
+        threading.Thread(target=_run, daemon=True).start()
 
         self._make_reduction_row(slit_key, raw_path, now.strftime("%H:%M:%S"))
         self._register_reduction_timer(raw_path, run_dir, slit_key, log_path)
