@@ -423,6 +423,24 @@ class Spectrograph:
         # Return
         return spec_dict
 
+    def rawfile_basename(self, filename):
+        """
+        Return the basename of a raw file, which is used for naming output
+        files by the function :func:`~pypeit.metadata.construct_basename`.
+        This can be spectrograph-dependent if specific changes need to be made.
+
+        Args:
+            filename (:obj:`str`):
+                Input raw fits filename.
+
+        Returns:
+            :obj:`str`:
+            The basename of the input file.
+
+        """
+
+        return filename.split('.fits')[0]
+
     def subheader_for_spec(self, row_fitstbl, raw_header, extra_header_cards=None,
                            allow_missing=False):
         """

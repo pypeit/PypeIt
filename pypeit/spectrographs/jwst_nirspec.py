@@ -40,6 +40,32 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     #supported = True
     allowed_extensions = ['rate.fits','rate.fits.gz' , 'uncal.fits.gz', 'uncal.fits', '.fits', '.fits.gz']
 
+    def rawfile_basename(self, filename):
+        """
+        Return the basename of a raw file, which is used for naming output
+        files by the function :func:`~pypeit.metadata.construct_basename`.
+        This can be spectrograph-dependent if specific changes need to be made.
+
+        Here we strip ``_assign_wcs``, ``_nrs1``, and ``_nrs2`` suffixes that
+        are typical of JWST NIRSpec data products.
+
+        Args:
+            filename (:obj:`str`):
+                Input raw fits filename.
+
+        Returns:
+            :obj:`str`:
+            The basename of the input file.
+
+        """
+
+        _filename = filename.split('.fits')[0]
+
+        for tag in ['_assign_wcs', '_nrs1', '_nrs2']:
+            _filename = _filename.replace(tag, '')
+
+        return _filename
+
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.

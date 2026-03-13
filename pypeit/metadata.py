@@ -498,7 +498,10 @@ class PypeItMetaData:
         _obstime = self.construct_obstime(row) if obstime is None else obstime
         tiso = time.Time(_obstime, format='isot')
         dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
-        return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
+
+        _inp_basename = self.spectrograph.rawfile_basename(self['filename'][row])
+
+        return '{0}-{1}_{2}_{3}{4}'.format(_inp_basename,
                                            self['target'][row].replace(" ", ""),
                                            self.spectrograph.camera,
                                            datetime.datetime.strftime(dtime, '%Y%m%dT'),
