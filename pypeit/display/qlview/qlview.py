@@ -79,6 +79,8 @@ class QLView(GingaPlugin.LocalPlugin):
         self.overlay = SlitOverlay(self.dc)
         self.file_browser = FileBrowserController(self.logger, self.settings, self.file_backend)
         self.reduction_timers: Dict[str, object] = {}
+        self.reduction_start_times: Dict[str, float] = {}
+        self.reduction_timeout: float = 300.0  # 5 minutes
         self.reduction_cadence: float = 5.0
         self.reduction_control_elements: Dict[str, dict] = {}
         self._slit_combo_keys: list = []  # slit keys in combo box order
@@ -166,6 +168,7 @@ class QLView(GingaPlugin.LocalPlugin):
             "reduced_show_fits": str(self.reduced_filter_fits),
             "reduced_show_nonfits": str(self.reduced_filter_nonfits),
             "reduced_show_dirs": str(self.reduced_filter_dirs),
+            "reduction_timeout": str(self.reduction_timeout),
         }
         with open(config_file, "w") as f:
             config.write(f)
@@ -216,6 +219,9 @@ class QLView(GingaPlugin.LocalPlugin):
         cadence_edit = QtGui.QLineEdit(str(self.reduction_cadence))
         cadence_edit.setPlaceholderText("Seconds between completion checks")
         reduction_form.addRow("Poll Cadence (s):", cadence_edit)
+        timeout_edit = QtGui.QLineEdit(str(self.reduction_timeout))
+        timeout_edit.setPlaceholderText("Seconds before declaring a reduction timed out")
+        reduction_form.addRow("Reduction Timeout (s):", timeout_edit)
         reduction_group.setLayout(reduction_form)
         outer.addWidget(reduction_group)
 
@@ -301,6 +307,12 @@ class QLView(GingaPlugin.LocalPlugin):
             val = float(cadence_edit.text())
             if val > 0:
                 self.reduction_cadence = val
+        except ValueError:
+            pass
+        try:
+            val = float(timeout_edit.text())
+            if val > 0:
+                self.reduction_timeout = val
         except ValueError:
             pass
 
@@ -431,7 +443,7 @@ class QLView(GingaPlugin.LocalPlugin):
             fwhm = 3.0
             self.fwhm_box.set_text("3.0")
 
-        extract_str = f"{det_label}:{spat_det:.1f}:{y:.1f}:{fwhm:.1f}"
+        extract_str = f"{int(det_idx)}:{spat_det:.1f}:{y:.1f}:{fwhm:.1f}"
         self.state.manual_extract_str = extract_str
         self.manual_extract_params_entry.set_text(extract_str)
         self._draw_manual_extract_marker(x, y, fwhm)
@@ -572,6 +584,9 @@ class QLView(GingaPlugin.LocalPlugin):
         if existing is not None:
             existing.cancel()
 
+        import time as _time
+        self.reduction_start_times[timer_key] = _time.monotonic()
+
         timer = self.fitsimage.make_timer()
         timer.add_callback(
             "expired",
@@ -583,7 +598,29 @@ class QLView(GingaPlugin.LocalPlugin):
     def _check_reduction_complete(
         self, timer_key: str, science_dir: str, slit_key: str, log_path: str
     ) -> None:
+        import time as _time
         timer = self.reduction_timers.get(timer_key)
+
+        def _fail(msg: str) -> None:
+            self.logger.warning(msg)
+            control = self.reduction_control_elements.get(slit_key)
+            if control is not None:
+                control["label"].set_text(f"Error {slit_key}")
+            if timer is not None:
+                timer.cancel()
+                self.reduction_timers.pop(timer_key, None)
+            self.reduction_start_times.pop(timer_key, None)
+
+        # Timeout check
+        start = self.reduction_start_times.get(timer_key)
+        if start is not None and (_time.monotonic() - start) > self.reduction_timeout:
+            _fail(f"Reduction timed out for {timer_key} after {self.reduction_timeout:.0f}s.")
+            return
+
+        # Exception in log
+        if self.file_backend.check_log_for_failure(log_path, "Exception"):
+            _fail(f"Exception detected in reduction log for {timer_key}.")
+            return
 
         if self.file_backend.check_log_for_failure(
             log_path, "No science frames found among the files provided."
@@ -595,6 +632,7 @@ class QLView(GingaPlugin.LocalPlugin):
             if timer is not None:
                 timer.cancel()
                 self.reduction_timers.pop(timer_key, None)
+            self.reduction_start_times.pop(timer_key, None)
             return
 
         spec1d_files = self.file_backend.glob(science_dir, "spec1d*.fits*")
@@ -617,6 +655,20 @@ class QLView(GingaPlugin.LocalPlugin):
             if timer is not None:
                 timer.cancel()
                 self.reduction_timers.pop(timer_key, None)
+            self.reduction_start_times.pop(timer_key, None)
+            return
+
+        # Reduction finished (pipeline exited) but produced no spec1d — extraction failed.
+        if self.file_backend.check_log_for_failure(log_path, "Quicklook execution time"):
+            self.logger.warning(f"Reduction finished for {timer_key} but no spec1d written — extraction failed.")
+            control = self.reduction_control_elements.get(slit_key)
+            if control is not None:
+                control["label"].set_text(f"Extraction failed {slit_key}")
+                control["button"].set_enabled(True)
+            if timer is not None:
+                timer.cancel()
+                self.reduction_timers.pop(timer_key, None)
+            self.reduction_start_times.pop(timer_key, None)
             return
 
         self.logger.info(
@@ -1351,6 +1403,10 @@ class QLView(GingaPlugin.LocalPlugin):
             self.reduced_filter_fits = defaults.getboolean("reduced_show_fits", False)
             self.reduced_filter_nonfits = defaults.getboolean("reduced_show_nonfits", False)
             self.reduced_filter_dirs = defaults.getboolean("reduced_show_dirs", True)
+            try:
+                self.reduction_timeout = float(defaults.get("reduction_timeout", str(self.reduction_timeout)))
+            except ValueError:
+                pass
             self.logger.info(f"Loaded config from {config_file}")
 
         self.state.redux_path = redux_path
