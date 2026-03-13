@@ -1,3 +1,114 @@
+"""
+Ginga local plugin that provides an interactive quicklook reduction interface.
+
+Overview
+--------
+``QLView`` is the top-level Ginga ``LocalPlugin`` that orchestrates the
+PypeIt quicklook pipeline from within the Ginga image viewer.  It is
+split into several collaborating components
+
+``QLView`` (this module)
+    The plugin class itself.  Owns all mutable GUI state, wires callback
+    methods, and coordinates the other components.  Inherits from
+    ``ginga.GingaPlugin.LocalPlugin`` and therefore follows the Ginga
+    plugin lifecycle: ``build_gui`` → ``start`` → [user interaction] →
+    ``stop`` / ``close``.
+
+``QLViewState`` (``.state``)
+    A lightweight dataclass that groups the current viewer state:
+    the active raw filepath, reduced-calibrations filepath, reduction
+    output path, loaded ``SlitTraceSet`` objects, slit polygon dict,
+    and the active slit key.  Passed between methods to avoid scattering
+    mutable state across ``self``.
+
+``QLViewUI`` (``.ui``)
+    Builds the entire Ginga widget tree and attaches it to the plugin
+    container.  Stores every widget reference on ``self.plugin`` (i.e.,
+    on the ``QLView`` instance) so that callback methods can reach them
+    without needing to navigate the widget hierarchy.  Keeps UI
+    construction completely separate from business logic.
+
+``InstrumentRegistry`` / ``Instrument`` subclasses (``.instruments``)
+    A registry of supported instruments.  Each ``Instrument`` knows how to read display-ready
+    raw image data (``get_display_image``), extract FITS header metadata
+    for the file-browser tree columns (``get_raw_info`` /
+    ``get_reduced_info``), and match raw frames to their best calibration
+    directory (``recommend_calibrations``).  Swapping instruments at
+    runtime rebuilds the tree-view columns via
+    ``_rebuild_treeview_columns``.
+
+``FileBrowserController`` (``.file_browser``)
+    Translates a directory path and an ``Instrument`` into a Ginga
+    tree-view listing dict.  Delegates all filesystem access to the
+    injected ``FileBrowserBackend`` so that the same controller works
+    against a local disk or a remote server without changes.
+
+``FileBrowserBackend`` / ``ReductionBackend`` (``.backends``)
+    Protocol-based backend abstractions with two concrete pairs:
+
+    - ``LocalFileBrowserBackend`` + ``LocalReductionBackend`` — operate
+      on the local filesystem and run ``pypeit_ql`` in-process on a
+      daemon thread.
+    - ``RemoteFileBrowserBackend`` + ``RemoteReductionBackend`` — delegate
+      all operations to an HTTP server via ``requests``, enabling use
+      cases where the raw data lives on a remote instrument workstation.
+
+    The active backends are selected at startup from ``~/.quicklook.cfg``
+    and can be changed at runtime through the Settings dialog.
+
+``SlitOverlay`` (``.slit_overlay``)
+    Manages the Ginga ``DrawingCanvas`` layer that renders slit polygons
+    and optional label text over the raw image.  Maintains a dict of
+    ``slit_key`` → ``Polygon`` and provides ``activate`` / ``deactivate``
+    methods to highlight the currently selected slit in blue.
+
+Data flow
+---------
+1. **File browsing** — ``_browse_and_update`` calls
+   ``FileBrowserController.browse``, which uses the active
+   ``FileBrowserBackend`` to list a directory and reads per-file header
+   metadata via ``Instrument.get_raw_info`` / ``get_reduced_info``.  The
+   resulting dict is pushed directly into the Ginga ``TreeView`` widget.
+
+2. **Raw image display** — double-clicking a FITS file calls
+   ``open_raw_file``, which delegates mosaic assembly to
+   ``Instrument.get_display_image`` and loads the result into the Ginga
+   ``AstroImage`` canvas.
+
+3. **Calibration suggestion** — after a raw file is opened,
+   ``_suggest_calibrations`` calls ``Instrument.recommend_calibrations``
+   on a background thread, then highlights the best-matching calibration
+   directory in the reduced tree on the GUI thread via ``fv.gui_do``.
+
+4. **Slit rendering** — ``render_slits_cb`` reads ``Slits_*.fits*`` from
+   the calibration ``Calibrations/`` directory, loads them as
+   ``SlitTraceSet`` objects, and hands them to ``SlitOverlay.build`` to
+   draw polygons on the ``slit_canvas`` ``DrawingCanvas`` layer. Similarly,
+   wavelength information is pulled from "Wave*.fits" files when requested,
+   and overlaid on the raw frame using the SlitWavelength plugin.
+
+5. **Reduction** — ``reduce_slit_cb`` assembles the ``pypeit_ql``
+   argument list and calls ``ReductionBackend.submit`` on a daemon thread.
+   A Ginga timer (``_register_reduction_timer``) polls for output files
+   every ``reduction_cadence`` seconds on the GUI thread, enabling and
+   wiring the "Show" button when the ``spec1d`` file appears.
+
+6. **Trace overlay** — once reduction is complete, ``show_traces_cb``
+   loads the ``SpecObjs`` from the ``spec1d`` file on a background thread
+   and draws per-object ``TRACE_SPAT`` paths in orange on a per-slit
+   ``DrawingCanvas``.  A polling timer watches the paired ``Spec1dView``
+   plugin for selection changes and recolors the active trace cyan.
+
+Configuration
+-------------
+``~/.quicklook.cfg`` (INI format, ``[DEFAULT]`` section) controls startup
+paths, file-filter defaults, backend selection, poll cadence, and
+reduction timeout.  Path values support ``strftime``-style format codes
+(e.g. ``raw_path_template = /data/raw/%Y%m%d``) that are expanded at
+startup.  The "Save Default Config" button writes a template for the
+user to edit. 
+"""
+
 from __future__ import annotations
 
 import configparser
@@ -134,7 +245,8 @@ class QLView(GingaPlugin.LocalPlugin):
     # --- Column management ---
 
     def _compute_name_col_indices(self) -> None:
-        """Recompute the name-column indices for the current instrument's column defs."""
+        """Recompute the name-column indices for the current instrument's column defs.
+        Used to know where to pull a filename from when the tree is rebuilt"""
         self._raw_name_col_idx = 0
         for idx, (_col, attr) in enumerate(self.instrument.columns["raw"]):
             if attr == "name":
@@ -227,7 +339,8 @@ class QLView(GingaPlugin.LocalPlugin):
         """Open the Settings dialog.
 
         Contains backend configuration, reduction path, poll cadence, and
-        per-tree file-filter toggles.  Changes are applied on OK.
+        per-tree file-filter toggles.  Changes are applied on OK, *not* in real
+        time.
         """
         dialog = QtGui.QDialog()
         dialog.setWindowTitle("Settings")
@@ -252,18 +365,7 @@ class QLView(GingaPlugin.LocalPlugin):
         outer.addWidget(backend_group)
 
         def _toggle_backend_fields(checked: bool) -> None:
-            """Enable or disable the remote-backend form fields.
-
-            Connected to the ``toggled`` signal of *local_checkbox*; called
-            once during dialog setup and again whenever the checkbox state
-            changes.
-
-            Parameters
-            ----------
-            checked : bool
-                ``True`` when the "Use local backend" checkbox is checked,
-                in which case the host/port/key fields are disabled.
-            """
+            """Set all of the backend stuff in one go"""
             host_edit.setEnabled(not checked)
             port_edit.setEnabled(not checked)
             key_edit.setEnabled(not checked)
@@ -479,6 +581,8 @@ class QLView(GingaPlugin.LocalPlugin):
         """
         selected = self.instrument_combo.get_text()
         self.instrument = self.instrument_registry.create(selected)
+
+        # Rebuild the treeview with the new columns:
         self._rebuild_treeview_columns()
 
     # --- Manual extraction ---
@@ -574,7 +678,8 @@ class QLView(GingaPlugin.LocalPlugin):
         self._draw_manual_extract_marker(x, y, fwhm)
 
     def _draw_manual_extract_marker(self, x: float, y: float, fwhm: float) -> None:
-        """Draw a dot at (x, y) and a horizontal line of length fwhm centered on x."""
+        """Draw a dot at (x, y) and a horizontal line of length fwhm centered on x.
+        FWHM is measured in pixels, so this is easy."""
         if self.manual_extract_canvas is None:
             return
         self.manual_extract_canvas.delete_all_objects()
@@ -605,6 +710,29 @@ class QLView(GingaPlugin.LocalPlugin):
         if self.manual_extract_canvas is not None:
             self.manual_extract_canvas.delete_all_objects()
             self.manual_extract_canvas.update_canvas(whence=3)
+
+    def slit_list_box_cb(self, w, res_dict):
+        """Combo-box callback: switch the active slit when the user picks a new entry.
+
+        Deactivates (reverts to green) the previously active slit polygon on
+        :attr:`slit_canvas`, then activates (highlights blue) the newly
+        selected slit.  The slit key is extracted from the first token of the
+        combo item text because entries are formatted as ``"S{spat_id} (name)"``
+        or simply ``"S{spat_id}"``.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``ComboBox`` widget that fired the callback.  ``w.get_text()``
+            returns the full display string for the selected item.
+        res_dict : dict
+            Not used; present because Ginga passes a result dict to all
+            ``"activated"`` callbacks.
+        """
+        if self.state.active_slit_key:
+            self.overlay.deactivate(self.state.active_slit_key, self.slit_canvas)
+        self.state.active_slit_key = w.get_text().split()[0]
+        self.overlay.activate(self.state.active_slit_key, self.slit_canvas)
 
     def reduce_slit_cb(self, w):
         """Launch a PypeIt QuickLook reduction for the selected slit.
@@ -638,10 +766,13 @@ class QLView(GingaPlugin.LocalPlugin):
             self.logger.error("No slit selected for reduction.")
             return
 
+        # Get the file paths:
         raw_path = self.state.raw_filepath or self.raw_text_entry.get_text()
         reduced_path = self.state.reduced_filepath or self.reduced_text_entry.get_text()
         redux_path = self.state.redux_path
 
+        # Check the paths:
+        # TODO: have the raw and reduced paths also open a dialog box?
         if not raw_path or not os.path.isfile(raw_path):
             self.logger.error("Raw file path is invalid or not selected.")
             return
@@ -671,6 +802,8 @@ class QLView(GingaPlugin.LocalPlugin):
             self.logger.error("No slit traces loaded. Render slits first.")
             return
 
+        # Figure out which slit we're supposed to reduce and assemble the arguement
+        # for it.
         slit_id = slit_key[1:] if slit_key.startswith("S") else slit_key
         det_label: Optional[str] = None
         for det_idx, slittrace in self.state.slittracesets.items():
@@ -687,12 +820,16 @@ class QLView(GingaPlugin.LocalPlugin):
             self.logger.error(f"Could not resolve detector index for slit {slit_key}.")
             return
 
+        # Generate a unique directory for each reduction, to keep everything clean
         now = datetime.datetime.now()
         run_dir = os.path.join(redux_path, f"{det_label}_{slit_id}_{now.strftime('%H%M%S')}")
         os.makedirs(run_dir, exist_ok=True)
 
+        # Create the logpath. The log is used to monitor the reduction status.
         log_path = os.path.abspath(os.path.join(run_dir, f"{det_label}_{slit_id}.log"))
 
+        # If there's a B frame (i.e. we want to try doing an AB subtraction), 
+        # check it.
         b_frame = self.state.ab_partner_filepath
         raw_files = [str(Path(raw_path).name)]
         if b_frame and os.path.isfile(b_frame):
@@ -703,6 +840,8 @@ class QLView(GingaPlugin.LocalPlugin):
                     "B frame is in a different directory than A frame; ignoring for reduction."
                 )
 
+        # Arguments for the ql call. These are parsed directly as if they were
+        # command line arguments.
         args = [
             self.instrument.pypeit_name,
             "--raw_files",
@@ -740,8 +879,11 @@ class QLView(GingaPlugin.LocalPlugin):
             """
             self.reduction_backend.submit(args)
 
+        # Launch the reduction in a thread
         threading.Thread(target=_run, daemon=True).start()
 
+        # Create the buttons to view this reduction, and register them with the 
+        # timer.
         coadd2d = self.coadd2d_box.get_state()
         self._make_reduction_row(slit_key, raw_path, now.strftime("%H:%M:%S"), coadd2d=coadd2d)
         self._register_reduction_timer(raw_path, run_dir, slit_key, log_path, coadd2d=coadd2d)
@@ -817,6 +959,8 @@ class QLView(GingaPlugin.LocalPlugin):
         On success the relevant "Show" / "Show CoAdd2D" button is enabled.
         On timeout or logged exception the row label is set to an error
         string and the timer is cancelled.
+
+        Also periodically watches the log for relevant strings
 
         Parameters
         ----------
@@ -945,29 +1089,6 @@ class QLView(GingaPlugin.LocalPlugin):
         if timer is not None:
             timer.set(self.reduction_cadence)
 
-    def slit_list_box_cb(self, w, res_dict):
-        """Combo-box callback: switch the active slit when the user picks a new entry.
-
-        Deactivates (reverts to green) the previously active slit polygon on
-        :attr:`slit_canvas`, then activates (highlights blue) the newly
-        selected slit.  The slit key is extracted from the first token of the
-        combo item text because entries are formatted as ``"S{spat_id} (name)"``
-        or simply ``"S{spat_id}"``.
-
-        Parameters
-        ----------
-        w : ginga widget
-            The ``ComboBox`` widget that fired the callback.  ``w.get_text()``
-            returns the full display string for the selected item.
-        res_dict : dict
-            Not used; present because Ginga passes a result dict to all
-            ``"activated"`` callbacks.
-        """
-        if self.state.active_slit_key:
-            self.overlay.deactivate(self.state.active_slit_key, self.slit_canvas)
-        self.state.active_slit_key = w.get_text().split()[0]
-        self.overlay.activate(self.state.active_slit_key, self.slit_canvas)
-
     def _make_reduction_row(
         self, slit_key: str, raw_path: str, start_time: str, coadd2d: bool = False
     ) -> None:
@@ -1093,6 +1214,8 @@ class QLView(GingaPlugin.LocalPlugin):
         Runs file I/O on a background thread, then draws on the GUI thread.
         A polling timer watches the paired Spec1dView plugin and highlights
         whichever object is currently selected there.
+
+        This will not be happy if the Spec1DView isn't open!
         """
         current_raw = self.state.raw_filepath
         if reduction_raw_path and current_raw and current_raw != reduction_raw_path:
@@ -1129,7 +1252,9 @@ class QLView(GingaPlugin.LocalPlugin):
         threading.Thread(target=_load, daemon=True).start()
 
     def _draw_trace_objects(self, slit_key: str, sobjs) -> None:
-        """Draw per-object extraction traces on the raw image canvas."""
+        """Draw per-object extraction traces on the raw image canvas.
+        
+        Largely looks like parts of show_spec2D"""
         canvas = self._trace_canvases.get(slit_key)
         if canvas is None:
             canvas = DrawingCanvas()
@@ -1190,6 +1315,7 @@ class QLView(GingaPlugin.LocalPlugin):
             lambda t: self._poll_trace_highlight(slit_key),
         )
         self._trace_timers[slit_key] = timer
+        # This is pretty frequent, but doesn't appear to have adverse resource issues
         timer.set(0.5)
 
     def _poll_trace_highlight(self, slit_key: str) -> None:
@@ -1255,6 +1381,8 @@ class QLView(GingaPlugin.LocalPlugin):
             poly.fillalpha = 0.05 if val else 0.0
         if self.slit_canvas is not None:
             self.slit_canvas.update_canvas(whence=3)
+
+    # ── File selection stuff ──────────────────────────────────────────────────
 
     def reduced_table_double_click_cb(self, w, res_dict):
         """Tree-view callback: navigate into a directory on double-click.
@@ -1372,6 +1500,8 @@ class QLView(GingaPlugin.LocalPlugin):
         path = paths[0]
         self.raw_text_entry.set_text(path)
         self.state.raw_filepath = path
+
+    # ── Dithering support stuff ───────────────────────────────────────────────
 
     def b_frame_entry_cb(self, w):
         """User manually typed a B frame path."""
@@ -1529,9 +1659,9 @@ class QLView(GingaPlugin.LocalPlugin):
 
     def _suggest_calibrations(self, raw_path: str) -> None:
         """Auto-populate reduced cals path with the best matching calibration.
-
-        Runs the PypeIt calibration search on a background thread and updates
-        the status label and reduced tree when finished.
+        This takes a long time, potentially, so it uns the PypeIt calibration
+        search on a background thread and updates the status label and reduced
+        tree when finished.
         """
         cal_root = self._get_tree_base_dir(self.state.reduced_filepath)
         if not cal_root:
