@@ -89,6 +89,15 @@ class QLView(GingaPlugin.LocalPlugin):
         self._trace_timers: Dict[str, object] = {}
         self._trace_last_exten: Dict[str, Optional[int]] = {}
 
+        # Manual extraction state
+        self.manual_extract_mode: bool = False
+        self._manual_x: Optional[float] = None
+        self._manual_y: Optional[float] = None
+        self._manual_det_label: Optional[str] = None
+        self._manual_spat_det: Optional[float] = None
+        self._manual_slit_key: Optional[str] = None
+        self.manual_extract_canvas: Optional[DrawingCanvas] = None
+
         icondir = self.fv.iconpath
         self.file_browser.folderpb = self.fv.get_icon(icondir, "folder.svg")
         self.file_browser.filepb = self.fv.get_icon(icondir, "file.svg")
@@ -335,8 +344,132 @@ class QLView(GingaPlugin.LocalPlugin):
         self.instrument = self.instrument_registry.create(selected)
         self._rebuild_treeview_columns()
 
+    # --- Manual extraction ---
+
+    def manual_extract_mode_cb(self, w, val):
+        """Toggle manual-extraction click mode on/off."""
+        self.manual_extract_mode = bool(val)
+        if not self.manual_extract_mode:
+            # Clear stored position and canvas marker
+            self._manual_x = None
+            self._manual_y = None
+            self._manual_det_label = None
+            self._manual_spat_det = None
+            self._manual_slit_key = None
+            self.state.manual_extract_str = None
+            self.manual_extract_params_entry.set_text("")
+            self._clear_manual_extract_marker()
+
+    def fwhm_box_changed_cb(self, w):
+        """Redraw the aperture marker and rebuild the params string when FWHM changes."""
+        if self._manual_x is None:
+            return
+        self._update_manual_extract(self._manual_x, self._manual_y)
+
+    def manual_extract_params_cb(self, w):
+        """User edited the params text entry directly; store the new string and redraw."""
+        text = self.manual_extract_params_entry.get_text().strip()
+        if not text:
+            self.state.manual_extract_str = None
+            self._clear_manual_extract_marker()
+            return
+        # Try to parse it back so we can redraw the marker
+        try:
+            parts = text.split(":")
+            # Format: det:spat:spec:fwhm[:boxcar_rad]
+            spat = float(parts[1])
+            spec = float(parts[2])
+            fwhm = float(parts[3])
+            # Recover image-space x from spat_det (best effort — mosaic offset unknown
+            # without det_label context, so use stored values if available)
+            x_img = self._manual_x if self._manual_x is not None else spat
+            y_img = self._manual_y if self._manual_y is not None else spec
+            # Re-parse FWHM from string and update the FWHM box to keep them in sync
+            self.fwhm_box.set_text(f"{fwhm:.1f}")
+            self._draw_manual_extract_marker(x_img, y_img, fwhm)
+        except (IndexError, ValueError):
+            pass
+        self.state.manual_extract_str = text
+
+    def _update_manual_extract(self, x: float, y: float) -> None:
+        """Compute the extraction string and redraw the marker for click position (x, y)."""
+        if not self.state.slittracesets:
+            return
+
+        # Find which detector/slit contains the click
+        det_label = None
+        spat_det = x
+        for det_idx, slits in self.state.slittracesets.items():
+            if slits is None:
+                continue
+            offset = (int(det_idx) - 1) * slits.nspat
+            spec_row = int(np.clip(np.round(y), 0, slits.nspec - 1))
+            left = slits.left_init[spec_row] + offset
+            right = slits.right_init[spec_row] + offset
+            for i in range(slits.nslits):
+                if left[i] < x < right[i]:
+                    det_label = f"{self.instrument.detector_prefix}{det_idx}"
+                    spat_det = x - offset
+                    slit_key = f"S{slits.spat_id[i]}"
+                    break
+            if det_label:
+                break
+
+        if det_label is None:
+            self.logger.warning("Manual extract click did not land inside any slit.")
+            return
+
+        self._manual_x = x
+        self._manual_y = y
+        self._manual_det_label = det_label
+        self._manual_spat_det = spat_det
+        self._manual_slit_key = slit_key
+
+        try:
+            fwhm = float(self.fwhm_box.get_text())
+        except ValueError:
+            fwhm = 3.0
+            self.fwhm_box.set_text("3.0")
+
+        extract_str = f"{det_label}:{spat_det:.1f}:{y:.1f}:{fwhm:.1f}"
+        self.state.manual_extract_str = extract_str
+        self.manual_extract_params_entry.set_text(extract_str)
+        self._draw_manual_extract_marker(x, y, fwhm)
+
+    def _draw_manual_extract_marker(self, x: float, y: float, fwhm: float) -> None:
+        """Draw a dot at (x, y) and a horizontal line of length fwhm centered on x."""
+        if self.manual_extract_canvas is None:
+            return
+        self.manual_extract_canvas.delete_all_objects()
+
+        half = fwhm / 2.0
+        # Horizontal FWHM bar
+        bar = self.dc.Line(x - half, y, x + half, y, color="yellow", linewidth=2)
+        # Vertical tick marks at each end of the bar
+        tick_h = 3.0
+        tick_left = self.dc.Line(x - half, y - tick_h, x - half, y + tick_h,
+                                 color="yellow", linewidth=2)
+        tick_right = self.dc.Line(x + half, y - tick_h, x + half, y + tick_h,
+                                  color="yellow", linewidth=2)
+        # Central dot (small cross)
+        dot_r = 3.0
+        dot_h = self.dc.Line(x - dot_r, y, x + dot_r, y, color="yellow", linewidth=2)
+        dot_v = self.dc.Line(x, y - dot_r, x, y + dot_r, color="yellow", linewidth=2)
+
+        for obj in (bar, tick_left, tick_right, dot_h, dot_v):
+            self.manual_extract_canvas.add(obj, redraw=False)
+        self.manual_extract_canvas.update_canvas(whence=3)
+
+    def _clear_manual_extract_marker(self) -> None:
+        if self.manual_extract_canvas is not None:
+            self.manual_extract_canvas.delete_all_objects()
+            self.manual_extract_canvas.update_canvas(whence=3)
+
     def reduce_slit_cb(self, w):
-        slit_key = self.slit_list_box.get_text().split()[0]
+        if self.state.manual_extract_str and self._manual_slit_key:
+            slit_key = self._manual_slit_key
+        else:
+            slit_key = self.slit_list_box.get_text().split()[0]
         if not slit_key:
             self.logger.error("No slit selected for reduction.")
             return
@@ -409,13 +542,15 @@ class QLView(GingaPlugin.LocalPlugin):
             "--redux_path",
             run_dir,
             "--skip_display",
-            "--snr_thresh",
-            self.SNR_box.get_text(),
             "--log_file",
             log_path,
             "-v",
             str(2)
         ]
+        if not self.state.manual_extract_str:
+            args += ["--snr_thresh", self.SNR_box.get_text()]
+        if self.state.manual_extract_str:
+            args += ["--manual_extract", self.state.manual_extract_str]
         self.logger.info("Launching reduction: {0}".format(" ".join(args)))
 
         def _run() -> None:
@@ -979,18 +1114,27 @@ class QLView(GingaPlugin.LocalPlugin):
                 tilts = wavetilts.fit2tiltimg(slitmask, flexure=wavetilts.spat_flexure)
                 waveimg = wvcalib.build_waveimg(tilts, slits).astype(np.float32)
 
-                self.fv.gui_do(self._display_waveimg, waveimg)
+                # Collect per-slit RMS values: list of (spat_id, rms_or_None)
+                rms_data = []
+                if wvcalib.spat_ids is not None and wvcalib.wv_fits is not None:
+                    for spat_id, wvfit in zip(wvcalib.spat_ids, wvcalib.wv_fits):
+                        rms = None if (wvfit is None or wvfit.rms is None) else wvfit.rms
+                        rms_data.append((int(spat_id), rms))
+
+                self.fv.gui_do(self._display_waveimg, waveimg, rms_data)
             except Exception as exc:
                 self.logger.error(f"Failed to build wavelength image: {exc}", exc_info=True)
 
         threading.Thread(target=_build_and_show, daemon=True).start()
 
-    def _display_waveimg(self, waveimg: np.ndarray) -> None:
+    def _display_waveimg(self, waveimg: np.ndarray, rms_data=None) -> None:
         """Attach a wavelength map to the currently displayed raw image.
 
         Replaces the current AstroImage in fitsimage with a SlitImage that
         carries the wavelength array.  When hovering over a pixel, Ginga will
         show the wavelength value (in Å) in the info bar instead of RA/Dec.
+
+        Overlays per-slit λ RMS annotations on the slit canvas.
         """
         from pypeit.display.slitwavelength import SlitImage
 
@@ -1011,6 +1155,24 @@ class QLView(GingaPlugin.LocalPlugin):
         wave_img.load_data(raw_data)
         self.fitsimage.set_image(wave_img)
 
+        # Draw per-slit λ RMS labels on the slit canvas
+        if rms_data and self.slit_canvas is not None:
+            nspec = waveimg.shape[0]
+            # Place labels in the top-left corner of the image, stacked vertically
+            x_pos = 5.0
+            line_height = max(12.0, nspec * 0.012)
+            y_start = line_height
+            for i, (spat_id, rms) in enumerate(rms_data):
+                rms_str = f"{rms:.3f}" if rms is not None else "N/A"
+                label = f"\u03bb RMS S{spat_id}: {rms_str} \u00c5"
+                y_pos = y_start + i * line_height
+                txt = self.dc.Text(
+                    x_pos, y_pos, label,
+                    color="cyan", fontsize=10,
+                )
+                self.slit_canvas.add(txt, redraw=False)
+            self.slit_canvas.update_canvas(whence=3)
+
     def raw_button_cb(self, w):
         path = self.raw_text_entry.get_text()
         if os.path.isdir(path):
@@ -1025,6 +1187,11 @@ class QLView(GingaPlugin.LocalPlugin):
     def canvas_clicked_cb(self, canvas, pnt, x, y):
         if not self.state.slittracesets:
             return
+
+        if self.manual_extract_mode:
+            self._update_manual_extract(float(x), float(y))
+            return
+
         for msc_idx, slits in self.state.slittracesets.items():
             if slits is None:
                 continue
@@ -1200,6 +1367,12 @@ class QLView(GingaPlugin.LocalPlugin):
         self.slit_canvas.set_surface(self.fitsimage)
         self.fitsimage.get_canvas().add(self.slit_canvas)
 
+        self.manual_extract_canvas = DrawingCanvas()
+        self.manual_extract_canvas.enable_draw(False)
+        self.manual_extract_canvas.enable_edit(False)
+        self.manual_extract_canvas.set_surface(self.fitsimage)
+        self.fitsimage.get_canvas().add(self.manual_extract_canvas)
+
         self.fitsimage.add_callback("cursor-down", self.canvas_clicked_cb)
 
     def stop(self):
@@ -1212,6 +1385,11 @@ class QLView(GingaPlugin.LocalPlugin):
         if self.slit_canvas is not None:
             try:
                 self.fitsimage.get_canvas().delete_object(self.slit_canvas)
+            except Exception:
+                pass
+        if self.manual_extract_canvas is not None:
+            try:
+                self.fitsimage.get_canvas().delete_object(self.manual_extract_canvas)
             except Exception:
                 pass
         for canvas in self._trace_canvases.values():

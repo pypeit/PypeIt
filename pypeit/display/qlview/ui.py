@@ -131,6 +131,44 @@ class QLViewUI:
         hbox.add_widget(self.plugin.SNR_box, stretch=0)
         self.plugin.vbox_redux.add_widget(hbox, stretch=0)
 
+        # Manual extraction row: toggle checkbox + FWHM entry
+        hbox_manual = Widgets.HBox()
+        self.plugin.manual_extract_checkbox = Widgets.CheckBox("Set Manual Extraction")
+        self.plugin.manual_extract_checkbox.set_state(False)
+        self.plugin.manual_extract_checkbox.set_tooltip(
+            "Enable click-to-extract mode: click on the raw image to place a manual extraction aperture"
+        )
+        self.plugin.manual_extract_checkbox.add_callback(
+            "activated", self.plugin.manual_extract_mode_cb
+        )
+        hbox_manual.add_widget(self.plugin.manual_extract_checkbox, stretch=0)
+
+        fwhm_label = Widgets.Label("FWHM (px):")
+        fwhm_label.set_tooltip("Extraction FWHM in pixels for the manual aperture")
+        hbox_manual.add_widget(fwhm_label, stretch=0)
+        self.plugin.fwhm_box = Widgets.TextEntry()
+        self.plugin.fwhm_box.set_text("3.0")
+        self.plugin.fwhm_box.set_tooltip("Extraction FWHM in pixels")
+        self.plugin.fwhm_box.add_callback("activated", self.plugin.fwhm_box_changed_cb)
+        hbox_manual.add_widget(self.plugin.fwhm_box, stretch=0)
+        self.plugin.vbox_redux.add_widget(hbox_manual, stretch=0)
+
+        # Manual extraction params display/edit row
+        hbox_params = Widgets.HBox()
+        params_label = Widgets.Label("Extract params:")
+        params_label.set_tooltip("Manual extraction string passed to --manual_extract")
+        hbox_params.add_widget(params_label, stretch=0)
+        self.plugin.manual_extract_params_entry = Widgets.TextEntry()
+        self.plugin.manual_extract_params_entry.set_text("")
+        self.plugin.manual_extract_params_entry.set_tooltip(
+            "det:spat:spec:fwhm — updates on each click or FWHM change; editable directly"
+        )
+        self.plugin.manual_extract_params_entry.add_callback(
+            "activated", self.plugin.manual_extract_params_cb
+        )
+        hbox_params.add_widget(self.plugin.manual_extract_params_entry, stretch=1)
+        self.plugin.vbox_redux.add_widget(hbox_params, stretch=0)
+
         self.plugin.display_slits_box = Widgets.CheckBox("Display Slits")
         self.plugin.display_slits_box.set_state(True)
         self.plugin.display_slits_box.add_callback("activated", self.plugin.display_slits_box_cb)

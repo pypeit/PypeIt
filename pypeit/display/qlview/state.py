@@ -16,3 +16,4 @@ class QLViewState:
     slittracesets: Optional[Dict[str, SlitTraceSet]] = None
     active_slit_key: Optional[str] = None
     slit_polys: Dict[str, Polygon] = field(default_factory=dict)
+    manual_extract_str: Optional[str] = None

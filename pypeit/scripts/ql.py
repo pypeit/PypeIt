@@ -213,6 +213,7 @@ def generate_sci_pypeitfile(redux_path:str,
                             maskID:str=None,
                             boxcar_radius:float=None,
                             snr_thresh:float=None,
+                            manual_extract:str=None,
                             chk_version:bool=True):
     """
     Prepare to reduce the science frames:
@@ -395,6 +396,11 @@ def generate_sci_pypeitfile(redux_path:str,
     cfg_lines = configobj.ConfigObj(spec_cfg)
     cfg_lines.merge(configobj.ConfigObj(cfg))
     cfg_lines = cfg_lines.write()
+
+    # Populate the manual extraction column for science frames if requested
+    if manual_extract is not None:
+        sci_idx = ps_sci.fitstbl.find_frames('science')
+        ps_sci.fitstbl['manual'][sci_idx] = manual_extract
 
     # Write the pypeit file (note this returns the filename, not the list,
     # because of the [0] at the end of the call)
@@ -710,6 +716,11 @@ class QL(scriptbase.ScriptBase):
                             help='Set the radius for the boxcar extraction in arcseconds')
         parser.add_argument('--snr_thresh', default=None, type=float,
                             help='Change the default S/N threshold used during source detection')
+        parser.add_argument('--manual_extract', type=str, default=None,
+                            help='Force extraction at a specific spatial position. '
+                                 'Format: det:spat:spec:fwhm[:boxcar_rad]. '
+                                 'Multiple entries separated by semicolons. '
+                                 'All values in pixels.')
 
         parser.add_argument('--ignore_std', default=False, action='store_true',
                             help='If standard star observations are automatically detected, '
@@ -971,9 +982,10 @@ class QL(scriptbase.ScriptBase):
                     det=args.det,
                     clear=args.clear_science,
                     slitspatnum=args.slitspatnum,
-                    maskID=args.maskID, 
+                    maskID=args.maskID,
                     boxcar_radius=args.boxcar_radius,
                     snr_thresh=args.snr_thresh,
+                    manual_extract=args.manual_extract,
                     chk_version=chk_version)
 
         # Run it
