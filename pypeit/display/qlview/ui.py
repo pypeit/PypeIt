@@ -59,6 +59,10 @@ class QLViewUI:
         config_hbox = Widgets.HBox()
         config_hbox.add_widget(Widgets.Label("Instrument:"), stretch=0)
         self.plugin.instrument_combo = Widgets.ComboBox()
+        self.plugin.instrument_combo.set_tooltip(
+            "Select the active instrument — controls FITS header keywords "
+            "and file-browser column layout"
+        )
         for name in self.plugin.instrument_registry.names():
             self.plugin.instrument_combo.append_text(name)
         self.plugin.instrument_combo.add_callback("activated", self.plugin.instrument_combo_cb)
@@ -67,9 +71,11 @@ class QLViewUI:
         vbox_show = Widgets.VBox()
         self.plugin.hide_reduced_tree = Widgets.CheckBox("Show Reduced Tree")
         self.plugin.hide_reduced_tree.set_state(True)
+        self.plugin.hide_reduced_tree.set_tooltip("Show or collapse the reduced calibrations file browser")
         self.plugin.hide_reduced_tree.add_callback("activated", self.plugin.hide_reduced_tree_cb)
         self.plugin.hide_raw_tree = Widgets.CheckBox("Show Raw Tree")
         self.plugin.hide_raw_tree.set_state(True)
+        self.plugin.hide_raw_tree.set_tooltip("Show or collapse the raw data file browser")
         self.plugin.hide_raw_tree.add_callback("activated", self.plugin.hide_raw_tree_cb)
         vbox_show.add_widget(self.plugin.hide_raw_tree, stretch=0)
         vbox_show.add_widget(self.plugin.hide_reduced_tree, stretch=0)
@@ -104,8 +110,15 @@ class QLViewUI:
         hbox_raw = Widgets.HBox()
         hbox_raw.add_widget(Widgets.Label("Raw Data Path:"), stretch=0)
         self.plugin.raw_text_entry = Widgets.TextEntry()
+        self.plugin.raw_text_entry.set_tooltip(
+            "Directory or file to browse. Supports strftime format codes "
+            "(e.g. /data/raw/%Y%m%d is expanded to today's date at startup)."
+        )
         hbox_raw.add_widget(self.plugin.raw_text_entry, stretch=0)
         self.plugin.raw_btn = Widgets.Button("Go")
+        self.plugin.raw_btn.set_tooltip(
+            "Browse to the entered directory, or open the file if a FITS path is given"
+        )
         self.plugin.raw_btn.add_callback("activated", self.plugin.raw_button_cb)
         hbox_raw.add_widget(self.plugin.raw_btn, stretch=0)
         fr_vbox.add_widget(hbox_raw, stretch=0)
@@ -153,13 +166,24 @@ class QLViewUI:
         hbox_reduced = Widgets.HBox()
         hbox_reduced.add_widget(Widgets.Label("Reduced Cals Path:"), stretch=0)
         self.plugin.reduced_text_entry = Widgets.TextEntry()
+        self.plugin.reduced_text_entry.set_tooltip(
+            "Path to a PypeIt reduction output directory that contains a Calibrations/ subdirectory"
+        )
         hbox_reduced.add_widget(self.plugin.reduced_text_entry, stretch=0)
         self.plugin.reduced_btn = Widgets.Button("Render Slits")
         self.plugin.reduced_btn.set_enabled(False)
+        self.plugin.reduced_btn.set_tooltip(
+            "Load Slits_*.fits* from the selected Calibrations/ directory "
+            "and draw slit polygons over the raw image"
+        )
         self.plugin.reduced_btn.add_callback("activated", self.plugin.render_slits_cb)
         hbox_reduced.add_widget(self.plugin.reduced_btn, stretch=0)
         self.plugin.show_wavelengths_btn = Widgets.Button("Show Wavelengths")
         self.plugin.show_wavelengths_btn.set_enabled(False)
+        self.plugin.show_wavelengths_btn.set_tooltip(
+            "Build a 2D wavelength map from WaveCalib/Tilts/Slits files — "
+            "hover over the image to see the wavelength at each pixel"
+        )
         self.plugin.show_wavelengths_btn.add_callback("activated", self.plugin.show_wavelengths_cb)
         hbox_reduced.add_widget(self.plugin.show_wavelengths_btn, stretch=0)
         fr_vbox.add_widget(hbox_reduced, stretch=0)
@@ -172,6 +196,9 @@ class QLViewUI:
 
         hbox = Widgets.HBox()
         self.plugin.slit_list_box = Widgets.ComboBox()
+        self.plugin.slit_list_box.set_tooltip(
+            "Select the slit to reduce or highlight — you can also click directly on a slit in the image"
+        )
         self.plugin.slit_list_box.add_callback("activated", self.plugin.slit_list_box_cb)
         hbox.add_widget(self.plugin.slit_list_box)
         self.plugin.btn_reduce = Widgets.Button("Reduce Slit")
@@ -236,11 +263,15 @@ class QLViewUI:
 
         self.plugin.display_slits_box = Widgets.CheckBox("Display Slits")
         self.plugin.display_slits_box.set_state(True)
+        self.plugin.display_slits_box.set_tooltip("Show or hide slit polygon outlines on the raw image")
         self.plugin.display_slits_box.add_callback("activated", self.plugin.display_slits_box_cb)
         self.plugin.vbox_redux.add_widget(self.plugin.display_slits_box, stretch=0)
 
         self.plugin.show_labels_box = Widgets.CheckBox("Show Labels")
         self.plugin.show_labels_box.set_state(False)
+        self.plugin.show_labels_box.set_tooltip(
+            "Overlay slit ID and object name labels on each slit polygon"
+        )
         self.plugin.show_labels_box.add_callback("activated", self.plugin.show_labels_box_cb)
         self.plugin.vbox_redux.add_widget(self.plugin.show_labels_box, stretch=0)
 
