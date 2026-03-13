@@ -181,14 +181,12 @@ class PypeIt:
                 If True, only reload the calibrations, without running any
                 calibrations.
         """
-        log.step(f'calib all called')
 
         self.tstart = time.perf_counter()
 
         # Frame indices
         for calib_ID in self.fitstbl.calib_groups:
             # Find all the frames in this calibration group
-            log.step(f'calib id {calib_ID}')
 
             in_grp = self.fitstbl.find_calib_group(calib_ID)
             if not any(in_grp):
@@ -201,7 +199,6 @@ class PypeIt:
             # Loop on Detectors
             for self.det in detectors:
                 log.info(f'Working on detector {self.det}')
-                log.step(f'calib,detector,{self.det}')
 
                 caliBrate = pypeit_steps.calib_one(self.spectrograph, self.fitstbl, self.par,
                                        self.det, calib_ID, self.calibrations_path,
@@ -230,7 +227,6 @@ class PypeIt:
         # ############################################################################
         # Iterate over each calibration group and reduce the standards
         for calib_ID in self.fitstbl.calib_groups:
-            log.step(f'reduce,calib_group,standards{calib_ID}')
 
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
                            calib_ID, self.calibrations_path,
