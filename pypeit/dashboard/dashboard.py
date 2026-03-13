@@ -267,7 +267,7 @@ def parse_pypeit_setup_file(file_path):
 
     return spectrograph,raw_path,files,science_file
 
-# this is to handle the logging from pypeit. will be redirected to the dashboard for it to display
+
 
 class MainWindow(QWidget):
     
@@ -303,8 +303,6 @@ class MainWindow(QWidget):
                 check_pypeit_status(self.setup_file_path)
             captured_output = f.getvalue()
             self.dashboard_widget.calibration_widget.append(captured_output)
-
-
 
  
     def import_setup_file(self):

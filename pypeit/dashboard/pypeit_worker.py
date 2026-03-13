@@ -7,6 +7,7 @@ import logging
 from logging.handlers import QueueHandler
 from pypeit import log
 from pypeit.scripts.run_pypeit import RunPypeIt
+from pypeit.scripts.pypeit_status import PypeItStatus
 from pypeit import pypeit
 
 def run_pypeit_main_wrapper(args):
@@ -42,15 +43,14 @@ def PypeItWorker(setup_file_path,log_queue):
 
 def check_pypeit_status(setup_file_path):
 
-    parser = RunPypeIt.get_parser()
+    parser = PypeItStatus.get_parser()
 
     args = parser.parse_args([
         setup_file_path,
     ])
-    # pydantic doesn't want a Posix Path but a string Path. It still seems to work however
 
     pypeIt = pypeit.PypeIt(
-            args.pypeit_file,
+            args.pypeit_file, # is presenting paths as POSIX paths and not strings which is causing a warning
             reuse_calibs=True,
             calib_only=True)
 
@@ -60,4 +60,10 @@ def check_pypeit_status(setup_file_path):
     # pypeIt.run_state.write() # should only really do this if pypeit is actively running
 
     # Pretty-print the state
+    status = pypeIt.run_state.get_status()
+    
+    print("my thing")
+    pypeIt.run_state.temp_print_status(status)
+
+    print("normal thing")
     pypeIt.run_state.print_status()
