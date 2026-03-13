@@ -17,3 +17,4 @@ class QLViewState:
     active_slit_key: Optional[str] = None
     slit_polys: Dict[str, Polygon] = field(default_factory=dict)
     manual_extract_str: Optional[str] = None
+    ab_partner_filepath: Optional[str] = None

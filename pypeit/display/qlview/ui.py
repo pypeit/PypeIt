@@ -73,6 +73,27 @@ class QLViewUI:
         self.plugin.raw_btn.add_callback("activated", self.plugin.raw_button_cb)
         hbox_raw.add_widget(self.plugin.raw_btn, stretch=0)
         fr_vbox.add_widget(hbox_raw, stretch=0)
+
+        hbox_bframe = Widgets.HBox()
+        hbox_bframe.add_widget(Widgets.Label("B frame (optional):"), stretch=0)
+        self.plugin.b_frame_entry = Widgets.TextEntry()
+        self.plugin.b_frame_entry.set_tooltip(
+            "Path to the B-position frame for A-B dithered sky subtraction."
+        )
+        self.plugin.b_frame_entry.add_callback("activated", self.plugin.b_frame_entry_cb)
+        hbox_bframe.add_widget(self.plugin.b_frame_entry, stretch=1)
+        btn_detect_ab = Widgets.Button("Detect AB Pair")
+        btn_detect_ab.set_tooltip(
+            "Scan the raw directory for the best-matching B-position frame"
+        )
+        btn_detect_ab.add_callback("activated", self.plugin.detect_ab_pair_cb)
+        hbox_bframe.add_widget(btn_detect_ab, stretch=0)
+        btn_clear_b = Widgets.Button("Clear")
+        btn_clear_b.set_tooltip("Clear the B frame path")
+        btn_clear_b.add_callback("activated", lambda w: self.plugin.clear_b_frame_cb(w))
+        hbox_bframe.add_widget(btn_clear_b, stretch=0)
+        fr_vbox.add_widget(hbox_bframe, stretch=0)
+
         fr.set_widget(fr_vbox)
         vbox.add_widget(fr, stretch=0)
 
@@ -168,6 +189,14 @@ class QLViewUI:
         )
         hbox_params.add_widget(self.plugin.manual_extract_params_entry, stretch=1)
         self.plugin.vbox_redux.add_widget(hbox_params, stretch=0)
+
+        self.plugin.coadd2d_box = Widgets.CheckBox("CoAdd2D")
+        self.plugin.coadd2d_box.set_state(False)
+        self.plugin.coadd2d_box.set_tooltip(
+            "Pass --coadd2d to ql.py: co-add the 2D spectra after reduction "
+            "(required for dithered A-B pairs with multiple frames)"
+        )
+        self.plugin.vbox_redux.add_widget(self.plugin.coadd2d_box, stretch=0)
 
         self.plugin.display_slits_box = Widgets.CheckBox("Display Slits")
         self.plugin.display_slits_box.set_state(True)

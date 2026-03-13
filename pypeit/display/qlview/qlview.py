@@ -541,10 +541,20 @@ class QLView(GingaPlugin.LocalPlugin):
 
         log_path = os.path.abspath(os.path.join(run_dir, f"{det_label}_{slit_id}.log"))
 
+        b_frame = self.state.ab_partner_filepath
+        raw_files = [str(Path(raw_path).name)]
+        if b_frame and os.path.isfile(b_frame):
+            if Path(b_frame).parent.resolve() == Path(raw_path).parent.resolve():
+                raw_files.append(str(Path(b_frame).name))
+            else:
+                self.logger.warning(
+                    "B frame is in a different directory than A frame; ignoring for reduction."
+                )
+
         args = [
             self.instrument.pypeit_name,
             "--raw_files",
-            str(Path(raw_path).name),
+            *raw_files,
             "--raw_path",
             str(Path(raw_path).parent.absolute()),
             "--setup_calib_dir",
@@ -563,6 +573,8 @@ class QLView(GingaPlugin.LocalPlugin):
             args += ["--snr_thresh", self.SNR_box.get_text()]
         if self.state.manual_extract_str:
             args += ["--manual_extract", self.state.manual_extract_str]
+        if self.coadd2d_box.get_state():
+            args += ["--coadd2d"]
         self.logger.info("Launching reduction: {0}".format(" ".join(args)))
 
         def _run() -> None:
@@ -918,6 +930,140 @@ class QLView(GingaPlugin.LocalPlugin):
         path = paths[0]
         self.raw_text_entry.set_text(path)
         self.state.raw_filepath = path
+
+    def b_frame_entry_cb(self, w):
+        """User manually typed a B frame path."""
+        path = self.b_frame_entry.get_text().strip()
+        self.state.ab_partner_filepath = path if path and os.path.isfile(path) else None
+
+    def clear_b_frame_cb(self, w):
+        """Clear the B frame field."""
+        self.b_frame_entry.set_text("")
+        self.state.ab_partner_filepath = None
+
+    def detect_ab_pair_cb(self, w) -> None:
+        """Button callback: search for a matching B frame in a background thread."""
+        raw_path = self.state.raw_filepath or self.raw_text_entry.get_text().strip()
+        if not raw_path or not os.path.isfile(raw_path):
+            self.b_frame_entry.set_text("No raw file selected")
+            return
+        self.b_frame_entry.set_text("Searching…")
+        self.state.ab_partner_filepath = None
+
+        def _worker():
+            partner = self._suggest_ab_partner(raw_path)
+            self.fv.gui_do(self._apply_b_frame_suggestion, partner)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _apply_b_frame_suggestion(self, partner: Optional[str]) -> None:
+        if partner:
+            self.b_frame_entry.set_text(partner)
+            self.state.ab_partner_filepath = partner
+            self.logger.info(f"Detected B frame: {partner}")
+        else:
+            self.b_frame_entry.set_text("No matching B frame found")
+            self.logger.info("No matching B frame found in directory.")
+
+    def _suggest_ab_partner(self, raw_path: str) -> Optional[str]:
+        """Return the best-matching B frame for *raw_path*, or None.
+
+        Uses PypeIt's own spectrograph metadata system — the same fields that
+        ``set_combination_groups`` / ``get_comb_group`` uses — to match on
+        instrument configuration keys, target, exptime, and dither pattern.
+        Picks the B/B' candidate with the closest MJD.
+        """
+        try:
+            from pypeit.spectrographs.util import load_spectrograph
+            spec = load_spectrograph(self.instrument.pypeit_name)
+        except Exception as exc:
+            self.logger.warning(f"Could not load spectrograph for B frame suggestion: {exc}")
+            return None
+
+        def _get(headarr, key):
+            try:
+                return spec.get_meta_value(headarr, key, ignore_bad_header=True)
+            except Exception:
+                return None
+
+        try:
+            a_headarr = spec.get_headarr(raw_path)
+        except Exception:
+            return None
+
+        dithpos = _get(a_headarr, "dithpos") or ""
+        if dithpos not in ("A", "A'"):
+            return None
+
+        a_dithpat = _get(a_headarr, "dithpat") or ""
+        a_target  = _get(a_headarr, "target")
+        a_obsmode = _get(a_headarr, "obsmode")
+        try:
+            a_exptime = float(_get(a_headarr, "exptime") or 0)
+        except (TypeError, ValueError):
+            a_exptime = None
+        try:
+            a_mjd = float(_get(a_headarr, "mjd") or 0)
+        except (TypeError, ValueError):
+            a_mjd = 0.0
+
+        config_keys = spec.configuration_keys()
+        a_config = {k: _get(a_headarr, k) for k in config_keys}
+
+        raw_dir = Path(raw_path).parent
+        best_path: Optional[str] = None
+        best_delta = float("inf")
+
+        for candidate in raw_dir.glob("*.fits*"):
+            if str(candidate) == raw_path:
+                continue
+            try:
+                c_headarr = spec.get_headarr(str(candidate))
+            except Exception:
+                continue
+
+            # Must be B/B' dither position
+            cpos = _get(c_headarr, "dithpos") or ""
+            if cpos not in ("B", "B'"):
+                continue
+
+            # Dither pattern must match
+            cpat = _get(c_headarr, "dithpat") or ""
+            if a_dithpat and cpat and cpat != a_dithpat:
+                continue
+
+            # All spectrograph configuration keys must match
+            if any(_get(c_headarr, k) != a_config[k] for k in config_keys):
+                continue
+
+            # Target must match
+            if a_target and _get(c_headarr, "target") != a_target:
+                continue
+
+            # Obs mode must match
+            if a_obsmode and _get(c_headarr, "obsmode") != a_obsmode:
+                continue
+
+            # Exptime must match within 10 %
+            if a_exptime:
+                try:
+                    cexp = float(_get(c_headarr, "exptime") or 0)
+                    if abs(cexp - a_exptime) > 0.1 * a_exptime:
+                        continue
+                except (TypeError, ValueError):
+                    pass
+
+            # Pick the candidate closest in time
+            try:
+                cmjd = float(_get(c_headarr, "mjd") or 0)
+            except (TypeError, ValueError):
+                cmjd = 0.0
+            delta = abs(cmjd - a_mjd)
+            if delta < best_delta:
+                best_delta = delta
+                best_path = str(candidate)
+
+        return best_path
 
     def _suggest_calibrations(self, raw_path: str) -> None:
         """Auto-populate reduced cals path with the best matching calibration.
