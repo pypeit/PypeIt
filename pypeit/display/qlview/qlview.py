@@ -445,8 +445,16 @@ class QLView(GingaPlugin.LocalPlugin):
             api_key = key_edit.text().strip() or None
             base_url = f"http://{host}:{port}"
 
+            from pypeit.display.qlview.backends import _requests
+            if _requests is None:
+                QtGui.QMessageBox.critical(
+                    None,
+                    "Missing Dependency",
+                    "The 'requests' package is required for remote backends.\n\n"
+                    "Install it with:  pip install requests",
+                )
+                return
             try:
-                from pypeit.display.qlview.backends import _requests
                 resp = _requests.get(f"{base_url}/api/health", timeout=5)
                 resp.raise_for_status()
             except Exception as exc:
@@ -1751,11 +1759,12 @@ class QLView(GingaPlugin.LocalPlugin):
         if not expected or instrume == expected:
             return True
 
-        # Find the registry entry that matches the file's instrument
+        # Find the registry entry that matches the file's instrument.
+        # Use instrume_values() to avoid constructing an instrument instance
+        # just to read a class attribute.
         matching_name: Optional[str] = None
-        for name in self.instrument_registry.names():
-            inst = self.instrument_registry.create(name)
-            if inst.instrume_value.upper() == instrume:
+        for name, instrume_val in self.instrument_registry.instrume_values():
+            if instrume_val.upper() == instrume:
                 matching_name = name
                 break
 
