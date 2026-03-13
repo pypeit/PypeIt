@@ -113,9 +113,11 @@ from __future__ import annotations
 
 import configparser
 import datetime
+import glob
 import os
 import re
 import threading
+import time
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -124,7 +126,7 @@ from astropy.io import fits
 from ginga import GingaPlugin
 from ginga.AstroImage import AstroImage
 from ginga.canvas.types.layer import DrawingCanvas
-from ginga.qtw.QtHelp import QtGui
+from ginga.qtw.QtHelp import QtCore, QtGui
 
 from pypeit.slittrace import SlitTraceSet
 
@@ -316,7 +318,7 @@ class QLView(GingaPlugin.LocalPlugin):
             raw_path = str(Path(raw_path).parent)
 
         reduced_path = self.reduced_text_entry.get_text()
-        if re.match(r'^.+_[A-Za-z]$', Path(reduced_path).name):
+        if re.match(r'^[a-z][a-z0-9_]+_[A-Z]$', Path(reduced_path).name):
             reduced_path = str(Path(reduced_path).parent)
 
         config["DEFAULT"] = {
@@ -531,7 +533,6 @@ class QLView(GingaPlugin.LocalPlugin):
 
         # Suppress any spurious tree-activation events (e.g. a stray Enter
         # keypress from the dialog OK button) for a brief window after OK.
-        from ginga.qtw.QtHelp import QtCore
         self._suppress_activate = True
         QtCore.QTimer.singleShot(300, lambda: setattr(self, "_suppress_activate", False))
 
@@ -640,6 +641,8 @@ class QLView(GingaPlugin.LocalPlugin):
         # Find which detector/slit contains the click
         det_label = None
         spat_det = x
+        found_det_idx = None
+        found_slit_key = None
         for det_idx, slits in self.state.slittracesets.items():
             if slits is None:
                 continue
@@ -649,9 +652,10 @@ class QLView(GingaPlugin.LocalPlugin):
             right = slits.right_init[spec_row] + offset
             for i in range(slits.nslits):
                 if left[i] < x < right[i]:
+                    found_det_idx = det_idx
+                    found_slit_key = f"S{slits.spat_id[i]}"
                     det_label = f"{self.instrument.detector_prefix}{det_idx}"
                     spat_det = x - offset
-                    slit_key = f"S{slits.spat_id[i]}"
                     break
             if det_label:
                 break
@@ -664,7 +668,7 @@ class QLView(GingaPlugin.LocalPlugin):
         self._manual_y = y
         self._manual_det_label = det_label
         self._manual_spat_det = spat_det
-        self._manual_slit_key = slit_key
+        self._manual_slit_key = found_slit_key
 
         try:
             fwhm = float(self.fwhm_box.get_text())
@@ -672,7 +676,7 @@ class QLView(GingaPlugin.LocalPlugin):
             fwhm = 3.0
             self.fwhm_box.set_text("3.0")
 
-        extract_str = f"{int(det_idx)}:{spat_det:.1f}:{y:.1f}:{fwhm:.1f}"
+        extract_str = f"{int(found_det_idx)}:{spat_det:.1f}:{y:.1f}:{fwhm:.1f}"
         self.state.manual_extract_str = extract_str
         self.manual_extract_params_entry.set_text(extract_str)
         self._draw_manual_extract_marker(x, y, fwhm)
@@ -857,8 +861,7 @@ class QLView(GingaPlugin.LocalPlugin):
             "--skip_display",
             "--log_file",
             log_path,
-            "-v",
-            str(2)
+            "-v", "2",
         ]
         if not self.state.manual_extract_str:
             args += ["--snr_thresh", self.SNR_box.get_text()]
@@ -925,8 +928,7 @@ class QLView(GingaPlugin.LocalPlugin):
         if existing is not None:
             existing.cancel()
 
-        import time as _time
-        self.reduction_start_times[timer_key] = _time.monotonic()
+        self.reduction_start_times[timer_key] = time.monotonic()
 
         timer = self.fitsimage.make_timer()
         timer.add_callback(
@@ -980,7 +982,6 @@ class QLView(GingaPlugin.LocalPlugin):
         coadd2d : bool, optional
             Whether to perform two-phase polling for CoAdd2D output.
         """
-        import time as _time
         timer = self.reduction_timers.get(timer_key)
         control = self.reduction_control_elements.get(slit_key)
 
@@ -998,7 +999,7 @@ class QLView(GingaPlugin.LocalPlugin):
 
         # Timeout check
         start = self.reduction_start_times.get(timer_key)
-        if start is not None and (_time.monotonic() - start) > self.reduction_timeout:
+        if start is not None and (time.monotonic() - start) > self.reduction_timeout:
             _fail(f"Reduction timed out for {timer_key} after {self.reduction_timeout:.0f}s.")
             return
 
@@ -1078,7 +1079,6 @@ class QLView(GingaPlugin.LocalPlugin):
             )
             if control is not None:
                 control["label"].set_text(f"Extraction failed {slit_key}")
-                control["button"].set_enabled(True)
             _stop_timer()
             return
 
@@ -1667,6 +1667,8 @@ class QLView(GingaPlugin.LocalPlugin):
         if not cal_root:
             cal_root = self.reduced_text_entry.get_text().strip()
         if not cal_root or not os.path.isdir(cal_root):
+            if hasattr(self, "cal_status_label"):
+                self.cal_status_label.set_text("")
             return
 
         if hasattr(self, "cal_status_label"):
@@ -1863,12 +1865,9 @@ class QLView(GingaPlugin.LocalPlugin):
         cal_path = os.path.join(cal_path, "Calibrations")
         self.logger.info(f"Searching for wavelength calibration files in: {cal_path}")
 
-        import glob as _glob
-        import re
-
-        wv_files = sorted(_glob.glob(os.path.join(cal_path, "WaveCalib_*.fits*")))
-        tilt_files = sorted(_glob.glob(os.path.join(cal_path, "Tilts_*.fits*")))
-        slit_files = sorted(_glob.glob(os.path.join(cal_path, "Slits_*.fits*")))
+        wv_files = sorted(glob.glob(os.path.join(cal_path, "WaveCalib_*.fits*")))
+        tilt_files = sorted(glob.glob(os.path.join(cal_path, "Tilts_*.fits*")))
+        slit_files = sorted(glob.glob(os.path.join(cal_path, "Slits_*.fits*")))
 
         if not wv_files:
             self.logger.error(f"No WaveCalib files found in {cal_path}")
@@ -2049,8 +2048,9 @@ class QLView(GingaPlugin.LocalPlugin):
             if slits is None:
                 continue
             offset = (int(msc_idx) - 1) * slits.nspat
-            left_bound_at_y = slits.left_init[np.round(y).astype(int)] + offset
-            right_bound_at_y = slits.right_init[np.round(y).astype(int)] + offset
+            row = int(np.clip(np.round(y), 0, slits.nspec - 1))
+            left_bound_at_y = slits.left_init[row] + offset
+            right_bound_at_y = slits.right_init[row] + offset
 
             for i in range(slits.nslits):
                 if left_bound_at_y[i] < x < right_bound_at_y[i]:
