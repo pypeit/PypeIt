@@ -1,3 +1,17 @@
+"""
+Classes used by the quicklook viewer to configure the frontend.
+
+These classes serve two purposes:
+
+1. If a class is in this file, the quicklook viewer will display it as an opion
+in the instrument dropdown.
+
+2. They provide configuration information needed to display instrument info,
+for example column headers, rendering the raw image, etc.
+
+Instrument classes must be added to the InstrumentRegistry class to be seen!
+"""
+
 from __future__ import annotations
 
 import os
@@ -6,7 +20,8 @@ from typing import Dict, List
 import numpy as np
 from astropy.io import fits
 
-
+# TODO: Should these be here at all? Might be better for each class to declare it
+# explicitly
 _BASE_RAW_COLUMNS = [
     ("Type", "icon"),
     ("Frame No", "FRAMENO"),
@@ -27,7 +42,7 @@ _BASE_REDUCED_COLUMNS = [
     ("Slit Width", "SLITWIDTH"),
     ("Last Changed", "st_mtime_str"),
 ]
-
+# TODO: Should be moved into the MOSFIRE Class
 _MOSFIRE_REDUCED_COLUMNS = [
     ("Type", "icon"),
     ("Name", "name"),
@@ -43,7 +58,9 @@ class Instrument:
     """Base class for instrument-specific behavior."""
 
     pypeit_name: str = ""
+    # TODO: This is keck specific behavior, should change this soon
     instrume_value: str = ""  # Expected value of the INSTRUME FITS keyword
+    # TODO: should this default to DET?
     detector_prefix: str = "MSC"  # Prefix for --slitspatnum (MSC for mosaics, DET for single detectors)
 
     def __init__(self, logger) -> None:
@@ -75,6 +92,16 @@ class Instrument:
     def get_display_image(self, raw_path: str) -> np.ndarray:
         """Return a 2-D float array suitable for display in the Ginga viewer.
 
+        Generally, this should just call buildimage.buildimage_fromlist, but 
+        custom implementations are allowed. Note that the coordinates of this
+        output image must align with those used by PypeIt (i.e. within a spec2D
+        object) in order for each rendered element to stay aligned.
+
+        Echelle spectrographs currently must rotate their images such that the
+        spectra axis runs vertically (which is typically 90 deg from how they
+        are normally viewed) in order to keep the code general, this is a place
+        for future improvement.
+
         Parameters
         ----------
         raw_path : str
@@ -84,7 +111,8 @@ class Instrument:
         -------
         numpy.ndarray
             2-D array with shape ``(nrows, ncols)`` in display orientation
-            (spatial axis along columns, spectral axis along rows).
+            (spatial axis along columns, spectral axis along rows). (Is this
+            true? Echelle spectrographs are sideways, must we enforce this?)
 
         Raises
         ------
@@ -157,6 +185,12 @@ class Instrument:
 
         The ``'--'`` entry holds the per-instrument configuration keys.
         Returns an empty dict when no pypeit file is found or parsing fails.
+
+        This is largely taken from core PypeIt functionality, but I couldn't
+        find exactly what I needed as something reasonably callable (could have
+        missed it!) so there's some duplicated code here. This is potentially
+        a source of errors if the pypeit file format is changed, since this
+        won't pick up any parser updates.
         """
         import glob as _glob
         import re
@@ -229,6 +263,8 @@ class Instrument:
         ``match_to_calibs``) so that instrument-specific ``configuration_keys``
         and tolerances are respected automatically.
 
+        This is used to attempt to select calibrations for the user.
+
         Parameters
         ----------
         raw_path : str
@@ -274,6 +310,8 @@ class Instrument:
                 results.append(str(calib_dir))
         return results
 
+    # TODO: should this be implemented at all, or just send it to each instrument
+    # class?
     @staticmethod
     def _read_header_fields(header) -> Dict[str, object]:
         """Extract the common set of display fields from a raw FITS primary header.
@@ -282,6 +320,9 @@ class Instrument:
         implementations.  It populates the keys shared by all instruments;
         subclasses should override individual entries afterward to handle
         instrument-specific keyword names.
+
+        This super implementation is likely overkill and should just be
+        implemented from scratch in each instrument class.
 
         Parameters
         ----------
@@ -406,6 +447,8 @@ class DEIMOS(Instrument):
         (detectors 1–4 on the bottom row, 5–8 on the top row) matching the
         DEIMOS focal-plane layout.
         """
+
+        # TODO: Can I use keck_deimos directly here instead of redoing it?
         from pypeit.io import fits_open
 
         with fits_open(raw_path) as hdu:
@@ -589,7 +632,9 @@ class MOSFIRE(Instrument):
 
 
 class NIRES(Instrument):
-    """Keck NIRES — near-IR, fixed-format echelle, single detector."""
+    """Keck NIRES — near-IR, fixed-format echelle, single detector.
+    
+    Untested!"""
 
     instrume_value = "NIRES"
     detector_prefix = "DET"
@@ -601,6 +646,7 @@ class NIRES(Instrument):
         (NIRES is fixed-format) and adds a ``DITHER_POS`` column decoded from
         the ``DPATNAME``/``DPATIPOS`` header pair.
 
+        
         Parameters
         ----------
         logger : logging.Logger
@@ -732,7 +778,10 @@ _LRIS_REDUCED_COLUMNS = [
 
 
 class LRISBlue(Instrument):
-    """Keck LRIS Blue channel — multi-slit, 2-detector mosaic."""
+    """Keck LRIS Blue channel — multi-slit, 2-detector mosaic.
+    
+    Untested!
+    """
 
     instrume_value = "LRISBLUE"
     detector_prefix = "MSC"
@@ -858,10 +907,12 @@ class LRISBlue(Instrument):
 
 
 class LRISRed(Instrument):
-    """Keck LRIS Red channel (Mark4 detector) — multi-slit, single detector."""
+    """Keck LRIS Red channel (Mark4 detector) — multi-slit, single detector.
+    
+    Untested!"""
 
     instrume_value = "LRIS"
-    detector_prefix = "DET"
+    detector_prefix = "DET" #
 
     def __init__(self, logger) -> None:
         """Initialise the LRIS Red instrument with Keck-LRIS–Red–specific column definitions.
@@ -984,7 +1035,9 @@ class LRISRed(Instrument):
 
 
 class NIRSPEC(Instrument):
-    """Keck NIRSPEC (post-2018 upgrade) — near-IR echelle, single detector."""
+    """Keck NIRSPEC (post-2018 upgrade) — near-IR echelle, single detector.
+    
+    Untested!"""
 
     instrume_value = "NIRSPEC"
     detector_prefix = "DET"
