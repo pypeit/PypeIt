@@ -366,12 +366,379 @@ class MOSFIRE(Instrument):
             return {}
 
 
+class NIRES(Instrument):
+    """Keck NIRES — near-IR, fixed-format echelle, single detector."""
+
+    instrume_value = "NIRES"
+    detector_prefix = "DET"
+
+    def __init__(self, logger) -> None:
+        super().__init__(logger)
+        self.pypeit_name = "keck_nires"
+        self.columns["raw"] = [
+            ("Type", "icon"),
+            ("Frame No", "FRAMENO"),
+            ("Name", "name"),
+            ("Dither Pos", "DITHER_POS"),
+            ("Object", "OBJECT"),
+            ("Obs Type", "IMTYPE"),
+            ("Exp Time", "EXPTIME"),
+            ("Last Changed", "st_mtime_str"),
+        ]
+        # Fixed-format echelle — no grating/filter variation to show
+        self.columns["reduced"] = list(_BASE_REDUCED_COLUMNS)
+
+    def get_raw_info(self, path: str) -> Dict[str, object]:
+        with fits.open(path) as hdul:
+            hdr = hdul[0].header
+            info = self._read_header_fields(hdr)
+            # NIRES uses FRAMENUM (not FRAMENO), ITIME (not ELAPTIME),
+            # and OBSTYPE (not KOAIMTYP)
+            info["FRAMENO"] = hdr.get("FRAMENUM", "N/A")
+            info["IMTYPE"] = hdr.get("OBSTYPE", "N/A")
+            info["EXPTIME"] = hdr.get("ITIME", "N/A")
+            info["OBJECT"] = hdr.get("TARGNAME", "N/A")
+            # Dither position: decode DPATIPOS (1-based index) via DPATNAME
+            dpat = hdr.get("DPATNAME", "")
+            dpos = hdr.get("DPATIPOS")
+            if dpos is not None and dpat and 1 <= dpos <= len(dpat):
+                info["DITHER_POS"] = dpat[dpos - 1]
+            else:
+                info["DITHER_POS"] = "N/A"
+            return info
+
+    def get_display_image(self, raw_path: str) -> np.ndarray:
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.images import buildimage
+
+        spec = load_spectrograph("keck_nires")
+        par = spec.default_pypeit_par()["calibrations"]["biasframe"]
+        img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
+        return img.image
+
+    def get_reduced_info(self, path: str) -> Dict[str, object]:
+        if os.path.isdir(path):
+            cfg = self._read_pypeit_setup_config(path)
+            return {
+                "MASKNAME": cfg.get("decker", "N/A"),
+                "FILTER": cfg.get("dispname", "N/A"),
+                "SLITWIDTH": cfg.get("slitwid", "N/A"),
+            }
+        try:
+            with fits.open(path) as hdul:
+                hdr = hdul[0].header
+                return {
+                    "MASKNAME": hdr.get("SLITNAME", "N/A"),
+                    "FILTER": hdr.get("INSTR", "N/A"),
+                    "SLITWIDTH": "N/A",
+                }
+        except Exception:
+            return {}
+
+
+_LRIS_REDUCED_COLUMNS = [
+    ("Type", "icon"),
+    ("Name", "name"),
+    ("Slit/Mask", "SLITNAME"),
+    ("Grating/Grism", "DISPNAME"),
+    ("Dichroic", "DICHNAME"),
+    ("Last Changed", "st_mtime_str"),
+]
+
+
+class LRISBlue(Instrument):
+    """Keck LRIS Blue channel — multi-slit, 2-detector mosaic."""
+
+    instrume_value = "LRISBLUE"
+    detector_prefix = "MSC"
+
+    def __init__(self, logger) -> None:
+        super().__init__(logger)
+        self.pypeit_name = "keck_lris_blue"
+        raw_cols = [
+            ("Type", "icon"),
+            ("Frame No", "FRAMENO"),
+            ("Name", "name"),
+            ("Object", "OBJECT"),
+            ("Img Type", "IMTYPE"),
+            ("Slit/Mask", "MASKNAME"),
+            ("Grism", "GRISNAME"),
+            ("Dichroic", "DICHNAME"),
+            ("Exp Time", "EXPTIME"),
+            ("Last Changed", "st_mtime_str"),
+        ]
+        self.columns["raw"] = raw_cols
+        self.columns["reduced"] = list(_LRIS_REDUCED_COLUMNS)
+
+    def get_raw_info(self, path: str) -> Dict[str, object]:
+        with fits.open(path) as hdul:
+            hdr = hdul[0].header
+            info = self._read_header_fields(hdr)
+            info["OBJECT"] = hdr.get("TARGNAME", "N/A")
+            info["IMTYPE"] = hdr.get("KOAIMTYP", "N/A")
+            info["MASKNAME"] = hdr.get("SLITNAME", "N/A")
+            info["GRISNAME"] = hdr.get("GRISNAME", "N/A")
+            info["DICHNAME"] = hdr.get("DICHNAME", "N/A")
+            return info
+
+    def get_display_image(self, raw_path: str) -> np.ndarray:
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.images import buildimage
+
+        spec = load_spectrograph("keck_lris_blue")
+        par = spec.default_pypeit_par()["calibrations"]["biasframe"]
+        img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
+        return img.image
+
+    def get_reduced_info(self, path: str) -> Dict[str, object]:
+        if os.path.isdir(path):
+            cfg = self._read_pypeit_setup_config(path)
+            return {
+                "SLITNAME": cfg.get("decker", "N/A"),
+                "DISPNAME": cfg.get("dispname", "N/A"),
+                "DICHNAME": cfg.get("dichroic", "N/A"),
+            }
+        try:
+            with fits.open(path) as hdul:
+                hdr = hdul[0].header
+                return {
+                    "SLITNAME": hdr.get("SLITNAME", "N/A"),
+                    "DISPNAME": hdr.get("GRISNAME", "N/A"),
+                    "DICHNAME": hdr.get("DICHNAME", "N/A"),
+                }
+        except Exception:
+            return {}
+
+
+class LRISRed(Instrument):
+    """Keck LRIS Red channel (Mark4 detector) — multi-slit, single detector."""
+
+    instrume_value = "LRIS"
+    detector_prefix = "DET"
+
+    def __init__(self, logger) -> None:
+        super().__init__(logger)
+        self.pypeit_name = "keck_lris_red_mark4"
+        raw_cols = [
+            ("Type", "icon"),
+            ("Frame No", "FRAMENO"),
+            ("Name", "name"),
+            ("Object", "OBJECT"),
+            ("Img Type", "IMTYPE"),
+            ("Slit/Mask", "MASKNAME"),
+            ("Grating", "GRANAME"),
+            ("Dichroic", "DICHNAME"),
+            ("Exp Time", "EXPTIME"),
+            ("Last Changed", "st_mtime_str"),
+        ]
+        self.columns["raw"] = raw_cols
+        self.columns["reduced"] = list(_LRIS_REDUCED_COLUMNS)
+
+    def get_raw_info(self, path: str) -> Dict[str, object]:
+        with fits.open(path) as hdul:
+            hdr = hdul[0].header
+            info = self._read_header_fields(hdr)
+            info["OBJECT"] = hdr.get("TARGNAME", "N/A")
+            info["IMTYPE"] = hdr.get("KOAIMTYP", "N/A")
+            info["MASKNAME"] = hdr.get("SLITNAME", "N/A")
+            info["GRANAME"] = hdr.get("GRANAME", "N/A")
+            info["DICHNAME"] = hdr.get("DICHNAME", "N/A")
+            return info
+
+    def get_display_image(self, raw_path: str) -> np.ndarray:
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.images import buildimage
+
+        spec = load_spectrograph("keck_lris_red_mark4")
+        par = spec.default_pypeit_par()["calibrations"]["biasframe"]
+        img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
+        return img.image
+
+    def get_reduced_info(self, path: str) -> Dict[str, object]:
+        if os.path.isdir(path):
+            cfg = self._read_pypeit_setup_config(path)
+            return {
+                "SLITNAME": cfg.get("decker", "N/A"),
+                "DISPNAME": cfg.get("dispname", "N/A"),
+                "DICHNAME": cfg.get("dichroic", "N/A"),
+            }
+        try:
+            with fits.open(path) as hdul:
+                hdr = hdul[0].header
+                return {
+                    "SLITNAME": hdr.get("SLITNAME", "N/A"),
+                    "DISPNAME": hdr.get("GRANAME", "N/A"),
+                    "DICHNAME": hdr.get("DICHNAME", "N/A"),
+                }
+        except Exception:
+            return {}
+
+
+class NIRSPEC(Instrument):
+    """Keck NIRSPEC (post-2018 upgrade) — near-IR echelle, single detector."""
+
+    instrume_value = "NIRSPEC"
+    detector_prefix = "DET"
+
+    def __init__(self, logger) -> None:
+        super().__init__(logger)
+        self.pypeit_name = "keck_nirspec_high"
+        raw_cols = [
+            ("Type", "icon"),
+            ("Frame No", "FRAMENO"),
+            ("Name", "name"),
+            ("Object", "OBJECT"),
+            ("Img Type", "IMTYPE"),
+            ("Filter 1", "FILTER1"),
+            ("Filter 2", "FILTER2"),
+            ("Slit", "MASKNAME"),
+            ("Exp Time", "EXPTIME"),
+            ("Last Changed", "st_mtime_str"),
+        ]
+        self.columns["raw"] = raw_cols
+        self.columns["reduced"] = [
+            ("Type", "icon"),
+            ("Name", "name"),
+            ("Slit", "SLITNAME"),
+            ("Filter 1", "FILTER1"),
+            ("Filter 2", "FILTER2"),
+            ("Last Changed", "st_mtime_str"),
+        ]
+
+    def get_raw_info(self, path: str) -> Dict[str, object]:
+        with fits.open(path) as hdul:
+            hdr = hdul[0].header
+            info = self._read_header_fields(hdr)
+            # NIRSPEC uses FRAMENUM (not FRAMENO), TRUITIME (not ELAPTIME),
+            # IMTYPE (not KOAIMTYP), and TARGNAME (not OBJECT)
+            info["FRAMENO"] = hdr.get("FRAMENUM", "N/A")
+            info["OBJECT"] = hdr.get("TARGNAME", "N/A")
+            info["IMTYPE"] = hdr.get("IMTYPE", "N/A")
+            info["EXPTIME"] = hdr.get("TRUITIME", "N/A")
+            info["MASKNAME"] = hdr.get("SLITNAME", "N/A")
+            info["FILTER1"] = hdr.get("SCIFILT1", "N/A")
+            info["FILTER2"] = hdr.get("SCIFILT2", "N/A")
+            return info
+
+    def get_display_image(self, raw_path: str) -> np.ndarray:
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.images import buildimage
+
+        spec = load_spectrograph("keck_nirspec_high")
+        par = spec.default_pypeit_par()["calibrations"]["biasframe"]
+        img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
+        return img.image
+
+    def get_reduced_info(self, path: str) -> Dict[str, object]:
+        if os.path.isdir(path):
+            cfg = self._read_pypeit_setup_config(path)
+            return {
+                "SLITNAME": cfg.get("decker", "N/A"),
+                "FILTER1": cfg.get("filter1", "N/A"),
+                "FILTER2": cfg.get("filter2", "N/A"),
+            }
+        try:
+            with fits.open(path) as hdul:
+                hdr = hdul[0].header
+                return {
+                    "SLITNAME": hdr.get("SLITNAME", "N/A"),
+                    "FILTER1": hdr.get("SCIFILT1", "N/A"),
+                    "FILTER2": hdr.get("SCIFILT2", "N/A"),
+                }
+        except Exception:
+            return {}
+
+
+class HIRES(Instrument):
+    """Keck HIRES — UV/optical echelle, 3-detector mosaic.
+
+    PypeIt marks HIRES as ``supported = False`` so reductions are not
+    expected, but the file browser and calibration-directory viewer work
+    normally for header inspection.
+    """
+
+    instrume_value = "HIRES"
+    detector_prefix = "MSC"
+
+    def __init__(self, logger) -> None:
+        super().__init__(logger)
+        self.pypeit_name = "keck_hires"
+        raw_cols = [
+            ("Type", "icon"),
+            ("Frame No", "FRAMENO"),
+            ("Name", "name"),
+            ("Object", "OBJECT"),
+            ("Img Type", "IMTYPE"),
+            ("Decker", "DECKNAME"),
+            ("XDisp", "XDISPERS"),
+            ("Exp Time", "EXPTIME"),
+            ("Last Changed", "st_mtime_str"),
+        ]
+        self.columns["raw"] = raw_cols
+        self.columns["reduced"] = [
+            ("Type", "icon"),
+            ("Name", "name"),
+            ("Decker", "DECKNAME"),
+            ("XDisp", "XDISPERS"),
+            ("Filter", "FILTER1"),
+            ("Last Changed", "st_mtime_str"),
+        ]
+
+    def get_raw_info(self, path: str) -> Dict[str, object]:
+        with fits.open(path) as hdul:
+            hdr = hdul[0].header
+            info = self._read_header_fields(hdr)
+            info["OBJECT"] = hdr.get("TARGNAME", hdr.get("OBJECT", "N/A"))
+            info["IMTYPE"] = hdr.get("KOAIMTYP", "N/A")
+            info["DECKNAME"] = hdr.get("DECKNAME", "N/A")
+            info["XDISPERS"] = hdr.get("XDISPERS", "N/A")
+            info["EXPTIME"] = hdr.get("ELAPTIME", "N/A")
+            return info
+
+    def get_display_image(self, raw_path: str) -> np.ndarray:
+        """Display the first science extension of a HIRES raw file.
+
+        HIRES has three detectors but PypeIt does not currently support it,
+        so we fall back to a simple raw-pixel read of extension 1.
+        """
+        with fits.open(raw_path) as hdul:
+            # Extension 0 is the primary (empty); science data start at 1
+            data = hdul[1].data
+        if data is None:
+            return np.zeros((100, 100), dtype=float)
+        return data.astype(float)
+
+    def get_reduced_info(self, path: str) -> Dict[str, object]:
+        if os.path.isdir(path):
+            cfg = self._read_pypeit_setup_config(path)
+            return {
+                "DECKNAME": cfg.get("decker", "N/A"),
+                "XDISPERS": cfg.get("dispname", "N/A"),
+                "FILTER1": cfg.get("filter1", "N/A"),
+            }
+        try:
+            with fits.open(path) as hdul:
+                hdr = hdul[0].header
+                return {
+                    "DECKNAME": hdr.get("DECKNAME", "N/A"),
+                    "XDISPERS": hdr.get("XDISPERS", "N/A"),
+                    "FILTER1": hdr.get("FIL1NAME", "N/A"),
+                }
+        except Exception:
+            return {}
+
+
 class InstrumentRegistry:
     def __init__(self, logger) -> None:
         self.logger = logger
         self._registry = {
             "DEIMOS": DEIMOS,
+            "HIRES": HIRES,
+            "LRIS Blue": LRISBlue,
+            "LRIS Red": LRISRed,
             "MOSFIRE": MOSFIRE,
+            "NIRES": NIRES,
+            "NIRSPEC": NIRSPEC,
         }
 
     def create(self, name: str) -> Instrument:
