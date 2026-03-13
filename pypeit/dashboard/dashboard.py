@@ -18,7 +18,7 @@ from qtpy.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QPus
 # from pypeit.setup_gui.controller import start_gui
 # from pypeit.scripts import setup
 import pypeit
-from pypeit.dashboard.pypeit_worker import PypeItWorker
+from pypeit.dashboard.pypeit_worker import PypeItWorker, check_pypeit_status 
 # from pypeit.dashboard.step_tracker import message_listener
 
 """
@@ -51,12 +51,14 @@ class ButtonWidget(FilledBackgroundWidget):
         self.run_all_button = QPushButton()
         self.run_next_button = QPushButton()
         self.help_button = QPushButton()
+        self.check_status_button = QPushButton()
 
         self.test_icons = [(QIcon.ThemeIcon.DocumentOpen, "Open Setup", self.open_setup_button),
                            (QIcon.ThemeIcon.InputKeyboard, "Import Setup", self.edit_setup_button),
                            (QIcon.ThemeIcon.MediaSeekForward, "Run All", self.run_all_button),
                            (QIcon.ThemeIcon.MediaSkipForward, "Run Next", self.run_next_button),
                            (QIcon.ThemeIcon.HelpFaq, "Help", self.help_button),
+                           (QIcon.ThemeIcon.Computer, "Check Status", self.check_status_button),
                            ]
 
         layout=QVBoxLayout()
@@ -283,6 +285,7 @@ class MainWindow(QWidget):
         # -------- connections ---------
         self.setup_widget.open_setup_button.clicked.connect(self.start_controller)
         self.setup_widget.edit_setup_button.clicked.connect(self.import_setup_file)
+        self.setup_widget.check_status_button.clicked.connect(self.check_status)
         # run_all_button clicked is handled in main. soon I will maybe make all of 
         # the connections to be handled in main but who knows
 
@@ -291,6 +294,12 @@ class MainWindow(QWidget):
 
     def start_controller(self):
         subprocess.Popen(["pypeit_setup","--gui"]) # starting the controller runnner file
+
+    def check_status(self):
+        if self.setup_file_path != None:
+            print(type(self.setup_file_path))
+            check_pypeit_status(self.setup_file_path)
+
  
     def import_setup_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -395,7 +404,6 @@ def main():
     ))
 
     qt_handler.log_signal.connect(main_window.update_logs)
-    qt_handler.step_signal.connect(step_listener)
 
     log_listener = QueueListener(log_queue, qt_handler)
     log_listener.start()

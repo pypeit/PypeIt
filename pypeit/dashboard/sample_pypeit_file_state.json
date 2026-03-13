@@ -1,0 +1,144 @@
+{
+    "pypeit_file": "/home/abowman/uco_work/PypeIt/pypeit/dashboard/sample_pypeit_file.pypeit",
+    "current_step": "flats",
+    "current_det": 1,
+    "current_calibID": 0,
+    "previous_step": "scattlight",
+    "bias": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "bias",
+            "required": true,
+            "input_files": [
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b14.fits.gz",
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b15.fits.gz",
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b16.fits.gz",
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b17.fits.gz",
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b18.fits.gz",
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b19.fits.gz",
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b20.fits.gz",
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b21.fits.gz",
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b22.fits.gz",
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b23.fits.gz"
+            ],
+            "output_file": "/home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Bias_A_0_DET01.fits",
+            "status": "success",
+            "mean": 1.0858082606939599,
+            "std": 1.3715012725093836
+        }
+    ],
+    "dark": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "dark",
+            "required": false,
+            "status": "undone"
+        }
+    ],
+    "arc": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "arc",
+            "required": true,
+            "input_files": [
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b1.fits.gz"
+            ],
+            "output_file": "/home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Arc_A_0_DET01.fits",
+            "status": "success"
+        }
+    ],
+    "tiltimg": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "tiltimg",
+            "required": true,
+            "input_files": [
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b1.fits.gz"
+            ],
+            "output_file": "/home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Tiltimg_A_0_DET01.fits",
+            "status": "success"
+        }
+    ],
+    "slits": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "slits",
+            "required": true,
+            "input_files": [],
+            "output_file": "/home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Slits_A_0_DET01.fits.gz",
+            "status": "success",
+            "nslits": 1,
+            "slits": {
+                "175": {
+                    "status": "success",
+                    "center": 174.9310519608589
+                }
+            }
+        }
+    ],
+    "wv_calib": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "wv_calib",
+            "required": true,
+            "input_files": [
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b1.fits.gz"
+            ],
+            "output_file": "/home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/WaveCalib_A_0_DET01.fits",
+            "status": "success",
+            "slits": {
+                "175": {
+                    "status": "success",
+                    "rms": 0.07389786949070962
+                }
+            }
+        }
+    ],
+    "tilts": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "tilts",
+            "required": true,
+            "input_files": [
+                "/home/abowman/uco_work/sample_data/600_4310_d55/b1.fits.gz"
+            ],
+            "output_file": "/home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Tilts_A_0_DET01.fits",
+            "status": "success",
+            "slits": {
+                "175": {
+                    "status": "success"
+                }
+            }
+        }
+    ],
+    "scattlight": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "scattlight",
+            "required": false,
+            "status": "undone"
+        }
+    ],
+    "flats": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "flats",
+            "required": true,
+            "output_file": "/home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Flat_A_0_DET01.fits",
+            "status": "success",
+            "types": [
+                "pixelflat"
+            ]
+        }
+    ],
+    "align": []
+}

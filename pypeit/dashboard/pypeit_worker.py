@@ -29,7 +29,6 @@ def run_pypeit_main_wrapper(args):
 
 def PypeItWorker(setup_file_path,log_queue):
 
-    log.addHandler(QueueHandler(log_queue))
 
     parser = RunPypeIt.get_parser()
 
@@ -41,4 +40,23 @@ def PypeItWorker(setup_file_path,log_queue):
     # RunPypeIt.main(args)
     return run_pypeit_main_wrapper(args)
 
+def check_pypeit_status(setup_file_path):
 
+    parser = RunPypeIt.get_parser()
+
+    args = parser.parse_args([
+        setup_file_path,
+    ])
+
+    pypeIt = pypeit.PypeIt(
+            args.pypeit_file,
+            reuse_calibs=True,
+            calib_only=True)
+
+    pypeIt.calib_all(status_only=True, reload_only=True)
+
+    # Write state to JSON
+    pypeIt.run_state.write()
+
+    # Pretty-print the state
+    pypeIt.run_state.print_status()
