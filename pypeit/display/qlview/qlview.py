@@ -91,6 +91,9 @@ class QLView(GingaPlugin.LocalPlugin):
         self._trace_timers: Dict[str, object] = {}
         self._trace_last_exten: Dict[str, Optional[int]] = {}
 
+        # Suppress tree activation events briefly after settings dialog closes
+        self._suppress_activate: bool = False
+
         # Manual extraction state
         self.manual_extract_mode: bool = False
         self._manual_x: Optional[float] = None
@@ -324,20 +327,34 @@ class QLView(GingaPlugin.LocalPlugin):
         self.reduced_filter_nonfits = red_nonfits_cb.isChecked()
         self.reduced_filter_dirs = red_dirs_cb.isChecked()
 
-        raw_base = self._get_tree_base_dir(self.state.raw_filepath)
+        # Use the parent of whatever state path is set — this is the directory
+        # whose contents the tree is currently showing (whether filepath points
+        # to the browse root glob, a selected subdir, or a selected file).
+        def _filter_base(filepath):
+            if not filepath:
+                return None
+            return os.path.abspath(os.path.join(filepath, os.pardir))
+
+        raw_base = _filter_base(self.state.raw_filepath)
         if raw_base:
             self._apply_file_filter(
                 self.raw_treeview, raw_base,
                 self.raw_filter_fits, self.raw_filter_nonfits, self.raw_filter_dirs,
                 name_col_idx=self._raw_name_col_idx,
             )
-        reduced_base = self._get_tree_base_dir(self.state.reduced_filepath)
+        reduced_base = _filter_base(self.state.reduced_filepath)
         if reduced_base:
             self._apply_file_filter(
                 self.reduced_treeview, reduced_base,
                 self.reduced_filter_fits, self.reduced_filter_nonfits, self.reduced_filter_dirs,
                 name_col_idx=self._reduced_name_col_idx,
             )
+
+        # Suppress any spurious tree-activation events (e.g. a stray Enter
+        # keypress from the dialog OK button) for a brief window after OK.
+        from ginga.qtw.QtHelp import QtCore
+        self._suppress_activate = True
+        QtCore.QTimer.singleShot(300, lambda: setattr(self, "_suppress_activate", False))
 
     def hide_reduced_tree_cb(self, w, val):
         if val:
@@ -586,11 +603,10 @@ class QLView(GingaPlugin.LocalPlugin):
         self._register_reduction_timer(raw_path, run_dir, slit_key, log_path)
 
     def _register_reduction_timer(
-        self, raw_path: str, redux_path: str, slit_key: str, log_path: str
+        self, raw_path: str, run_dir: str, slit_key: str, log_path: str
     ) -> None:
         raw_stem = Path(raw_path).name.split(".fits")[0]
         timer_key = f"{raw_stem}_{slit_key}"
-        science_dir = os.path.join(redux_path, raw_stem, "Science")
 
         existing = self.reduction_timers.get(timer_key)
         if existing is not None:
@@ -602,13 +618,13 @@ class QLView(GingaPlugin.LocalPlugin):
         timer = self.fitsimage.make_timer()
         timer.add_callback(
             "expired",
-            lambda t: self._check_reduction_complete(timer_key, science_dir, slit_key, log_path),
+            lambda t: self._check_reduction_complete(timer_key, run_dir, slit_key, log_path),
         )
         self.reduction_timers[timer_key] = timer
         timer.set(self.reduction_cadence)
 
     def _check_reduction_complete(
-        self, timer_key: str, science_dir: str, slit_key: str, log_path: str
+        self, timer_key: str, run_dir: str, slit_key: str, log_path: str
     ) -> None:
         import time as _time
         timer = self.reduction_timers.get(timer_key)
@@ -647,7 +663,11 @@ class QLView(GingaPlugin.LocalPlugin):
             self.reduction_start_times.pop(timer_key, None)
             return
 
-        spec1d_files = self.file_backend.glob(science_dir, "spec1d*.fits*")
+        # Search for spec1d files in any subdirectory's Science/ folder.
+        # For single-frame reductions ql.py creates {raw_stem}/Science/; for
+        # AB pairs it creates {A_stem}-{B_stem}/Science/, so we can't predict
+        # the exact path — search one level deep instead.
+        spec1d_files = self.file_backend.glob(run_dir, "*/Science/spec1d*.fits*")
         if spec1d_files:
             spec1d_path = spec1d_files[0]
             self.logger.info(f"Reduction complete for {timer_key}: {spec1d_path}")
@@ -885,6 +905,8 @@ class QLView(GingaPlugin.LocalPlugin):
             self.slit_canvas.update_canvas(whence=3)
 
     def reduced_table_double_click_cb(self, w, res_dict):
+        if self._suppress_activate:
+            return
         paths = [info.path for key, info in res_dict.items()]
         if not paths:
             return
@@ -911,6 +933,8 @@ class QLView(GingaPlugin.LocalPlugin):
         self.show_wavelengths_btn.set_enabled(False)
 
     def raw_table_double_click_cb(self, w, res_dict):
+        if self._suppress_activate:
+            return
         paths = [info.path for key, info in res_dict.items()]
         if not paths:
             return
