@@ -397,16 +397,19 @@ def generate_sci_pypeitfile(redux_path:str,
     cfg_lines.merge(configobj.ConfigObj(cfg))
     cfg_lines = cfg_lines.write()
 
-    # Populate the manual extraction column for science frames if requested
+    # Populate the manual extraction column for science frames if requested.
+    # Use np.where to replace the whole column so numpy does not truncate the
+    # string into the narrow '<U1' dtype that the default '' initializer creates.
     if manual_extract is not None:
         sci_idx = ps_sci.fitstbl.find_frames('science')
-        ps_sci.fitstbl['manual'][sci_idx] = manual_extract
+        ps_sci.fitstbl['manual'] = np.where(sci_idx, manual_extract, '')
 
     # Write the pypeit file (note this returns the filename, not the list,
     # because of the [0] at the end of the call)
     return ps_sci.fitstbl.write_pypeit(output_path=sci_dir, cfg_lines=cfg_lines,
                                        write_bkg_pairs=True, configs=setup,
-                                       config_subdir=False)[0]
+                                       config_subdir=False,
+                                       write_manual=manual_extract is not None)[0]
 
 
 def calib_manifest(calib_dir, spectrograph):
