@@ -599,11 +599,13 @@ class QLView(GingaPlugin.LocalPlugin):
 
         threading.Thread(target=_run, daemon=True).start()
 
-        self._make_reduction_row(slit_key, raw_path, now.strftime("%H:%M:%S"))
-        self._register_reduction_timer(raw_path, run_dir, slit_key, log_path)
+        coadd2d = self.coadd2d_box.get_state()
+        self._make_reduction_row(slit_key, raw_path, now.strftime("%H:%M:%S"), coadd2d=coadd2d)
+        self._register_reduction_timer(raw_path, run_dir, slit_key, log_path, coadd2d=coadd2d)
 
     def _register_reduction_timer(
-        self, raw_path: str, run_dir: str, slit_key: str, log_path: str
+        self, raw_path: str, run_dir: str, slit_key: str, log_path: str,
+        coadd2d: bool = False,
     ) -> None:
         raw_stem = Path(raw_path).name.split(".fits")[0]
         timer_key = f"{raw_stem}_{slit_key}"
@@ -618,26 +620,32 @@ class QLView(GingaPlugin.LocalPlugin):
         timer = self.fitsimage.make_timer()
         timer.add_callback(
             "expired",
-            lambda t: self._check_reduction_complete(timer_key, run_dir, slit_key, log_path),
+            lambda t: self._check_reduction_complete(
+                timer_key, run_dir, slit_key, log_path, coadd2d=coadd2d
+            ),
         )
         self.reduction_timers[timer_key] = timer
         timer.set(self.reduction_cadence)
 
     def _check_reduction_complete(
-        self, timer_key: str, run_dir: str, slit_key: str, log_path: str
+        self, timer_key: str, run_dir: str, slit_key: str, log_path: str,
+        coadd2d: bool = False,
     ) -> None:
         import time as _time
         timer = self.reduction_timers.get(timer_key)
+        control = self.reduction_control_elements.get(slit_key)
 
-        def _fail(msg: str) -> None:
-            self.logger.warning(msg)
-            control = self.reduction_control_elements.get(slit_key)
-            if control is not None:
-                control["label"].set_text(f"Error {slit_key}")
+        def _stop_timer() -> None:
             if timer is not None:
                 timer.cancel()
                 self.reduction_timers.pop(timer_key, None)
             self.reduction_start_times.pop(timer_key, None)
+
+        def _fail(msg: str) -> None:
+            self.logger.warning(msg)
+            if control is not None:
+                control["label"].set_text(f"Error {slit_key}")
+            _stop_timer()
 
         # Timeout check
         start = self.reduction_start_times.get(timer_key)
@@ -654,26 +662,45 @@ class QLView(GingaPlugin.LocalPlugin):
             log_path, "No science frames found among the files provided."
         ):
             self.logger.warning(f"Reduction failed for {timer_key}: no science frames found.")
-            control = self.reduction_control_elements.get(slit_key)
             if control is not None:
                 control["label"].set_text(f"Failed {slit_key}: not a science frame")
-            if timer is not None:
-                timer.cancel()
-                self.reduction_timers.pop(timer_key, None)
-            self.reduction_start_times.pop(timer_key, None)
+            _stop_timer()
             return
 
-        # Search for spec1d files in any subdirectory's Science/ folder.
+        # Phase 2 (coadd2d only): regular spec1d already found; wait for
+        # science_coadd output from the CoAdd2D pipeline.
+        if coadd2d and control is not None and control.get("spec1d_found"):
+            coadd_files = self.file_backend.glob(run_dir, "*/science_coadd/spec1d*.fits*")
+            if coadd_files:
+                coadd_path = coadd_files[0]
+                self.logger.info(f"CoAdd2D complete for {timer_key}: {coadd_path}")
+                control["label"].set_text(f"Reduced {slit_key}")
+                control["btn_coadd2d"].set_enabled(True)
+                control["btn_coadd2d"].add_callback(
+                    "activated",
+                    lambda w, p=coadd_path, k=slit_key: self.show_spec1d_cb(
+                        w, path=p, slit_key=f"{k}_coadd2d"
+                    ),
+                )
+                _stop_timer()
+            else:
+                self.logger.info(
+                    f"Waiting for science_coadd output for {timer_key}; "
+                    f"rechecking in {self.reduction_cadence}s"
+                )
+                if timer is not None:
+                    timer.set(self.reduction_cadence)
+            return
+
+        # Phase 1: look for the regular per-frame spec1d in Science/.
         # For single-frame reductions ql.py creates {raw_stem}/Science/; for
-        # AB pairs it creates {A_stem}-{B_stem}/Science/, so we can't predict
-        # the exact path — search one level deep instead.
+        # AB pairs it creates {A_stem}-{B_stem}/Science/, so search one level deep.
         spec1d_files = self.file_backend.glob(run_dir, "*/Science/spec1d*.fits*")
         if spec1d_files:
             spec1d_path = spec1d_files[0]
             self.logger.info(f"Reduction complete for {timer_key}: {spec1d_path}")
-            control = self.reduction_control_elements.get(slit_key)
             if control is not None:
-                control["label"].set_text(f"Reduced {slit_key}")
+                control["spec1d_found"] = True
                 control["button"].set_enabled(True)
                 control["button"].add_callback(
                     "activated",
@@ -682,25 +709,28 @@ class QLView(GingaPlugin.LocalPlugin):
                 control["btn_traces"].set_enabled(True)
                 control["btn_traces"].add_callback(
                     "activated",
-                    lambda w, p=spec1d_path, k=slit_key: self.show_traces_cb(w, slit_key=k, spec1d_path=p),
+                    lambda w, p=spec1d_path, k=slit_key: self.show_traces_cb(
+                        w, slit_key=k, spec1d_path=p
+                    ),
                 )
-            if timer is not None:
-                timer.cancel()
-                self.reduction_timers.pop(timer_key, None)
-            self.reduction_start_times.pop(timer_key, None)
+                if coadd2d:
+                    control["label"].set_text(f"Coadd2D {slit_key}...")
+                    if timer is not None:
+                        timer.set(self.reduction_cadence)
+                    return
+                control["label"].set_text(f"Reduced {slit_key}")
+            _stop_timer()
             return
 
         # Reduction finished (pipeline exited) but produced no spec1d — extraction failed.
         if self.file_backend.check_log_for_failure(log_path, "Quicklook execution time"):
-            self.logger.warning(f"Reduction finished for {timer_key} but no spec1d written — extraction failed.")
-            control = self.reduction_control_elements.get(slit_key)
+            self.logger.warning(
+                f"Reduction finished for {timer_key} but no spec1d written — extraction failed."
+            )
             if control is not None:
                 control["label"].set_text(f"Extraction failed {slit_key}")
                 control["button"].set_enabled(True)
-            if timer is not None:
-                timer.cancel()
-                self.reduction_timers.pop(timer_key, None)
-            self.reduction_start_times.pop(timer_key, None)
+            _stop_timer()
             return
 
         self.logger.info(
@@ -716,11 +746,14 @@ class QLView(GingaPlugin.LocalPlugin):
         self.state.active_slit_key = w.get_text().split()[0]
         self.overlay.activate(self.state.active_slit_key, self.slit_canvas)
 
-    def _make_reduction_row(self, slit_key: str, raw_path: str, start_time: str) -> None:
+    def _make_reduction_row(
+        self, slit_key: str, raw_path: str, start_time: str, coadd2d: bool = False
+    ) -> None:
         """Add a per-slit status row to vbox_redux.
 
         Displays the source filename, start time, a status label, a Show
-        button (initially disabled), and a Remove button.
+        button (initially disabled), an optional Show CoAdd2D button (when
+        coadd2d=True), and a Remove button.
         """
         from ginga.gw import Widgets as GWidgets
 
@@ -733,7 +766,7 @@ class QLView(GingaPlugin.LocalPlugin):
         hbox_info.add_widget(GWidgets.Label(f"{filename}  |  started {start_time}"), stretch=1)
         vbox.add_widget(hbox_info, stretch=0)
 
-        # Bottom line: status label, Show Traces button, Show button, Remove button
+        # Bottom line: status label, Show Traces, Show, [Show CoAdd2D], Remove
         hbox_controls = GWidgets.HBox()
         label = GWidgets.Label(f"Reducing {slit_key}...")
         btn_traces = GWidgets.Button("Show Traces")
@@ -745,6 +778,13 @@ class QLView(GingaPlugin.LocalPlugin):
         hbox_controls.add_widget(label, stretch=1)
         hbox_controls.add_widget(btn_traces, stretch=0)
         hbox_controls.add_widget(btn_show, stretch=0)
+
+        btn_coadd2d = None
+        if coadd2d:
+            btn_coadd2d = GWidgets.Button("Show CoAdd2D")
+            btn_coadd2d.set_enabled(False)
+            hbox_controls.add_widget(btn_coadd2d, stretch=0)
+
         hbox_controls.add_widget(btn_remove, stretch=0)
         vbox.add_widget(hbox_controls, stretch=0)
 
@@ -771,6 +811,8 @@ class QLView(GingaPlugin.LocalPlugin):
             "label": label,
             "button": btn_show,
             "btn_traces": btn_traces,
+            "btn_coadd2d": btn_coadd2d,
+            "spec1d_found": False,
             "vbox": vbox,
         }
 
