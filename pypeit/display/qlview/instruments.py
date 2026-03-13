@@ -47,6 +47,22 @@ class Instrument:
     detector_prefix: str = "MSC"  # Prefix for --slitspatnum (MSC for mosaics, DET for single detectors)
 
     def __init__(self, logger) -> None:
+        """Initialise the instrument with a logger and default column definitions.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Ginga application logger used for debug/warning messages throughout
+            the class hierarchy.
+
+        Notes
+        -----
+        ``self.columns`` is a dict with keys ``"raw"`` and ``"reduced"``.
+        Each value is a list of ``(display_name, attr_name)`` tuples that match
+        the format expected by ``Ginga.gw.Widgets.TreeView.setup_table()``.
+        Subclasses should replace or extend these lists in their own
+        ``__init__`` to suit the instrument's FITS header vocabulary.
+        """
         self.logger = logger
         # Per-view column definitions: keys are "raw" and "reduced".
         # Each value is a list of (display_name, attr_name) tuples matching
@@ -57,15 +73,72 @@ class Instrument:
         }
 
     def get_display_image(self, raw_path: str) -> np.ndarray:
+        """Return a 2-D float array suitable for display in the Ginga viewer.
+
+        Parameters
+        ----------
+        raw_path : str
+            Absolute path to a raw FITS file for this instrument.
+
+        Returns
+        -------
+        numpy.ndarray
+            2-D array with shape ``(nrows, ncols)`` in display orientation
+            (spatial axis along columns, spectral axis along rows).
+
+        Raises
+        ------
+        NotImplementedError
+            Subclasses must override this method.
+        """
         raise NotImplementedError
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
+        """Read per-file display metadata from a raw FITS file.
+
+        The returned dict is merged into the ``Bunch`` that populates a row in
+        the raw-data tree view.  Keys must match the ``attr_name`` entries in
+        ``self.columns["raw"]``.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a raw FITS file.
+
+        Returns
+        -------
+        dict
+            Mapping of column attribute name → display value (typically a
+            string or number).
+
+        Raises
+        ------
+        NotImplementedError
+            Subclasses must override this method.
+        """
         raise NotImplementedError
 
     def get_reduced_info(self, path: str) -> Dict[str, object]:
         """Read metadata from a reduced FITS file or calibration directory.
 
-        Subclasses should override this to map instrument-specific keys.
+        Called by :class:`~.backends.LocalFileBrowserBackend` when populating
+        the reduced-data tree view.  For calibration *directories* the
+        preferred source is the ``.pypeit`` setup file (via
+        :meth:`_read_pypeit_setup_config`); for individual FITS files the
+        primary FITS header is used.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a reduced FITS file **or** a calibration
+            directory (e.g. ``keck_mosfire_A/``).
+
+        Returns
+        -------
+        dict
+            Mapping of column attribute name → display value.  Keys must
+            match the ``attr_name`` entries in ``self.columns["reduced"]``.
+            Returns an empty dict when no metadata can be extracted.
         """
         return {}
 
@@ -203,6 +276,33 @@ class Instrument:
 
     @staticmethod
     def _read_header_fields(header) -> Dict[str, object]:
+        """Extract the common set of display fields from a raw FITS primary header.
+
+        This is a convenience helper called by subclass ``get_raw_info``
+        implementations.  It populates the keys shared by all instruments;
+        subclasses should override individual entries afterward to handle
+        instrument-specific keyword names.
+
+        Parameters
+        ----------
+        header : astropy.io.fits.Header
+            Primary HDU header of a raw FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``OBJECT``, ``FRAMENO``, ``IMTYPE``, ``MASKNAME``,
+            ``OBSMODE``, ``EXPTIME``.  ``EXPTIME`` falls back through
+            ``TTIME``, ``ITIME``, ``ETIME``, and ``ELAPTIME`` in that order.
+
+        Examples
+        --------
+        Typical usage inside a subclass ``get_raw_info``::
+
+            info = self._read_header_fields(hdr)
+            info["MASKNAME"] = hdr.get("SLMSKNAM", "N/A")   # DEIMOS override
+            return info
+        """
         header_dict = {
             "OBJECT": header.get("OBJECT", "N/A"),
             "FRAMENO": header.get("FRAMENO", "N/A"),
@@ -226,11 +326,34 @@ class DEIMOS(Instrument):
     instrume_value = "DEIMOS"
 
     def __init__(self, logger) -> None:
+        """Initialise the DEIMOS instrument with Keck-DEIMOS–specific column definitions.
+
+        Overrides the base raw column list to use the DEIMOS FITS vocabulary
+        (``SLMSKNAM``, ``GRATENAM``, ``DWFILNAM``, ``ELAPTIME``) and sets
+        instrument-specific reduced columns.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Ginga application logger.
+        """
         super().__init__(logger)
         self.pypeit_name = "keck_deimos"
-        # Raw columns same as base; override reduced with DEIMOS-specific labels.
-        # MASKNAME → decker (slit/mask), FILTER → dispname (grating),
-        # SLITWIDTH → filter1 (blocking filter — most useful distinguishing column).
+        # DEIMOS-specific raw columns: SLMSKNAM for mask, GRATENAM for grating,
+        # DWFILNAM for blocking filter, TARGNAME for object, ELAPTIME for exp time.
+        self.columns["raw"] = [
+            ("Type", "icon"),
+            ("Frame No", "FRAMENO"),
+            ("Name", "name"),
+            ("Object", "OBJECT"),
+            ("Img Type", "IMTYPE"),
+            ("Mask Name", "MASKNAME"),
+            ("Grating", "GRATING"),
+            ("Filter", "FILTER1"),
+            ("Exp Time", "EXPTIME"),
+            ("Last Changed", "st_mtime_str"),
+        ]
+        # Reduced columns: read from pypeit config keys (decker, dispname, filter1)
         self.columns["reduced"] = [
             ("Type", "icon"),
             ("Name", "name"),
@@ -239,6 +362,40 @@ class DEIMOS(Instrument):
             ("Blocking Filter", "SLITWIDTH"),
             ("Last Changed", "st_mtime_str"),
         ]
+
+    def get_raw_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a DEIMOS raw FITS file.
+
+        Overrides :meth:`Instrument.get_raw_info` to use the DEIMOS-specific
+        FITS keyword names, which differ from the KOA defaults assumed by
+        :meth:`Instrument._read_header_fields`.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a DEIMOS raw FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``OBJECT`` (``TARGNAME``), ``FRAMENO``, ``IMTYPE``
+            (``KOAIMTYP``), ``MASKNAME`` (``SLMSKNAM``), ``GRATING``
+            (``GRATENAM``), ``FILTER1`` (``DWFILNAM``), ``EXPTIME``
+            (``ELAPTIME`` → ``EXPTIME``).
+        """
+        with fits.open(path) as hdul:
+            hdr = hdul[0].header
+            info = self._read_header_fields(hdr)
+            # DEIMOS uses TARGNAME (not OBJECT), SLMSKNAM (not MASKNAME),
+            # GRATENAM for grating, DWFILNAM for blocking filter,
+            # ELAPTIME for exposure time, and KOAIMTYP for image type.
+            info["OBJECT"] = hdr.get("TARGNAME", hdr.get("OBJECT", "N/A"))
+            info["MASKNAME"] = hdr.get("SLMSKNAM", "N/A")
+            info["GRATING"] = hdr.get("GRATENAM", "N/A")
+            info["FILTER1"] = hdr.get("DWFILNAM", "N/A")
+            info["IMTYPE"] = hdr.get("KOAIMTYP", "N/A")
+            info["EXPTIME"] = hdr.get("ELAPTIME", hdr.get("EXPTIME", "N/A"))
+            return info
 
     def get_display_image(self, raw_path: str) -> np.ndarray:
         """Build an overscan-subtracted display image of all 8 DEIMOS detectors.
@@ -271,11 +428,27 @@ class DEIMOS(Instrument):
         r1 = np.concatenate([np.fliplr(c) for c in chips[4:]], axis=1)
         return np.concatenate((r1, r0), axis=0)
 
-    def get_raw_info(self, path: str) -> Dict[str, object]:
-        with fits.open(path) as hdul:
-            return self._read_header_fields(hdul[0].header)
-
     def get_reduced_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a DEIMOS calibration directory or reduced file.
+
+        Overrides :meth:`Instrument.get_reduced_info`.  For calibration
+        *directories* the ``.pypeit`` setup file is the authoritative source
+        and is read via :meth:`_read_pypeit_setup_config`.  For individual
+        FITS files the primary header is used as a fallback.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a calibration directory (e.g. ``keck_deimos_A/``)
+            or a reduced FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``MASKNAME`` (PypeIt ``decker`` / ``SLMSKNAM``),
+            ``FILTER`` (grating name, PypeIt ``dispname`` / ``GRATENAM``),
+            ``SLITWIDTH`` (blocking filter, PypeIt ``filter1``).
+        """
         if os.path.isdir(path):
             # Prefer metadata from the pypeit file in this calibration directory.
             # DEIMOS configuration_keys: dispname (grating), decker (slit/mask),
@@ -306,6 +479,17 @@ class MOSFIRE(Instrument):
     detector_prefix = "DET"
 
     def __init__(self, logger) -> None:
+        """Initialise the MOSFIRE instrument with Keck-MOSFIRE–specific column definitions.
+
+        Extends the base raw column list with a "Dither Pos" column decoded
+        from the ``PATTERN``/``FRAMEID`` FITS headers, and sets MOSFIRE-specific
+        reduced columns.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Ginga application logger.
+        """
         super().__init__(logger)
         self.pypeit_name = "keck_mosfire"
         raw_cols = list(_BASE_RAW_COLUMNS)
@@ -315,6 +499,23 @@ class MOSFIRE(Instrument):
         self.columns["reduced"] = list(_MOSFIRE_REDUCED_COLUMNS)
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a MOSFIRE raw FITS file.
+
+        Overrides :meth:`Instrument.get_raw_info` to add the ``DITHER_POS``
+        field: ``"N/A"`` when the pattern is ``"Stare"``, otherwise the
+        ``FRAMEID`` value (e.g. ``"A"``, ``"B"``).
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a MOSFIRE raw FITS file.
+
+        Returns
+        -------
+        dict
+            All keys from :meth:`Instrument._read_header_fields` plus
+            ``DITHER_POS``.
+        """
         with fits.open(path) as hdul:
             hdr = hdul[0].header
             info = self._read_header_fields(hdr)
@@ -338,6 +539,27 @@ class MOSFIRE(Instrument):
         return img.image
 
     def get_reduced_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a MOSFIRE calibration directory or reduced file.
+
+        Overrides :meth:`Instrument.get_reduced_info`.  For calibration
+        directories the ``.pypeit`` setup file is parsed via
+        :meth:`_read_pypeit_setup_config`; for FITS files the primary header
+        is used.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a calibration directory (e.g. ``keck_mosfire_A/``)
+            or a reduced FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``MASKNAME`` (CSU mask, PypeIt ``decker_secondary``),
+            ``FILTER1`` (bandpass filter, PypeIt ``filter1``),
+            ``FILTER2`` (dispname/order-blocking), ``SLITWIDTH``
+            (slit width, PypeIt ``slitwid``).
+        """
         if os.path.isdir(path):
             # MOSFIRE configuration_keys: decker_secondary (CSU mask name),
             # slitlength, slitwid, dispname, filter1.
@@ -373,6 +595,17 @@ class NIRES(Instrument):
     detector_prefix = "DET"
 
     def __init__(self, logger) -> None:
+        """Initialise the NIRES instrument with Keck-NIRES–specific column definitions.
+
+        Defines a custom raw column list that omits mask/obsmode columns
+        (NIRES is fixed-format) and adds a ``DITHER_POS`` column decoded from
+        the ``DPATNAME``/``DPATIPOS`` header pair.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Ginga application logger.
+        """
         super().__init__(logger)
         self.pypeit_name = "keck_nires"
         self.columns["raw"] = [
@@ -389,6 +622,25 @@ class NIRES(Instrument):
         self.columns["reduced"] = list(_BASE_REDUCED_COLUMNS)
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a NIRES raw FITS file.
+
+        Overrides :meth:`Instrument.get_raw_info` to handle NIRES-specific
+        header keywords: ``FRAMENUM`` (not ``FRAMENO``), ``ITIME`` (not
+        ``ELAPTIME``), ``OBSTYPE`` (not ``KOAIMTYP``), and the
+        ``DPATNAME``/``DPATIPOS`` dither-position pair.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a NIRES raw FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``FRAMENO`` (``FRAMENUM``), ``OBJECT`` (``TARGNAME``),
+            ``IMTYPE`` (``OBSTYPE``), ``EXPTIME`` (``ITIME``),
+            ``DITHER_POS`` (character decoded from ``DPATNAME[DPATIPOS-1]``).
+        """
         with fits.open(path) as hdul:
             hdr = hdul[0].header
             info = self._read_header_fields(hdr)
@@ -408,6 +660,21 @@ class NIRES(Instrument):
             return info
 
     def get_display_image(self, raw_path: str) -> np.ndarray:
+        """Build an overscan-subtracted, oriented display image for NIRES.
+
+        Delegates to PypeIt's ``buildimage_fromlist`` with ``biasframe``
+        processing parameters (overscan subtraction, trimming, orientation).
+
+        Parameters
+        ----------
+        raw_path : str
+            Absolute path to a NIRES raw FITS file.
+
+        Returns
+        -------
+        numpy.ndarray
+            Processed 2-D image array.
+        """
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.images import buildimage
 
@@ -417,6 +684,24 @@ class NIRES(Instrument):
         return img.image
 
     def get_reduced_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a NIRES calibration directory or reduced file.
+
+        Overrides :meth:`Instrument.get_reduced_info`.  NIRES is a
+        fixed-format echelle so the reduced columns only carry slit/decker
+        information parsed from the ``.pypeit`` file.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a calibration directory (e.g. ``keck_nires_A/``)
+            or a reduced FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``MASKNAME`` (decker/slit), ``FILTER`` (dispname),
+            ``SLITWIDTH`` (slit width).
+        """
         if os.path.isdir(path):
             cfg = self._read_pypeit_setup_config(path)
             return {
@@ -453,6 +738,17 @@ class LRISBlue(Instrument):
     detector_prefix = "MSC"
 
     def __init__(self, logger) -> None:
+        """Initialise the LRIS Blue instrument with Keck-LRIS–Blue–specific column definitions.
+
+        Defines raw columns for grism (``GRISNAME``) and dichroic
+        (``DICHNAME``) and uses the shared ``_LRIS_REDUCED_COLUMNS`` for
+        the reduced view.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Ginga application logger.
+        """
         super().__init__(logger)
         self.pypeit_name = "keck_lris_blue"
         raw_cols = [
@@ -471,6 +767,24 @@ class LRISBlue(Instrument):
         self.columns["reduced"] = list(_LRIS_REDUCED_COLUMNS)
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from an LRIS Blue raw FITS file.
+
+        Overrides :meth:`Instrument.get_raw_info` to populate LRIS Blue
+        column keys: slit/mask (``SLITNAME``), grism (``GRISNAME``), and
+        dichroic (``DICHNAME``).
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to an LRIS Blue raw FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``OBJECT`` (``TARGNAME``), ``IMTYPE`` (``KOAIMTYP``),
+            ``MASKNAME`` (``SLITNAME``), ``GRISNAME``, ``DICHNAME``,
+            plus all keys from :meth:`Instrument._read_header_fields`.
+        """
         with fits.open(path) as hdul:
             hdr = hdul[0].header
             info = self._read_header_fields(hdr)
@@ -482,6 +796,21 @@ class LRISBlue(Instrument):
             return info
 
     def get_display_image(self, raw_path: str) -> np.ndarray:
+        """Build an overscan-subtracted, oriented display image for LRIS Blue.
+
+        Delegates to PypeIt's ``buildimage_fromlist`` with ``biasframe``
+        processing parameters applied to the 2-detector mosaic.
+
+        Parameters
+        ----------
+        raw_path : str
+            Absolute path to an LRIS Blue raw FITS file.
+
+        Returns
+        -------
+        numpy.ndarray
+            Processed 2-D image array.
+        """
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.images import buildimage
 
@@ -491,6 +820,24 @@ class LRISBlue(Instrument):
         return img.image
 
     def get_reduced_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from an LRIS Blue calibration directory or reduced file.
+
+        Overrides :meth:`Instrument.get_reduced_info`.  For calibration
+        directories the ``.pypeit`` setup file is parsed.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a calibration directory (e.g. ``keck_lris_blue_A/``)
+            or a reduced FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``SLITNAME`` (PypeIt ``decker``), ``DISPNAME`` (grism,
+            PypeIt ``dispname``), ``DICHNAME`` (dichroic, PypeIt
+            ``dichroic``).
+        """
         if os.path.isdir(path):
             cfg = self._read_pypeit_setup_config(path)
             return {
@@ -517,6 +864,17 @@ class LRISRed(Instrument):
     detector_prefix = "DET"
 
     def __init__(self, logger) -> None:
+        """Initialise the LRIS Red instrument with Keck-LRIS–Red–specific column definitions.
+
+        Defines raw columns for grating (``GRANAME``) and dichroic
+        (``DICHNAME``) and uses the shared ``_LRIS_REDUCED_COLUMNS`` for
+        the reduced view.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Ginga application logger.
+        """
         super().__init__(logger)
         self.pypeit_name = "keck_lris_red_mark4"
         raw_cols = [
@@ -535,6 +893,24 @@ class LRISRed(Instrument):
         self.columns["reduced"] = list(_LRIS_REDUCED_COLUMNS)
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from an LRIS Red raw FITS file.
+
+        Overrides :meth:`Instrument.get_raw_info` to populate LRIS Red column
+        keys: slit/mask (``SLITNAME``), grating (``GRANAME``), and dichroic
+        (``DICHNAME``).
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to an LRIS Red raw FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``OBJECT`` (``TARGNAME``), ``IMTYPE`` (``KOAIMTYP``),
+            ``MASKNAME`` (``SLITNAME``), ``GRANAME``, ``DICHNAME``,
+            plus all keys from :meth:`Instrument._read_header_fields`.
+        """
         with fits.open(path) as hdul:
             hdr = hdul[0].header
             info = self._read_header_fields(hdr)
@@ -546,6 +922,21 @@ class LRISRed(Instrument):
             return info
 
     def get_display_image(self, raw_path: str) -> np.ndarray:
+        """Build an overscan-subtracted, oriented display image for LRIS Red.
+
+        Delegates to PypeIt's ``buildimage_fromlist`` with ``biasframe``
+        processing parameters for the Mark4 single-detector configuration.
+
+        Parameters
+        ----------
+        raw_path : str
+            Absolute path to an LRIS Red raw FITS file.
+
+        Returns
+        -------
+        numpy.ndarray
+            Processed 2-D image array.
+        """
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.images import buildimage
 
@@ -555,6 +946,24 @@ class LRISRed(Instrument):
         return img.image
 
     def get_reduced_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from an LRIS Red calibration directory or reduced file.
+
+        Overrides :meth:`Instrument.get_reduced_info`.  For calibration
+        directories the ``.pypeit`` setup file is parsed.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a calibration directory (e.g.
+            ``keck_lris_red_mark4_A/``) or a reduced FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``SLITNAME`` (PypeIt ``decker``), ``DISPNAME`` (grating,
+            PypeIt ``dispname``), ``DICHNAME`` (dichroic, PypeIt
+            ``dichroic``).
+        """
         if os.path.isdir(path):
             cfg = self._read_pypeit_setup_config(path)
             return {
@@ -581,6 +990,17 @@ class NIRSPEC(Instrument):
     detector_prefix = "DET"
 
     def __init__(self, logger) -> None:
+        """Initialise the NIRSPEC instrument with Keck-NIRSPEC–specific column definitions.
+
+        Defines raw columns for dual science filters (``SCIFILT1``,
+        ``SCIFILT2``) and slit name (``SLITNAME``), and sets instrument-
+        specific reduced columns.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Ginga application logger.
+        """
         super().__init__(logger)
         self.pypeit_name = "keck_nirspec_high"
         raw_cols = [
@@ -606,6 +1026,26 @@ class NIRSPEC(Instrument):
         ]
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a NIRSPEC raw FITS file.
+
+        Overrides :meth:`Instrument.get_raw_info` to handle NIRSPEC-specific
+        header keywords: ``FRAMENUM`` (not ``FRAMENO``), ``TRUITIME`` (ramp
+        integration time, not ``ELAPTIME``), ``IMTYPE`` (not ``KOAIMTYP``),
+        and dual science filters ``SCIFILT1``/``SCIFILT2``.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a NIRSPEC raw FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``FRAMENO`` (``FRAMENUM``), ``OBJECT`` (``TARGNAME``),
+            ``IMTYPE``, ``EXPTIME`` (``TRUITIME``), ``MASKNAME``
+            (``SLITNAME``), ``FILTER1`` (``SCIFILT1``), ``FILTER2``
+            (``SCIFILT2``).
+        """
         with fits.open(path) as hdul:
             hdr = hdul[0].header
             info = self._read_header_fields(hdr)
@@ -621,6 +1061,21 @@ class NIRSPEC(Instrument):
             return info
 
     def get_display_image(self, raw_path: str) -> np.ndarray:
+        """Build an overscan-subtracted, oriented display image for NIRSPEC.
+
+        Delegates to PypeIt's ``buildimage_fromlist`` with ``biasframe``
+        processing parameters for the single-detector configuration.
+
+        Parameters
+        ----------
+        raw_path : str
+            Absolute path to a NIRSPEC raw FITS file.
+
+        Returns
+        -------
+        numpy.ndarray
+            Processed 2-D image array.
+        """
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.images import buildimage
 
@@ -630,6 +1085,23 @@ class NIRSPEC(Instrument):
         return img.image
 
     def get_reduced_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a NIRSPEC calibration directory or reduced file.
+
+        Overrides :meth:`Instrument.get_reduced_info`.  For calibration
+        directories the ``.pypeit`` setup file is parsed.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a calibration directory (e.g.
+            ``keck_nirspec_high_A/``) or a reduced FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``SLITNAME`` (PypeIt ``decker``), ``FILTER1`` (PypeIt
+            ``filter1``), ``FILTER2`` (PypeIt ``filter2``).
+        """
         if os.path.isdir(path):
             cfg = self._read_pypeit_setup_config(path)
             return {
@@ -661,6 +1133,18 @@ class HIRES(Instrument):
     detector_prefix = "MSC"
 
     def __init__(self, logger) -> None:
+        """Initialise the HIRES instrument with Keck-HIRES–specific column definitions.
+
+        Defines raw columns for decker (``DECKNAME``) and cross-disperser
+        (``XDISPERS``), and sets instrument-specific reduced columns.
+        Because PypeIt marks HIRES as unsupported, ``get_display_image``
+        falls back to a raw pixel read of extension 1.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Ginga application logger.
+        """
         super().__init__(logger)
         self.pypeit_name = "keck_hires"
         raw_cols = [
@@ -685,6 +1169,24 @@ class HIRES(Instrument):
         ]
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a HIRES raw FITS file.
+
+        Overrides :meth:`Instrument.get_raw_info` to populate HIRES-specific
+        column keys: decker (``DECKNAME``), cross-disperser (``XDISPERS``),
+        and elapsed time (``ELAPTIME``).
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a HIRES raw FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``OBJECT`` (``TARGNAME`` → ``OBJECT``), ``IMTYPE``
+            (``KOAIMTYP``), ``DECKNAME``, ``XDISPERS``, ``EXPTIME``
+            (``ELAPTIME``).
+        """
         with fits.open(path) as hdul:
             hdr = hdul[0].header
             info = self._read_header_fields(hdr)
@@ -709,6 +1211,24 @@ class HIRES(Instrument):
         return data.astype(float)
 
     def get_reduced_info(self, path: str) -> Dict[str, object]:
+        """Read display metadata from a HIRES calibration directory or reduced file.
+
+        Overrides :meth:`Instrument.get_reduced_info`.  For calibration
+        directories the ``.pypeit`` setup file is parsed.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to a calibration directory (e.g.
+            ``keck_hires_A/``) or a reduced FITS file.
+
+        Returns
+        -------
+        dict
+            Keys: ``DECKNAME`` (PypeIt ``decker``), ``XDISPERS`` (PypeIt
+            ``dispname``), ``FILTER1`` (cross-disperser filter, PypeIt
+            ``filter1`` / ``FIL1NAME``).
+        """
         if os.path.isdir(path):
             cfg = self._read_pypeit_setup_config(path)
             return {
@@ -730,6 +1250,14 @@ class HIRES(Instrument):
 
 class InstrumentRegistry:
     def __init__(self, logger) -> None:
+        """Initialise the registry and register all built-in instrument classes.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Ginga application logger, forwarded to each
+            :class:`Instrument` instance created via :meth:`create`.
+        """
         self.logger = logger
         self._registry = {
             "DEIMOS": DEIMOS,
@@ -742,6 +1270,24 @@ class InstrumentRegistry:
         }
 
     def create(self, name: str) -> Instrument:
+        """Instantiate and return the :class:`Instrument` for *name*.
+
+        Parameters
+        ----------
+        name : str
+            Display name as it appears in the instrument combo box
+            (e.g. ``"DEIMOS"``, ``"LRIS Blue"``).
+
+        Returns
+        -------
+        Instrument
+            A freshly constructed instrument instance.
+
+        Notes
+        -----
+        Falls back to :class:`DEIMOS` and logs an error when *name* is not
+        found in the registry, so callers always receive a usable object.
+        """
         cls = self._registry.get(name)
         if cls is None:
             self.logger.error(f"Instrument not recognized: {name}")
@@ -749,4 +1295,12 @@ class InstrumentRegistry:
         return cls(self.logger)
 
     def names(self) -> List[str]:
+        """Return the list of registered instrument display names.
+
+        Returns
+        -------
+        list of str
+            Names in insertion order, matching the order shown in the
+            instrument combo box.
+        """
         return list(self._registry.keys())

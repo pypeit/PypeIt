@@ -10,9 +10,45 @@ if TYPE_CHECKING:
 
 class QLViewUI:
     def __init__(self, plugin: "QLView") -> None:
+        """
+        Parameters
+        ----------
+        plugin : QLView
+            The parent ``QLView`` Ginga plugin instance.  A reference is
+            stored as ``self.plugin`` and used throughout :meth:`build` to
+            attach widgets and callbacks.
+        """
         self.plugin = plugin
 
     def build(self, container) -> None:
+        """Construct the full Ginga widget tree and attach it to *container*.
+
+        The method builds four logical sections and wires all callbacks:
+
+        - **Raw Data frame** — tree view of raw files, path entry, "Go"
+          button, and optional B-frame entry for A-B dithered sky subtraction.
+        - **Reduced Calibrations frame** — tree view of reduced calibration
+          products, path entry, "Render Slits", and "Show Wavelengths" buttons.
+        - **Reduction Control frame** — slit selector, "Reduce Slit" button,
+          SNR threshold, manual extraction toggle with FWHM entry, CoAdd2D
+          checkbox, and slit/label display toggles.
+        - **Button bar** — Close, Help, Save Default Config, and Settings
+          buttons.
+
+        All widgets are stored as attributes on ``self.plugin`` so that the
+        plugin's callback methods can reference them directly.  Callbacks are
+        registered here via ``add_callback``.
+
+        Parameters
+        ----------
+        container : ginga widget
+            The top-level container widget supplied by the Ginga plugin
+            framework into which the entire UI is inserted.
+
+        Returns
+        -------
+        None
+        """
         top = Widgets.VBox()
         top.set_border_width(4)
 

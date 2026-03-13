@@ -17,6 +17,22 @@ class FileBrowserController:
     fitspb = None
 
     def __init__(self, logger, settings, backend: FileBrowserBackend) -> None:
+        """Initialize the FileBrowserController.
+
+        Parameters
+        ----------
+        logger : logging.Logger
+            Logger instance used for error and debug messages throughout the
+            controller.
+        settings : dict-like
+            Configuration mapping providing browser settings such as
+            ``"columns"`` (column definitions) and
+            ``"max_rows_for_col_resize"`` (row count threshold above which
+            column auto-resizing is skipped).
+        backend : FileBrowserBackend
+            Backend implementation responsible for filesystem operations
+            (directory listing, stat calls, and FITS header extraction).
+        """
         self.logger = logger
         self.settings = settings
         self.backend = backend
@@ -42,6 +58,20 @@ class FileBrowserController:
         mode : str
             ``"raw"`` or ``"reduced"``; controls which instrument method is
             called to fetch FITS metadata.
+
+        Returns
+        -------
+        listing : dict of {str : `~ginga.misc.Bunch.Bunch`}
+            Tree dictionary keyed by filename suitable for use with a
+            ``TreeView`` widget.  Each value is a ``Bunch`` containing file
+            metadata fields and an ``icon`` pixbuf.
+        resize : bool
+            ``True`` when the number of rows is below the
+            ``max_rows_for_col_resize`` settings threshold, indicating that
+            column widths should be auto-resized after population.
+        fullpath : str
+            Glob-style path of the form ``<dirname>/*`` representing the
+            directory that was listed.
         """
         if not os.path.isdir(path):
             raise ValueError(f"Invalid directory: {path}")
@@ -66,6 +96,58 @@ class FileBrowserController:
         columns: List,
         mode: str = "raw",
     ) -> Bunch.Bunch:
+        """Collect filesystem and instrument metadata for a single path.
+
+        For plain FITS files the instrument backend is called to extract header
+        metadata.  The same header extraction is performed for directories when
+        *mode* is ``"reduced"``, allowing reduced-data directories to surface
+        per-directory metadata in the listing.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to the file or directory to inspect.
+        instrument : Instrument
+            Active instrument; used to read per-file or per-directory header
+            metadata via the backend.
+        columns : list of (str, str)
+            Column definitions as ``(display_name, attr_name)`` pairs.  Used
+            to pre-populate missing attribute keys with the placeholder value
+            ``"N/A"`` so that every returned ``Bunch`` has a consistent set of
+            attributes regardless of whether metadata was available.
+        mode : str, optional
+            ``"raw"`` (default) or ``"reduced"``; controls which instrument
+            method the backend calls to fetch FITS metadata.  In
+            ``"reduced"`` mode, metadata is also attempted for directories.
+
+        Returns
+        -------
+        bnch : `~ginga.misc.Bunch.Bunch`
+            Bunch containing the following fields (at minimum):
+
+            ``path`` : str
+                Absolute path to the entry.
+            ``name`` : str
+                Basename of the entry.
+            ``type`` : str
+                One of ``"dir"``, ``"link"``, ``"fits"``, or ``"file"``.
+            ``st_mode`` : int
+                Raw permission/mode bits from ``os.stat``.
+            ``st_mode_oct`` : str
+                Octal string representation of *st_mode*.
+            ``st_size`` : int
+                File size in bytes.
+            ``st_size_str`` : str
+                String representation of *st_size*.
+            ``st_mtime`` : float
+                Modification time as a POSIX timestamp.
+            ``st_mtime_str`` : str
+                Human-readable modification time from :func:`time.ctime`.
+
+            Additional keys are populated from the instrument header
+            extraction when metadata is available, with column attribute names
+            falling back to ``"N/A"`` when absent.
+        """
         dirname, filename = os.path.split(path)
         name, ext = os.path.splitext(filename)
         ftype = "file"
@@ -113,7 +195,53 @@ class FileBrowserController:
         jumpinfo: Iterable[Bunch.Bunch],
         columns: Optional[List] = None,
     ) -> Tuple[Dict[str, Bunch.Bunch], bool]:
+        """Build the tree dictionary used to populate the file-browser widget.
+
+        Iterates over the pre-collected file info bunches, attaches an
+        appropriate icon pixbuf to each entry, and assembles the result into a
+        dict keyed by filename.  Whether the caller should auto-resize table
+        columns after population is determined by comparing the row count
+        against the ``max_rows_for_col_resize`` settings value; auto-resize is
+        skipped for large directories to avoid UI performance issues.
+
+        Parameters
+        ----------
+        jumpinfo : iterable of `~ginga.misc.Bunch.Bunch`
+            Sequence of file-info bunches as returned by :meth:`_get_info`.
+        columns : list of (str, str), optional
+            Column definitions ``(display_name, attr_name)``.  Currently
+            accepted for interface consistency but not directly used in the
+            listing construction.
+
+        Returns
+        -------
+        tree_dict : dict of {str : `~ginga.misc.Bunch.Bunch`}
+            Mapping from filename (``bnch.name``) to its info ``Bunch``.
+            Each ``Bunch`` has an ``icon`` attribute set to the appropriate
+            pixbuf for its file type.
+        resize_flag : bool
+            ``True`` when the number of entries is less than the
+            ``max_rows_for_col_resize`` setting (default ``5000``), signalling
+            that column auto-resizing should be performed.  ``False`` when the
+            row count meets or exceeds the threshold.
+        """
         def file_icon(bnch):
+            """Return the pixbuf icon appropriate for the entry type.
+
+            Parameters
+            ----------
+            bnch : `~ginga.misc.Bunch.Bunch`
+                File-info bunch with a ``type`` attribute set to one of
+                ``"dir"``, ``"fits"``, or any other string (treated as a
+                generic file).
+
+            Returns
+            -------
+            pixbuf : object
+                ``FileBrowserController.folderpb`` for directories,
+                ``FileBrowserController.fitspb`` for FITS files, or
+                ``FileBrowserController.filepb`` for all other file types.
+            """
             if bnch.type == "dir":
                 return self.folderpb
             if bnch.type == "fits":

@@ -34,6 +34,21 @@ from .ui import QLViewUI
 
 class QLView(GingaPlugin.LocalPlugin):
     def __init__(self, fv, fitsimage):
+        """Initialise the QLView plugin and set up all internal state.
+
+        Called by the Ginga plugin machinery when the plugin is first loaded.
+        Sets default values for file-filter flags, reduction timers, trace
+        overlay state, and calibration-configuration tracking.  Icon assets
+        are fetched from the Ginga icon directory and injected into
+        :class:`~.file_browser.FileBrowserController`.
+
+        Parameters
+        ----------
+        fv : ginga.GingaPlugin.GingaPlugin
+            The top-level Ginga application object.
+        fitsimage : ginga.ImageViewCanvas.ImageViewCanvas
+            The FITS image viewer canvas this plugin is attached to.
+        """
         super().__init__(fv, fitsimage)
 
         keywords = [("Object", "OBJECT"), ("Date", "DATE-OBS"), ("Time UT", "UT")]
@@ -91,6 +106,12 @@ class QLView(GingaPlugin.LocalPlugin):
         self._trace_timers: Dict[str, object] = {}
         self._trace_last_exten: Dict[str, Optional[int]] = {}
 
+        # Configuration dict read from the currently rendered calibration dir.
+        # Keys are PypeIt configuration_key names (e.g. "filter1", "decker");
+        # values are strings.  Used to detect setup changes when a new raw
+        # image is selected.
+        self._rendered_cal_config: Dict[str, str] = {}
+
         # Suppress tree activation events briefly after settings dialog closes
         self._suppress_activate: bool = False
 
@@ -144,12 +165,37 @@ class QLView(GingaPlugin.LocalPlugin):
             self._browse_and_update(reduced_base, which_tree="reduced")
 
     def build_gui(self, container):
+        """Build the plugin GUI and attach it to *container*.
+
+        Delegates widget construction to :class:`~.ui.QLViewUI`, then marks
+        the GUI as ready so that subsequent callbacks that guard on
+        ``self.gui_up`` can proceed.
+
+        Parameters
+        ----------
+        container : ginga.gw.Widgets.Box
+            The Ginga container widget provided by the plugin framework.
+        """
         self.ui.build(container)
         self.gui_up = True
 
     # --- Callbacks ---
 
     def create_config_cb(self, w):
+        """Write the current settings to ``~/.quicklook.cfg``.
+
+        Serialises the active raw path, reduced calibrations path, redux
+        output path, file-filter flags, and reduction timeout to a
+        :mod:`configparser` INI file.  Template keys (``*_path_template``)
+        are intentionally omitted so that the saved file always uses plain
+        absolute paths; template expansion occurs only when reading the file
+        at startup.
+
+        Parameters
+        ----------
+        w : ginga.gw.Widgets.Button
+            The "Save Default Config" button widget (unused).
+        """
         config_file = Path.home() / ".quicklook.cfg"
         config = configparser.ConfigParser()
 
@@ -206,6 +252,18 @@ class QLView(GingaPlugin.LocalPlugin):
         outer.addWidget(backend_group)
 
         def _toggle_backend_fields(checked: bool) -> None:
+            """Enable or disable the remote-backend form fields.
+
+            Connected to the ``toggled`` signal of *local_checkbox*; called
+            once during dialog setup and again whenever the checkbox state
+            changes.
+
+            Parameters
+            ----------
+            checked : bool
+                ``True`` when the "Use local backend" checkbox is checked,
+                in which case the host/port/key fields are disabled.
+            """
             host_edit.setEnabled(not checked)
             port_edit.setEnabled(not checked)
             key_edit.setEnabled(not checked)
@@ -331,6 +389,25 @@ class QLView(GingaPlugin.LocalPlugin):
         # whose contents the tree is currently showing (whether filepath points
         # to the browse root glob, a selected subdir, or a selected file).
         def _filter_base(filepath):
+            """Return the parent directory of *filepath* for use as a filter base.
+
+            Uses the *parent* of the stored filepath rather than the filepath
+            itself so that the filter base is the directory whose *contents*
+            are currently shown in the tree — whether the state path points to
+            a browse-root glob (``/dir/*``), a selected subdirectory, or a
+            selected file.
+
+            Parameters
+            ----------
+            filepath : str or None
+                Value of ``state.raw_filepath`` or ``state.reduced_filepath``.
+
+            Returns
+            -------
+            str or None
+                Absolute path of the containing directory, or ``None`` when
+                *filepath* is empty.
+            """
             if not filepath:
                 return None
             return os.path.abspath(os.path.join(filepath, os.pardir))
@@ -357,18 +434,49 @@ class QLView(GingaPlugin.LocalPlugin):
         QtCore.QTimer.singleShot(300, lambda: setattr(self, "_suppress_activate", False))
 
     def hide_reduced_tree_cb(self, w, val):
+        """Show or hide the reduced-calibrations tree view.
+
+        Parameters
+        ----------
+        w : ginga.gw.Widgets.CheckBox
+            The "Show Reduced Tree" checkbox widget.
+        val : bool
+            ``True`` to show the tree, ``False`` to hide it.
+        """
         if val:
             self.reduced_treeview.show()
         else:
             self.reduced_treeview.hide()
 
     def hide_raw_tree_cb(self, w, val):
+        """Show or hide the raw-data tree view.
+
+        Parameters
+        ----------
+        w : ginga.gw.Widgets.CheckBox
+            The "Show Raw Tree" checkbox widget.
+        val : bool
+            ``True`` to show the tree, ``False`` to hide it.
+        """
         if val:
             self.raw_treeview.show()
         else:
             self.raw_treeview.hide()
 
     def instrument_combo_cb(self, *args):
+        """Swap the active instrument and refresh both tree views.
+
+        Called when the instrument combo box selection changes.  Instantiates
+        a new :class:`~.instruments.Instrument` via
+        :class:`~.instruments.InstrumentRegistry` and rebuilds the tree
+        column headers and listings for the new instrument vocabulary.
+
+        Parameters
+        ----------
+        *args
+            Positional arguments forwarded by the Ginga ``activated``
+            callback; unused.
+        """
         selected = self.instrument_combo.get_text()
         self.instrument = self.instrument_registry.create(selected)
         self._rebuild_treeview_columns()
@@ -490,11 +598,38 @@ class QLView(GingaPlugin.LocalPlugin):
         self.manual_extract_canvas.update_canvas(whence=3)
 
     def _clear_manual_extract_marker(self) -> None:
+        """Remove all manual-extraction marker objects from the canvas.
+
+        No-op when ``manual_extract_canvas`` has not yet been initialised.
+        """
         if self.manual_extract_canvas is not None:
             self.manual_extract_canvas.delete_all_objects()
             self.manual_extract_canvas.update_canvas(whence=3)
 
     def reduce_slit_cb(self, w):
+        """Launch a PypeIt QuickLook reduction for the selected slit.
+
+        Validates that a raw file, calibration directory, and redux output
+        path are all set, then builds a ``ql.py`` argument list and submits
+        it on a **daemon thread** via
+        :meth:`~.backends.ReductionBackend.submit` so that the GUI remains
+        responsive.  After submission a status row is added to the Reduction
+        Control panel via :meth:`_make_reduction_row` and a polling timer is
+        started via :meth:`_register_reduction_timer` to watch for output
+        files.
+
+        Parameters
+        ----------
+        w : ginga.gw.Widgets.Button
+            The "Reduce Slit" button widget (unused).
+
+        Notes
+        -----
+        The reduction subprocess is launched inside a :class:`threading.Thread`
+        with ``daemon=True``.  All GUI updates that follow must be marshalled
+        back to the GUI thread (Ginga handles this for timer callbacks
+        automatically).
+        """
         if self.state.manual_extract_str and self._manual_slit_key:
             slit_key = self._manual_slit_key
         else:
@@ -595,6 +730,14 @@ class QLView(GingaPlugin.LocalPlugin):
         self.logger.info("Launching reduction: {0}".format(" ".join(args)))
 
         def _run() -> None:
+            """Submit the reduction job on the background thread.
+
+            Calls :meth:`~.backends.ReductionBackend.submit` which may block
+            for the full duration of the reduction when using
+            :class:`~.backends.LocalReductionBackend`.  The GUI polls for
+            output files independently via the timer registered in
+            :meth:`_register_reduction_timer`.
+            """
             self.reduction_backend.submit(args)
 
         threading.Thread(target=_run, daemon=True).start()
@@ -607,6 +750,32 @@ class QLView(GingaPlugin.LocalPlugin):
         self, raw_path: str, run_dir: str, slit_key: str, log_path: str,
         coadd2d: bool = False,
     ) -> None:
+        """Register a Ginga timer that polls *run_dir* for reduction output.
+
+        Creates (or replaces) a timer entry in ``self.reduction_timers`` keyed
+        by ``{raw_stem}_{slit_key}``.  On each expiry the timer fires
+        :meth:`_check_reduction_complete`.  The start time is recorded in
+        ``self.reduction_start_times`` so that :meth:`_check_reduction_complete`
+        can enforce ``self.reduction_timeout``.
+
+        Parameters
+        ----------
+        raw_path : str
+            Absolute path to the raw FITS file used for the reduction.
+            Passed through to :meth:`_check_reduction_complete` so that
+            trace-overlay callbacks can gate on instrument configuration.
+        run_dir : str
+            Output directory created for this reduction job (under
+            ``self.state.redux_path``).
+        slit_key : str
+            Slit identifier string (e.g. ``"S1234"``).
+        log_path : str
+            Absolute path to the reduction log file checked for error strings.
+        coadd2d : bool, optional
+            When ``True`` the timer uses two-phase polling: phase 1 waits for
+            ``*/Science/spec1d*``, phase 2 waits for
+            ``*/science_coadd/spec1d*``.
+        """
         raw_stem = Path(raw_path).name.split(".fits")[0]
         timer_key = f"{raw_stem}_{slit_key}"
 
@@ -621,7 +790,8 @@ class QLView(GingaPlugin.LocalPlugin):
         timer.add_callback(
             "expired",
             lambda t: self._check_reduction_complete(
-                timer_key, run_dir, slit_key, log_path, coadd2d=coadd2d
+                timer_key, run_dir, slit_key, log_path,
+                raw_path=raw_path, coadd2d=coadd2d,
             ),
         )
         self.reduction_timers[timer_key] = timer
@@ -629,8 +799,43 @@ class QLView(GingaPlugin.LocalPlugin):
 
     def _check_reduction_complete(
         self, timer_key: str, run_dir: str, slit_key: str, log_path: str,
-        coadd2d: bool = False,
+        raw_path: str = "", coadd2d: bool = False,
     ) -> None:
+        """Timer callback: check for reduction output and update the status row.
+
+        Called by the Ginga timer on the GUI thread every
+        ``self.reduction_cadence`` seconds.  Implements two-phase polling
+        when *coadd2d* is ``True``:
+
+        - **Phase 1** — glob for ``*/Science/spec1d*.fits*`` inside
+          *run_dir*.  Handles both single-frame output
+          (``{raw_stem}/Science/``) and AB-pair output
+          (``{A_stem}-{B_stem}/Science/``).
+        - **Phase 2** (coadd2d only) — once ``spec1d_found`` is set, glob
+          for ``*/science_coadd/spec1d*.fits*``.
+
+        On success the relevant "Show" / "Show CoAdd2D" button is enabled.
+        On timeout or logged exception the row label is set to an error
+        string and the timer is cancelled.
+
+        Parameters
+        ----------
+        timer_key : str
+            Key used to look up the timer and start-time entries.
+        run_dir : str
+            Reduction output directory to search for output files.
+        slit_key : str
+            Slit identifier (e.g. ``"S1234"``); used to locate the status
+            row in ``self.reduction_control_elements``.
+        log_path : str
+            Absolute path to the reduction log file.
+        raw_path : str, optional
+            Path to the raw FITS file used for the reduction; forwarded to
+            the "Show Traces" button callback lambda so that
+            :meth:`show_traces_cb` can compare instrument configurations.
+        coadd2d : bool, optional
+            Whether to perform two-phase polling for CoAdd2D output.
+        """
         import time as _time
         timer = self.reduction_timers.get(timer_key)
         control = self.reduction_control_elements.get(slit_key)
@@ -709,8 +914,8 @@ class QLView(GingaPlugin.LocalPlugin):
                 control["btn_traces"].set_enabled(True)
                 control["btn_traces"].add_callback(
                     "activated",
-                    lambda w, p=spec1d_path, k=slit_key: self.show_traces_cb(
-                        w, slit_key=k, spec1d_path=p
+                    lambda w, p=spec1d_path, k=slit_key, r=raw_path: self.show_traces_cb(
+                        w, slit_key=k, spec1d_path=p, reduction_raw_path=r,
                     ),
                 )
                 if coadd2d:
@@ -741,6 +946,23 @@ class QLView(GingaPlugin.LocalPlugin):
             timer.set(self.reduction_cadence)
 
     def slit_list_box_cb(self, w, res_dict):
+        """Combo-box callback: switch the active slit when the user picks a new entry.
+
+        Deactivates (reverts to green) the previously active slit polygon on
+        :attr:`slit_canvas`, then activates (highlights blue) the newly
+        selected slit.  The slit key is extracted from the first token of the
+        combo item text because entries are formatted as ``"S{spat_id} (name)"``
+        or simply ``"S{spat_id}"``.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``ComboBox`` widget that fired the callback.  ``w.get_text()``
+            returns the full display string for the selected item.
+        res_dict : dict
+            Not used; present because Ginga passes a result dict to all
+            ``"activated"`` callbacks.
+        """
         if self.state.active_slit_key:
             self.overlay.deactivate(self.state.active_slit_key, self.slit_canvas)
         self.state.active_slit_key = w.get_text().split()[0]
@@ -791,6 +1013,18 @@ class QLView(GingaPlugin.LocalPlugin):
         self.vbox_redux.add_widget(vbox, stretch=0)
 
         def _remove(w):
+            """Button callback: remove this status row and clean up its resources.
+
+            Removes the VBox row from :attr:`vbox_redux`, deletes the slit key
+            from :attr:`reduction_control_elements`, detaches any trace canvas
+            from the main Ginga canvas, and cancels any active trace-polling
+            timer.
+
+            Parameters
+            ----------
+            w : ginga widget
+                The ``Remove`` button widget that fired the callback.
+            """
             self.vbox_redux.remove(vbox)
             self.reduction_control_elements.pop(slit_key, None)
             canvas = self._trace_canvases.pop(slit_key, None)
@@ -817,6 +1051,28 @@ class QLView(GingaPlugin.LocalPlugin):
         }
 
     def show_spec1d_cb(self, w, path: Optional[str] = None, slit_key: Optional[str] = None):
+        """Button callback: open a spec1d FITS file in a dedicated Ginga channel.
+
+        Loads *path* into a new channel named ``"Spec1D{slit_key}"`` and
+        immediately starts the ``Spec1dView`` Ginga plugin on that channel so
+        the user can inspect extracted spectra interactively.
+
+        Called both by the "Show" button in a reduction status row (regular
+        spec1d) and by the "Show CoAdd2D" button (coadded spec1d), with the
+        *slit_key* suffixed with ``"_coadd2d"`` in the latter case.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The button widget that fired the callback.
+        path : str, optional
+            Absolute path to the spec1d FITS file to display.  If *None* or
+            the file does not exist the method logs an error and returns.
+        slit_key : str, optional
+            Slit identifier (e.g. ``"S1234"`` or ``"S1234_coadd2d"``); used
+            to construct a unique Ginga channel name so multiple slits can be
+            viewed simultaneously.
+        """
         if not path or not os.path.isfile(path):
             self.logger.error("No spec1d file available to show.")
             return
@@ -825,14 +1081,43 @@ class QLView(GingaPlugin.LocalPlugin):
         self.fv.load_file(path, chname=ch_name)
         self.fv.start_local_plugin(ch_name, "Spec1dView")
 
-    def show_traces_cb(self, w, *, slit_key: str, spec1d_path: str) -> None:
+    def show_traces_cb(
+        self, w, *, slit_key: str, spec1d_path: str, reduction_raw_path: str = ""
+    ) -> None:
         """Load object traces from a spec1d file and overlay them on the raw image.
+
+        Refuses to draw if the currently displayed raw image belongs to a
+        different calibration group (instrument configuration) than the raw
+        frame used for this reduction.
 
         Runs file I/O on a background thread, then draws on the GUI thread.
         A polling timer watches the paired Spec1dView plugin and highlights
         whichever object is currently selected there.
         """
+        current_raw = self.state.raw_filepath
+        if reduction_raw_path and current_raw and current_raw != reduction_raw_path:
+            current_cfg = self._get_raw_config(current_raw)
+            reduction_cfg = self._get_raw_config(reduction_raw_path)
+            if current_cfg and reduction_cfg and not self._configs_match(
+                current_cfg, reduction_cfg
+            ):
+                self.logger.warning(
+                    f"Cannot draw traces for {slit_key}: the displayed image "
+                    f"({Path(current_raw).name}) has a different instrument "
+                    f"configuration from the reduction frame "
+                    f"({Path(reduction_raw_path).name}). "
+                    f"Select the matching raw file to view traces."
+                )
+                return
+
         def _load():
+            """Background worker: load SpecObjs from *spec1d_path* and schedule drawing.
+
+            Runs on a daemon thread started by :meth:`show_traces_cb`.  On
+            success calls :meth:`_draw_trace_objects` via ``fv.gui_do`` so
+            that canvas operations happen on the GUI thread.  Any exception is
+            logged without propagating.
+            """
             try:
                 from pypeit.specobjs import SpecObjs
                 sobjs = SpecObjs.from_fitsfile(spec1d_path, chk_version=False)
@@ -936,10 +1221,35 @@ class QLView(GingaPlugin.LocalPlugin):
             timer.set(0.5)
 
     def show_labels_box_cb(self, w, val):
+        """Checkbox callback: toggle slit-label text visibility on the canvas.
+
+        Delegates to :meth:`~pypeit.display.qlview.slit_overlay.SlitOverlay.set_labels_visible`.
+        Is a no-op when no slit canvas has been created yet.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``CheckBox`` widget that fired the callback.
+        val : bool
+            ``True`` to show slit labels; ``False`` to hide them.
+        """
         if self.slit_canvas is not None:
             self.overlay.set_labels_visible(val, self.slit_canvas)
 
     def display_slits_box_cb(self, w, val):
+        """Checkbox callback: show or hide all slit polygons on the canvas.
+
+        Sets the ``alpha`` (outline) and ``fillalpha`` (interior) of every
+        polygon stored in :attr:`state.slit_polys` to their visible values
+        (1.0 / 0.05) or to zero, then redraws the canvas.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``CheckBox`` widget that fired the callback.
+        val : bool
+            ``True`` to make slit polygons visible; ``False`` to hide them.
+        """
         for poly in self.state.slit_polys.values():
             poly.alpha = 1.0 if val else 0.0
             poly.fillalpha = 0.05 if val else 0.0
@@ -947,6 +1257,22 @@ class QLView(GingaPlugin.LocalPlugin):
             self.slit_canvas.update_canvas(whence=3)
 
     def reduced_table_double_click_cb(self, w, res_dict):
+        """Tree-view callback: navigate into a directory on double-click.
+
+        Registered on the ``"activated"`` event of :attr:`reduced_treeview`.
+        Ignored when :attr:`_suppress_activate` is set (used to prevent
+        spurious activations during programmatic tree updates).  Only
+        directories trigger navigation; file entries are silently ignored
+        because the reduced tree does not open files on double-click.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``TreeView`` widget that fired the callback.
+        res_dict : dict
+            Mapping of row key → row-info object with a ``path`` attribute,
+            as provided by the Ginga tree-view selection API.
+        """
         if self._suppress_activate:
             return
         paths = [info.path for key, info in res_dict.items()]
@@ -957,6 +1283,22 @@ class QLView(GingaPlugin.LocalPlugin):
             self._browse_and_update(path, which_tree="reduced")
 
     def reduced_table_selected_cb(self, w, res_dict):
+        """Tree-view callback: update the reduced-path entry and button state on selection.
+
+        Registered on the ``"selected"`` event of :attr:`reduced_treeview`.
+        Writes the selected path to :attr:`reduced_text_entry` and
+        :attr:`state.reduced_filepath`, then enables :attr:`reduced_btn` and
+        :attr:`show_wavelengths_btn` only when the selected entry is a valid
+        calibration directory (i.e., it is a directory with a ``Calibrations/``
+        subdirectory directly inside it).
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``TreeView`` widget that fired the callback.
+        res_dict : dict
+            Mapping of row key → row-info object with a ``path`` attribute.
+        """
         paths = [info.path for key, info in res_dict.items()]
         if not paths:
             return
@@ -964,17 +1306,38 @@ class QLView(GingaPlugin.LocalPlugin):
         self.reduced_text_entry.set_text(path)
         self.state.reduced_filepath = path
 
-        if "keck_" in path:
-            p = Path(path)
-            subdirs = [x for x in p.iterdir() if x.is_dir()]
-            if "Calibrations" in [x.name for x in subdirs]:
-                self.reduced_btn.set_enabled(True)
-                self.show_wavelengths_btn.set_enabled(True)
-                return
-        self.reduced_btn.set_enabled(False)
-        self.show_wavelengths_btn.set_enabled(False)
+        # Enable render/wavelength buttons only when the selected path is a
+        # calibration directory (i.e., has a Calibrations/ subdirectory directly
+        # inside it).  Use a direct exists check rather than iterating all entries
+        # so that permissions errors or non-directory selections are handled safely.
+        try:
+            enabled = Path(path).is_dir() and Path(path, "Calibrations").is_dir()
+        except OSError:
+            enabled = False
+        self.reduced_btn.set_enabled(enabled)
+        self.show_wavelengths_btn.set_enabled(enabled)
 
     def raw_table_double_click_cb(self, w, res_dict):
+        """Tree-view callback: navigate or open a raw file on double-click.
+
+        Registered on the ``"activated"`` event of :attr:`raw_treeview`.
+        Ignored when :attr:`_suppress_activate` is set.
+
+        - **Directory** → calls :meth:`_browse_and_update` to navigate into it.
+        - **FITS file** → calls :meth:`_check_instrument_match`, then
+          :meth:`open_raw_file` and :meth:`_suggest_calibrations` if the
+          instrument check passes.
+
+        In both cases :attr:`state.raw_filepath` is updated to the selected
+        path.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``TreeView`` widget that fired the callback.
+        res_dict : dict
+            Mapping of row key → row-info object with a ``path`` attribute.
+        """
         if self._suppress_activate:
             return
         paths = [info.path for key, info in res_dict.items()]
@@ -990,6 +1353,19 @@ class QLView(GingaPlugin.LocalPlugin):
         self.state.raw_filepath = path
 
     def raw_table_selected_cb(self, w, res_dict):
+        """Tree-view callback: update the raw-path entry on single selection.
+
+        Registered on the ``"selected"`` event of :attr:`raw_treeview`.
+        Updates :attr:`raw_text_entry` and :attr:`state.raw_filepath` with the
+        first selected path; no file is opened and no buttons are toggled.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``TreeView`` widget that fired the callback.
+        res_dict : dict
+            Mapping of row key → row-info object with a ``path`` attribute.
+        """
         paths = [info.path for key, info in res_dict.items()]
         if not paths:
             return
@@ -1017,12 +1393,32 @@ class QLView(GingaPlugin.LocalPlugin):
         self.state.ab_partner_filepath = None
 
         def _worker():
+            """Background worker: run AB-pair detection and schedule UI update.
+
+            Calls :meth:`_suggest_ab_partner` on a daemon thread started by
+            :meth:`detect_ab_pair_cb`, then delivers the result to the GUI
+            thread via ``fv.gui_do`` so that widget updates happen safely.
+            """
             partner = self._suggest_ab_partner(raw_path)
             self.fv.gui_do(self._apply_b_frame_suggestion, partner)
 
         threading.Thread(target=_worker, daemon=True).start()
 
     def _apply_b_frame_suggestion(self, partner: Optional[str]) -> None:
+        """GUI-thread callback: apply a detected B-frame path to the UI.
+
+        Called via ``fv.gui_do`` from the ``_worker`` closure inside
+        :meth:`detect_ab_pair_cb`.  When *partner* is set, writes the path to
+        :attr:`b_frame_entry` and :attr:`state.ab_partner_filepath` and logs
+        the discovery.  When *partner* is ``None``, writes a friendly
+        "not found" message to the entry and logs accordingly.
+
+        Parameters
+        ----------
+        partner : str or None
+            Absolute path of the best-matching B-position frame, or ``None``
+            if no suitable candidate was found.
+        """
         if partner:
             self.b_frame_entry.set_text(partner)
             self.state.ab_partner_filepath = partner
@@ -1263,6 +1659,21 @@ class QLView(GingaPlugin.LocalPlugin):
         return False  # user cancelled
 
     def render_slits_cb(self, w):
+        """Button callback: load slit-trace files and draw slit polygons on the canvas.
+
+        Reads ``Slits_*.fits*`` files from the ``Calibrations/`` subdirectory
+        of :attr:`state.reduced_filepath`, builds the slit overlay via
+        :attr:`overlay`, and populates :attr:`slit_list_box` with an entry for
+        every slit.  Also snapshots the calibration instrument configuration
+        into :attr:`_rendered_cal_config` so that :meth:`open_raw_file` can
+        clear the overlay when the user subsequently opens a frame from a
+        different observing setup.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``Button`` widget that fired the callback.
+        """
         if not self.state.reduced_filepath:
             self.logger.error("No reduced filepath set.")
             return
@@ -1296,6 +1707,13 @@ class QLView(GingaPlugin.LocalPlugin):
             display = f"{slit_key} ({slit_names[slit_key]})" if slit_key in slit_names else slit_key
             self.slit_list_box.append_text(display)
             self._slit_combo_keys.append(slit_key)
+
+        # Snapshot the calibration configuration so we can detect setup changes
+        # when the user selects a different raw file.
+        cal_dir = self.state.reduced_filepath or ""
+        if cal_dir.endswith("*"):
+            cal_dir = os.path.dirname(cal_dir)
+        self._rendered_cal_config = self.instrument._read_pypeit_setup_config(cal_dir)
 
     def show_wavelengths_cb(self, w):
         """Build a wavelength image from calibration files and display it in a new channel.
@@ -1438,6 +1856,22 @@ class QLView(GingaPlugin.LocalPlugin):
             self.slit_canvas.update_canvas(whence=3)
 
     def raw_button_cb(self, w):
+        """Button callback: handle the "Go" button next to the raw-data path entry.
+
+        Reads the current text of :attr:`raw_text_entry` and behaves as
+        follows:
+
+        - **Directory** → calls :meth:`_browse_and_update` to populate the
+          raw tree with the directory's contents.
+        - **File** → calls :meth:`_check_instrument_match` and, on success,
+          :meth:`open_raw_file` followed by :meth:`_suggest_calibrations`.
+        - **Invalid path** → writes ``"Invalid path"`` back into the entry.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``Button`` widget that fired the callback.
+        """
         path = self.raw_text_entry.get_text()
         if os.path.isdir(path):
             self._browse_and_update(path, which_tree="raw")
@@ -1449,6 +1883,31 @@ class QLView(GingaPlugin.LocalPlugin):
             self.raw_text_entry.set_text("Invalid path")
 
     def canvas_clicked_cb(self, canvas, pnt, x, y):
+        """Cursor-down callback: handle clicks on the main image canvas.
+
+        Registered on the ``"cursor-down"`` event of :attr:`fitsimage` by
+        :meth:`start`.  Two modes are supported:
+
+        - **Manual extraction mode** (``self.manual_extract_mode is True``) —
+          delegates to :meth:`_update_manual_extract` with the click
+          coordinates.
+        - **Slit selection mode** — searches :attr:`state.slittracesets` for
+          the slit that contains the clicked pixel, updates the slit combo-box
+          selection, and highlights the slit polygon on :attr:`slit_canvas`.
+
+        Is a no-op when no slit trace sets have been loaded.
+
+        Parameters
+        ----------
+        canvas : ginga Canvas
+            The image canvas that received the click.
+        pnt : object
+            Ginga point object (not used directly).
+        x : float
+            Image-coordinate column of the click.
+        y : float
+            Image-coordinate row of the click.
+        """
         if not self.state.slittracesets:
             return
 
@@ -1478,6 +1937,30 @@ class QLView(GingaPlugin.LocalPlugin):
     # --- Helpers ---
 
     def _browse_and_update(self, path: str, which_tree: str) -> None:
+        """Navigate to *path* and refresh the appropriate file-browser tree.
+
+        Delegates to :attr:`file_browser` to obtain the sorted directory
+        listing, then pushes it into the raw or reduced ``TreeView`` widget.
+        After a navigation into the reduced tree the "Render Slits" and "Show
+        Wavelengths" button states are updated based on whether a
+        ``Calibrations/`` subdirectory exists in the newly browsed directory.
+
+        Parameters
+        ----------
+        path : str
+            Directory to browse.  Relative paths are resolved by the file
+            browser.
+        which_tree : str
+            ``"reduced"`` to update the reduced calibrations tree and button
+            state; any other value updates the raw data tree.
+
+        Raises
+        ------
+        The method silently catches :class:`ValueError` raised by
+        :meth:`~pypeit.display.qlview.file_browser.FileBrowserController.browse`
+        when *path* is invalid and sets an error label in the relevant text
+        entry instead of propagating.
+        """
         mode = "reduced" if which_tree == "reduced" else "raw"
         columns = self.instrument.columns[mode]
         try:
@@ -1504,6 +1987,17 @@ class QLView(GingaPlugin.LocalPlugin):
                 self.reduced_filter_dirs,
                 name_col_idx=self._reduced_name_col_idx,
             )
+            # Update render/wavelength button state based on the directory we
+            # just navigated into.  fullpath ends with "/*"; dirname is the dir.
+            cal_dir = os.path.dirname(fullpath)
+            try:
+                enabled = bool(cal_dir) and os.path.isdir(
+                    os.path.join(cal_dir, "Calibrations")
+                )
+            except OSError:
+                enabled = False
+            self.reduced_btn.set_enabled(enabled)
+            self.show_wavelengths_btn.set_enabled(enabled)
         else:
             self.state.raw_filepath = fullpath
             self.raw_treeview.set_tree(listing)
@@ -1518,7 +2012,83 @@ class QLView(GingaPlugin.LocalPlugin):
                 name_col_idx=self._raw_name_col_idx,
             )
 
+    def _get_raw_config(self, filepath: str) -> Dict[str, str]:
+        """Return the instrument configuration_keys() values for a raw FITS file.
+
+        Uses PypeIt's spectrograph class so the result is authoritative and
+        consistent with how PypeIt groups frames into calibration sets.  Returns
+        an empty dict if the file cannot be read or the spectrograph is unknown.
+        """
+        if not self.instrument.pypeit_name or not filepath or not os.path.isfile(filepath):
+            return {}
+        try:
+            from pypeit.spectrographs.util import load_spectrograph
+            spec = load_spectrograph(self.instrument.pypeit_name)
+            config: Dict[str, str] = {}
+            for key in spec.configuration_keys():
+                try:
+                    val = spec.get_meta_value(filepath, key)
+                    config[key] = str(val) if val is not None else "N/A"
+                except Exception:
+                    pass
+            return config
+        except Exception as exc:
+            self.logger.debug(f"Could not read configuration from {filepath}: {exc}")
+            return {}
+
+    def _configs_match(self, cfg_a: Dict[str, str], cfg_b: Dict[str, str]) -> bool:
+        """Return True if two configuration dicts are compatible.
+
+        Compares only keys that appear in both dicts.  Numeric values are
+        compared with a generous tolerance to absorb floating-point formatting
+        differences between pypeit-file strings and live header reads.
+        """
+        if not cfg_a or not cfg_b:
+            return True
+        common = set(cfg_a) & set(cfg_b)
+        if not common:
+            return True
+        for k in common:
+            a, b = cfg_a[k].strip(), cfg_b[k].strip()
+            if a == b:
+                continue
+            try:
+                if abs(float(a) - float(b)) < 0.5:
+                    continue
+            except ValueError:
+                pass
+            return False
+        return True
+
     def _get_tree_base_dir(self, path: Optional[str]) -> Optional[str]:
+        """Return the directory that the tree is currently browsing.
+
+        The internal path stored in :attr:`state.raw_filepath` or
+        :attr:`state.reduced_filepath` after a :meth:`_browse_and_update` call
+        ends with ``"/*"`` (the glob wildcard appended by the file browser).
+        This helper strips the wildcard and resolves the parent.
+
+        Parameters
+        ----------
+        path : str or None
+            The path stored in plugin state (may end with ``"/*"``), a plain
+            directory, a file path, or ``None``.
+
+        Returns
+        -------
+        str or None
+            Absolute path of the directory currently shown in the tree, or
+            ``None`` when *path* is falsy.
+
+        Examples
+        --------
+        >>> self._get_tree_base_dir("/data/raw/keck_deimos_A/*")
+        '/data/raw/keck_deimos_A'
+        >>> self._get_tree_base_dir("/data/raw/frame.fits")
+        '/data/raw'
+        >>> self._get_tree_base_dir("/data/raw")
+        '/data/raw'
+        """
         if not path:
             return None
         if path.endswith("*"):
@@ -1536,6 +2106,35 @@ class QLView(GingaPlugin.LocalPlugin):
         show_dirs: bool,
         name_col_idx: int = 0,
     ) -> None:
+        """Hide or show tree-view rows according to the current filter settings.
+
+        Iterates every top-level item in *treeview*'s underlying
+        ``QTreeWidget`` and sets its hidden state based on whether the
+        corresponding filesystem entry is a directory, a ``.fits`` /
+        ``.fits.gz`` file, or some other file type.
+
+        Called by :meth:`_browse_and_update` after each navigation and also
+        when the user toggles filter checkboxes in the Settings dialog.
+
+        Parameters
+        ----------
+        treeview : ginga TreeView widget
+            The tree-view to filter.  The underlying Qt widget is accessed via
+            ``treeview.widget``.
+        base_dir : str or None
+            Directory whose contents are currently shown in *treeview*.  Used
+            to resolve each row's display name to an absolute path for the
+            ``os.path.isdir`` test.
+        show_fits : bool
+            Whether to show ``.fits`` and ``.fits.gz`` files.
+        show_nonfits : bool
+            Whether to show all other non-directory entries.
+        show_dirs : bool
+            Whether to show subdirectory entries.
+        name_col_idx : int, optional
+            Column index that holds the filename in the ``QTreeWidgetItem``.
+            Defaults to ``0``.
+        """
         if not base_dir or treeview is None:
             return
 
@@ -1571,6 +2170,27 @@ class QLView(GingaPlugin.LocalPlugin):
         return names
 
     def open_slits_files(self, path: str) -> Dict[str, SlitTraceSet]:
+        """Read all slit-trace FITS files under *path* and return them keyed by mosaic index.
+
+        Searches *path* for files matching ``Slits_*.fits*`` and loads each
+        one as a :class:`~pypeit.slittrace.SlitTraceSet`.  The mosaic detector
+        index is extracted from the filename stem: for a file named
+        ``Slits_A_0_DET01.fits``, the last two characters of the last
+        ``_``-separated token before the extension give the index (``"01"``).
+
+        Parameters
+        ----------
+        path : str
+            Directory to search; usually the ``Calibrations/`` subdirectory
+            of a PypeIt reduction output directory.
+
+        Returns
+        -------
+        dict
+            Mapping of mosaic index string (e.g. ``"01"``) →
+            :class:`~pypeit.slittrace.SlitTraceSet`.  An empty dict is
+            returned when no matching files exist.
+        """
         p = Path(path)
         slit_files = p.glob("Slits_*.fits*")
         slit_dict: Dict[str, SlitTraceSet] = {}
@@ -1580,6 +2200,27 @@ class QLView(GingaPlugin.LocalPlugin):
         return slit_dict
 
     def open_raw_file(self, path: str) -> None:
+        """Load a raw FITS file and display it in the main Ginga viewer.
+
+        Delegates image assembly to
+        :meth:`~pypeit.display.qlview.instruments.Instrument.get_display_image`,
+        wraps the result in a Ginga :class:`~ginga.AstroImage.AstroImage`, and
+        pushes it into :attr:`fitsimage`.
+
+        After loading, all existing trace overlays are cleared (they are
+        spatially meaningless on a different frame) and their polling timers
+        are cancelled.  If slits have previously been rendered and the new
+        file's instrument configuration differs from the calibration that
+        produced them, the slit overlay is also cleared.
+
+        Is a no-op when *path* does not exist or does not contain ``".fits"``
+        in its name.
+
+        Parameters
+        ----------
+        path : str
+            Absolute path to the raw FITS file to open.
+        """
         if not os.path.isfile(path):
             return
         p = Path(path)
@@ -1591,9 +2232,49 @@ class QLView(GingaPlugin.LocalPlugin):
         self.fitsimage.set_image(img)
         self.state.raw_filepath = path
 
+        # --- Clear trace overlays ---
+        # Traces drawn for a previous raw image are spatially meaningless on a
+        # different frame; remove them from the canvas and stop polling timers.
+        for canvas in self._trace_canvases.values():
+            try:
+                canvas.delete_all_objects()
+            except Exception:
+                pass
+        for timer in self._trace_timers.values():
+            timer.cancel()
+        self._trace_timers.clear()
+        self._trace_paths.clear()
+        self._trace_last_exten.clear()
+
+        # --- Optionally clear the slit overlay ---
+        # If slits have been rendered, compare the new file's instrument
+        # configuration against the cal setup that produced those slits.  If
+        # the setups differ (different filter, grating, mask, …), the slit
+        # polygons no longer correspond to this image.
+        if self._rendered_cal_config:
+            new_config = self._get_raw_config(path)
+            if new_config and not self._configs_match(new_config, self._rendered_cal_config):
+                self.logger.info(
+                    f"New raw file has a different instrument configuration — "
+                    f"clearing slit overlay."
+                )
+                self.slit_canvas.delete_all_objects()
+                self.state.slittracesets = None
+                self.state.slit_polys = {}
+                self.slit_list_box.clear()
+                self._slit_combo_keys = []
+                self._rendered_cal_config = {}
+
     # --- Ginga plugin lifecycle ---
 
     def close(self):
+        """Stop this Ginga local plugin.
+
+        Calls the Ginga framework method
+        ``fv.stop_local_plugin(chname, plugin_name)`` to deactivate the plugin
+        and remove its UI from the panel.  Ginga subsequently calls
+        :meth:`stop` to release all timers and canvases.
+        """
         self.fv.stop_local_plugin(self.chname, str(self))
 
     @staticmethod
@@ -1611,6 +2292,21 @@ class QLView(GingaPlugin.LocalPlugin):
         return datetime.datetime.now().strftime(raw)
 
     def start(self):
+        """Ginga plugin lifecycle hook: initialize state and populate the UI.
+
+        Called by the Ginga framework when the plugin is started.  Reads
+        ``~/.quicklook.cfg`` (if it exists) to seed the raw-data path,
+        reduced-calibrations path, reduction output path, file-filter flags,
+        and reduction timeout.  Template keys (``raw_path_template``,
+        ``reduced_path_template``, ``redux_path_template``) take precedence
+        over their plain counterparts and support ``strftime``-style format
+        codes expanded at startup via :meth:`_expand_path`.
+
+        After applying configuration values, populates both file-browser
+        trees, creates the slit-overlay and manual-extraction ``DrawingCanvas``
+        objects, and registers :meth:`canvas_clicked_cb` on the main image
+        canvas.
+        """
         config_file = Path.home() / ".quicklook.cfg"
         raw_path = os.getcwd()
         reduced_path = os.getcwd()
@@ -1671,6 +2367,15 @@ class QLView(GingaPlugin.LocalPlugin):
         self.fitsimage.add_callback("cursor-down", self.canvas_clicked_cb)
 
     def stop(self):
+        """Ginga plugin lifecycle hook: cancel all timers and clean up canvases.
+
+        Called by the Ginga framework when the plugin is stopped or the window
+        is closed.  Cancels every active reduction-polling timer and every
+        trace-highlight polling timer, then removes the slit-overlay canvas,
+        manual-extraction canvas, and all per-slit trace canvases from the
+        main Ginga image canvas.  Sets :attr:`gui_up` to ``False`` to signal
+        that widget access is no longer safe.
+        """
         for timer in self.reduction_timers.values():
             timer.cancel()
         self.reduction_timers.clear()

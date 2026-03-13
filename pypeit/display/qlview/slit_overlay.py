@@ -10,6 +10,13 @@ from pypeit.slittrace import SlitTraceSet
 
 class SlitOverlay:
     def __init__(self, dc) -> None:
+        """
+        Parameters
+        ----------
+        dc : ginga draw-class namespace
+            The Ginga drawing-class namespace used to instantiate canvas
+            objects such as ``Polygon`` and ``Text``.
+        """
         self.dc = dc
         self.slit_polys: Dict[str, Polygon] = {}
         self.slit_labels: Dict[str, Text] = {}
@@ -92,6 +99,23 @@ class SlitOverlay:
         return dict(self.slit_polys)
 
     def set_labels_visible(self, visible: bool, canvas) -> None:
+        """Toggle the visibility of all slit label ``Text`` objects on the canvas.
+
+        This method is a no-op when *visible* already matches the current
+        ``_labels_visible`` state.
+
+        Parameters
+        ----------
+        visible : bool
+            ``True`` to add all slit labels to *canvas*; ``False`` to remove
+            them.
+        canvas : DrawingCanvas
+            The Ginga canvas that holds the slit overlay objects.
+
+        Returns
+        -------
+        None
+        """
         if visible == self._labels_visible:
             return
         self._labels_visible = visible
@@ -105,6 +129,20 @@ class SlitOverlay:
         canvas.update_canvas(whence=3)
 
     def activate(self, slit_key: str, canvas) -> None:
+        """Highlight the polygon for *slit_key* by setting its color to blue.
+
+        Parameters
+        ----------
+        slit_key : str
+            The slit identifier (e.g. ``"S1234"``) whose polygon should be
+            highlighted.
+        canvas : DrawingCanvas
+            The Ginga canvas that holds the slit overlay objects.
+
+        Returns
+        -------
+        None
+        """
         poly = self.slit_polys.get(slit_key)
         if poly is None:
             return
@@ -112,6 +150,20 @@ class SlitOverlay:
         canvas.update_canvas(whence=3)
 
     def deactivate(self, slit_key: str, canvas) -> None:
+        """Restore the polygon for *slit_key* to its default green color.
+
+        Parameters
+        ----------
+        slit_key : str
+            The slit identifier (e.g. ``"S1234"``) whose polygon should be
+            deactivated.
+        canvas : DrawingCanvas
+            The Ginga canvas that holds the slit overlay objects.
+
+        Returns
+        -------
+        None
+        """
         poly = self.slit_polys.get(slit_key)
         if poly is None:
             return
