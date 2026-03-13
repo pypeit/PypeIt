@@ -298,11 +298,11 @@ class MainWindow(QWidget):
     def check_status(self):
         # need to have a seperate thing for when pypeit is running or not
         if self.setup_file_path != None:
-            f = io.StringIO()
-            with redirect_stdout(f):
-                check_pypeit_status(self.setup_file_path)
-            captured_output = f.getvalue()
-            self.dashboard_widget.calibration_widget.append(captured_output)
+            # f = io.StringIO()
+            # with redirect_stdout(f):
+            check_pypeit_status(self.setup_file_path)
+            # captured_output = f.getvalue()
+            # self.dashboard_widget.calibration_widget.append(captured_output)
 
  
     def import_setup_file(self):

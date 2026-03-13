@@ -188,122 +188,104 @@ class RunPypeItState(BaseModel):
         
 
         # Collect all unique (calib_id, det) pairs across all steps
-        pairs = set()
-        for step in calib_classes:
-            for item in getattr(self, step):
-                pairs.add((item.calib_id, item.det))
-        
+        pairs = {(item.calib_id, item.det) for step in calib_classes for item in getattr(self, step)}
+            
+        if not pairs:
+            return None
 
-        # print(f'PypeIt Reduction Status: {os.path.basename(self.pypeit_file)}')
-        # print('=' * 70)
-        #
-        if len(pairs) == 0:
-            return
-
-        data_frames = []
-        # Sort by calib_id then det
+        # Build all rows in one pass
+        rows = []
         for calib_id, det in sorted(pairs):
-            steps_list = []
-            req_str_list = []
-            stat_str_list = []
-            outfile_list = []
-            
-            # Loop over steps in the order defined by calib_classes
-            for step in calib_classes:
+            for step_name, step_class in calib_classes.items():
+                # Find the matching entry
+                items = getattr(self, step_name)
+                entry = next((item for item in items if item.calib_id == calib_id and item.det == det), None)
 
-                steps_list.append(step) # add the current step to step list
-
-                items = getattr(self, step)
-                # Find the entry for this (calib_id, det)
-                entry = None
-                for item in items:
-                    if item.calib_id == calib_id and item.det == det:
-                        entry = item
-                        break
-
-                if entry is None:
-                    req_str_list.append(None)
-                    stat_str_list.append(None)
-                    outfile_list.append(None)
-
-                else:
-                    req_str = str(entry.required)
-                    stat_str = entry.status
-                    outfile = os.path.basename(entry.output_file) \
-                        if entry.output_file is not None else None
-
-                    req_str_list.append(req_str)
-                    stat_str_list.append(stat_str)
-                    outfile_list.append(outfile)
-
-            df = pd.DataFrame({
-                "Calibration Group": [calib_id] * len(steps_list),
-                "Detector": [det] * len(steps_list),
-                "Steps": steps_list,
-                "Required": req_str_list,
-                "Status": stat_str_list,
-                "Output File": outfile_list
+                # Fill in the values
+                rows.append({
+                    "calibration_group": calib_id,
+                    "detector": det,
+                    "steps": step_name,
+                    "required": str(entry.required) if entry else "--",
+                    "status": entry.status if entry else "--",
+                    "output_file": os.path.basename(entry.output_file) if entry and entry.output_file else "--"
                 })
-            data_frames.append(df)
 
-        full_df = pd.concat(data_frames)
-        
-        return full_df
-
-    def temp_print_status(self,full_df):
-        for (cal_group, det), group_df in full_df.groupby(['Calibration Group', 'Detector']):
-            # Print the header
-            print(f"Calibration Group: {cal_group}, Detector: {det}")
-            
-            # Print column names
-            print(f"{'Step':<12}{'Required':<10}{'Status':<10}{'Output File'}")
-            print(f"{'-'*12}{'-'*10}{'-'*10}{'-'*20}")
-            
-            # Print each row
-            for _, row in group_df.iterrows():
-                print(f"{row['Steps']:<12}{str(row['Required']):<10}{row['Status']:<10}{row['Output File']}")
-            
-            print()  # blank line between groups
-
+        # Make a single DataFrame
+        return pd.DataFrame(rows)
 
     def print_status(self):
-        """
-        Print a pretty-formatted summary of the calibration status
-        to stdout.
-        """
-        # Collect all unique (calib_id, det) pairs across all steps
-        pairs = set()
-        for step in calib_classes:
-            for item in getattr(self, step):
-                pairs.add((item.calib_id, item.det))
+        status_df = self.get_status()
 
         print(f'PypeIt Reduction Status: {os.path.basename(self.pypeit_file)}')
         print('=' * 70)
 
-        if len(pairs) == 0:
+        if status_df is None or status_df.empty:
             print('  No calibration state entries found.')
             return
 
-        # Sort by calib_id then det
-        for calib_id, det in sorted(pairs):
-            print(f'\n  Calibration Group: {calib_id}, Detector: {det}')
-            print(f'  {"Step":<14s} {"Required":<10s} {"Status":<10s} {"Output File"}')
-            print(f'  {"----":<14s} {"--------":<10s} {"------":<10s} {"-----------"}')
-            # Loop over steps in the order defined by calib_classes
-            for step in calib_classes:
-                items = getattr(self, step)
-                # Find the entry for this (calib_id, det)
-                entry = None
-                for item in items:
-                    if item.calib_id == calib_id and item.det == det:
-                        entry = item
-                        break
-                if entry is None:
-                    print(f'  {step:<14s} {"--":<10s} {"--":<10s} --')
-                else:
-                    req_str = str(entry.required)
-                    stat_str = entry.status
-                    outfile = os.path.basename(entry.output_file) \
-                        if entry.output_file is not None else '--'
-                    print(f'  {step:<14s} {req_str:<10s} {stat_str:<10s} {outfile}')
-        print()
+        # Precompute column widths for formatting
+        col_widths = {
+            "steps": 14,
+            "required": 10,
+            "status": 10,
+            "output_file": 20
+        }
+
+        # Group by calibration group and detector
+        for (calib_id, det), group_df in status_df.groupby(['calibration_group', 'detector']):
+            # Print header for this group
+            header = f'\n  Calibration Group: {calib_id}, Detector: {det}'
+            col_header = f"  {'Step':<13} {'Required':<9} {'Status':<9} {'Output File'}"
+            separator = f"  {'-'*(col_widths['steps']-1)} {'-'*(col_widths['required']-1)} {'-'*(col_widths['status']-1)} {'-'*col_widths['output_file']}"
+
+            # Build all rows as strings using itertuples (faster than iterrows)
+            row_strings = [
+                f"  {row.steps:<{col_widths['steps']}}{str(row.required):<{col_widths['required']}}{row.status:<{col_widths['status']}}{row.output_file}"
+                for row in group_df.itertuples(index=False, name='Row')
+            ]
+
+            # Print header + rows
+            print("\n".join([header, col_header, separator] + row_strings))
+    #
+    # def print_status(self):
+    #     """
+    #     Print a pretty-formatted summary of the calibration status
+    #     to stdout.
+    #     """
+    #     # Collect all unique (calib_id, det) pairs across all steps
+    #     pairs = set()
+    #     for step in calib_classes:
+    #         for item in getattr(self, step):
+    #             pairs.add((item.calib_id, item.det))
+    #
+    #     print(f'PypeIt Reduction Status: {os.path.basename(self.pypeit_file)}')
+    #     print('=' * 70)
+    #
+    #     if len(pairs) == 0:
+    #         print('  No calibration state entries found.')
+    #         return
+    #
+    #     # Sort by calib_id then det
+    #     for calib_id, det in sorted(pairs):
+    #         print(f'\n  Calibration Group: {calib_id}, Detector: {det}')
+    #         print(f'  {"Step":<14s} {"Required":<10s} {"Status":<10s} {"Output File"}')
+    #         print(f'  {"----":<14s} {"--------":<10s} {"------":<10s} {"-----------"}')
+    #         # Loop over steps in the order defined by calib_classes
+    #         for step in calib_classes:
+    #             items = getattr(self, step)
+    #             # Find the entry for this (calib_id, det)
+    #             entry = None
+    #             for item in items:
+    #                 if item.calib_id == calib_id and item.det == det:
+    #                     entry = item
+    #                     break
+    #             if entry is None:
+    #                 print(f'  {step:<14s} {"--":<10s} {"--":<10s} --')
+    #             else:
+    #                 req_str = str(entry.required)
+    #                 stat_str = entry.status
+    #                 outfile = os.path.basename(entry.output_file) \
+    #                     if entry.output_file is not None else '--'
+    #                 print(f'  {step:<14s} {req_str:<10s} {stat_str:<10s} {outfile}')
+    #     print()

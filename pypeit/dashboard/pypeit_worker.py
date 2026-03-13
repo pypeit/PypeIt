@@ -59,11 +59,8 @@ def check_pypeit_status(setup_file_path):
     # Write state to JSON
     # pypeIt.run_state.write() # should only really do this if pypeit is actively running
 
-    # Pretty-print the state
-    status = pypeIt.run_state.get_status()
+    # status = pypeIt.run_state.get_status()
     
-    print("my thing")
-    pypeIt.run_state.temp_print_status(status)
-
-    print("normal thing")
+    # Pretty-print the state
     pypeIt.run_state.print_status()
+
