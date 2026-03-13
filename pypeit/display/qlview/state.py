@@ -16,7 +16,7 @@ from pypeit.slittrace import SlitTraceSet
 class QLViewState:
     raw_filepath: Optional[str] = None
     reduced_filepath: Optional[str] = None
-    redux_path: str = "/hqdrpdata/DRP_TESTING/outputs"
+    redux_path: str = ""
     slittracesets: Optional[Dict[str, SlitTraceSet]] = None
     active_slit_key: Optional[str] = None
     slit_polys: Dict[str, Polygon] = field(default_factory=dict)
