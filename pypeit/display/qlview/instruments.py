@@ -20,38 +20,6 @@ from typing import Dict, List
 import numpy as np
 from astropy.io import fits
 
-# TODO: Should these be here at all? Might be better for each class to declare it
-# explicitly
-_BASE_RAW_COLUMNS = [
-    ("Type", "icon"),
-    ("Frame No", "FRAMENO"),
-    ("Name", "name"),
-    ("Object", "OBJECT"),
-    ("Img Type", "IMTYPE"),
-    ("Mask Name", "MASKNAME"),
-    ("Obs Mode", "OBSMODE"),
-    ("Exp Time", "EXPTIME"),
-    ("Last Changed", "st_mtime_str"),
-]
-
-_BASE_REDUCED_COLUMNS = [
-    ("Type", "icon"),
-    ("Name", "name"),
-    ("Mask Name", "MASKNAME"),
-    ("Filter", "FILTER"),
-    ("Slit Width", "SLITWIDTH"),
-    ("Last Changed", "st_mtime_str"),
-]
-# TODO: Should be moved into the MOSFIRE Class
-_MOSFIRE_REDUCED_COLUMNS = [
-    ("Type", "icon"),
-    ("Name", "name"),
-    ("CSU Mask", "MASKNAME"),
-    ("Filter", "FILTER1"),
-    ("Dispname", "FILTER2"),
-    ("Slit Width", "SLITWIDTH"),
-    ("Last Changed", "st_mtime_str"),
-]
 
 
 class Instrument:
@@ -77,16 +45,17 @@ class Instrument:
         ``self.columns`` is a dict with keys ``"raw"`` and ``"reduced"``.
         Each value is a list of ``(display_name, attr_name)`` tuples that match
         the format expected by ``Ginga.gw.Widgets.TreeView.setup_table()``.
-        Subclasses should replace or extend these lists in their own
-        ``__init__`` to suit the instrument's FITS header vocabulary.
+        Subclasses must populate these lists in their own ``__init__`` to suit
+        the instrument's FITS header vocabulary.
         """
         self.logger = logger
         # Per-view column definitions: keys are "raw" and "reduced".
         # Each value is a list of (display_name, attr_name) tuples matching
         # the format expected by Ginga's TreeView.setup_table().
+        # Concrete subclasses are responsible for defining both lists.
         self.columns: Dict[str, List] = {
-            "raw": list(_BASE_RAW_COLUMNS),
-            "reduced": list(_BASE_REDUCED_COLUMNS),
+            "raw": [],
+            "reduced": [],
         }
 
     def get_display_image(self, raw_path: str) -> np.ndarray:
@@ -524,9 +493,9 @@ class MOSFIRE(Instrument):
     def __init__(self, logger) -> None:
         """Initialise the MOSFIRE instrument with Keck-MOSFIRE–specific column definitions.
 
-        Extends the base raw column list with a "Dither Pos" column decoded
-        from the ``PATTERN``/``FRAMEID`` FITS headers, and sets MOSFIRE-specific
-        reduced columns.
+        Defines raw columns including a ``DITHER_POS`` column decoded from the
+        ``PATTERN``/``FRAMEID`` FITS headers, and sets MOSFIRE-specific reduced
+        columns with CSU mask, filter, and dispname fields.
 
         Parameters
         ----------
@@ -535,11 +504,27 @@ class MOSFIRE(Instrument):
         """
         super().__init__(logger)
         self.pypeit_name = "keck_mosfire"
-        raw_cols = list(_BASE_RAW_COLUMNS)
-        # Insert "Dither Pos" after "Name" (index 2) and before "Object"
-        raw_cols.insert(3, ("Dither Pos", "DITHER_POS"))
-        self.columns["raw"] = raw_cols
-        self.columns["reduced"] = list(_MOSFIRE_REDUCED_COLUMNS)
+        self.columns["raw"] = [
+            ("Type", "icon"),
+            ("Frame No", "FRAMENO"),
+            ("Name", "name"),
+            ("Dither Pos", "DITHER_POS"),
+            ("Object", "OBJECT"),
+            ("Img Type", "IMTYPE"),
+            ("Mask Name", "MASKNAME"),
+            ("Obs Mode", "OBSMODE"),
+            ("Exp Time", "EXPTIME"),
+            ("Last Changed", "st_mtime_str"),
+        ]
+        self.columns["reduced"] = [
+            ("Type", "icon"),
+            ("Name", "name"),
+            ("CSU Mask", "MASKNAME"),
+            ("Filter", "FILTER1"),
+            ("Dispname", "FILTER2"),
+            ("Slit Width", "SLITWIDTH"),
+            ("Last Changed", "st_mtime_str"),
+        ]
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
         """Read display metadata from a MOSFIRE raw FITS file.
@@ -665,7 +650,14 @@ class NIRES(Instrument):
             ("Last Changed", "st_mtime_str"),
         ]
         # Fixed-format echelle — no grating/filter variation to show
-        self.columns["reduced"] = list(_BASE_REDUCED_COLUMNS)
+        self.columns["reduced"] = [
+            ("Type", "icon"),
+            ("Name", "name"),
+            ("Mask Name", "MASKNAME"),
+            ("Filter", "FILTER"),
+            ("Slit Width", "SLITWIDTH"),
+            ("Last Changed", "st_mtime_str"),
+        ]
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
         """Read display metadata from a NIRES raw FITS file.
@@ -767,16 +759,6 @@ class NIRES(Instrument):
             return {}
 
 
-_LRIS_REDUCED_COLUMNS = [
-    ("Type", "icon"),
-    ("Name", "name"),
-    ("Slit/Mask", "SLITNAME"),
-    ("Grating/Grism", "DISPNAME"),
-    ("Dichroic", "DICHNAME"),
-    ("Last Changed", "st_mtime_str"),
-]
-
-
 class LRISBlue(Instrument):
     """Keck LRIS Blue channel — multi-slit, 2-detector mosaic.
     
@@ -790,8 +772,8 @@ class LRISBlue(Instrument):
         """Initialise the LRIS Blue instrument with Keck-LRIS–Blue–specific column definitions.
 
         Defines raw columns for grism (``GRISNAME``) and dichroic
-        (``DICHNAME``) and uses the shared ``_LRIS_REDUCED_COLUMNS`` for
-        the reduced view.
+        (``DICHNAME``), and sets LRIS Blue–specific reduced columns with
+        slit/mask, grating/grism, and dichroic fields.
 
         Parameters
         ----------
@@ -800,7 +782,7 @@ class LRISBlue(Instrument):
         """
         super().__init__(logger)
         self.pypeit_name = "keck_lris_blue"
-        raw_cols = [
+        self.columns["raw"] = [
             ("Type", "icon"),
             ("Frame No", "FRAMENO"),
             ("Name", "name"),
@@ -812,8 +794,14 @@ class LRISBlue(Instrument):
             ("Exp Time", "EXPTIME"),
             ("Last Changed", "st_mtime_str"),
         ]
-        self.columns["raw"] = raw_cols
-        self.columns["reduced"] = list(_LRIS_REDUCED_COLUMNS)
+        self.columns["reduced"] = [
+            ("Type", "icon"),
+            ("Name", "name"),
+            ("Slit/Mask", "SLITNAME"),
+            ("Grating/Grism", "DISPNAME"),
+            ("Dichroic", "DICHNAME"),
+            ("Last Changed", "st_mtime_str"),
+        ]
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
         """Read display metadata from an LRIS Blue raw FITS file.
@@ -918,8 +906,8 @@ class LRISRed(Instrument):
         """Initialise the LRIS Red instrument with Keck-LRIS–Red–specific column definitions.
 
         Defines raw columns for grating (``GRANAME``) and dichroic
-        (``DICHNAME``) and uses the shared ``_LRIS_REDUCED_COLUMNS`` for
-        the reduced view.
+        (``DICHNAME``), and sets LRIS Red–specific reduced columns with
+        slit/mask, grating/grism, and dichroic fields.
 
         Parameters
         ----------
@@ -928,7 +916,7 @@ class LRISRed(Instrument):
         """
         super().__init__(logger)
         self.pypeit_name = "keck_lris_red_mark4"
-        raw_cols = [
+        self.columns["raw"] = [
             ("Type", "icon"),
             ("Frame No", "FRAMENO"),
             ("Name", "name"),
@@ -940,8 +928,14 @@ class LRISRed(Instrument):
             ("Exp Time", "EXPTIME"),
             ("Last Changed", "st_mtime_str"),
         ]
-        self.columns["raw"] = raw_cols
-        self.columns["reduced"] = list(_LRIS_REDUCED_COLUMNS)
+        self.columns["reduced"] = [
+            ("Type", "icon"),
+            ("Name", "name"),
+            ("Slit/Mask", "SLITNAME"),
+            ("Grating/Grism", "DISPNAME"),
+            ("Dichroic", "DICHNAME"),
+            ("Last Changed", "st_mtime_str"),
+        ]
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
         """Read display metadata from an LRIS Red raw FITS file.
