@@ -1596,6 +1596,20 @@ class QLView(GingaPlugin.LocalPlugin):
     def close(self):
         self.fv.stop_local_plugin(self.chname, str(self))
 
+    @staticmethod
+    def _expand_path(raw: str) -> str:
+        """Expand strftime-style format codes in a path using the current datetime.
+
+        A path with no ``%`` characters is returned unchanged, so absolute
+        paths that happen not to contain any format codes are unaffected.
+
+        Examples
+        --------
+        ``/data/raw/%Y%m%d``  →  ``/data/raw/20260313``
+        ``/hqdrpdata/outputs`` →  ``/hqdrpdata/outputs``  (unchanged)
+        """
+        return datetime.datetime.now().strftime(raw)
+
     def start(self):
         config_file = Path.home() / ".quicklook.cfg"
         raw_path = os.getcwd()
@@ -1606,9 +1620,22 @@ class QLView(GingaPlugin.LocalPlugin):
             config = configparser.ConfigParser()
             config.read(config_file)
             defaults = config["DEFAULT"]
-            raw_path = defaults.get("raw_path", raw_path)
-            reduced_path = defaults.get("reduced_path", reduced_path)
-            redux_path = defaults.get("redux_path", redux_path)
+
+            # Template keys (raw_path_template, reduced_path_template,
+            # redux_path_template) take precedence over the static keys when
+            # present.  They are expanded with strftime so that format codes
+            # such as %Y, %m, %d, %H, %M are replaced with the current date/
+            # time at startup.  Absolute paths without any % characters work
+            # identically with both the template and static keys.
+            raw_tmpl = defaults.get("raw_path_template", "")
+            raw_path = self._expand_path(raw_tmpl) if raw_tmpl else defaults.get("raw_path", raw_path)
+
+            red_tmpl = defaults.get("reduced_path_template", "")
+            reduced_path = self._expand_path(red_tmpl) if red_tmpl else defaults.get("reduced_path", reduced_path)
+
+            rdx_tmpl = defaults.get("redux_path_template", "")
+            redux_path = self._expand_path(rdx_tmpl) if rdx_tmpl else defaults.get("redux_path", redux_path)
+
             self.raw_filter_fits = defaults.getboolean("raw_show_fits", True)
             self.raw_filter_nonfits = defaults.getboolean("raw_show_nonfits", False)
             self.raw_filter_dirs = defaults.getboolean("raw_show_dirs", True)
