@@ -308,11 +308,19 @@ class MOSFIRE(Instrument):
     def __init__(self, logger) -> None:
         super().__init__(logger)
         self.pypeit_name = "keck_mosfire"
+        raw_cols = list(_BASE_RAW_COLUMNS)
+        # Insert "Dither Pos" after "Name" (index 2) and before "Object"
+        raw_cols.insert(3, ("Dither Pos", "DITHER_POS"))
+        self.columns["raw"] = raw_cols
         self.columns["reduced"] = list(_MOSFIRE_REDUCED_COLUMNS)
 
     def get_raw_info(self, path: str) -> Dict[str, object]:
         with fits.open(path) as hdul:
-            return self._read_header_fields(hdul[0].header)
+            hdr = hdul[0].header
+            info = self._read_header_fields(hdr)
+            pattern = hdr.get("PATTERN", "")
+            info["DITHER_POS"] = "N/A" if pattern == "Stare" else hdr.get("FRAMEID", "N/A")
+            return info
 
     def get_display_image(self, raw_path: str) -> np.ndarray:
         """Build an overscan-subtracted, oriented display image.
