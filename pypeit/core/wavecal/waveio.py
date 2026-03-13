@@ -6,16 +6,15 @@
 import pathlib
 
 import astropy.table
-import linetools.utils
+from IPython import embed
 import numpy as np
 
+from pypeit import cache
+from pypeit import dataPaths
 from pypeit import log
 from pypeit import PypeItError
-from pypeit import dataPaths
-from pypeit import cache
+from pypeit import utils
 from pypeit.core.wavecal import defs
-
-from IPython import embed
 
 
 # TODO -- Move this to the WaveCalib object
@@ -34,8 +33,8 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     if not filename.is_file():
         raise PypeItError(f"File does not exist: {filename}")
 
-    # Force any possible pathlib.Path object to string before `loadjson`
-    wv_calib = linetools.utils.loadjson(str(filename))
+    # Load JSON file
+    wv_calib = utils.loadjson(filename)
 
     # Recast a few items as arrays
     for key in wv_calib.keys():

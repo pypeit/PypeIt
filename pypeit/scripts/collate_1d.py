@@ -16,13 +16,13 @@ import shutil
 import numpy as np
 from astropy.coordinates import Angle
 from astropy.time import Time
-from linetools import utils as ltu
+
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import coadd1d
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.utils import is_float
+from pypeit.utils import is_float, radec_to_coord
 from pypeit.core import wave
 from pypeit.archive import ArchiveMetadata, ArchiveDir
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
@@ -356,7 +356,7 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log):
             sobjs = SpecObjs.from_fitsfile(spec1d, chk_version=par['rdx']['chk_version'])
             hdr_ra = sobjs.header['RA']
             hdr_dec = sobjs.header['DEC']
-            hdr_radec = ltu.radec_to_coord((hdr_ra, hdr_dec))
+            hdr_radec = radec_to_coord((hdr_ra, hdr_dec))
             obstime = Time(sobjs.header['MJD'], format='mjd')
         except Exception as e:
             msg = f'Failed to perform {refframe} correction on {spec1d}: {e}'
@@ -374,7 +374,7 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log):
                 continue
             # Use the SpecObj RA/DEC if it's available, otherwise use the value from the header
             if sobj['RA'] is not None and sobj['DEC'] is not None:
-                radec = ltu.radec_to_coord((sobj['RA'], sobj['DEC']))
+                radec = radec_to_coord((sobj['RA'], sobj['DEC']))
             else:
                 radec = hdr_radec
             # Calculate the correction

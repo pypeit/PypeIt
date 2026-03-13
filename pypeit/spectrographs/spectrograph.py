@@ -749,7 +749,7 @@ class Spectrograph:
         raise PypeItError('This spectrograph does not support the use of lamps list from header. '
                    'provide a list of lamps using the parameter `lamps` in WavelengthSolutionPar')
 
-    def get_slitmask(self, filename):
+    def get_slitmask(self, filename, det:int=1):
         """
         Empty for base class.  See derived classes.
         """
@@ -795,7 +795,7 @@ class Spectrograph:
         raise PypeItError('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None, 
+    def get_maskdef_slitedges(self, filename:str=None, det:1=None, debug:bool=None, 
                               binning:str=None, trc_path:str=None):
         """
         Provides the slit edges positions predicted by the slitmask design.
@@ -804,13 +804,35 @@ class Spectrograph:
         method raises an exception. This may be because ``use_maskdesign``
         has been set to True for a spectrograph that does not support it.
 
-        Args:
-            trc_path(str, optional): Path to the first trace file used to generate the trace flat
-            binning(str, optional): spec,spat binning of the flat field image
-            filename (:obj:`str` or :obj:`list`, optional): Name of the file holding the mask design info
-                or the maskfile and wcs_file in that order
-            debug (:obj:`bool`, optional): Debug
-            ccdnum (:obj:`int`, optional): detector number
+        Parameters
+        ---------- 
+        filename : :obj:`str`, :obj:`list`, optional:
+            Name of the file holding the mask design info or the maskfile and
+            wcs_file in that order
+        det : :obj:`int`, optional
+            Detector number
+        debug : :obj:`bool`, optional
+            Flag to run in debugging mode
+        trc_path : str, optional
+            Path to the first trace file used to generate the trace flat
+        binning : str, optional
+            String with the comma-separated number of pixels binned in each
+            dimension of the flat-field image.  Order must be spectral then
+            spatial.
+
+        Returns
+        -------
+        top_edges : :class:`numpy.ndarray`
+            Predicted locations of the top edges of the slits in spatial pixel
+            coordinates.
+        bot_edges : :class:`numpy.ndarray`
+            Predicted locations of the bottom edges of the slits in spatial pixel
+            coordinates.
+        sortindx : :class:`numpy.ndarray`
+            Indices of the slits in the provided ``slitmask`` object that orders
+            the slits from left to right, in the PypeIt orientation.
+        slitmask : :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            Slit mask metadata read from the provided input file(s).
         """
         raise PypeItError('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')

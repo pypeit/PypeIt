@@ -575,14 +575,8 @@ requirements for both users and developers are:
 Dependency Caveats
 ------------------
 
-Some users have run into the following complications when installing the
-PypeIt dependencies.  If you run into any more, please `submit an issue
-<https://github.com/pypeit/PypeIt/issues>`__.
-
-.. TODO: IS THIS FIRST ITEM STILL TRUE?
-
-- At the moment, an implicit dependency on QT bindings remains because of our
-  dependence on ``linetools``.
+If you run into any complications when installing the PypeIt dependencies,
+please `submit an issue <https://github.com/pypeit/PypeIt/issues>`__.
 
 ----
 

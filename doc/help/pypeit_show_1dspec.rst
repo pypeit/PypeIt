@@ -4,7 +4,6 @@
     usage: pypeit_show_1dspec [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                               [--log_level LOG_LEVEL] [--list] [--exten EXTEN]
                               [--obj OBJ] [--extract EXTRACT] [--flux] [-m]
-                              [--ginga]
                               file
     
     Show a 1D spectrum
@@ -34,5 +33,4 @@
                             (default: OPT)
       --flux                Show fluxed spectrum? (default: False)
       -m, --unmasked        Only show unmasked data. (default: True)
-      --ginga               Open the spectrum in ginga (default: False)
     

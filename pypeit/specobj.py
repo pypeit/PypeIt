@@ -11,17 +11,13 @@ from IPython import embed
 
 import numpy as np
 
-from astropy import units
-
-from linetools.spectra import xspectrum1d
-
 from pypeit import log
 from pypeit import PypeItError
 from pypeit.core import flexure
 from pypeit.core import flux_calib
 from pypeit.core import parse
-from pypeit import utils
 from pypeit import datamodel
+from pypeit import onespec
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 from pypeit.spectrographs.util import load_spectrograph
@@ -521,12 +517,13 @@ class SpecObj(datamodel.DataContainer):
         Args:
             shift (float):
                 additive spectral flexure in pixels
-            sky_spec (`linetools.spectra.xspectrum1d.XSpectrum1D`_):
+            sky_spec (:class:`~pypeit.onespec.OneSpec`):
                 Sky Spectrum
 
         Returns:
-            `linetools.spectra.xspectrum1d.XSpectrum1D`_: New sky
-            spectrum (mainly for QA)
+            :class:`~pypeit.onespec.OneSpec`:
+                New sky spectrum with the flexure applied  
+                mainly for QA
         """
         # Simple interpolation to apply
         # Apply
@@ -537,8 +534,8 @@ class SpecObj(datamodel.DataContainer):
                 )
                 self[attr+'_WAVE'] = flexure.flexure_interp(shift, self[attr+'_WAVE']).copy()
         # Shift sky spec too
-        twave = flexure.flexure_interp(shift, sky_spec.wavelength.value) * units.AA
-        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, sky_spec.flux))
+        twave = flexure.flexure_interp(shift, sky_spec.wave)
+        new_sky = onespec.OneSpec(twave, None, sky_spec.flux)
         # Save - since flexure may have been applied/calculated twice, this needs to be additive
         self.update_flex_shift(shift, flex_type='local')
         # Return
@@ -679,33 +676,6 @@ class SpecObj(datamodel.DataContainer):
             sivar = extraction+'_COUNTS_IVAR'
         # Return
         return self[swave], self[sflux], self[sivar], self[smask]
-
-    def to_xspec1d(self, masked=True, extraction='OPT', fluxed=True):
-        """
-        Create an `XSpectrum1D <linetools.spectra.xspectrum1d.XSpectrum1D>`_
-        using this spectrum.
-
-        Args:
-            masked (:obj:`bool`, optional):
-                If True, only unmasked data are included.
-            extraction (str):
-                Extraction method to convert
-            fluxed:
-                Use the fluxed tags
-
-        Returns:
-            `linetools.spectra.xspectrum1d.XSpectrum1D`_: Spectrum object
-        """
-        wave, flux, ivar, gpm = self.to_arrays(extraction=extraction, fluxed=fluxed)
-        sig = np.sqrt(utils.inverse(ivar))
-        wave_gpm = wave > 1.0
-        wave, flux, sig, gpm = wave[wave_gpm], flux[wave_gpm], sig[wave_gpm], gpm[wave_gpm]
-        if masked:
-            flux = flux*gpm
-            sig = sig*gpm
-
-        # Create
-        return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 
     def ready_for_extraction(self):
         """ Simple method to check all the items are filled

@@ -46,6 +46,7 @@ from astropy import table
 
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import PypeItBitMaskError
 from pypeit import utils
 from pypeit import sampling
 from pypeit import slittrace
@@ -4465,7 +4466,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.maskfile = maskfiles[0] if isinstance(maskfiles, list) else maskfiles
         omodel_bspat, omodel_tspat, sortindx, self.slitmask = \
             self.spectrograph.get_maskdef_slitedges(
-                ccdnum=self.traceimg.detector.det, 
+                det=self.traceimg.detector.det, 
                 binning=self.traceimg.detector.binning, 
                 filename=maskfiles, 
                 trc_path=str(Path(self.traceimg.files[0]).parent),

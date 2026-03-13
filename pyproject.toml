@@ -44,8 +44,6 @@ dependencies = [
     "scikit-learn>=1.2",
     "IPython>=8.0.0",
     "ginga>=5.5.1",
-    "setuptools<81",    # Keep until we deprecate linetools
-    "linetools>=0.3.2",
     "qtpy>=2.2.0",
     "pygithub",
     "bottleneck",
@@ -136,6 +134,7 @@ pypeit_parse_slits = "pypeit.scripts.parse_slits:ParseSlits.entry_point"
 pypeit_print_bpm = "pypeit.scripts.print_bpm:PrintBPM.entry_point"
 pypeit_qa_html = "pypeit.scripts.qa_html:QAHtml.entry_point"
 pypeit_ql = "pypeit.scripts.ql:QL.entry_point"
+pypeit_status = "pypeit.scripts.pypeit_status:PypeItStatus.entry_point"
 run_pypeit = "pypeit.scripts.run_pypeit:RunPypeIt.entry_point"
 pypeit_run_to_calibstep = "pypeit.scripts.run_to_calibstep:RunToCalibStep.entry_point"
 pypeit_reduce_by_step = "pypeit.scripts.reduce_by_step:ReducebyStep.entry_point"
@@ -144,8 +143,6 @@ pypeit_setup = "pypeit.scripts.setup:Setup.entry_point"
 pypeit_setup_coadd2d = "pypeit.scripts.setup_coadd2d:SetupCoAdd2D.entry_point"
 pypeit_show_arxiv = "pypeit.scripts.show_arxiv:ShowArxiv.entry_point"
 pypeit_version = "pypeit.scripts.version:Version.entry_point"
-# NOTE: pypeit_show_wvcalib uses linetools to open a json file, but uses
-# matplotlib to show the spectrum...
 pypeit_show_wvcalib = "pypeit.scripts.show_wvcalib:ShowWvCalib.entry_point"
 pypeit_tellfit = "pypeit.scripts.tellfit:TellFit.entry_point"
 pypeit_trace_edges = "pypeit.scripts.trace_edges:TraceEdges.entry_point"

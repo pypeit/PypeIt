@@ -136,14 +136,15 @@ class CoAdd1D:
         """
         self.coaddfile = coaddfile
         # Generate the spectrum container object
-        onespec = OneSpec(wave=self.wave_coadd, wave_grid_mid=self.wave_grid_mid, flux=self.flux_coadd,
-                          PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd,
-                          sigma=np.sqrt(utils.inverse(self.ivar_coadd)),
-                          mask=self.gpm_coadd.astype(int),
-                          ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
+        spec = OneSpec(
+            wave=self.wave_coadd, wave_grid_mid=self.wave_grid_mid, flux=self.flux_coadd,
+            PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd,
+            sigma=np.sqrt(utils.inverse(self.ivar_coadd)), mask=self.gpm_coadd.astype(int),
+            ext_mode=self.par['ex_value'], fluxed=self.par['flux_value']
+        )
 
         # TODO This is a hack, not sure how to merge the headers at present
-        onespec.head0 = self.headers[0]
+        spec.head0 = self.headers[0]
 
         # Add history entries for coadding.
         history = History()
@@ -151,9 +152,9 @@ class CoAdd1D:
 
         # Add on others
         if telluric is not None:
-            onespec.telluric = telluric
+            spec.telluric = telluric
         if obj_model is not None:
-            onespec.obj_model = obj_model
+            spec.obj_model = obj_model
 
         #save the order stacks from the echelle reduction
         if self.order_stacks is not None and (fits.getheader(self.spec1dfiles[0])['PYPELINE'] == 'Echelle'):
@@ -181,7 +182,7 @@ class CoAdd1D:
                 orderstack.head0 = self.headers[setup_num]
                 orderstack.to_file(coaddfile.split('.fits')[0] + '_orderstack' + setup_val + '.fits', history=history, overwrite=overwrite)
         # Write
-        onespec.to_file(coaddfile, history=history, overwrite=overwrite)
+        spec.to_file(coaddfile, history=history, overwrite=overwrite)
 
     def coadd(self):
         """

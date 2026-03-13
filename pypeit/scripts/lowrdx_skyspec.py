@@ -23,16 +23,36 @@ class LowRDXSkySpec(scriptbase.ScriptBase):
     @classmethod
     def main(cls, args):
         from scipy.io.idl import readsav
-        from linetools.spectra.xspectrum1d import XSpectrum1D
+        from astropy.io import fits
 
         # Initialize the log
         cls.init_log(args)
 
         # Read
         lrdx_sky = readsav(args.lowrdx_sky)
-        # Generate
-        xspec = XSpectrum1D.from_tuple((lrdx_sky['wave_calib'], lrdx_sky['sky_calib']))
+        wave = lrdx_sky['wave_calib']
+        sky = lrdx_sky['sky_calib']
+
+#        # Write
+#        prihdu = fits.PrimaryHDU(sky)
+#        prihdu.name = 'FLUX'
+#        hdul = fits.HDUList([prihdu])
+#        wvhdu = fits.ImageHDU(wave)
+#        hdul.append(wvhdu)
+#        
+#        prihdu.header['NSPEC'] = 1
+#        prihdu.header['NPIX'] = len(sky)
+#        hdul.writeto(args.new_file, overwrite=True)
+
         # Write
-        xspec.write_to_fits(args.new_file)
+        hdr = fits.Header()
+        hdr['NSPEC'] = (1, 'Number of spectra')
+        hdr['NPIX'] = (len(sky), 'Number of pixels per spectrum')
+        hdu = fits.HDUList([
+            fits.PrimaryHDU(data=sky, header=hdr),
+            fits.ImageHDU(data=wave, name='WAVE')
+        ])
+        hdu[0].name = 'FLUX'
+        hdu.writeto(args.new_file, overwrite=True)
 
 

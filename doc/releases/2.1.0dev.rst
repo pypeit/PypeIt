@@ -1,0 +1,45 @@
+
+Version 2.1.0dev
+================
+
+Breaking Changes
+---------------------
+
+Documentation Updates
+---------------------
+
+- Updated the documentation about the use of the mask design file for Gemini/GMOS.
+  See the :ref:`gemini_gmos` documentation for details.
+
+
+Dependency Changes
+------------------
+
+
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
+
+
+Instrument-specific Updates
+---------------------------
+
+
+Script Changes
+--------------
+
+
+Testing
+-------
+
+- Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
+
+
+Under-the-hood Improvements
+---------------------------
+
+
+Bug Fixes
+---------
+
+- None yet.
+

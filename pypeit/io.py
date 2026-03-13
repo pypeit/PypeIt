@@ -10,7 +10,6 @@ Provides a set of I/O routines.
 import os
 from pathlib import Path
 import importlib
-import glob
 import sys
 import warnings
 import gzip
@@ -31,10 +30,6 @@ import astropy
 import sklearn
 import pypeit
 import time
-
-# TODO: Reminder that our aim is to eventually deprecate use of xspectrum1d in
-# favor of specutils.Spectrum1D (or whatever it is in specutils>2.0).
-from linetools.spectra import xspectrum1d
 
 from pypeit import log
 from pypeit import PypeItError
@@ -976,25 +971,4 @@ def load_thar_spec():
         `astropy.io.fits.HDUList`_: ThAr Spectrum FITS HDU list
     """
     return fits_open(dataPaths.arclines.get_file_path('thar_spec_MM201006.fits'))
-
-
-def load_sky_spectrum(sky_file: str) -> xspectrum1d.XSpectrum1D:
-    """
-    Load a sky spectrum from the PypeIt data directory into an XSpectrum1D
-    object.
-
-    .. todo::
-
-        Try to eliminate the XSpectrum1D dependancy
-
-    Args:
-        sky_file (:obj:`str`):
-            The filename (NO PATH) of the sky file to use.
-
-    Returns:
-        `linetools.spectra.xspectrum1d.XSpectrum1D`_: Sky spectrum
-    """
-    path = dataPaths.sky_spec.get_file_path(sky_file)
-    return xspectrum1d.XSpectrum1D.from_file(str(path))
-
 

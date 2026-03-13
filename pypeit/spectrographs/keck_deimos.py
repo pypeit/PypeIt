@@ -21,8 +21,6 @@ from astropy.table import Table
 from astropy.time import Time
 from astropy import units
 
-import linetools
-
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import telescopes
@@ -36,6 +34,8 @@ from pypeit.images.detector_container import DetectorContainer
 from pypeit import dataPaths
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
+from pypeit import utils
+
 from pypeit.par import parset
 from pypeit.spectrographs import slitmask 
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
@@ -1035,19 +1035,24 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return np.array(tel_off)
 
-    def get_slitmask(self, filename:str):
+    def get_slitmask(self, filename:str, det:int=1):
         """
-        Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
+        Parse the slitmask data from a raw file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
-        Args:
-            filename (:obj:`str`):
-                Name of the file to read.
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Name of the file to read.
+        det : :obj:`int`, optional
+            1-indexed detector number to read the slitmask for.  Ignored for
+            Keck/DEIMOS.
 
-        Returns:
-            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
-            data read from the file. The returned object is the same as
-            :attr:`slitmask`.
+        Returns
+        -------
+        :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            The slitmask data read from the file. The returned object is the
+            same as :attr:`slitmask`.
         """
         self.slitmask = slitmask.load_keck_deimoslris(filename, self.name)
         return self.slitmask
@@ -1345,30 +1350,44 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Use the detector map to convert to the detector coordinates
         return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img, in_mm=False)
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
-                              trc_path=None, binning=None):
+    def get_maskdef_slitedges(self, filename:str=None, det:1=None, debug:bool=None, 
+                              binning:str=None, trc_path:str=None):
         """
-        Provides the slit edges positions predicted by the slitmask design using
-        the mask coordinates already converted from mm to pixels by the method
-        `mask_to_pixel_coordinates`.
+        Provides the slit edges positions predicted by the slitmask design.
 
-        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
-        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`, and
+        :attr:`bmap` attributes are instantiated; in this case, a file must be
+        provided.
 
-        Args:
-            ccdnum (:obj:`int`):
-                Detector number
-            filename (:obj:`str`, optional):
-                The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
-                Default is None, i.e., to use previously instantiated attributes.
-            debug (:obj:`bool`, optional):
-                Run in debug mode.
+        Parameters
+        ---------- 
+        filename : :obj:`str`, :obj:`list`, optional:
+            Name of the file holding the mask design info or the maskfile and
+            wcs_file in that order
+        det : :obj:`int`, optional
+            Detector number
+        debug : :obj:`bool`, optional
+            Flag to run in debugging mode
+        trc_path : str, optional
+            Path to the first trace file used to generate the trace flat
+        binning : str, optional
+            String with the comma-separated number of pixels binned in each
+            dimension of the flat-field image.  Order must be spectral then
+            spatial.
 
-        Returns:
-            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
-            Two arrays are the predictions of the slit edges from the slitmask design and
-            one contains the indices to order the slits from left to right in the PypeIt orientation
-
+        Returns
+        -------
+        top_edges : :class:`numpy.ndarray`
+            Predicted locations of the top edges of the slits in spatial pixel
+            coordinates.
+        bot_edges : :class:`numpy.ndarray`
+            Predicted locations of the bottom edges of the slits in spatial pixel
+            coordinates.
+        sortindx : :class:`numpy.ndarray`
+            Indices of the slits in the provided ``slitmask`` object that orders
+            the slits from left to right, in the PypeIt orientation.
+        slitmask : :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            Slit mask metadata read from the provided input file(s).
         """
         # Re-initiate slitmask and amap and bmap
         if filename is not None:
@@ -1385,11 +1404,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         if self.slitmask is None:
             raise PypeItError('Unable to read slitmask design info. Provide a file.')
 
-        if ccdnum is None:
+        if det is None:
             raise PypeItError('A detector number must be provided')
 
-        # parse ccdnum
-        nimg, _ccdnum = self.validate_det(ccdnum)
+        # parse the detector
+        nimg, _det = self.validate_det(det)
 
         # Match left and right edges separately
         # Sort slits in mm from the slit-mask design
@@ -1412,10 +1431,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         for i in range(omodel_bspat.size):
             # We "flag" the left and right traces predicted by the optical model that are outside of the
             # current detector, by giving a value of -1.
-            thisccd_b = np.logical_or(ccd_b[i, :] == _ccdnum[0], ccd_b[i, :] == _ccdnum[1]) if nimg == 2 \
-                else ccd_b[i, :] == _ccdnum[0]
-            thisccd_t = np.logical_or(ccd_t[i, :] == _ccdnum[0], ccd_t[i, :] == _ccdnum[1]) if nimg == 2 \
-                else ccd_t[i, :] == _ccdnum[0]
+            thisccd_b = np.logical_or(ccd_b[i, :] == _det[0], ccd_b[i, :] == _det[1]) if nimg == 2 \
+                else ccd_b[i, :] == _det[0]
+            thisccd_t = np.logical_or(ccd_t[i, :] == _det[0], ccd_t[i, :] == _det[1]) if nimg == 2 \
+                else ccd_t[i, :] == _det[0]
             # bottom
             omodel_bspat[i] = -1 if bedge_pix[i, thisccd_b].shape[0] < 10 else \
                               np.median(bedge_pix[i, thisccd_b])
@@ -1429,7 +1448,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             npt_img = whgood.shape[0] // 2
             # This is hard-coded for DEIMOS, since it refers to the detectors configuration
             if nimg == 1:
-                whgood = whgood[:npt_img] if _ccdnum[0] <= 4 else whgood[npt_img:]
+                whgood = whgood[:npt_img] if _det[0] <= 4 else whgood[npt_img:]
             if omodel_bspat[i] == -1 and omodel_tspat[i] >= 0:
                 omodel_bspat[i] = omodel_tspat[i] - np.median((tedge_img - bedge_img)[i, whgood])
             if omodel_tspat[i] == -1 and omodel_bspat[i] >= 0:
@@ -1970,7 +1989,7 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None, pad = False, split=True)
         sobjs.add_sobj(sobj2)
 
     # Fill in header
-    coord = linetools.utils.radec_to_coord((meta['RA'][0], meta['DEC'][0]))
+    coord = utils.radec_to_coord((meta['RA'][0], meta['DEC'][0]))
     sobjs.header = dict(EXPTIME=1., 
                         AIRMASS=float(meta['AIRMASS'][0]), 
                         DISPNAME=str(meta['GRATING'][0]), 

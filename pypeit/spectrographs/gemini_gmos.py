@@ -598,30 +598,30 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     def default_mosaic(self):
         return self.allowed_mosaics[0]
 
-
-    def get_slitmask(self, filename):
+    def get_slitmask(self, filename:str, det:int=1):
         """
-        Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
+        Parse the slitmask data from a raw file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
-        This can be used for multi-object slitmask, but it it's not good
-        for "LONGSLIT" nor "long2pos". Both "LONGSLIT" and "long2pos" have emtpy/incomplete
-        binTable where the slitmask data are stored.
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Name of the file to read.
+        det : :obj:`int`, optional
+            1-indexed detector number to read the slitmask for.  Ignored for
+            Gemini/GMOS.
 
-
-        Args:
-            filename (:obj:`str`):
-                Name of the file to read.
-
-        Returns:
-            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
-            data read from the file. The returned object is the same as
-            :attr:`slitmask`.
+        Returns
+        -------
+        :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            The slitmask data read from the file. The returned object is the
+            same as :attr:`slitmask`.
         """
         # Open the file
         mask_tbl = Table.read(filename, format='fits')
 
-        # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
+        # Projected distance (in arcsec) of the object from the left and right
+        # (top and bot) edges of the slit
         slit_length = mask_tbl['slitsize_y'].to('arcsec').value # arcsec
         topdist = np.round(slit_length/2. -
                            mask_tbl['slitpos_y'].to('arcsec').value, 3)
@@ -698,24 +698,43 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
            posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
-                              trc_path:str=None, binning=None):
-        """ Determine the slit edges from the mask file
+    def get_maskdef_slitedges(self, filename:str=None, det:1=None, debug:bool=None, 
+                              binning:str=None, trc_path:str=None):
+        """
+        Provides the slit edges positions predicted by the slitmask design.
 
-        Here, we take advantage of the WCS solution from the input
-        `wcs_file`, which should be an alighment image from the observations.
+        For Gemini/GMOS, we take advantage of the WCS solution from the input
+        ``wcs_file``, which should be an alignment image from the observations.
 
-        Args:
-            binning(str, optional): spec,spat binning of the flat field image
-            filename (:obj:`list`, optional): Name the mask design info
-            debug (:obj:`bool`, optional): Debug
-            ccdnum (:obj:`int`, optional): detector number
-            trc_path (:obj:`str`, optional): path to location of the mask design file
+        Parameters
+        ---------- 
+        filename : :obj:`str`, :obj:`list`, optional:
+            Name of the file holding the mask design info or the maskfile and
+            wcs_file in that order
+        det : :obj:`int`, optional
+            Detector number.  Ignored by Gemini/GMOS.
+        debug : :obj:`bool`, optional
+            Flag to run in debugging mode
+        trc_path : str, optional
+            Path to the first trace file used to generate the trace flat
+        binning : str, optional
+            String with the comma-separated number of pixels binned in each
+            dimension of the flat-field image.  Order must be spectral then
+            spatial.
 
-        Returns:
-            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
-            Two arrays are the predictions of the slit edges from the slitmask design and
-            one contains the indices to order the slits from left to right in the PypeIt orientation
+        Returns
+        -------
+        top_edges : :class:`numpy.ndarray`
+            Predicted locations of the top edges of the slits in spatial pixel
+            coordinates.
+        bot_edges : :class:`numpy.ndarray`
+            Predicted locations of the bottom edges of the slits in spatial pixel
+            coordinates.
+        sortindx : :class:`numpy.ndarray`
+            Indices of the slits in the provided ``slitmask`` object that orders
+            the slits from left to right, in the PypeIt orientation.
+        slitmask : :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            Slit mask metadata read from the provided input file(s).
         """
         # check if the binning is provided, even if optional, it's needed for this spectrograph
         if binning is None:

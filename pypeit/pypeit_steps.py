@@ -9,6 +9,8 @@ import numpy as np
 import copy
 
 from astropy.table import Table
+from astropy.coordinates import SkyCoord
+from astropy import units
 
 from pypeit import log
 from pypeit import PypeItError
@@ -27,8 +29,6 @@ from pypeit import io
 
 from pypeit import slittrace
 from pypeit import calibrations
-
-from linetools import utils as ltu
 
 from IPython import embed
 
@@ -121,10 +121,11 @@ def set_bkg_negative(fitstbl, par, bg_frames:list):
     # Return
     return has_bg, bkg_redux, find_negative
 
-def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str, 
+def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
               reuse_calibs:bool=True,
-              qa_path:str=None, show:bool=False, run_state:dict=None,
-              stop_at_step:str=None):
+              qa_path:str=None, show:bool=False, run_state=None,
+              stop_at_step:str=None, status_only:bool=False,
+              reload_only:bool=False):
     """
     Run Calibration for a single detector, calib_ID pair
 
@@ -149,11 +150,18 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             defined by the parameters.
         show (:obj:`bool`, optional):
             Show the QA during processing
-        run_state (:obj:`dict`, optional):
-            A dictionary containing the current state of the reduction.
-            If None, a new empty dictionary is created.
+        run_state (:class:`~pypeit.state.RunPypeItState`, optional):
+            The current state of the reduction.
+            If None, no state tracking is performed.
         stop_at_step (:obj:`str`, optional):
             Run only up to this calibration step.
+        status_only (:obj:`bool`, optional):
+            If True, only check whether calibration output files exist
+            and update the state accordingly, without running any
+            calibrations.
+        reload_only (:obj:`bool`, optional):
+            If True, only reload the calibrations, without running any
+            calibrations.
 
     Returns:
         caliBrate (:class:`~pypeit.calibrations.Calibrations`)
@@ -172,12 +180,18 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
                                             par['rdx']['maskIDs'])
     log.info(f'Building/loading calibrations for detector {det}')
     caliBrate = calibrations.Calibrations.get_instance(
-        fitstbl, par['calibrations'], spectrograph, calibrations_path, 
+        fitstbl, par['calibrations'], spectrograph, calibrations_path,
         calib_ID, grp_frames[0], det,
         qadir=qa_path,
         reuse_calibs=reuse_calibs, show=show, user_slits=user_slits,
-        chk_version=par['rdx']['chk_version'])
-        #, state=run_state)
+        chk_version=par['rdx']['chk_version'],
+        state=run_state)
+
+    # Status check only?
+    #if status_only:
+    #    caliBrate.check_status()
+    #    embed(header='189 pypeit_steps')
+    #    return caliBrate
 
     # Check
     if stop_at_step is not None and stop_at_step not in caliBrate.steps:
@@ -185,9 +199,13 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             f"Requested stop_at_step={stop_at_step} is not a valid calibration step.\n Allowed "
             f"steps are: {caliBrate.steps}"
         )
-        
+
     # Run
-    caliBrate.run_the_steps(stop_at_step=stop_at_step)
+    caliBrate.run_the_steps(stop_at_step=stop_at_step,
+        reload_only=reload_only, status_only=status_only)
+
+    #embed(header='207 pypeit_steps')
+
 
     # Success?
     if not caliBrate.success:
@@ -905,7 +923,7 @@ def refframe_correct(spectrograph, par, slits, ra, dec, obstime, slitgpm=None,
             and par['calibrations']['wavelengths']['reference'] != 'pixel':
         log.info(f"Performing a {par['calibrations']['wavelengths']['refframe']} correction")
         # Calculate correction
-        radec = ltu.radec_to_coord((ra, dec))
+        radec = SkyCoord(ra=ra, dec=dec, unit=(units.deg, units.deg))
         vel, vel_corr = wave.geomotion_correct(radec, obstime,
                                                 spectrograph.telescope['longitude'],
                                                 spectrograph.telescope['latitude'],

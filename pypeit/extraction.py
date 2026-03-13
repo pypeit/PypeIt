@@ -576,7 +576,7 @@ class Extract:
                     if len(this_flex_dict['shift']) > 0 and this_flex_dict['shift'][ss] is not None:
                         new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][ss],
                                                               this_flex_dict['sky_spec'][ss])
-                        flex_list[islit]['sky_spec'][ss] = new_sky.copy()
+                        flex_list[islit]['sky_spec'][ss] = new_sky#.copy()
 
         # Save QA
         if flex_list is not None:

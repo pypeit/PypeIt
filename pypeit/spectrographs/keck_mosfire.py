@@ -913,24 +913,24 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         #    plt.legend()
         #    plt.show()
 
-    def get_slitmask(self, filename):
+    def get_slitmask(self, filename:str, det:int=1):
         """
-        Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
+        Parse the slitmask data from a raw file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
-        This can be used for multi-object slitmask, but it it's not good
-        for "LONGSLIT" nor "long2pos". Both "LONGSLIT" and "long2pos" have emtpy/incomplete
-        binTable where the slitmask data are stored.
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Name of the file to read.
+        det : :obj:`int`, optional
+            1-indexed detector number to read the slitmask for.  Ignored for
+            Keck/MOSFIRE.
 
-
-        Args:
-            filename (:obj:`str`):
-                Name of the file to read.
-
-        Returns:
-            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
-            data read from the file. The returned object is the same as
-            :attr:`slitmask`.
+        Returns
+        -------
+        :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            The slitmask data read from the file. The returned object is the
+            same as :attr:`slitmask`.
         """
         # Open the file
         hdu = io.fits_open(filename)
@@ -1020,36 +1020,49 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                  posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
-                              trc_path=None, binning=None):
+    def get_maskdef_slitedges(self, filename:str=None, det:1=None, debug:bool=None, 
+                              binning:str=None, trc_path:str=None):
         """
-        Provides the slit edges positions predicted by the slitmask design using
-        the mask coordinates already converted from mm to pixels by the method
-        `mask_to_pixel_coordinates`.
+        Provides the slit edges positions predicted by the slitmask design.
 
-        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
-        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`, and
+        :attr:`bmap` attributes are instantiated; in this case, a file must be
+        provided.
 
-        Args:
-            ccdnum (:obj:`int`):
-                Detector number
-            filename (:obj:`str`):
-                The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
-                Default is None, i.e., to use previously instantiated attributes.
-            debug (:obj:`bool`, optional):
-                Run in debug mode.
+        Parameters
+        ---------- 
+        filename : :obj:`str`, :obj:`list`, optional:
+            Name of the file holding the mask design info or the maskfile and
+            wcs_file in that order
+        det : :obj:`int`, optional
+            Detector number.  Ignored for Keck/MOSFIRE.
+        debug : :obj:`bool`, optional
+            Flag to run in debugging mode
+        trc_path : str, optional
+            Path to the first trace file used to generate the trace flat
+        binning : str, optional
+            String with the comma-separated number of pixels binned in each
+            dimension of the flat-field image.  Order must be spectral then
+            spatial.
 
-        Returns:
-            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
-            Two arrays are the predictions of the slit edges from the slitmask design and
-            one contains the indices to order the slits from left to right in the PypeIt orientation
-
+        Returns
+        -------
+        top_edges : :class:`numpy.ndarray`
+            Predicted locations of the top edges of the slits in spatial pixel
+            coordinates.
+        bot_edges : :class:`numpy.ndarray`
+            Predicted locations of the bottom edges of the slits in spatial pixel
+            coordinates.
+        sortindx : :class:`numpy.ndarray`
+            Indices of the slits in the provided ``slitmask`` object that orders
+            the slits from left to right, in the PypeIt orientation.
+        slitmask : :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            Slit mask metadata read from the provided input file(s).
         """
         # Re-initiate slitmask
-        if filename is not None:
-            self.get_slitmask(filename)
-        else:
-            raise PypeItError('The name of a science file should be provided')
+        if filename is None:
+            raise PypeItError('The name of a science file should be provided for Keck/MOSFIRE.')
+        self.get_slitmask(filename)
 
         if self.slitmask is None:
             raise PypeItError('Unable to read slitmask design info. Provide a file.')

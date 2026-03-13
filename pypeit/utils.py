@@ -6,6 +6,8 @@ General utility functions.
 
 """
 import os
+import json
+import gzip
 import inspect
 import pickle
 import pathlib
@@ -14,20 +16,18 @@ import glob
 import colorsys
 import collections.abc
 
+from astropy import convolution
+from astropy import stats
+from astropy import units
+from astropy.coordinates import SkyCoord
+from astropy.io import ascii
 from IPython import embed
-
-import numpy as np
-from numpy.lib.stride_tricks import as_strided
-
-import scipy.ndimage
-from scipy import signal
-
 import matplotlib
 import matplotlib.pyplot as plt
-
-from astropy import units
-from astropy import stats
-from astropy.io import ascii
+import numpy as np
+from numpy.lib.stride_tricks import as_strided
+import scipy.ndimage
+from scipy import signal
 
 from pypeit import log
 from pypeit import PypeItError
@@ -863,6 +863,61 @@ def convolve_fft(img, kernel, msk):
     return img_conv
 
 
+def convolve_psf(array, fwhm, boundary='fill', fill_value=0.0, normalize_kernel=True):
+    """
+    Convolve an array with a gaussian kernel.
+
+    Given an array of values `a` and a gaussian full width at half
+    maximum `fwhm` in pixel units, returns the convolution of the
+    array with the gaussian kernel.
+
+    Taken from `linetools <https://linetools.readthedocs.io/en/latest/>`__.
+
+    Parameters
+    ----------
+    array : array, shape(N,)
+        Array to convolve
+    fwhm : float
+        Gaussian full width at half maximum in pixels.
+    boundary : str, optional
+        A flag indicating how to handle boundaries:
+            * `None`
+                Set the ``result`` values to zero where the kernel
+                extends beyond the edge of the array (default).
+            * 'fill'
+                Set values outside the array boundary to ``fill_value``.
+            * 'wrap'
+                Periodic boundary that wrap to the other side of ``array``.
+            * 'extend'
+                Set values outside the array to the nearest ``array``
+                value.
+    fill_value : float, optional
+        The value to use outside the array when using boundary='fill'
+    normalize_kernel : bool, optional
+        Whether to normalize the kernel prior to convolving
+
+    Returns
+    -------
+    convolved_array : array, shape (N,)
+
+    Notes
+    -----
+    This function uses astropy.convolution
+    """
+
+    const2   = 2.354820046             # 2*sqrt(2*ln(2))
+    const100 = 3.034854259             # sqrt(2*ln(100))
+    sigma = fwhm / const2
+    # gaussian drops to 1/100 of maximum value at x =
+    # sqrt(2*ln(100))*sigma, so number of pixels to include from
+    # centre of gaussian is:
+    n = np.ceil(const100 * sigma)
+    x_size = int(2*n) + 1 # we want this to be odd integer
+    return convolution.convolve(
+        array, convolution.Gaussian1DKernel(sigma, x_size=x_size), boundary=boundary,
+        fill_value=fill_value, normalize_kernel=normalize_kernel
+    )
+
 # TODO: Could this use bisect?
 def index_of_x_eq_y(x, y, strict=False):
     """
@@ -1455,7 +1510,7 @@ def yamlify(obj, debug=False):
 
     Recursively process an object so it can be serialised for yaml.
 
-    Based on jsonify in `linetools`_.
+    Based on jsonify in `linetools <https://linetools.readthedocs.io/en/latest/>`__.
 
     Also found in desiutils
 
@@ -1530,8 +1585,9 @@ def yamlify(obj, debug=False):
     return obj
 
 def jsonify(obj, debug=False):
-    """ Recursively process an object so it can be serialised in json
-    format. Taken from linetools.
+    """
+    Recursively process an object so it can be serialised in json format. Taken
+    from `linetools <https://linetools.readthedocs.io/en/latest/>`__.
 
     WARNING - the input object may be modified if it's a dictionary or
     list!
@@ -2097,3 +2153,105 @@ def get_line_list_names():
     names = [os.path.splitext(os.path.basename(fname))[0]
              for fname in line_list_files]
     return names
+
+def radec_to_coord(radec, gal=False):
+    """
+    Converts one of many of Celestial Coordinates `radec` formats to an astropy
+    SkyCoord object. Assumes J2000 equinox.
+
+    Taken from `linetools <https://linetools.readthedocs.io/en/latest/>`__.
+
+    Parameters
+    ----------
+    radec : str or tuple or SkyCoord or list
+        Examples:
+        'J124511+144523',
+        '124511+144523',
+        'J12:45:11+14:45:23',
+        ('12:45:11','+14:45:23')
+        ('12 45 11', +14 45 23)
+        ('12:45:11','14:45:23')  -- Assumes positive DEC
+        (123.123, 12.1224) -- Assumed deg
+        [(123.123, 12.1224), (125.123, 32.1224)]
+    gal : bool, optional
+      Input pair of floats are (l,b) in deg
+
+    Returns
+    -------
+    coord : SkyCoord
+      Converts to astropy.coordinate.SkyCoord (as needed)
+      Returns a SkyCoord array if input is a list
+    """
+    if gal:
+        frame = 'galactic'
+    else:
+        frame = 'icrs'
+
+    # RA/DEC
+    if isinstance(radec, (tuple)):
+        if isinstance(radec[0], str):
+            if radec[1][0] not in ['+', '-']:  #
+                DEC = '+'+radec[1]
+                log.warning("Assuming your DEC is +")
+            else:
+                DEC = radec[1]
+            #
+            coord = SkyCoord(radec[0]+DEC, frame=frame,
+                                  unit=(units.hourangle, units.deg))
+        else:
+            if frame == 'galactic':
+                coord = SkyCoord(l=radec[0], b=radec[1], frame=frame, unit='deg')
+            else:
+                coord = SkyCoord(ra=radec[0], dec=radec[1], frame=frame, unit='deg')
+    elif isinstance(radec,SkyCoord):
+        coord = radec
+    elif isinstance(radec,str):
+        # Find first instance of a number (i.e. strip J, SDSS, etc.)
+        for ii in range(len(radec)):
+            if radec[ii].isdigit():
+                break
+        radec = radec[ii:]
+        #
+        if ':' in radec:
+            coord = SkyCoord(radec, frame='icrs', unit=(units.hourangle, units.deg))
+        else:  # Add in :
+            if ('+' in radec) or ('-' in radec):
+                sign = max(radec.find('+'), radec.find('-'))
+            else:
+                raise ValueError("radec must include + or - for DEC")
+            newradec = (radec[0:2]+':'+radec[2:4]+':'+radec[4:sign+3] +':'+radec[sign+3:sign+5]+':'+radec[sign+5:])
+            coord = SkyCoord(newradec, frame='icrs', unit=(units.hourangle, units.deg))
+    elif isinstance(radec,list):
+        clist = []
+        for item in radec:
+            clist.append(radec_to_coord(item,gal=gal))
+        # Convert to SkyCoord array
+        ras = [ii.icrs.ra.value for ii in clist]
+        decs = [ii.icrs.dec.value for ii in clist]
+        return SkyCoord(ra=ras, dec=decs, unit='deg')
+    else:
+        raise IOError("Bad input type for radec")
+    # Return
+    return coord
+
+
+def loadjson(filename):
+    """
+    Load a python object saved with savejson.
+
+    Parameters
+    ----------
+    filename : str, `pathlib.Path`
+        The name of the file to load.
+
+    Returns
+    -------
+    dict
+        The loaded python object.
+    """
+    _file = pathlib.Path(filename).resolve()
+    if _file.suffix == '.gz':
+        with gzip.open(_file, "rb") as f:
+            return json.loads(f.read().decode("ascii"))
+    with open(_file, 'rt') as f:
+        return json.load(f)
