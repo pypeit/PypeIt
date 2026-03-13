@@ -160,7 +160,7 @@ class FileBrowserController:
             ftype = "dir"
         elif os.path.islink(path):
             ftype = "link"
-        elif ext.lower() == ".fits":
+        elif filename.lower().endswith((".fits", ".fits.gz", ".fits.fz")):
             ftype = "fits"
 
         header_dict: Dict[str, object] = {}
