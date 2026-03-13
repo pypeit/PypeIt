@@ -62,7 +62,7 @@ class SlitOverlay:
             spatial_ids = slittrace.spat_id
             left_init = slittrace.left_init.T
             right_init = slittrace.right_init.T
-            sampling = 200
+            sampling = max(1, slittrace.nspec // 20)
             y_values_left = np.arange(slittrace.nspec)[::sampling]
             y_values_right = np.arange(slittrace.nspec)[::-sampling]
             x_offset = (int(msc_idx) - 1) * slittrace.nspat
