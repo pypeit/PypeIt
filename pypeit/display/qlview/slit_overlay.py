@@ -1,3 +1,7 @@
+"""
+Class that stores the logic needed to draw clickable slits on top of a raw image
+"""
+
 from __future__ import annotations
 
 from typing import Dict, Optional
@@ -30,6 +34,9 @@ class SlitOverlay:
         show_labels: bool = False,
     ) -> Dict[str, Polygon]:
         """Add slit polygons (and optionally labels) to *canvas*.
+
+        Much of this logic is taken from show spec2D but adapted to use Polygons
+        instead of lines for slit edges (so we can register callbacks)
 
         Parameters
         ----------
