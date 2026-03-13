@@ -133,11 +133,8 @@
             "det": 1,
             "step": "flats",
             "required": true,
-            "output_file": "/home/abowman/uco_work/PypeIt/pypeit/dashboard/Calibrations/Flat_A_0_DET01.fits",
-            "status": "success",
-            "types": [
-                "pixelflat"
-            ]
+            "status": "running",
+            "types": []
         }
     ],
     "align": []

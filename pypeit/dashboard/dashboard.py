@@ -1,13 +1,13 @@
 import sys
+import io
 import re
 import subprocess
 from pathlib import Path
 from qtpy import QtWidgets
-import zmq
 import logging
 from logging.handlers import QueueListener
 from multiprocessing import Process, Queue
-import threading
+from contextlib import redirect_stdout
 
 from PyQt6.QtCore import pyqtSignal
 import qtpy
@@ -209,7 +209,7 @@ class DashboardWidget(FilledBackgroundWidget):
 
         # ------------- definitions --------------
         self.status_widget = StatusWidget()
-        self.file_list_widget = QListWidget()
+        self.calibration_widget = QTextEdit() # should eventually change this to a table
         self.qa_widget = QListWidget()
         self.science_widget = QListWidget()
         self.logs_widget = logs_view_widget()
@@ -218,7 +218,7 @@ class DashboardWidget(FilledBackgroundWidget):
         layout.addWidget(self.status_widget)
         tab_widget = QTabWidget()
         tab_widget.addTab(self.qa_widget,"QA") # Quality analysis
-        tab_widget.addTab(self.file_list_widget,"Calibrations")
+        tab_widget.addTab(self.calibration_widget,"Calibrations")
         tab_widget.addTab(self.science_widget,"Science")
         tab_widget.addTab(self.logs_widget,"Logs")
 
@@ -296,9 +296,15 @@ class MainWindow(QWidget):
         subprocess.Popen(["pypeit_setup","--gui"]) # starting the controller runnner file
 
     def check_status(self):
+        # need to have a seperate thing for when pypeit is running or not
         if self.setup_file_path != None:
-            print(type(self.setup_file_path))
-            check_pypeit_status(self.setup_file_path)
+            f = io.StringIO()
+            with redirect_stdout(f):
+                check_pypeit_status(self.setup_file_path)
+            captured_output = f.getvalue()
+            self.dashboard_widget.calibration_widget.append(captured_output)
+
+
 
  
     def import_setup_file(self):
@@ -316,16 +322,8 @@ class MainWindow(QWidget):
 
             file_name = Path(file_path).name
             self.dashboard_widget.status_widget.update_setup_file(file_name)
-            self.update_file_list_widget(calibration_files)
             self.update_science_file(science_file)
             self.setup_file_path = file_path
-
-
-    def update_file_list_widget(self,file_list):
-        # This currently will be input as the first element in each tuple will be the file
-        new_list = [x[0] for x in file_list]
-        self.dashboard_widget.file_list_widget.clear()
-        self.dashboard_widget.file_list_widget.addItems(new_list)
 
     def update_science_file(self,science_file):
         self.dashboard_widget.status_widget.update_science_file(science_file) 

@@ -47,6 +47,7 @@ def check_pypeit_status(setup_file_path):
     args = parser.parse_args([
         setup_file_path,
     ])
+    # pydantic doesn't want a Posix Path but a string Path. It still seems to work however
 
     pypeIt = pypeit.PypeIt(
             args.pypeit_file,
@@ -56,7 +57,7 @@ def check_pypeit_status(setup_file_path):
     pypeIt.calib_all(status_only=True, reload_only=True)
 
     # Write state to JSON
-    pypeIt.run_state.write()
+    # pypeIt.run_state.write() # should only really do this if pypeit is actively running
 
     # Pretty-print the state
     pypeIt.run_state.print_status()
