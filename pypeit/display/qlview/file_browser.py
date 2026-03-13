@@ -1,3 +1,8 @@
+"""
+Class that stores the file browsing element. Interacts with a backend interface
+for file system inspection to allow for remote execution (if implemented).
+"""
+
 from __future__ import annotations
 
 import os
