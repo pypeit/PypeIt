@@ -1351,3 +1351,17 @@ class InstrumentRegistry:
             instrument combo box.
         """
         return list(self._registry.keys())
+
+    def instrume_values(self) -> List[tuple]:
+        """Return ``(display_name, instrume_value)`` pairs for all registered instruments.
+
+        Reads ``instrume_value`` directly from each class object rather than
+        constructing an instance, making this safe to call when you only need
+        the FITS keyword value for matching purposes.
+
+        Returns
+        -------
+        list of (str, str)
+            ``(display_name, instrume_value)`` tuples in registration order.
+        """
+        return [(name, cls.instrume_value) for name, cls in self._registry.items()]
