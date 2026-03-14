@@ -1308,12 +1308,12 @@ class InstrumentRegistry:
         self.logger = logger
         self._registry = {
             "DEIMOS": DEIMOS,
-            "HIRES": HIRES,
-            "LRIS Blue": LRISBlue,
-            "LRIS Red": LRISRed,
+            # "HIRES": HIRES,
+            # "LRIS Blue": LRISBlue,
+            # "LRIS Red": LRISRed,
             "MOSFIRE": MOSFIRE,
-            "NIRES": NIRES,
-            "NIRSPEC": NIRSPEC,
+            # "NIRES": NIRES,
+            # "NIRSPEC": NIRSPEC,
         }
 
     def create(self, name: str) -> Instrument:
