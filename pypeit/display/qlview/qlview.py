@@ -211,6 +211,11 @@ class QLView(GingaPlugin.LocalPlugin):
         self.reduction_timeout: float = 300.0  # 5 minutes
         self.reduction_cadence: float = 5.0
         self.reduction_control_elements: Dict[str, dict] = {}
+        # Monotonically increasing per-timer-key generation counter.  Each new
+        # timer created by _register_reduction_timer bumps the counter; the
+        # callback captures its generation at registration time and no-ops if
+        # the current counter has since advanced (i.e. the timer was replaced).
+        self._timer_generations: Dict[str, int] = {}
         self._slit_combo_keys: list = []  # slit keys in combo box order
 
         # Per-reduction trace overlay state
@@ -236,6 +241,10 @@ class QLView(GingaPlugin.LocalPlugin):
         self._manual_spat_det: Optional[float] = None
         self._manual_slit_key: Optional[str] = None
         self.manual_extract_canvas: Optional[DrawingCanvas] = None
+        # Lock protecting the manual extraction state fields above.  All reads
+        # and writes of _manual_x / _manual_y / _manual_det_label /
+        # _manual_spat_det / _manual_slit_key must hold this lock.
+        self._manual_lock = threading.Lock()
 
         icondir = self.fv.iconpath
         self.file_browser.folderpb = self.fv.get_icon(icondir, "folder.svg")
@@ -290,7 +299,13 @@ class QLView(GingaPlugin.LocalPlugin):
         container : ginga.gw.Widgets.Box
             The Ginga container widget provided by the plugin framework.
         """
-        self.ui.build(container)
+        try:
+            self.ui.build(container)
+        except Exception as exc:
+            self.logger.error(
+                f"build_gui failed; plugin will be non-functional: {exc}", exc_info=True
+            )
+            raise
         self.gui_up = True
 
     # --- Callbacks ---
@@ -607,20 +622,23 @@ class QLView(GingaPlugin.LocalPlugin):
         self.manual_extract_mode = bool(val)
         if not self.manual_extract_mode:
             # Clear stored position and canvas marker
-            self._manual_x = None
-            self._manual_y = None
-            self._manual_det_label = None
-            self._manual_spat_det = None
-            self._manual_slit_key = None
+            with self._manual_lock:
+                self._manual_x = None
+                self._manual_y = None
+                self._manual_det_label = None
+                self._manual_spat_det = None
+                self._manual_slit_key = None
             self.state.manual_extract_str = None
             self.manual_extract_params_entry.set_text("")
             self._clear_manual_extract_marker()
 
     def fwhm_box_changed_cb(self, w):
         """Redraw the aperture marker and rebuild the params string when FWHM changes."""
-        if self._manual_x is None:
+        with self._manual_lock:
+            x, y = self._manual_x, self._manual_y
+        if x is None:
             return
-        self._update_manual_extract(self._manual_x, self._manual_y)
+        self._update_manual_extract(x, y)
 
     def manual_extract_params_cb(self, w):
         """User edited the params text entry directly; store the new string and redraw."""
@@ -638,8 +656,10 @@ class QLView(GingaPlugin.LocalPlugin):
             fwhm = float(parts[3])
             # Recover image-space x from spat_det (best effort — mosaic offset unknown
             # without det_label context, so use stored values if available)
-            x_img = self._manual_x if self._manual_x is not None else spat
-            y_img = self._manual_y if self._manual_y is not None else spec
+            with self._manual_lock:
+                stored_x, stored_y = self._manual_x, self._manual_y
+            x_img = stored_x if stored_x is not None else spat
+            y_img = stored_y if stored_y is not None else spec
             # Re-parse FWHM from string and update the FWHM box to keep them in sync
             self.fwhm_box.set_text(f"{fwhm:.1f}")
             self._draw_manual_extract_marker(x_img, y_img, fwhm)
@@ -678,11 +698,12 @@ class QLView(GingaPlugin.LocalPlugin):
             self.logger.warning("Manual extract click did not land inside any slit.")
             return
 
-        self._manual_x = x
-        self._manual_y = y
-        self._manual_det_label = det_label
-        self._manual_spat_det = spat_det
-        self._manual_slit_key = found_slit_key
+        with self._manual_lock:
+            self._manual_x = x
+            self._manual_y = y
+            self._manual_det_label = det_label
+            self._manual_spat_det = spat_det
+            self._manual_slit_key = found_slit_key
 
         try:
             fwhm = float(self.fwhm_box.get_text())
@@ -747,6 +768,8 @@ class QLView(GingaPlugin.LocalPlugin):
             Not used; present because Ginga passes a result dict to all
             ``"activated"`` callbacks.
         """
+        if self.slit_canvas is None:
+            return
         if self.state.active_slit_key:
             self.overlay.deactivate(self.state.active_slit_key, self.slit_canvas)
         self.state.active_slit_key = w.get_text().split()[0]
@@ -776,8 +799,10 @@ class QLView(GingaPlugin.LocalPlugin):
         back to the GUI thread (Ginga handles this for timer callbacks
         automatically).
         """
-        if self.state.manual_extract_str and self._manual_slit_key:
-            slit_key = self._manual_slit_key
+        with self._manual_lock:
+            manual_slit_key = self._manual_slit_key
+        if self.state.manual_extract_str and manual_slit_key:
+            slit_key = manual_slit_key
         else:
             slit_key = self.slit_list_box.get_text().split()[0]
         if not slit_key:
@@ -953,14 +978,22 @@ class QLView(GingaPlugin.LocalPlugin):
         if existing is not None:
             existing.cancel()
 
+        # Bump the generation counter so any already-queued callback from the
+        # old timer will detect it is stale and no-op.
+        generation = self._timer_generations.get(timer_key, 0) + 1
+        self._timer_generations[timer_key] = generation
+
         self.reduction_start_times[timer_key] = time.monotonic()
 
         timer = self.fitsimage.make_timer()
         timer.add_callback(
             "expired",
-            lambda t: self._check_reduction_complete(
-                timer_key, run_dir, slit_key, log_path,
-                raw_path=raw_path, coadd2d=coadd2d,
+            lambda t, _gen=generation: (
+                None if self._timer_generations.get(timer_key) != _gen
+                else self._check_reduction_complete(
+                    timer_key, run_dir, slit_key, log_path,
+                    raw_path=raw_path, coadd2d=coadd2d,
+                )
             ),
         )
         self.reduction_timers[timer_key] = timer
@@ -1868,6 +1901,9 @@ class QLView(GingaPlugin.LocalPlugin):
 
         slit_names = self._build_slit_names(slitsets)
 
+        if self.slit_canvas is None:
+            self.logger.warning("slit_canvas not initialised; cannot display slit overlay.")
+            return
         self.slit_canvas.delete_all_objects()
         show_labels = self.show_labels_box.get_state()
         slit_polys = self.overlay.build(slitsets, self.slit_canvas,
@@ -2100,10 +2136,11 @@ class QLView(GingaPlugin.LocalPlugin):
                     slit_key = f"S{slit_id}"
                     if slit_key in self._slit_combo_keys:
                         self.slit_list_box.set_index(self._slit_combo_keys.index(slit_key))
-                    if self.state.active_slit_key:
-                        self.overlay.deactivate(self.state.active_slit_key, self.slit_canvas)
+                    if self.slit_canvas is not None:
+                        if self.state.active_slit_key:
+                            self.overlay.deactivate(self.state.active_slit_key, self.slit_canvas)
+                        self.overlay.activate(slit_key, self.slit_canvas)
                     self.state.active_slit_key = slit_key
-                    self.overlay.activate(slit_key, self.slit_canvas)
                     return
 
     # --- Helpers ---
@@ -2432,7 +2469,8 @@ class QLView(GingaPlugin.LocalPlugin):
                     f"New raw file has a different instrument configuration — "
                     f"clearing slit overlay."
                 )
-                self.slit_canvas.delete_all_objects()
+                if self.slit_canvas is not None:
+                    self.slit_canvas.delete_all_objects()
                 self.state.slittracesets = None
                 self.state.slit_polys = {}
                 self.slit_list_box.clear()
@@ -2448,7 +2486,13 @@ class QLView(GingaPlugin.LocalPlugin):
         ``fv.stop_local_plugin(chname, plugin_name)`` to deactivate the plugin
         and remove its UI from the panel.  Ginga subsequently calls
         :meth:`stop` to release all timers and canvases.
+
+        :meth:`stop` is also called explicitly here so that timers and
+        canvases are guaranteed to be cleaned up even if Ginga's internal
+        lifecycle changes.  :meth:`stop` is idempotent and the second call
+        (from Ginga) will be a no-op.
         """
+        self.stop()
         self.fv.stop_local_plugin(self.chname, str(self))
 
     @staticmethod
@@ -2515,7 +2559,11 @@ class QLView(GingaPlugin.LocalPlugin):
             try:
                 self.reduction_timeout = float(defaults.get("reduction_timeout", str(self.reduction_timeout)))
             except ValueError:
-                pass
+                raw_val = defaults.get("reduction_timeout", "")
+                self.logger.warning(
+                    f"Invalid reduction_timeout {raw_val!r} in {config_file}; "
+                    f"keeping current value of {self.reduction_timeout}s"
+                )
             self.logger.info(f"Loaded config from {config_file}")
 
         self.state.redux_path = redux_path
@@ -2549,10 +2597,16 @@ class QLView(GingaPlugin.LocalPlugin):
         manual-extraction canvas, and all per-slit trace canvases from the
         main Ginga image canvas.  Sets :attr:`gui_up` to ``False`` to signal
         that widget access is no longer safe.
+
+        Safe to call multiple times — returns immediately on the second and
+        subsequent calls (``gui_up`` is ``False`` after the first call).
         """
+        if not self.gui_up:
+            return
         for timer in self.reduction_timers.values():
             timer.cancel()
         self.reduction_timers.clear()
+        self._timer_generations.clear()
         for timer in self._trace_timers.values():
             timer.cancel()
         self._trace_timers.clear()
