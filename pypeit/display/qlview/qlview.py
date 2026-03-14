@@ -481,13 +481,19 @@ class QLView(GingaPlugin.LocalPlugin):
             if val > 0:
                 self.reduction_cadence = val
         except ValueError:
-            pass
+            self.logger.warning(
+                f"Invalid cadence value {cadence_edit.text()!r}; "
+                f"keeping current value of {self.reduction_cadence}s"
+            )
         try:
             val = float(timeout_edit.text())
             if val > 0:
                 self.reduction_timeout = val
         except ValueError:
-            pass
+            self.logger.warning(
+                f"Invalid timeout value {timeout_edit.text()!r}; "
+                f"keeping current value of {self.reduction_timeout}s"
+            )
 
         # ── Apply file filters ────────────────────────────────────────────────
         self.raw_filter_fits = raw_fits_cb.isChecked()
@@ -638,7 +644,7 @@ class QLView(GingaPlugin.LocalPlugin):
             self.fwhm_box.set_text(f"{fwhm:.1f}")
             self._draw_manual_extract_marker(x_img, y_img, fwhm)
         except (IndexError, ValueError):
-            pass
+            pass  # partial / invalid input while user is still typing — skip redraw
         self.state.manual_extract_str = text
 
     def _update_manual_extract(self, x: float, y: float) -> None:
@@ -1157,8 +1163,8 @@ class QLView(GingaPlugin.LocalPlugin):
             if canvas is not None:
                 try:
                     self.fitsimage.get_canvas().delete_object(canvas)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    self.logger.debug(f"Could not remove trace canvas for {slit_key}: {exc}")
             timer = self._trace_timers.pop(slit_key, None)
             if timer is not None:
                 timer.cancel()
@@ -1360,8 +1366,8 @@ class QLView(GingaPlugin.LocalPlugin):
         try:
             plugin = self.fv.get_channel(ch_name).opmon.get_plugin("Spec1dView")
             current = plugin.exten
-        except Exception:
-            pass
+        except Exception as exc:
+            self.logger.debug(f"Spec1dView plugin not available for channel {ch_name!r}: {exc}")
 
         last = self._trace_last_exten.get(slit_key)
         if current != last:
@@ -1677,8 +1683,8 @@ class QLView(GingaPlugin.LocalPlugin):
                     cexp = float(_get(c_headarr, "exptime") or 0)
                     if abs(cexp - a_exptime) > 0.1 * a_exptime:
                         continue
-                except (TypeError, ValueError):
-                    pass
+                except (TypeError, ValueError) as exc:
+                    self.logger.debug(f"Could not parse exptime for AB candidate; skipping exptime check: {exc}")
 
             # Pick the candidate closest in time
             try:
@@ -2195,8 +2201,8 @@ class QLView(GingaPlugin.LocalPlugin):
                 try:
                     val = spec.get_meta_value(filepath, key)
                     config[key] = str(val) if val is not None else "N/A"
-                except Exception:
-                    pass
+                except Exception as exc:
+                    self.logger.debug(f"Could not read config key {key!r} from {filepath}: {exc}")
             return config
         except Exception as exc:
             self.logger.debug(f"Could not read configuration from {filepath}: {exc}")
@@ -2406,8 +2412,8 @@ class QLView(GingaPlugin.LocalPlugin):
         for canvas in self._trace_canvases.values():
             try:
                 canvas.delete_all_objects()
-            except Exception:
-                pass
+            except Exception as exc:
+                self.logger.debug(f"Canvas cleanup on image load failed: {exc}")
         for timer in self._trace_timers.values():
             timer.cancel()
         self._trace_timers.clear()
@@ -2553,18 +2559,18 @@ class QLView(GingaPlugin.LocalPlugin):
         if self.slit_canvas is not None:
             try:
                 self.fitsimage.get_canvas().delete_object(self.slit_canvas)
-            except Exception:
-                pass
+            except Exception as exc:
+                self.logger.debug(f"Could not remove slit canvas on stop: {exc}")
         if self.manual_extract_canvas is not None:
             try:
                 self.fitsimage.get_canvas().delete_object(self.manual_extract_canvas)
-            except Exception:
-                pass
+            except Exception as exc:
+                self.logger.debug(f"Could not remove manual extract canvas on stop: {exc}")
         for canvas in self._trace_canvases.values():
             try:
                 self.fitsimage.get_canvas().delete_object(canvas)
-            except Exception:
-                pass
+            except Exception as exc:
+                self.logger.debug(f"Could not remove trace canvas on stop: {exc}")
         self._trace_canvases.clear()
         self.gui_up = False
 
