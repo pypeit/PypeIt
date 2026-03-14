@@ -1044,13 +1044,8 @@ class QLView(GingaPlugin.LocalPlugin):
                 coadd_path = coadd_files[0]
                 self.logger.info(f"CoAdd2D complete for {timer_key}: {coadd_path}")
                 control["label"].set_text(f"Reduced {slit_key}")
+                control["coadd_path"] = coadd_path
                 control["btn_coadd2d"].set_enabled(True)
-                control["btn_coadd2d"].add_callback(
-                    "activated",
-                    lambda w, p=coadd_path, k=slit_key: self.show_spec1d_cb(
-                        w, path=p, slit_key=f"{k}_coadd2d"
-                    ),
-                )
                 _stop_timer()
             else:
                 self.logger.info(
@@ -1070,18 +1065,9 @@ class QLView(GingaPlugin.LocalPlugin):
             self.logger.info(f"Reduction complete for {timer_key}: {spec1d_path}")
             if control is not None:
                 control["spec1d_found"] = True
+                control["spec1d_path"] = spec1d_path
                 control["button"].set_enabled(True)
-                control["button"].add_callback(
-                    "activated",
-                    lambda w, p=spec1d_path, k=slit_key: self.show_spec1d_cb(w, path=p, slit_key=k),
-                )
                 control["btn_traces"].set_enabled(True)
-                control["btn_traces"].add_callback(
-                    "activated",
-                    lambda w, p=spec1d_path, k=slit_key, r=raw_path: self.show_traces_cb(
-                        w, slit_key=k, spec1d_path=p, reduction_raw_path=r,
-                    ),
-                )
                 if coadd2d:
                     control["label"].set_text(f"Coadd2D {slit_key}...")
                     if timer is not None:
@@ -1181,14 +1167,44 @@ class QLView(GingaPlugin.LocalPlugin):
 
         btn_remove.add_callback("activated", _remove)
 
-        self.reduction_control_elements[slit_key] = {
+        # Build the control dict as a local so that the button callbacks below
+        # can close over it and read the paths at call time rather than at
+        # registration time.  This avoids callback accumulation: each button
+        # gets exactly one callback that reads whatever path was last written
+        # into the dict by _check_reduction_complete.
+        control = {
             "label": label,
             "button": btn_show,
             "btn_traces": btn_traces,
             "btn_coadd2d": btn_coadd2d,
             "spec1d_found": False,
+            "spec1d_path": None,
+            "coadd_path": None,
             "vbox": vbox,
         }
+
+        def _show_spec1d(w):
+            self.show_spec1d_cb(w, path=control["spec1d_path"], slit_key=slit_key)
+
+        def _show_traces(w):
+            self.show_traces_cb(
+                w,
+                slit_key=slit_key,
+                spec1d_path=control["spec1d_path"],
+                reduction_raw_path=raw_path,
+            )
+
+        btn_show.add_callback("activated", _show_spec1d)
+        btn_traces.add_callback("activated", _show_traces)
+
+        if btn_coadd2d is not None:
+            def _show_coadd2d(w):
+                self.show_spec1d_cb(
+                    w, path=control["coadd_path"], slit_key=f"{slit_key}_coadd2d"
+                )
+            btn_coadd2d.add_callback("activated", _show_coadd2d)
+
+        self.reduction_control_elements[slit_key] = control
 
     def show_spec1d_cb(self, w, path: Optional[str] = None, slit_key: Optional[str] = None):
         """Button callback: open a spec1d FITS file in a dedicated Ginga channel.
