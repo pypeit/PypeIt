@@ -408,16 +408,100 @@ class DEIMOS(Instrument):
             return info
 
     def get_display_image(self, raw_path: str) -> np.ndarray:
-        """Build an overscan-subtracted display image of all 8 DEIMOS detectors.
+        """Build an overscan-subtracted display image using the PypeIt mosaic pipeline.
 
-        Opens the file once via ``pypeit.io.fits_open``, reads all 8 chip
-        extensions, subtracts the per-row median overscan bias, trims the
-        pre- and post-scan columns, then assembles the chips into a 2×4 grid
-        (detectors 1–4 on the bottom row, 5–8 on the top row) matching the
-        DEIMOS focal-plane layout.
+        Reads the 8 chips, subtracts the per-row median overscan bias,
+        and assembles each of the four detector pairs (MSC01–MSC04) using
+        :func:`pypeit.core.mosaic.build_image_mosaic` with the same affine
+        transforms used during PypeIt reductions.  The four mosaics are then
+        concatenated along the spatial axis to form the full display image.
+        Padding is then added to each in order to make them the same visual size
+        for concatenating and then rendering.
+
+        The resulting image is in the same coordinate system as the
+        :class:`~pypeit.slittrace.SlitTraceSet` objects produced by the
+        reduction pipeline, so slit-trace overlays will be correctly registered.
+
+        Parameters
+        ----------
+        raw_path : str
+            Absolute path to the raw DEIMOS FITS file.
+
+        Returns
+        -------
+        numpy.ndarray
+            2-D float array with shape ``(nspec, 4*nspat_mosaic)`` where
+            ``nspec`` and ``nspat_mosaic`` are determined by
+            :func:`~pypeit.core.mosaic.prepare_mosaic`.
         """
+        from pypeit.io import fits_open
+        from pypeit.spectrographs.keck_deimos import (
+            KeckDEIMOSSpectrograph,
+            deimos_read_1chip,
+        )
+        from pypeit.core.mosaic import build_image_mosaic
 
-        # TODO: Can I use keck_deimos directly here instead of redoing it?
+        spectrograph = KeckDEIMOSSpectrograph()
+
+        with fits_open(raw_path) as hdu:
+            mosaic_images = []
+            for mosaic_tuple in spectrograph.allowed_mosaics:
+                det_blue, det_red = mosaic_tuple
+
+                # Read trimmed, orientation-corrected data in (nspec, nspat) order.
+                data_blue, oscan_blue = deimos_read_1chip(hdu, det_blue)
+                data_red, oscan_red = deimos_read_1chip(hdu, det_red)
+
+                # Per-spectral-row median overscan subtraction.
+                data_blue = data_blue.astype(float)
+                data_blue -= np.median(oscan_blue.astype(float), axis=1)[:, np.newaxis]
+                data_red = data_red.astype(float)
+                data_red -= np.median(oscan_red.astype(float), axis=1)[:, np.newaxis]
+
+                # Build the mosaic using the same transforms as the reduction pipeline.
+                msc = spectrograph.get_mosaic_par(mosaic_tuple, hdu=hdu)
+                mosaic_img, _, _, _ = build_image_mosaic(
+                    [data_blue, data_red], list(msc.tform)
+                )
+                mosaic_images.append(mosaic_img)
+
+        # The four mosaics may differ slightly in nspec (axis 0) because each
+        # MSC has a different rotation angle and prepare_mosaic computes the
+        # bounding box independently.  Pad shorter mosaics with zeros so all
+        # have the same nspec before concatenating along the spatial axis.
+        max_nspec = max(img.shape[0] for img in mosaic_images)
+        padded = []
+        for img in mosaic_images:
+            deficit = max_nspec - img.shape[0]
+            if deficit > 0:
+                img = np.pad(img, ((0, deficit), (0, 0)))
+            padded.append(img)
+        return np.concatenate(padded, axis=1)
+
+    def get_display_image_simple(self, raw_path: str) -> np.ndarray:
+        """Reference implementation: direct chip concatenation without mosaic transforms.
+
+        This method preserves the original ``get_display_image`` implementation
+        that was used before the mosaic-aware version.  It assembles all 8 chips
+        into a 2×4 grid by simple concatenation (after overscan subtraction and
+        trimming) without applying the per-detector affine transforms stored in
+        :class:`~pypeit.spectrographs.keck_deimos.DEIMOSMosaicLookUp`.
+
+        The result is *not* in the same coordinate frame as the PypeIt
+        :class:`~pypeit.slittrace.SlitTraceSet`, so slit-trace overlays will be
+        misregistered by up to ~30 pixels.  This method is kept as a reference
+        to aid future development and debugging.
+
+        Parameters
+        ----------
+        raw_path : str
+            Absolute path to the raw DEIMOS FITS file.
+
+        Returns
+        -------
+        numpy.ndarray
+            2-D float array assembled as a simple 2×4 chip grid.
+        """
         from pypeit.io import fits_open
 
         with fits_open(raw_path) as hdu:

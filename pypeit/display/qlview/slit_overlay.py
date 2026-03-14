@@ -58,14 +58,25 @@ class SlitOverlay:
         self.slit_labels.clear()
         self._labels_visible = show_labels
 
+        # Compute cumulative spatial offsets for each mosaic in sorted order.
+        # Each mosaic image produced by build_image_mosaic has width == nspat of
+        # its SlitTraceSet; we accumulate these so that each MSC's slits are
+        # placed at the correct absolute column in the concatenated display image.
+        sorted_keys = sorted(slittraceset_dict.keys(), key=lambda k: int(k))
+        cumulative_x: dict = {}
+        _offset = 0
+        for _k in sorted_keys:
+            cumulative_x[_k] = _offset
+            _offset += slittraceset_dict[_k].nspat
+
         for msc_idx, slittrace in slittraceset_dict.items():
             spatial_ids = slittrace.spat_id
             left_init = slittrace.left_init.T
             right_init = slittrace.right_init.T
             sampling = max(1, slittrace.nspec // 20)
             y_values_left = np.arange(slittrace.nspec)[::sampling]
-            y_values_right = np.arange(slittrace.nspec)[::-sampling]
-            x_offset = (int(msc_idx) - 1) * slittrace.nspat
+            y_values_right = np.arange(slittrace.nspec)[::sampling][::-1]
+            x_offset = cumulative_x[msc_idx]
 
             # Label position: left edge of slit, 85% down (near bottom)
             label_row = int(0.85 * slittrace.nspec)
