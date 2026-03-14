@@ -2296,11 +2296,13 @@ class QLView(GingaPlugin.LocalPlugin):
         """Return a dict mapping slit key → OBJNAME from mask design, if available."""
         names: Dict[str, str] = {}
         for slittrace in slitsets.values():
-            if slittrace.maskdef_id is None or slittrace.maskdef_designtab is None:
+            maskdef_id_arr = getattr(slittrace, "maskdef_id", None)
+            maskdef_designtab = getattr(slittrace, "maskdef_designtab", None)
+            if maskdef_id_arr is None or maskdef_designtab is None:
                 continue
-            design = slittrace.maskdef_designtab
+            design = maskdef_designtab
             for idx, spat_id in enumerate(slittrace.spat_id):
-                maskdef_id = slittrace.maskdef_id[idx]
+                maskdef_id = maskdef_id_arr[idx]
                 rows = design[design['MASKDEF_ID'] == maskdef_id]
                 if len(rows) > 0:
                     objname = str(rows['OBJNAME'][0]).strip()
