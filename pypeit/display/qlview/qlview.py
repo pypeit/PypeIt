@@ -677,10 +677,11 @@ class QLView(GingaPlugin.LocalPlugin):
         spat_det = x
         found_det_idx = None
         found_slit_key = None
+        x_offsets = self._msc_x_offsets()
         for det_idx, slits in self.state.slittracesets.items():
             if slits is None:
                 continue
-            offset = (int(det_idx) - 1) * slits.nspat
+            offset = x_offsets.get(det_idx, 0)
             spec_row = int(np.clip(np.round(y), 0, slits.nspec - 1))
             left = slits.left_init[spec_row] + offset
             right = slits.right_init[spec_row] + offset
@@ -1358,7 +1359,7 @@ class QLView(GingaPlugin.LocalPlugin):
                 if self.state.slittracesets
                 else None
             )
-            x_offset = (det_num - 1) * (slitset.nspat if slitset is not None else 0)
+            x_offset = self._msc_x_offsets().get(f"{det_num:02d}", 0)
 
             spec_rows = np.arange(nspec)[::step]
             trace_x = trace[::step] + x_offset
@@ -2122,10 +2123,11 @@ class QLView(GingaPlugin.LocalPlugin):
             self._update_manual_extract(float(x), float(y))
             return
 
+        x_offsets = self._msc_x_offsets()
         for msc_idx, slits in self.state.slittracesets.items():
             if slits is None:
                 continue
-            offset = (int(msc_idx) - 1) * slits.nspat
+            offset = x_offsets.get(msc_idx, 0)
             row = int(np.clip(np.round(y), 0, slits.nspec - 1))
             left_bound_at_y = slits.left_init[row] + offset
             right_bound_at_y = slits.right_init[row] + offset
@@ -2144,6 +2146,29 @@ class QLView(GingaPlugin.LocalPlugin):
                     return
 
     # --- Helpers ---
+
+    def _msc_x_offsets(self) -> dict:
+        """Return cumulative spatial x-offsets for each mosaic in the display image.
+
+        The concatenated display image places each mosaic immediately after the
+        previous one.  The offset for MSC ``k`` is therefore the sum of
+        ``nspat`` values of all mosaics whose index is less than ``k``.
+
+        Returns
+        -------
+        dict
+            Mapping of mosaic index string (e.g. ``"01"``) → pixel column at
+            which that mosaic begins in the concatenated display image.
+        """
+        slittracesets = self.state.slittracesets or {}
+        sorted_keys = sorted(slittracesets.keys(), key=lambda k: int(k))
+        offsets = {}
+        cumulative = 0
+        for k in sorted_keys:
+            offsets[k] = cumulative
+            if slittracesets[k] is not None:
+                cumulative += slittracesets[k].nspat
+        return offsets
 
     def _browse_and_update(self, path: str, which_tree: str) -> None:
         """Navigate to *path* and refresh the appropriate file-browser tree.
