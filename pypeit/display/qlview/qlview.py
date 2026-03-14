@@ -888,7 +888,18 @@ class QLView(GingaPlugin.LocalPlugin):
             output files independently via the timer registered in
             :meth:`_register_reduction_timer`.
             """
-            self.reduction_backend.submit(args)
+            try:
+                self.reduction_backend.submit(args)
+            except Exception as exc:
+                self.logger.error(f"Reduction backend raised an exception for {slit_key}: {exc}", exc_info=True)
+                def _report_failure():
+                    timer = self.reduction_timers.pop(slit_key, None)
+                    if timer is not None:
+                        timer.cancel()
+                    control = self.reduction_control_elements.get(slit_key)
+                    if control is not None:
+                        control["label"].set_text(f"Backend error {slit_key}")
+                self.fv.gui_do(_report_failure)
 
         # Launch the reduction in a thread
         threading.Thread(target=_run, daemon=True).start()
