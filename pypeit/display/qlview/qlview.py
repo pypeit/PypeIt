@@ -1934,6 +1934,8 @@ class QLView(GingaPlugin.LocalPlugin):
         SlitWavelength Ginga plugin so that hovering over the image shows the
         wavelength at each pixel.
         """
+        from .wavelength_image import find_triplets, build_waveimg_mosaic
+
         if not self.state.reduced_filepath:
             self.logger.error("No reduced filepath set.")
             return
@@ -1944,73 +1946,22 @@ class QLView(GingaPlugin.LocalPlugin):
         cal_path = os.path.join(cal_path, "Calibrations")
         self.logger.info(f"Searching for wavelength calibration files in: {cal_path}")
 
-        wv_files = sorted(glob.glob(os.path.join(cal_path, "WaveCalib_*.fits*")))
-        tilt_files = sorted(glob.glob(os.path.join(cal_path, "Tilts_*.fits*")))
-        slit_files = sorted(glob.glob(os.path.join(cal_path, "Slits_*.fits*")))
-
-        if not wv_files:
-            self.logger.error(f"No WaveCalib files found in {cal_path}")
-            return
-        if not tilt_files:
-            self.logger.error(f"No Tilts files found in {cal_path}")
-            return
-        if not slit_files:
-            self.logger.error(f"No Slits files found in {cal_path}")
-            return
-
-        def _suffix(filename):
-            """Extract the _{setup}_{id}_{det} suffix from a calibration filename."""
-            m = re.match(r'(?:WaveCalib|Tilts|Slits)(_[^.]+)', os.path.basename(filename))
-            return m.group(1) if m else ""
-
-        # Build a lookup by suffix for tilts and slits.
-        tilt_by_suffix = {_suffix(f): f for f in tilt_files}
-        slit_by_suffix = {_suffix(f): f for f in slit_files}
-
-        # Find the first WaveCalib that has matching Tilts and Slits.
-        matched = None
-        for wv_file in wv_files:
-            sfx = _suffix(wv_file)
-            if sfx in tilt_by_suffix and sfx in slit_by_suffix:
-                matched = (wv_file, tilt_by_suffix[sfx], slit_by_suffix[sfx])
-                break
-
-        if matched is None:
+        matched_triplets = find_triplets(cal_path)
+        if not matched_triplets:
             self.logger.error(
-                "Could not find matching WaveCalib/Tilts/Slits triplet in "
-                f"{cal_path}"
+                f"Could not find any matching WaveCalib/Tilts/Slits triplets in {cal_path}"
             )
             return
 
-        wv_file, tilt_file, slit_file = matched
         self.logger.info(
-            f"Loading wavelength calibration:\n"
-            f"  WaveCalib: {wv_file}\n"
-            f"  Tilts:     {tilt_file}\n"
-            f"  Slits:     {slit_file}"
+            f"Found {len(matched_triplets)} wavelength calibration triplet(s) in {cal_path}"
         )
 
         def _build_and_show():
             try:
-                from pypeit.wavecalib import WaveCalib
-                from pypeit.wavetilts import WaveTilts
-                from pypeit.slittrace import SlitTraceSet
-
-                wvcalib = WaveCalib.from_file(wv_file)
-                wavetilts = WaveTilts.from_file(tilt_file)
-                slits = SlitTraceSet.from_file(slit_file)
-
-                slitmask = slits.slit_img()
-                tilts = wavetilts.fit2tiltimg(slitmask, flexure=wavetilts.spat_flexure)
-                waveimg = wvcalib.build_waveimg(tilts, slits).astype(np.float32)
-
-                # Collect per-slit RMS values: list of (spat_id, rms_or_None)
-                rms_data = []
-                if wvcalib.spat_ids is not None and wvcalib.wv_fits is not None:
-                    for spat_id, wvfit in zip(wvcalib.spat_ids, wvcalib.wv_fits):
-                        rms = None if (wvfit is None or wvfit.rms is None) else wvfit.rms
-                        rms_data.append((int(spat_id), rms))
-
+                waveimg, rms_data = build_waveimg_mosaic(
+                    cal_path, matched_triplets, log=self.logger
+                )
                 self.fv.gui_do(self._display_waveimg, waveimg, rms_data)
             except Exception as exc:
                 self.logger.error(f"Failed to build wavelength image: {exc}", exc_info=True)
