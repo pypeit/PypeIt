@@ -80,13 +80,14 @@ class PypeIt:
 
     def __init__(
         self, pypeit_file, overwrite=True, reuse_calibs=False, show=False, redux_path=None,
-        calib_only=False):
+        calib_only=False
+    ):
 
         # Set up logging
         self.pypeit_file = pypeit_file
 
         # State
-        #self.run_state = state.RunPypeItState(pypeit_file=pypeit_file,
+        #self.run_state = state.RunPypeItState(pypeit_file=pypeit_file, 
         #                                      current_step='init',
         #                                      current_det=-1,
         #                                      current_calibID=-1)
@@ -222,7 +223,7 @@ class PypeIt:
         Main driver of the end-to-end reduction
 
         Calibration and extraction via a series of calls to
-        :func:`reduce_exposure`.
+        :func:`reduce_calibID`.
         """
         # Validate the parameter set
         self.par.validate_keys(required=['rdx', 'calibrations', 'scienceframe', 'reduce',
@@ -234,14 +235,12 @@ class PypeIt:
         # ############################################################################
         # Iterate over each calibration group and reduce the standards
         for calib_ID in self.fitstbl.calib_groups:
-
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
                            calib_ID, self.calibrations_path,
                            reduce_standard=True, overwrite=self.overwrite,
-                           show=self.show, 
+                           show=self.show,
                            run_state=self.run_state,
-                           reuse_calibs=self.reuse_calibs,
-                           qa_path=self.qa_path)
+                           reuse_calibs=self.reuse_calibs)
 
         # ############################################################################
         # Science Frame(s) Loop
@@ -252,8 +251,7 @@ class PypeIt:
                                         calib_ID, self.calibrations_path,
                                         reduce_standard=False, overwrite=self.overwrite,
                                         show=self.show, run_state=self.run_state,
-                                        reuse_calibs=self.reuse_calibs,
-                                        qa_path=self.qa_path)
+                                        reuse_calibs=self.reuse_calibs)
             log.info(f'Finished calibration group {calib_ID}')
 
         # Finish
@@ -276,10 +274,8 @@ class NIRSpecSlitPypeIt(PypeIt):
     Child of :class:`PypeIt` for JWST NIRSpec slit-by-slit reductions.
 
     This class skips the standard calibration checks that don't apply to
-    NIRSpec.  The reduction itself is driven by the unified
-    :func:`reduce_calibID`, which detects NIRSpec via the spectrograph's
-    ``pypeline`` attribute and delegates to
-    :func:`~pypeit.exposure.reduce_nirspec_exposure`.
+    NIRSpec and overrides :func:`reduce_all` to call
+    :func:`reduce_calibID_nirspec` instead of :func:`reduce_calibID`.
 
     See :class:`PypeIt` for arguments.
     """
@@ -288,26 +284,56 @@ class NIRSpecSlitPypeIt(PypeIt):
         """NIRSpec uses a different calibration workflow -- skip standard checks."""
         pass
 
+    def reduce_all(self):
+        """
+        NIRSpec-specific reduction driver.
+
+        Follows the same pattern as :func:`PypeIt.reduce_all` but calls
+        :func:`reduce_calibID_nirspec` instead of :func:`reduce_calibID`.
+        """
+        self.par.validate_keys(required=['rdx', 'calibrations', 'scienceframe', 'reduce',
+                                         'flexure'])
+        self.tstart = time.perf_counter()
+
+        # ############################################################################
+        # Standard Star(s) Loop
+        # ############################################################################
+        for calib_ID in self.fitstbl.calib_groups:
+            reduce_calibID_nirspec(self.spectrograph, self.par, self.fitstbl,
+                                   calib_ID, self.calibrations_path,
+                                   reduce_standard=True, overwrite=self.overwrite,
+                                   show=self.show, reuse_calibs=self.reuse_calibs,
+                                   qa_path=self.qa_path)
+
+        # ############################################################################
+        # Science Frame(s) Loop
+        # ############################################################################
+        for calib_ID in self.fitstbl.calib_groups:
+            reduce_calibID_nirspec(self.spectrograph, self.par, self.fitstbl,
+                                   calib_ID, self.calibrations_path,
+                                   reduce_standard=False, overwrite=self.overwrite,
+                                   show=self.show, reuse_calibs=self.reuse_calibs,
+                                   qa_path=self.qa_path)
+            log.info(f'Finished calibration group {calib_ID}')
+
+        # Finish
+        self.print_end_time()
+
 
 def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
                    calibrations_path:str,
                    reduce_standard:bool=False, overwrite:bool=False,
                    show:bool=False,
                    run_state=None,
-                   reuse_calibs:bool=True,
-                   qa_path:str=None):
-
+                   reuse_calibs:bool=True):
     """
-    Reduce all the frames in a given calibration group.
+    Reduce all the frames in a given calibration group
+    (standard pipeline: MultiSlit, Echelle, SlicerIFU).
 
     Outputs are written to disk.
 
-    For standard pipelines (MultiSlit, Echelle, SlicerIFU), delegates to
-    :func:`~pypeit.exposure.reduce_exposure` and
-    :func:`~pypeit.exposure.save_exposure`.  For NIRSpec slit-by-slit
-    reductions, delegates to
-    :func:`~pypeit.exposure.reduce_nirspec_exposure` and
-    :func:`~pypeit.exposure.save_nirspec_exposure`.
+    Calls :func:`~pypeit.exposure.reduce_exposure` to do the
+    actual reduction.
 
     Args:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -335,12 +361,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             The current state of the reduction.
         reuse_calibs (:obj:`bool`, optional):
             Reuse any pre-existing calibration files
-        qa_path (:obj:`str`, optional):
-            Path for QA output.  Used by NIRSpec.
     """
-
-    # Detect NIRSpec pipeline
-    is_nirspec = spectrograph.pypeline == 'NIRSpecSlit'
 
     if reduce_standard:
         is_this = fitstbl.find_frames('standard')
@@ -363,7 +384,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
     log.info(f'Found {len(grp_this)} {rtype} frames in calibration group {calib_ID}.')
 
     # Associate standards (previously reduced above) for this setup
-    if not reduce_standard and not is_nirspec:
+    if not reduce_standard:
         is_standard = fitstbl.find_frames('standard')
         std_outfile = outputfiles.get_std_outfile(fitstbl, par, frame_indx[is_standard])
     else:
@@ -373,69 +394,154 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
     u_combid = np.unique(fitstbl['comb_id'][grp_this])
 
     for j, comb_id in enumerate(u_combid):
+        # TODO: This was causing problems when multiple science frames
+        # were provided to quicklook and the user chose *not* to stack
+        # the frames.  But this means it now won't skip processing the
+        # B-A pair when the background image(s) are defined.  Punting
+        # for now...
+#                # Quicklook mode?
+#                if self.par['rdx']['quicklook'] and j > 0:
+#                    log.warning('PypeIt executed in quicklook mode.  Only reducing science frames '
+#                              'in the first combination group!')
+#                    break
+        #
         frames = np.where(fitstbl['comb_id'] == comb_id)[0]
+        # Find all frames whose comb_id matches the current frames bkg_id.
+        bg_frames = np.where((fitstbl['comb_id'] == fitstbl['bkg_id'][frames][0])
+                                & (fitstbl['comb_id'] >= 0))[0]
+        # JFH changed the syntax below to that above, which allows
+        # frames to be used more than once as a background image. The
+        # syntax below would require that we could somehow list multiple
+        # numbers for the bkg_id which is impossible without a comma
+        # separated list
+#                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
 
-        # Find all frames whose comb_id matches the current frame's bkg_id.
-        # Unified parsing handles both single-int (standard) and
-        # comma-separated string (NIRSpec) bkg_id values.
-        bkg_id_val = fitstbl['bkg_id'][frames][0]
-        bkg_ids = [int(b) for b in str(bkg_id_val).split(',')]
+        outfile2d = outputfiles.spec_output_file(fitstbl, par,
+                                            frames[0], twod=True)
+        if not outfile2d.is_file() or overwrite:
+
+            # Build history to document what contributd to the reduced
+            # exposure
+            history = History(fitstbl.frame_paths(frames[0]))
+            history.add_reduce(calib_ID, fitstbl, frames, bg_frames)
+
+            # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
+            #sci_spec2d, sci_sobjs = self.reduce_exposure(
+            #    frames, calib_ID, bg_frames=bg_frames,
+            #    std_outfile=std_outfile)
+
+            this_spec2d, this_sobjs = exposure.reduce_exposure(
+                spectrograph, fitstbl, par, frames, calib_ID, 
+                calibrations_path, bg_frames=bg_frames,
+                reuse_calibs=reuse_calibs, run_state=run_state,
+                show=show,
+                std_outfile=std_outfile)
+
+            # TODO: come up with sensible naming convention for
+            # save_exposure for combined files
+            if len(this_spec2d.detectors) > 0:
+                exposure.save_exposure(spectrograph,
+                                    fitstbl, par, frames[0], 
+                                    this_spec2d, this_sobjs, calibrations_path,
+                                    history=history,
+                                    skip_write_2d=par['scienceframe']['process']['skip_write_2d'])
+            else:
+                log.warning(
+                    'No spec2d and spec1d saved to file because the calibration/reduction was '
+                    'not successful for all the detectors'
+                )
+        else:
+            log.warning(
+                f'Output file: {fitstbl.construct_basename(frames[0])} already exists. Set '
+                'overwrite=True to recreate and overwrite.'
+            )
+
+
+def reduce_calibID_nirspec(spectrograph, par, fitstbl, calib_ID, calibrations_path,
+                           reduce_standard=False, overwrite=False, show=False,
+                           reuse_calibs=True, qa_path=None):
+    """
+    Reduce all frames in a given calibration group for JWST NIRSpec,
+    performing slit-by-slit calibration and extraction using JWST data models.
+
+    This function parallels :func:`reduce_calibID` but delegates the
+    NIRSpec slit-by-slit workflow to :func:`exposure.reduce_nirspec_exposure`
+    and :func:`exposure.save_nirspec_exposure`.
+
+    Args:
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph object.
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+            The parameter set for the reduction.
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+            The metadata table.
+        calib_ID (:obj:`str`):
+            The calibration group ID.
+        calibrations_path (:obj:`str`):
+            Path to the calibration files.
+        reduce_standard (:obj:`bool`, optional):
+            Reduce standard frames if True; science frames if False.
+        overwrite (:obj:`bool`, optional):
+            Overwrite existing files.
+        show (:obj:`bool`, optional):
+            Show plots interactively.
+        reuse_calibs (:obj:`bool`, optional):
+            Reuse pre-existing calibration files.
+        qa_path (:obj:`str`, optional):
+            Path for QA output.
+    """
+
+    if reduce_standard:
+        is_this = fitstbl.find_frames('standard')
+        rtype = 'standard'
+    else:
+        is_this = fitstbl.find_frames('science')
+        rtype = 'science'
+
+    # Frame indices
+    frame_indx = np.arange(len(fitstbl))
+
+    # Find all the frames in this calibration group
+    in_grp = fitstbl.find_calib_group(calib_ID)
+
+    if not np.any(is_this & in_grp):
+        return
+
+    # Find the indices of the science frames in this calibration group:
+    grp_this = frame_indx[is_this & in_grp]
+    log.info(f'Found {len(grp_this)} {rtype} frames in calibration group {calib_ID}.')
+
+    # Loop on unique comb_id
+    u_combid = np.unique(fitstbl['comb_id'][grp_this])
+
+    for j, comb_id in enumerate(u_combid):
+        frames = np.where(fitstbl['comb_id'] == comb_id)[0]
+        # Find all frames whose comb_id matches the current frames bkg_id.
+        # NIRSpec bkg_id may be a comma-separated string of multiple IDs.
         bg_frames = np.where(
-            np.isin(fitstbl['comb_id'], bkg_ids)
+            (np.isin(fitstbl['comb_id'],
+                     [int(b) for b in str(fitstbl['bkg_id'][frames][0]).split(',')]))
             & (fitstbl['comb_id'] >= 0))[0]
 
-        # Build history to document what contributed to the reduced exposure
+        # Build history
         history = History(fitstbl.frame_paths(frames[0]))
         history.add_reduce(calib_ID, fitstbl, frames, bg_frames)
 
-        if is_nirspec:
-            # --- NIRSpec slit-by-slit reduction ---
-            slit_results = exposure.reduce_nirspec_exposure(
-                spectrograph, fitstbl, par, frames, calib_ID,
-                calibrations_path, bg_frames=bg_frames,
-                reuse_calibs=reuse_calibs, show=show,
-                qa_path=qa_path)
+        # Reduce the NIRSpec exposure (slit-by-slit)
+        slit_results = exposure.reduce_nirspec_exposure(
+            spectrograph, fitstbl, par, frames, calib_ID,
+            calibrations_path, bg_frames=bg_frames,
+            reuse_calibs=reuse_calibs, show=show)
 
-            # Save each slit result
-            for all_spec2d, all_specobjs, basename in slit_results:
-                if len(all_spec2d.detectors) > 0:
-                    exposure.save_nirspec_exposure(
-                        spectrograph, fitstbl, par, calibrations_path,
-                        frames[0], all_spec2d, all_specobjs,
-                        basename, history=history)
-                else:
-                    log.warning(f'No spec2d/spec1d saved for {basename}.')
-        else:
-            # --- Standard detector-level reduction ---
-            outfile2d = outputfiles.spec_output_file(fitstbl, par,
-                                                frames[0], twod=True)
-            if not outfile2d.is_file() or overwrite:
-
-                this_spec2d, this_sobjs = exposure.reduce_exposure(
-                    spectrograph, fitstbl, par, frames, calib_ID,
-                    calibrations_path, bg_frames=bg_frames,
-                    reuse_calibs=reuse_calibs, run_state=run_state,
-                    show=show,
-                    std_outfile=std_outfile)
-
-                # TODO: come up with sensible naming convention for
-                # save_exposure for combined files
-                if len(this_spec2d.detectors) > 0:
-                    exposure.save_exposure(spectrograph,
-                                        fitstbl, par, frames[0],
-                                        this_spec2d, this_sobjs, calibrations_path,
-                                        history=history,
-                                        skip_write_2d=par['scienceframe']['process']['skip_write_2d'])
-                else:
-                    log.warning(
-                        'No spec2d and spec1d saved to file because the calibration/reduction was '
-                        'not successful for all the detectors'
-                    )
+        # Save each slit result
+        for all_spec2d, all_specobjs, basename in slit_results:
+            if len(all_spec2d.detectors) > 0:
+                exposure.save_nirspec_exposure(
+                    spectrograph, fitstbl, par, calibrations_path,
+                    frames[0], all_spec2d, all_specobjs,
+                    basename, history=history)
             else:
-                log.warning(
-                    f'Output file: {fitstbl.construct_basename(frames[0])} already exists. Set '
-                    'overwrite=True to recreate and overwrite.'
-                )
+                log.warning(f'No spec2d/spec1d saved for {basename}.')
 
 
 

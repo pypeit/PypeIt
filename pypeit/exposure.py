@@ -467,8 +467,10 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     return all_spec2d, all_specobjs_extract
 
 def reduce_nirspec_exposure(spectrograph, fitstbl, par, frames, calib_ID,
-                            calibrations_path, bg_frames=None,
-                            reuse_calibs=True, show=False, qa_path=None):
+                            calibrations_path: str, bg_frames=None,
+                            reuse_calibs: bool = True,
+                            run_state: dict = None, std_outfile=None,
+                            show: bool = False):
     """
     Reduce a set of NIRSpec exposures, iterating slit-by-slit.
 
@@ -497,8 +499,6 @@ def reduce_nirspec_exposure(spectrograph, fitstbl, par, frames, calib_ID,
             Reuse existing calibrations.
         show (:obj:`bool`, optional):
             Show interactive plots.
-        qa_path (:obj:`str`, optional):
-            Path for QA output.
 
     Returns:
         :obj:`list` of :obj:`tuple`: A list of
@@ -553,7 +553,7 @@ def reduce_nirspec_exposure(spectrograph, fitstbl, par, frames, calib_ID,
             calibrations_path, islit, sci_data, sci_data_bkg,
             cal_data, flat_data, slit_names_nrs1, slit_names_nrs2,
             bkg_redux=bkg_redux, reuse_calibs=reuse_calibs,
-            show=show, qa_path=qa_path)
+            show=show)
         if sciImg is None:
             continue
 

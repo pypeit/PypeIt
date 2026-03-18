@@ -1109,8 +1109,7 @@ def prepare_nirspec_data(spectrograph, fitstbl, par, frames, bg_frames,
 def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
                          calibrations_path, islit, sci_data, sci_data_bkg,
                          cal_data, flat_data, slit_names_nrs1, slit_names_nrs2,
-                         bkg_redux=False, reuse_calibs=True, show=False,
-                         qa_path=None):
+                         bkg_redux=False, reuse_calibs=True, show=False):
     """
     Process calibrations and build the science image for a single NIRSpec slit.
 
@@ -1149,8 +1148,6 @@ def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
             Reuse existing calibrations.
         show (:obj:`bool`, optional):
             Show interactive plots.
-        qa_path (:obj:`str`, optional):
-            Path for QA output.
 
     Returns:
         :obj:`tuple`: A tuple containing:
@@ -1192,7 +1189,6 @@ def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
         fitstbl, par['calibrations'],
         spectrograph, calibrations_path,
         calib_ID, frames[0], _det,
-        qadir=qa_path,
         reuse_calibs=reuse_calibs,
         show=show,
         user_slits=islit,
