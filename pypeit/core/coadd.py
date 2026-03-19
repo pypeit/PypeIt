@@ -3156,9 +3156,9 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     var_list = [[utils.inverse(sciivar) for sciivar in sciivar_stack]]
 
 
-    sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
+    sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack, obj_location \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
-                      inmask_stack, sci_list, var_list)
+                      inmask_stack, sci_list, var_list, obj_coord=None)
     # Now compute the final stack with sigma clipping
     sigrej = 3.0
     maxiters = 10
@@ -3242,7 +3242,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
-            thismask_stack, inmask_stack, sci_list, var_list):
+            thismask_stack, inmask_stack, sci_list:list, var_list:list, obj_list:list):
     """
     Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
     "recitifies" images using np.histogram2d which is extremely fast and effectively performs
@@ -3279,6 +3279,10 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
         This means that the science is weighted by the 1/norm_rebin_stack, and
         hence variances must be weighted by that factor squared, which his why
         they must be input here as a separate list.
+    obj_list : :obj:`list`, optional
+        The list of (SPAT,SPEC) pixel positions of the object in each of the
+        input the science images, to be mapped to the rebinned image for manual
+        identification.
 
     Returns
     -------
@@ -3301,9 +3305,11 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
         as it represents the number of times each pixel in the rebin image was
         populated taking only the "geometry" of the rebinning into account (i.e.
         the thismask_stack), but not the masking (inmask_stack).
+    rebin_coords : :obj:`list`
+        The list of (SPAT,SPEC) pixel position in the rebinned image of `obj_coord`.
     """
 
-    # allocate the output mages
+    # Allocate the output images
     nimgs = len(sci_list[0])
     nspec_rebin = spec_bins.size - 1
     nspat_rebin = spat_bins.size - 1
@@ -3316,6 +3322,9 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
     var_list_out = []
     for jj in range(len(var_list)):
         var_list_out.append(np.zeros(shape_out))
+    obj_list_out = []
+    for kk in range(len(obj_list)):
+        obj_list_out.append(np.zeros((nimgs, 2)))
 
     for img, (waveimg, spatimg, thismask, inmask) in enumerate(zip(waveimg_stack, spatimg_stack, thismask_stack, inmask_stack)):
 
@@ -3347,7 +3356,60 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
                                                                bins=[spec_bins, spat_bins], density=False,
                                                                weights=var[img][finmask])
             var_list_out[indx][img, :, :] = (norm_img > 0.0)*weigh_var/(norm_img + (norm_img == 0.0))**2
+        
+        for indx, obj_coord in enumerate(obj_list):
+            rebin_coords = _map_pixel_rebin(obj_coord[img], spatimg, waveimg, spat_bins, spec_bins)
+            obj_list_out[indx][img, :] = rebin_coords
 
-    return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
+    return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int), obj_list_out
 
 
+def _map_pixel_rebin(
+        obj_coord:tuple[int,int] | None,
+        spatimg:np.ndarray,
+        waveimg:np.ndarray,
+        spat_bins:np.ndarray,
+        spec_bins:np.ndarray,
+    ) -> tuple[int,int] | None:
+    """Map pixel location through rebinning
+
+    .. note::
+
+        This function is more general than just coadd rebinning, but I'll leave
+        it here for now until a better home for it can be found.
+
+    Parameters
+    ----------
+    obj_coord : :obj:`tuple`
+        The [SPAT,SPEC] coordinates in the original image
+    spatimg : :obj:`~numpy.ndarray`
+        Spatial Direction Image
+    waveimg : :obj:`~numpy.ndarray`
+        Wavelenbgth Direction Image
+    spec_bins : :obj:`~numpy.ndarray`
+        Rebinning array in the spectral direction
+    spat_bins : :obj:`~numpy.ndarray`
+        Rebinning array in the spatial direction
+
+    Returns
+    -------
+    :obj:`tuple`
+       The resulting [SPAT,SPEC] coordinates of `obj_coord` in the rebinned image
+    """
+    # Input cleaning
+    if obj_coord is None:
+        return None
+    if not isinstance(obj_coord, tuple):
+        raise TypeError(f"Input `obj_coord` must be tuple, not {type(obj_coord)}")
+    if (input_len := len(obj_coord)) != 2:
+        raise ValueError(f"Input `obj_coord` must be a 2-tuple, not length {input_len}")
+
+    # Do the mapping
+    j, i = obj_coord
+    spec_val = waveimg[i, j]
+    spat_val = spatimg[i, j]
+
+    ispec = np.searchsorted(spec_bins, spec_val, side='right') - 1
+    ispat = np.searchsorted(spat_bins, spat_val, side='right') - 1
+
+    return ispat, ispec
