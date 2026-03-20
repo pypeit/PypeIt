@@ -19,6 +19,16 @@ from IPython import embed
 # NOTE: BEWARE of importing anything from pypeit into this module.  It is likely
 # to cause a circular import.
 
+# Add a logging TEST level between INFO and WARNING
+TEST_LEVEL_NUM = 25
+logging.addLevelName(TEST_LEVEL_NUM, "TEST")
+def logtest(self, message, *args, **kwargs):
+    """Define TEST log level for calling"""
+    # Skip this wrapper frame so filename/lineno point at the caller of log.test()
+    kwargs.setdefault("stacklevel", 2)
+    self.log(TEST_LEVEL_NUM, message, *args, **kwargs)
+logging.Logger.test = logtest
+
 # TODO: Can we put this *inside* the logger?
 def short_warning(message, category, filename, lineno, line=None):
     """
@@ -102,6 +112,7 @@ class StreamFormatter(logging.Formatter):
         level_colors = {
             'debug': [116, 173, 209],
             'info': [49, 54, 149],
+            'test': [223, 255, 0],
             'warning': [253, 174, 97],
             'error': [215, 48, 39],
             'critical': [165, 0, 38],
