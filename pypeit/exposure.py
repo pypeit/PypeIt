@@ -467,18 +467,22 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     return all_spec2d, all_specobjs_extract
 
 def reduce_nirspec_exposure(spectrograph, fitstbl, par, frames, calib_ID,
-                            calibrations_path: str, bg_frames=None,
-                            reuse_calibs: bool = True,
-                            run_state: dict = None, std_outfile=None,
-                            show: bool = False):
+                            calibrations_path, islit, sci_data, sci_data_bkg,
+                            cal_data, flat_data, slit_names_nrs1, slit_names_nrs2,
+                            bg_frames=None,
+                            reuse_calibs=True, show=False):
     """
-    Reduce a set of NIRSpec exposures, iterating slit-by-slit.
+    Reduce a single NIRSpec slit for a given exposure.
 
-    This parallels :func:`reduce_exposure` for the standard pipeline, but
-    processes one slit at a time using JWST data models instead of looping
-    over detectors.  Each slit produces its own
-    :class:`~pypeit.spec2dobj.AllSpec2DObj` and
-    :class:`~pypeit.specobjs.SpecObjs`.
+    This parallels :func:`reduce_exposure` for the standard pipeline.
+    Instead of looping over detectors, it processes a single slit
+    using pre-loaded JWST data models.  Returns the same two-element
+    tuple ``(all_spec2d, all_specobjs)`` as :func:`reduce_exposure`.
+
+    The caller (typically :func:`~pypeit.pypeit.reduce_calibID_nirspec`)
+    is responsible for loading JWST data models via
+    :func:`~pypeit.pypeit_steps.prepare_nirspec_data` and iterating
+    over slits.
 
     Args:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -493,29 +497,44 @@ def reduce_nirspec_exposure(spectrograph, fitstbl, par, frames, calib_ID,
             The calibration group ID.
         calibrations_path (:obj:`str`):
             Path to calibration files.
+        islit (:obj:`str`):
+            The slit name to process.
+        sci_data (`numpy.ndarray`_):
+            Array of JWST science data models.
+        sci_data_bkg (`numpy.ndarray`_ or None):
+            Array of JWST background data models, or None.
+        cal_data (`numpy.ndarray`_):
+            Array of JWST calibration data models.
+        flat_data (`numpy.ndarray`_):
+            Array of JWST flat-field data models.
+        slit_names_nrs1 (`numpy.ndarray`_):
+            Slit names on NRS1.
+        slit_names_nrs2 (`numpy.ndarray`_):
+            Slit names on NRS2.
         bg_frames (`numpy.ndarray`_, optional):
             Background frame indices. Defaults to None.
         reuse_calibs (:obj:`bool`, optional):
             Reuse existing calibrations.
         show (:obj:`bool`, optional):
             Show interactive plots.
+        qa_path (:obj:`str`, optional):
+            Path for QA output.
 
     Returns:
-        :obj:`list` of :obj:`tuple`: A list of
-        ``(all_spec2d, all_specobjs, basename)`` tuples, one per slit.
-        Returns an empty list if no slits are available.
+        :obj:`tuple`:
+            - all_spec2d (:class:`~pypeit.spec2dobj.AllSpec2DObj`):
+              The 2D reduced spectra for this slit.
+            - all_specobjs (:class:`~pypeit.specobjs.SpecObjs`):
+              The extracted 1D spectra for this slit.
+            - basename (:obj:`str`):
+              The per-slit output basename (includes slit name).
+            Returns ``(None, None, None)`` if the slit could not be processed.
     """
     import copy
 
     # Prep for background subtraction and finding negative traces
     has_bg, bkg_redux, find_negative = pypeit_steps.set_bkg_negative(
         fitstbl, par, bg_frames)
-
-    # Make a working copy of par so we can modify it for bkg_redux
-    _par = copy.deepcopy(par)
-    if bkg_redux:
-        _par['reduce']['findobj']['skip_skysub'] = True
-        _par['reduce']['extraction']['skip_optimal'] = True
 
     # Print status message
     lstr = f'Reducing target {fitstbl["target"][frames[0]]}\n'
@@ -530,91 +549,77 @@ def reduce_nirspec_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         bg_lstr = '\nUsing background from frames:\n' + bg_lstr
         log.info(bg_lstr)
 
-    # --- Load JWST data models and determine slits ---
-    result = pypeit_steps.prepare_nirspec_data(
-        spectrograph, fitstbl, _par, frames, bg_frames, bkg_redux)
-    if result[0] is None:
-        return []
-    (gd_slits_sources, sci_data, sci_data_bkg, cal_data, flat_data,
-     slit_names_nrs1, slit_names_nrs2) = result
+    # Make a working copy of par so we can modify it for bkg_redux
+    _par = copy.deepcopy(par)
+    if bkg_redux:
+        _par['reduce']['findobj']['skip_skysub'] = True
+        _par['reduce']['extraction']['skip_optimal'] = True
 
-    # --- Per-slit reduction ---
-    slit_results = []
+    # --- Process: calibrate + build science image ---
+    sciImg, caliBrate, _det = pypeit_steps.process_nirspec_slit(
+        spectrograph, fitstbl, _par, frames, calib_ID,
+        calibrations_path, islit, sci_data, sci_data_bkg,
+        cal_data, flat_data, slit_names_nrs1, slit_names_nrs2,
+        bkg_redux=bkg_redux, reuse_calibs=reuse_calibs,
+        show=show)
+    if sciImg is None:
+        return None, None, None
 
-    for ii, (islit, isource, isource_id, isource_alias) in enumerate(gd_slits_sources):
-        add_to_msgs = f'Slit name: {islit}' if isource is None \
-            else f'SRC name: {isource}'
-        log.info(f'Reducing target {fitstbl["target"][frames[0]]} - '
-                 f'{add_to_msgs}')
-
-        # --- Process: calibrate + build science image ---
-        sciImg, caliBrate, _det = pypeit_steps.process_nirspec_slit(
-            spectrograph, fitstbl, _par, frames, calib_ID,
-            calibrations_path, islit, sci_data, sci_data_bkg,
-            cal_data, flat_data, slit_names_nrs1, slit_names_nrs2,
-            bkg_redux=bkg_redux, reuse_calibs=reuse_calibs,
-            show=show)
-        if sciImg is None:
-            continue
-
-        # Build metadata
-        objtype, setup, obstime, basename, binning \
-            = pypeit_steps.get_sci_metadata(
-                spectrograph, fitstbl, frames[0], _det, slit_name=islit)
-
-        # --- Find objects + sky subtraction ---
-        initial_sky, sobjs_obj, objFind \
-            = pypeit_steps.findobj_on_det(
-                sciImg, spectrograph, fitstbl, _par, frames, calib_ID,
-                _det, calibrations_path,
-                bkg_redux=bkg_redux,
-                find_negative=find_negative, show=show,
-                caliBrate=caliBrate, slit_name=islit)
-
-        # Finalize sky subtraction
-        final_global_sky, bkg_redux_global_sky, objFind \
-            = pypeit_steps.finalize_sky_det(
-                spectrograph, fitstbl, _par, frames[0], _det,
-                objFind, initial_sky, sobjs_obj,
-                bkg_redux=bkg_redux, show=show)
-
-        # Build slits for extraction (copy + flag bad sky)
-        calib_slits = copy.deepcopy(caliBrate.slits)
-        calib_slits.maskdef_designtab = None
-        flagged_slits = np.where(objFind.reduce_bpm)[0]
-        if len(flagged_slits) > 0:
-            calib_slits.mask[flagged_slits] = \
-                calib_slits.bitmask.turn_on(
-                    calib_slits.mask[flagged_slits], 'BADSKYSUB')
-
-        # --- Extraction ---
-        spec2DObj, sobjs = pypeit_steps.extract_det(
-            spectrograph, fitstbl, _par,
-            frames, _det, calib_ID, calibrations_path,
-            sciImg, final_global_sky, sobjs_obj, calib_slits,
-            bkg_redux_final_sky=bkg_redux_global_sky,
+    # --- Find objects + sky subtraction ---
+    initial_sky, sobjs_obj, objFind \
+        = pypeit_steps.findobj_on_det(
+            sciImg, spectrograph, fitstbl, _par, frames, calib_ID,
+            _det, calibrations_path,
             bkg_redux=bkg_redux,
-            find_negative=find_negative,
-            show=show, caliBrate=caliBrate, slit_name=islit)
+            find_negative=find_negative, show=show,
+            caliBrate=caliBrate, slit_name=islit)
 
-        # --- Assemble per-slit outputs ---
-        all_spec2d = spec2dobj.AllSpec2DObj()
-        all_spec2d['meta']['bkg_redux'] = bkg_redux
-        all_spec2d['meta']['find_negative'] = find_negative
-        all_spec2d[sciImg.detector.name] = spec2DObj
+    # Finalize sky subtraction
+    final_global_sky, bkg_redux_global_sky, objFind \
+        = pypeit_steps.finalize_sky_det(
+            spectrograph, fitstbl, _par, frames[0], _det,
+            objFind, initial_sky, sobjs_obj,
+            bkg_redux=bkg_redux, show=show)
 
-        all_specobjs = specobjs.SpecObjs()
-        if sobjs.nobj > 0:
-            all_specobjs.add_sobj(sobjs)
+    # Build slits for extraction (copy + flag bad sky)
+    calib_slits = copy.deepcopy(caliBrate.slits)
+    calib_slits.maskdef_designtab = None
+    flagged_slits = np.where(objFind.reduce_bpm)[0]
+    if len(flagged_slits) > 0:
+        calib_slits.mask[flagged_slits] = \
+            calib_slits.bitmask.turn_on(
+                calib_slits.mask[flagged_slits], 'BADSKYSUB')
 
-        slit_results.append((all_spec2d, all_specobjs, basename))
+    # --- Extraction ---
+    spec2DObj, sobjs = pypeit_steps.extract_det(
+        spectrograph, fitstbl, _par,
+        frames, _det, calib_ID, calibrations_path,
+        sciImg, final_global_sky, sobjs_obj, calib_slits,
+        bkg_redux_final_sky=bkg_redux_global_sky,
+        bkg_redux=bkg_redux,
+        find_negative=find_negative,
+        show=show, caliBrate=caliBrate, slit_name=islit)
 
-    return slit_results
+    # --- Assemble outputs ---
+    all_spec2d = spec2dobj.AllSpec2DObj()
+    all_spec2d['meta']['bkg_redux'] = bkg_redux
+    all_spec2d['meta']['find_negative'] = find_negative
+    all_spec2d[sciImg.detector.name] = spec2DObj
+
+    all_specobjs = specobjs.SpecObjs()
+    if sobjs.nobj > 0:
+        all_specobjs.add_sobj(sobjs)
+
+    return all_spec2d, all_specobjs
 
 
-def save_nirspec_exposure(spectrograph, fitstbl, par, calibrations_path,
-                          frame, all_spec2d, all_specobjs, basename,
-                          history=None):
+def save_nirspec_exposure(spectrograph, fitstbl, par,
+                  frame:int, all_spec2d:spec2dobj.AllSpec2DObj,
+                  all_specobjs:specobjs.SpecObjs,
+                  calibrations_path:str,
+                  history:History=None,
+                  in_update_det:int=None,
+                  skip_write_2d:bool=False):
     """
     Save NIRSpec reduction outputs for a single slit.
 
@@ -641,7 +646,6 @@ def save_nirspec_exposure(spectrograph, fitstbl, par, calibrations_path,
         history (:class:`~pypeit.history.History`, optional):
             History object.
     """
-    from astropy.io import fits
 
     row_fitstbl = fitstbl[frame]
     rawfile = fitstbl.frame_paths(frame)
@@ -679,6 +683,7 @@ def save_exposure(spectrograph, fitstbl, par,
                   frame:int, all_spec2d:spec2dobj.AllSpec2DObj,
                   all_specobjs:specobjs.SpecObjs, 
                   calibrations_path:str,
+                  slitname:str=None,
                   history:History=None,
                   in_update_det:int=None,
                   skip_write_2d:bool=False):
@@ -700,7 +705,11 @@ def save_exposure(spectrograph, fitstbl, par,
             The 2D reduced spectrum objects.
         all_specobjs (:class:`~pypeit.specobjs.SpecObjs`):
             The 1D spectral extraction objects.
-        calibrations_path (:obj:`str`): The path to the calibration files.
+        calibrations_path (:obj:`str`):
+            The path to the calibration files.
+        slitname (:obj:`str`, optional):
+            Name of the slit, if applicable.  Default is None, which means
+            the slit name is not included in the output file name.
         history (:class:`~pypeit.history.History`, optional):
             History entries to be added to fits header
         in_update_det (:obj:`int`, optional):
@@ -739,7 +748,7 @@ def save_exposure(spectrograph, fitstbl, par,
     # 1D spectra
     if all_specobjs.nobj > 0 and not par['reduce']['extraction']['skip_extraction']:
         # Spectra
-        outfile1d = outputfiles.spec_output_file(fitstbl, par, frame)
+        outfile1d = outputfiles.spec_output_file(fitstbl, par, frame, slitname=slitname)
         # TODO
         #embed(header='deal with the following for maskIDs;  713 of pypeit')
         all_specobjs.write_to_fits(subheader, outfile1d,
@@ -747,8 +756,7 @@ def save_exposure(spectrograph, fitstbl, par,
                                     slitspatnum=par['rdx']['slitspatnum'],
                                     history=history)
         # Info
-        outfiletxt = outputfiles.spec_output_file(fitstbl, par,
-                                            frame, ext='.txt')
+        outfiletxt = outputfiles.spec_output_file(fitstbl, par, frame, slitname=slitname, ext='.txt')
         # TODO: Note we re-read in the specobjs from disk to deal with situations where
         # only a single detector is run in a second pass but in the same reduction directory.
         # This was to address Issue #1116 in PR #1154. Slightly inefficient, but only other
@@ -760,7 +768,7 @@ def save_exposure(spectrograph, fitstbl, par,
         return
 
     # 2D spectra
-    outfile2d = outputfiles.spec_output_file(fitstbl, par, frame, twod=True)
+    outfile2d = outputfiles.spec_output_file(fitstbl, par, frame, slitname=slitname, twod=True)
 
     # Build header
     pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,

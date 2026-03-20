@@ -10,7 +10,7 @@ from pathlib import Path
 from pypeit import log
 from pypeit import PypeItError
 
-def get_std_outfile(fitstbl, par, standard_frames:list):
+def get_std_outfile(fitstbl, par, standard_frames:list, slitname:str=None):
     """
     Return the spec1d file name for a reduced standard to use as a tracing
     crutch.
@@ -29,7 +29,9 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
         standard_frames (:obj:`list`):
             List of frame indices in ``fitstbl`` corresponding to
             standard star frames.
-
+        slitname (:obj:`str`, optional):
+            Name of the slit, if applicable.  Default is None, which means
+            the slit name is not included in the standard star output file name.
     Returns:
         :obj:`str`: Full path to the standard spec1d output file to use.
     """
@@ -53,7 +55,7 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
         else standard_frames[0]
     # Prepare to load up standard?
     if std_frame is not None:
-        std_outfile = spec_output_file(fitstbl, par, std_frame) \
+        std_outfile = spec_output_file(fitstbl, par, std_frame, slitname=slitname) \
                         if isinstance(std_frame, (int,np.integer)) else None
     if std_outfile is not None and not std_outfile.is_file():
         raise PypeItError(f'Could not find standard file: {std_outfile}')
@@ -95,7 +97,7 @@ def science_path(par) -> Path:
     return Path(par['rdx']['redux_path']) / par['rdx']['scidir']
 
 def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
-                     ext:str='.fits', sci_path:Path=None) -> Path:
+                     slitname:str=None, ext:str='.fits', sci_path:Path=None) -> Path:
     """
     Return the path to the spectral output data file.
     
@@ -108,8 +110,14 @@ def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
             Frame index from :attr:`fitstbl`.
         twod (:obj:`bool`), optional:
             Name for the 2D output file; 1D file otherwise.
+        slitname (:obj:`str`, optional):
+            Name of the slit, if applicable.  Default is None, which means
+            the slit name is not included in the output file name.
         ext (:obj:`str`, optional):
             Extension for the output file.  Default is '.fits'.
+        sci_path (:obj:`Path`, optional):
+                Path to the science directory.  If not provided, it is constructed
+                using :func:`science_path` and the provided parameters.
     
     Returns:
         `Path`_: The path for the output file
@@ -117,6 +125,6 @@ def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
     if sci_path is None:
         sci_path = science_path(par) 
     # Bits and pieces
-    basename = fitstbl.construct_basename(frame)
+    basename = fitstbl.construct_basename(frame, slitname=slitname)
     # Finish``
     return sci_path / f'spec{"2" if twod else "1"}d_{basename}{ext}'

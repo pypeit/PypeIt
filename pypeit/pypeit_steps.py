@@ -47,7 +47,7 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det, slit_name=None):
             The detector number (1-indexed)
         slit_name (:obj:`str`, optional):
             If provided, the slit name is embedded in the basename and setup
-            key.  Used by NIRSpec to produce per-slit output files.
+            key.  Used for per-slit outputs.
 
     Returns:
         5 objects are returned::
@@ -62,7 +62,7 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det, slit_name=None):
     # Set binning, obstime, basename, and objtype
     binning = fitstbl['binning'][frame]
     obstime  = fitstbl.construct_obstime(frame)
-    basename = fitstbl.construct_basename(frame, obstime=obstime)
+    basename = fitstbl.construct_basename(frame, obstime=obstime, slitname=slit_name)
     types  = fitstbl['frametype'][frame].split(',')
     if 'science' in types:
         objtype_out = 'science'
@@ -76,12 +76,9 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det, slit_name=None):
     calib_key = CalibFrame.construct_calib_key(fitstbl['setup'][frame],
                                                 fitstbl['calib'][frame],
                                                 spectrograph.get_det_name(det))
-
-    # Embed slit name in basename and setup (for per-slit outputs)
+    # TODO: check that this does not break things
+    # Embed slit name in the setup (for per-slit outputs)
     if slit_name is not None:
-        basename = basename.replace(
-            spectrograph.camera,
-            f'{slit_name}_{spectrograph.camera}')
         calib_key = calib_key + f'_{slit_name}'
 
     return objtype_out, calib_key, obstime, basename, binning
@@ -976,8 +973,7 @@ def refframe_correct(spectrograph, par, slits, ra, dec, obstime, slitgpm=None,
 # NIRSpec-specific step functions
 # ============================================================================
 
-def prepare_nirspec_data(spectrograph, fitstbl, par, frames, bg_frames,
-                         bkg_redux):
+def prepare_nirspec_data(spectrograph, fitstbl, par, frames, bg_frames):
     """
     Load JWST data models and determine the list of slits to reduce.
 
@@ -1018,6 +1014,7 @@ def prepare_nirspec_data(spectrograph, fitstbl, par, frames, bg_frames,
         raise PypeItError('Unable to import jwst. Install pypeit with the jwst '
                           'option to reduce jwst data.')
 
+    bkg_redux = True if bg_frames is not None and len(bg_frames) > 0 else False
     # Load JWST data models
     sci_data = np.array(datamodels.open(fitstbl.frame_paths(frames)))
     sci_data_bkg = np.array(datamodels.open(

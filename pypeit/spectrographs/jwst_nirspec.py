@@ -40,7 +40,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     #supported = True
     allowed_extensions = ['rate.fits','rate.fits.gz' , 'uncal.fits.gz', 'uncal.fits', '.fits', '.fits.gz']
 
-    def rawfile_basename(self, filename):
+    def rawfile_basename(self, filename, targname=None, slitname=None):
         """
         Return the basename of a raw file, which is used for naming output
         files by the function :func:`~pypeit.metadata.construct_basename`.
@@ -52,6 +52,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         Args:
             filename (:obj:`str`):
                 Input raw fits filename.
+            slitname (:obj:`str`, optional):
+                Slit name to be added in the basename for per-slit outputs.
+                If None, no slit name will be added.
 
         Returns:
             :obj:`str`:
@@ -63,6 +66,13 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         for tag in ['_assign_wcs', '_nrs1', '_nrs2']:
             _filename = _filename.replace(tag, '')
+
+        if targname is not None:
+            _filename = _filename + '-' + targname
+
+        # Embed slit name in basename (for per-slit outputs)
+        if slitname is not None:
+            _filename = _filename + f'_{slitname}'
 
         return _filename
 

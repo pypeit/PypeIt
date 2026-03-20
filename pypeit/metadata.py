@@ -481,7 +481,7 @@ class PypeItMetaData:
         """
         return time.Time(self['mjd'][row], format='mjd')
 
-    def construct_basename(self, row, obstime=None):
+    def construct_basename(self, row, obstime=None, slitname=None):
         """
         Construct the root name primarily for PypeIt file output.
 
@@ -491,6 +491,9 @@ class PypeItMetaData:
             obstime (`astropy.time.Time`_, optional):
                 The MJD of the observation.  If None, constructed using
                 :func:`construct_obstime`.
+            slitname (:obj:`str`, optional):
+                The slit name to include in the root name.  If None, this
+                is not included.
         
         Returns:
             str: The root name for file output.
@@ -498,11 +501,11 @@ class PypeItMetaData:
         _obstime = self.construct_obstime(row) if obstime is None else obstime
         tiso = time.Time(_obstime, format='isot')
         dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
+        _inp_basename = self.spectrograph.rawfile_basename(self['filename'][row],
+                                                           targname=self['target'][row].replace(" ", ""),
+                                                           slitname=slitname)
 
-        _inp_basename = self.spectrograph.rawfile_basename(self['filename'][row])
-
-        return '{0}-{1}_{2}_{3}{4}'.format(_inp_basename,
-                                           self['target'][row].replace(" ", ""),
+        return '{0}_{1}_{2}{3}'.format(_inp_basename,
                                            self.spectrograph.camera,
                                            datetime.datetime.strftime(dtime, '%Y%m%dT'),
                                            tiso.value.split("T")[1].replace(':',''))

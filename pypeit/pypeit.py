@@ -302,8 +302,7 @@ class NIRSpecSlitPypeIt(PypeIt):
             reduce_calibID_nirspec(self.spectrograph, self.par, self.fitstbl,
                                    calib_ID, self.calibrations_path,
                                    reduce_standard=True, overwrite=self.overwrite,
-                                   show=self.show, reuse_calibs=self.reuse_calibs,
-                                   qa_path=self.qa_path)
+                                   show=self.show, reuse_calibs=self.reuse_calibs)
 
         # ############################################################################
         # Science Frame(s) Loop
@@ -312,8 +311,7 @@ class NIRSpecSlitPypeIt(PypeIt):
             reduce_calibID_nirspec(self.spectrograph, self.par, self.fitstbl,
                                    calib_ID, self.calibrations_path,
                                    reduce_standard=False, overwrite=self.overwrite,
-                                   show=self.show, reuse_calibs=self.reuse_calibs,
-                                   qa_path=self.qa_path)
+                                   show=self.show, reuse_calibs=self.reuse_calibs)
             log.info(f'Finished calibration group {calib_ID}')
 
         # Finish
@@ -420,7 +418,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
                                             frames[0], twod=True)
         if not outfile2d.is_file() or overwrite:
 
-            # Build history to document what contributd to the reduced
+            # Build history to document what contributed to the reduced
             # exposure
             history = History(fitstbl.frame_paths(frames[0]))
             history.add_reduce(calib_ID, fitstbl, frames, bg_frames)
@@ -457,16 +455,22 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             )
 
 
-def reduce_calibID_nirspec(spectrograph, par, fitstbl, calib_ID, calibrations_path,
-                           reduce_standard=False, overwrite=False, show=False,
-                           reuse_calibs=True, qa_path=None):
+def reduce_calibID_nirspec(spectrograph, par, fitstbl, calib_ID:str,
+                   calibrations_path:str,
+                   reduce_standard:bool=False, overwrite:bool=False,
+                   show:bool=False,
+                   run_state=None,
+                   reuse_calibs:bool=True):
     """
     Reduce all frames in a given calibration group for JWST NIRSpec,
     performing slit-by-slit calibration and extraction using JWST data models.
 
-    This function parallels :func:`reduce_calibID` but delegates the
-    NIRSpec slit-by-slit workflow to :func:`exposure.reduce_nirspec_exposure`
-    and :func:`exposure.save_nirspec_exposure`.
+    This function parallels :func:`reduce_calibID` for the standard
+    pipeline.  It loads the JWST data models once via
+    :func:`~pypeit.pypeit_steps.prepare_nirspec_data`, then loops over
+    slits and calls :func:`~pypeit.exposure.reduce_nirspec_exposure`
+    (which mirrors :func:`~pypeit.exposure.reduce_exposure`) for each
+    slit.
 
     Args:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -485,6 +489,8 @@ def reduce_calibID_nirspec(spectrograph, par, fitstbl, calib_ID, calibrations_pa
             Overwrite existing files.
         show (:obj:`bool`, optional):
             Show plots interactively.
+        run_state (:class:`~pypeit.state.RunPypeItState`, optional):
+            The current state of the reduction.
         reuse_calibs (:obj:`bool`, optional):
             Reuse pre-existing calibration files.
         qa_path (:obj:`str`, optional):
@@ -511,6 +517,13 @@ def reduce_calibID_nirspec(spectrograph, par, fitstbl, calib_ID, calibrations_pa
     grp_this = frame_indx[is_this & in_grp]
     log.info(f'Found {len(grp_this)} {rtype} frames in calibration group {calib_ID}.')
 
+    # Associate standards (previously reduced above) for this setup
+    if not reduce_standard:
+        is_standard = fitstbl.find_frames('standard')
+        std_outfile = outputfiles.get_std_outfile(fitstbl, par, frame_indx[is_standard])
+    else:
+        std_outfile = None
+
     # Loop on unique comb_id
     u_combid = np.unique(fitstbl['comb_id'][grp_this])
 
@@ -523,25 +536,55 @@ def reduce_calibID_nirspec(spectrograph, par, fitstbl, calib_ID, calibrations_pa
                      [int(b) for b in str(fitstbl['bkg_id'][frames][0]).split(',')]))
             & (fitstbl['comb_id'] >= 0))[0]
 
-        # Build history
-        history = History(fitstbl.frame_paths(frames[0]))
-        history.add_reduce(calib_ID, fitstbl, frames, bg_frames)
+        # --- Load JWST data models and determine slits ---
+        gd_slits_sources, sci_data, sci_data_bkg, cal_data, flat_data, \
+        slit_names_nrs1, slit_names_nrs2 = pypeit_steps.prepare_nirspec_data(
+            spectrograph, fitstbl, par, frames, bg_frames)
+        if gd_slits_sources is None:
+            continue
 
-        # Reduce the NIRSpec exposure (slit-by-slit)
-        slit_results = exposure.reduce_nirspec_exposure(
-            spectrograph, fitstbl, par, frames, calib_ID,
-            calibrations_path, bg_frames=bg_frames,
-            reuse_calibs=reuse_calibs, show=show)
+        # --- Per-slit reduction ---
+        for ii, (islit, isource, isource_id, isource_alias) in enumerate(gd_slits_sources):
 
-        # Save each slit result
-        for all_spec2d, all_specobjs, basename in slit_results:
-            if len(all_spec2d.detectors) > 0:
-                exposure.save_nirspec_exposure(
-                    spectrograph, fitstbl, par, calibrations_path,
-                    frames[0], all_spec2d, all_specobjs,
-                    basename, history=history)
+            outfile2d = outputfiles.spec_output_file(fitstbl, par, frames[0], slitname=islit, twod=True)
+            if not outfile2d.is_file() or overwrite:
+                # Build history to document what contributed to the reduced
+                # exposure
+                history = History(fitstbl.frame_paths(frames[0]))
+                # TODO: add slit_name in the history
+                history.add_reduce(calib_ID, fitstbl, frames, bg_frames)
+
+
+                obj_str = f'Slit name: {islit}' if isource is None \
+                    else f'SRC name: {isource}'
+                log.info(f'Reducing target {fitstbl["target"][frames[0]]} - '
+                         f'{obj_str}')
+
+                # Reduce this slit (mirrors reduce_exposure for standard pipeline)
+                this_spec2d, this_sobjs = exposure.reduce_nirspec_exposure(
+                    spectrograph, fitstbl, par, frames, calib_ID,
+                    calibrations_path, islit, sci_data, sci_data_bkg,
+                    cal_data, flat_data, slit_names_nrs1, slit_names_nrs2,
+                    bg_frames=bg_frames,
+                    reuse_calibs=reuse_calibs, show=show)
+
+                # Save
+                if len(this_spec2d.detectors) > 0:
+                    exposure.save_exposure(spectrograph,
+                                           fitstbl, par, frames[0],
+                                           this_spec2d, this_sobjs, calibrations_path,
+                                           slitname=islit, history=history,
+                                           skip_write_2d=par['scienceframe']['process']['skip_write_2d'])
+                else:
+                    log.warning(
+                        f'No spec2d and spec1d saved to file for {obj_str} because the calibration/reduction was '
+                        'not successful for all the detectors'
+                )
             else:
-                log.warning(f'No spec2d/spec1d saved for {basename}.')
+                log.warning(
+                    f'Output file: {fitstbl.construct_basename(frames[0])} already exists. Set '
+                    'overwrite=True to recreate and overwrite.'
+                )
 
 
 
