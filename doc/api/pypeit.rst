@@ -47,6 +47,7 @@ Submodules
    pypeit.logger
    pypeit.manual_extract
    pypeit.metadata
+   pypeit.multislit_flexure
    pypeit.onespec
    pypeit.orderstack
    pypeit.outputfiles
