@@ -432,10 +432,12 @@ class Spectrograph:
         Args:
             filename (:obj:`str`):
                 Input raw fits filename.
+            targname (:obj:`str`, optional):
+                Target name to be added in the basename.
+                If None, no target name will be added.
             slitname (:obj:`str`, optional):
                 Slit name to be added in the basename for per-slit outputs.
                 If None, no slit name will be added.
-
 
         Returns:
             :obj:`str`:
@@ -446,7 +448,7 @@ class Spectrograph:
         _filename = filename.split('.fits')[0]
 
         if targname is not None:
-            _filename = filename + '-' + targname
+            _filename = _filename + '-' + targname
 
         # Embed slit name in basename (for per-slit outputs)
         if slitname is not None:

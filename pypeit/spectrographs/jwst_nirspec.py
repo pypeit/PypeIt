@@ -3,9 +3,6 @@ Module for JWST NIRSpec specific methods.
 
 .. include:: ../include/links.rst
 """
-import copy
-from pathlib import Path
-
 import numpy as np
 
 from pypeit import log
@@ -13,15 +10,8 @@ from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
 from pypeit.core import framematch
-from pypeit.core import parse
-from pypeit.core import procimg
-from pypeit.core import flat
-from pypeit import io
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit.core import parse
 from pypeit.images import detector_container
-from pypeit.images import pypeitimage
 from pypeit.images.mosaic import Mosaic
 from IPython import embed
 
@@ -166,37 +156,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         # Get the detectors
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
-        # # Binning *must* be consistent for all detectors
-        # if any(d.binning != detectors[0].binning for d in detectors[1:]):
-        #     raise PypeItError('Binning is somehow inconsistent between detectors in the mosaic!')
-        #
-        # # Collect the offsets and rotations for *all unbinned* detectors in the
-        # # full instrument, ordered by the number of the detector.  Detector
-        # # numbers must be sequential and 1-indexed.
-        # # See the mosaic documentattion.
-        # msc_geometry = DEIMOSMosaicLookUp.geometry
-        # expected_shape = msc_geometry[detid]['default_shape']
-        # shift = np.array([(msc_geometry[detid]['blue_det']['shift'][0], msc_geometry[detid]['blue_det']['shift'][1]),
-        #                   (msc_geometry[detid]['red_det']['shift'][0],  msc_geometry[detid]['red_det']['shift'][1])])
-        #
-        # rotation = np.array([msc_geometry[detid]['blue_det']['rotation'], msc_geometry[detid]['red_det']['rotation']])
-        #
-        # # The binning and process image shape must be the same for all images in
-        # # the mosaic
-        # binning = tuple(int(b) for b in detectors[0].binning.split(','))
-        # shape = tuple(n // b for n, b in zip(expected_shape, binning))
-        #
-        # msc_sft = [None]*nimg
-        # msc_rot = [None]*nimg
-        # msc_tfm = [None]*nimg
-        #
-        # for i in range(nimg):
-        #     msc_sft[i] = shift[i]
-        #     msc_rot[i] = rotation[i]
-        #     msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
-        #
-        # return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-        #               np.array(msc_tfm), msc_ord)
+        # TODO: Implement proper mosaic geometry for NIRSpec NRS1+NRS2.
+        # For now, use placeholder values; the actual mosaic is built by
+        # make_mosaic() using slit_slices-based spatial offsets.
         return Mosaic(mosaic_id, detectors, None, np.array(0.0), np.array(0.0), np.array(0.0), msc_ord)
 
     def validate_det(self, det):
@@ -243,9 +205,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['maxnumber_sci'] = 2
         par['reduce']['findobj']['snr_thresh'] = 10.0
         par['reduce']['findobj']['trace_npoly'] = 5
-        par['reduce']['findobj']['snr_thresh'] = 10.0
         par['reduce']['findobj']['find_fwhm'] = 2.0
-
 
         # Sky-subtraction
         par['reduce']['skysub']['bspline_spacing'] = 5.0 # JWST sky is smooth
@@ -487,19 +447,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Read
         log.info(f'Reading JWST/NIRSpec file: {fil}')
 
+        # TODO: implement a proper get_rawimage for NIRSpec
+
         return super().get_rawimage(fil, det, sec_includes_binning=True)
 
-        # hdu = io.fits_open(fil)
-        # head0 = hdu[0].header
-        #
-        # detector = self.get_detector_par(det if det is not None else 1, hdu=hdu)
-        # raw_img = hdu[detector['dataext']].data.astype(float)
-        #
-        # # Need the exposure time
-        # exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
-        #
-        # # Return
-        # return detector, raw_img.T, hdu, exptime, None, None
 
     def make_mosaic(self, img_list, det, slit_slices):
         """

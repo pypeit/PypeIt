@@ -834,7 +834,7 @@ def extract_det(spectrograph, fitstbl, par,
 
 def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
                         caliBrate, bkg_redux, find_negative, 
-                        show:bool=False):
+                        show:bool=False, slit_name=None):
     """
     Instantiate the FindObjects class for object finding in spectroscopic data.
 
@@ -862,6 +862,9 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
             Indicates whether to find negative objects during the reduction.
         show (:obj:`bool`, optional):
             Show the QA during processing. Default is False.
+        slit_name (:obj:`str`, optional):
+            Slit name for per-slit output file naming.
+            Default is None.
 
     Returns:
         FindObjects: An instance of the FindObjects class configured for object finding.
@@ -872,7 +875,8 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
         - The FindObjects instance is initialized with the relevant parameters for object finding.
     """
     objtype, setup, obstime, basename, binning \
-            = get_sci_metadata(spectrograph, fitstbl, frames[0], det)
+            = get_sci_metadata(spectrograph, fitstbl, frames[0], det,
+                               slit_name=slit_name)
     std_redux = objtype == 'standard'
 
     # Deal with manual extraction
@@ -973,40 +977,159 @@ def refframe_correct(spectrograph, par, slits, ra, dec, obstime, slitgpm=None,
 # NIRSpec-specific step functions
 # ============================================================================
 
-def prepare_nirspec_data(spectrograph, fitstbl, par, frames, bg_frames):
+# def prepare_nirspec_calibs(spectrograph, fitstbl, par):
+#     """
+#     Load JWST calibration/flat data and determine the list of slits to reduce.
+#
+#     This function loads the JWST ``datamodels`` for calibration and flat-field
+#     data, determines which slits are present, maps them to detectors
+#     (NRS1/NRS2), and optionally filters by ``maskIDs``.
+#
+#     Science data models are loaded separately per exposure via
+#     :func:`load_nirspec_sci_data`.
+#
+#     Args:
+#         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+#             The spectrograph instance (must be JWST NIRSpec).
+#         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+#             The metadata table.
+#         par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+#             The parameter set for the reduction.
+#
+#     Returns:
+#         :obj:`tuple`: A tuple containing:
+#             - gd_slits_sources (:obj:`list`): List of
+#               ``(slit_name, source_name, source_id, source_alias)`` tuples
+#               to reduce.  ``None`` if no slits are found.
+#             - cal_data (`numpy.ndarray`_): Array of JWST calibration data models.
+#             - flat_data (`numpy.ndarray`_): Array of JWST flat-field data models.
+#             - slit_names_nrs1 (`numpy.ndarray`_): Slit names on NRS1.
+#             - slit_names_nrs2 (`numpy.ndarray`_): Slit names on NRS2.
+#     """
+#     try:
+#         from jwst import datamodels
+#     except ModuleNotFoundError:
+#         raise PypeItError('Unable to import jwst. Install pypeit with the jwst '
+#                           'option to reduce jwst data.')
+#
+#     # Find a reference science/standard frame to locate calibration files
+#     #TODO change this to be only sci or std according to the reduction type
+#     is_sci = fitstbl.find_frames('science')
+#     is_std = fitstbl.find_frames('standard')
+#     ref_frames = np.where(is_sci | is_std)[0]
+#     if len(ref_frames) == 0:
+#         log.warning('No science or standard frames found for NIRSpec calibration lookup.')
+#         return None, None, None, None, None
+#     ref_frame = ref_frames[0]
+#
+#     # Load calibration and flat data
+#     # NOTE!!!: this assumes that calibID and comb_id are different for each nr1,nr2 pair
+#     calib_grps = fitstbl.find_frame_calib_groups(ref_frame)
+#     cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_grps)
+#     cal_data = np.array(datamodels.open(cal_files))
+#     flat_files = fitstbl.find_frame_files('pixelflat', calib_ID=calib_grps)
+#     flat_data = np.array(datamodels.open(flat_files))
+#
+#     # Append FS slits if present
+#     for i, _flat_data in enumerate(flat_data):
+#         fs_path = flat_files[i].replace('_interpolatedflat',
+#                                         '_interpolatedflat_fs')
+#         if Path(fs_path).exists():
+#             log.info(f'Appending FS slits for {Path(flat_files[i]).name}')
+#             _flat_data_fs = datamodels.open(fs_path)
+#             for slit in _flat_data_fs.slits:
+#                 _flat_data.slits.append(slit)
+#
+#     # Get slit and source names, split between NRS1 and NRS2
+#     slit_names_nrs1 = np.array(
+#         [[slit.name for slit in cal_data[i].slits]
+#          for i in range(cal_data.size)
+#          if cal_data[i] is not None
+#          and cal_data[i].meta.instrument.detector == 'NRS1']).flatten()
+#     slit_names_nrs2 = np.array(
+#         [[slit.name for slit in cal_data[i].slits]
+#          for i in range(cal_data.size)
+#          if cal_data[i] is not None
+#          and cal_data[i].meta.instrument.detector == 'NRS2']).flatten()
+#     slit_names = np.hstack([slit_names_nrs1, slit_names_nrs2])
+#     source_names = np.hstack(
+#         [[slit.source_name for slit in cal_data[i].slits]
+#          for i in range(cal_data.size) if cal_data[i] is not None])
+#     source_ids = np.hstack(
+#         [[slit.source_id for slit in cal_data[i].slits]
+#          for i in range(cal_data.size) if cal_data[i] is not None])
+#     source_aliases = np.hstack(
+#         [[slit.source_alias for slit in cal_data[i].slits]
+#          for i in range(cal_data.size) if cal_data[i] is not None])
+#
+#     # Find unique slits and their associated sources
+#     slit_names_uni, uni_indx = np.unique(slit_names, return_index=True)
+#     source_names_uni = source_names[uni_indx]
+#     source_ids_uni = source_ids[uni_indx]
+#     source_aliases_uni = source_aliases[uni_indx]
+#     slit_sources_uni = [
+#         (slit, src_name, src_id, src_alias)
+#         for slit, src_name, src_id, src_alias
+#         in zip(slit_names_uni, source_names_uni,
+#                source_ids_uni, source_aliases_uni)]
+#
+#     # Filter by maskIDs if specified
+#     if par['rdx']['maskIDs'] is not None:
+#         maskIDs = [str(mid).strip() for mid in par['rdx']['maskIDs']]
+#         gd_slits_sources = [
+#             (slt, src_n, src_id, src_alias)
+#             for slt, src_n, src_id, src_alias in slit_sources_uni
+#             if str(slt).strip() in maskIDs
+#             or str(src_id) in maskIDs
+#             or str(src_alias) in maskIDs]
+#         if not gd_slits_sources:
+#             log.warning(f'No slits or sources found for '
+#                         f'maskIDs={par["rdx"]["maskIDs"]}. '
+#                         'Skipping reduction.')
+#             return None, None, None, None, None
+#         elif len(gd_slits_sources) < len(maskIDs):
+#             missing = [
+#                 mid for mid in maskIDs
+#                 if mid not in [s for s, _, _, _ in gd_slits_sources]
+#                 and mid not in [si for _, _, si, _ in gd_slits_sources]
+#                 and mid not in [sa for _, _, _, sa in gd_slits_sources]]
+#             log.warning(f'The following maskIDs were not found: '
+#                         f'{", ".join(missing)}. Reduction will be '
+#                         'performed on the available slits and sources.')
+#     else:
+#         gd_slits_sources = slit_sources_uni
+#
+#     log.info(f'Reducing the following (slit_name, src_name): '
+#              f'{", ".join([f"({s}, {n})" for s, n, _, _ in gd_slits_sources])}')
+#
+#     return (gd_slits_sources, cal_data, flat_data,
+#             slit_names_nrs1, slit_names_nrs2)
+
+def get_nirspec_slits(fitstbl, calib_ID, par, is_std=False):
     """
-    Load JWST data models and determine the list of slits to reduce.
+    Determine the list of NIRSpec slits to reduce for a given calibration group.
 
-    This function loads the JWST ``datamodels`` for science, background,
-    calibration, and flat-field data.  It determines which slits are present,
-    maps them to detectors (NRS1/NRS2), and optionally filters by ``maskIDs``.
-
+    Loads JWST calibration ``datamodels`` to discover available slits,
+    maps them to detectors (NRS1/NRS2), and optionally filters by
+    ``par['rdx']['maskIDs']``.
     Args:
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            The spectrograph instance (must be JWST NIRSpec).
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
             The metadata table.
+        calib_ID (:obj:`str`):
+            The calibration group ID.
         par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             The parameter set for the reduction.
-        frames (`numpy.ndarray`_):
-            Array of science frame indices.
-        bg_frames (`numpy.ndarray`_):
-            Array of background frame indices (may be empty).
-        bkg_redux (:obj:`bool`):
-            Whether background subtraction is being performed.
+        is_std (:obj:`bool`, optional):
+            If True, look for standard frames; otherwise science frames.
 
     Returns:
-        :obj:`tuple`: A tuple containing:
-            - gd_slits_sources (:obj:`list`): List of
-              ``(slit_name, source_name, source_id, source_alias)`` tuples
-              to reduce.
-            - sci_data (`numpy.ndarray`_): Array of JWST science data models.
-            - sci_data_bkg (`numpy.ndarray`_ or None): Array of JWST background
-              data models, or None.
-            - cal_data (`numpy.ndarray`_): Array of JWST calibration data models.
-            - flat_data (`numpy.ndarray`_): Array of JWST flat-field data models.
-            - slit_names_nrs1 (`numpy.ndarray`_): Slit names on NRS1.
-            - slit_names_nrs2 (`numpy.ndarray`_): Slit names on NRS2.
+        :obj:`tuple`: A 2-tuple containing:
+            - gd_slits_sources (:obj:`list` or None):
+              List of ``(slit_name, source_name, source_id, source_alias)``
+              tuples to reduce.  ``None`` if no frames or slits are found.
+            - slit_strs (:obj:`str` or None):
+              Formatted string summarising the slits for logging, or
+              ``None`` when ``gd_slits_sources`` is ``None``.
     """
     try:
         from jwst import datamodels
@@ -1014,28 +1137,14 @@ def prepare_nirspec_data(spectrograph, fitstbl, par, frames, bg_frames):
         raise PypeItError('Unable to import jwst. Install pypeit with the jwst '
                           'option to reduce jwst data.')
 
-    bkg_redux = True if bg_frames is not None and len(bg_frames) > 0 else False
-    # Load JWST data models
-    sci_data = np.array(datamodels.open(fitstbl.frame_paths(frames)))
-    sci_data_bkg = np.array(datamodels.open(
-        fitstbl.frame_paths(bg_frames))) if bkg_redux else None
+    frames = (fitstbl.find_frames('standard') & fitstbl.find_calib_group(calib_ID)) if is_std else \
+             (fitstbl.find_frames('science') & fitstbl.find_calib_group(calib_ID))
 
-    # Load calibration and flat data
-    calib_grps = fitstbl.find_frame_calib_groups(frames[0])
-    cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_grps)
+    if not np.any(frames):
+        return None, None
+
+    cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_ID)
     cal_data = np.array(datamodels.open(cal_files))
-    flat_files = fitstbl.find_frame_files('pixelflat', calib_ID=calib_grps)
-    flat_data = np.array(datamodels.open(flat_files))
-
-    # Append FS slits if present
-    for i, _flat_data in enumerate(flat_data):
-        fs_path = flat_files[i].replace('_interpolatedflat',
-                                        '_interpolatedflat_fs')
-        if Path(fs_path).exists():
-            log.info(f'Appending FS slits for {Path(flat_files[i]).name}')
-            _flat_data_fs = datamodels.open(fs_path)
-            for slit in _flat_data_fs.slits:
-                _flat_data.slits.append(slit)
 
     # Get slit and source names, split between NRS1 and NRS2
     slit_names_nrs1 = np.array(
@@ -1083,7 +1192,7 @@ def prepare_nirspec_data(spectrograph, fitstbl, par, frames, bg_frames):
             log.warning(f'No slits or sources found for '
                         f'maskIDs={par["rdx"]["maskIDs"]}. '
                         'Skipping reduction.')
-            return None, None, None, None, None, None, None
+            return None, None
         elif len(gd_slits_sources) < len(maskIDs):
             missing = [
                 mid for mid in maskIDs
@@ -1096,26 +1205,59 @@ def prepare_nirspec_data(spectrograph, fitstbl, par, frames, bg_frames):
     else:
         gd_slits_sources = slit_sources_uni
 
-    log.info(f'Reducing the following (slit_name, src_name): '
-             f'{", ".join([f"({s}, {n})" for s, n, _, _ in gd_slits_sources])}')
+    slit_strs = ', '.join([f'({s}, {n})' for s, n, _, _ in gd_slits_sources])
+    log.info(f'Reducing the following (slit_name, src_name): {slit_strs}')
 
-    return (gd_slits_sources, sci_data, sci_data_bkg, cal_data, flat_data,
-            slit_names_nrs1, slit_names_nrs2)
+    return gd_slits_sources, slit_strs
 
-
-def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
-                         calibrations_path, islit, sci_data, sci_data_bkg,
-                         cal_data, flat_data, slit_names_nrs1, slit_names_nrs2,
-                         bkg_redux=False, reuse_calibs=True, show=False):
+def load_nirspec_sci_data(fitstbl, frames, bg_frames):
     """
-    Process calibrations and build the science image for a single NIRSpec slit.
+    Load JWST science data models for a set of frames.
 
-    This parallels :func:`process_one_det` for the standard pipeline.
+    Args:
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+            The metadata table.
+        frames (`numpy.ndarray`_):
+            Science frame indices.
+        bg_frames (`numpy.ndarray`_):
+            Background frame indices (may be empty or None).
+
+    Returns:
+        :obj:`tuple`: A tuple containing:
+            - sci_data (`numpy.ndarray`_): Array of JWST science data models.
+            - sci_data_bkg (`numpy.ndarray`_ or None): Array of JWST background
+              data models, or ``None`` if no background frames.
+    """
+    try:
+        from jwst import datamodels
+    except ModuleNotFoundError:
+        raise PypeItError('Unable to import jwst. Install pypeit with the jwst '
+                          'option to reduce jwst data.')
+
+    sci_data = np.array(datamodels.open(fitstbl.frame_paths(frames)))
+    has_bg = bg_frames is not None and len(bg_frames) > 0
+    sci_data_bkg = np.array(datamodels.open(
+        fitstbl.frame_paths(bg_frames))) if has_bg else None
+
+    return sci_data, sci_data_bkg
+
+
+def calib_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
+                       calibrations_path, islit,
+                       bg_frames=None,
+                       reuse_calibs=True, show=False):
+    """
+    Load JWST data models and run calibrations for a single NIRSpec slit.
+
+    This is the NIRSpec analogue of :func:`calib_one` for the standard
+    pipeline.  It loads JWST calibration, flat-field, and science data
+    models, determines which detector the slit lives on, filters the
+    data by detector, and runs the calibration steps.
 
     Args:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             The spectrograph instance.
-        fitstbl (:class:`~pypeit.metadata.PipeItMetaData`):
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
             The metadata table.
         par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             The parameter set.
@@ -1127,37 +1269,64 @@ def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
             Path to calibration files.
         islit (:obj:`str`):
             The slit name to process.
-        sci_data (`numpy.ndarray`_):
-            Array of JWST science data models.
-        sci_data_bkg (`numpy.ndarray`_ or None):
-            Array of JWST background data models.
-        cal_data (`numpy.ndarray`_):
-            Array of JWST calibration data models.
-        flat_data (`numpy.ndarray`_):
-            Array of JWST flat-field data models.
-        slit_names_nrs1 (`numpy.ndarray`_):
-            Slit names on NRS1.
-        slit_names_nrs2 (`numpy.ndarray`_):
-            Slit names on NRS2.
-        bkg_redux (:obj:`bool`, optional):
-            Whether background subtraction is being performed.
+        bg_frames (`numpy.ndarray`_, optional):
+            Background frame indices (may be empty or None).
         reuse_calibs (:obj:`bool`, optional):
             Reuse existing calibrations.
         show (:obj:`bool`, optional):
             Show interactive plots.
 
     Returns:
-        :obj:`tuple`: A tuple containing:
-            - sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-              The processed science image.
+        :obj:`tuple`: A 6-element tuple containing:
             - caliBrate (:class:`~pypeit.calibrations.NIRSpecSlitCalibrations`):
               The calibration object.
-            - det (:obj:`int`): The detector number for this slit.
-            Returns ``(None, None, None)`` if the slit spans both detectors
-            or calibrations fail.
+            - _det (:obj:`int`): The detector number for this slit.
+            - _sci_data (`numpy.ndarray`_): Detector-filtered JWST science
+              data models.
+            - _sci_data_bkg (`numpy.ndarray`_ or None): Detector-filtered
+              background data models, or ``None``.
+            - _slit_slices (:obj:`list`): List of ``(spec_slice, spat_slice)``
+              tuples for the slit on each detector in the data.
+            - headarr (:obj:`list`): List of FITS headers from the first
+              science frame.
+            Returns ``(None, None, None, None, None, None)`` if the slit
+            spans both detectors or calibrations fail.
     """
-    from pypeit.images.rawimage import NIRSpecRawImage
-    from pypeit.images import combineimage
+    try:
+        from jwst import datamodels
+    except ModuleNotFoundError:
+        raise PypeItError('Unable to import jwst. Install pypeit with the jwst '
+                          'option to reduce jwst data.')
+
+    _fail = (None, None, None, None, None, None)
+
+    # --- Load JWST calibration and flat-field data models ---
+    cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_ID)
+    cal_data = np.array(datamodels.open(cal_files))
+    flat_files = fitstbl.find_frame_files('pixelflat', calib_ID=calib_ID)
+    flat_data = np.array(datamodels.open(flat_files))
+
+    # Append FS slits if present
+    for i, _flat_data in enumerate(flat_data):
+        fs_path = flat_files[i].replace('_interpolatedflat',
+                                        '_interpolatedflat_fs')
+        if Path(fs_path).exists():
+            log.info(f'Appending FS slits for {Path(flat_files[i]).name}')
+            _flat_data_fs = datamodels.open(fs_path)
+            for slit in _flat_data_fs.slits:
+                _flat_data.slits.append(slit)
+
+    # Determine which detector each slit lives on
+    slit_names_nrs1 = np.array(
+        [[slit.name for slit in cal_data[i].slits]
+         for i in range(cal_data.size)
+         if cal_data[i] is not None
+         and cal_data[i].meta.instrument.detector == 'NRS1']).flatten()
+    slit_names_nrs2 = np.array(
+        [[slit.name for slit in cal_data[i].slits]
+         for i in range(cal_data.size)
+         if cal_data[i] is not None
+         and cal_data[i].meta.instrument.detector == 'NRS2']).flatten()
 
     # Determine detector for this slit
     if islit in slit_names_nrs1 and islit not in slit_names_nrs2:
@@ -1167,7 +1336,11 @@ def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
     else:
         log.warning(f'Slit {islit} spans both NRS1 and NRS2. '
                     'Mosaic reduction not yet implemented. Skipping.')
-        return None, None, None
+        return _fail
+
+    # --- Load JWST science data models for these frames ---
+    sci_data, sci_data_bkg = load_nirspec_sci_data(
+        fitstbl, frames, bg_frames)
 
     # Filter data by detector
     det_name = f'NRS{_det}'
@@ -1178,6 +1351,10 @@ def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
         fd.meta.instrument.detector == det_name for fd in flat_data]]
     _sci_data = sci_data[[
         sd.meta.instrument.detector == det_name for sd in sci_data]]
+    _sci_data_bkg = None
+    if sci_data_bkg is not None:
+        _sci_data_bkg = sci_data_bkg[[
+            sd.meta.instrument.detector == det_name for sd in sci_data_bkg]]
 
     log.info(f'Reducing detector {_det}')
 
@@ -1196,13 +1373,55 @@ def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
 
     if not caliBrate.success:
         log.warning(f'Calibrations failed for slit {islit}. Skipping.')
-        return None, None, None
+        return _fail
 
-    # --- Build science image ---
+    # --- Build header array from the first science frame ---
     from astropy.io import fits as pyfits
     headarr = copy.deepcopy(
         spectrograph.get_headarr(
             pyfits.open(fitstbl.frame_paths(frames)[0])))
+
+    return caliBrate, _det, _sci_data, _sci_data_bkg, _slit_slices, headarr
+
+
+def build_nirspec_sciimg(spectrograph, par, _det, _sci_data,
+                         _sci_data_bkg, _slit_slices, caliBrate,
+                         headarr, bkg_redux=False):
+    """
+    Build the processed science image for a single NIRSpec slit.
+
+    This is the NIRSpec analogue of :func:`process_one_det` for the
+    standard pipeline.  It converts JWST data-model arrays into a
+    :class:`~pypeit.images.pypeitimage.PypeItImage`, applies flat
+    fielding, builds the variance model, and optionally subtracts a
+    combined background image.
+
+    Args:
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph instance.
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+            The parameter set.
+        _det (:obj:`int`):
+            Detector number (1 or 2).
+        _sci_data (`numpy.ndarray`_):
+            Detector-filtered JWST science data models.
+        _sci_data_bkg (`numpy.ndarray`_ or None):
+            Detector-filtered background data models, or ``None``.
+        _slit_slices (:obj:`list`):
+            Slit pixel slices, one per detector.
+        caliBrate (:class:`~pypeit.calibrations.NIRSpecSlitCalibrations`):
+            The calibration object (provides flatimages and msbpm).
+        headarr (:obj:`list`):
+            List of FITS headers from the first science frame.
+        bkg_redux (:obj:`bool`, optional):
+            If True, subtract combined background images.
+
+    Returns:
+        :class:`~pypeit.images.pypeitimage.PypeItImage`:
+            The processed (and optionally background-subtracted) science image.
+    """
+    from pypeit.images.rawimage import NIRSpecRawImage
+    from pypeit.images import combineimage
 
     nirspec_raw = NIRSpecRawImage(
         spectrograph, _det, _sci_data, _slit_slices,
@@ -1210,9 +1429,7 @@ def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
     sciImg = nirspec_raw.process(par['scienceframe']['process'])
 
     # --- Background subtraction ---
-    if bkg_redux and sci_data_bkg is not None:
-        _sci_data_bkg = sci_data_bkg[[
-            sd.meta.instrument.detector == det_name for sd in sci_data_bkg]]
+    if bkg_redux and _sci_data_bkg is not None:
         sciImg_bkg_list = []
         for _bg in _sci_data_bkg:
             bkg_raw = NIRSpecRawImage(
@@ -1225,4 +1442,4 @@ def process_nirspec_slit(spectrograph, fitstbl, par, frames, calib_ID,
         comb_bkg = combImg.run(ignore_saturation=True)
         sciImg = sciImg.sub(comb_bkg)
 
-    return sciImg, caliBrate, _det
+    return sciImg

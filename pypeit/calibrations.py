@@ -176,12 +176,12 @@ class Calibrations:
 
         # QA
         self.qa_path = None if qadir is None else Path(qadir).absolute()
-        if self.qa_path is not None:
+        self.write_qa = self.qa_path is not None
+        if self.write_qa:
             # TODO: This should only be defined in one place!  Where?...
             qa_png_path = self.qa_path / 'PNGs'
-        self.write_qa = self.qa_path is not None
-        if self.write_qa and not qa_png_path.exists():
-            qa_png_path.mkdir(parents=True)
+            if not qa_png_path.exists():
+                qa_png_path.mkdir(parents=True)
 
         # Debugging
         self.show = show
@@ -1977,12 +1977,13 @@ class NIRSpecSlitCalibrations(Calibrations):
             edges.append(slit)
 
         # get spec_min and spec_max for the slit trace set
+        nspec = thismask.shape[0]
         specmin = np.asarray([-np.inf])
         specmax = np.asarray([np.inf])
         if self.par['slitedges']['trim_spec'] is not None:
             trim_low, trim_high = self.par['slitedges']['trim_spec']
             specmin = np.asarray([trim_low],dtype=np.float64)
-            specmax = np.asarray([self.nspec-trim_high],dtype=np.float64)
+            specmax = np.asarray([nspec-trim_high],dtype=np.float64)
         # TODO: Not sure if we can use self.spectrograph.spec_min_max here
         #  since it is currently defined in the context of echelle reduction.
         elif self.spectrograph.spec_min_max is not None:
