@@ -10,7 +10,6 @@ import os
 import json
 import gzip
 import inspect
-#import pickle
 import pathlib
 import itertools
 import glob
@@ -1696,41 +1695,6 @@ def recursive_update(d, u):
     for k, v in u.items():
         d[k] = recursive_update(d.get(k, {}), v) if isinstance(v, collections.abc.Mapping) else v
     return d
-
-
-# def save_pickle(fname, obj):
-#     """Save an object to a python pickle file
-# 
-#     Parameters
-#     ----------
-#     fname : :class:`str`
-#         Filename
-#     obj : :class:`object`
-#         An object suitable for pickle serialization.
-#     """
-#     if fname.split(".")[-1] != 'pkl':
-#         fname += '.pkl'
-#     with open(fname, 'wb') as f:
-#         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-#         log.info('File saved: {0:s}'.format(fname))
-# 
-
-# def load_pickle(fname):
-#     """Load a python pickle file
-# 
-#     Parameters
-#     ----------
-#     fname : :class:`str`
-#         Filename
-# 
-#     Returns
-#     -------
-#     :class:`object`
-#         An object suitable for pickle serialization.
-#     """
-#     log.info('Loading file: {0:s}'.format(fname))
-#     with open(fname, 'rb') as f:
-#         return pickle.load(f)
 
 
 ##

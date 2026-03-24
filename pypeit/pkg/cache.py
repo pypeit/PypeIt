@@ -56,14 +56,12 @@ else:
     from pygit2 import GitError
 
 
-# NOTE: To avoid circular imports, avoid (if possible) importing anything from
-# pypeit into this module!  Objects created or available in pypeit/__init__.py
-# are the exceptions, for now.
-#from pypeit import log
+# NOTE: To avoid circular imports, do not import anything from pypeit into this
+# module!  Only import from modules in this directory (pypeit/pkg).  If you need
+# something from elsewhere in the code, things need to be moved around so that
+# you only have to import from modules in `pypeit/pkg`.
 from .exceptions import PypeItError, PypeItPathError
 from .version import version as __version__
-#from pypeit import PypeItError, PypeItPathError
-#from pypeit import __version__
 
 
 __PYPEIT_DATA__ = resources.files('pypeit') / 'data'
@@ -244,9 +242,11 @@ def fetch_remote_file(
     if remote_host == "s3_cloud" and not install_script:
         # Display a warning that this may take a while, and the user may wish to
         # download use an install script
-        warnings.warn(f'Note: If this file takes a while to download, you may wish to used one of '
-                  'the install scripts (e.g., pypeit_install_telluric) to install the file '
-                  'independent of this processing script.')
+        warnings.warn(
+            'Note: If this file takes a while to download, you may wish to used one of the '
+            'install scripts (e.g., pypeit_install_telluric) to install the file independent of '
+            'this processing script.'
+        )
 
     # Get the file from cache, if available, or download from the remote server
     # TODO: Make timeout a function argument?
@@ -402,9 +402,11 @@ def remove_from_cache(cache_url=None, pattern=None, allow_multiple=False):
         _url = cache_url
 
     if len(_url) > 1 and not allow_multiple:
-        warnings.warn('Function found or was provided with multiple entries to be removed.  Either '
-                  'set allow_multiple=True, or try again with a single url or more specific '
-                  'pattern.  URLs passed/found are:\n' + '\n'.join(_url))
+        warnings.warn(
+            'Function found or was provided with multiple entries to be removed.  Either set '
+            'allow_multiple=True, or try again with a single url or more specific pattern.  URLs '
+            f'passed/found are: {_url}'
+        )
         return
 
     # Use `clear_download_cache` to remove the file

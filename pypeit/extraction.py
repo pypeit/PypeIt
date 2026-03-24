@@ -373,20 +373,10 @@ class Extract:
                 inmask = self.sciImg.select_flag(invert=True) & thismask
                 extract_sky = global_sky if bkg_redux_global_sky is None else bkg_redux_global_sky
                 # Do it
-#                extract.extract_boxcar(self.sciImg.image-global_sky, self.sciImg.ivar, inmask, self.waveimg,
-#                                       extract_sky, sobj, fwhmimg=self.fwhmimg, base_var=self.sciImg.base_var,
-#                                       count_scale=self.sciImg.img_scale,
-#                                       noise_floor=self.sciImg.noise_floor)
-
-                (
-                    sobj.BOX_WAVE, sobj.BOX_COUNTS, sobj.BOX_COUNTS_IVAR, sobj.BOX_COUNTS_SIG,
-                    sobj.BOX_COUNTS_NIVAR, sobj.BOX_MASK, sobj.BOX_FWHM, sobj.BOX_FLAT,
-                    sobj.BOX_COUNTS_SKY, sobj.BOX_COUNTS_SIG_DET, sobj.BOX_NPIX
-                ) = extract.extract_boxcar(
-                    sobj.BOX_R_PIX, sobj.TRACE_SPAT, self.sciImg.image-global_sky,
-                    self.sciImg.ivar, inmask, self.waveimg, extract_sky, fwhmimg=self.fwhmimg,
-                    base_var=self.sciImg.base_var, count_scale=self.sciImg.img_scale,
-                    noise_floor=self.sciImg.noise_floor, trace_spec=sobj.trace_spec
+                sobj.extract_boxcar(
+                    self.sciImg.image-global_sky, self.sciImg.ivar, inmask, self.waveimg,
+                    extract_sky, fwhmimg=self.fwhmimg, base_var=self.sciImg.base_var,
+                    count_scale=self.sciImg.img_scale, noise_floor=self.sciImg.noise_floor
                 )
 
             # Fill up extra bits and pieces

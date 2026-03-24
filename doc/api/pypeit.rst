@@ -43,7 +43,6 @@ Submodules
    pypeit.history
    pypeit.inputfiles
    pypeit.io
-   pypeit.loader
    pypeit.manual_extract
    pypeit.metadata
    pypeit.multislit_flexure

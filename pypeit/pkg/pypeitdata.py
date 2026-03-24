@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-PypeIt uses the `astropy.utils.data`_ caching system to limit the size of its
-package distribution in PyPI by enabling on-demand downloading of reference
+PypeIt uses the :mod:`astropy.utils.data` caching system to limit the size of
+its package distribution in PyPI by enabling on-demand downloading of reference
 files needed for specific data-reduction steps.  This module provides the class
 used to access to the data files in the code base.
 
@@ -15,14 +15,14 @@ default ``~/.pypeit/cache``) you can run:
     print(astropy.config.paths.get_cache_dir('pypeit'))
 
 Every time PypeIt is imported, a new instance of
-:class:`~pypeit.pypeitdata.PypeItDataPaths` is created, and this instance is
+:class:`~pypeit.pkg.pypeitdata.PypeItDataPaths` is created, and this instance is
 used to set paths to PypeIt data files.  "Data files" in this context
 essentially refers to anything in the ``pypeit/data`` directory tree; see the
-attributes of :class:`~pypeit.pypeitdata.PypeItDataPaths` for the list of
+attributes of :class:`~pypeit.pkg.pypeitdata.PypeItDataPaths` for the list of
 directories that can be directly accessed.
 
 Some of files in these directories are included in the package distribution, but
-most are not.  Regardless, the :class:`~pypeit.pypeitdata.PypeItDataPaths`
+most are not.  Regardless, the :class:`~pypeit.pkg.pypeitdata.PypeItDataPaths`
 object should be used to define the relevant file paths.  For example, to access
 a given NIST line list, one would run:
 
@@ -31,21 +31,21 @@ a given NIST line list, one would run:
     from pypeit import dataPaths
     thar = dataPaths.nist.get_file_path('ThAr_vacuum.ascii')
 
-All of the attributes of :class:`~pypeit.pypeitdata.PypeItDataPaths` are
-:class:`~pypeit.pypeitdata.PypeItDataPath` objects, such that the code above is
-effectively equivalent to:
+All of the attributes of :class:`~pypeit.pkg.pypeitdata.PypeItDataPaths` are
+:class:`~pypeit.pkg.pypeitdata.PypeItDataPath` objects, such that the code above
+is effectively equivalent to:
 
 .. code-block:: python
 
-    from pypeit.pypeitdata import PypeItDataPath
+    from pypeit.pkg.pypeitdata import PypeItDataPath
     thar = PypeItDataPath('arc_lines/NIST').get_file_path('ThAr_vacuum.ascii')
 
-Although :class:`~pypeit.pypeitdata.PypeItDataPath` objects can be treated
-similarly to `Path`_ objects, you should always use the
-:func:`~pypeit.pypeitdata.PypeItDataPath.get_file_path` function to access the
-relevant file path.  Behind the scenes, this function looks for the requested
-file in your package distribution and/or downloads the file to your cache before
-returning the appropriate path.
+Although :class:`~pypeit.pkg.pypeitdata.PypeItDataPath` objects can be treated
+similarly to :class:`Path` objects, you should always use the
+:func:`~pypeit.pkg.pypeitdata.PypeItDataPath.get_file_path` function to access
+the relevant file path.  Behind the scenes, this function looks for the
+requested file in your package distribution and/or downloads the file to your
+cache before returning the appropriate path.
 
 Data directories that *MUST* exist as part of the package distribution are:
 
@@ -59,6 +59,10 @@ import warnings
 
 from IPython import embed
 
+# NOTE: To avoid circular imports, do not import anything from pypeit into this
+# module!  Only import from modules in this directory (pypeit/pkg).  If you need
+# something from elsewhere in the code, things need to be moved around so that
+# you only have to import from modules in `pypeit/pkg`.
 from .exceptions import PypeItError, PypeItPathError
 from . import cache
 

@@ -142,7 +142,8 @@ def extract_optimal(
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
         log.warning('Object profile is zero everywhere. This aperture is junk.')
-        return
+        # TODO: Returning 12 Nones is obnoxious!
+        return None, None, None, None, None, None, None, None, None, None, None, None
 
     mincol = np.min(ispat)
     maxcol = np.max(ispat) + 1
@@ -225,7 +226,7 @@ def extract_optimal(
         if oprof_bad.any():
             # If there are no good profile wavelengths, use boxcar wavelengths for these pixels
             # get boxcar_radius
-            if None in [box_radius, trace_spec, trace_spat]:
+            if box_radius is None or trace_spec is None or trace_spat is None:
                 raise PypeItError(
                     'Fully masked wavelength channels detected; must provide box_radius, '
                     'trace_spec, and trace_spat for fallback boxcar determination of wavelength.'

@@ -1154,15 +1154,6 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
     Returns:
         :class:`~pypeit.onespec.OneSpec`: The boxcar-extracted sky spectrum.
     """
-#    spec = specobj.SpecObj(PYPELINE=pypeline, SLITID=-1, DET=str(det))
-#    spec.trace_spec = np.arange(slits.nspec)
-#    spec.TRACE_SPAT = trace_spat
-#    spec.BOX_R_PIX = box_radius
-#    # Extract
-#    extract.extract_boxcar(sciimg, ivar, thismask, waveimg, global_sky, spec)
-#    slit_wave, slit_sky = spec.BOX_WAVE[spec.BOX_MASK], spec.BOX_COUNTS_SKY[spec.BOX_MASK]
-#    # OneSpec
-#    return onespec.OneSpec(slit_wave, None, slit_sky, fluxed=False)
     wave, _, _, _, _, mask, _, _, counts_sky, _, _ = extract.extract_boxcar(
         box_radius, trace_spat, sciimg, ivar, thismask, waveimg, global_sky,
         trace_spec=np.arange(slits.nspec)
