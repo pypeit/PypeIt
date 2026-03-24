@@ -44,6 +44,7 @@ Under-the-hood Improvements
 - Separated previous functions in :mod:`~pypeit.core.extract` that have to do
   with modeling the spatial profile of the object into a new module,
   :mod:`~pypeit.core.spatialprofile`.
+- Adds [TEST] logging level for development testing.
 
 Bug Fixes
 ---------

@@ -1265,7 +1265,6 @@ Alterations to the default parameters are:
       [[flatfield]]
           spat_samp = 0.7
           tweak_slits = False
-          slit_trim = 0
           slit_illum_finecorr = False
       [[wavelengths]]
           method = reidentify
@@ -1299,6 +1298,7 @@ Alterations to the default parameters are:
       [[skysub]]
           global_sky_std = False
           mask_by_boxcar = True
+          no_local_sky = True
       [[extraction]]
           boxcar_radius = 1.728
 
