@@ -1983,6 +1983,11 @@ class HolyGrail:
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
         self._thar = False
         if 'ThAr' in self._lamps and len(self._lamps) == 1:
+            raise NotImplementedError(
+                'Our algorithm for automatic wavelength calibration of ThAr arc lamps is '
+                'currently too unstable.  For the time-being, we have disabled use of the '
+                'holy-grail algorithm in this case.'
+            )
             self._thar = True
             # Set up the grids to be used for pattern matching
             self.set_grids(ngridw=5000, ngridd=1000)
@@ -2200,7 +2205,7 @@ class HolyGrail:
         """
 
         # Load the linelist KD Tree
-        lsttree, lindex = waveio.load_tree(polygon=polygon, numsearch=lstsrch)
+        lsttree, lindex = kdtree_generator.load_tree(polygon=polygon, numsearch=lstsrch)
 
         # Set the search error to be 5 pixels
         err = pixtol / self._npix
