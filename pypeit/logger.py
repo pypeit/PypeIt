@@ -19,16 +19,6 @@ from IPython import embed
 # NOTE: BEWARE of importing anything from pypeit into this module.  It is likely
 # to cause a circular import.
 
-# Add a logging TEST level between INFO and WARNING
-TEST_LEVEL_NUM = 25
-logging.addLevelName(TEST_LEVEL_NUM, "TEST")
-def logtest(self, message, *args, **kwargs):
-    """Define TEST log level for calling"""
-    # Skip this wrapper frame so filename/lineno point at the caller of log.test()
-    kwargs.setdefault("stacklevel", 2)
-    self.log(TEST_LEVEL_NUM, message, *args, **kwargs)
-logging.Logger.test = logtest
-
 # TODO: Can we put this *inside* the logger?
 def short_warning(message, category, filename, lineno, line=None):
     """
@@ -164,6 +154,7 @@ class PypeItLogger(logging.Logger):
     This borrows heavily from implementations in astropy and sdsstools.
     """
     _excepthook_orig = None
+    TEST = 25
 
     def init(self,
         level: int = logging.INFO,
@@ -253,6 +244,27 @@ class PypeItLogger(logging.Logger):
 
             if self.warnings_logger:
                 self.warnings_logger.addHandler(self.fh)
+
+    def test(self, message, *args, **kwargs):
+        """
+        Log ``message`` with severity level TEST.
+
+        Parameters
+        ----------
+        message
+            Message to log.
+        *args
+            Positional arguments passed through to :func:`logging.Logger.log`.
+        **kwargs
+            Keyword arguments passed through to :func:`logging.Logger.log`.
+
+        Notes
+        -----
+        Sets ``stacklevel=2`` by default so that filename and line-number
+        information point to the caller of :func:`test`, not to this wrapper.
+        """
+        kwargs.setdefault('stacklevel', 2)
+        self.log(self.TEST, message, *args, **kwargs)
 
     def _excepthook(self, etype, value, trace):
         """
@@ -358,7 +370,7 @@ class PypeItLogger(logging.Logger):
             self, name, level, pathname, lineno, msg, args, exc_info, func=func, extra=extra,
             sinfo=sinfo
         )
-    
+
     def close_file(self):
         """
         Explicitly close the log file.
@@ -370,6 +382,8 @@ class PypeItLogger(logging.Logger):
         if self.fh in self.warnings_logger.handlers:
             self.warnings_logger.removeHandler(self.fh)
 
+# Register a logging TEST level between INFO and WARNING
+logging.addLevelName(PypeItLogger.TEST, "TEST")
 
 # NOTE: If we allow warning and exception capture to be optional, remember to
 # add them as parameters here as well.
