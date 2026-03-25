@@ -2109,9 +2109,11 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                                  idx=sobjs.NAME, debug=show_fits)[0]
         # Redo the fit with Gaussian weighting
         xinit_gweight = np.copy(xfit_fweight)
-        xfit_gweight, cen, _, msk, traceset = fit_trace(image, xinit_gweight, ncoeff, bpm=np.logical_not(inmask), maxshift=maxshift, niter=numiterfit,
-                                 trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 weighting='gaussian', idx=sobjs.NAME, debug=show_fits)
+        xfit_gweight, cen, _, msk, trace_results = fit_trace(
+            image, xinit_gweight, ncoeff, bpm=np.logical_not(inmask), maxshift=maxshift,
+            niter=numiterfit, trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+            weighting='gaussian', idx=sobjs.NAME, debug=show_fits
+        )
 
         # assign the final trace
         for iobj in range(nobj_reg):
@@ -2122,7 +2124,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
 
         # Create a QA plot for the object traces based on plots in ``fit_trace``
         objtraceQA_filename = None if objfindQA_filename is None else objfindQA_filename.replace("prof","trace")
-        objtrace_QA(xfit_gweight, traceset.outmask.T, cen, np.logical_not(msk.astype(bool)),
+        objtrace_QA(xfit_gweight, trace_results.out_gpm.T, cen, np.logical_not(msk.astype(bool)),
                     xinit_fweight, np.logical_not(trc_inmask), trace_names=sobjs.NAME,
                     qa_title=qa_title, objtraceQA_filename=objtraceQA_filename)
 

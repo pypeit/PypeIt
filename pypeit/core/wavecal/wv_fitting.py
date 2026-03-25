@@ -9,7 +9,6 @@ import inspect
 
 from astropy.io import fits
 
-from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import defs
 from pypeit.core import fitting
 from pypeit import log
@@ -227,8 +226,10 @@ class WaveFit(datamodel.DataContainer):
         return np.asarray(ionlist)
 
 
-def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, slittxt="Slit", thar=False,match_toler=3.0,
-             func='legendre', n_first=2,sigrej_first=2.0,n_final=4,sigrej_final=3.0,verbose=False):
+def fit_slit(
+    spec, patt_dict, tcent, line_lists, vel_tol=1.0, thar=False, match_toler=3.0, func='legendre',
+    n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0, verbose=False
+):
 
     """ Perform a fit to the wavelength solution. Wrapper for iterative fitting code.
 
@@ -245,10 +246,6 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
     vel_tol: float, default = 1.0
         Tolerance in km/s for matching lines in the IDs to lines in the NIST
         database. The default is 1.0 km/s
-    outroot: str
-        Path for QA file.
-    slittxt : str
-        Label used for QA
     thar: bool, default = False
         True if this is a ThAr fit
     match_toler: float, default = 3.0
@@ -281,42 +278,33 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
         raise PypeItError('patt_dict and tcent do not refer to each other. Something is very wrong')
 
     # Perform final fit to the line IDs
+    NIST_lines = line_lists['NIST'] > 0
     if thar:
-        NIST_lines = (line_lists['NIST'] > 0) & (np.char.find(line_lists['Source'].data, 'MURPHY') >= 0)
-    else:
-        NIST_lines = line_lists['NIST'] > 0
+        NIST_lines &= np.char.find(line_lists['Source'].data, 'MURPHY') >= 0
     ifit = np.where(patt_dict['mask'])[0]
 
-    if outroot is not None:
-        plot_fil = outroot + slittxt + '_fit.pdf'
-    else:
-        plot_fil = None
-
-    # TODO Profx maybe you can add a comment on what this is doing. Why do we have use_unknowns=True only to purge them later??
-    # Purge UNKNOWNS from ifit
+    # TODO Profx maybe you can add a comment on what this is doing. Why do we
+    # have use_unknowns=True only to purge them later??  Purge UNKNOWNS from
+    # ifit
     imsk = np.ones(len(ifit), dtype=bool)
     for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
         if (np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)))/idwv*3.0e5 > vel_tol:
             imsk[kk] = False
     ifit = ifit[imsk]
     # Fit
-    final_fit = iterative_fitting(spec, tcent, ifit, np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
-                                  patt_dict['bdisp'],match_toler=match_toler, func=func, n_first=n_first,
-                                  sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final,
-                                  plot_fil=plot_fil, verbose=verbose)
-    if plot_fil is not None and final_fit is not None:
-        print("Wrote: {:s}".format(plot_fil))
-
-    # Return
-    return final_fit
+    return iterative_fitting(
+        spec, tcent, ifit, np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
+        patt_dict['bdisp'], match_toler=match_toler, func=func, n_first=n_first,
+        sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final, verbose=verbose
+    )
 
 
-def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
-                      match_toler = 2.0, func = 'legendre', n_first=2, sigrej_first=2.0,
-                      n_final=4, sigrej_final=3.0, input_only=False,
-                      weights=None, plot_fil=None, verbose=False):
-
-    """ Routine for iteratively fitting wavelength solutions.
+def iterative_fitting(
+    spec, tcent, ifit, IDs, llist, dispersion, match_toler=2.0, func='legendre', n_first=2,
+    sigrej_first=2.0, n_final=4, sigrej_final=3.0, input_only=False, weights=None, verbose=False
+):
+    """
+    Routine for iteratively fitting wavelength solutions.
 
     Parameters
     ----------
@@ -355,8 +343,6 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
         Weights to be used?
     verbose : bool
         If True, print out more information.
-    plot_fil:
-        Filename for plotting some QA?
 
     Returns
     -------
@@ -475,14 +461,8 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
 
     # DataContainer time
     # spat_id is set to an arbitrary -1 here and is updated in wavecalib.py
-    final_fit = WaveFit(-1, pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit,
-                        ion_bits=ion_bits, xnorm=xnspecmin1,
-                        cen_wave=cen_wave, cen_disp=cen_disp,
-                        spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,
-                        shift=0., tcent=tcent, rms=rms_pixels)
-
-    # QA
-    if plot_fil is not None:
-        autoid.arc_fit_qa(final_fit, plot_fil)
-    # Return
-    return final_fit
+    return WaveFit(
+        -1, pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit, ion_bits=ion_bits,
+        xnorm=xnspecmin1, cen_wave=cen_wave, cen_disp=cen_disp, spec=spec, wave_soln=wave_soln,
+        sigrej=sigrej_final, shift=0., tcent=tcent, rms=rms_pixels
+    )
