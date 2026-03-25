@@ -253,61 +253,6 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
     return tot_line_list, line_lists, unkn_lines
 
 
-def load_tree(polygon=4, numsearch=20):
-    """
-    Load a KDTree of ThAr patterns that is stored on disk
-
-    Parameters
-    ----------
-    polygon : int
-        Number of sides to the polygon used in pattern matching:
-
-            - polygon=3  -->  trigon (two anchor lines and one floating line)
-            - polygon=4  -->  tetragon (two anchor lines and two floating lines)
-            - polygon=5  -->  pentagon (two anchor lines and three floating lines)
-
-    numsearch : int
-        Number of consecutive detected lines used to generate a pattern.
-        For example, if numsearch is 4, then for a trigon, the following
-        patterns will be generated (assuming line #1 is the left
-        anchor):
-
-            - 1 2 3  (in this case line #3 is the right anchor)
-            - 1 2 4  (in this case line #4 is the right anchor)
-            - 1 3 4  (in this case line #4 is the right anchor)
-
-    Returns
-    -------
-    file_load : KDTree instance
-        The KDTree containing the patterns
-    index : ndarray
-        For each pattern in the KDTree, this array stores the
-        corresponding index in the linelist
-    """
-
-    # TODO: Can we save these as fits files instead?
-    # TODO: Please don't use imports within functions
-    import pickle
-    filename = dataPaths.linelist.get_file_path(
-                    f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
-    fileindx = dataPaths.linelist.get_file_path(
-                    f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
-    try:
-        with open(filename, "rb", encoding="utf-8") as f_obj:
-            file_load = pickle.load(f_obj)
-        index = np.load(fileindx)
-    except FileNotFoundError:
-        log.info(
-            'The requested KDTree was not found on disk\nplease be patient while the ThAr KDTree '
-            'is built and saved to disk.'
-        )
-        from pypeit.core.wavecal import kdtree_generator
-        file_load, index = kdtree_generator.main(polygon, numsearch=numsearch, verbose=True,
-                                                 ret_treeindx=True, outname=filename)
-
-    return file_load, index
-
-
 def load_unknown_list(lines, unknwn_file=None, all=False):
     """
 

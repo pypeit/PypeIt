@@ -59,4 +59,6 @@ Bug Fixes
   :class:`~pypeit.specobj.SpecObj` object in the :mod:`~pypeit.core.extract`
   functions and (2) pulling :class:`~pypeit.multislit_flexure.MultiSlitFlexure`
   into its own file (removing it from :mod:`~pypeit.core.flexure`).
-
+- Avoid a circular import by moving
+  :func:`~pypeit.core.wavecal.waveio.load_tree` into
+  :func:`~pypeit.core.wavecal.kdtree_generator`.
