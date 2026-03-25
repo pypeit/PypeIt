@@ -13,7 +13,7 @@ import numpy
 
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
 from pypeit.par import util
 
 
@@ -208,7 +208,7 @@ class ParSet:
         if isinstance(value, list):
             is_parset_or_dict = [ isinstance(v, (ParSet, dict)) for v in value ]
             if numpy.any(is_parset_or_dict) and not numpy.all(is_parset_or_dict):
-                msgs.warn(
+                log.warning(
                     "List includes a mix of ParSet and dicts with other types.  "
                     "Displaying and writing the ParSet will not be correct!"
                 )
@@ -345,7 +345,7 @@ class ParSet:
         return '\n'.join(row_string)+'\n'
 
     @staticmethod
-    def _data_string(data, use_repr=False, verbatim=False):
+    def _data_string(data, use_repr=False, verbatim=False, check_dir=False):
         """
         Convert a single datum into a string
         
@@ -363,14 +363,18 @@ class ParSet:
                 Use quotes around the provided string to indicate that
                 the string should be representated in a verbatim (fixed
                 width) font.
+            check_dir (:obj:`bool`, optional):
+                If ``data`` is a string, check if it matches the current working
+                directory and replace it with a generic string if it does.
         
         Returns:
             str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
+            _data = '$PWD' if check_dir and data == os.getcwd() else data
             if verbatim:
-                return '..' if len(data) == 0 else '``' + data + '``'
-            return data
+                return '..' if len(_data) == 0 else '``' + _data + '``'
+            return _data
         if isinstance(data, list):
             # When the list is empty, return an empty string, which config_lines will append a "," to.
             # This allows ConfigObj to interpret it as an empty list, instead of string, when re-reading the
@@ -655,7 +659,7 @@ class ParSet:
                 section_name argument was provided.
         """
         if cfg_file is not None and os.path.isfile(cfg_file) and not append and not quiet:
-            msgs.warn("Selected configuration file already exists and will be overwritten!")
+            log.warning("Selected configuration file already exists and will be overwritten!")
 
         config_output = []
         if numpy.all([ isinstance(d, ParSet) or d is None for d in self.data.values() ]):
@@ -724,10 +728,11 @@ class ParSet:
                 data_table[i+1,1] = ParSet._rst_class_name(self.data[k])
                 data_table[i+1,3] = '`{0} Keywords`_'.format(type(self.data[k]).__name__)
             else: 
-                data_table[i+1,1] = ', '.join([t.__name__ for t in self.dtype[k]])
+                data_table[i+1,1] = '..' if self.dtype[k] is None \
+                                    else ', '.join([t.__name__ for t in self.dtype[k]])
                 data_table[i+1,3] = '..' if self.default[k] is None \
                                     else ParSet._data_string(self.default[k], use_repr=False,
-                                                             verbatim=True)
+                                                             verbatim=True, check_dir=True)
 
             data_table[i+1,2] = '..' if self.options[k] is None \
                                     else ParSet._data_string(self.options[k], use_repr=False,
@@ -802,7 +807,7 @@ class ParSet:
                 continue
             if isinstance(value, ParSet):
                 if not quiet:
-                    msgs.warn(
+                    log.warning(
                         "ParSets within ParSets are not written to headers!  "
                         f"Skipping {key}."
                     )
@@ -1013,7 +1018,7 @@ class ParDatabase(object):
             # inp.dtype is always a list
             if any([t in inp[i].dtype[k] for t in [int , float]]) \
                 and any([t in inp[i].dtype[k] for t in [list, numpy.ndarray]]):
-                msgs.warn(
+                log.warning(
                     "Parameter set has elements that can be either individual "
                     f"ints/floats or lists/arrays.  Database column {k} will have type "
                     "'object'."

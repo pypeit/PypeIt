@@ -11,9 +11,9 @@ import yaml
 
 from IPython import embed
 
-# CANNOT INCLUDE msgs IN THIS MODULE AS
-#  THE HTML GENERATION OCCURS FROM msgs
-#from pypeit import msgs
+# CANNOT INCLUDE log IN THIS MODULE AS
+#  THE HTML GENERATION OCCURS FROM log
+#from pypeit import log
 
 # TODO: Move these names to the appropriate class.  This always writes
 # to QA directory, even if the user sets something else...

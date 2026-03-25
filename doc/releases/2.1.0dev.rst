@@ -1,0 +1,64 @@
+
+Version 2.1.0dev
+================
+
+Breaking Changes
+---------------------
+
+Documentation Updates
+---------------------
+
+- Updated the documentation about the use of the mask design file for Gemini/GMOS.
+  See the :ref:`gemini_gmos` documentation for details.
+
+
+Dependency Changes
+------------------
+
+
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
+
+
+Instrument-specific Updates
+---------------------------
+
+
+Script Changes
+--------------
+
+
+Testing
+-------
+
+- Add new tests for :mod:`~pypeit.core.pydl`
+- Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
+
+
+Under-the-hood Improvements
+---------------------------
+
+- Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
+  the pypeit-specific uses of :class:`~pypeit.core.pydl.TraceSet`.  This was
+  primarily done to avoid a circular import.
+- Separated previous functions in :mod:`~pypeit.core.extract` that have to do
+  with modeling the spatial profile of the object into a new module,
+  :mod:`~pypeit.core.spatialprofile`.
+
+Bug Fixes
+---------
+
+- Avoid a circular import by moving
+  :func:`~pypeit.core.wavecal.autoid.arc_fit_qa` out of
+  :mod:`~pypeit.core.wavecal.wv_fitting`.
+- Fix an error in the platescale provided for 2D coadded data; the previous
+  calculation did not account for the ``spat_samp_fact`` parameter.
+- Avoid a circular import by moving
+  :func:`~pypeit.loader.load_wmko_std_spectrum` to the dev-suite repo.
+- Avoid a circular import by (1) removing the use of the
+  :class:`~pypeit.specobj.SpecObj` object in the :mod:`~pypeit.core.extract`
+  functions and (2) pulling :class:`~pypeit.multislit_flexure.MultiSlitFlexure`
+  into its own file (removing it from :mod:`~pypeit.core.flexure`).
+- Avoid a circular import by moving
+  :func:`~pypeit.core.wavecal.waveio.load_tree` into
+  :func:`~pypeit.core.wavecal.kdtree_generator`.

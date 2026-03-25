@@ -12,7 +12,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -157,7 +158,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
                 return 'dark'
 
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -250,7 +251,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
             return (good_exp & ((fitstbl['idname'] == 'object') |
                     (fitstbl['idname'] == 'arc')))
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 # Detector information from official LBT LUCI website
@@ -307,7 +308,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             elif readmode == 'MER':
                 ronoise = np.atleast_1d(5.1)
             else:
-                msgs.error("Read mode not recognized (options: LIR, MER)")
+                raise PypeItError("Read mode not recognized (options: LIR, MER)")
 
             camera = self.get_meta_value(self.get_headarr(hdu), 'camera')
             if camera == 'N1.8 Camera':
@@ -317,7 +318,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             elif camera == 'N30 Camera': # currently untested but should work in principle
                 platescale = 0.0150
             else:
-                msgs.error("Camera not recognized (options: N1.8, N3.75, N30)")
+                raise PypeItError("Camera not recognized (options: N1.8, N3.75, N30)")
 
         # Detector 1
         detector_dict = dict(
@@ -552,7 +553,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             elif readmode == 'MER':
                 ronoise = np.atleast_1d(4.5)
             else:
-                msgs.error("Read mode not recognized (options: LIR, MER)")
+                raise PypeItError("Read mode not recognized (options: LIR, MER)")
                 raise ValueError()
 
             camera = self.get_meta_value(self.get_headarr(hdu), 'camera')
@@ -563,7 +564,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             elif camera == 'N30 Camera': # currently untested but should work in principle
                 platescale = 0.0150
             else:
-                msgs.error("Camera not recognized (options: N1.8, N3.75, N30)")
+                raise PypeItError("Camera not recognized (options: N1.8, N3.75, N30)")
 
         # Detector 1
         detector_dict = dict(

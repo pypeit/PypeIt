@@ -21,7 +21,7 @@ from scipy.interpolate import RectBivariateSpline
 # TODO: Commented out the import of specobjs because it was only used by
 # the (presumably) defunct method.
 #from pypeit import specobjs
-from pypeit import msgs
+from pypeit import log
 
 # TODO: No globals please
 operations = dict({'cursor': "Select object trace (LMB click)\n" +
@@ -562,7 +562,7 @@ class ObjFindGUI:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
             else:
-                msgs.bug("Need to change this to kill and return the results to PypeIt")
+                log.debug("Need to change this to kill and return the results to PypeIt")
                 plt.close()
         elif self._qconf:
             self.update_infobox(default=True)
@@ -781,7 +781,7 @@ class ObjFindGUI:
         """print text that the user should insert into their .pypeit file
         """
         if 1 in self._object_traces._add_rm:
-            msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
+            log.info("Include the following info in the manual_extract column in your .pypeit file:\n")
             print(self._object_traces.get_pypeit_string())
 
     def recenter(self):
@@ -823,7 +823,7 @@ class ObjFindGUI:
             SpecObjs: SpecObjs Class
         """
         if self._use_updates:
-            msgs.work("Have not updated SpecObjs yet")
+            log.debug("Have not updated SpecObjs yet")
             return self.specobjs
         else:
             return None

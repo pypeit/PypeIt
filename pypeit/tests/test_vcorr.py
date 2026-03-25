@@ -8,13 +8,12 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord
 from astropy import units
 
-from linetools import utils as ltu
 
 from pypeit.core import wave
 from pypeit import specobj
-from pypeit import specobjs
 from pypeit.tests.tstutils import dummy_fitstbl
 from pypeit import telescopes
+from pypeit import utils
 
 mjd = 57783.269661
 RA = '07:06:23.45'
@@ -53,7 +52,7 @@ def test_geocorrect():
     # Specobj (wrap in a list to mimic a slit)
     scidx = 5
     obstime = Time(fitstbl['mjd'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
-    radec = ltu.radec_to_coord((fitstbl["ra"][scidx], fitstbl["dec"][scidx]))
+    radec = utils.radec_to_coord((fitstbl["ra"][scidx], fitstbl["dec"][scidx]))
 
     helio, hel_corr = wave.geomotion_correct(radec, obstime, lon, lat, alt, 'heliocentric')
     # IDL

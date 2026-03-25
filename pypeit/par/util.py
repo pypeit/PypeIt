@@ -10,10 +10,8 @@ from typing import Type
 
 from configobj import ConfigObj
 from IPython import embed
-import numpy as np
 
-from pypeit import msgs, __version__
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 
 def _eval_ignore():

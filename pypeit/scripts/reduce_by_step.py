@@ -43,8 +43,8 @@ class ReducebyStep(scriptbase.ScriptBase):
         )
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         import numpy as np
         from pathlib import Path
@@ -52,8 +52,8 @@ class ReducebyStep(scriptbase.ScriptBase):
         from pypeit.core import parse
         from pypeit import pypeit
         from pypeit import pypeit_steps
-        from pypeit import msgs
-        from pypeit import pypmsgs
+        from pypeit import log
+        from pypeit import PypeItError
         from pypeit import outputfiles
         from pypeit.images import pypeitimage
         from pypeit import specobjs
@@ -63,12 +63,19 @@ class ReducebyStep(scriptbase.ScriptBase):
 
         from IPython import embed
 
-        # Load options from command line
-        pypeit_file = Path(args.pypeit_file).absolute()
-        logname = pypeit_file.parent / f'{pypeit_file.stem}.log'
+        # Set a default log file based on the name of the pypeit file, not the
+        # name of the script
+        # NOTE: This is copied directly from run_pypeit.py
+        if args.log_file == 'default':
+            _pypeit_file = Path(args.pypeit_file)
+            if _pypeit_file.suffix != '.pypeit':
+                raise PypeItError('Input file must have a .pypeit extension!')
+            args.log_file = _pypeit_file.with_suffix('.log')
+
+        cls.init_log(args)
 
         # Instantiate the main pipeline reduction object
-        pypeIt = pypeit.PypeIt(args.pypeit_file, logname=logname, show=args.show)
+        pypeIt = pypeit.PypeIt(args.pypeit_file, show=args.show)
         pypeIt.reuse_calibs = True
 
         # Detector
@@ -90,7 +97,7 @@ class ReducebyStep(scriptbase.ScriptBase):
         else:
             det = pypeIt.spectrograph.select_detectors(subset=parse.eval_detectors(args.det))
             if len(det) > 1:
-                msgs.error("The input --det must be a single detector or mosaic.")
+                raise PypeItError("The input --det must be a single detector or mosaic.")
             det = det[0]
         # detector name
         det_name = pypeIt.spectrograph.get_det_name(det)
@@ -98,11 +105,14 @@ class ReducebyStep(scriptbase.ScriptBase):
         # Find the frame
         mt_row = pypeIt.fitstbl['filename'] == args.frame
         if np.sum(mt_row) != 1:
-            msgs.error(f"Frame {args.frame} not found or not unique")
+            raise PypeItError(f"Frame {args.frame} not found or not unique")
         frame = int(np.where(mt_row)[0][0])
         calib_IDs = pypeIt.fitstbl.find_frame_calib_groups(frame)
         if len(calib_IDs) != 1:
-            msgs.error(f"Frame {args.frame} is a calibration frame.  This script is for science/standard frames only")
+            raise PypeItError(
+                f"Frame {args.frame} is a calibration frame.  This script is for science/standard "
+                "frames only"
+            )
         calib_ID = calib_IDs[0]
 
         # Sci metadata
@@ -140,7 +150,7 @@ class ReducebyStep(scriptbase.ScriptBase):
         if args.step == 'findobj':
 
             # Load intermediate frames needed for finding objects
-            msgs.info(f'Loading images for detector {det}')
+            log.info(f'Loading images for detector {det}')
             sciImg = pypeitimage.PypeItImage.from_file(sci_filename)
             if bg_frames is not None and len(bg_frames) > 0:
                 bkg_redux_sciimg = pypeitimage.PypeItImage.from_file(bkg_filename)
@@ -154,9 +164,12 @@ class ReducebyStep(scriptbase.ScriptBase):
                 try:
                     std_outfile = outputfiles.get_std_outfile(pypeIt.fitstbl, pypeIt.par, 
                                                           frame_indx[is_standard])
-                except pypmsgs.PypeItError:
-                    msgs.warn('No reduced standard star spec1d file found for this science frame, but one was expected because it is in your PypeIt file.\n'+\
-                        'Continuing without standard star information.')
+                except PypeItError:
+                    log.warning(
+                        'No reduced standard star spec1d file found for this science frame, but '
+                        'one was expected because it is in your PypeIt file.\n  Continuing '
+                        'without standard star information.'
+                    )
                     std_outfile = None
             else:
                 std_outfile = None
@@ -202,53 +215,53 @@ class ReducebyStep(scriptbase.ScriptBase):
             # Write
             # sobjs object found
             sobjs_obj_find.write_to_fits({}, spec1d_filename)
-            msgs.info(f'Wrote intermediate spec1d file with objects found to {spec1d_filename}')
+            log.info(f'Wrote intermediate spec1d file with objects found to {spec1d_filename}')
             # final sky image
             skyimg = pypeitimage.PypeItImage(final_global_sky)
             if not sky_filename.parent.is_dir():
                 sky_filename.parent.mkdir()
             skyimg.to_file(sky_filename, overwrite=True)
-            msgs.info(f'Wrote final sky image to {sky_filename}')
+            log.info(f'Wrote final sky image to {sky_filename}')
             # bkg_redux sky image
             if bkg_redux_global_sky is not None:
                 bkgredux_skyimg = pypeitimage.PypeItImage(bkg_redux_global_sky)
                 bkgredux_skyimg.to_file(bkgredux_sky_filename, overwrite=True)
-                msgs.info(f'Wrote bkg_redux final sky image to {bkgredux_sky_filename}')
+                log.info(f'Wrote bkg_redux final sky image to {bkgredux_sky_filename}')
             # slits
             _slits.to_file(slits_filename, overwrite=True)
-            msgs.info(f'Wrote intermediate slits to {slits_filename}')
+            log.info(f'Wrote intermediate slits to {slits_filename}')
             # updated sciImg
             sciImg.to_file(sci_filename, overwrite=True)
-            msgs.info(f'Wrote updated science image to {sci_filename}')
+            log.info(f'Wrote updated science image to {sci_filename}')
 
 
         # Extract?
         if args.step == 'extract':
             # Load intermediate frames needed for the extraction
-            msgs.info(f'Loading images for detector {det}')
+            log.info(f'Loading images for detector {det}')
             sciImg = pypeitimage.PypeItImage.from_file(sci_filename)
 
             # sky images
-            msgs.info(f'Loading sky image for detector {det}')
+            log.info(f'Loading sky image for detector {det}')
             if not sky_filename.is_file():
-                msgs.error(f'Sky image {sky_filename} not found!')
+                raise PypeItError(f'Sky image {sky_filename} not found!')
             skyimg = pypeitimage.PypeItImage.from_file(sky_filename)
             skyimg = skyimg.image
             if bkgredux_sky_filename.is_file():
-                msgs.info(f'Loading bkg_redux sky image for detector {det}')
+                log.info(f'Loading bkg_redux sky image for detector {det}')
                 bkg_redux_skyimg = pypeitimage.PypeItImage.from_file(bkgredux_sky_filename)
                 bkg_redux_skyimg = bkg_redux_skyimg.image
             else:
                 bkg_redux_skyimg = None
             # specobjs from findobj
-            msgs.info(f'Loading spec1d file for detector {det}')
+            log.info(f'Loading spec1d file for detector {det}')
             if not spec1d_filename.is_file():
-                msgs.error(f'spec1d file {spec1d_filename} not found!')
+                raise PypeItError(f'spec1d file {spec1d_filename} not found!')
             specobjs_objfind = specobjs.SpecObjs.from_fitsfile(spec1d_filename)
             # slits
-            msgs.info(f'Loading slits for detector {det}')
+            log.info(f'Loading slits for detector {det}')
             if not slits_filename.is_file():
-                msgs.error(f'Slits file {slits_filename} not found!')
+                raise PypeItError(f'Slits file {slits_filename} not found!')
             calib_slits = slittrace.SlitTraceSet.from_file(slits_filename)
 
             # Container for Spec2DObj

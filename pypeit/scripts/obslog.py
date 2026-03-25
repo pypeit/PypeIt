@@ -89,11 +89,14 @@ class ObsLog(scriptbase.ScriptBase):
                             help='View the obs log in a GUI')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.pypeitsetup import PypeItSetup
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Check that input spectrograph is supported
         if args.spec not in available_spectrographs:

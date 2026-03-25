@@ -11,7 +11,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from pypeit.scripts import scriptbase
-from pypeit import spec2dobj, specobjs, msgs
+from pypeit import spec2dobj
+from pypeit import specobjs
+from pypeit import log
 from pypeit.core import coadd
 from pypeit.core.wavecal import wvutils
 from pypeit.core.moment import moment1d
@@ -43,7 +45,7 @@ class Rectify2DSpec(scriptbase.ScriptBase):
         chk_version = not args.try_old
 
         for spec2file in args.files:
-            msgs.info(f'Processing file: {spec2file}')
+            log.info(f'Processing file: {spec2file}')
             # Get list of detectors
             hdr = fits.getheader(spec2file)
             detnames = hdr['HIERARCH ALLSPEC2D_DETS'].split(',')
@@ -52,7 +54,7 @@ class Rectify2DSpec(scriptbase.ScriptBase):
             hdu_list = [fits.PrimaryHDU()]
 
             for detname in detnames:
-                msgs.info(f'DETECTOR: {detname}')
+                log.info(f'DETECTOR: {detname}')
                 spec2d = spec2dobj.Spec2DObj.from_file(spec2file, detname, chk_version=chk_version)
                 slitmask = spec2d.slits.slit_img(flexure=spec2d.sci_spat_flexure)
                 slit_ids = spec2d.slits.spat_id
@@ -93,8 +95,8 @@ class Rectify2DSpec(scriptbase.ScriptBase):
 
 
                 if len(waves) == 0:
-                    msgs.warn(f'There is a problem with the wavelengths on det {detname}. '
-                              f'The RECTIFIED 2D spectral image will not be created.')
+                    log.warning(f'There is a problem with the wavelengths on det {detname}. '
+                                'The RECTIFIED 2D spectral image will not be created.')
                     continue
                 wmax = np.ceil(spec2d.waveimg[spec2d.waveimg>0].max())
                 wmin = np.floor(spec2d.waveimg[spec2d.waveimg>0].min())
@@ -108,9 +110,9 @@ class Rectify2DSpec(scriptbase.ScriptBase):
                     # check if this slit was masked. If so, skip it.
                     slitord_id = slitord_ids[slitidx]
                     if not np.any(this_mask):
-                        msgs.warn(f'Slit/order {slitord_id} on {detname} is fully masked. Skipping it.')
+                        log.warn(f'Slit/order {slitord_id} on {detname} is fully masked. Skipping it.')
                         continue
-                    msgs.info(f'Rectifying slit/order {slitord_id}')
+                    log.info(f'Rectifying slit/order {slitord_id}')
 
                     slit_cen = spec2d.slits.center[:,slitidx]
                     mask = spec2d.bpmmask.mask == 0
@@ -211,4 +213,4 @@ class Rectify2DSpec(scriptbase.ScriptBase):
             out_file = spec2file.replace('spec2d', 'rectified_spec2d')
             hdulist = fits.HDUList(hdu_list)
             hdulist.writeto(out_file, overwrite=True)
-            msgs.info(f'Rectified images saved to {out_file}')
+            log.info(f'Rectified images saved to {out_file}')

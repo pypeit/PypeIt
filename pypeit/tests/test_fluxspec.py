@@ -22,7 +22,7 @@ from pypeit import specobjs, specobj
 from pypeit import inputfiles 
 
 from pypeit import fluxcalibrate
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit import scripts
 
 

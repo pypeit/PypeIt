@@ -1,6 +1,6 @@
 
-Version 1.18.2dev
-=================
+Version 2.0.0
+=============
 
 Breaking Changes
 ---------------------
@@ -20,11 +20,10 @@ Documentation Updates
 - Added tables with the list of available telluric model spectra.
 
 
-
 Dependency Changes
 ------------------
 
-
+- Removed dependency on linetools package (details below).
 
 
 Functionality/Performance Improvements and Additions
@@ -63,6 +62,8 @@ Instrument-specific Updates
   is significant.
 - Updated the `gain` and `ronoise` values for Gemini/GMOS spectrographs to account
   for the different values measured in each amplifier.
+- Enables MMT/Binospec reductions to match the slitmask design input to the
+  detected slits, similar to procedures used for Keck/DEIMOS, Keck/MOSFIRE, etc.
 
 Script Changes
 --------------
@@ -71,11 +72,6 @@ Script Changes
   spectral image. Each slit/order in the spec2d output file is rectified onto a common
   wavelength grid. This rectified 2D image must be used only for quick-look visualization
   purposes, and not for scientific analysis.
-
-
-
-Datamodel Changes
------------------
 
 
 Testing
@@ -87,7 +83,7 @@ Testing
 Under-the-hood Improvements
 ---------------------------
 
-- Improved extension checking for post-processing scripts to explicitely
+- Improved extension checking for post-processing scripts to explicitly
   allow PypeIt-produced ".fits" files regardless of a given spectrograph's
   raw data extension.
 
@@ -105,3 +101,42 @@ Bug Fixes
   code still pulls the desired metadata from the raw data FITS file as before.
 - Fixed Coadd2d filenames to remove spaces from objet names (as is done in the
   main PypeIt run).
+
+AI Use
+------
+
+Deprecation of linetools dependency
+:::::::::::::::::::::::::::::::::::
+
+We used Claude to aid in the removal of the linetools dependency from PypeIt
+with the following prompts:
+
+- On this ``deprecate_linetools`` branch, I wish to remove all imports of linetools.
+  Can you confirm that I have successfully done so?
+
+- Yes, please do, but ignore the ones in the Documentation files
+
+- The test test_arc.py in tests/ is failing.  Please suggest a fix.  If you need
+  to run it, use the "pypeit" environment in conda. 
+
+Additional by-hand changes were made to remove the linetools references from the
+docs, remove lingering instances of xspectrum1d, and fix remaining issues.
+
+We also added tests for the new ``pypeit.utils.loadjson`` function using the
+following prompt (GPT-5 mini):
+
+- Please add test functions to test_utils.py that test the functionality of the
+  `pypeit.utils.loadjson` function.  As necessary, the test functions should
+  create test JSON files in the `pypeit/tests` directory that are then deleted
+  when each test is complete.  The tests should cover usage with regular and
+  gzip compressed files.  The tests should also cover failure modes when the
+  file does not exist, the file is not JSON format, and any of the loading
+  functions fail.
+
+- Please make the following edits to your contribution.  Remove the definition
+  of TEST_DIR; instead simply save the files in the current working directory.
+  Move all the new tests to the end of the file.  Make sure all imports are at
+  the top of the file, after any initial file docstring.
+
+
+
