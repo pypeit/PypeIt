@@ -215,6 +215,7 @@ class ProcessImagesPar(ParSet):
                  scale_to_mean=None,
                  #cr_sigrej=None,
                  n_lohi=None, #replace=None,
+                 crthresh=None,
                  lamaxiter=None, grow=None,
                  comb_sigrej=None,
 #                 calib_setup_and_bit=None,
@@ -370,11 +371,11 @@ class ProcessImagesPar(ParSet):
         defaults['spat_flexure_correct'] = False
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
-        
+
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
         descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
-        
+
         defaults['spat_flexure_sigdetect'] = 5.
         dtypes['spat_flexure_sigdetect'] = [int, float]
         descr['spat_flexure_sigdetect'] = 'Sigma threshold above fluctuations in the '  \
@@ -435,6 +436,11 @@ class ProcessImagesPar(ParSet):
 #        descr['replace'] = 'If all pixels are rejected, replace them using this method.  ' \
 #                           'Options are: {0}'.format(', '.join(options['replace']))
 
+        defaults['crthresh'] = None
+        dtypes['crthresh'] = [int, float]
+        descr['crthresh'] = 'Crude threshold to detect cosmic rays. Overrides ' \
+                            'other options and skips LA Cosmic'
+
         defaults['lamaxiter'] = 1
         dtypes['lamaxiter'] = int
         descr['lamaxiter'] = 'Maximum number of iterations for LA cosmics routine.'
@@ -489,8 +495,8 @@ class ProcessImagesPar(ParSet):
                    'spat_flexure_vrange', 'use_illumflat', 'use_specillum', 'skip_write_2d',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
-                   'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
-                   'sigclip', 'sigfrac', 'objlim']
+                   'n_lohi', 'mask_cr', 'crthresh', 'lamaxiter', 'grow', 'clip', 'comb_sigrej',
+                   'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3562,7 +3568,7 @@ class EdgeTracePar(ParSet):
         descr['niter_gaussian'] = 'The number of iterations of ' \
                                   ':func:`~pypeit.core.trace.fit_trace` to use when using ' \
                                   'Gaussian weighting.'
-        
+
         defaults['min_edge_side_sep'] = 5.0
         dtypes['min_edge_side_sep'] = [int, float]
         descr['min_edge_side_sep'] = 'Minimum separation between same-side edges (e.g., the ' \

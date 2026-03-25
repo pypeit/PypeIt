@@ -44,7 +44,7 @@ def boxcar_average(arr, boxcar):
     Returns:
         `numpy.ndarray`_: The averaged array.  If boxcar is a single
         integer, the returned array shape is::
-            
+
             tuple([s//boxcar for s in arr.shape])
 
         A similar operation gives the shape when boxcar has elements
@@ -98,6 +98,34 @@ def boxcar_replicate(arr, boxcar):
     for axis, box in zip(range(arr.ndim), _boxcar):
         _arr = np.repeat(_arr, box, axis=axis)
     return _arr
+
+
+def crthresh(sciframe, thresh: float, grow_times: int = 1):
+    """
+    Identify cosmic rays by a crude threshold, and grow the mask by a certain
+    number of pixels
+
+    Args:
+        sciframe (`numpy.ndarray`_):
+            Science frame to process.
+        thresh (:obj:`float`):
+            The threshold to use. All pixels with flux above `thresh` will be
+            marked as cosmic rays.
+        grow_times (:obj:`int`, optional):
+            How much to grow the mask after thresholding. Zero means mask
+            will not be grown, the raw threshold mask will be used as-is;
+            the default (grow_times=1) expands the mask by 1 pixel in all
+            directions.
+
+    Returns:
+        `numpy.ndarray`_: Boolean array flagging pixels with detected cosmic
+        rays; True means the pixel has a cosmic ray.
+    """
+    crmask = sciframe > float(thresh)
+    growkernel = np.ones((3, 3), dtype=bool)
+    for _ in range(grow_times):
+        crmask = scipy.ndimage.binary_dilation(crmask, structure=growkernel)
+    return crmask
 
 
 def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, maxiter=1, grow=1.5,
@@ -307,7 +335,7 @@ def boxcar_fill(img, width, bpm=None, maxiter=None, fill_value=np.nan):
     an image.
 
     .. warning::
-        
+
         Depending the size of the kernel, the masked regions, and the maximum
         number of iterations, the procedure may not be able to fill all masked
         pixels.  Any left-over masked pixels are returned with the provided
@@ -337,7 +365,7 @@ def boxcar_fill(img, width, bpm=None, maxiter=None, fill_value=np.nan):
     """
     # TODO: A 2D median filter that accounts for masked pixels may be better,
     # but I couldn't find a canned algorithm.  Could also imagine using
-    # different kernels (e.g., a Gaussian).  See: 
+    # different kernels (e.g., a Gaussian).  See:
     #   https://docs.astropy.org/en/stable/convolution/index.html
 
     # Check input
@@ -489,7 +517,7 @@ def rn2_frame(datasec_img, ronoise, units='e-', gain=None, digitization=False):
     {\rm RN}^2` otherwise; where RN is the readnoise and :math:`\gamma` is the
     gain in e-/ADU.  In the rare case one would need the units in ADU, the
     returned variance is :math:`V/\gamma^2`.
-    
+
     .. [1] `Newberry (1991, PASP, 103, 122) <https://ui.adsabs.harvard.edu/abs/1991PASP..103..122N/abstract>`_
     .. [2] `Merline & Howell (1995, ExA, 6, 163) <https://ui.adsabs.harvard.edu/abs/1995ExA.....6..163M/abstract>`_
 
@@ -678,7 +706,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
         if var is not None:
             # pi/2 coefficient yields asymptotic variance in the median relative
             # to the error in the mean
-            osvar = np.pi/2*(np.sum(osvar)/osvar.size**2 if method.lower() == 'median' 
+            osvar = np.pi/2*(np.sum(osvar)/osvar.size**2 if method.lower() == 'median'
                              else np.sum(osvar, axis=compress_axis)/osvar.shape[compress_axis]**2)
         # Method time
         if method.lower() == 'polynomial':
@@ -1149,7 +1177,7 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
     .. math::
 
         V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} / 3600 +
-                V_{\rm rn} + V_{\rm proc} \right] 
+                V_{\rm rn} + V_{\rm proc} \right]
                 + \epsilon^2 {\rm max}(0, c)^2
 
     where:
@@ -1199,7 +1227,7 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
           that it is the dark-current expected in the *binned* pixel.  For
           example, see the calling function
           :func:`pypeit.images.rawimage.RawImage.build_ivar`.
-        
+
         - The input arrays can have any dimensionality (i.e., they can be single
           2D images or a 3D array containing multiple 2D images); however, the
           exposure time must be a scalar applied to all array values.
@@ -1281,7 +1309,7 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
     .. math::
 
         V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} / 3600 +
-                V_{\rm rn} + V_{\rm proc} \right] 
+                V_{\rm rn} + V_{\rm proc} \right]
                 + \epsilon^2 {\rm max}(0, c)^2
 
     where:

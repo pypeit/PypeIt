@@ -381,26 +381,28 @@ class PypeItImage(datamodel.DataContainer):
         saturation = self.map_detector_value('saturation')
         nonlinear = self.map_detector_value('nonlinear')
 
-        crthresh = os.environ.get('PYPEIT_CRTHRESH')
+        # crthresh = os.environ.get('PYPEIT_CRTHRESH')
+        crthresh = par['crthresh']
 
         if crthresh is not None:
-            # FIXME this will fail for multi detector
-            log.info(f'Using cosmic ray threshold {crthresh=}, not L.A.Cosmic...')
-            crmask = use_img > float(crthresh)
-            log.info(f'Masked {crmask.sum} pixels...')
-            import scipy
-            growkernel = np.ones((3, 3), dtype=bool)
-            crmask = scipy.ndimage.binary_dilation(crmask, structure=growkernel)
-        elif self.is_multidetector:
+            log.info(f'Using cosmic ray threshold {crthresh=}, not L.A.Cosmic')
+
+        if self.is_multidetector:
             # If the object has multiple images, need to flag each image individually
             crmask = np.empty(self.shape, dtype=bool)
-            for i in range(self.shape[0]):
-                crmask[i] = procimg.lacosmic(use_img[i], saturation=saturation[i],
-                                             nonlinear=nonlinear[i], bpm=bpm[i], varframe=var[i],
-                                             maxiter=par['lamaxiter'], grow=par['grow'],
-                                             remove_compact_obj=par['rmcompact'],
-                                             sigclip=par['sigclip'], sigfrac=par['sigfrac'],
-                                             objlim=par['objlim'])
+            if crthresh is not None:
+                for i in range(self.shape[0]):
+                    crmask[i] = procimg.crthresh(use_img[i], crthresh, grow_times=int(par['grow']))
+            else:
+                for i in range(self.shape[0]):
+                    crmask[i] = procimg.lacosmic(use_img[i], saturation=saturation[i],
+                                                 nonlinear=nonlinear[i], bpm=bpm[i], varframe=var[i],
+                                                 maxiter=par['lamaxiter'], grow=par['grow'],
+                                                 remove_compact_obj=par['rmcompact'],
+                                                 sigclip=par['sigclip'], sigfrac=par['sigfrac'],
+                                                 objlim=par['objlim'])
+        elif crthresh is not None:
+            crmask = procimg.crthresh(use_img, crthresh, grow_times=int(par['grow']))
         else:
             # Otherwise, just run LA Cosmic once
             crmask = procimg.lacosmic(use_img, saturation=saturation, nonlinear=nonlinear,
