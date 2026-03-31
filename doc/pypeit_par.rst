@@ -1533,8 +1533,8 @@ Alterations to the default parameters are:
           skip_skysub = True
       [[skysub]]
           global_sky_std = False
-          mask_by_boxcar = True
           no_local_sky = True
+          mask_by_boxcar = True
       [[extraction]]
           boxcar_radius = 1.728
 
