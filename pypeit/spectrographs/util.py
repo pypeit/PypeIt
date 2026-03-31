@@ -8,7 +8,8 @@ import pathlib
 from astropy.io import fits
 
 from pypeit import spectrographs
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 
 
 def load_spectrograph(
@@ -71,10 +72,10 @@ def load_spectrograph(
                     spectrograph.allowed_extensions = [".fits"]
                 return spectrograph
             else:
-                msgs.error(f'Unknown PYP_SPEC {pyp_spec} found in {spec}')
+                raise PypeItError(f'Unknown PYP_SPEC {pyp_spec} found in {spec}')
         else:
-            msgs.error(f'{spec} did not contain PYP_SPEC in its header')
+            raise PypeItError(f'{spec} did not contain PYP_SPEC in its header')
             
-    msgs.error('{0} is not a supported spectrograph.'.format(spec))
+    raise PypeItError('{0} is not a supported spectrograph.'.format(spec))
 
 

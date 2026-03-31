@@ -13,7 +13,8 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -105,7 +106,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
             time = headarr[0]['DATE']
             ttime = Time(time, format='isot')
             return ttime.mjd
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -157,7 +158,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
   
     def lamps(self, fitstbl, status):
@@ -312,7 +313,9 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
             case '830/3460':  # NOT YET TESTED
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_830.fits'
             case _:
-                msgs.error("NEED TO ADD YOUR GRISM HERE!")
+                raise PypeItError(
+                    f"{grating} does not have a reid_arxiv solution.  Cannot proceed."
+                )
         
         # Return
         return par
@@ -436,7 +439,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # Allow for reading only Amp 2!
         if x1_1 < 3:
-            msgs.warn("Only Amp 2 data was written.  Ignoring Amp 1")
+            log.warning("Only Amp 2 data was written.  Ignoring Amp 1")
             detector_dict['numamplifiers'] = 1
             detector_dict['gain'] = np.atleast_1d(detector_dict['gain'][0])
             detector_dict['ronoise'] = np.atleast_1d(detector_dict['ronoise'][0])

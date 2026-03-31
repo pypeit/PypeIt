@@ -1,6 +1,6 @@
 
 
-Version: 1.1.13
+Version: 1.1.14
 
 =======================  =========================  =================  ====================================================================================================================================================================================
 Obj Key                  Obj Type                   Array Type         Description                                                                                                                                                                         
@@ -69,12 +69,15 @@ Obj Key                  Obj Type                   Array Type         Descripti
 ``SPAT_FWHM``            float                                         Spatial FWHM of the object (arcsec)                                                                                                                                                 
 ``SPAT_PIXPOS``          float, floating                               Spatial location of the trace on detector (pixel) at half-way                                                                                                                       
 ``SPAT_PIXPOS_ID``       int, integer                                  Nearest integer spatial location of the trace on detector (pixel) at half-way used as a unique identifier for the naming model                                                      
+``SPEC_DET``             ndarray                    integer            Array of detector indices for each pixel in the spectral direction. This is only available for mosaic reductions.                                                                   
 ``TRACE_SPAT``           ndarray                    float              Object trace along the spec (spatial pixel)                                                                                                                                         
 ``VEL_CORR``             float                                         Relativistic velocity correction for wavelengths                                                                                                                                    
 ``VEL_TYPE``             str                                           Type of heliocentric correction (if any)                                                                                                                                            
 ``WAVE_RMS``             float, floating                               RMS (pix) for the wavelength solution for this slit.                                                                                                                                
+``ech_snr``              float, floating                               Median S/N of the echelle of the spectrum                                                                                                                                           
 ``hand_extract_flag``    bool                                          Boolean indicating if this is a forced extraction at the location provided by the user.                                                                                             
 ``maskwidth``            float, floating                               Size (in units of spatial fwhm) of the region used for local sky subtraction                                                                                                        
+``sign``                 float                                         Sign of the object profile (+1 or -1).  + is a positive profile above the sky background.                                                                                           
 ``smash_peakflux``       float                                         Peak value of the spectral direction collapsed spatial profile                                                                                                                      
 ``smash_snr``            float                                         Peak S/N ratio of the spectral direction collapsed patial profile                                                                                                                   
 ``trace_spec``           ndarray                    int,numpy.integer  Array of pixels along the spectral direction                                                                                                                                        

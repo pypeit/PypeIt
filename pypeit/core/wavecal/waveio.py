@@ -6,15 +6,15 @@
 import pathlib
 
 import astropy.table
-import linetools.utils
+from IPython import embed
 import numpy as np
 
-from pypeit import msgs
-from pypeit import dataPaths
 from pypeit import cache
+from pypeit import dataPaths
+from pypeit import log
+from pypeit import PypeItError
+from pypeit import utils
 from pypeit.core.wavecal import defs
-
-from IPython import embed
 
 
 # TODO -- Move this to the WaveCalib object
@@ -31,10 +31,10 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
         Lists read from the json file are returnes as numpy arrays.
     """
     if not filename.is_file():
-        msgs.error(f"File does not exist: {filename}")
+        raise PypeItError(f"File does not exist: {filename}")
 
-    # Force any possible pathlib.Path object to string before `loadjson`
-    wv_calib = linetools.utils.loadjson(str(filename))
+    # Load JSON file
+    wv_calib = utils.loadjson(filename)
 
     # Recast a few items as arrays
     for key in wv_calib.keys():
@@ -159,7 +159,7 @@ def load_reid_arxiv(arxiv_file):
             wv_calib_arxiv[str(irow)]['order'] = wv_tbl['order'][irow]
 
     else:
-        msgs.error(f"Not ready for this `reid_arxiv` extension: {arxiv_fmt}")
+        raise PypeItError(f"Not ready for this `reid_arxiv` extension: {arxiv_fmt}")
 
     return wv_calib_arxiv, par
 
@@ -220,10 +220,10 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
             i1 = line_file.rfind('_')
             lamps.append(line_file[i0+1:i1])
 
-    msgs.info(f"Arc lamps used: {', '.join(lamps)}")
+    log.info(f"Arc lamps used: {', '.join(lamps)}")
     # Read standard files
     # NOTE: If one of the `lamps` does not exist, dataPaths.linelist.get_file_path()
-    #       will exit with msgs.error().
+    #       will exit with raise PypeItError().
     lists = [load_line_list(dataPaths.linelist.get_file_path(f'{lamp}_lines.dat'))
                 for lamp in lamps]
     # Stack
@@ -251,59 +251,6 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
 
     # Return
     return tot_line_list, line_lists, unkn_lines
-
-
-def load_tree(polygon=4, numsearch=20):
-    """
-    Load a KDTree of ThAr patterns that is stored on disk
-
-    Parameters
-    ----------
-    polygon : int
-        Number of sides to the polygon used in pattern matching:
-
-            - polygon=3  -->  trigon (two anchor lines and one floating line)
-            - polygon=4  -->  tetragon (two anchor lines and two floating lines)
-            - polygon=5  -->  pentagon (two anchor lines and three floating lines)
-
-    numsearch : int
-        Number of consecutive detected lines used to generate a pattern.
-        For example, if numsearch is 4, then for a trigon, the following
-        patterns will be generated (assuming line #1 is the left
-        anchor):
-
-            - 1 2 3  (in this case line #3 is the right anchor)
-            - 1 2 4  (in this case line #4 is the right anchor)
-            - 1 3 4  (in this case line #4 is the right anchor)
-
-    Returns
-    -------
-    file_load : KDTree instance
-        The KDTree containing the patterns
-    index : ndarray
-        For each pattern in the KDTree, this array stores the
-        corresponding index in the linelist
-    """
-
-    # TODO: Can we save these as fits files instead?
-    # TODO: Please don't use imports within functions
-    import pickle
-    filename = dataPaths.linelist.get_file_path(
-                    f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
-    fileindx = dataPaths.linelist.get_file_path(
-                    f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
-    try:
-        with open(filename, "rb", encoding="utf-8") as f_obj:
-            file_load = pickle.load(f_obj)
-        index = np.load(fileindx)
-    except FileNotFoundError:
-        msgs.info('The requested KDTree was not found on disk' + msgs.newline() +
-                  'please be patient while the ThAr KDTree is built and saved to disk.')
-        from pypeit.core.wavecal import kdtree_generator
-        file_load, index = kdtree_generator.main(polygon, numsearch=numsearch, verbose=True,
-                                                 ret_treeindx=True, outname=filename)
-
-    return file_load, index
 
 
 def load_unknown_list(lines, unknwn_file=None, all=False):

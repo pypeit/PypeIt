@@ -11,7 +11,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.images.imagebitmask import ImageBitMaskArray
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -134,7 +135,20 @@ class PypeItImage(datamodel.DataContainer):
                                             'spat_flexure[i,0] is the spatial shift of the left '
                                             'edge of slit i and spat_flexure[i,1] is the spatial '
                                             'shift of the right edge of slit i.'),
-                 'filename': dict(otype=str, descr='Filename for the image'),}
+                 # TODO :: This should probably change to spec_flexure for clarity
+                 'flex_shift': dict(otype=np.ndarray, atype=np.floating,
+                                    descr='Array of global spectral shifts (pixels) of the '
+                                          'wavelength array at the center of each slit to '
+                                          'correct for spectral flexure. This is calculated '
+                                          'using the sky spectrum, therefore, updated during '
+                                          'object finding/extraction.')
+                 'rel_scaleImg': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='Image used to apply a relative scaling to the science '
+                                        'image to correct its spectral illumination. Currently '
+                                        'only used for IFU reductions. This is calculated and '
+                                        'updated during object finding.'),
+                 'filename': dict(otype=str, descr='Filename for the image'),
+                 }
     """Data model components."""
 
     internals = ['process_steps', 'files', 'rawheadlist']
@@ -174,7 +188,7 @@ class PypeItImage(datamodel.DataContainer):
                  shot_noise=None, bpm=None, crmask=None, usermask=None, clean_mask=False):
 
         if image is None:
-            msgs.error('Must provide an image when instantiating PypeItImage.')
+            raise PypeItError('Must provide an image when instantiating PypeItImage.')
 
         # Instantiate as an empty DataContainer
         super().__init__()
@@ -192,7 +206,7 @@ class PypeItImage(datamodel.DataContainer):
                      'fullmask']:
             _arr = getattr(self, attr)
             if _arr is not None and _arr.shape != self.shape:
-                msgs.error(f'Attribute {attr} does not match image shape.')
+                raise PypeItError(f'Attribute {attr} does not match image shape.')
 
         # Make sure the units are defined
         if self.units is None:
@@ -204,19 +218,19 @@ class PypeItImage(datamodel.DataContainer):
 
         if bpm is not None:
             if not np.issubdtype(bpm.dtype, np.bool_) and not np.issubdtype(bpm.dtype, bool):
-                msgs.error('CODING ERROR: bpm entry in PypeItImage must have boolean type')
+                raise PypeItError('CODING ERROR: bpm entry in PypeItImage must have boolean type')
             if clean_mask:
                 self.update_mask('BPM', action='turn_off')
             self.update_mask('BPM', indx=bpm)
         if crmask is not None:
             if not np.issubdtype(crmask.dtype, np.bool_) and not np.issubdtype(crmask.dtype, bool):
-                msgs.error('CODING ERROR: crmask entry in PypeItImage must have boolean type')
+                raise PypeItError('CODING ERROR: crmask entry in PypeItImage must have boolean type')
             if clean_mask:
                 self.update_mask('CR', action='turn_off')
             self.update_mask('CR', indx=crmask)
         if usermask is not None:
             if not np.issubdtype(usermask.dtype, np.bool_) and not np.issubdtype(usermask.dtype, bool):
-                msgs.error('CODING ERROR: usermask entry in PypeItImage must have boolean type')
+                raise PypeItError('CODING ERROR: usermask entry in PypeItImage must have boolean type')
             if clean_mask:
                 self.update_mask('USER', action='turn_off')
             self.update_mask('USER', indx=crmask)
@@ -347,7 +361,7 @@ class PypeItImage(datamodel.DataContainer):
             cosmic rays; True mean a CR was flagged.
         """
         if subtract_img is not None and subtract_img.shape != self.shape:
-            msgs.error('In cosmic-ray detection, image to subtract has incorrect shape.')
+            raise PypeItError('In cosmic-ray detection, image to subtract has incorrect shape.')
 
         # Image to flag
         use_img = self.image if subtract_img is None else self.image - subtract_img
@@ -359,7 +373,7 @@ class PypeItImage(datamodel.DataContainer):
         # to L.A.Cosmic?  For now, I'm doing the simple thing of just using the
         # bad pixel mask, but what other flags from ``fullmask`` should be
         # included?
-        bpm = self.fullmask.bpm
+        bpm = self.fullmask.flagged('BPM')
 
         # TODO: These saturation and non-linear values are typically for the raw
         # pixel value.  E.g., a saturation of 65535 is because the digitization
@@ -413,7 +427,7 @@ class PypeItImage(datamodel.DataContainer):
 
             # Must be defining the per-amplifier value
             if self.amp_img is None:
-                msgs.error(f'To remap detector {attr}, object must have amp_img defined.')
+                raise PypeItError(f'To remap detector {attr}, object must have amp_img defined.')
             out = np.zeros(self.shape, dtype=type(data[0]))
             for j in range(len(data)):
                 out[self.amp_img == j+1] = data[j]
@@ -430,7 +444,7 @@ class PypeItImage(datamodel.DataContainer):
                 return np.repeat(data, np.prod(self.shape[1:])).reshape(self.shape)
             # Must be defining the per-amplifier value
             if self.amp_img is None:
-                msgs.error(f'To remap detector {attr}, object must have amp_img defined.')
+                raise PypeItError(f'To remap detector {attr}, object must have amp_img defined.')
             out = np.zeros(self.shape, dtype=type(data[0][0]))
             for i in range(self.detector.ndet):
                 for j in range(len(data[i])):
@@ -443,7 +457,7 @@ class PypeItImage(datamodel.DataContainer):
             # Check for amplifier dependent output before entering loop
             if not np.isscalar(data[0]) and self.amp_img is None:
                 # Must be defining the per-amplifier value
-                msgs.error(f'To remap detector {attr}, object must have amp_img defined.')
+                raise PypeItError(f'To remap detector {attr}, object must have amp_img defined.')
             # Get the output type
             otype = type(data[0]) if np.isscalar(data[0]) else type(data[0][0])
             # Fill the array
@@ -459,7 +473,7 @@ class PypeItImage(datamodel.DataContainer):
             return out
 
         # Should not get here
-        msgs.error('CODING ERROR: Bad logic in map_detector_value.')
+        raise PypeItError('CODING ERROR: Bad logic in map_detector_value.')
 
     def build_mask(self, saturation=None, mincounts=None, slitmask=None, from_scratch=True):
         """
@@ -524,15 +538,15 @@ class PypeItImage(datamodel.DataContainer):
         # Check input
         if saturation is not None and isinstance(saturation, np.ndarray) \
                 and saturation.shape != self.shape:
-            msgs.error('Saturation array must have the same shape as the image.')
+            raise PypeItError('Saturation array must have the same shape as the image.')
         if mincounts is not None and isinstance(mincounts, np.ndarray) \
                 and mincounts.shape != self.shape:
-            msgs.error('Minimum counts array must have the same shape as the image.')
+            raise PypeItError('Minimum counts array must have the same shape as the image.')
 
         # Setup the saturation level 
         if isinstance(saturation, str):
             if saturation != 'default':
-                msgs.error(f'Unknown saturation string: {saturation}')
+                raise PypeItError(f'Unknown saturation string: {saturation}')
             _saturation = self.map_detector_value('saturation') \
                             * self.map_detector_value('nonlinear')
             if self.units == 'e-':
@@ -543,7 +557,7 @@ class PypeItImage(datamodel.DataContainer):
         # Setup the minimum counts level 
         if isinstance(mincounts, str):
             if mincounts != 'default':
-                msgs.error(f'Unknown mincounts string: {mincounts}')
+                raise PypeItError(f'Unknown mincounts string: {mincounts}')
             _mincounts = self.map_detector_value('mincounts')
             if self.units == 'ADU':
                 _mincounts /= self.map_detector_value('gain')
@@ -552,8 +566,8 @@ class PypeItImage(datamodel.DataContainer):
 
         if from_scratch:
             # Save the existing BPM and CR masks
-            bpm = self.fullmask.bpm
-            cr = self.fullmask.cr
+            bpm = self.fullmask.flagged('BPM')
+            cr = self.fullmask.flagged('CR')
             # Re-initialize the fullmask (erases all existing masks)
             self.reinit_mask()
             # Recover the BPM and CR masks
@@ -590,7 +604,7 @@ class PypeItImage(datamodel.DataContainer):
 
         """
         if slitmask.shape != self.shape:
-            msgs.error('Slit mask image must have the same shape as data image.')
+            raise PypeItError('Slit mask image must have the same shape as data image.')
         # Pixels excluded from any slit.
         self.update_mask('OFFSLITS', action='turn_off')
         self.update_mask('OFFSLITS', indx=slitmask==-1)
@@ -629,7 +643,7 @@ class PypeItImage(datamodel.DataContainer):
                 The action to perform.  Must be ``'turn_on'`` or ``'turn_off'``.
         """
         if action not in ['turn_on', 'turn_off']:
-            msgs.error(f'{action} is not a known bit action!')
+            raise PypeItError(f'{action} is not a known bit action!')
         if indx is None:
             getattr(self.fullmask, action)(flag)
         getattr(self.fullmask, action)(flag, select=indx)
@@ -718,7 +732,7 @@ class PypeItImage(datamodel.DataContainer):
             subtracting ``other`` from this image.
         """
         if not isinstance(other, PypeItImage):
-            msgs.error('Image to subtract must be of type PypeItImage.')
+            raise PypeItError('Image to subtract must be of type PypeItImage.')
 
         # Subtract the image
         newimg = self.image - other.image
@@ -786,8 +800,8 @@ class PypeItImage(datamodel.DataContainer):
         spat_flexure = self.spat_flexure
         if other.spat_flexure is not None and spat_flexure is not None \
                 and not np.array_equal(other.spat_flexure, spat_flexure):
-            msgs.warn(f'Spatial flexure different for images being subtracted. Adopting '
-                      f'the maximum spatial flexure of each individual edge.')
+            log.warning(f'Spatial flexure different for images being subtracted ({spat_flexure} vs. '
+                        f'{other.spat_flexure}). Adopting the maximum spatial flexure of each individual edge.')
             # Loop through all slit edges and find the largest flexure
             for ii in range(spat_flexure.shape[0]):
                 # Assign the largest flexure (irrespective of sign) for each edge
@@ -935,7 +949,7 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
                     hdr_to_parse = h.header
                     break
             if hdr_to_parse is None:
-                msgs.error('Provided HDUList does not have any HDUs constructed by the correct '
+                raise PypeItError('Provided HDUList does not have any HDUs constructed by the correct '
                            f'datamodel class, {cls.__name__}.')
         else:
             hdr_to_parse = hdu.header

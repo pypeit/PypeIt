@@ -12,7 +12,8 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch, parse
 from pypeit.images import detector_container
@@ -146,37 +147,37 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             try:
                 return Time(headarr[0]['DATE-OBS'] + "T" + headarr[0]['TIME-OBS'])
             except KeyError:
-                msgs.warn("Time of observation is not in header")
+                log.warning("Time of observation is not in header")
                 return 0.0
         elif meta_key == 'pressure':
             try:
                 return headarr[0]['PRESSUR2']/100.0  # Must be in astropy.units.mbar
             except KeyError:
-                msgs.warn("Pressure is not in header - The default pressure (611 mbar) will be assumed")
+                log.warning("Pressure is not in header - The default pressure (611 mbar) will be assumed")
                 return 611.0
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['TAMBIENT']  # Must be in astropy.units.deg_C
             except KeyError:
-                msgs.warn("Temperature is not in header - The default temperature (1.5 deg C) will be assumed")
+                log.warning("Temperature is not in header - The default temperature (1.5 deg C) will be assumed")
                 return 1.5  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'humidity':
             try:
                 # Humidity expressed as a percentage, not a fraction
                 return headarr[0]['HUMIDITY']
             except KeyError:
-                msgs.warn("Humidity is not in header - The default relative humidity (20 %) will be assumed")
+                log.warning("Humidity is not in header - The default relative humidity (20 %) will be assumed")
                 return 20.0  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'parangle':
             try:
                 # Humidity expressed as a percentage, not a fraction
-                msgs.warn("Parallactic angle is not available for GNIRS - DAR correction may be incorrect")
+                log.warning("Parallactic angle is not available for GNIRS - DAR correction may be incorrect")
                 return headarr[0]['PARANGLE']  # Must be expressed in radians
             except KeyError:
-                msgs.warn("Parallactic angle is not in header - The default parallactic angle (0 degrees) will be assumed")
+                log.warning("Parallactic angle is not in header - The default parallactic angle (0 degrees) will be assumed")
                 return 0.0
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -262,7 +263,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             elif '10/mmLBSX' in fitstbl['dispname'][0]:
                 return good_exp & (fitstbl['idname'] == 'ARC')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     @classmethod
@@ -408,7 +409,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             # TODO :: Need to fill this in
             pass
         else:
-            msgs.error(f'Unrecognized GNIRS dispname: {self.dispname}')
+            raise PypeItError(f'Unrecognized GNIRS dispname: {self.dispname}')
 
         return par
 
@@ -439,7 +440,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        msgs.info("Custom bad pixel mask for GNIRS")
+        log.info("Custom bad pixel mask for GNIRS")
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
@@ -527,7 +528,7 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
             par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10]
 
         else:
-            msgs.error('Unrecognized GNIRS dispname')
+            raise PypeItError('Unrecognized GNIRS dispname')
 
         return par
 
@@ -563,7 +564,7 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
         elif '32/mm' in self.dispname:
             return 6
         else:
-            msgs.error('Unrecognized disperser')
+            raise PypeItError('Unrecognized disperser')
 
     @property
     def order_spat_pos(self):
@@ -580,7 +581,7 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
             ##New data
             return np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
         else:
-            msgs.error('Unrecognized disperser')
+            raise PypeItError('Unrecognized disperser')
 
     @property
     def orders(self):
@@ -593,7 +594,7 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
         elif '32/mm' in self.dispname:
             return np.arange(8,2,-1,dtype=int)
         else:
-            msgs.error('Unrecognized disperser')
+            raise PypeItError('Unrecognized disperser')
 
     @property
     def spec_min_max(self):
@@ -613,7 +614,7 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
             spec_min = np.asarray([512, 280, 0, 0, 0, 0])
             return np.vstack((spec_min, spec_max))
         else:
-            msgs.error('Unrecognized disperser')
+            raise PypeItError('Unrecognized disperser')
 
 
 class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
@@ -747,17 +748,17 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         Returns:
             `astropy.wcs.WCS`_: The world-coordinate system.
         """
-        msgs.info("Calculating the WCS")
+        log.info("Calculating the WCS")
         # Get the x and y binning factors, and the typical slit length
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
         # Get the pixel and slice scales
         pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
-        msgs.work("NEED TO WORK OUT SLICER SCALE AND PIXEL SCALE")
+        log.debug("NEED TO WORK OUT SLICER SCALE AND PIXEL SCALE")
         slscl = self.get_meta_value([hdr], 'slitwid')
         if spatial_scale is not None:
             if pxscl > spatial_scale / 3600.0:
-                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+                log.warning("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
             # Update the pixel scale
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
@@ -772,7 +773,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
 
         # Get rotator position
-        msgs.warn("CURRENTLY A HACK --- NEED TO FIGURE OUT RPOS and RREF FOR HRIFU FROM HEADER INFO")
+        log.warning("CURRENTLY A HACK --- NEED TO FIGURE OUT RPOS and RREF FOR HRIFU FROM HEADER INFO")
         if 'ROTPOSN' in hdr:
             rpos = hdr['ROTPOSN']
         else:
@@ -806,7 +807,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset
-        msgs.warn("HACK FOR HRIFU --- Need to obtain offset from header?")
+        log.warning("HACK FOR HRIFU --- Need to obtain offset from header?")
         off1 = 0.
         off2 = 0.
         off1 /= binspec
@@ -815,7 +816,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         crpix2 += off2
 
         # Create a new WCS object.
-        msgs.info("Generating GNIRS IFU WCS")
+        log.info("Generating GNIRS IFU WCS")
         w = wcs.WCS(naxis=3)
         w.wcs.equinox = hdr['EQUINOX']
         w.wcs.name = 'GNIRS IFU'

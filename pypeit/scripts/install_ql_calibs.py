@@ -32,13 +32,16 @@ class InstallQLCalibs(scriptbase.ScriptBase):
                             help='Remove the downloaded zip file')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         import os
         import zipfile
 
         from pypeit.cache import __PYPEIT_DATA__
         from pypeit.io import create_symlink
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Check that either the zip file or the directory is provided
         if args.zip is None and args.ql_path is None:

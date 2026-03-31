@@ -25,7 +25,8 @@ import astropy.table
 import astropy.time
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
@@ -182,9 +183,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                         "600/6750":"DV7", "831/8000":"DV8", "1200/5000":"DV9",
                         "2160/5000":"DV10", "UNKNOWN":"DVxx"}
             if (grating_kwd := headarr[0]['GRATING']) not in gratings:
-                msgs.error(f"Grating value {grating_kwd} not recognized.")
+                raise PypeItError(f"Grating value {grating_kwd} not recognized.")
             if grating_kwd == "UNKNOWN":
-                msgs.warn(f"Grating not selected in the LOUI; {msgs.newline()}"
+                log.warning(f"Grating not selected in the LOUI; \n"
                           "Fix the header keyword GRATING before proceeding.")
             return f"{gratings[grating_kwd]} ({grating_kwd})"
 
@@ -204,7 +205,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # Extract lines/mm, catch 'UNKNOWN' grating
             if (grating_kwd := headarr[0]["GRATING"]) == "UNKNOWN":
                 lpmm = np.inf
-                msgs.warn(f"Grating angle not selected in the LOUI; {msgs.newline()}"
+                log.warning(f"Grating angle not selected in the LOUI; \n"
                           "Fix the header keyword GRANGLE before proceeding.")
             else:
                 lpmm = float(grating_kwd.split("/")[0])
@@ -232,7 +233,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 else headarr[0]["OBJNAME"].strip()
             )
 
-        msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
+        raise PypeItError(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
 
     def configuration_keys(self):
         """
@@ -413,10 +414,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['idname'] == 'DARK')
                 & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ['pinhole', 'align', 'sky', 'lampoffflats', 'scattlight']:
+        if ftype in ['pinhole', 'align', 'sky', 'lampoffflats', 'scattlight', 'slitless_pixflat']:
             # DeVeny doesn't have any of these types of frames
             return np.zeros(len(fitstbl), dtype=bool)
-        msgs.warn(f"Cannot determine if frames are of type {ftype}")
+        log.debug(f"Cannot determine if frames are of type {ftype}")
         return np.zeros(len(fitstbl), dtype=bool)
 
     def pypeit_file_keys(self):
@@ -498,8 +499,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 # Because of the wide wavelength range, split DV1 arcs in half for reidentification
                 par['calibrations']['wavelengths']['nsnippet'] = 2
                 # Higher order wavelength fits because of larger span
-                par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-                par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
+                par['calibrations']['wavelengths']['n_first'] = 4  # Default: 2
+                par['calibrations']['wavelengths']['n_final'] = 7  # Default: 4
+                # Allow for larger curvature in the object trace due to atmospheric dispersion
+                par['reduce']['findobj']['trace_maxshift'] = 2.0
+                par['reduce']['findobj']['trace_npoly'] = 5   # Default: 3
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 400
 
@@ -540,12 +544,14 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 1500
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
             case 'DV7 (600/6750)':
                 # Use this `reid_arxiv` with the `full-template` method:
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 2000
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
             case 'DV8 (831/8000)':
                 # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
@@ -554,19 +560,21 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 3200
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
             case 'DV9 (1200/5000)':
                 # Use this `reid_arxiv` with the `full-template` method:
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
                 # The approximate resolution of this grating
                 par['sensfunc']['UVIS']['resolution'] = 3000
+                par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
 
             case 'DV10 (2160/5000)':
                 # Presently unsupported; no parameter changes
-                msgs.warn("The DV10 grating is not present supported; no config-specific pars set!")
+                log.warning("The DV10 grating is not present supported; no config-specific pars set!")
 
             case _:
-                msgs.warn("No recognized grating passed; no config-specific pars set!")
+                log.warning("No recognized grating passed; no config-specific pars set!")
 
         # Adjust parameters based on CCD binning
         bin_spec, bin_spat = parse.parse_binning(binning)
@@ -628,7 +636,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         patt_freqs : :obj:`list`
             List of pattern frequencies.
         """
-        msgs.error(f"Pattern noise removal is not yet implemented for spectrograph {self.name}")
+        raise PypeItError(f"Pattern noise removal is not yet implemented for spectrograph {self.name}")
         return []
 
     def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,

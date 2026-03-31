@@ -5,7 +5,8 @@ Module for JWST NIRSpec specific methods.
 """
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
 from pypeit.core import framematch
@@ -236,7 +237,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         if ftype == 'science':
             return np.ones(len(fitstbl), dtype=bool)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -291,7 +292,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info(f'Reading JWST/NIRSpec file: {fil}')
+        log.info(f'Reading JWST/NIRSpec file: {fil}')
         hdu = io.fits_open(fil)
         head0 = hdu[0].header
 

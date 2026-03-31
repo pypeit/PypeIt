@@ -8,7 +8,7 @@ from astropy import units
 from astropy import coordinates
 
 from pypeit.core import standard
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 def test_mab_to_cgs():
     wave = 5000.

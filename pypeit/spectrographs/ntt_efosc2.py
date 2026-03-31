@@ -10,7 +10,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
@@ -105,7 +106,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
                                               oscan_x+1*xbin, max_x-1*xbin) # Actually two overscan regions, here I only dealing with the region on x-axis
                 return oscansec
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def config_independent_frames(self):
         """
@@ -366,7 +367,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp & ((fitstbl['target'] == 'WAVE'))
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
     
     def bpm(self, filename, det, shape=None, msbias=None):
@@ -400,7 +401,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        msgs.info("Using hard-coded BPM for NTT EFOSC2")
+        log.info("Using hard-coded BPM for NTT EFOSC2")
         binning = self.get_meta_value(filename, 'binning')
         binspatial =  int(binning[0])
         binspec =  int(binning[2])
