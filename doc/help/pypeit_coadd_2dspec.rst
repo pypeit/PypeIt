@@ -21,7 +21,7 @@
       --basename BASENAME   Basename of files to save the parameters, spec1d, and
                             spec2d (default: None)
       --debug               show debug plots? (default: False)
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             coadd_2dspec_YYYYMMDD-HHMM.log (default: 1)

@@ -5,26 +5,18 @@ Module for terminal and file logging.
     Why not use pythons native logging package?
 
 """
-from datetime import datetime
-import sys
-import os
+import datetime
 import inspect
 import io
-
-# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
-# to no longer support it.
-try:
-    __UTC__ = datetime.UTC
-except AttributeError as e:
-    from datetime import timezone
-    __UTC__ = timezone.utc
+import os
+import sys
 
 # Imported for versioning
-import scipy
-import numpy
 import astropy
-import pypeit
+import numpy
+import scipy
 
+import pypeit
 from pypeit.core.qa import close_qa
 from pypeit import pypeit_user
 
@@ -410,7 +402,7 @@ class Messages:
                 Verbosity level between 0 [none] and 2 [all]
         """
         # Create a UT timestamp (to the minute) for the log filename
-        timestamp = datetime.now(__UTC__).strftime("%Y%m%d-%H%M")
+        timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d-%H%M")
         # Create a logfile only if verbosity == 2
         logname = f"{scriptname}_{timestamp}.log" if verbosity == 2 else None
         # Set the verbosity in msgs

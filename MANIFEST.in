@@ -3,11 +3,7 @@
 prune .github
 prune build
 prune dist
-prune deprecated
 prune doc
-prune proposals
-prune presentations
-prune paper
 
 # Remove file types
 global-exclude *.pyc *.o *.so *.DS_Store *.ipynb

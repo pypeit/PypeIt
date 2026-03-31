@@ -50,7 +50,7 @@
     options:
       -h, --help            show this help message and exit
       --par_outfile         Output to save the parameters
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             flux_calib_YYYYMMDD-HHMM.log

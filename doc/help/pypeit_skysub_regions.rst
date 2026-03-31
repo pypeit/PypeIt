@@ -19,7 +19,7 @@
       -i, --initial         Use initial slit edges? (default: False)
       -f, --flexure         Use flexure corrected slit edges? (default: False)
       -s, --standard        List standard stars as well? (default: False)
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             skysub_regions_YYYYMMDD-HHMM.log (default: 1)

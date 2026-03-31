@@ -24,7 +24,7 @@ from pypeit.core.moment import moment1d
 
 
 def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
-                    spec, min_frac_use=0.05, fwhmimg=None, flatimg=None,
+                    spec, min_frac_use=0.9, fwhmimg=None, flatimg=None,
                     base_var=None, count_scale=None, noise_floor=None):
 
     r"""
@@ -187,6 +187,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
 
     tot_weight = np.nansum(mask_sub*ivar_sub*oprof_sub, axis=1)
     prof_norm = np.nansum(oprof_sub, axis=1)
+    # NOTE: Frac_use is also equal to np.nansum(mask_sub * oprof_sub, axis=1)
     frac_use = (prof_norm > 0.0)*np.nansum((mask_sub*ivar_sub > 0.0)*oprof_sub, axis=1)/(prof_norm + (prof_norm == 0.0))
 
     # Use the same weights = oprof^2*mivar for the wavelenghts as the flux.
@@ -215,7 +216,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
         if oprof_bad.any():
             # If there are no good profile wavelengths, use boxcar wavelengths for these pixels
             # get boxcar_radius
-            box_radius = spec.BOX_RADIUS
+            box_radius = spec.BOX_R_PIX
             box_denom_no_mask = moment1d(waveimg > 0.0, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0]
             wave_no_mask = moment1d(waveimg, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0] / (
                         box_denom_no_mask + (box_denom_no_mask == 0.0))
@@ -410,7 +411,7 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, f
         spec.trace_spec = spec_vec
 
     # get boxcar_radius
-    box_radius = spec.BOX_RADIUS
+    box_radius = spec.BOX_R_PIX
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
     var_no = None if base_var is None \

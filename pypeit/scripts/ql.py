@@ -300,9 +300,9 @@ def generate_sci_pypeitfile(redux_path:str,
     if len(is_std) > 0 and not clear:
         for i in is_std:
             std_spec1d = pypeit.PypeIt.get_spec_file_name(
-                            str(sci_dir / ps_sci.par['rdx']['scidir']),
+                            sci_dir / ps_sci.par['rdx']['scidir'],
                             ps_sci.fitstbl.construct_basename(i))
-            if Path(std_spec1d).exists():
+            if std_spec1d.exists():
                 break
             # File doesn't exist, so reset
             std_spec1d = None
@@ -1013,7 +1013,7 @@ class QL(scriptbase.ScriptBase):
             CoAdd2DSpec.main(CoAdd2DSpec.parse_args([str(coadd_file)]))
 
             # Get the output file name
-            spectrograph, par, _ = coadd2dFile.get_pypeitpar()
+            spectrograph, par, _ = coadd2dFile.get_pypeitpar(pypeit_fits=True)
             spec2d_files = coadd2dFile.filenames
             coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).absolute()
             basename = coadd2d.CoAdd2D.default_basename(spec2d_files)

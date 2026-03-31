@@ -17,6 +17,7 @@ Submodules
    :maxdepth: 4
 
    pypeit.core.arc
+   pypeit.core.atmextinction
    pypeit.core.basis
    pypeit.core.coadd
    pypeit.core.collate
@@ -43,6 +44,8 @@ Submodules
    pypeit.core.scattlight
    pypeit.core.skysub
    pypeit.core.slitdesign_matching
+   pypeit.core.spectrum
+   pypeit.core.standard
    pypeit.core.telluric
    pypeit.core.trace
    pypeit.core.tracewave

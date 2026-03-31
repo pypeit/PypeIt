@@ -54,7 +54,6 @@ Submodules
    pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc
-   pypeit.setup_package
    pypeit.slittrace
    pypeit.spec2dobj
    pypeit.specobj

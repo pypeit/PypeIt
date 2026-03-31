@@ -1809,8 +1809,7 @@ class PypeItMetaData:
             #    data_lines = ff.getvalue().split('\n')[:-1]
             # Config lines
             if cfg_lines is None:
-                cfg_lines = ['[rdx]']
-                cfg_lines += ['    spectrograph = {0}'.format(self.spectrograph.name)]
+                cfg_lines = ['[rdx]', f'    spectrograph = {self.spectrograph.name}']
 
             # Instantiate a PypeItFile
             pypeItFile = inputfiles.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
@@ -1991,3 +1990,26 @@ class PypeItMetaData:
         return self.calib_bitmask.flagged_bits(self['calibbit'][row])
 
 
+    def get_row_for_filename(self, filename:str) -> table.Table:
+        """Return the row of the metadata table for a filename
+
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Filename for which to retrieve the table row
+
+        Returns
+        -------
+        :obj:`~astropy.table.Table`
+            A copy of the one-row table corresponding to the ``filename``
+            provided.
+        
+        Raises
+        ------
+        :class:`PypeItError`
+            If the requested filename is not in the table
+        """
+        idx = self.table['filename'] == Path(filename).name
+        if not any(idx):
+            msgs.error(f"Requested file {filename} not in the metadata table.")
+        return self.table[idx].copy()

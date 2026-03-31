@@ -13,7 +13,7 @@
       --det DET             Detector (default: 1)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             coadd_datacube_YYYYMMDD-HHMM.log (default: 1)

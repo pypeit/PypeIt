@@ -445,8 +445,8 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        norders = len(order_vec)
-        binspatial, binspec = parse.parse_binning(binning)
+
+        _, binspatial = parse.parse_binning(binning)
         # Plate scales
         unbinned_pscale = [0.120, #15 
                            0.127, 0.134, 0.137, 0.144, 0.149, 0.153, 

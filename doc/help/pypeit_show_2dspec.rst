@@ -45,7 +45,7 @@
       --prefix PREFIX       Channel name prefix [lets you display more than one set]
                             (default: )
       --no_clear            Do *not* clear all existing tabs (default: True)
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all] (default:
                             1)
       --try_old             Attempt to load old datamodel versions. A crash may

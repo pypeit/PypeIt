@@ -41,7 +41,7 @@
       --force_save          Save the solutions, despite the RMS (default: False)
       --rescale_resid       Rescale the residual plot to include all points?
                             (default: False)
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename identify_YYYYMMDD-
                             HHMM.log (default: 1)

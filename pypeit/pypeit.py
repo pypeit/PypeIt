@@ -5,27 +5,15 @@ Main driver class for PypeIt run
 .. include:: ../include/links.rst
 
 """
+import copy
+import datetime
+import os
 from pathlib import Path
 import time
-import os
-import copy
-from datetime import datetime
-
-# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
-# to no longer support it.
-try:
-    __UTC__ = datetime.UTC
-except AttributeError as e:
-    from datetime import timezone
-
-    __UTC__ = timezone.utc
-
-from IPython import embed
-
-import numpy as np
 
 from astropy.io import fits
 from astropy.table import Table
+import numpy as np
 
 from pypeit import io
 from pypeit import inputfiles
@@ -39,17 +27,19 @@ from pypeit import find_objects
 from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit import specobjs
-# from pypeit.spectrographs.util import load_spectrograph
+#from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.history import History
-# from pypeit.par import PypeItPar
-# from pypeit.par.pypeitpar import ql_is_on
+#from pypeit.par import PypeItPar
+#from pypeit.par.pypeitpar import ql_is_on
 from pypeit.metadata import PypeItMetaData
 from pypeit.manual_extract import ManualExtractionObj
 from pypeit.core import skysub
 
 from linetools import utils as ltu
+
+from IPython import embed
 
 
 class PypeIt:
@@ -101,9 +91,9 @@ class PypeIt:
         self.logname = logname
         self.verbosity = verbosity
         self.pypeit_file = pypeit_file
-
+        
         self.msgs_reset()
-
+        
         # Load up PypeIt file
         self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
         self.calib_only = calib_only
@@ -121,7 +111,7 @@ class PypeIt:
         # Write the full parameter set here
         # --------------------------------------------------------------
         par_file = pypeit_file.replace(
-            '.pypeit', f"_UTC_{datetime.now(__UTC__).date()}.par")
+            '.pypeit', f"_UTC_{datetime.datetime.now(datetime.UTC).date()}.par")
         self.par.to_config(par_file, include_descr=False)
 
         # --------------------------------------------------------------
@@ -147,8 +137,7 @@ class PypeIt:
         self.show = show
 
         # Set paths
-        self.calibrations_path = os.path.join(self.par['rdx']['redux_path'],
-                                              self.par['calibrations']['calib_dir'])
+        self.calibrations_path = Path(self.par['rdx']['redux_path']) / self.par['calibrations']['calib_dir']
 
         # Check for calibrations
         if not self.calib_only:
@@ -174,12 +163,12 @@ class PypeIt:
         self.obstime = None
 
     @property
-    def science_path(self):
+    def science_path(self) -> Path:
         """Return the path to the science directory."""
-        return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
+        return Path(self.par['rdx']['redux_path']) / self.par['rdx']['scidir']
 
     @property
-    def qa_path(self):
+    def qa_path(self) -> str:
         """Return the path to the top-level QA directory."""
         return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
 
@@ -193,37 +182,51 @@ class PypeIt:
         qa.gen_exp_html()
 
     # TODO: This should go in a more relevant place
-    def spec_output_file(self, frame, twod=False):
+    def spec_output_file(self, frame:int, twod:bool=False) -> Path:
         """
         Return the path to the spectral output data file.
         
         Args:
             frame (:obj:`int`):
                 Frame index from :attr:`fitstbl`.
-            twod (:obj:`bool`):
+            twod (:obj:`bool`), optional:
                 Name for the 2D output file; 1D file otherwise.
         
         Returns:
-            :obj:`str`: The path for the output file
+            `Path`_: The path for the output file
         """
         return self.get_spec_file_name(self.science_path, self.fitstbl.construct_basename(frame),
                                        twod=twod)
 
     @staticmethod
-    def get_spec_file_name(science_path, basename, twod=False):
-        return os.path.join(science_path, f'spec{"2" if twod else "1"}d_{basename}.fits')
+    def get_spec_file_name(science_path:Path, basename:str, twod:bool=False) -> Path:
+        """
+        Get the spectrum filename
 
-    def outfile_exists(self, frame):
+        Args:
+            science_path (`Path`_):
+                Path to the science files
+            basename (:obj:`str`):
+                Base name for this frame
+            twod (:obj:`bool`), optional:
+                Is this a 2D science frame?
+
+        Returns:
+            `Path`_: The spectrum filename
+        """
+        return science_path / f'spec{"2" if twod else "1"}d_{basename}.fits'
+
+    def outfile_exists(self, frame:int) -> bool:
         """
         Check whether the 2D outfile of a given frame already exists
 
         Args:
-            frame (int): Frame index from fitstbl
+            frame (:obj:`int`): Frame index from fitstbl
 
         Returns:
-            bool: True if the 2d file exists, False if it does not exist
+            :obj:`bool`: True if the 2d file exists, False if it does not exist
         """
-        return os.path.isfile(self.spec_output_file(frame, twod=True))
+        return self.spec_output_file(frame, twod=True).is_file()
 
     def get_std_outfile(self, standard_frames):
         """
@@ -263,9 +266,9 @@ class PypeIt:
         # Prepare to load up standard?
         if std_frame is not None:
             std_outfile = self.spec_output_file(std_frame) \
-                if isinstance(std_frame, (int, np.integer)) else None
-        if std_outfile is not None and not os.path.isfile(std_outfile):
-            msgs.error('Could not find standard file: {0}'.format(std_outfile))
+                            if isinstance(std_frame, (int,np.integer)) else None
+        if std_outfile is not None and not std_outfile.is_file():
+            msgs.error(f'Could not find standard file: {std_outfile}')
         return std_outfile
 
     def calib_all(self):
@@ -390,7 +393,7 @@ class PypeIt:
             std_outfile = self.get_std_outfile(frame_indx[is_standard])
             # Reduce all the science frames; keep the basenames of the science
             # frames for use in flux calibration
-            science_basename = [None] * len(grp_science)
+            science_basename = [None]*len(grp_science)
             # Loop on unique comb_id
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
 
@@ -400,11 +403,11 @@ class PypeIt:
                 # the frames.  But this means it now won't skip processing the
                 # B-A pair when the background image(s) are defined.  Punting
                 # for now...
-                #                # Quicklook mode?
-                #                if self.par['rdx']['quicklook'] and j > 0:
-                #                    msgs.warn('PypeIt executed in quicklook mode.  Only reducing science frames '
-                #                              'in the first combination group!')
-                #                    break
+#                # Quicklook mode?
+#                if self.par['rdx']['quicklook'] and j > 0:
+#                    msgs.warn('PypeIt executed in quicklook mode.  Only reducing science frames '
+#                              'in the first combination group!')
+#                    break
                 #
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 # Find all frames whose comb_id matches the current frames bkg_id.
@@ -415,7 +418,7 @@ class PypeIt:
                 # syntax below would require that we could somehow list multiple
                 # numbers for the bkg_id which is impossible without a comma
                 # separated list
-                #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+#                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
 
                     # Build history to document what contributd to the reduced
@@ -431,7 +434,8 @@ class PypeIt:
                     # TODO: come up with sensible naming convention for
                     # save_exposure for combined files
                     if len(sci_spec2d.detectors) > 0:
-                        self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
+                        self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history,
+                                           skip_write_2d=self.par['scienceframe']['process']['skip_write_2d'])
                     else:
                         msgs.warn('No spec2d and spec1d saved to file because the '
                                   'calibration/reduction was not successful for all the detectors')
@@ -1162,7 +1166,9 @@ class PypeIt:
         # Return the value of the correction and the corrected wavelength image
         return vel_corr, waveimg
 
-    def save_exposure(self, frame, all_spec2d, all_specobjs, basename, history=None):
+    def save_exposure(self, frame:int, all_spec2d:spec2dobj.AllSpec2DObj,
+                      all_specobjs:specobjs.SpecObjs, basename:str, history:History=None,
+                      skip_write_2d:bool=False):
         """
         Save the outputs from extraction for a given exposure
 
@@ -1170,17 +1176,16 @@ class PypeIt:
             frame (:obj:`int`):
                 0-indexed row in the metadata table with the frame
                 that has been reduced.
-            all_spec2d(:class:`pypeit.spec2dobj.AllSpec2DObj`):
-            sci_dict (:obj:`dict`):
-                Dictionary containing the primary outputs of
-                extraction
+            all_spec2d(:class:`~pypeit.spec2dobj.AllSpec2DObj`):
+                The 2D reduced spectrum objects.
+            all_specobjs (:class:`~pypeit.specobjs.SpecObjs`):
+                The 1D spectral extraction objects.
             basename (:obj:`str`):
                 The root name for the output file.
-            history (:obj:`pypeit.history.History`):
+            history (:class:`~pypeit.history.History`), optional:
                 History entries to be added to fits header
-        Returns:
-            None or SpecObjs:  All of the objects saved to disk
-
+            skip_write_2d (:obj:`bool`), optional:
+                Skip writing the 2D spectrum to disk
         """
         # TODO: Need some checks here that the exposure has been reduced?
 
@@ -1191,8 +1196,8 @@ class PypeIt:
         head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
 
         # Check for the directory
-        if not os.path.isdir(self.science_path):
-            os.makedirs(self.science_path)
+        if not self.science_path.is_dir():
+            self.science_path.mkdir()
 
         # NOTE: There are some gymnastics here to keep from altering
         # self.par['rdx']['detnum'].  I.e., I can't just set update_det =
@@ -1210,25 +1215,28 @@ class PypeIt:
         # 1D spectra
         if all_specobjs.nobj > 0 and not self.par['reduce']['extraction']['skip_extraction']:
             # Spectra
-            outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
+            outfile1d = self.science_path / f'spec1d_{basename}.fits'
             # TODO
-            # embed(header='deal with the following for maskIDs;  713 of pypeit')
+            #embed(header='deal with the following for maskIDs;  713 of pypeit')
             all_specobjs.write_to_fits(subheader, outfile1d,
                                        update_det=update_det,
                                        slitspatnum=self.par['rdx']['slitspatnum'],
                                        history=history)
             # Info
-            outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
+            outfiletxt = self.science_path / f'spec1d_{basename}.txt'
             # TODO: Note we re-read in the specobjs from disk to deal with situations where
             # only a single detector is run in a second pass but in the same reduction directory.
             # Thiw was to address Issue #1116 in PR #1154. Slightly inefficient, but only other
             # option is to re-work write_info to also "append"
             sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
             sobjs.write_info(outfiletxt, self.spectrograph.pypeline)
-            # all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
+            #all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
+
+        if skip_write_2d:
+            return
 
         # 2D spectra
-        outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
+        outfile2d = self.science_path / f'spec2d_{basename}.fits'
         # Build header
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
                                                redux_path=self.par['rdx']['redux_path'],
@@ -1255,7 +1263,7 @@ class PypeIt:
         Print the elapsed time
         """
         # Capture the end time and print it to user
-        msgs.info(utils.get_time_string(time.perf_counter() - self.tstart))
+        msgs.info(utils.get_time_string(time.perf_counter()-self.tstart))
 
     # TODO: Move this to fitstbl?
     def show_science(self):

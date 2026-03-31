@@ -68,7 +68,7 @@ def write_imgproc_def_table(ofile, spec=None):
     lines = string_table(data_table, delimeter='rst')
     with open(ofile, 'w') as f:
         f.write(lines)
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 def main():
@@ -78,11 +78,6 @@ def main():
 
     ofile = output_root / 'imgproc_defaults_table.rst'
     write_imgproc_def_table(ofile)
-
-#    allspec = spectrograph_classes()
-#    for key, spec_c in allspec.items():
-#        ofile = output_root / f'imgproc_{key}_table.rst'
-#        write_imgproc_def_table(ofile, spec=spec_c())
 
 if __name__ == '__main__':
     main()

@@ -1089,7 +1089,7 @@ class DataContainer:
         #     cause trouble.
         #   - Hack to force native byte ordering
         for key in _d:
-            if isinstance(_d[key], np.chararray):
+            if isinstance(_d[key], np.char.chararray):
                 _d[key] = np.asarray(_d[key])
             elif isinstance(_d[key], np.ndarray) and _d[key].dtype.byteorder not in ['=', '|']:
                 _d[key] = _d[key].astype(_d[key].dtype.type)

@@ -2452,7 +2452,7 @@ class HolyGrail:
                 msgs.info('Cross-correlating bad slit # {:d}'.format(bs + 1) + ' with good slit # {:d}'.format(gs + 1))
                 # Match the peaks between the two spectra.
                 # spec_gs_adj is the stretched spectrum
-                success, shift_vec[cntr], stretch_vec[cntr], ccorr_vec[cntr], _, _ =  \
+                success, shift_vec[cntr], stretch_vec[cntr], _, ccorr_vec[cntr], _, _ =  \
                     wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs],
                                                 cc_thresh=cc_thresh, fwhm=fwhm, debug=self._debug,
                                                 stretch_func=self._par['stretch_func'])

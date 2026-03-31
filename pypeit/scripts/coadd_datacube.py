@@ -43,7 +43,7 @@ class CoAddDataCube(scriptbase.ScriptBase):
 
         # Read in the relevant information from the .coadd3d file
         coadd3dfile = inputfiles.Coadd3DFile.from_file(args.file)
-        spectrograph = load_spectrograph(coadd3dfile.config['rdx']['spectrograph'])
+        spectrograph = load_spectrograph(coadd3dfile.config['rdx']['spectrograph'], pypeit_fits=True)
 
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()

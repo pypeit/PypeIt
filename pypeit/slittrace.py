@@ -962,6 +962,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                 xoff = SPAT_PIXPOS - self.center[specmid, islit]
                 thisobj.TRACE_SPAT = self.center[:, islit] + xoff
                 thisobj.SPAT_PIXPOS = SPAT_PIXPOS
+                thisobj.SPAT_PIXPOS_ID = int(np.rint(thisobj.SPAT_PIXPOS))
                 thisobj.SPAT_FRACPOS = (SPAT_PIXPOS - left_tweak[specmid, islit]) / \
                                        (right_tweak[specmid, islit]-left_tweak[specmid, islit])
                 thisobj.trace_spec = np.arange(left_tweak.shape[0])
@@ -974,6 +975,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                 xoff = SPAT_PIXPOS - cut_sobjs[idx_nearest].TRACE_SPAT[specmid]
                 thisobj.TRACE_SPAT = cut_sobjs[idx_nearest].TRACE_SPAT + xoff
                 thisobj.SPAT_PIXPOS = SPAT_PIXPOS
+                thisobj.SPAT_PIXPOS_ID = int(np.rint(thisobj.SPAT_PIXPOS))
                 thisobj.trace_spec = cut_sobjs[idx_nearest].trace_spec
                 thisobj.SPAT_FRACPOS = (SPAT_PIXPOS - left_tweak[specmid, islit]) / \
                                        (right_tweak[specmid, islit]-left_tweak[specmid, islit])
@@ -986,7 +988,7 @@ class SlitTraceSet(calibframe.CalibFrame):
 
             # FWHM
             thisobj.FWHM = fwhm  # pixels
-            thisobj.BOX_RADIUS = boxcar_rad  # pixels
+            thisobj.BOX_R_PIX = boxcar_rad  # pixels
             thisobj.maskwidth = 4. * fwhm  # matches objfind() in extract.py
             thisobj.smash_snr = 0.
             thisobj.smash_peakflux = 0.

@@ -3,7 +3,11 @@ Module for MMT/BINOSPEC specific methods.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
+from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -13,6 +17,7 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
@@ -218,15 +223,20 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -235,18 +245,19 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        grating = self.get_meta_value(scifile, 'dispname')
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
 
-        if grating == 'x270':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_270.fits'
-
-        if grating == 'x600':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_600.fits'
-
-        if grating == 'x1000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_1000.fits'
+        match grating:
+            case 'x270':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_270.fits'
+            case 'x600':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_600.fits'
+            case 'x1000':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_1000.fits'
 
         return par
 

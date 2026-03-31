@@ -3,16 +3,23 @@ Module for Gemini/GNIRS specific methods.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 from astropy import wcs, units
-from astropy.coordinates import SkyCoord, EarthLocation
+from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch, parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
+
+from IPython import embed
 
 
 class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
@@ -29,9 +36,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         super().__init__()
 
-        # TODO :: Might consider changing TelescopePar to use the astropy EarthLocation.
-        self.location = EarthLocation.of_site('Gemini North')
-
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
@@ -47,6 +51,14 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+
+        pscale = 0.15 # arcsec/pixel # this is the value for the short camera position only
+        if hdu:
+            camera_pos = self.get_meta_value(self.get_headarr(hdu), 'camera_pos')
+            if 'Long' in camera_pos:
+                pscale = 0.05
+
+
         # Detector 1
         detector_dict = dict(
             binning         = '1,1',
@@ -55,7 +67,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             specaxis        = 0,
             specflip=True,
             spatflip=True,
-            platescale      = 0.15,
+            platescale      = pscale,
             darkcurr        = 540.0,  # e-/hour/pixel  (=0.15 e-/pixel/s)
             saturation      = 150000.,
             nonlinear       = 0.71,
@@ -93,6 +105,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Extras for config and frametyping
         self.meta['filter1'] = dict(ext=0, card='FILTER2')
+        # long or short camera position (they have different plate-scale)
+        self.meta['camera_pos'] = dict(ext=0, card='CAMERA')
         self.meta['slitwid'] = dict(ext=0, compound=True, card=None)
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['hatch'] = dict(ext=0, card='COVER')
@@ -198,7 +212,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['SLIT', 'GRATING', 'GRATTILT']
+        return ['SLIT', 'GRATING', 'GRATTILT', 'CAMERA']
 
     def pypeit_file_keys(self):
         """
@@ -209,7 +223,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['dithoff']
+        return super().pypeit_file_keys() + ['camera_pos', 'dithoff']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -301,15 +315,20 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -318,10 +337,16 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        # TODO This is a hack for now until we figure out how to set dispname
-        # and other meta information in the spectrograph class itself
-        self.dispname = self.get_meta_value(scifile, 'dispname')
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # TODO The ``self.``` are hacks for now until we figure out how to set
+        #      dispname and other meta information in the spectrograph class itself
+
+        # Adjust parameters based on grating and camera position
+        self.dispname = self.get_meta_value(inp, 'dispname')
+        self.camera_pos = self.get_meta_value(inp, 'camera_pos')
+
         # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
         if '32/mm' in self.dispname:
             # Edges
@@ -435,15 +460,20 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
     pypeline = 'Echelle'
     ech_fixed_format = True
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -452,10 +482,14 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        # TODO This is a hack for now until we figure out how to set dispname
-        # and other meta information in the spectrograph class itself
-        self.dispname = self.get_meta_value(scifile, 'dispname')
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # NOTE: The super() method sets ``self.dispname``
+
+        # TODO The ``self.``` are hacks for now until we figure out how to set
+        #      dispname and other meta information in the spectrograph class itself
+
         # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
         if '32/mm' in self.dispname:
             # Edges
@@ -475,6 +509,7 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
 
             # Tilts
             par['calibrations']['tilts']['tracethresh'] = [5.0, 10, 10, 10, 10, 10]
+
         # 10/mmLBSX_G5532 setup, covering YJHK with the long blue camera and SXD prism
         elif '10/mmLBSX' in self.dispname:
             # Edges
@@ -490,6 +525,7 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
 
             # Tilts
             par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10]
+
         else:
             msgs.error('Unrecognized GNIRS dispname')
 
@@ -509,14 +545,12 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        # TODO: Binning is ignored.  Should it be?
-        self.check_disperser()
-        if '10/mmLBSX' in self.dispname:
+        # # TODO: Binning is ignored.  Should it be?
+        # The platescale is different for different camera position, not dispname.
+        if self.camera_pos is not None and 'Long' in self.camera_pos:
             return np.full(order_vec.size, 0.05)
-        elif '32/mm' in self.dispname:
-            return np.full(order_vec.size, 0.15)
         else:
-            msgs.error('Unrecognized disperser')
+            return np.full(order_vec.size, 0.15)
 
     @property
     def norders(self):
@@ -645,15 +679,20 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -662,24 +701,28 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        # Obtain a header keyword to determine which range is being used
-        filter = self.get_meta_value(scifile, 'filter1')
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on filter used
+        filter = self.get_meta_value(inp, 'filter1')
+
         par['calibrations']['slitedges']['edge_thresh'] = 30.
         # TODO :: The following wavelength solutions are not general enough - need to implement a solution for each setup+grating
         # TODO BEFORE PR MERGE :: The full_template solutions below were generated (quickly!) from holy-grail... might want to redo this...
-        if filter == 'X_G0518':  # H band
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-        elif filter == 'J_G0517':  # K band
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-        elif filter == 'H_G0516':  # H band
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_lrifu_H.fits'
-        elif filter == 'K_G0515':  # K band
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_lrifu_K.fits'
-        else:
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        match filter:
+            case 'X_G0518':  # H band
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            case 'J_G0517':  # K band
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            case 'H_G0516':  # H band
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_lrifu_H.fits'
+            case 'K_G0515':  # K band
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_lrifu_K.fits'
+            case _:
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         return par
 
@@ -826,4 +869,24 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['filter']
+        return super().pypeit_file_keys() + ['filter1']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return super().raw_header_cards() + ['FILTER2']

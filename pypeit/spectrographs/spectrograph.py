@@ -33,14 +33,16 @@ from IPython import embed
 
 import numpy as np
 from astropy.io import fits
-from astropy import units
+from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
-from pypeit.core import flux_calib
+from pypeit.core import standard
+from pypeit.core.atmextinction import AtmosphericExtinction
+from pypeit.par import parset
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -187,15 +189,41 @@ class Spectrograph:
         par['rdx']['spectrograph'] = cls.name
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
+        This method performs a check that ``inp`` is not ``None``.
+
+        This method may be called with either a row from the metadata table
+        (sent as a single-row Table, usually from the PypeIt Reduction File)
+        or a filename/Header (used in certain scripts to populate configuration
+        parameters).  The boilerplate below should be included at the start of
+        all subclassing spectrograph class methods:
+
+        ::
+
+            # Start with instrument-wide parameters
+            par = super().config_specific_par(inp, inp_par=inp_par)
+
+            # Adjust parameters based on settings used
+            grating = self.get_meta_value(inp, 'dispname')
+            binning = self.get_meta_value(inp, 'binning')
+
+        where the specific metadata keys are those needed by the specific
+        instantiation of this method (``grating`` and ``binning`` used here as
+        examples only).
+
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -204,6 +232,8 @@ class Spectrograph:
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
+        if inp is None:
+            msgs.error("You have not included a standard or science file in your PypeIt file to determine the configuration")
         return self.__class__.default_pypeit_par() if inp_par is None else inp_par
 
     def update_edgetracepar(self, par):
@@ -320,6 +350,7 @@ class Spectrograph:
         """
         if self.allowed_extensions is not None:
             _filename = Path(filename).absolute()
+            # Perform the extensions check
             if not any([_filename.name.endswith(ext) for ext in self.allowed_extensions]):
                 msgs.error(f'The input file ({_filename.name}) does not have a recognized '
                            f'extension.  The allowed extensions for '
@@ -429,8 +460,9 @@ class Spectrograph:
                 if not allow_missing:
                     msgs.error(f"Core Meta Key: {key} not present in your fitstbl/Header")
         # Configuration Keys -- In addition to Core Meta,
-        #   other Config-Specific values; optional
-        for key in self.configuration_keys():
+        #   other Config-Specific values and keys listed in the PypeIt File;
+        #   OPTIONAL
+        for key in self.configuration_keys() + self.pypeit_file_keys():
             if key not in subheader:
                 try:
                     subheader[key] = row_fitstbl[key]
@@ -448,6 +480,21 @@ class Spectrograph:
         for card in header_cards:
              if card in raw_header.keys():
                  subheader[card] = raw_header[card]  # Self-assigned instrument name
+
+        # The following are added for SlicerIFU spectrographs, as they are
+        #   needed by the coadd3d routine
+        if self.pypeline == "SlicerIFU":
+            slicer_keys = [
+                "slitwid", "airmass", "parangle", "pressure", "temperature", "humidity"
+            ]
+            for key in slicer_keys:
+                if key not in subheader:
+                    try:
+                        subheader[key] = row_fitstbl[key]
+                    except KeyError:
+                        msgs.error(
+                            f"Required SlicerIFU keyword {key} not present in your fitstbl/Header"
+                        )
 
         # Specify which pipeline created this file
         subheader['PYPELINE'] = self.pypeline
@@ -705,6 +752,33 @@ class Spectrograph:
         Empty for base class.  See derived classes.
         """
         return None
+    
+    def get_atmospheric_extinction(self, extinct_file):
+        """
+        Return the atmospheric extinction model.
+
+        Parameters
+        ----------
+        extinct_file : str
+            Either (1) one of the extintion files provided by pypeit (see
+            :ref:`extinction_correction`), (2) the path to a local file on disk,
+            or (3) set ``extinct_file='closest'`` to have the code find the most
+            relevant extinction data based on the longitude and latitude of the
+            telescope.
+
+        Returns
+        -------
+        :class:`~pypeit.core.atmextinction.AtmosphericExtinction`
+            Class that provides the interface to the atmospheric extinction data.
+        """
+        if extinct_file == 'closest':
+            # TODO: We shouldn't have to find the closest extinction data every
+            # time.  The lon/lat of the telescopes are hard-coded, so we just
+            # have a default extinct_file.
+            return AtmosphericExtinction.from_coordinates(
+                self.telescope['longitude'], self.telescope['latitude']
+            )
+        return AtmosphericExtinction.from_file(extinct_file)
 
     def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
                                   corners=False):
@@ -1336,11 +1410,11 @@ class Spectrograph:
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, `Path`_, `astropy.io.fits.Header`_, :obj:`list`):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
                 Input filename, an `astropy.io.fits.Header`_ object, or a list
-                of `astropy.io.fits.Header`_ objects.  If None, function simply
-                returns None without issuing any warnings/errors, unless
-                ``required`` is True.
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table. If None, function simply returns None without
+                issuing any warnings/errors, unless ``required`` is True.
             meta_key (:obj:`str`, :obj:`list`):
                 A (list of) string(s) with the keywords to read from the file
                 header(s).
@@ -1373,7 +1447,20 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
-        if isinstance(inp, (str, Path, fits.HDUList)):
+        headarr = None
+
+        # If the input is a metadata table, return the desired value
+        if isinstance(inp, Table):
+            try:
+                return inp[meta_key][0]
+            except KeyError:
+                # If the key is not present (e.g., this is an older PypeIt file
+                #   and we are striving for backwards-compatability), get the
+                #   filename from the table row and proceed as below.
+                headarr = self.get_headarr(inp['filename'][0])
+
+        # Otherwise, this set of statements pulls the Header array for the file in question
+        elif isinstance(inp, (str, Path, fits.HDUList)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
             headarr = inp
@@ -1381,7 +1468,7 @@ class Spectrograph:
             headarr = [inp]
         else:
             msgs.error(f'Unrecognized type for input: {type(inp)}')
-        
+
         if headarr is None:
             if required:
                 msgs.error(f'Unable to access required metadata value for {meta_key}.  Input is '
@@ -1399,6 +1486,12 @@ class Spectrograph:
             else:
                 msgs.warn("Requested meta data for meta_key={} does not exist...".format(meta_key))
                 return None
+
+        # If we are pulling metadata from a PypeIt-produced file (e.g., spec2d_*.fits),
+        #   then we KNOW that the desired metadata key exists as a FITS keyword already.
+        #   Return it now and skip all the gynmastics
+        if headarr[0].get('PIPELINE','').strip() == 'PYPEIT':
+            return headarr[0][meta_key.upper()]
 
         # Is this meta required for this frame type (Spectrograph specific)
         if 'required_ftypes' in self.meta[meta_key] and usr_row is not None:
@@ -1720,7 +1813,9 @@ class Spectrograph:
                 if ra == 'None' or dec == 'None' or np.isnan(ra) or np.isnan(dec):
                     is_std = np.append(is_std, False)
                 else:
-                    is_std = np.append(is_std, flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True))
+                    is_std = np.append(is_std, 
+                        standard.get_archive_standard(ra, dec, tol=10., check=True)
+                    )
 
             foundstd = indx & is_std
             # turn off the science flag for frames that are found to be standard stars and
@@ -1909,7 +2004,8 @@ class Spectrograph:
         """
         msgs.error(f'Method to match slits across detectors not defined for {self.name}')
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                       trim_std_pixs=None, log10_blaze_function=None):
         """
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
         function fits will be well behaved. For example, masking second order light. For instruments that don't
@@ -1927,9 +2023,13 @@ class Spectrograph:
         gpm_in: `numpy.ndarray`_
             Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
         meta_table: :obj:`dict`
-            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            Table containing metadata that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
         log10_blaze_function: `numpy.ndarray`_ or None
             Input blaze function to be tweaked, optional. Default=None.
 
@@ -1946,7 +2046,32 @@ class Spectrograph:
         log10_blaze_function_out: `numpy.ndarray`_ or None
             Output blaze function after being tweaked.
         """
-        return wave_in, counts_in, counts_ivar_in, gpm_in, log10_blaze_function
+        wave_out = wave_in.copy()
+        counts_out = counts_in.copy()
+        counts_ivar_out = counts_ivar_in.copy()
+        gpm_out = gpm_in.copy()
+        log10_blaze_function_out = log10_blaze_function.copy() if log10_blaze_function is not None else None
+
+        if trim_std_pixs is not None:
+            # make sure that the trim_pixs is a list of 2 integers
+            if not isinstance(trim_std_pixs, (list, tuple)) or len(trim_std_pixs) != 2:
+                msgs.error("trim_std_pixs must be a list or tuple of two integers.")
+            # Mask the first and last trim_std_pixs pixels
+            s = int(trim_std_pixs[0])
+            e = int(trim_std_pixs[1])
+            trim_gpm = np.zeros_like(wave_out, dtype=bool)
+            trim_gpm[s:-e] = True
+
+            # Set the wave, counts, gpm, inverse variance and log10 blaze to zero in the masked pixels
+            msgs.info('Trimming standard star spectrum by {:d} pixels at the start and {:d} pixels at the end.'.format(s, e))
+            wave_out = wave_out* trim_gpm
+            counts_out = counts_out * trim_gpm
+            counts_ivar_out = counts_ivar_out * trim_gpm
+            gpm_out = gpm_out & trim_gpm
+            if log10_blaze_function_out is not None:
+                log10_blaze_function_out = log10_blaze_function_out * trim_gpm
+
+        return wave_out, counts_out, counts_ivar_out, gpm_out, log10_blaze_function_out
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
         """

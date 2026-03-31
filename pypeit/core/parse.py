@@ -466,3 +466,7 @@ def fix_config_par_image_location(par):
     # and instead split at the semi-colon and remove leading/trailing whitespace:
     return list(map(str.strip, (','.join(_par)).split(';')))
 
+
+def flip_fits_slice(s: str) -> str:
+    return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
+

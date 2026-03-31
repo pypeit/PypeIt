@@ -52,6 +52,8 @@ class LinesBitMask(BitMask):
             ('ThAr', 'Comment'),
             ('OH', 'Comment'),
             ('UNKNWN', 'Comment'),
+            # Same as UNKNWN, added for subaru_focas
+            ('XX1', 'Comment'),
             #('OH_R24000', 'Comment'),
             #('OH_triplespec', 'Comment'),
             ('CuI', 'Comment'),
