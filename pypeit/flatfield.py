@@ -40,7 +40,7 @@ from pypeit.core.mosaic import build_image_mosaic
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import dataPaths
-from pypeit import cache
+from pypeit.pkg import cache
 
 
 class FlatImages(calibframe.CalibFrame):

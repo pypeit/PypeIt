@@ -1,7 +1,7 @@
-pypeit.exceptions module
+pypeit.pkg.logger module
 ========================
 
-.. automodule:: pypeit.exceptions
+.. automodule:: pypeit.pkg.logger
    :members:
    :private-members:
    :show-inheritance:
