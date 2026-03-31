@@ -24,7 +24,7 @@ def test_shanekastblue():
     example_file = dataPaths.tests.get_file_path('b1.fits.gz')
     # TODO: I think this is a redundant test because get_file_path checks that
     # the file exists
-    assert Path(example_file).is_file, 'Could not find example file for Shane Kast blue read.'
+    assert Path(example_file).is_file(), 'Could not find example file for Shane Kast blue read.'
     det=1
     _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)

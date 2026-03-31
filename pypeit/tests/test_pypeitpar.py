@@ -7,12 +7,9 @@ from IPython import embed
 
 import pytest
 
-#from pypeit.par import oldparset
-#from pypeit.par import oldpypeitpar
 from pypeit.par import pypeitpar
 from pypeit.par import parset
 from pypeit.spectrographs.util import load_spectrograph
-
 
 
 # NOTE: FrameGroupPar is now an abstract class that faults when you try to
@@ -55,12 +52,6 @@ def test_sensfuncuvis():
 
 def test_telluric():
     pypeitpar.TelluricPar()
-
-# TODO: Valid spectrographs are not longer read by pypeit.pypeitpar; it causes
-# a circular import.
-#def test_spectrographs():
-#    s = pypeitpar.ReduxPar.valid_spectrographs()
-#    assert 'keck_lris_blue' in s, 'Expected to find keck_lris_blue as a spectrograph!'
 
 def test_redux():
     pypeitpar.ReduxPar()

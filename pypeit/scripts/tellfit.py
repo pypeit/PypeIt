@@ -72,7 +72,6 @@ class TellFit(scriptbase.ScriptBase):
         from pypeit import log
         from pypeit import PypeItError
         from pypeit import dataPaths
-        #from pypeit.par import pypeitpar
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core import telluric
         from pypeit import inputfiles

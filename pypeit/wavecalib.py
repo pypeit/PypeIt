@@ -256,7 +256,6 @@ class WaveCalib(calibframe.CalibFrame):
         if self._par is None:
             self._par = pypeitpar.WavelengthSolutionPar.from_dict(ast.literal_eval(self.strpar))
         return self._par
-#        return json.loads(self.strpar)
 
     def chk_synced(self, slits):
         """
@@ -1194,11 +1193,7 @@ class BuildWaveCalib:
                     self.slits.mask[wv_masked], 'BADWVCALIB')
 
         # Pack up
-#        sv_par = self.par.data.copy()
-#        j_par = jsonify(sv_par)
-#        self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
         self.wv_calib['strpar'] = str(self.par.to_dict())
-
         return self.wv_calib
 
 
