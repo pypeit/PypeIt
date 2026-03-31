@@ -7,7 +7,7 @@ The view portion of the PypeIt Setup GUI.  Responsible for displaying informatio
 from pathlib import Path
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
-from qtpy.QtWidgets import QMenu, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QStyleOptionButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
+from qtpy.QtWidgets import QMainWindow, QMenu, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QStyleOptionButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
 from qtpy.QtWidgets import QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate, QSplitter
 from qtpy.QtGui import QDesktopServices, QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
 from qtpy.QtCore import Qt, QUrl, QObject, QEvent, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
@@ -1441,7 +1441,7 @@ class TabManagerWidget(QTabWidget):
         close_button.hide()
 
 
-class SetupGUIMainWindow(QWidget):
+class SetupGUIMainWindow(QMainWindow):
     """Main window widget for the PypeIt Setup GUI
 
     Args:
@@ -1449,10 +1449,11 @@ class SetupGUIMainWindow(QWidget):
         controller (:class:`pypeit.setup_gui.controller.SetupGUIController`): The controller for the PypeitSetupGUI.
     """
 
+    helpURL = QUrl("https://pypeit.readthedocs.io/en/stable/tutorials/setup_gui.html")
+
     def __init__(self, model, controller):
         super().__init__(parent=None)
 
-        self.layout = QVBoxLayout(self)
         self.model = model    
         self.controller = controller
 
@@ -1471,13 +1472,19 @@ class SetupGUIMainWindow(QWidget):
         self.model.obslog_model.spectrograph_changed.connect(self.update_new_file_allowed)
         self.update_new_file_allowed()
 
-        self.layout.addWidget(self.tab_widget)
+        self.setCentralWidget(self.tab_widget)
 
         # Monitor the current tab
         self._current_tab = self._obs_log_tab
 
-        # Create the row of buttons for user actions
-        self.layout.addLayout(self._create_button_box())
+        self._tool_bar = self.addToolBar("")
+        self._tool_bar.setFloatable(False)
+        self._tool_bar.setAllowedAreas(Qt.TopToolBarArea | Qt.BottomToolBarArea)
+        self._populate_toolbar_and_menu()
+
+        # Setup may have already been run from the command line, so update button status on init
+        self.update_setup_button()
+        self.update_buttons_from_model_state()
 
         # For viewing the log
         self._logWindow = None
@@ -1508,11 +1515,13 @@ class SetupGUIMainWindow(QWidget):
                                                                progress dialog.
         """
         log.info(f"Starting operation {op_caption} max progress: {max_progress_value}")
-        self.current_op_progress_dialog = QProgressDialog(self.tr(op_caption), None, 0, max_progress_value, parent=self)
+        self.current_op_progress_dialog = QProgressDialog(self.tr(op_caption), self.tr("Cancel"), 0, max_progress_value, parent=self)
         self.current_op_progress_dialog.setMinimumWidth(380)
         self.current_op_progress_dialog.setWindowTitle(op_caption)
-        self.current_op_progress_dialog.setMinimumDuration(1000)
-        self.current_op_progress_dialog.setValue(0)            
+        self.current_op_progress_dialog.setMinimumDuration(500)
+        self.current_op_progress_dialog.setValue(0)
+        self.current_op_progress_dialog.setWindowModality(Qt.WindowModal)
+            
         self.current_op_progress_dialog.canceled.connect(cancel_func)
 
     def show_operation_progress(self, increase, message=None):
@@ -1526,8 +1535,9 @@ class SetupGUIMainWindow(QWidget):
         log.info(f"dialog is none {self.current_op_progress_dialog is None}")
         if self.current_op_progress_dialog is not None:
             log.info(f"increase {increase} message{message} current value {self.current_op_progress_dialog.value()}")
-            self.current_op_progress_dialog.setValue(self.current_op_progress_dialog.value() + increase)
-            if message is not None:
+            if self.current_op_progress_dialog.maximum() > 0:
+                self.current_op_progress_dialog.setValue(self.current_op_progress_dialog.value() + increase)
+            if message is not None and message != self.current_op_progress_dialog.labelText():
                 self.current_op_progress_dialog.setLabelText(message)
 
     def operation_complete(self):
@@ -1537,6 +1547,7 @@ class SetupGUIMainWindow(QWidget):
         log.info(f"Ending operation, dialog is none {self.current_op_progress_dialog is None}")
         if self.current_op_progress_dialog is not None:
             self.current_op_progress_dialog.done(QDialog.Accepted)
+            self.current_op_progress_dialog.close()
             self.current_op_progress_dialog = None
 
     def update_save_tab_button(self):
@@ -1544,9 +1555,9 @@ class SetupGUIMainWindow(QWidget):
         current selected tab."""
         tab = self.tab_widget.currentWidget()
         if tab.name == "ObsLog":
-            self.saveTabButton.setEnabled(False)
+            self.saveTabAction.setEnabled(False)
         else:
-            self.saveTabButton.setEnabled(tab.state != ModelState.UNCHANGED)
+            self.saveTabAction.setEnabled(tab.state != ModelState.UNCHANGED)
 
     def update_setup_button(self):
         """Enable/disable the setup button based on whether a spectrograph and raw
@@ -1556,14 +1567,14 @@ class SetupGUIMainWindow(QWidget):
         log.info(f"Checking setup button status spec: {self.model.obslog_model.spec_name} dirs {self.model.obslog_model.raw_data_directories}")
         if (self.model.obslog_model.spec_name is not None and
             len(self.model.obslog_model.raw_data_directories) > 0):
-            self.setupButton.setEnabled(True)
+            self.setupAction.setEnabled(True)
         else:
-            self.setupButton.setEnabled(False)
+            self.setupAction.setEnabled(False)
 
     def update_buttons_from_model_state(self):
         """Update the enabled/disabled state of buttons based on the model state."""
-        self.saveAllButton.setEnabled(self.model.state==ModelState.CHANGED)
-        self.clearButton.setEnabled(self.model.state!=ModelState.NEW)
+        self.saveAllAction.setEnabled(self.model.state==ModelState.CHANGED)
+        self.clearAction.setEnabled(self.model.state!=ModelState.NEW)
         self.update_save_tab_button()
 
     def _closeRequest(self, index):
@@ -1589,73 +1600,108 @@ class SetupGUIMainWindow(QWidget):
     def _helpButton(self):
         """Signal handler that responds to the help button being pressed."""
 
-        result = QDesktopServices.openUrl(QUrl("https://pypeit.readthedocs.io/en/latest/"))
+        result = QDesktopServices.openUrl(self.helpURL)
         if result:
             log.info("Opened PypeIT docs.")
         else:
-            log.warning("Failed to open PypeIt docs at 'https://pypeit.readthedocs.io/en/latest/'")
+            log.warning(f"Failed to open PypeIt docs at '{self.helpURL}'")
 
-    def _create_button_box(self):
-        """Create the box with action buttons.
-        
-        Returns:
-            QWidget: The widget with the action buttons for the GUI."""
-            
-        button_layout = QHBoxLayout()
+    def _populate_toolbar_and_menu(self):
+        """Populate the tool bar and menu bar by creating actions for the functionality accessible from the main window."""
+    
+        # Create buttons for the toolbar and associated actions
+        # We use the QPushButton instead of the QToolButton because it looks better.
+        button = QPushButton(self.tr("&Open"))
+        button.setToolTip(self.tr("Open a .pypeit file."))
+        self.openAction = self._tool_bar.addWidget(button)
+        self.openAction.setText(button.text())
+        self.openAction.setToolTip(button.toolTip())
+        button.clicked.connect(self.openAction.triggered)
+        self.openAction.triggered.connect(self.controller.open_pypeit_file)
 
-        button = QPushButton(text = 'Open')
-        button.setToolTip("Open a .pypeit file.")
-        button.clicked.connect(self.controller.open_pypeit_file)
-        button_layout.addWidget(button)
-        self.openButton = button
+        button = QPushButton(self.tr("&Clear"))
+        button.setToolTip(self.tr("Clear everything and start with a blank slate."))
+        self.clearAction = self._tool_bar.addWidget(button)
+        self.clearAction.setText(button.text())
+        self.clearAction.setToolTip(button.toolTip())
+        self.clearAction.setEnabled(False)
+        button.clicked.connect(self.clearAction.triggered)
+        self.clearAction.triggered.connect(self.controller.clear)
 
-        button = QPushButton(text = 'Clear')
-        button.setToolTip("Clear everything and start with a blank slate.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.clear)
-        button_layout.addWidget(button)
-        self.clearButton = button
+        button = QPushButton(self.tr('&Run Setup'))
+        button.setToolTip(self.tr("Scan the raw data and create a .pypeit file for each unique configuration."))
+        self.setupAction = self._tool_bar.addWidget(button)
+        self.setupAction.setText(button.text())
+        self.setupAction.setToolTip(button.toolTip())
+        self.setupAction.setEnabled(False)
+        button.clicked.connect(self.setupAction.triggered)
+        self.setupAction.triggered.connect(self.controller.run_setup)
 
-        button = QPushButton(text = 'Run Setup')
-        button.setToolTip("Scan the raw data and setup a .pypeit file for unique configuration.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.run_setup)
-        button_layout.addWidget(button)
-        self.setupButton = button
+        button = QPushButton(self.tr('&Save Tab'))
+        button.setToolTip(self.tr("Save the current tab."))
+        self.saveTabAction = self._tool_bar.addWidget(button)
+        self.saveTabAction.setText(button.text())
+        self.saveTabAction.setToolTip(button.toolTip())
+        self.saveTabAction.setEnabled(False)
+        button.clicked.connect(self.saveTabAction.triggered)
+        self.saveTabAction.triggered.connect(self.controller.save_one)
 
+        button = QPushButton(self.tr('Save &All'))
+        button.setToolTip(self.tr("Save all tabs with unsaved changes."))
+        self.saveAllAction = self._tool_bar.addWidget(button)
+        self.saveAllAction.setText(button.text())
+        self.saveAllAction.setToolTip(button.toolTip())
+        self.saveAllAction.setEnabled(False)
+        button.clicked.connect(self.saveAllAction.triggered)
+        self.saveAllAction.triggered.connect(self.controller.save_all)
 
-        button = QPushButton(text = 'Save Tab')
-        button.setToolTip("Save the curretly active tab.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.save_one)
-        button_layout.addWidget(button)
-        self.saveTabButton = button
+        # Create a spacer widget with horizontal size policy set to stretch, so that the
+        # remainder of the buttons are on the right side of the window
+        spacerWidget = QWidget()
+        spacerWidget.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Preferred)
+        self._tool_bar.addWidget(spacerWidget)
 
-        button = QPushButton(text = 'Save All')
-        button.setToolTip("Save all tabs with unsaved changes.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.save_all)
-        button_layout.addWidget(button)
-        self.saveAllButton = button
+        button = QPushButton(self.tr('&Help'))
+        button.setToolTip(self.tr("Opens PypeIt online documentation."))
+        self.helpAction = self._tool_bar.addWidget(button)
+        self.helpAction.setText(button.text())
+        self.helpAction.setToolTip(button.toolTip())
+        button.clicked.connect(self.helpAction.triggered)
+        self.helpAction.triggered.connect(self._helpButton)
 
-        button_layout.addStretch()
+        button = QPushButton(self.tr('View &log'))
+        button.setToolTip(self.tr("Opens a window containing the log."))
+        self.viewLogAction = self._tool_bar.addWidget(button)
+        self.viewLogAction.setText(button.text())
+        self.viewLogAction.setToolTip(button.toolTip())
+        button.clicked.connect(self.viewLogAction.triggered)
+        self.viewLogAction.triggered.connect(self._showLog)
 
-        button = QPushButton(text = 'Help')
-        button.setToolTip("Opens PypeIt online documentation.")        
-        button.clicked.connect(self._helpButton)
-        button_layout.addWidget(button)
-        self.helpButton = button
+        button = QPushButton(self.tr('E&xit'))
+        button.setToolTip(self.tr("Quits this application."))
+        self.exitAction = self._tool_bar.addWidget(button)
+        self.exitAction.setText(button.text())
+        self.exitAction.setToolTip(button.toolTip())
+        button.clicked.connect(self.exitAction.triggered)
+        self.exitAction.triggered.connect(self.controller.exit)
 
-        button = QPushButton(text = 'View log')
-        button.setToolTip("Opens a window containing the log.")
-        button.clicked.connect(self._showLog)
-        button_layout.addWidget(button)
-        self.logButton = button
+        # Now create the menu bar, using the already created actions
+        self._menu = self.menuBar()    
+        file_menu = self._menu.addMenu("&File")
+        file_menu.addAction(self.openAction)
+        file_menu.addAction(self.saveTabAction)
+        file_menu.addAction(self.saveAllAction)
+        file_menu.addSeparator()
+        file_menu.addAction(self.clearAction)
+        file_menu.addSeparator()
+        file_menu.addAction(self.exitAction)
 
-        button = QPushButton(text = 'Exit')
-        button.setToolTip("Quits this application.")
-        button.clicked.connect(self.controller.exit)
-        button_layout.addWidget(button)
+        run_menu = self._menu.addMenu("&Run") 
+        run_menu.addAction(self.setupAction)
+
+        help_menu = self._menu.addMenu("&Help")
+        help_menu.addAction(self.helpAction)
+        help_menu.addAction(self.viewLogAction)
 
         # Monitor when new files are added and removed,
         # so we can update buttons.
@@ -1672,10 +1718,6 @@ class SetupGUIMainWindow(QWidget):
         # Monitor the application's NEW/CHANGED/UNCHANGED state to enable/disable buttons
         self.model.stateChanged.connect(self.update_buttons_from_model_state)
 
-        # Setup may have already been run from the command line, so update button status on init
-        self.update_setup_button()
-        self.update_buttons_from_model_state()
-        return button_layout
 
     def create_file_tabs(self, pypeit_file_models):
         """
