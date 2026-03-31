@@ -12,8 +12,8 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit.spectrographs import available_spectrographs
 from pypeit.scripts import scriptbase
+from pypeit.spectrographs.util import available_spectrographs
 
 
 class ObsLog(scriptbase.ScriptBase):

@@ -10,6 +10,8 @@ from ginga.modes.plot2d import Plot2DMode
 
 # Note inheritance from Plot2DMode, which already defines many callbacks
 #
+# IMPORTANT: If you change the key bindings, make sure you update both the
+# docstring here **and** the text in `doc/out_spec1D.rst`.
 class Spec1DMode(Plot2DMode):
     """
     Spec1DMode enables special bindings for viewing PypeIt spec1d files.
