@@ -16,11 +16,11 @@ from astropy.table import Table
 from astropy import convolution
 from astropy import constants
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import cache
 from pypeit import utils
 from pypeit.core import arc
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 from IPython import embed
 
@@ -78,7 +78,7 @@ def get_delta_wave(wave, wave_gpm, frac_spec_med_filter=0.03):
     """
     # Check input
     if wave.ndim != 1:
-        msgs.error('Input wavelength array must be 1D.')
+        raise PypeItError('Input wavelength array must be 1D.')
 
     nspec = wave.size
     # This needs to be an odd number
@@ -123,14 +123,14 @@ def get_sampling(waves, pix_per_R=3.0):
         elif waves.ndim == 2:
             waves_out = utils.array_to_explist(waves)
         else:
-            msgs.error('Array inputs can only be 1D or 2D')
+            raise PypeItError('Array inputs can only be 1D or 2D')
     elif isinstance(waves, list):
         ndim = np.array([wave.ndim for wave in waves], dtype=int)
         if np.any(ndim > 1):
-            msgs.error('Input list can only contain 1D arrays')
+            raise PypeItError('Input list can only contain 1D arrays')
         waves_out = waves
     else:
-        msgs.error('Input must be a list or numpy.ndarray')
+        raise PypeItError('Input must be a list or numpy.ndarray')
 
     wave_diff_flat = []
     dloglam_flat = []
@@ -144,7 +144,7 @@ def get_sampling(waves, pix_per_R=3.0):
     dloglam = np.median(dloglam_flat)
     # Check that this won't introduce a divide by zero
     if dloglam == 0.0:
-        msgs.error('The wavelength sampling has zero spacing in log wavelength. This is not supported.')
+        raise PypeItError('The wavelength sampling has zero spacing in log wavelength. This is not supported.')
     # Compute a guess of the resolution
     resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
     pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
@@ -245,7 +245,7 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
 
         if wave_method in ['velocity', 'log10']:
             if dv is not None and dloglam is not None:
-                msgs.error('You can only specify dv or dloglam but not both')
+                raise PypeItError('You can only specify dv or dloglam but not both')
             elif dv is not None:
                 dloglam_pix = dv/c_kms/np.log(10.0)
             elif dloglam is not None:
@@ -288,9 +288,9 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
             wave_grid = np.power(10.0,newloglam)
 
         elif wave_method == 'iref': # Use the iref index wavelength array
-            msgs.info(f'iref for the list is set to {iref}')
-            msgs.info(f'The shape of the list is: {np.shape(waves)}')
-            msgs.info(f'shape of the first wave_grid in the list is: {np.shape(waves[iref])}')
+            log.info(f'iref for the list is set to {iref}')
+            log.info(f'The shape of the list is: {np.shape(waves)}')
+            log.info(f'shape of the first wave_grid in the list is: {np.shape(waves[iref])}')
             wave_tmp = waves[iref]
             wave_grid = wave_tmp[wave_tmp > 1.0]
             if spec_samp_fact != 1: # adjust sampling via internal interpolation
@@ -301,7 +301,7 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
                 wave_grid = wave_tmp
 
         else:
-            msgs.error("Bad method for wavelength grid: {:s}".format(wave_method))
+            raise PypeItError("Bad method for wavelength grid: {:s}".format(wave_method))
 
 
     if wave_method in ['iref', 'concatenate', 'user_input']:
@@ -455,7 +455,7 @@ def zerolag_shift_stretch(theta, y1, y2, stretch_func = 'quadratic'):
     corr_zero = np.sum(y1*y2_corr)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
     if corr_denom == 0.0:
-        msgs.warn('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
+        log.warning('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
         raise PypeItError()
     corr_norm = corr_zero / corr_denom
     return -corr_norm
@@ -515,7 +515,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, perc
 
     ampl_clip = np.clip(ampl, None, ceil_upper)
     if ampl_clip.size == 0:
-        msgs.warn('No lines were detected in the arc spectrum. Cannot create a synthetic arc spectrum for cross-correlation.')
+        log.warning('No lines were detected in the arc spectrum. Cannot create a synthetic arc spectrum for cross-correlation.')
         return np.zeros_like(inspec1)
 
     # Make a fake arc by plopping down Gaussians at the location of every centroided line we found
@@ -597,7 +597,7 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         y1, y2 = inspec1, inspec2
 
     if np.all(y1 == 0) or np.all(y2 == 0):
-        msgs.warn('One of the input spectra is all zeros. Returning shift = 0.0')
+        log.warning('One of the input spectra is all zeros. Returning shift = 0.0')
         return 0.0, 0.0
 
     nspec = y1.shape[0]
@@ -760,7 +760,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
                        sig_ceil=sig_ceil, fwhm=fwhm)
 
     if np.all(y1 == 0) or np.all(y2 == 0):
-        msgs.warn('No lines detected punting on shift/stretch')
+        log.warning('No lines detected punting on shift/stretch')
         return 0, None, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
@@ -782,12 +782,12 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
             bounds = [lag_range, stretch_mnmx, (0.0,0.0)]
             x0_guess = np.array([shift_cc, 1.0, 0.0])        
         else:
-            msgs.error('Unrecognized stretch_func')
+            raise PypeItError('Unrecognized stretch_func')
         result = scipy.optimize.differential_evolution(
                 zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, 
                 bounds=bounds, disp=False, polish=True, seed=seed)
     except PypeItError:
-        msgs.warn("Differential evolution failed.")
+        log.warning("Differential evolution failed.")
         return 0, None, None, None, None, None, None
     corr_de = -result.fun
     shift_de = result.x[0]
@@ -796,14 +796,16 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
 
     if not result.success:
-        msgs.warn('Fit for shift and stretch did not converge!')
+        log.warning('Fit for shift and stretch did not converge!')
 
     if(corr_de < corr_cc):
         # Occasionally the differential evolution crapps out and returns a value worse that the CC value. In these cases just use the cc value
-        msgs.warn('Shift/Stretch optimizer performed worse than simple x-correlation.' +
-                  'Returning simple x-correlation shift and no stretch:' + msgs.newline() +
-                  '   Optimizer: corr={:5.3f}, shift={:5.3f}, stretch={:7.5f}'.format(corr_de, shift_de,stretch_de) + msgs.newline() +
-                  '     X-corr : corr={:5.3f}, shift={:5.3f}'.format(corr_cc,shift_cc))
+        log.warning(
+            'Shift/Stretch optimizer performed worse than simple x-correlation.  '
+            'Returning simple x-correlation shift and no stretch:\n'
+            f' Optimizer: corr={corr_de:5.3f}, shift={shift_de:5.3f}, stretch={stretch_de:7.5f}\n'
+            f'   X-corr : corr={corr_cc:5.3f}, shift={shift_cc:5.3f}'
+        )
         corr_out = corr_cc
         shift_out = shift_cc
         stretch_out = 1.0
@@ -885,13 +887,13 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
     dwave_eff = dwave*spec_samp_fact
     if log10:
-        ngrid = np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff).astype(int)
+        ngrid = np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff).astype(int) + 1
         loglam_grid = np.log10(wave_min) + dwave_eff*np.arange(ngrid)
         wave_grid = np.power(10.0,loglam_grid)
         loglam_grid_mid = np.log10(wave_grid) + dwave_eff/2.0
         wave_grid_mid = np.power(10.0, loglam_grid_mid)
     else:
-        ngrid = np.ceil((wave_max - wave_min)/dwave_eff).astype(int)
+        ngrid = np.ceil((wave_max - wave_min)/dwave_eff).astype(int) + 1
         wave_grid = wave_min + dwave_eff*np.arange(ngrid)
         wave_grid_mid = wave_grid + dwave_eff/2.0
 
@@ -951,20 +953,20 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
     # Write
     outfile = os.path.join(outpath, outroot)
     tbl.write(outfile, overwrite=overwrite)
-    msgs.info(f"Your arxiv solution has been written to {outfile}\n")
+    log.info(f"Your arxiv solution has been written to {outfile}\n")
     if to_cache:
         # Also copy the file to the cache for direct use
         cache.write_file_to_cache(outroot, outroot, "arc_lines/reid_arxiv")
 
-        msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
-                  f"To utilize this wavelength solution, insert the{msgs.newline()}"
-                  f"following block in your PypeIt Reduction File:{msgs.newline()}"
-                  f" [calibrations]{msgs.newline()}"
-                  f"   [[wavelengths]]{msgs.newline()}"
-                  f"     reid_arxiv = {outroot}{msgs.newline()}"
+        log.info(f"Your arxiv solution has also been cached.\n"
+                  f"To utilize this wavelength solution, insert the\n"
+                  f"following block in your PypeIt Reduction File:\n"
+                  f" [calibrations]\n"
+                  f"   [[wavelengths]]\n"
+                  f"     reid_arxiv = {outroot}\n"
                   f"     method = full_template\n")
         print("")  # Empty line for clarity
-        msgs.info(f"To use exactly the solutions created above {msgs.newline()}"
+        log.info(f"To use exactly the solutions created above\n"
                   f"disable the 2d fitting by adding the keyword ech_2dfit = False")
     print("")  # Empty line for clarity
-    msgs.info("Please consider sharing your solution with the PypeIt Developers.")
+    log.info("Please consider sharing your solution with the PypeIt Developers.")

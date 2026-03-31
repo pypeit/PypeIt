@@ -13,7 +13,8 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -175,7 +176,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             zendist = 0.5*(headarr[0]['ZDSTART']+headarr[0]['ZDEND'])
             # Return the airmass based on the zenith distance
             return 1./np.cos(np.deg2rad(zendist))
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -229,7 +230,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def config_specific_par(
@@ -258,8 +259,10 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(inp, inp_par=inp_par)
 
         if par['calibrations']['wavelengths']['reid_arxiv'] is None:
-            msgs.warn("Wavelength setup not supported!" + msgs.newline() + msgs.newline() +
-                       "Please perform your own wavelength calibration, and provide the path+filename using:" + msgs.newline() +
-                       msgs.pypeitpar_text(['calibrations', 'wavelengths', 'reid_arxiv = <insert path+fileanme>']))
+            log.warning(
+                "Wavelength setup not supported!\n\n"
+                "Please perform your own wavelength calibration, and provide the path+filename "
+                "using the reid_arxiv parameter."
+            )
         # Return
         return par

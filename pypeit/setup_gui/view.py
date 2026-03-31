@@ -7,7 +7,7 @@ The view portion of the PypeIt Setup GUI.  Responsible for displaying informatio
 from pathlib import Path
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
-from qtpy.QtWidgets import QMenu, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QStyleOptionButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
+from qtpy.QtWidgets import QMainWindow, QMenu, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QStyleOptionButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
 from qtpy.QtWidgets import QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate, QSplitter
 from qtpy.QtGui import QDesktopServices, QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
 from qtpy.QtCore import Qt, QUrl, QObject, QEvent, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
@@ -17,22 +17,22 @@ from pypeit.spectrographs import  available_spectrographs
 from pypeit.setup_gui.model import ModelState, PypeItMetadataModel
 from pypeit.setup_gui.text_viewer import LogWindow, TextViewerWindow
 from pypeit.setup_gui.dialog_helpers import DialogResponses, FileDialog, PersistentStringListModel
-from pypeit import msgs
+from pypeit import log
 
 def debugSizeStuff(widget:QWidget, name="widget"):
     """Helper method for logging sizxing information about a wdiget and its layout."""   
-    msgs.info(f"{name} (width/height): {widget.width()}/{widget.height()} geometry x/y/w/h: {widget.geometry().x()}/{widget.geometry().y()}/{widget.geometry().width()}/{widget.geometry().height()} min w/h {widget.minimumWidth()}/{widget.minimumHeight()} hint w/h {widget.sizeHint().width()}/{widget.sizeHint().height()} min hint w/h {widget.minimumSizeHint().width()}/{widget.minimumSizeHint().height()} cm tlbr: {widget.contentsMargins().top()}/{widget.contentsMargins().left()}/{widget.contentsMargins().bottom()}/{widget.contentsMargins().right()} frame w/h {widget.frameSize().width()}/{widget.frameSize().height()}")
+    log.info(f"{name} (width/height): {widget.width()}/{widget.height()} geometry x/y/w/h: {widget.geometry().x()}/{widget.geometry().y()}/{widget.geometry().width()}/{widget.geometry().height()} min w/h {widget.minimumWidth()}/{widget.minimumHeight()} hint w/h {widget.sizeHint().width()}/{widget.sizeHint().height()} min hint w/h {widget.minimumSizeHint().width()}/{widget.minimumSizeHint().height()} cm tlbr: {widget.contentsMargins().top()}/{widget.contentsMargins().left()}/{widget.contentsMargins().bottom()}/{widget.contentsMargins().right()} frame w/h {widget.frameSize().width()}/{widget.frameSize().height()}")
     layout = widget.layout()
     if layout is None:
-        msgs.info(f"{name} layout is None")
+        log.info(f"{name} layout is None")
     else:
-        msgs.info(f"{name} layout size constraint {layout.sizeConstraint()} spacing: {layout.spacing()} cm: tlbr {layout.contentsMargins().top()}/{layout.contentsMargins().left()}/{layout.contentsMargins().bottom()}/{layout.contentsMargins().right()} totalMinSize (w/h): {layout.totalMinimumSize().width()}/{layout.totalMinimumSize().width()} totalMaxSize (w/h): {layout.totalMaximumSize().width()}/{layout.totalMaximumSize().width()} totalHint (w/h): {layout.totalSizeHint().width()}/{layout.totalSizeHint().width()}")
+        log.info(f"{name} layout size constraint {layout.sizeConstraint()} spacing: {layout.spacing()} cm: tlbr {layout.contentsMargins().top()}/{layout.contentsMargins().left()}/{layout.contentsMargins().bottom()}/{layout.contentsMargins().right()} totalMinSize (w/h): {layout.totalMinimumSize().width()}/{layout.totalMinimumSize().width()} totalMaxSize (w/h): {layout.totalMaximumSize().width()}/{layout.totalMaximumSize().width()} totalHint (w/h): {layout.totalSizeHint().width()}/{layout.totalSizeHint().width()}")
 
     fm = widget.fontMetrics()
     if fm is None:
-        msgs.info(f"{name} fm is None")
+        log.info(f"{name} fm is None")
     else:
-        msgs.info(f"{name} fm lineSpacing: {fm.lineSpacing()} maxWidth: {fm.maxWidth()}, avg width: {fm.averageCharWidth()}")
+        log.info(f"{name} fm lineSpacing: {fm.lineSpacing()} maxWidth: {fm.maxWidth()}, avg width: {fm.averageCharWidth()}")
 
 def calculateButtonMinSize(button_widget : QPushButton) -> QSize:
     """Calculates and sets the minimum size of a budget widget
@@ -64,7 +64,7 @@ def calculateButtonMinSize(button_widget : QPushButton) -> QSize:
     # The QT code doubles the frame size but not the margin, so we do the same
     min_size = QSize(text_size.width() + button_margin + button_default_frame*2 + default_indicator*2,
                      text_size.height() + button_margin + button_default_frame*2 + default_indicator*2)
-    msgs.info(f"Calculated button {button_widget.text()} minimum size ({min_size.width()}/{min_size.height()}) with text_size ({text_size.width()}/{text_size.height()}) margin size ({button_margin}) frame width ({button_default_frame}) and default indicator width ({default_indicator})")
+    log.info(f"Calculated button {button_widget.text()} minimum size ({min_size.width()}/{min_size.height()}) with text_size ({text_size.width()}/{text_size.height()}) margin size ({button_margin}) frame width ({button_default_frame}) and default indicator width ({default_indicator})")
     
     return min_size
     
@@ -243,7 +243,7 @@ class PypeItEnumListEditor(QWidget):
             if checkbox.width() > max_checkbox_width:
                 max_checkbox_width = checkbox.width()
 
-        msgs.info(f"Max checkbox width: {max_checkbox_width}")
+        log.info(f"Max checkbox width: {max_checkbox_width}")
         scroll_area.setWidget(checkbox_container)
 
         # Figure out the minimum width
@@ -281,7 +281,7 @@ class PypeItEnumListEditor(QWidget):
         button_min_width = max(ok_button_min_size.width(), cancel_button_min_size.width())    
     
         ok_cancel_container_min_width = button_min_width*2 + ok_cancel_layout.spacing() + ok_cancel_layout_margins.left() + ok_cancel_layout_margins.right()
-        msgs.info(f"Okay cancel container min_width: {ok_cancel_container_min_width}")
+        log.info(f"Okay cancel container min_width: {ok_cancel_container_min_width}")
         if min_width < ok_cancel_container_min_width:
             min_width = ok_cancel_container_min_width
 
@@ -303,7 +303,7 @@ class PypeItEnumListEditor(QWidget):
         self.setMinimumSize(min_width, min_height)
         self._button_group.buttonToggled.connect(self._choiceChecked)
 
-        msgs.info(f"min_width/height: {min_width}/{min_height}")
+        log.info(f"min_width/height: {min_width}/{min_height}")
         debugSizeStuff(self, "Enum Editor")
         debugSizeStuff(checkbox_container, "Checkbox Container")
         debugSizeStuff(ok_cancel_container, "OK/Cancel Container")
@@ -415,12 +415,12 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
         column_name = model.getColumnNameFromNum(index)
 
         if column_name == "frametype":
-            msgs.info("Creating enum list editor for frametype")
+            log.info("Creating enum list editor for frametype")
             editor= PypeItEnumListEditor(parent=parent, index=index, num_lines=5, allowed_values=model.getAllFrameTypes())
             editor.closed.connect(self.editorClosed)
             return editor
         
-        msgs.info(f"Creating default editor for {column_name}")
+        log.info(f"Creating default editor for {column_name}")
         return super().createEditor(parent, option, index)
     
     def setEditorData(self, editor, index):
@@ -431,10 +431,10 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
             index (QModelIndex): The index of the item being edited.
         """
         if isinstance(editor, PypeItEnumListEditor):
-            msgs.info(f"Setting editor data {index.data(Qt.EditRole)}")
+            log.info(f"Setting editor data {index.data(Qt.EditRole)}")
             editor.setSelectedValues(index.data(Qt.EditRole))
         else:
-            msgs.info("Setting default editor data")
+            log.info("Setting default editor data")
             super().setEditorData(editor, index)
 
     def setModelData(self,editor,model,index):
@@ -446,10 +446,10 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
             index (QModelIndex):        The index of the item being edited.
         """
         if isinstance(editor, PypeItEnumListEditor):
-            msgs.info(f"Setting choice model data: {editor.selectedValues()}")
+            log.info(f"Setting choice model data: {editor.selectedValues()}")
             model.setData(index, editor.selectedValues())
         else:
-            msgs.info("Setting default model data")
+            log.info("Setting default model data")
             super().setModelData(editor,model,index)
 
     def updateEditorGeometry(self, editor, option, index):
@@ -468,9 +468,9 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
             parent_geometry = editor.parent().geometry()
             editor_min_size = editor.minimumSize()
 
-            msgs.info(f"Given rect: {(option.rect.x(), option.rect.y(), option.rect.width(), option.rect.height())}")
-            msgs.info(f"parent_geometry: {(parent_geometry.x(), parent_geometry.y(), parent_geometry.width(), parent_geometry.height())}")
-            msgs.info(f"editor min size: {editor_min_size.width()}, {editor_min_size.height()}")
+            log.info(f"Given rect: {(option.rect.x(), option.rect.y(), option.rect.width(), option.rect.height())}")
+            log.info(f"parent_geometry: {(parent_geometry.x(), parent_geometry.y(), parent_geometry.width(), parent_geometry.height())}")
+            log.info(f"editor min size: {editor_min_size.width()}, {editor_min_size.height()}")
 
             editor_x = option.rect.x()
             editor_y = option.rect.y()
@@ -502,7 +502,7 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
 
             geometry = QRect(editor_x, editor_y, editor_width, editor_min_size.height()) 
        
-            msgs.info(f"Updating editor geometry to {(geometry.x(), geometry.y(), geometry.width(), geometry.height())}")
+            log.info(f"Updating editor geometry to {(geometry.x(), geometry.y(), geometry.width(), geometry.height())}")
             editor.setGeometry(geometry)
         else:
             super().updateEditorGeometry(editor, option, index)
@@ -554,8 +554,8 @@ class PypeItMetadataView(QTableView):
         min_height = (self.contentsMargins().top() + self.contentsMargins().bottom() + 
                       self.horizontalScrollBar().sizeHint().height() +
                       11*row_height)
-        msgs.info(f"current min_height/height/hint h: {self.minimumHeight()}/{self.height()}/{self.sizeHint().height()}, scrollbar hint h {self.horizontalScrollBar().sizeHint().height()}, currentmargin top/bottom: {self.contentsMargins().top()}/{self.contentsMargins().bottom()} hdr min_height/height/hint h: {self.horizontalHeader().minimumHeight()}/{self.horizontalHeader().height()}/{self.horizontalHeader().sizeHint().height()}")
-        msgs.info(f"rowHeight: {row_height} current min_height {self.minimumHeight()} new min_height {min_height}")
+        log.info(f"current min_height/height/hint h: {self.minimumHeight()}/{self.height()}/{self.sizeHint().height()}, scrollbar hint h {self.horizontalScrollBar().sizeHint().height()}, currentmargin top/bottom: {self.contentsMargins().top()}/{self.contentsMargins().bottom()} hdr min_height/height/hint h: {self.horizontalHeader().minimumHeight()}/{self.horizontalHeader().height()}/{self.horizontalHeader().sizeHint().height()}")
+        log.info(f"rowHeight: {row_height} current min_height {self.minimumHeight()} new min_height {min_height}")
         if min_height > self.minimumHeight():
             self.setMinimumHeight(min_height)
 
@@ -636,9 +636,9 @@ class PypeItMetadataView(QTableView):
         Fix column and row sizes after the model is reset.
         """
         colCount = self.model().columnCount()
-        msgs.info(f"# Cols: {colCount}")
+        log.info(f"# Cols: {colCount}")
         colSizeHints = [self.sizeHintForColumn(i) for i in range(colCount)]
-        msgs.info(f"Col size hints: {colSizeHints}")
+        log.info(f"Col size hints: {colSizeHints}")
 
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
@@ -773,7 +773,7 @@ class ConfigValuesPanel(QGroupBox):
 
         # Figure out the correct height for this panel, so that only the spectrograph and self.number_of_lines
         # config keys are visible
-        msgs.info(f"font height: {fm.height()} vertical spacing {self._form_widget_layout.verticalSpacing()}")
+        log.info(f"font height: {fm.height()} vertical spacing {self._form_widget_layout.verticalSpacing()}")
         self.setMaximumHeight(self.computeHeight(max(self.lines_to_display, len(self._config_labels))))
                                      
 
@@ -790,7 +790,7 @@ class ConfigValuesPanel(QGroupBox):
         if verticalSpacing == -1:
             verticalSpacing = fm.leading()
             self._form_widget_layout.setVerticalSpacing(fm.leading())
-            msgs.info(f"Set vertical spacing to {verticalSpacing}")
+            log.info(f"Set vertical spacing to {verticalSpacing}")
         min_fw_height = (verticalSpacing)*(lines_to_display-1) + fm.height()*lines_to_display
 
         # The height of this panel is that height plus the margins + the group box title
@@ -799,19 +799,19 @@ class ConfigValuesPanel(QGroupBox):
         form_widget_margins = self._form_widget.contentsMargins()
         layout_margins = self.layout().contentsMargins()
 
-        msgs.info(f"verticalSpacing: {self._form_widget_layout.verticalSpacing()}")
-        msgs.info(f"fontMetrics height/leading: {fm.height()}/{fm.leading()}")
-        msgs.info(f"group_box_margins (t/b) ({group_box_margins.top()}/{group_box_margins.bottom()})")
-        msgs.info(f"scroll_area_margins (t/b) ({scroll_area_margins.top()}/{scroll_area_margins.bottom()})")
-        msgs.info(f"layout_margins (t/b) ({layout_margins.top()}/{layout_margins.bottom()})")
-        msgs.info(f"form_widget_margins (t/b) ({form_widget_margins.top()}/{form_widget_margins.bottom()})")
+        log.info(f"verticalSpacing: {self._form_widget_layout.verticalSpacing()}")
+        log.info(f"fontMetrics height/leading: {fm.height()}/{fm.leading()}")
+        log.info(f"group_box_margins (t/b) ({group_box_margins.top()}/{group_box_margins.bottom()})")
+        log.info(f"scroll_area_margins (t/b) ({scroll_area_margins.top()}/{scroll_area_margins.bottom()})")
+        log.info(f"layout_margins (t/b) ({layout_margins.top()}/{layout_margins.bottom()})")
+        log.info(f"form_widget_margins (t/b) ({form_widget_margins.top()}/{form_widget_margins.bottom()})")
         computedHeight =  (min_fw_height + 
                 # fm.height()   +  # Group Box Title
                 group_box_margins.top()   + group_box_margins.bottom() +
                 scroll_area_margins.top() + scroll_area_margins.bottom() +
                 layout_margins.top()      + layout_margins.bottom() +
                 form_widget_margins.top() + form_widget_margins.bottom())
-        msgs.info(f"computedHeight: {computedHeight}")
+        log.info(f"computedHeight: {computedHeight}")
         return computedHeight
 
     def setNewValues(self, config_dict: dict) -> None:
@@ -862,7 +862,7 @@ class ConfigValuesPanel(QGroupBox):
         if len(self._config_labels) > self.lines_to_display:
             if self._scroll_area.verticalScrollBar():
                 min_width += self._scroll_area.verticalScrollBar().sizeHint().width()
-        msgs.info(f"new minWidth: {min_width} max key width: {max_key_width} max_value width {max_value_width} horizontal spacing {self._form_widget_layout.horizontalSpacing()} margins left: {margins.left()} margins right: {margins.right()}")
+        log.info(f"new minWidth: {min_width} max key width: {max_key_width} max_value width {max_value_width} horizontal spacing {self._form_widget_layout.horizontalSpacing()} margins left: {margins.left()} margins right: {margins.right()}")
         return min_width
 
 class TabManagerBaseTab(QWidget):
@@ -1044,7 +1044,7 @@ class PypeItFileView(TabManagerBaseTab):
         self.model.stateChanged.connect(self.update_from_model)
 
         debugSizeStuff(self.config_panel,"Config Panel")
-        msgs.info(f"config panel flat: {self.config_panel.isFlat()}")
+        log.info(f"config panel flat: {self.config_panel.isFlat()}")
   
     def update_from_model(self):
         """
@@ -1222,7 +1222,7 @@ class ObsLogView(TabManagerBaseTab):
 
     def _deletePaths(self, parent):
         """Signal handler that removes raw data paths from the obslog"""
-        msgs.info(f"Delete selection")
+        log.info(f"Delete selection")
         selection = self._paths_viewer.selectedIndexes()
         rows = [index.row() for index in selection]
         self._controller.removePaths(rows)
@@ -1236,7 +1236,7 @@ class ObsLogView(TabManagerBaseTab):
         self.model=model
         if model.spec_name is not None:
             self.spectrograph.setCurrentIndex(self.spectrograph.findText(model.spec_name))
-            msgs.info(f"Set current text to {model.spec_name}, current index {self.spectrograph.currentIndex()}")
+            log.info(f"Set current text to {model.spec_name}, current index {self.spectrograph.currentIndex()}")
             self.update_raw_data_paths_state()
         self.obslog_table.setModel(model.metadata_model)
         self._controller.setModel(model)
@@ -1370,7 +1370,7 @@ class TabManagerWidget(QTabWidget):
         """
         index = self.count()-1
         index=self.insertTab(index, tab, tab.name)
-        msgs.info(f"Added {tab.name} at index {index}")
+        log.info(f"Added {tab.name} at index {index}")
         self._tabNames.insert(index,tab.name)
         self.updateTabText(tab.name,tab.state)
         if tab.closeable:
@@ -1388,7 +1388,7 @@ class TabManagerWidget(QTabWidget):
         try:
             index = self._tabNames.index(tab_name)
         except ValueError :
-            msgs.warn(f"Failed to find tab named {tab_name} in list.")
+            log.warning(f"Failed to find tab named {tab_name} in list.")
             return
         tab = self.widget(index)
         if tab.closeable:
@@ -1408,7 +1408,7 @@ class TabManagerWidget(QTabWidget):
         try:
             index = self._tabNames.index(tab_name)
         except ValueError :
-            msgs.warn(f"Failed to find tab named {tab_name} in list.")
+            log.warning(f"Failed to find tab named {tab_name} in list.")
             return
 
         tab = self.widget(index)
@@ -1441,7 +1441,7 @@ class TabManagerWidget(QTabWidget):
         close_button.hide()
 
 
-class SetupGUIMainWindow(QWidget):
+class SetupGUIMainWindow(QMainWindow):
     """Main window widget for the PypeIt Setup GUI
 
     Args:
@@ -1449,10 +1449,11 @@ class SetupGUIMainWindow(QWidget):
         controller (:class:`pypeit.setup_gui.controller.SetupGUIController`): The controller for the PypeitSetupGUI.
     """
 
+    helpURL = QUrl("https://pypeit.readthedocs.io/en/stable/tutorials/setup_gui.html")
+
     def __init__(self, model, controller):
         super().__init__(parent=None)
 
-        self.layout = QVBoxLayout(self)
         self.model = model    
         self.controller = controller
 
@@ -1471,13 +1472,19 @@ class SetupGUIMainWindow(QWidget):
         self.model.obslog_model.spectrograph_changed.connect(self.update_new_file_allowed)
         self.update_new_file_allowed()
 
-        self.layout.addWidget(self.tab_widget)
+        self.setCentralWidget(self.tab_widget)
 
         # Monitor the current tab
         self._current_tab = self._obs_log_tab
 
-        # Create the row of buttons for user actions
-        self.layout.addLayout(self._create_button_box())
+        self._tool_bar = self.addToolBar("")
+        self._tool_bar.setFloatable(False)
+        self._tool_bar.setAllowedAreas(Qt.TopToolBarArea | Qt.BottomToolBarArea)
+        self._populate_toolbar_and_menu()
+
+        # Setup may have already been run from the command line, so update button status on init
+        self.update_setup_button()
+        self.update_buttons_from_model_state()
 
         # For viewing the log
         self._logWindow = None
@@ -1507,12 +1514,14 @@ class SetupGUIMainWindow(QWidget):
             cancel_func (:class:`collections.abc.Callable`):   A callable to deal with cancel being pressed in the 
                                                                progress dialog.
         """
-        msgs.info(f"Starting operation {op_caption} max progress: {max_progress_value}")
+        log.info(f"Starting operation {op_caption} max progress: {max_progress_value}")
         self.current_op_progress_dialog = QProgressDialog(self.tr(op_caption), self.tr("Cancel"), 0, max_progress_value, parent=self)
         self.current_op_progress_dialog.setMinimumWidth(380)
         self.current_op_progress_dialog.setWindowTitle(op_caption)
-        self.current_op_progress_dialog.setMinimumDuration(1000)
-        self.current_op_progress_dialog.setValue(0)            
+        self.current_op_progress_dialog.setMinimumDuration(500)
+        self.current_op_progress_dialog.setValue(0)
+        self.current_op_progress_dialog.setWindowModality(Qt.WindowModal)
+            
         self.current_op_progress_dialog.canceled.connect(cancel_func)
 
     def show_operation_progress(self, increase, message=None):
@@ -1523,20 +1532,22 @@ class SetupGUIMainWindow(QWidget):
             increase (int):          How much to increase the current progress by.
             message (str, Optional): A message indicating what step has been performed.
         """
-        msgs.info(f"dialog is none {self.current_op_progress_dialog is None}")
+        log.info(f"dialog is none {self.current_op_progress_dialog is None}")
         if self.current_op_progress_dialog is not None:
-            msgs.info(f"increase {increase} message{message} current value {self.current_op_progress_dialog.value()}")
-            self.current_op_progress_dialog.setValue(self.current_op_progress_dialog.value() + increase)
-            if message is not None:
+            log.info(f"increase {increase} message{message} current value {self.current_op_progress_dialog.value()}")
+            if self.current_op_progress_dialog.maximum() > 0:
+                self.current_op_progress_dialog.setValue(self.current_op_progress_dialog.value() + increase)
+            if message is not None and message != self.current_op_progress_dialog.labelText():
                 self.current_op_progress_dialog.setLabelText(message)
 
     def operation_complete(self):
         """
         Stop displaying progress for an operation because it has completed..
         """
-        msgs.info(f"Ending operation, dialog is none {self.current_op_progress_dialog is None}")
+        log.info(f"Ending operation, dialog is none {self.current_op_progress_dialog is None}")
         if self.current_op_progress_dialog is not None:
             self.current_op_progress_dialog.done(QDialog.Accepted)
+            self.current_op_progress_dialog.close()
             self.current_op_progress_dialog = None
 
     def update_save_tab_button(self):
@@ -1544,26 +1555,26 @@ class SetupGUIMainWindow(QWidget):
         current selected tab."""
         tab = self.tab_widget.currentWidget()
         if tab.name == "ObsLog":
-            self.saveTabButton.setEnabled(False)
+            self.saveTabAction.setEnabled(False)
         else:
-            self.saveTabButton.setEnabled(tab.state != ModelState.UNCHANGED)
+            self.saveTabAction.setEnabled(tab.state != ModelState.UNCHANGED)
 
     def update_setup_button(self):
         """Enable/disable the setup button based on whether a spectrograph and raw
         data directories have been selected."""
         # Setup can only be run if the spectrograph is set and there's at least one
         # raw data directory
-        msgs.info(f"Checking setup button status spec: {self.model.obslog_model.spec_name} dirs {self.model.obslog_model.raw_data_directories}")
+        log.info(f"Checking setup button status spec: {self.model.obslog_model.spec_name} dirs {self.model.obslog_model.raw_data_directories}")
         if (self.model.obslog_model.spec_name is not None and
             len(self.model.obslog_model.raw_data_directories) > 0):
-            self.setupButton.setEnabled(True)
+            self.setupAction.setEnabled(True)
         else:
-            self.setupButton.setEnabled(False)
+            self.setupAction.setEnabled(False)
 
     def update_buttons_from_model_state(self):
         """Update the enabled/disabled state of buttons based on the model state."""
-        self.saveAllButton.setEnabled(self.model.state==ModelState.CHANGED)
-        self.clearButton.setEnabled(self.model.state!=ModelState.NEW)
+        self.saveAllAction.setEnabled(self.model.state==ModelState.CHANGED)
+        self.clearAction.setEnabled(self.model.state!=ModelState.NEW)
         self.update_save_tab_button()
 
     def _closeRequest(self, index):
@@ -1589,73 +1600,108 @@ class SetupGUIMainWindow(QWidget):
     def _helpButton(self):
         """Signal handler that responds to the help button being pressed."""
 
-        result = QDesktopServices.openUrl(QUrl("https://pypeit.readthedocs.io/en/latest/"))
+        result = QDesktopServices.openUrl(self.helpURL)
         if result:
-            msgs.info("Opened PypeIT docs.")
+            log.info("Opened PypeIT docs.")
         else:
-            msgs.warn("Failed to open PypeIt docs at 'https://pypeit.readthedocs.io/en/latest/'")
+            log.warning(f"Failed to open PypeIt docs at '{self.helpURL}'")
 
-    def _create_button_box(self):
-        """Create the box with action buttons.
-        
-        Returns:
-            QWidget: The widget with the action buttons for the GUI."""
-            
-        button_layout = QHBoxLayout()
+    def _populate_toolbar_and_menu(self):
+        """Populate the tool bar and menu bar by creating actions for the functionality accessible from the main window."""
+    
+        # Create buttons for the toolbar and associated actions
+        # We use the QPushButton instead of the QToolButton because it looks better.
+        button = QPushButton(self.tr("&Open"))
+        button.setToolTip(self.tr("Open a .pypeit file."))
+        self.openAction = self._tool_bar.addWidget(button)
+        self.openAction.setText(button.text())
+        self.openAction.setToolTip(button.toolTip())
+        button.clicked.connect(self.openAction.triggered)
+        self.openAction.triggered.connect(self.controller.open_pypeit_file)
 
-        button = QPushButton(text = 'Open')
-        button.setToolTip("Open a .pypeit file.")
-        button.clicked.connect(self.controller.open_pypeit_file)
-        button_layout.addWidget(button)
-        self.openButton = button
+        button = QPushButton(self.tr("&Clear"))
+        button.setToolTip(self.tr("Clear everything and start with a blank slate."))
+        self.clearAction = self._tool_bar.addWidget(button)
+        self.clearAction.setText(button.text())
+        self.clearAction.setToolTip(button.toolTip())
+        self.clearAction.setEnabled(False)
+        button.clicked.connect(self.clearAction.triggered)
+        self.clearAction.triggered.connect(self.controller.clear)
 
-        button = QPushButton(text = 'Clear')
-        button.setToolTip("Clear everything and start with a blank slate.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.clear)
-        button_layout.addWidget(button)
-        self.clearButton = button
+        button = QPushButton(self.tr('&Run Setup'))
+        button.setToolTip(self.tr("Scan the raw data and create a .pypeit file for each unique configuration."))
+        self.setupAction = self._tool_bar.addWidget(button)
+        self.setupAction.setText(button.text())
+        self.setupAction.setToolTip(button.toolTip())
+        self.setupAction.setEnabled(False)
+        button.clicked.connect(self.setupAction.triggered)
+        self.setupAction.triggered.connect(self.controller.run_setup)
 
-        button = QPushButton(text = 'Run Setup')
-        button.setToolTip("Scan the raw data and setup a .pypeit file for unique configuration.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.run_setup)
-        button_layout.addWidget(button)
-        self.setupButton = button
+        button = QPushButton(self.tr('&Save Tab'))
+        button.setToolTip(self.tr("Save the current tab."))
+        self.saveTabAction = self._tool_bar.addWidget(button)
+        self.saveTabAction.setText(button.text())
+        self.saveTabAction.setToolTip(button.toolTip())
+        self.saveTabAction.setEnabled(False)
+        button.clicked.connect(self.saveTabAction.triggered)
+        self.saveTabAction.triggered.connect(self.controller.save_one)
 
+        button = QPushButton(self.tr('Save &All'))
+        button.setToolTip(self.tr("Save all tabs with unsaved changes."))
+        self.saveAllAction = self._tool_bar.addWidget(button)
+        self.saveAllAction.setText(button.text())
+        self.saveAllAction.setToolTip(button.toolTip())
+        self.saveAllAction.setEnabled(False)
+        button.clicked.connect(self.saveAllAction.triggered)
+        self.saveAllAction.triggered.connect(self.controller.save_all)
 
-        button = QPushButton(text = 'Save Tab')
-        button.setToolTip("Save the curretly active tab.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.save_one)
-        button_layout.addWidget(button)
-        self.saveTabButton = button
+        # Create a spacer widget with horizontal size policy set to stretch, so that the
+        # remainder of the buttons are on the right side of the window
+        spacerWidget = QWidget()
+        spacerWidget.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Preferred)
+        self._tool_bar.addWidget(spacerWidget)
 
-        button = QPushButton(text = 'Save All')
-        button.setToolTip("Save all tabs with unsaved changes.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.save_all)
-        button_layout.addWidget(button)
-        self.saveAllButton = button
+        button = QPushButton(self.tr('&Help'))
+        button.setToolTip(self.tr("Opens PypeIt online documentation."))
+        self.helpAction = self._tool_bar.addWidget(button)
+        self.helpAction.setText(button.text())
+        self.helpAction.setToolTip(button.toolTip())
+        button.clicked.connect(self.helpAction.triggered)
+        self.helpAction.triggered.connect(self._helpButton)
 
-        button_layout.addStretch()
+        button = QPushButton(self.tr('View &log'))
+        button.setToolTip(self.tr("Opens a window containing the log."))
+        self.viewLogAction = self._tool_bar.addWidget(button)
+        self.viewLogAction.setText(button.text())
+        self.viewLogAction.setToolTip(button.toolTip())
+        button.clicked.connect(self.viewLogAction.triggered)
+        self.viewLogAction.triggered.connect(self._showLog)
 
-        button = QPushButton(text = 'Help')
-        button.setToolTip("Opens PypeIt online documentation.")        
-        button.clicked.connect(self._helpButton)
-        button_layout.addWidget(button)
-        self.helpButton = button
+        button = QPushButton(self.tr('E&xit'))
+        button.setToolTip(self.tr("Quits this application."))
+        self.exitAction = self._tool_bar.addWidget(button)
+        self.exitAction.setText(button.text())
+        self.exitAction.setToolTip(button.toolTip())
+        button.clicked.connect(self.exitAction.triggered)
+        self.exitAction.triggered.connect(self.controller.exit)
 
-        button = QPushButton(text = 'View log')
-        button.setToolTip("Opens a window containing the log.")
-        button.clicked.connect(self._showLog)
-        button_layout.addWidget(button)
-        self.logButton = button
+        # Now create the menu bar, using the already created actions
+        self._menu = self.menuBar()    
+        file_menu = self._menu.addMenu("&File")
+        file_menu.addAction(self.openAction)
+        file_menu.addAction(self.saveTabAction)
+        file_menu.addAction(self.saveAllAction)
+        file_menu.addSeparator()
+        file_menu.addAction(self.clearAction)
+        file_menu.addSeparator()
+        file_menu.addAction(self.exitAction)
 
-        button = QPushButton(text = 'Exit')
-        button.setToolTip("Quits this application.")
-        button.clicked.connect(self.controller.exit)
-        button_layout.addWidget(button)
+        run_menu = self._menu.addMenu("&Run") 
+        run_menu.addAction(self.setupAction)
+
+        help_menu = self._menu.addMenu("&Help")
+        help_menu.addAction(self.helpAction)
+        help_menu.addAction(self.viewLogAction)
 
         # Monitor when new files are added and removed,
         # so we can update buttons.
@@ -1672,10 +1718,6 @@ class SetupGUIMainWindow(QWidget):
         # Monitor the application's NEW/CHANGED/UNCHANGED state to enable/disable buttons
         self.model.stateChanged.connect(self.update_buttons_from_model_state)
 
-        # Setup may have already been run from the command line, so update button status on init
-        self.update_setup_button()
-        self.update_buttons_from_model_state()
-        return button_layout
 
     def create_file_tabs(self, pypeit_file_models):
         """
@@ -1685,7 +1727,7 @@ class SetupGUIMainWindow(QWidget):
         Args:
             pypeit_file_models (list of :class:`pypeit.setup_gui.model.PypeItFileModel`): Models for the tabs to add.
         """
-        msgs.info(f"create_file_tabs for {len(pypeit_file_models)} unique configs")
+        log.info(f"create_file_tabs for {len(pypeit_file_models)} unique configs")
         try:
             self.tab_widget.setUpdatesEnabled(False) # To prevent flickering when updating
             for model in pypeit_file_models:
@@ -1701,7 +1743,7 @@ class SetupGUIMainWindow(QWidget):
         Args:
             tab_list (list of str): List of the configuration names removed.
         """
-        msgs.info(f"View Deleting tabs {file_list}")
+        log.info(f"View Deleting tabs {file_list}")
         if len(file_list) == 0:
             return
 

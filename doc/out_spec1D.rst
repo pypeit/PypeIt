@@ -87,19 +87,20 @@ Therefore, the integrated counts for a boxcar extraction are given by the
 pypeit_show_1dspec
 ==================
 
-The spectra may be viewed with the `pypeit_show_1dspec`_ script,
-which loads the data and launches a GUI from the `linetools`_ package.
+The spectra may be viewed with the `pypeit_show_1dspec`_ script.  This script
+can be used to view both 1D extractions from a basic run of the reductions or 1D
+coadds.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_1dspec.rst
 
-Here is a typical call::
+Here is a typical call:
+
+.. code-block:: console
 
     pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits --exten 1
-
-This should launch an `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`__.
 
 .. warning::
 
