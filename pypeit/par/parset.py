@@ -535,7 +535,7 @@ class ParSet:
                     f'{np.asarray(self.keys())[should_not_be_None].tolist()}'
                 )
 
-    def to_rst_table(self, parsets_listed=[]):
+    def to_rst_table(self, parsets_listed=None, include_keyword_link=True, top_level_only=False):
         """
         Construct a reStructuredText table describing the parameter set.
 
@@ -544,15 +544,26 @@ class ParSet:
         Parameters
         ----------
         parsets_listed : :obj:`list`, optional
-            For nested :class:`~pypeit.par.parset.ParSet` instances, this is the list of
-            :class:`~pypeit.par.parset.ParSet` subclass names that already have already a table in
-            the string list (so that they're not repeated).
+            For nested :class:`~pypeit.par.parset.ParSet` instances, this is the
+            list of :class:`~pypeit.par.parset.ParSet` subclass names that
+            already have a table in the string list (so that they're not
+            repeated).
+        include_keyword_link : :obj:`bool`, optional
+            Include a link in the "Defaults" column of the returned table that
+            provides keywords for a nested :class:`~pypeit.par.parset.ParSet`
+            class.
+        top_level_only : :obj:`bool`, optional
+            If the :class:`~pypeit.par.parset.ParSet` includes other nested
+            parameter sets, only return the rst table for the top level.
         
         Returns
         -------
         list
             A list of lines that can be written to an ``*.rst`` file.
         """
+        if parsets_listed == None:
+            parsets_listed = []
+
         new_parsets = []
         data_table = np.empty((self.npar+1, 5), dtype=object)
         data_table[0,:] = ['Key', 'Type', 'Options', 'Default', 'Description']
@@ -564,7 +575,10 @@ class ParSet:
                     new_parsets += [key]
                 parsets_listed += [ type(self._data[key]).__name__ ]
                 data_table[i+1,1] = type(self._data[key])._rst_class_name()
-                data_table[i+1,3] = f'`{type(self._data[key]).__name__} Keywords`_'
+                data_table[i+1,3] = (
+                    f'`{type(self._data[key]).__name__} Keywords`_'
+                    if include_keyword_link else '..'
+                )
             else: 
                 data_table[i+1,1] = (
                     '..' if self.parameters[key]['dtype'] is None
@@ -588,6 +602,9 @@ class ParSet:
                 '..' if self.parameters[key]['descr'] is None
                 else ParSet._data_string(self.parameters[key]['descr'])
             )
+        
+        if top_level_only:
+            return ParSet._data_table_string(data_table, delimeter='rst')
 
         output = [ f'.. _{self.__class__.__name__.lower()}:']
         output += [ '' ]

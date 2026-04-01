@@ -4,7 +4,11 @@ Dynamically build the rst documentation of the pypeit parameters.
 
 from importlib import resources
 import textwrap
+import warnings
 
+import numpy as np
+
+from pypeit import utils
 from pypeit.par import pypeitpar
 from pypeit.par.parset import ParSet
 from pypeit.spectrographs.util import load_spectrograph, available_spectrographs
@@ -30,9 +34,38 @@ def par_hierarchy(p, indent_level=0, key=''):
     
     return lines
 
+def individual_par_tables():
+
+    pypeit_root = resources.files('pypeit').parent 
+    output_root = pypeit_root / 'doc' / 'include'
+
+    parset_subclasses = utils.all_subclasses(ParSet)
+    parset_subclasses = np.asarray([
+        p for p in parset_subclasses
+        if not issubclass(p, pypeitpar.TelescopePar) or p is pypeitpar.TelescopePar
+    ])
+    srt = np.argsort([cls.__name__ for cls in parset_subclasses])
+    for p in parset_subclasses[srt]:
+        try:
+            def_par = p()
+        except:
+            warnings.warn(f'Skipping table for ParSet subclass {p.__name__}')
+        lines = def_par.to_rst_table(include_keyword_link=False, top_level_only=True)
+        ofile = output_root / f'parset_{p.__name__}.rst'
+        with open(ofile, 'w') as f:
+            f.write(lines)
+        print(f'Wrote: {ofile}')
+
 #-----------------------------------------------------------------------------
 
 if __name__ == '__main__':
+
+    # Construct the individual tables for the docstrings of each ParSet
+    # subclass.
+    individual_par_tables()
+
+    # Now create the full page for the "User-level Parameters"
+
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
     pypeit_root = resources.files('pypeit').parent 
@@ -46,8 +79,7 @@ if __name__ == '__main__':
     lines += ['=====================================']
     lines += ['']
 
-    p = pypeitpar.PypeItPar(flexure=pypeitpar.FlexurePar(),
-                            fluxcalib=pypeitpar.FluxCalibratePar())
+    p = pypeitpar.PypeItPar()
 
     lines += ['| '+ l for l in par_hierarchy(p)]
     lines += ['']
