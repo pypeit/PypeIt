@@ -228,12 +228,31 @@ class ParSet:
             self._data[key] = value
             return
 
+        # NOTE: An error occurred where the pypeit file for LDT/DeVeny DV7
+        # included a single lamp name to use for the wavelength calibration.
+        # This was causing the code to fault because WavelengthSolutionPar
+        # requires `lamps` to be a list.  I added this block of code to deal
+        # with that.  But the better solution seems to be to force users to
+        # define the lamps as a list.  In ldt_deveny_dv7.pypeit, this was just a
+        # matter of adding a comma at the end of the lamps list; i.e., changing
+        # `lamps = NeI_DeVeny` to  `lamps = NeI_DeVeny,`.  Admittedly, this is a
+        # bit obscure, so I added some text to the parameters documentation
+        # about this.  I'm leaving the code here for now in case we choose to
+        # adopt this option instead.
+#        # If the only valid dtype is list and the provided object is *not* a
+#        # list, assume that the user wants the object to be a single element
+#        # list with this value
+#        if self.parameters[key]['dtype'] == [list] and not isinstance(value, list):
+#            self.__setitem__(key, [value])
+#            return
+
         # Check that the value has an allowed data type
         if self.parameters[key]['dtype'] is not None \
-                and not any([ isinstance(value, d) for d in self.parameters[key]['dtype']]):
+                and not any([isinstance(value, d) for d in self.parameters[key]['dtype']]):
             raise TypeError(
                 f'Unable to set {key} in {self.__class__.__name__} to an object with type '
-                f'{type(value)}.'
+                f'{type(value).__name__}.  Allowed types are: '
+                f'{", ".join([dt.__name__ for dt in self.parameters[key]["dtype"]])}.'
             )
 
         # If the value is itself a parameter set, create a new instance of the
