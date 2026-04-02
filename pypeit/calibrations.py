@@ -1225,6 +1225,9 @@ class Calibrations:
             self.wv_calib = None
             return self.wv_calib
 
+        import pytest
+        pytest.set_trace()
+
         # If a processed calibration frame exists and 
         # we want to reuse it, do so (or just load it):
         self.wv_calib = self.process_load_selection(frame, cal_file, force)
@@ -1243,7 +1246,7 @@ class Calibrations:
             if self.par['wavelengths']['redo_slits'] is None:
                 self.wvcalib_state(cal_file)
                 return self.wv_calib
-
+            
         # Determine lamp list to use for wavecalib
         # Find all the arc frames in this calibration group
         is_arc = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID)

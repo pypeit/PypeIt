@@ -4,6 +4,7 @@ functionality.
 
 .. include:: ../include/links.rst
 """
+from collections.abc import Callable
 from pathlib import Path
 
 from configobj import ConfigObj
@@ -2946,15 +2947,22 @@ class ReduxPar(parset.ParSet):
         'qadir': parset.set_parameter_definition(
             dtype=str,
             default='QA',
-            descr='Directory relative to calling directory to write quality '
-                  'assessment files.',
+            descr='Directory relative to calling directory to write quality assessment files.',
         ),
+        # NOTE: Class attributes are instantiated *when the module is imported*.
+        # This means we can't set the default below to, e.g., `os.getcwd()`
+        # because that will not reflect the current working directory when the
+        # parameter group was instantiated in the code.  Generally this isn't an
+        # issue, but having the code use the current directory when the object
+        # is instantiated is the right thing to do; and we have some tests that
+        # change directories and this approach is required for those tests to
+        # pass.
         'redux_path': parset.set_parameter_definition(
-            dtype=str,
-            default=os.getcwd(),
+            dtype=[str, Path, Callable],
+            default=Path.cwd,
             descr=(
-                'Path to folder for performing reductions.  Default is the '
-                'current working directory.'
+                'Path to folder for performing reductions.  By default, this is a callable '
+                'function that returns the current working directory.'
             ),
         ),
         'chk_version': parset.set_parameter_definition(
@@ -4780,11 +4788,20 @@ class Collate1DPar(parset.ParSet):
                 "If set, the script will flux calibrate using archived sensfuncs before coadding."
             ),
         ),
+        # NOTE: Class attributes are instantiated *when the module is imported*.
+        # This means we can't set the default below to, e.g., `os.getcwd()`
+        # because that will not reflect the current working directory when the
+        # parameter group was instantiated in the code.  Generally this isn't an
+        # issue, but having the code use the current directory when the object
+        # is instantiated is the right thing to do; and we have some tests that
+        # change directories and this approach is required for those tests to
+        # pass.
         'outdir': parset.set_parameter_definition(
-            dtype=str,
-            default=os.getcwd(),
+            dtype=[str, Path, Callable],
+            default=Path.cwd,
             descr=(
-                "The path where all coadded output files and report files will be placed."
+                'The path where all coadded output files and report files will be placed.  By '
+                'default, this is a callable function that returns the current working directory.'
             ),
         ),
         'spec1d_outdir': parset.set_parameter_definition(
@@ -5114,6 +5131,10 @@ class PypeItPar(parset.ParSet):
             ),
         ),
     }
+
+    def validate(self):
+        # Fill the paths
+        self.fill_callable()
 
     @classmethod
     def from_dict(cls, cfg):

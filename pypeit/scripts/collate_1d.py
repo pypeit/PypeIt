@@ -572,6 +572,11 @@ def build_parameters(args):
         # No config file, use the defaults and supplement with command line args
         params = spectrograph_def_par
         params['collate1d'] = pypeitpar.Collate1DPar()
+        # NOTE: We instantiated the Collate1DPar() directly, instead of doing so as
+        # part of the PypeItPar superset, which means we need to fill the path.
+        # We can do that directly, or we can use the fill_callable function like
+        # so:
+        params['collate1d'].fill_callable()
 
     # command line arguments take precedence over config file parameters
     if args.tolerance is not None:

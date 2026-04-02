@@ -10,6 +10,7 @@ import pytest
 from pypeit.par import pypeitpar
 from pypeit.par import parset
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests import tstutils
 
 
 # NOTE: FrameGroupPar is now an abstract class that faults when you try to
@@ -252,3 +253,47 @@ def test_lists():
     with pytest.raises(TypeError):
         p['calibrations']['alignment']['locations'] = 0.0
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
+
+def test_dir():
+    path = tstutils.data_output_path([])
+
+    # Test an instance of ReduxPar, which has no defaults that are also ParSets themselves
+    start_cwd = os.getcwd()
+    p = pypeitpar.ReduxPar()
+    assert callable(p['redux_path']), 'redux_path should be callable before it is filled in'
+    p.fill_callable()
+    assert str(p['redux_path']) == start_cwd, 'Bad default directory'
+
+    os.chdir(path)
+
+    _p = pypeitpar.ReduxPar()
+    _p.fill_callable()
+    assert str(_p['redux_path']) == os.getcwd(), 'Should track directory at instantiation'
+
+    _p = pypeitpar.ReduxPar(redux_path=start_cwd)
+    assert str(_p['redux_path']) == start_cwd, 'Directory not set correctly'
+
+    os.chdir(start_cwd)
+
+    _p = pypeitpar.ReduxPar()
+    _p.fill_callable()
+    assert str(_p['redux_path']) == start_cwd, 'Should track directory at instantiation'
+
+    # Perform the ame tests when instantiating the full PypeItPar set, which
+    # uses an instance of ReduxPar to set the defaults for the 'rdx' parameter.
+    p = pypeitpar.PypeItPar()
+    assert str(p['rdx']['redux_path']) == start_cwd, 'Bad default rdx directory'
+    assert str(p['collate1d']['outdir']) == start_cwd, 'Bad default collate1d directory'
+
+    os.chdir(path)
+
+    _p = pypeitpar.PypeItPar()
+    assert str(_p['rdx']['redux_path']) == os.getcwd(), 'Should track directory at instantiation'
+
+    _p = pypeitpar.PypeItPar(rdx=pypeitpar.ReduxPar(redux_path=start_cwd))
+    assert str(_p['rdx']['redux_path']) == start_cwd, 'Directory not set correctly'
+
+    os.chdir(start_cwd)
+
+    _p = pypeitpar.PypeItPar()
+    assert str(_p['rdx']['redux_path']) == start_cwd, 'Should track directory at instantiation'

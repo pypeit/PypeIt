@@ -4,6 +4,7 @@ Define a utility base class used to hold parameters.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from collections.abc import Callable
 from pathlib import Path
 import shutil
 import textwrap
@@ -69,8 +70,9 @@ def set_parameter_definition(dtype=None, default=None, options=None, descr=None)
         parameter is a :class:`~pypeit.par.parset.ParSet`, it
         *cannot have any other type* and it must be a single
         :class:`~pypeit.par.parset.ParSet` subclass.
-    default : object, optional
-        The default value for the parameter.
+    default : object, callable, optional
+        The default value for the parameter or a callable function that returns
+        the default value.
     options : object, list, optional
         A list of valid options for the parameter.
     descr : str, optional
@@ -143,7 +145,7 @@ class ParSet:
                 f'CODING ERROR: The parameters attribute for {self.__class__.__name__} has not '
                 'been defined!'
             )
-        
+
         # The keys of self.parameters define the allowed keywords.
         allowed_keys = self.keys()
         badkeys = np.array([key for key in kwargs.keys() if key not in allowed_keys])
@@ -151,7 +153,7 @@ class ParSet:
             raise KeyError(
                 f'One or more unrecognized parameters for {self.__class__.__name__}: {badkeys}'
             )
-        
+
         # The number of parameters is set by the parameters attribute
         self.npar = len(self.parameters)
         # Instantiate the data dictionary with the keys provided by the
@@ -554,6 +556,33 @@ class ParSet:
                     f'{np.asarray(self.keys())[should_not_be_None].tolist()}'
                 )
 
+    def fill_callable(self, recursive=True):
+        """
+        Fill any callable parameters with their output.
+
+        The callable parameter must not take any arguments and the returned
+        object must have a valid data type.
+
+        Subclasses can override this method to only fill a selection (or none)
+        of the callable parameters.
+
+        .. warning::
+
+            This alters the object *in-place*.
+
+        Parameters
+        ----------
+        recursive : bool, optional
+            Also fill the callable functions for any nested
+            :class:`~pypeit.par.parset.ParSet` instances.
+        """
+        for key in self.keys():
+            if isinstance(self[key], ParSet) and recursive:
+                self[key].fill_callable()
+                continue
+            if callable(self[key]):
+                self[key] = self[key]()
+
     def to_rst_table(self, parsets_listed=None, include_keyword_link=True, top_level_only=False):
         """
         Construct a reStructuredText table describing the parameter set.
@@ -651,7 +680,9 @@ class ParSet:
                 continue
             print(f'{key}' if basekey is None else f'{basekey}:{key}')
             self._wrap_print('        Value: ', self._data[key], tcols)
-            self._wrap_print('      Default: ', self.parameters[key]['default'], tcols)
+            self._wrap_print(
+                '      Default: ', ParSet._data_string(self.parameters[key]['default']), tcols
+            )
             self._wrap_print(
                 '      Options: ',
                 'None' if self.parameters[key]['options'] is None

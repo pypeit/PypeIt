@@ -384,7 +384,6 @@ def test_find_slits_to_exclude(monkeypatch):
         return MockAllSpec2dObj()
 
     par = pypeitpar.PypeItPar()
-    par['collate1d'] = pypeitpar.Collate1DPar()
     par['collate1d']['exclude_slit_trace_bm'] = ['BOXSLIT', 'USERIGNORE']
 
     monkeypatch.setattr(AllSpec2DObj, 'from_fits', mock_from_fits)
@@ -573,8 +572,6 @@ def test_coadd(monkeypatch):
     with monkeypatch.context() as m:
         monkeypatch.setattr(coadd1d.CoAdd1D, "get_instance", mock_get_instance)
         par = pypeitpar.PypeItPar()
-        par['collate1d'] = pypeitpar.Collate1DPar()
-        par['coadd1d'] = pypeitpar.Coadd1DPar()
         spectrograph = load_spectrograph('keck_deimos')
 
         filenames = ['spec1d_file1', 'spec1d_file2']
@@ -643,7 +640,6 @@ def test_refframe_correction(monkeypatch):
     monkeypatch.setattr(wave, "geomotion_correct", mock_geomotion_correct)
 
     par = pypeitpar.PypeItPar()
-    par['collate1d'] = pypeitpar.Collate1DPar()
     par['collate1d']['refframe'] = 'heliocentric'
     spectrograph = load_spectrograph('keck_deimos')
 

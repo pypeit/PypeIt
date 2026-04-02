@@ -84,11 +84,16 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         cls.init_log(args)
 
+        import pytest
+        pytest.set_trace()
+
         # Instantiate the main pipeline reduction object
         pypeIt = pypeit.PypeIt(
             args.pypeit_file, reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
             redux_path=args.redux_path, calib_only=args.calib_only, show=args.show
         )
+
+        pytest.set_trace()
 
         if args.calib_only:
             pypeIt.calib_all()

@@ -330,29 +330,34 @@ class CoAdd2D:
     @staticmethod
     def output_paths(spec2d_files, par, coadd_dir=None):
         """
-        Construct the names and ensure the existence of the science and QA output directories.
+        Construct the names and ensure the existence of the science and QA
+        output directories.
 
-        Args:
-            spec2d_files (:obj:`list`):
-                The list of PypeIt spec2d files to be coadded.  The top-level
-                directory for the coadd2d output directories is assumed to be
-                same as used by the basic reductions.  For example, if one of
-                the spec2d files is
-                ``/path/to/reductions/Science/spec2d_file.fits``, the parent
-                directory for the coadd2d directories is
-                ``/path/to/reductions/``.
-            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-                Full set of parameters.  The only used parameters are
-                ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.  WARNING:
-                This also *alters* the value of ``par['rdx']['qadir']``!!
-            coadd_dir (:obj:`str`, optional):
-                Path to the directory to use for the coadd2d output.
-                If None, the parent of the science directory is used.
+        Parameters
+        ----------
+        spec2d_files : :obj:`list`
+            The list of PypeIt spec2d files to be coadded.  The top-level
+            directory for the coadd2d output directories is assumed to be same
+            as used by the basic reductions.  For example, if one of the spec2d
+            files is ``/path/to/reductions/Science/spec2d_file.fits``, the
+            parent directory for the coadd2d directories is
+            ``/path/to/reductions/``.
+        par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+            Full set of parameters.  The only used parameters are
+            ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.  WARNING: This
+            also *alters* the value of ``par['rdx']['qadir']``!!
+        coadd_dir : :obj:`str`, :class:`Path`, optional
+            Path to the directory to use for the coadd2d output.  If None, the
+            parent of the science directory is used.
 
-        Returns:
-            :obj:`tuple`: Two strings with the names of (1) the science output
-            directory and (2) the QA output directory.  The function also
-            creates both directories if they do not exist.
+        Returns
+        -------
+        str
+            The science output directory.  The directory is created if it does
+            not exist.
+        str
+            The QA output directory.  The directory is created if it does not
+            exist.
         """
         # Science output directory
         if coadd_dir is not None:
