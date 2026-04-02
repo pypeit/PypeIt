@@ -1,0 +1,135 @@
+.. include:: ../include/links.rst
+
+.. _arc_kosmos_howto:
+
+=================
+ARC-KOSMOS-HOWTO
+=================
+
+Overview
+========
+
+This document provides a guide to using the KOSMOS spectrograph on the
+ARC 3.5m with PypeIt.  It covers the specific configurations, calibration
+procedures, and data reduction steps necessary.
+
+KOSMOS has multiple configurations. It can be used in longslit mode
+or with slit masks. In longslit mode, three different slit positions 
+(low, center, high) can be used to adjust the wavelength coverage.
+In addition, two grisms, for blue and red coverage, are available.
+
+Both internal and external (truss) lamps are available for flat
+fielding and wavelength calibration. The external lamps should provide
+better calibration data, but require longer exposure times. 
+
+There is non-negligible flexure in the instruments. Some users take
+both internal and external wavelength calibrations at the beginning
+and/or end of night, and then internal wavelength calibrations at the 
+location of each object to do differential wavelength adjustments. 
+PypeIt is not set up to do this, so current options are 1) to do
+spectral flexure correction using sky lines (should be good in red
+at least), or 2) use the internal lamps taken at the location
+of the object for wavelength calibration
+
+
+Setup
+=====
+
+PypeIt will be run separately for each configurations used during
+a night of data. 
+
+Run pypeit_setup
+----------------
+
+You create PypeIt setup files using the pypeit_setup command, giving
+it the name of spectrograph and the directory with the raw data. You
+probably want to run this from a separate directory in which you want
+the reduced data to reside.
+
+.. code-block:: bash
+       pypeit_setup -s arc_kosmos -r PATH_TO_RAW_DATA/ --gui
+
+The --gui argument will make this open a graphical interface from which
+you can inspect, edit, and/or save the different configurations. You can
+also run pypeit_setup without this argument and let it create the 
+configuration files by itself without showing you the details. 
+
+pypeit_setup attempts to sort files into separate configurations, and
+automatically identify which files are to be used for pixelflats,
+illumflats, bias, arcs, tilts, standards, and science frames; see
+the PypeIt documentation for additional details.
+
+Different configurations are defined as those with different grism,
+slit, and binning combinations. Note that, in the setup gui and the
+configuration files, the grating is the grism, and the decker is the
+slit.
+
+After running this, you should have one or more .pypeit configuration
+files, e.g. arc_kosmos_A.pypeit. You should inspect these files to
+make sure that the correct classifications have been made. You can
+also remove or comment out individual frames.
+
+
+Non-standard binning
+--------------------
+
+The pipeline has not been tested for non-standard (non 1x1) 
+binning. Please contact the developers if there are issues.
+
+
+Main Run
+========
+
+Once the :doc:`../pypeit_file` is ready, the main call is
+simply:
+
+.. code-block:: bash
+
+    run_pypeit arc_kosmos_A.pypeit -o
+
+The ``-o`` indicates that any existing output files should be overwritten.  As
+there are none, it is superfluous but we recommend (almost) always using it.
+
+The :doc:`../running` doc describes the process in some more detail.
+
+Note that the PypeIt reduction process can take quite a while!
+
+Inspecting Files
+================
+
+Calibrations
+------------
+
+The first set are :doc:`../calibrations/calibrations`.
+
+Slit Edges
+++++++++++
+
+PypeIt will map the slit edges using the trace frames.
+
+Wavelengths
++++++++++++
+
+One should inspect the :doc:`../qa` for the wavelength
+calibration.  These are PNGs in the QA/PNG/ folder.
+
+Note:  there are multiple files generated for every slit.
+When the reduction is complete, you may prefer to scan
+through them by opening the HTML file under ``QA/``.
+
+The final wavelength solution is a two dimensional fit 
+with pixel along the order one axis and the order itself
+being the second. 
+
+Remember, the default calibration is in vacuum wavelengths.
+
+Spectra
+-------
+
+The code will generate 2D and 1D spectra outputs.  One per 
+science frame, located in the ``Science/`` folder.
+
+One can inspect the one dimensional spectra 
+with :ref:`pypeit_show_1dspec`.
+
+Using that tool, you can examine the individual orders. 
