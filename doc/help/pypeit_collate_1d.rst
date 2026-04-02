@@ -64,7 +64,9 @@
       --par_outfile PAR_OUTFILE
                             Output to save the parameters
       --outdir OUTDIR       The path where all coadded output files and report files
-                            will be placed. Defaults to the current directory.
+                            will be placed. By default, this is a callable function
+                            that returns the current working directory. Defaults to
+                            the current directory.
       --spec1d_outdir SPEC1D_OUTDIR
                             The path where all modified spec1d files are placed.
                             These are only created if flux calibration or refframe

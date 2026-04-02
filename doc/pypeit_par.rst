@@ -937,21 +937,21 @@ Collate1DPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.Collate1DPar`
 
-=========================  ===============  ===============================================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                        Type             Options                                          Default     Description                                                                                                                                                                                                                                                                                                                                                                                                       
-=========================  ===============  ===============================================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================
-``dry_run``                bool             ..                                               False       If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                             
-``exclude_serendip``       bool             ..                                               False       Whether to exclude SERENDIP objects from collating.                                                                                                                                                                                                                                                                                                                                                               
-``exclude_slit_trace_bm``  list, str        ..                                                           A list of slit trace bitmask bits that should be excluded.                                                                                                                                                                                                                                                                                                                                                        
-``flux``                   bool             ..                                               False       If set, the script will flux calibrate using archived sensfuncs before coadding.                                                                                                                                                                                                                                                                                                                                  
-``ignore_flux``            bool             ..                                               False       If set, the script will only coadd non-fluxed spectra even if flux data is present.  Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated.                                                                                                                                                                                                                                             
-``match_using``            str              ``pixel``, ``ra/dec``                            ``ra/dec``  Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                               
-``outdir``                 str              ..                                               ``$PWD``    The path where all coadded output files and report files will be placed.                                                                                                                                                                                                                                                                                                                                          
-``refframe``               str              ``observed``, ``heliocentric``, ``barycentric``  ..          Perform reference frame correction prior to coadding.  Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                           
-``spec1d_outdir``          str              ..                                               ..          The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for.                                                                                                                                                                                                                                                                             
-``tolerance``              str, float, int  ..                                               1.0         The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used (`e.g.`, '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
-``wv_rms_thresh``          float            ..                                               ..          If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted.                                                                                                                                                                                                                                                                                                  
-=========================  ===============  ===============================================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================
+=========================  ===================  ===============================================  ============================================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                        Type                 Options                                          Default                                                       Description                                                                                                                                                                                                                                                                                                                                                                                                       
+=========================  ===================  ===============================================  ============================================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
+``dry_run``                bool                 ..                                               False                                                         If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                             
+``exclude_serendip``       bool                 ..                                               False                                                         Whether to exclude SERENDIP objects from collating.                                                                                                                                                                                                                                                                                                                                                               
+``exclude_slit_trace_bm``  list, str            ..                                                                                                             A list of slit trace bitmask bits that should be excluded.                                                                                                                                                                                                                                                                                                                                                        
+``flux``                   bool                 ..                                               False                                                         If set, the script will flux calibrate using archived sensfuncs before coadding.                                                                                                                                                                                                                                                                                                                                  
+``ignore_flux``            bool                 ..                                               False                                                         If set, the script will only coadd non-fluxed spectra even if flux data is present.  Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated.                                                                                                                                                                                                                                             
+``match_using``            str                  ``pixel``, ``ra/dec``                            ``ra/dec``                                                    Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                               
+``outdir``                 str, Path, Callable  ..                                               <bound method PathBase.cwd of <class 'pathlib._local.Path'>>  The path where all coadded output files and report files will be placed.  By default, this is a callable function that returns the current working directory.                                                                                                                                                                                                                                                     
+``refframe``               str                  ``observed``, ``heliocentric``, ``barycentric``  ..                                                            Perform reference frame correction prior to coadding.  Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                           
+``spec1d_outdir``          str                  ..                                               ..                                                            The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for.                                                                                                                                                                                                                                                                             
+``tolerance``              str, float, int      ..                                               1.0                                                           The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used (`e.g.`, '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
+``wv_rms_thresh``          float                ..                                               ..                                                            If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted.                                                                                                                                                                                                                                                                                                  
+=========================  ===================  ===============================================  ============================================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -1004,22 +1004,22 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==============  =======  ===========  ==========================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type            Options  Default      Description                                                                                                                                                                                                                                                                                                                                                                                               
-======================  ==============  =======  ===========  ==========================================================================================================================================================================================================================================================================================================================================================================================================
-``calwin``              int, float      ..       0            The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                          
-``chk_version``         bool            ..       True         If True enforce strict PypeIt version checking to ensure that all files were created with the current version of PypeIt.  If set to False, the code will attempt to read out-of-date files and keep going.  Beware (!!) that this can lead to unforeseen bugs that either cause the code to crash or lead to erroneous results. I.e., you really need to know what you are doing if you set this to False!
-``detnum``              int, list       ..       ..           Restrict reduction to a list of detector indices. In case of mosaic reduction (currently only available for Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of tuples of the detector indices that are mosaiced together. E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``                                           
-``ignore_bad_headers``  bool            ..       False        Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                          
-``maskIDs``             str, int, list  ..       ..           Restrict reduction to a set of slitmask IDs Example syntax -- ``maskIDs = 818006,818015`` This must be used with detnum (for now).                                                                                                                                                                                                                                                                        
-``qadir``               str             ..       ``QA``       Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                
-``quicklook``           bool            ..       False        Run a quick look reduction? This is usually good if you want to quickly reduce the data (usually at the telescope in real time) to get an initial estimate of the data quality.                                                                                                                                                                                                                           
-``redux_path``          str             ..       ``$PWD``     Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                      
-``scidir``              str             ..       ``Science``  Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                           
-``slitspatnum``         str, list       ..       ..           Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.                                                                                                                                                       
-``sortroot``            str             ..       ..           A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                    
-``spectrograph``        str             ..       ..           Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                                                                                                                                             
-======================  ==============  =======  ===========  ==========================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ===================  =======  ============================================================  ==========================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type                 Options  Default                                                       Description                                                                                                                                                                                                                                                                                                                                                                                               
+======================  ===================  =======  ============================================================  ==========================================================================================================================================================================================================================================================================================================================================================================================================
+``calwin``              int, float           ..       0                                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                          
+``chk_version``         bool                 ..       True                                                          If True enforce strict PypeIt version checking to ensure that all files were created with the current version of PypeIt.  If set to False, the code will attempt to read out-of-date files and keep going.  Beware (!!) that this can lead to unforeseen bugs that either cause the code to crash or lead to erroneous results. I.e., you really need to know what you are doing if you set this to False!
+``detnum``              int, list            ..       ..                                                            Restrict reduction to a list of detector indices. In case of mosaic reduction (currently only available for Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of tuples of the detector indices that are mosaiced together. E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``                                           
+``ignore_bad_headers``  bool                 ..       False                                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                          
+``maskIDs``             str, int, list       ..       ..                                                            Restrict reduction to a set of slitmask IDs Example syntax -- ``maskIDs = 818006,818015`` This must be used with detnum (for now).                                                                                                                                                                                                                                                                        
+``qadir``               str                  ..       ``QA``                                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                
+``quicklook``           bool                 ..       False                                                         Run a quick look reduction? This is usually good if you want to quickly reduce the data (usually at the telescope in real time) to get an initial estimate of the data quality.                                                                                                                                                                                                                           
+``redux_path``          str, Path, Callable  ..       <bound method PathBase.cwd of <class 'pathlib._local.Path'>>  Path to folder for performing reductions.  By default, this is a callable function that returns the current working directory.                                                                                                                                                                                                                                                                            
+``scidir``              str                  ..       ``Science``                                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                           
+``slitspatnum``         str, list            ..       ..                                                            Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.                                                                                                                                                       
+``sortroot``            str                  ..       ..                                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                    
+``spectrograph``        str                  ..       ..                                                            Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                                                                                                                                             
+======================  ===================  =======  ============================================================  ==========================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -1348,6 +1348,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = aat_uhrf
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -1435,6 +1436,8 @@ Alterations to the default parameters are:
           bspline_spacing = 3.0
           no_poly = True
           user_regions = :10,75:
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-apf_levy:
 
@@ -1446,6 +1449,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = apf_levy
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -1567,6 +1571,8 @@ Alterations to the default parameters are:
           mask_by_boxcar = True
       [[extraction]]
           boxcar_radius = 1.728
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-bok_bc:
 
@@ -1578,6 +1584,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = bok_bc
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -1706,6 +1713,8 @@ Alterations to the default parameters are:
           no_poly = True
   [sensfunc]
       polyorder = 7
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gemini_flamingos1:
 
@@ -1717,6 +1726,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gemini_flamingos1
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -1841,6 +1851,8 @@ Alterations to the default parameters are:
       [[findobj]]
           snr_thresh = 5.0
           find_trim_edge = 50, 50,
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gemini_flamingos2:
 
@@ -1852,6 +1864,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gemini_flamingos2
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -1984,6 +1997,8 @@ Alterations to the default parameters are:
       polyorder = 8
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gemini_gmos_north_e2v:
 
@@ -1996,6 +2011,7 @@ Alterations to the default parameters are:
   [rdx]
       spectrograph = gemini_gmos_north_e2v
       detnum = (1, 2, 3),
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -2084,6 +2100,8 @@ Alterations to the default parameters are:
       extrap_blu = 0.05
       extrap_red = 0.05
       trim_std_pixs = 20, 20,
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gemini_gmos_north_ham:
 
@@ -2096,6 +2114,7 @@ Alterations to the default parameters are:
   [rdx]
       spectrograph = gemini_gmos_north_ham
       detnum = (1, 2, 3),
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -2184,6 +2203,8 @@ Alterations to the default parameters are:
       extrap_blu = 0.05
       extrap_red = 0.05
       trim_std_pixs = 20, 20,
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gemini_gmos_north_ham_ns:
 
@@ -2196,6 +2217,7 @@ Alterations to the default parameters are:
   [rdx]
       spectrograph = gemini_gmos_north_ham_ns
       detnum = (1, 2, 3),
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -2284,6 +2306,8 @@ Alterations to the default parameters are:
       extrap_blu = 0.05
       extrap_red = 0.05
       trim_std_pixs = 20, 20,
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gemini_gmos_south_ham:
 
@@ -2296,6 +2320,7 @@ Alterations to the default parameters are:
   [rdx]
       spectrograph = gemini_gmos_south_ham
       detnum = (1, 2, 3),
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -2388,6 +2413,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gemini_gnirs_echelle:
 
@@ -2399,6 +2426,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gemini_gnirs_echelle
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -2525,6 +2553,8 @@ Alterations to the default parameters are:
       polyorder = 6
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gemini_gnirs_ifu:
 
@@ -2536,6 +2566,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gemini_gnirs_ifu
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -2673,6 +2704,8 @@ Alterations to the default parameters are:
           extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gtc_maat:
 
@@ -2684,6 +2717,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gtc_maat
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -2804,6 +2838,8 @@ Alterations to the default parameters are:
           extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gtc_osiris:
 
@@ -2815,6 +2851,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gtc_osiris
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -2918,6 +2955,8 @@ Alterations to the default parameters are:
       polyorder = 13
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-gtc_osiris_plus:
 
@@ -2929,6 +2968,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gtc_osiris_plus
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -3032,6 +3072,8 @@ Alterations to the default parameters are:
       polyorder = 13
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-jwst_nircam:
 
@@ -3043,6 +3085,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = jwst_nircam
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -3129,6 +3172,8 @@ Alterations to the default parameters are:
           sn_gauss = 6.0
           model_full_slit = True
           use_2dmodel_mask = False
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-jwst_nirspec:
 
@@ -3140,6 +3185,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = jwst_nirspec
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -3227,6 +3273,8 @@ Alterations to the default parameters are:
           sn_gauss = 5.0
           model_full_slit = True
           use_2dmodel_mask = False
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_deimos:
 
@@ -3239,6 +3287,7 @@ Alterations to the default parameters are:
   [rdx]
       spectrograph = keck_deimos
       detnum = (1, 5), (2, 6), (3, 7), (4, 8),
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -3346,6 +3395,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_esi:
 
@@ -3357,6 +3408,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_esi
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -3462,6 +3514,8 @@ Alterations to the default parameters are:
           find_trim_edge = 4, 4,
       [[extraction]]
           model_full_slit = True
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_hires:
 
@@ -3474,6 +3528,7 @@ Alterations to the default parameters are:
   [rdx]
       spectrograph = keck_hires
       detnum = (1, 2, 3),
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -3641,6 +3696,8 @@ Alterations to the default parameters are:
   [telluric]
       resln_frac_bounds = (0.25, 1.25)
       pix_shift_bounds = (-40.0, 40.0)
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_kcrm:
 
@@ -3652,6 +3709,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_kcrm
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -3753,6 +3811,8 @@ Alterations to the default parameters are:
           extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_kcwi:
 
@@ -3764,6 +3824,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_kcwi
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       scattlight_pad = 6
       [[biasframe]]
@@ -3880,6 +3941,8 @@ Alterations to the default parameters are:
           extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_lris_blue:
 
@@ -3891,6 +3954,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_blue
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 1,
@@ -3992,6 +4056,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_lris_blue_orig:
 
@@ -4003,6 +4069,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_blue_orig
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 1,
@@ -4104,6 +4171,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_lris_red:
 
@@ -4115,6 +4184,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_red
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 1,
@@ -4227,6 +4297,8 @@ Alterations to the default parameters are:
       polyorder = 9
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_lris_red_mark4:
 
@@ -4238,6 +4310,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_red_mark4
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 1,
@@ -4350,6 +4423,8 @@ Alterations to the default parameters are:
       polyorder = 9
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_lris_red_orig:
 
@@ -4361,6 +4436,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_lris_red_orig
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 1,
@@ -4473,6 +4549,8 @@ Alterations to the default parameters are:
       polyorder = 9
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_mosfire:
 
@@ -4484,6 +4562,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_mosfire
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -4608,6 +4687,8 @@ Alterations to the default parameters are:
       polyorder = 13
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_nires:
 
@@ -4619,6 +4700,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_nires
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -4761,6 +4843,8 @@ Alterations to the default parameters are:
       polyorder = 8
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_nirspec_high:
 
@@ -4772,6 +4856,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_nirspec_high
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -4914,6 +4999,8 @@ Alterations to the default parameters are:
       polyorder = 8
       [[IR]]
           telgridfile = TellPCA_9300_55100_R60000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_nirspec_high_old:
 
@@ -4925,6 +5012,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_nirspec_high_old
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -5066,6 +5154,8 @@ Alterations to the default parameters are:
       polyorder = 8
       [[IR]]
           telgridfile = TellPCA_9300_55100_R60000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-keck_nirspec_low:
 
@@ -5077,6 +5167,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = keck_nirspec_low
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -5206,6 +5297,8 @@ Alterations to the default parameters are:
           pix_shift_bounds = (-8.0, 8.0)
   [telluric]
       pix_shift_bounds = (-8.0, 8.0)
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_luci1:
 
@@ -5217,6 +5310,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_luci1
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -5347,6 +5441,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_luci2:
 
@@ -5358,6 +5454,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_luci2
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -5487,6 +5584,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_mods1b:
 
@@ -5498,6 +5597,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods1b
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -5621,6 +5721,8 @@ Alterations to the default parameters are:
           mask_cr = True
   [flexure]
       spec_method = boxcar
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_mods1b_proc:
 
@@ -5632,6 +5734,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods1b_proc
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -5808,6 +5911,8 @@ Alterations to the default parameters are:
           mask_cr = True
   [flexure]
       spec_method = boxcar
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_mods1r:
 
@@ -5819,6 +5924,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods1r
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -5948,6 +6054,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_mods1r_proc:
 
@@ -5959,6 +6067,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods1r_proc
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -6141,6 +6250,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_mods2b:
 
@@ -6152,6 +6263,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods2b
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -6275,6 +6387,8 @@ Alterations to the default parameters are:
           mask_cr = True
   [flexure]
       spec_method = boxcar
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_mods2b_proc:
 
@@ -6286,6 +6400,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods2b_proc
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -6462,6 +6577,8 @@ Alterations to the default parameters are:
           mask_cr = True
   [flexure]
       spec_method = boxcar
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_mods2r:
 
@@ -6473,6 +6590,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods2r
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -6602,6 +6720,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-lbt_mods2r_proc:
 
@@ -6613,6 +6733,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = lbt_mods2r_proc
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -6795,6 +6916,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-ldt_deveny:
 
@@ -6806,6 +6929,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = ldt_deveny
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
@@ -6953,6 +7077,8 @@ Alterations to the default parameters are:
       [[UVIS]]
           polycorrect = False
           nresln = 15
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-magellan_fire:
 
@@ -6964,6 +7090,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = magellan_fire
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -7105,6 +7232,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-magellan_fire_long:
 
@@ -7116,6 +7245,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = magellan_fire_long
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -7246,6 +7376,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-magellan_mage:
 
@@ -7257,6 +7389,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = magellan_mage
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -7357,6 +7490,8 @@ Alterations to the default parameters are:
           model_full_slit = True
   [coadd1d]
       wave_method = log10
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-mdm_modspec:
 
@@ -7368,6 +7503,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mdm_modspec
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -7458,6 +7594,8 @@ Alterations to the default parameters are:
       [[process]]
           noise_floor = 0.01
           mask_cr = True
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-mdm_osmos_mdm4k:
 
@@ -7469,6 +7607,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mdm_osmos_mdm4k
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -7551,6 +7690,8 @@ Alterations to the default parameters are:
       [[process]]
           noise_floor = 0.01
           mask_cr = True
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-mdm_osmos_r4k:
 
@@ -7562,6 +7703,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mdm_osmos_r4k
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 1,
@@ -7675,6 +7817,8 @@ Alterations to the default parameters are:
           overscan_method = odd_even
           noise_floor = 0.01
           mask_cr = True
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-mmt_binospec:
 
@@ -7686,6 +7830,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mmt_binospec
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -7796,6 +7941,8 @@ Alterations to the default parameters are:
       polyorder = 7
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-mmt_bluechannel:
 
@@ -7807,6 +7954,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mmt_bluechannel
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -7915,6 +8063,8 @@ Alterations to the default parameters are:
           global_sky_std = False
   [sensfunc]
       polyorder = 7
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-mmt_mmirs:
 
@@ -7926,6 +8076,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = mmt_mmirs
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -8060,6 +8211,8 @@ Alterations to the default parameters are:
       polyorder = 8
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-not_alfosc:
 
@@ -8071,6 +8224,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = not_alfosc
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 1,
@@ -8175,6 +8329,8 @@ Alterations to the default parameters are:
           use_overscan = False
           noise_floor = 0.01
           mask_cr = True
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-not_alfosc_vert:
 
@@ -8186,6 +8342,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = not_alfosc_vert
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 1,
@@ -8290,6 +8447,8 @@ Alterations to the default parameters are:
           use_overscan = False
           noise_floor = 0.01
           mask_cr = True
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-ntt_efosc2:
 
@@ -8301,6 +8460,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = ntt_efosc2
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -8388,6 +8548,8 @@ Alterations to the default parameters are:
           no_poly = True
   [flexure]
       spec_method = boxcar
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-p200_dbsp_blue:
 
@@ -8399,6 +8561,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_dbsp_blue
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
@@ -8487,6 +8650,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[UVIS]]
           nresln = 5
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-p200_dbsp_red:
 
@@ -8498,6 +8663,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_dbsp_red
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
@@ -8589,6 +8755,8 @@ Alterations to the default parameters are:
           polycorrect = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-p200_ngps_i:
 
@@ -8600,6 +8768,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_ngps_i
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -8687,6 +8856,8 @@ Alterations to the default parameters are:
           mask_cr = True
           sigclip = 4.0
           objlim = 5.0
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-p200_ngps_r:
 
@@ -8698,6 +8869,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_ngps_r
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
@@ -8786,6 +8958,8 @@ Alterations to the default parameters are:
           mask_cr = True
           sigclip = 4.0
           objlim = 5.0
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-p200_tspec:
 
@@ -8797,6 +8971,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = p200_tspec
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -8940,6 +9115,8 @@ Alterations to the default parameters are:
       polyorder = 8
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-shane_kast_blue:
 
@@ -8951,6 +9128,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = shane_kast_blue
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -9047,6 +9225,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-shane_kast_red:
 
@@ -9058,6 +9238,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = shane_kast_red
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -9145,6 +9326,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-shane_kast_red_ret:
 
@@ -9156,6 +9339,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = shane_kast_red_ret
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -9245,6 +9429,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-soar_goodman_blue:
 
@@ -9256,6 +9442,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = soar_goodman_blue
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -9355,6 +9542,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-soar_goodman_red:
 
@@ -9366,6 +9555,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = soar_goodman_red
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -9467,6 +9657,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-subaru_focas:
 
@@ -9478,6 +9670,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = subaru_focas
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -9587,6 +9780,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_10500_R120000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-tng_dolores:
 
@@ -9598,6 +9793,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = tng_dolores
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           exprng = None, 0.001,
@@ -9677,6 +9873,8 @@ Alterations to the default parameters are:
       [[process]]
           noise_floor = 0.01
           mask_cr = True
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-vlt_fors2:
 
@@ -9688,6 +9886,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_fors2
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -9790,6 +9989,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-vlt_sinfoni:
 
@@ -9801,6 +10002,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_sinfoni
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -9939,6 +10141,8 @@ Alterations to the default parameters are:
       polyorder = 7
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-vlt_xshooter_nir:
 
@@ -9950,6 +10154,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_xshooter_nir
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -10103,6 +10308,8 @@ Alterations to the default parameters are:
   [telluric]
       resln_frac_bounds = (0.4, 2.0)
       pix_shift_bounds = (-10.0, 10.0)
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-vlt_xshooter_uvb:
 
@@ -10114,6 +10321,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_xshooter_uvb
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -10256,6 +10464,8 @@ Alterations to the default parameters are:
           pix_shift_bounds = (-8.0, 8.0)
   [telluric]
       pix_shift_bounds = (-8.0, 8.0)
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-vlt_xshooter_vis:
 
@@ -10267,6 +10477,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = vlt_xshooter_vis
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -10412,6 +10623,8 @@ Alterations to the default parameters are:
   [telluric]
       resln_frac_bounds = (0.4, 2.0)
       pix_shift_bounds = (-10.0, 10.0)
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-wht_isis_blue:
 
@@ -10423,6 +10636,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = wht_isis_blue
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
@@ -10524,6 +10738,8 @@ Alterations to the default parameters are:
           use_overscan = False
           noise_floor = 0.01
           mask_cr = True
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 
 .. _instr_par-wht_isis_red:
 
@@ -10535,6 +10751,7 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = wht_isis_red
+      redux_path = /Users/westfall/Work/packages/pypeit/doc
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
@@ -10634,4 +10851,6 @@ Alterations to the default parameters are:
           use_overscan = False
           noise_floor = 0.01
           mask_cr = True
+  [collate1d]
+      outdir = /Users/westfall/Work/packages/pypeit/doc
 

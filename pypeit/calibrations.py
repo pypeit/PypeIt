@@ -1225,9 +1225,6 @@ class Calibrations:
             self.wv_calib = None
             return self.wv_calib
 
-        import pytest
-        pytest.set_trace()
-
         # If a processed calibration frame exists and 
         # we want to reuse it, do so (or just load it):
         self.wv_calib = self.process_load_selection(frame, cal_file, force)

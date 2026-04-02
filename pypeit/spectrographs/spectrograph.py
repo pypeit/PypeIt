@@ -188,8 +188,6 @@ class Spectrograph:
             all of PypeIt methods.
         """
         par = pypeitpar.PypeItPar()
-        import pytest
-        pytest.set_trace()
         par['rdx']['spectrograph'] = cls.name
         return par
 

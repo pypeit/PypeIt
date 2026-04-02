@@ -579,8 +579,7 @@ class ParSet:
         for key in self.keys():
             if isinstance(self[key], ParSet) and recursive:
                 self[key].fill_callable()
-                continue
-            if callable(self[key]):
+            elif callable(self[key]):
                 self[key] = self[key]()
 
     def to_rst_table(self, parsets_listed=None, include_keyword_link=True, top_level_only=False):

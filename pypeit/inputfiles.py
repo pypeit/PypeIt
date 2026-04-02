@@ -933,9 +933,6 @@ class PypeItFile(InputFile):
             data_row['filename'] = str(_config_specific_file)
             spec_par = spec.config_specific_par(data_row)
 
-        import pytest
-        pytest.set_trace()
-
         par = pypeitpar.PypeItPar.from_cfg_lines(
             cfg_lines=spec_par.to_config(), merge_with=(self.cfg_lines,)
         )

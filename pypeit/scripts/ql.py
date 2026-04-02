@@ -224,7 +224,7 @@ def generate_sci_pypeitfile(
     ----------    
     redux_path : :obj:`str`, :class:`Path`
         Path to the redux folder
-    ref_calib_dir : :class:`Path`_
+    ref_calib_dir : :class:`Path`
         Path with the pre-processed calibration frames.  A symlink will be
         created to this directory from within ``redux_path`` to mimic the
         location of the calibrations expected by :class:`~pypeit.pypeit.PypeIt`.
