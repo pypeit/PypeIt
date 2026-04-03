@@ -20,7 +20,9 @@ In addition, two grisms, for blue and red coverage, are available.
 
 Both internal and external (truss) lamps are available for flat
 fielding and wavelength calibration. The external lamps should provide
-better calibration data, but require longer exposure times. 
+better calibration data, but require longer exposure times. The
+current default KOSMOS setup is for the truss lamps, but this can
+be overridden, see below.
 
 There is non-negligible flexure in the instruments. Some users take
 both internal and external wavelength calibrations at the beginning
@@ -69,6 +71,53 @@ files, e.g. arc_kosmos_A.pypeit. You should inspect these files to
 make sure that the correct classifications have been made. You can
 also remove or comment out individual frames.
 
+Wavelength calibration frames (listed as arcs), **should only be
+for the HeNeAr truss lamps**; they can be in separate or a single
+exposure. The default line lists are for HeI, NeI, and ArI; if not
+all of these lamps are used, add a section to the .pypeit file
+to specify which lamps were used, e.g.:
+
+.. code-block:: bash
+[calibrations]
+ [[wavelengths]]
+   lamps = NeI, ArI
+
+Wavelength calibration works by cross-correlating a combined
+arc frame with a reference frame. The reference frames have been
+constructed from observations with He, Ne, and Ar lamps on, which
+can lead to issues if the combined frame only has a subset, if
+the missing lamp(s) have a lot of lines. There is a Ne only
+reference frame available for the red configuration, to use that
+you would add :
+
+.. code-block:: bash
+[calibrations]
+ [[wavelengths]]
+   lamps = NeI
+   reid_arxiv = 'arc_kosmos_red_ctr_ne.fits'
+
+If you used the internal lamps in the blue, you can
+use a reference frame made with Kr, Ne, and Ar:
+
+.. code-block:: bash
+[calibrations]
+ [[wavelengths]]
+   lamps = KrI,NeI,ArI
+   reid_arxiv = 'arc_kosmos_red_int_ctr.fits'
+
+Since lines in the red are largely from Ne and Ar, the standard
+red reference frame should work with either the internal or the
+truss lamps.
+
+Finally, if you are using slit masks and have slits far from the
+center position, the wavelength identification may fail. In some cases,
+we have found that this can be improved using:
+
+.. code-block:: bash
+[calibrations]
+ [[wavelengths]]
+   nsnippet = 5
+
 
 Non-standard binning
 --------------------
@@ -115,13 +164,20 @@ calibration.  These are PNGs in the QA/PNG/ folder.
 
 Note:  there are multiple files generated for every slit.
 When the reduction is complete, you may prefer to scan
-through them by opening the HTML file under ``QA/``.
+through them by opening the MF_[configuration].html file under ``QA/``.
+
+Note that it is possible to have apparently small residuals
+but still have an incorrect wavelength solution if lines are
+misidentified! This often leads to only having relatively few lines.
+Output science spectra can be the final arbiter of problems, e.g. by
+looking at sky lines.
 
 The final wavelength solution is a two dimensional fit 
 with pixel along the order one axis and the order itself
 being the second. 
 
 Remember, the default calibration is in vacuum wavelengths.
+
 
 Spectra
 -------
