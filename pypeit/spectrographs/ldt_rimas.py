@@ -1001,9 +1001,9 @@ class LDTRIMASLowHKSpectrograph(RIMASLowres, RIMASHKArm):
             par["sensfunc"]["UVIS"]["resolution"] = 800
 
             par["reduce"]["findobj"]["find_fwhm"] = 7
-            par["reduce"]["findobj"]["snr_thresh"] = 1
+            par["reduce"]["findobj"]["snr_thresh"] = 10
 
-            par["calibrations"]["wavelengths"]["lamps"] = ["HgI"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+            par["calibrations"]["wavelengths"]["lamps"] = ["HgI_DeVeny", "ArI_DeVeny"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
 
         else:
             pass

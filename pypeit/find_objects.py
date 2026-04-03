@@ -311,8 +311,6 @@ class FindObjects:
         #self.slits_left = slits_left[:, gpm]
         #self.slits_right = slits_right[:, gpm]
 
-        print(self.slits_left, self.slits_right)
-
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
@@ -788,10 +786,6 @@ class MultiSlitFindObjects(FindObjects):
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
 
-        print("Hi :)")
-        print(len(gdslits), gdslits)
-        input()
-
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
@@ -853,6 +847,7 @@ class MultiSlitFindObjects(FindObjects):
                                 objfindQA_filename=objfindQA_filename,
                                 debug_all=debug)
             # Record
+            print("Objects:", sobjs)
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
