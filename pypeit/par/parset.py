@@ -4,7 +4,6 @@ Define a utility base class used to hold parameters.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-from collections.abc import Callable
 from pathlib import Path
 import shutil
 import textwrap
@@ -111,11 +110,36 @@ def set_parameter_definition(dtype=None, default=None, options=None, descr=None)
     }
 
 
-# TODO: We might need to define the types that allowed for list parameters.
+# TODO: We might need to define the types that are allowed for list parameters.
 # They should be single element objects (ints, floats, strings), NOT more
 # complex things like dicts or ParSets.  Nested ParSets are allowed.
 class ParSet:
     """
+    An abstract base class used to collect runtime parameters.
+
+    As an abstract base class, it should not be instantiated on its own.
+
+    Parameters for each subclass should be defined by the :attr:`parameters`
+    dictionary.  Generally, parameters are expected to have a restricted set of
+    data types, and possibly a restricted set of value options.  Parameters can
+    be callable functions or parameter sets themselves.  Components of the
+    :attr:`parameters` should be defined using
+    :func:`~pypeit.par.parset.set_parameter_definition` to ensure it has all of
+    the expected components.
+
+    For example implementations of :class:`~pypeit.par.parset.ParSet`
+    subclasses, see :mod:`~pypeit.par.pypeitpar`.
+
+    Parameters
+    ----------
+    **kwargs
+        Initial values for the parameters.  The keywords provided *must* match
+        the name of a parameter defined by the :attr:`parameters` dictionary.
+
+    Attributes
+    ----------
+    npar : int
+        Number of parameters in the set.
     """
 
     default_key = None
@@ -295,7 +319,7 @@ class ParSet:
 
     def __repr__(self):
         """Return a string representation of the parameters."""
-        return self._output_string() #header=self.cfg_section)
+        return self._output_string()
 
     def _output_string(self, header=None, value_only=False):
         """
