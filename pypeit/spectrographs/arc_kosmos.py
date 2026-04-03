@@ -63,8 +63,6 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 2,
             gain            = np.atleast_1d([0.6,0.6]),
             ronoise         = np.atleast_1d([5.0,5.0]),
-            #datasec         = np.atleast_1d(['[0:1023,0:4095]', '[1024:2047,0:4095]']),
-            #oscansec        = np.atleast_1d(['[2055:2087,0:4095]', '[2105:2137,0:4095]']),
             datasec         = np.atleast_1d(['[:,1:1024]', '[:,1025:2048]']),
             oscansec        = np.atleast_1d(['[:, 2056:2088]', '[:, 2106:2138]']),
         )
@@ -85,14 +83,15 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 5
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI','ArI']
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'arc_kosmos_ne.fits'
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        par['calibrations']['wavelengths']['nsnippet'] = 3
 
         # allow for multiple wavecals of different lamps and/or exptimes
         par['calibrations']['arcframe']['process']['clip'] = False
@@ -135,14 +134,14 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
             elif 'lo' in decker : 
                 par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_blue_low.fits"
             else :
-                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_blue.fits"
+                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_blue_ctr.fits"
         elif grating == 'red' :
             if 'high' in decker : 
                 par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red_high.fits"
             elif 'lo' in decker : 
                 par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red_low.fits"
             else :
-                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red.fits"
+                par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red_ctr.fits"
         else:
             msgs.error("NEED TO ADD YOUR GRISM HERE!")
 
@@ -180,8 +179,6 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['lampstat08'] = dict(ext=0, card='NEON')
         self.meta['lampstat09'] = dict(ext=0, card='ARGON')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
-        # Mirror
-        #self.meta['mirror'] = dict(card=None)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -201,12 +198,6 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
             binspatial = headarr[0]['BINX']
             binspec = headarr[0]['BINY']
             return parse.binning2string(binspec, binspatial)
-        elif meta_key == 'lampstat01':
-            bqtz = headarr[0]['BINX']
-            fqtz = headarr[0]['BINY']
-            he = headarr[0]['BINY']
-            ne = headarr[0]['BINY']
-            ar = headarr[0]['BINY']
         elif meta_key == 'mjd':
             time = headarr[0]['DATE-OBS']
             ttime = Time(time, format='isot')
@@ -285,13 +276,8 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
-            ####return good_exp & (fitstbl['idname'] == 'zero')
         if ftype == 'pixelflat': #Internal Flats
             return good_exp & (fitstbl['idname'] == 'Flat') 
-            #return (good_exp & 
-            #        ((fitstbl['lampstat01'] == 'on') |
-            #         (fitstbl['lampstat02'] == 'on') |
-            #         (fitstbl['lampstat06'] == 'on') ))
         if ftype in ['trace', 'illumflat']: 
             return good_exp & (fitstbl['idname'] == 'Flat') 
         if ftype in ['pinhole', 'dark']:

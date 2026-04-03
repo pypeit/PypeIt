@@ -160,7 +160,7 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
         # find objects
         par['reduce']['findobj']['find_trim_edge'] = [0, 0]
         # extraction
-        par['reduce']['extraction']['boxcar_radius'] = 3.
+        par['reduce']['extraction']['boxcar_radius'] = 1.56
         par['reduce']['extraction']['model_full_slit'] = True
         par['reduce']['extraction']['sn_gauss'] = 4000 # basically always use the Gaussian model for optimal extraction
 
