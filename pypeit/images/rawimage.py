@@ -117,6 +117,30 @@ class RawImage:
         spat_flexure_shift (:obj:`float`):
             The spatial flexure shift in pixels, if calculated
     """
+
+    @staticmethod
+    def get_instance(ifile, spectrograph, det):
+        """
+        Instantiate and return the :class:`RawImage` subclass appropriate for
+        the provided spectrograph.
+
+        Args:
+            ifile (:obj:`str`):
+                File with the data.
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+                The spectrograph from which the data was collected.
+            det (:obj:`int`, :obj:`tuple`):
+                1-indexed detector(s) to read.  An image mosaic is selected using a
+                :obj:`tuple` with the detectors in the mosaic, which must be one of
+                the allowed mosaics returned by
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
+        Returns:
+            :class:`RawImage`: The appropriate subclass instance.
+        """
+        if spectrograph.pypeline == 'NIRSpecSlit':
+            return NIRSpecRawImage(ifile, spectrograph, det)
+        return RawImage(ifile, spectrograph, det)
+
     def __init__(self, ifile, spectrograph, det):
 
         # Required parameters
@@ -1438,7 +1462,7 @@ class RawImage:
                f'steps={self.steps}>'
 
 
-class NIRSpecRawImage:
+class NIRSpecRawImage(RawImage):
     """
     Class for constructing a :class:`~pypeit.images.pypeitimage.PypeItImage`
     from JWST NIRSpec data models, bypassing normal raw FITS file loading.
@@ -1469,31 +1493,105 @@ class NIRSpecRawImage:
             Default is 1.2.
     """
 
-    def __init__(self, spectrograph, det, sci_slit_data, slit_slices,
-                 flatimages, msbpm, headarr, kludge_err=1.2):
-        from copy import deepcopy
+    def __init__(self, ifile, spectrograph, det):
 
+        # Required parameters
+        self.filename = ifile
         self.spectrograph = spectrograph
         self.det = det
-        self.sci_slit_data = sci_slit_data
-        self.slit_slices = slit_slices
-        self.flatimages = flatimages
-        self.msbpm = msbpm
-        self.headarr = headarr
-        self.kludge_err = kludge_err
 
-        # Determine number of images
-        self.nimg, _ = self.spectrograph.validate_det(self.det)
+        # Load the raw image and the other items of interest
+        self.detector, self.rawimage, self.hdu, self.exptime, self.rawdatasec_img, \
+                self.oscansec_img = self.spectrograph.get_rawimage(self.filename, self.det)
 
-        # Get detector containers
-        if self.nimg == 1:
-            _dets = [det] if isinstance(det, (int, np.integer)) else list(det)
+        # NOTE: The binning is expected to be the same for all images in a
+        # mosaic, but it's left to the raw image reader for each spectrograph.
+        # See, e.g., gemini_gmos.
+
+        # Number of loaded images (needed in case the raw image is used to
+        # create a mosaic)
+        self.nimg = 1 if self.rawimage.ndim == 2 else self.rawimage.shape[0]
+
+        # Re-package so that, independent of whether or not the image is a
+        # detector mosaic, the attributes are all organized with the number of
+        # detectors along their first axis.
+        if self.nimg > 1:
+            self.mosaic = self.detector
+            self.detector = self.mosaic.detectors
         else:
-            _dets = list(det)
-        self.detectors = np.array([self.spectrograph.get_detector_par(d) for d in _dets])
-        self.ronoise = np.array([deepcopy(d['ronoise']) for d in self.detectors])
+            self.mosaic = None
+            self.detector = np.array([self.detector])
+            self.rawimage = np.expand_dims(self.rawimage, 0)
+            self.rawdatasec_img = np.expand_dims(self.rawdatasec_img, 0)
+            self.oscansec_img = np.expand_dims(self.oscansec_img, 0)
 
-    def build_mosaic(self, img_list):
+        # Grab items from rawImage (for convenience and for processing)
+        #   Could just keep rawImage in the object, if preferred
+        # TODO: Why do we need to deepcopy this?
+        self.headarr = deepcopy(self.spectrograph.get_headarr(self.hdu))
+
+        # Key attributes
+        self.image = self.rawimage.copy()
+        self.datasec_img = self.rawdatasec_img.copy()
+        # NOTE: Prevent estimate_readnoise() from altering self.detector using
+        # deepcopy
+        self.ronoise = np.array([deepcopy(d['ronoise']) for d in self.detector])
+
+        # Attributes
+        self.par = None
+        self.ivar = None
+        self.rn2img = None
+        self.dark = None
+        self.dark_var = None
+        self.proc_var = None
+        self.base_var = None
+        self.spat_flexure_shift = None
+        self.img_scale = None
+        self.det_img = None
+        self._bpm = None
+
+        # All possible processing steps.  NOTE: These have to match the
+        # method/function names.  Their order here matches there execution order
+        # in self.process(), but that's not necessary.
+        self.steps = dict(apply_gain=False,
+                          subtract_pattern=False,
+                          subtract_overscan=False,
+                          correct_nonlinear=False,
+                          subtract_continuum=False,
+                          subtract_scattlight=False,
+                          trim=False,
+                          orient=False,
+                          subtract_bias=False,
+                          subtract_dark=False,
+                          build_mosaic=False,
+                          spatial_flexure_shift=False,
+                          flatfield=False)
+
+    # def __init__(self, spectrograph, det, sci_slit_data, slit_slices,
+    #              flatimages, msbpm, headarr, kludge_err=1.2):
+    #     from copy import deepcopy
+    #
+    #     self.spectrograph = spectrograph
+    #     self.det = det
+    #     self.sci_slit_data = sci_slit_data
+    #     self.slit_slices = slit_slices
+    #     self.flatimages = flatimages
+    #     self.msbpm = msbpm
+    #     self.headarr = headarr
+    #     self.kludge_err = kludge_err
+    #
+    #     # Determine number of images
+    #     self.nimg, _ = self.spectrograph.validate_det(self.det)
+    #
+    #     # Get detector containers
+    #     if self.nimg == 1:
+    #         _dets = [det] if isinstance(det, (int, np.integer)) else list(det)
+    #     else:
+    #         _dets = list(det)
+    #     self.detectors = np.array([self.spectrograph.get_detector_par(d) for d in _dets])
+    #     self.ronoise = np.array([deepcopy(d['ronoise']) for d in self.detectors])
+
+    def build_mosaic(self, img_list, slit_slices):
         """
         Create a mosaic image from the provided list of per-detector images.
 
@@ -1508,9 +1606,10 @@ class NIRSpecRawImage:
         Returns:
             `numpy.ndarray`_: The mosaiced image.
         """
-        return self.spectrograph.make_mosaic(img_list, self.det, self.slit_slices)
+        return self.spectrograph.make_mosaic(img_list, self.det, slit_slices)
 
-    def process(self, par):
+    def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
+                mosaic=False, slit_slices=None, kludge_err=1.2, debug=False):
         """
         Process JWST NIRSpec data into a :class:`~pypeit.images.pypeitimage.PypeItImage`.
 
@@ -1525,12 +1624,11 @@ class NIRSpecRawImage:
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The processed
             science image.
         """
-        from pypeit.core import procimg as _procimg
-        from pypeit.core import flat as _flat
 
-        exptime = self.sci_slit_data[0].meta.exposure.effective_exposure_time
-        bpm = self.msbpm.copy()
-        img_scale = utils.inverse(self.flatimages.pixelflat_norm)
+        # get var_rnoise and var_poisson from self.hdu
+
+        var_rnoise = self.hdu['VAR_RNOISE'].data.T.astype(float)
+        var_poisson = self.hdu['VAR_POISSON'].data.T.astype(float)
 
         # --- Extract raw science, variance arrays per detector ---
         sci_per_det = []
@@ -1539,17 +1637,17 @@ class NIRSpecRawImage:
         datasec_per_det = []
         rn2_per_det = []
 
-        for i in range(len(self.sci_slit_data)):
-            _slice = self.slit_slices[i] if i < len(self.slit_slices) else self.slit_slices[0]
-            sci_i = self.sci_slit_data[i].data.T[_slice] * exptime
-            var_rn_i = (self.kludge_err ** 2
-                        * self.sci_slit_data[i].var_rnoise.T[_slice]
-                        * exptime ** 2)
-            var_pois_i = (self.kludge_err ** 2
-                          * self.sci_slit_data[i].var_poisson.T[_slice]
-                          * exptime ** 2)
+        for i in range(len(self.rawimage)):
+            _slice = slit_slices[i] if i < len(slit_slices) else slit_slices[0]
+            sci_i = self.rawimage[i][_slice] * self.exptime
+            var_rn_i = (kludge_err ** 2
+                        * var_rnoise[i][_slice]
+                        * self.exptime ** 2)
+            var_pois_i = (kludge_err ** 2
+                          * var_poisson[i][_slice]
+                          * self.exptime ** 2)
             datasec_i = np.full_like(sci_i, 1, dtype=int)
-            rn2_i = _procimg.rn2_frame(datasec_i, self.ronoise[i], units='e-', gain=1.)
+            rn2_i = procimg.rn2_frame(datasec_i, self.ronoise[i], units='e-', gain=1.)
 
             sci_per_det.append(sci_i)
             var_rn_per_det.append(var_rn_i)
@@ -1565,24 +1663,27 @@ class NIRSpecRawImage:
             datasec = datasec_per_det[0]
             rn2img = rn2_per_det[0]
         else:
-            sci = self.build_mosaic(sci_per_det)
-            var_rnoise = self.build_mosaic(var_rn_per_det)
-            var_poisson = self.build_mosaic(var_pois_per_det)
-            datasec = self.build_mosaic(datasec_per_det)
-            rn2img = self.build_mosaic(rn2_per_det)
+            sci = self.build_mosaic(sci_per_det, slit_slices)
+            var_rnoise = self.build_mosaic(var_rn_per_det, slit_slices)
+            var_poisson = self.build_mosaic(var_pois_per_det, slit_slices)
+            datasec = self.build_mosaic(datasec_per_det, slit_slices)
+            rn2img = self.build_mosaic(rn2_per_det, slit_slices)
 
         # --- Apply flat-field ---
-        sci2, flat_bpm = _flat.flatfield(sci, self.flatimages.pixelflat_norm)
-        var_rnoise2, _ = _flat.flatfield(var_rnoise, self.flatimages.pixelflat_norm ** 2)
-        var_poisson2, _ = _flat.flatfield(var_poisson, self.flatimages.pixelflat_norm ** 2)
+        sci2, flat_bpm = flat.flatfield(sci, flatimages.pixelflat_norm)
+        var_rnoise2, _ = flat.flatfield(var_rnoise, flatimages.pixelflat_norm ** 2)
+        var_poisson2, _ = flat.flatfield(var_poisson, flatimages.pixelflat_norm ** 2)
 
         # --- Build variance model ---
-        base_var = _procimg.base_variance(var_rnoise2, count_scale=None)
-        var = _procimg.variance_model(base_var, counts=var_poisson2, count_scale=None,
+        base_var = procimg.base_variance(var_rnoise2, count_scale=None)
+        var = procimg.variance_model(base_var, counts=var_poisson2, count_scale=None,
                                       noise_floor=par['noise_floor'])
 
+        # get img_scale
+        img_scale = utils.inverse(flatimages.pixelflat_norm)
+
         # --- Mask invalid pixels ---
-        bad = ((self.flatimages.pixelflat_norm == 1)
+        bad = ((flatimages.pixelflat_norm == 1)
                | np.logical_not(np.isfinite(sci2)))
         sci2[bad] = 0.
         var[bad] = 0.
@@ -1590,27 +1691,208 @@ class NIRSpecRawImage:
         img_scale[bad] = 0.
         bpm[bad] = True
 
-        # --- Determine detector metadata ---
-        if self.nimg == 2:
-            _det = self.spectrograph.get_mosaic_par(self.det)
-        else:
-            _det = self.detectors[0]
+        # # --- Determine detector metadata ---
+        # if self.nimg == 2:
+        #     _det = self.spectrograph.get_mosaic_par(self.det)
+        # else:
+        #     _det = self.detectors[0]
 
         # --- Build PypeItImage ---
-        pypeit_image = pypeitimage.PypeItImage(
+        pypeitImage = pypeitimage.PypeItImage(
             sci2, ivar=utils.inverse(var), amp_img=datasec,
             det_img=datasec, rn2img=rn2img, base_var=base_var,
-            img_scale=img_scale, detector=_det,
-            PYP_SPEC=self.spectrograph.name, units='e-', exptime=exptime,
+            img_scale=img_scale, detector=self.detector,
+            PYP_SPEC=self.spectrograph.name, units='e-', exptime=self.exptime,
             noise_floor=par['noise_floor'],
             shot_noise=par['shot_noise'],
-            bpm=bpm.astype(bool), filename=None)
-        pypeit_image.rawheadlist = self.headarr
-        pypeit_image.process_steps = ['jwst_datamodel_ingest', 'flatfield']
+            bpm=bpm.astype(bool), filename=self.filename)
+        pypeitImage.rawheadlist = self.headarr
+        pypeitImage.process_steps = ['jwst_datamodel_ingest', 'flatfield']
 
-        return pypeit_image
+        # # Mask(s)
+        # if self.par['mask_cr']:
+        #     # TODO: CR rejection of the darks was failing for HIRES for some reason...
+        #     pypeitImage.build_crmask(self.par)
+        #
+        # pypeitImage.build_mask(saturation='default', mincounts='default')
+        # if flat_bpm is not None:
+        #     pypeitImage.update_mask('BADSCALE', indx=flat_bpm)
+
+        return pypeitImage
 
     def __repr__(self):
         return (f'<{self.__class__.__name__}: det={self.det}, nimg={self.nimg}, '
                 f'nslits={len(self.sci_slit_data)}>')
 
+
+# class NIRSpecRawImage:
+#     """
+#     Class for constructing a :class:`~pypeit.images.pypeitimage.PypeItImage`
+#     from JWST NIRSpec data models, bypassing normal raw FITS file loading.
+#
+#     This class loads data from JWST ``datamodels`` slit objects rather than
+#     raw FITS files.  It includes its own :func:`build_mosaic` method for
+#     combining multi-detector data into a single image.
+#
+#     Args:
+#         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+#             The spectrograph instance (must be JWST NIRSpec).
+#         det (:obj:`int` or :obj:`tuple`):
+#             Detector number or tuple of detector numbers.
+#         sci_slit_data (array-like):
+#             Array of JWST slit data models for the science exposure,
+#             one per detector.
+#         slit_slices (:obj:`list`):
+#             List of ``(spec_slice, spat_slice)`` tuples for each detector,
+#             defining where the slit data lives in the full-frame coordinates.
+#         flatimages (:class:`~pypeit.flatfield.FlatImages`):
+#             Flat-field images for flat-fielding.
+#         msbpm (`numpy.ndarray`_):
+#             Bad pixel mask.
+#         headarr (:obj:`list`):
+#             List of FITS header objects.
+#         kludge_err (:obj:`float`, optional):
+#             Error scaling factor applied to JWST variance estimates.
+#             Default is 1.2.
+#     """
+#
+#     def __init__(self, spectrograph, det, sci_slit_data, slit_slices,
+#                  flatimages, msbpm, headarr, kludge_err=1.2):
+#         from copy import deepcopy
+#
+#         self.spectrograph = spectrograph
+#         self.det = det
+#         self.sci_slit_data = sci_slit_data
+#         self.slit_slices = slit_slices
+#         self.flatimages = flatimages
+#         self.msbpm = msbpm
+#         self.headarr = headarr
+#         self.kludge_err = kludge_err
+#
+#         # Determine number of images
+#         self.nimg, _ = self.spectrograph.validate_det(self.det)
+#
+#         # Get detector containers
+#         if self.nimg == 1:
+#             _dets = [det] if isinstance(det, (int, np.integer)) else list(det)
+#         else:
+#             _dets = list(det)
+#         self.detectors = np.array([self.spectrograph.get_detector_par(d) for d in _dets])
+#         self.ronoise = np.array([deepcopy(d['ronoise']) for d in self.detectors])
+#
+#     def build_mosaic(self, img_list):
+#         """
+#         Create a mosaic image from the provided list of per-detector images.
+#
+#         Delegates to the spectrograph's
+#         :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.make_mosaic`
+#         method.
+#
+#         Args:
+#             img_list (:obj:`list`):
+#                 List of 2D `numpy.ndarray`_ images, one per detector.
+#
+#         Returns:
+#             `numpy.ndarray`_: The mosaiced image.
+#         """
+#         return self.spectrograph.make_mosaic(img_list, self.det, self.slit_slices)
+#
+#     def process(self, par):
+#         """
+#         Process JWST NIRSpec data into a :class:`~pypeit.images.pypeitimage.PypeItImage`.
+#
+#         Applies flat-fielding and constructs proper variance images,
+#         handling both single-detector and mosaic cases via :func:`build_mosaic`.
+#
+#         Args:
+#             par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
+#                 Image processing parameters.
+#
+#         Returns:
+#             :class:`~pypeit.images.pypeitimage.PypeItImage`: The processed
+#             science image.
+#         """
+#         from pypeit.core import procimg as _procimg
+#         from pypeit.core import flat as _flat
+#
+#         exptime = self.sci_slit_data[0].meta.exposure.effective_exposure_time
+#         bpm = self.msbpm.copy()
+#         img_scale = utils.inverse(self.flatimages.pixelflat_norm)
+#
+#         # --- Extract raw science, variance arrays per detector ---
+#         sci_per_det = []
+#         var_rn_per_det = []
+#         var_pois_per_det = []
+#         datasec_per_det = []
+#         rn2_per_det = []
+#
+#         for i in range(len(self.sci_slit_data)):
+#             _slice = self.slit_slices[i] if i < len(self.slit_slices) else self.slit_slices[0]
+#             sci_i = self.sci_slit_data[i].data.T[_slice] * exptime
+#             var_rn_i = (self.kludge_err ** 2
+#                         * self.sci_slit_data[i].var_rnoise.T[_slice]
+#                         * exptime ** 2)
+#             var_pois_i = (self.kludge_err ** 2
+#                           * self.sci_slit_data[i].var_poisson.T[_slice]
+#                           * exptime ** 2)
+#             datasec_i = np.full_like(sci_i, 1, dtype=int)
+#             rn2_i = _procimg.rn2_frame(datasec_i, self.ronoise[i], units='e-', gain=1.)
+#
+#             sci_per_det.append(sci_i)
+#             var_rn_per_det.append(var_rn_i)
+#             var_pois_per_det.append(var_pois_i)
+#             datasec_per_det.append(datasec_i)
+#             rn2_per_det.append(rn2_i)
+#
+#         # --- Mosaic or single detector ---
+#         if self.nimg == 1:
+#             sci = sci_per_det[0]
+#             var_rnoise = var_rn_per_det[0]
+#             var_poisson = var_pois_per_det[0]
+#             datasec = datasec_per_det[0]
+#             rn2img = rn2_per_det[0]
+#         else:
+#             sci = self.build_mosaic(sci_per_det)
+#             var_rnoise = self.build_mosaic(var_rn_per_det)
+#             var_poisson = self.build_mosaic(var_pois_per_det)
+#             datasec = self.build_mosaic(datasec_per_det)
+#             rn2img = self.build_mosaic(rn2_per_det)
+#
+#         # --- Apply flat-field ---
+#         sci2, flat_bpm = _flat.flatfield(sci, self.flatimages.pixelflat_norm)
+#         var_rnoise2, _ = _flat.flatfield(var_rnoise, self.flatimages.pixelflat_norm ** 2)
+#         var_poisson2, _ = _flat.flatfield(var_poisson, self.flatimages.pixelflat_norm ** 2)
+#
+#         # --- Build variance model ---
+#         base_var = _procimg.base_variance(var_rnoise2, count_scale=None)
+#         var = _procimg.variance_model(base_var, counts=var_poisson2, count_scale=None,
+#                                       noise_floor=par['noise_floor'])
+#
+#         # --- Mask invalid pixels ---
+#         bad = ((self.flatimages.pixelflat_norm == 1)
+#                | np.logical_not(np.isfinite(sci2)))
+#         sci2[bad] = 0.
+#         var[bad] = 0.
+#         base_var[bad] = 0.
+#         img_scale[bad] = 0.
+#         bpm[bad] = True
+#
+#         # --- Determine detector metadata ---
+#         if self.nimg == 2:
+#             _det = self.spectrograph.get_mosaic_par(self.det)
+#         else:
+#             _det = self.detectors[0]
+#
+#         # --- Build PypeItImage ---
+#         pypeit_image = pypeitimage.PypeItImage(
+#             sci2, ivar=utils.inverse(var), amp_img=datasec,
+#             det_img=datasec, rn2img=rn2img, base_var=base_var,
+#             img_scale=img_scale, detector=_det,
+#             PYP_SPEC=self.spectrograph.name, units='e-', exptime=exptime,
+#             noise_floor=par['noise_floor'],
+#             shot_noise=par['shot_noise'],
+#             bpm=bpm.astype(bool), filename=None)
+#         pypeit_image.rawheadlist = self.headarr
+#         pypeit_image.process_steps = ['jwst_datamodel_ingest', 'flatfield']
+#
+#         return pypeit_image

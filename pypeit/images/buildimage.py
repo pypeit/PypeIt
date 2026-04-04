@@ -278,3 +278,121 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             else cls.from_pypeitimage(pypeitImage, calib_dir=calib_dir, setup=setup,
                                       calib_id=calib_id, detname=spectrograph.get_det_name(det))
 
+def buildimage_nirspec_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
+                        scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True,
+                        slits=None, mosaic=None, slit_slices=None, kludge_err=1.2, calib_dir=None, setup=None, calib_id=None):
+    """
+    Perform basic image processing on a list of images and combine the results. All
+    core processing steps for each image are handled by :class:`~pypeit.images.rawimage.RawImage` and
+    image combination is handled by :class:`~pypeit.images.combineimage.CombineImage`.
+    This function can be used to process both single images, lists of images, and detector mosaics.
+
+    .. warning::
+
+        For image mosaics (when ``det`` is a tuple) the processing behavior is
+        hard-coded such that bias and dark frames are *not* reformatted into a
+        mosaic image.  They are saved in their native multi-image format.
+        Bad-pixel masks are also expected to be in multi-image format.  See
+        :class:`~pypeit.images.rawimage.RawImage`.
+
+    Args:
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            Spectrograph used to take the data.
+        det (:obj:`int`, :obj:`tuple`):
+            The 1-indexed detector number(s) to process.  If a tuple, it must
+            include detectors viable as a mosaic for the provided spectrograph;
+            see :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
+        frame_par (:class:`~pypeit.par.pypeitpar.FrameGroupPar`):
+            Parameters that dictate the processing of the images.  See
+            :class:`~pypeit.par.pypeitpar.ProcessImagesPar` for the
+            defaults.
+        file_list (:obj:`list`):
+            List of files
+        bias (:class:`~pypeit.images.buildimage.BiasImage`, optional):
+            Bias image for bias subtraction; passed directly to
+            :func:`~pypeit.images.rawimage.RawImage.process` for all images.
+        bpm (`numpy.ndarray`_, optional):
+            Bad pixel mask; passed directly to
+            :func:`~pypeit.images.rawimage.RawImage.process` for all images.
+        dark (:class:`~pypeit.images.buildimage.DarkImage`, optional):
+            Dark-current image; passed directly to
+            :func:`~pypeit.images.rawimage.RawImage.process` for all images.
+        scattlight (:class:`~pypeit.scattlight.ScatteredLight`, optional):
+            Scattered light model to be used to determine scattered light.
+        flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
+            Flat-field images for flat fielding; passed directly to
+            :func:`~pypeit.images.rawimage.RawImage.process` for all images.
+        maxiters (:obj:`int`, optional):
+            When ``combine_method='mean'``) and sigma-clipping
+            (``sigma_clip`` is True), this sets the maximum number of
+            rejection iterations.  If None, rejection iterations continue
+            until no more data are rejected; see
+            :func:`~pypeit.core.combine.weighted_combine`.
+        ignore_saturation (:obj:`bool`, optional):
+            If True, turn off the saturation flag in the individual images
+            before stacking.  This avoids having such values set to 0, which
+            for certain images (e.g. flat calibrations) can have unintended
+            consequences.
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+            Edge traces for all slits.  These are used to calculate spatial
+            flexure between the image and the slits, and for constructing the
+            slit-illumination correction.  See
+            :class:`pypeit.images.rawimage.RawImage.process`.
+        mosaic (:obj:`bool`, optional):
+            Flag processed image will be a mosaic of multiple detectors.  By
+            default, this is determined by the format of ``det`` and whether or
+            not this is a bias or dark frame.  *Only used for testing purposes.*
+        calib_dir (:obj:`str`, `Path`_, optional):
+            The directory for processed calibration files.  Required for
+            elements of :attr:`frame_image_classes`, ignored otherwise.
+        setup (:obj:`str`, optional):
+            The setup/configuration identifier to use for this dataset.
+            Required for elements of :attr:`frame_image_classes`, ignored
+            otherwise.
+        calib_id (:obj:`str`, optional):
+            The string listing the set of calibration groups associated with
+            this dataset.  Required for elements of :attr:`frame_image_classes`,
+            ignored otherwise.
+
+    Returns:
+        :class:`~pypeit.images.pypeitimage.PypeItImage`,
+        :class:`~pypeit.images.pypeitimage.PypeItCalibrationImage`:  The
+        processed and combined image.
+    """
+    # Check
+    if not isinstance(frame_par, pypeitpar.FrameGroupPar):
+        raise PypeItError('Provided ParSet must be type FrameGroupPar, not '
+                   f'{frame_par.__class__.__name__}.')
+    if not valid_frametype(frame_par['frametype'], quiet=True):
+        # NOTE: This should not be necessary because FrameGroupPar explicitly
+        # requires frametype to be valid
+        raise PypeItError(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
+
+    # Should the detectors be reformatted into a single image mosaic?
+    if mosaic is None:
+        mosaic = isinstance(det, tuple) and frame_par['frametype'] not in ['bias', 'dark']
+
+    rawImage_list = []
+    # Loop on the files
+    for ifile in file_list:
+        # Load raw image
+        rawImage = rawimage.NIRSpecRawImage(ifile, spectrograph, det)
+        # Process
+        rawImage_list.append(rawImage.process(
+            frame_par['process'], scattlight=scattlight, bias=bias,
+            bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic, slit_slices=slit_slices, kludge_err=kludge_err))
+
+    # Do it
+    combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])
+    pypeitImage = combineImage.run(maxiters=maxiters, ignore_saturation=ignore_saturation)
+    # Return class type, if returning any of the frame_image_classes
+    cls = frame_image_classes[frame_par['frametype']] \
+            if frame_par['frametype'] in frame_image_classes.keys() else None
+
+    # Either return the image directly, or decorate and return according to the
+    # type of calibration.  For the latter, this specific use of
+    # from_pypeitimage means that the class *must* be a subclass of
+    # PypeItCalibrationImage!
+    return pypeitImage if cls is None \
+            else cls.from_pypeitimage(pypeitImage, calib_dir=calib_dir, setup=setup,
+                                      calib_id=calib_id, detname=spectrograph.get_det_name(det))

@@ -77,11 +77,13 @@ class WaveCalib(calibframe.CalibFrame):
                                    descr='Echelle order ID numbers.  Defined only for echelle.'),
                  'strpar': dict(otype=str, descr='Parameters as a string'),
                  'lamps': dict(otype=str,
-                               descr='List of arc lamps used for the wavelength calibration')}
+                               descr='List of arc lamps used for the wavelength calibration'),
+                 'waveimg': dict(otype=np.ndarray, atype=np.floating,
+                                descr='2D wavelength image.')}
 
     def __init__(self, wv_fits=None, fwhm_map=None, nslits=None, spat_ids=None, ech_orders=None,
                  PYP_SPEC=None, strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None,
-                 det_img=None):
+                 det_img=None, waveimg=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])

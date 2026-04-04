@@ -131,7 +131,7 @@ class Calibrations:
     __metaclass__ = ABCMeta
 
     @staticmethod
-    def get_instance(fitstbl, par, spectrograph, caldir, calib_ID:str, 
+    def get_instance(fitstbl, par, spectrograph, caldir, calib_ID:str,
         frame:int, det:int, **kwargs):
         """
         Get the instance of the appropriate subclass of :class:`Calibrations` to
@@ -144,7 +144,7 @@ class Calibrations:
         return calibclass(fitstbl, par, spectrograph, caldir, calib_ID, frame, det,
                           **kwargs)
 
-    def __init__(self, fitstbl, par, spectrograph, caldir, calib_ID:str, 
+    def __init__(self, fitstbl, par, spectrograph, caldir, calib_ID:str,
                  frame:int, det:int, qadir=None,
                  reuse_calibs=False, show=False, user_slits=None, chk_version=True):
                  #, state=None):
@@ -1804,60 +1804,72 @@ class NIRSpecSlitCalibrations(Calibrations):
 
     def __init__(self, fitstbl, par, spectrograph, caldir, calib_ID:str,
                  frame:int, det:int, qadir=None,
-                 reuse_calibs=False, show=False, user_slits=None, chk_version=True,
-                 jwst_cal_data=None, jwst_flat_data=None, slit_slices=None):
+                 reuse_calibs=False, show=False, user_slits=None, chk_version=True):
         super().__init__(fitstbl, par, spectrograph, caldir, calib_ID, frame, det,
                          qadir=qadir, reuse_calibs=reuse_calibs, show=show,
                          user_slits=user_slits, chk_version=chk_version)
 
-        # Validate required JWST inputs
-        if jwst_cal_data is None:
-            raise PypeItError('jwst_cal_data must be provided for NIRSpecSlitCalibrations')
-        if jwst_flat_data is None:
-            raise PypeItError('jwst_flat_data must be provided for NIRSpecSlitCalibrations')
-        if slit_slices is None:
-            raise PypeItError('slit_slices must be provided for NIRSpecSlitCalibrations')
+        try:
+            from jwst import datamodels
+        except ModuleNotFoundError:
+            raise PypeItError('Unable to import jwst. Install pypeit with the jwst '
+                              'option to reduce jwst data.')
+
+        self.nimg, _ = self.spectrograph.validate_det(self.det)
+
+        # --- Load JWST calibration and flat-field data models ---
+        # find files
+        # these are if the slit is mosaiced in the 2 detectors, aka det = (1,2)
+        cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_ID)
+        flat_files = fitstbl.find_frame_files('pixelflat', calib_ID=calib_ID)
+        # if not, filter by detector
+        if det in [1,2]:
+            det_name = f'nrs{det}'
+            cal_files = [cc for cc in cal_files if det_name in Path(cc).name]
+            flat_files =  [ff for ff in flat_files if det_name in Path(ff).name]
+        if len(cal_files) == 0:
+            raise PypeItError(f'No _cal files found for NIRSpecSlitCalibrations in det {det}')
+        cal_data = np.array(datamodels.open(cal_files))
+
+        if len(flat_files) == 0:
+            raise PypeItError(f'No _interpolatedflat files found for NIRSpecSlitCalibrations in det {det}')
+        flat_data = np.array(datamodels.open(flat_files))
+
+        # Append FS slits if present
+        # TODO: is this needed? ASK JFH
+        for i, _flat_data in enumerate(flat_data):
+            fs_path = flat_files[i].replace('_interpolatedflat',
+                                            '_interpolatedflat_fs')
+            if Path(fs_path).exists():
+                log.info(f'Appending FS slits for {Path(flat_files[i]).name}')
+                _flat_data_fs = datamodels.open(fs_path)
+                for slit in _flat_data_fs.slits:
+                    _flat_data.slits.append(slit)
 
         # Input attributes
-        self.jwst_cal_data = jwst_cal_data
-        self.jwst_flat_data = jwst_flat_data
-        self.slit_slices = slit_slices
+        self.jwst_cal_data = cal_data
+        self.jwst_flat_data = flat_data
+        self.slit_slices = [spectrograph.get_slit_slice(cal_data[0], self.user_slits['slit_info'])]
 
         # Get the index of this slit in cal_data and flat_data
         self.slit_index_cal = np.array([], dtype=int)
         self.slit_index_flat = np.array([], dtype=int)
         for _cal in self.jwst_cal_data:
             slit_names = np.array([s.name for s in _cal.slits])
-            indx = np.where(slit_names == self.user_slits)[0]
+            indx = np.where(slit_names == self.user_slits['slit_info'])[0]
             if indx.size == 0:
-                raise PypeItError(f'User slit {self.user_slits} not found in '
+                raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in '
                                   f'_cal data {_cal.meta.filename}')
             self.slit_index_cal = np.append(self.slit_index_cal, indx)
         for _flat in self.jwst_flat_data:
             slit_names = np.array([s.name for s in _flat.slits])
-            indx = np.where(slit_names == self.user_slits)[0]
+            indx = np.where(slit_names == self.user_slits['slit_info'])[0]
             if indx.size == 0:
-                raise PypeItError(f'User slit {self.user_slits} not found in '
+                raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in '
                                   f'_flat data {_flat.meta.filename}')
             self.slit_index_flat = np.append(self.slit_index_flat, indx)
 
-        # Output attributes
-        self.waveimg = None
-        self.tilts = None
-        self.nimg = None
-
-    def get_nimg(self, force:str=None):
-        """
-        Get the number of images in the calibration data.
-
-        Returns:
-            int: The number of images in the calibration data.
-        """
-        self._chk_set(['det', 'calib_ID', 'par'])
-        self.nimg, _ = self.spectrograph.validate_det(self.det)
-        return self.nimg
-
-    def get_waveimg(self, force:str=None):
+    def get_wv_calib(self, force:str=None):
         """
         Load the wavelength image calibration frame from the JWST flat-field
         data model.
@@ -1866,19 +1878,55 @@ class NIRSpecSlitCalibrations(Calibrations):
             `numpy.ndarray`_: The wavelength image calibration frame for current slit (in Angstroms).
         """
 
+        # if not self._chk_objs(['slits']):
+        #     log.warning('Not enough information to load/generate the wavelength calibration. '
+        #             'Skipping and may crash down the line')
+        #     return None
+
+        # Find the calibrations
+        frame = {'type': 'arc', 'class': wavecalib.WaveCalib}
+        wave_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
+
+        # If a processed calibration frame exists and
+        # we want to reuse it, do so (or just load it):
+        self.wv_calib = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.wv_calib is not None:
+            # self.wv_calib.chk_synced(self.slits)
+            # self.slits.mask_wvcalib(self.wv_calib)
+
+            # Return
+            if self.par['wavelengths']['redo_slits'] is None:
+                self.wvcalib_state(cal_file)
+                return self.wv_calib
+
         if self.nimg == 1:
-            self.waveimg = 1e4 * self.jwst_flat_data[0].slits[
+            waveimg = 1e4 * self.jwst_flat_data[0].slits[
                 self.slit_index_flat[0]].wavelength.T
         else:
-            flat_data_list = [
+            wave_data_list = [
                 fd.slits[idx].wavelength.T
                 for fd, idx in zip(self.jwst_flat_data, self.slit_index_flat)
             ]
-            self.waveimg = self.spectrograph.make_mosaic(
-                flat_data_list, self.det, self.slit_slices)
-            self.waveimg *= 1e4  # Convert microns to Angstroms
+            waveimg = self.spectrograph.make_mosaic(
+                wave_data_list, self.det, self.slit_slices)
+            waveimg *= 1e4  # Convert microns to Angstroms
 
-        return self.waveimg
+        self.wv_calib = wavecalib.WaveCalib(nslits=self.slits.nslits,
+                                            spat_ids=self.slits.spat_id,
+                                  PYP_SPEC=self.spectrograph.name,
+                                  waveimg=waveimg)
+
+        # Save calibration frame
+        self.wv_calib.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.wv_calib.to_file()
+
+        # State
+        self.wvcalib_state(self.wv_calib.get_path())
+
+        return self.wv_calib
 
     def get_tilts(self, force:str=None):
         """
@@ -1889,21 +1937,45 @@ class NIRSpecSlitCalibrations(Calibrations):
             `numpy.ndarray`_: The normalized wavelength tilts image for current slit.
         """
         # Check for existing data
-        if not self._chk_objs(['waveimg', 'msbpm']):
-            raise PypeItError('waveimg and msbpm must be loaded before getting the tilts')
+        if not self._chk_objs(['wv_calib', 'msbpm', 'slits']):
+            raise PypeItError('wv_calib and msbpm must be loaded before getting the tilts')
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
+        # Find the calibrations
+        frame = {'type': 'tilt', 'class': wavetilts.WaveTilts}
+        tilt_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
+
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        self.wavetilts = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.wavetilts is not None:
+            # self.wavetilts.is_synced(self.slits)
+            # self.slits.mask_wavetilts(self.wavetilts)
+            return self.wavetilts
+
         # get gpm
         gpm = np.logical_not(self.msbpm)
-        wave_min = np.min(self.waveimg[gpm])
-        wave_max = np.max(self.waveimg[gpm])
+        wave_min = np.min(self.wv_calib.waveimg[gpm])
+        wave_max = np.max(self.wv_calib.waveimg[gpm])
 
-        self.tilts = np.zeros_like(self.waveimg)
-        self.tilts[gpm] = (self.waveimg[gpm] - wave_min) / (wave_max - wave_min)
+        tiltsimg = np.zeros_like(self.wv_calib.waveimg)
+        tiltsimg[gpm] = (self.wv_calib.waveimg[gpm] - wave_min) / (wave_max - wave_min)
 
-        return self.tilts
+        self.wavetilts = wavetilts.WaveTilts(None, self.slits.nslits, self.slits.spat_id, None,
+                          None, None, PYP_SPEC=self.spectrograph.name,
+                          tiltsimg=tiltsimg)
+        self.wavetilts.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.wavetilts.to_file()
+
+        # # State
+        # self.tilts_state(buildwaveTilts, self.wavetilts.get_path())
+
+        return self.wavetilts
 
     def get_bpm(self, frame=None, force: str = None):
         """
@@ -1914,14 +1986,21 @@ class NIRSpecSlitCalibrations(Calibrations):
             `numpy.ndarray`_: Boolean bad-pixel mask.
         """
 
-        # Check for existing data
-        if not self._chk_objs(['waveimg']):
-            raise PypeItError('waveimg must be loaded before getting the bpm')
-
         # Check internals
         self._chk_set(['par', 'det'])
+
         # Build it
-        self.msbpm = self.waveimg == 0.
+        if self.nimg == 1:
+            dq_img = self.jwst_flat_data[0].slits[self.slit_index_flat[0]].dq.T
+        else:
+            dq_data_list = [
+                fd.slits[idx].dq.T
+                for fd, idx in zip(self.jwst_flat_data, self.slit_index_flat)
+            ]
+            dq_img = self.spectrograph.make_mosaic(
+                dq_data_list, self.det, self.slit_slices)
+
+        self.msbpm = dq_img != 0.
         # Return
         return self.msbpm
 
@@ -1933,11 +2012,27 @@ class NIRSpecSlitCalibrations(Calibrations):
             :class:`~pypeit.slittrace.SlitTraceSet`: The slit traces object.
         """
         # Check for existing data
-        if not self._chk_objs(['msbpm', 'waveimg']):
-            raise PypeItError('waveimg and msbpm must be loaded before getting the slits')
+        if not self._chk_objs(['msbpm']):
+            raise PypeItError('msbpm must be loaded before getting the slits')
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Prep
+        frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
+        trace_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
+
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        self.slits = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.slits is not None:
+            # self.slits.mask = self.slits.mask_init.copy()
+            # if self.user_slits is not None:
+            #     self.slits.user_mask(detname, self.user_slits)
+            return self.slits
 
         # Get the slit mask
         thismask = np.logical_not(self.msbpm)
@@ -1996,6 +2091,12 @@ class NIRSpecSlitCalibrations(Calibrations):
             nspat=int(thismask.shape[1]), PYP_SPEC=self.spectrograph.name,
             specmin=specmin, specmax=specmax, pad=self.par['slitedges']['pad'])
 
+        self.slits.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.slits.to_file()
+
+        # State
+        self.slits_state(self.slits.get_path())
+
         return self.slits
 
     def get_flats(self, force: str = None):
@@ -2008,6 +2109,28 @@ class NIRSpecSlitCalibrations(Calibrations):
         """
         self._chk_set(['det', 'calib_ID', 'par'])
 
+        if not self._chk_objs(['slits', 'wv_calib']):
+            log.warning('Flats were requested, but there are quantities missing necessary to '
+                      'create flats.  Proceeding without flat fielding....')
+            self.flatimages = None
+            return self.flatimages
+
+        # get pixel flat frames info
+        pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
+        pixel_files, cal_file, calib_key, setup, calib_id, detname \
+            = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
+
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        self.flatimages = self.process_load_selection(pixel_frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.flatimages is not None:
+            # self.flatimages.is_synced(self.slits)
+            # # update slits
+            # self.slits.mask_flats(self.flatimages)
+            return self.flatimages
+
         if self.nimg == 1:
             tot_flat = self._build_single_flat(0)
         else:
@@ -2019,7 +2142,19 @@ class NIRSpecSlitCalibrations(Calibrations):
         self.flatimages = flatfield.FlatImages(
             PYP_SPEC=self.spectrograph.name,
             pixelflat_norm=tot_flat,
-            pixelflat_bpm=(tot_flat == 1).astype(int))
+            pixelflat_waveimg=self.wv_calib.waveimg,
+            pixelflat_bpm=np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype()),
+            spat_id=self.slits.spat_id)
+
+        if self.flatimages is not None:
+            self.flatimages.set_paths(self.calib_dir, setup, calib_id, detname)
+            # Save flat images
+            self.flatimages.to_file()
+            # Save slits too, in case they were tweaked
+            # State
+            if self.state is not None:
+                self.state.update_calib('flats', self.calib_ID, self.det,
+                                'output_file', self.flatimages.get_path())
 
         return self.flatimages
 
@@ -2051,13 +2186,13 @@ class NIRSpecSlitCalibrations(Calibrations):
         else:
             pathloss = cal_data_slit.pathloss_point.T
         if pathloss.shape == (0, 0):
-            log.warning(f'No pathloss for slit {self.user_slits}, setting to 1.0')
+            log.warning(f'No pathloss for slit {self.user_slits['slit_info']}, setting to 1.0')
             pathloss = np.ones_like(flat)
 
         # Barshadow correction
         barshadow = cal_data_slit.barshadow.T
         if barshadow.shape == (0, 0):
-            log.warning(f'No barshadow for slit {self.user_slits}, setting to 1.0')
+            log.warning(f'No barshadow for slit {self.user_slits['slit_info']}, setting to 1.0')
             barshadow = np.ones_like(flat)
 
         tot_flat = np.ones_like(flat)
@@ -2074,7 +2209,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         Returns:
             :obj:`list`: Calibration steps, in order of execution.
         """
-        return ['nimg', 'waveimg', 'bpm', 'tilts', 'slits', 'flats']
+        return ['bpm', 'slits','wv_calib', 'tilts', 'flats']
 
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):

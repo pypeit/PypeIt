@@ -79,12 +79,14 @@ class WaveTilts(calibframe.CalibFrame):
                                                           'find Tiltimg file when running pypeit_chk_tilts()'),
                  'tilt_traces': dict(otype=table.Table, descr='Table with the positions of the '
                                                               'traced and fitted tilts for all the slits. '
-                                                              'see :func:`~pypeit.wavetilts.BuildWaveTilts.make_tbl_tilt_traces` for more details. ')
-                 }
+                                                              'see :func:`~pypeit.wavetilts.BuildWaveTilts.make_tbl_tilt_traces` for more details. '),
+                 'tiltsimg': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='2D image with the tilts for each pixel.'),}
+
 
     def __init__(self, coeffs, nslit, spat_id, spat_order, spec_order, func2d, bpmtilts=None,
                  spat_flexure=None, PYP_SPEC=None, slits_filename=None, tiltimg_filename=None,
-                 tilt_traces=None):
+                 tilt_traces=None, tiltsimg=None):
 
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())

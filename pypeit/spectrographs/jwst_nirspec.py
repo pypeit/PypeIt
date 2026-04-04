@@ -3,16 +3,21 @@ Module for JWST NIRSpec specific methods.
 
 .. include:: ../include/links.rst
 """
+import copy
+
 import numpy as np
+import glob
 
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
+from pypeit import io
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
+from pypeit.core.mosaic import build_image_mosaic_transform
 from IPython import embed
 
 
@@ -157,9 +162,32 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Get the detectors
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
         # TODO: Implement proper mosaic geometry for NIRSpec NRS1+NRS2.
+
+        expected_shape = (2048, 4608)
+        shift = np.array([(0.,0.),
+                          (0.,0.)])
+        rotation = np.array([0., 0.])
+
+        # The binning and process image shape must be the same for all images in
+        # the mosaic
+        binning = tuple(int(b) for b in detectors[0].binning.split(','))
+        shape = tuple(n // b for n, b in zip(expected_shape, binning))
+
+        msc_sft = [None]*nimg
+        msc_rot = [None]*nimg
+        msc_tfm = [None]*nimg
+        for i, d in enumerate([det-1 for det in mosaic]):
+            msc_sft[i] = shift[d]
+            msc_rot[i] = rotation[d]
+            # binning is here in the PypeIt convention of (binspec, binspat), but the mosaic tranformations
+            # occur in the raw data frame, which has spatial in y and spectral in x
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
+
+
         # For now, use placeholder values; the actual mosaic is built by
         # make_mosaic() using slit_slices-based spatial offsets.
-        return Mosaic(mosaic_id, detectors, None, np.array(0.0), np.array(0.0), np.array(0.0), msc_ord)
+        return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
+                      np.array(msc_tfm), msc_ord)
 
     def validate_det(self, det):
         """
@@ -409,7 +437,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     def default_mosaic(self):
         return self.allowed_mosaics[0]
     
-    def get_rawimage(self, raw_file, det):
+    def get_rawimage(self, raw_file, det, extname='SCI'):
         """
         Read raw images and generate a few other bits and pieces
         that are key for image processing.
@@ -449,7 +477,49 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         # TODO: implement a proper get_rawimage for NIRSpec
 
-        return super().get_rawimage(fil, det, sec_includes_binning=True)
+        # Check extension and then open
+        self._check_extensions(fil)
+
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
+
+
+        # Grab the detector or mosaic parameters
+        mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=None)
+        detectors = [self.get_detector_par(det, hdu=None)] if nimg == 1 else mosaic.detectors
+
+        # Read the image(s)
+        patt_search = glob.glob(str(fil).split('nrs')[0] + '*')
+        # this is a list of files that have the same name, but different detector (nrs1 and nrs2) if it's a mosaic,
+        # otherwise it's a list with only one file
+        file_list = [a for a in patt_search if a.endswith('_assign_wcs.fits')]
+        # check that the number of files found matches the number of detectors in the mosaic
+        if len(file_list) != nimg:
+            raise PypeItError(f'Expected {nimg} files for mosaic with detectors {det}, but found {len(file_list)} files: {file_list}')
+        raw_img = [None]*nimg
+        rawdatasec_img = [None]*nimg
+        oscansec_img = [None]*nimg
+        for i in range(nimg):
+            indx = np.where([f'nrs{detectors[i].det}' in n for n in file_list])[0]
+            if len(indx) == 0:
+                raise PypeItError(f'Could not find file for detector nrs{detectors[i].det} in mosaic with detectors {det}.')
+            _hdu = io.fits_open(file_list[indx], ignore_missing_end=True, output_verify='ignore', ignore_blank=True)
+            # Raw image
+            raw_img[i] = _hdu[extname].data.T.astype(float)
+            rawdatasec_img[i] = np.zeros_like(raw_img[i], dtype=int) + int(detectors[i].det)
+            oscansec_img = np.zeros_like(raw_img[i], dtype=int)
+            # save also hdul here, so we don't have to do it several times
+            if i == 0:
+                hdul = copy.deepcopy(_hdu)
+
+        headarr = self.get_headarr(hdul)
+
+        # Exposure time (used by RawImage)
+        exptime = self.get_meta_value(headarr, 'exptime')
+
+        if nimg == 1:
+            return detectors[0], raw_img[0], hdul, exptime, rawdatasec_img[0], oscansec_img[0]
+        return mosaic, raw_img, hdul, exptime, rawdatasec_img, oscansec_img
 
 
     def make_mosaic(self, img_list, det, slit_slices):
