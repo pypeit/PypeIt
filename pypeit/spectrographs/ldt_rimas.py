@@ -250,9 +250,9 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         par["calibrations"]["tilts"]["spec_order"] = 4
 
         # 1D wavelength solution
-        par["calibrations"]["wavelengths"]["lamps"] = ["OH_XSHOOTER"]
+        par["calibrations"]["wavelengths"]["lamps"] = ["Hg_RIMAS", "HGI_lines"]
         par["calibrations"]["wavelengths"]["rms_thresh_frac_fwhm"] = 0.15
-        par["calibrations"]["wavelengths"]["sigdetect"] = 10.0
+        par["calibrations"]["wavelengths"]["sigdetect"] = 5
         par["calibrations"]["wavelengths"]["fwhm"] = 4.0
         par["calibrations"]["wavelengths"]["n_final"] = 4
         # Reidentification parameters
@@ -996,13 +996,14 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             # Higher order wavelength fits because of larger span
             par["calibrations"]["wavelengths"]["n_first"] = 3  # Default: 2
             par["calibrations"]["wavelengths"]["n_final"] = 5  # Default: 4
+            par["calibrations"]["wavelengths"]["sigdetect"] = 5
             # The approximate resolution of this grating
             par["sensfunc"]["UVIS"]["resolution"] = 800
 
             par["reduce"]["findobj"]["find_fwhm"] = 7
-            par["reduce"]["findobj"]["snr_thresh"] = 1
+            par["reduce"]["findobj"]["snr_thresh"] = 10
 
-            par["calibrations"]["wavelengths"]["lamps"] = [""]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+            par["calibrations"]["wavelengths"]["lamps"] = ["HgI_DeVeny", "ArI_DeVeny"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
 
         else:
             pass
