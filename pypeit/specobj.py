@@ -13,6 +13,7 @@ import numpy as np
 
 from pypeit import log
 from pypeit import PypeItError
+from pypeit.core import extract
 from pypeit.core import flexure
 from pypeit.core import flux_calib
 from pypeit.core import parse
@@ -835,4 +836,83 @@ class SpecObj(datamodel.DataContainer):
             return 'BOX', False
         # If we make it here, we've got a problem!
         raise PypeItError('Unable to find a relevant set of data!')
+    
+    def extract_optimal(
+        self, imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof, min_frac_use=0.9,
+        fwhmimg=None, flatimg=None, base_var=None, count_scale=None, noise_floor=None
+    ):
+        """
+        Perform an optimal extraction on the provided image.
+
+        This is a simple wrapper for 
+        :func:`~pypeit.core.extract.extract_optimal` that saves the results to
+        attributes of this object; see
+        :func:`~pypeit.core.extract.extract_optimal` for descriptions of the
+        function arguments.
+
+        If :attr:`trace_spec` is currently None, this sets it to an index array
+        that matches the length of the first (spectral) axis of the provided
+        image; e.g., ``trace_spec = [0 ... imgminsky.shape[0]-1]``.
+
+        The function uses :attr:`BOX_R_PIX` and :attr:`TRACE_SPAT` to set the
+        box width and center as a function of spectral pixel; these are only
+        used to set the wavelength of an extracted pixel in the case when the
+        optimal extraction leads to a fully masked pixel.
+
+        This fills the following properties: :attr:`OPT_WAVE`,
+        :attr:`OPT_COUNTS`, :attr:`OPT_COUNTS_IVAR`, :attr:`OPT_COUNTS_SIG`,
+        :attr:`OPT_COUNTS_NIVAR`, :attr:`OPT_MASK`, :attr:`OPT_FWHM`,
+        :attr:`OPT_FLAT`, :attr:`OPT_COUNTS_SKY`, :attr:`OPT_COUNTS_SIG_DET`,
+        :attr:`OPT_FRAC_USE`, and :attr:`OPT_CHI2`.
+        """
+        if self.trace_spec is None:
+            self.trace_spec = np.arange(imgminsky.shape[0])
+        (
+            self.OPT_WAVE, self.OPT_COUNTS, self.OPT_COUNTS_IVAR, self.OPT_COUNTS_SIG,
+            self.OPT_COUNTS_NIVAR, self.OPT_MASK, self.OPT_FWHM, self.OPT_FLAT,
+            self.OPT_COUNTS_SKY, self.OPT_COUNTS_SIG_DET, self.OPT_FRAC_USE, self.OPT_CHI2
+        ) = extract.extract_optimal(
+            imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof, min_frac_use=min_frac_use,
+            fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var, count_scale=count_scale,
+            noise_floor=noise_floor, box_radius=self.BOX_R_PIX, trace_spec=self.trace_spec,
+            trace_spat=self.TRACE_SPAT
+        )
+                    
+    def extract_boxcar(
+        self, imgminsky, ivar, mask, waveimg, skyimg, fwhmimg=None, flatimg=None, base_var=None,
+        count_scale=None, noise_floor=None,
+    ):
+        """
+        Perform a boxcar extraction on the provided image.
+
+        This is a simple wrapper for 
+        :func:`~pypeit.core.extract.extract_boxcar` that saves the results to
+        attributes of this object; see
+        :func:`~pypeit.core.extract.extract_boxcar` for descriptions of the
+        function arguments.
+
+        If :attr:`trace_spec` is currently None, this sets it to an index array
+        that matches the length of the first (spectral) axis of the provided
+        image; e.g., ``trace_spec = [0 ... imgminsky.shape[0]-1]``.
+
+        The function uses :attr:`BOX_R_PIX` and :attr:`TRACE_SPAT` to set the
+        box width and center as a function of spectral pixel.
+
+        This fills the following properties: :attr:`BOX_WAVE`,
+        :attr:`BOX_COUNTS`, :attr:`BOX_COUNTS_IVAR`, :attr:`BOX_COUNTS_SIG`,
+        :attr:`BOX_COUNTS_NIVAR`, :attr:`BOX_MASK`, :attr:`BOX_FWHM`,
+        :attr:`BOX_FLAT`, :attr:`BOX_COUNTS_SKY`, :attr:`BOX_COUNTS_SIG_DET`,
+        and :attr:`BOX_NPIX`.
+        """
+        if self.trace_spec is None:
+            self.trace_spec = np.arange(imgminsky.shape[0])
+        (
+            self.BOX_WAVE, self.BOX_COUNTS, self.BOX_COUNTS_IVAR, self.BOX_COUNTS_SIG,
+            self.BOX_COUNTS_NIVAR, self.BOX_MASK, self.BOX_FWHM, self.BOX_FLAT,
+            self.BOX_COUNTS_SKY, self.BOX_COUNTS_SIG_DET, self.BOX_NPIX
+        ) = extract.extract_boxcar(
+            self.BOX_R_PIX, self.TRACE_SPAT, imgminsky, ivar, mask, waveimg, skyimg,
+            fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var, count_scale=count_scale,
+            noise_floor=noise_floor, trace_spec=self.trace_spec
+        )
 

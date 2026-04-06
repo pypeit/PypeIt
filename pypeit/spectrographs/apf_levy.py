@@ -16,6 +16,7 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import io
+from pypeit import par
 from pypeit.core import framematch
 from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
@@ -73,11 +74,12 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-
+        
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False
         par['calibrations']['flatfield']['tweak_slits'] = False
         par['calibrations']['flatfield']['spat_samp'] = 0.7
-        par['calibrations']['flatfield']['slit_trim'] = 0
+        # this is for the 8" decker
+        par['calibrations']['flatfield']['slit_trim'] = 3
 
 
         # Processing steps
@@ -90,7 +92,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         # no sky subtraction on standard stars
         par['reduce']['skysub']['global_sky_std'] = False
-
+        par['reduce']['skysub']['no_local_sky'] = True
         # skip sky subtraction when searching for objects
         # this is because the sky subtraction is not very good with narrow
         # slits and the usual APF target is bright
@@ -378,11 +380,13 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             par['reduce']['findobj']['find_trim_edge'] = [0, 0]
             par['calibrations']['slitedges']['pad'] = 5
             par['reduce']['extraction']['sn_gauss'] = 400
+            par['calibrations']['flatfield']['slit_trim'] = 0
             # basically always use the Gaussian model for optimal extraction
 
         if binning == "2,2":
             par['calibrations']['slitedges']['min_edge_side_sep'] = 2.0
             par['calibrations']['slitedges']['pad'] = 2
+            par['calibrations']['flatfield']['slit_trim'] = 1
             par['reduce']['skysub']['no_local_sky'] = True
             par['reduce']['extraction']['sn_gauss'] = 400
             par['reduce']['extraction']['model_full_slit'] = True

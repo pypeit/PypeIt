@@ -667,7 +667,7 @@ class BuildWaveCalib:
                 arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
                                          # JTS: Commented out as it seems the
                                          # store solution function does not
-                                         # take these arguments any more.
+                                         # take these arguments anymore.
                                          # specname=self.spectrograph.name,
                                          # gratname="UNKNOWN", dispangl="UNKNOWN"
                                          )
@@ -739,7 +739,7 @@ class BuildWaveCalib:
             raise PypeItError('Unrecognized wavelength calibration method: {:}'.format(method))
 
         # Build the DataContainer
-        if self.par['redo_slits'] is not None:
+        if self.par['redo_slits'] is not None and prev_wvcalib is not None:
             # If we are only redoing slits, we start from the
             #  previous wv_calib and update only the (good) redone slits
             self.wv_calib = prev_wvcalib

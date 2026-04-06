@@ -17,9 +17,9 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from pypeit.par import parset
+from pypeit.spectrographs import spectrograph
 
 
 class AATUHRFSpectrograph(spectrograph.Spectrograph):

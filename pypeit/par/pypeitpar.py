@@ -99,7 +99,7 @@ def tuple_force(par):
 
     # If the value is a list of one tuple, return the tuple.
     # TODO: This is a hack, and we should probably revisit how this is done.
-    # The issue is that pypeit.par.util.eval_tuple always returns a list of
+    # The issue is that pypeit.utils.eval_tuple always returns a list of
     # tuples, something that's required for allowing lists of detector mosaics.
     # But elements of TelluricPar are forced to be tuples.  When constructing
     # the parameters to use in a given run, the sequence of merging the
