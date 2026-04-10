@@ -9,7 +9,7 @@ import astropy.table
 from IPython import embed
 import numpy as np
 
-from pypeit import cache
+from pypeit.pkg import cache
 from pypeit import dataPaths
 from pypeit import log
 from pypeit import PypeItError

@@ -1600,16 +1600,18 @@ class Calibrations:
 
         # Iterate through each frame type and add the raw and processed
         # calibration frames
+
         for frametype, calib_classes in frame_calibrations.items():
             indx = fitstbl.find_frames(frametype) & in_grp
             if not any(indx):
                 continue
             if not (all(fitstbl['calib'][indx] == fitstbl['calib'][indx][0]) or
                     all([fitstbl['calib'][indx][0] in cc.split(',') for cc in fitstbl['calib'][indx]])):
-                raise PypeItError(f'CODING ERROR: All {frametype} frames in group {calib_ID} '
-                           'are not all associated with the same subset of calibration '
-                           'groups; calib for the first file is '
-                           f'{fitstbl["calib"][indx][0]}.')
+                log_str = f'All {frametype} frames in group {calib_ID} '
+                log_str += 'are not all associated with the same subset of calibration '
+                log_str += 'groups; calib for the first file is '
+                log_str += f'{fitstbl["calib"][indx][0]}.'
+                log.warning(log_str)
             calib_key = CalibFrame.construct_calib_key(setup, fitstbl['calib'][indx][0], detname)
             asn[frametype] = {}
             asn[frametype]['raw'] = fitstbl.frame_paths(indx)

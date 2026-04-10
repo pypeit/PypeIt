@@ -1100,6 +1100,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         if par['reid_arxiv'] is None:
             raise PypeItError('WavelengthSolutionPar parameter `reid_arxiv` not '
                        'specified for "full_template" method.')
+        wvstr = "the entire wavelength range" if par['wvrng_arxiv'] is None else f"wavelength range {par['wvrng_arxiv']} Angstroms"
+        log.info(f"Loading template from {par['reid_arxiv']} for detector {det} and {wvstr}")
         temp_wv_og, temp_spec_og, temp_bin, order, lines_pix, lines_wav, lines_fit_ord = \
             waveio.load_template(par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
