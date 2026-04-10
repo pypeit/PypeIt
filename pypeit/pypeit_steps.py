@@ -297,6 +297,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
 
     # Build Science image
     sci_files = fitstbl.frame_paths(frames)
+    sci_files = spectrograph.group_rawfiles(sci_files, det=det)
     sciImg = buildimage.buildimage_fromlist(
         spectrograph, det, frame_par,
         sci_files, bias=caliBrate.msbias, bpm=caliBrate.msbpm,
@@ -304,6 +305,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
         scattlight=caliBrate.msscattlight,
         flatimages=caliBrate.flatimages,
         slits=caliBrate.slits,  # For flexure correction
+        slit_slices=caliBrate.slit_slices,
         ignore_saturation=False)
 
     # get no bkg subtracted sciImg to generate a global sky model without bkg subtraction.
@@ -316,6 +318,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
         bkg_redux_sciimg = sciImg
         # Build the background image
         bg_file_list = fitstbl.frame_paths(bg_frames)
+        bg_file_list = spectrograph.group_rawfiles(bg_file_list, det=det)
         # TODO I think we should create a separate self.par['bkgframe'] parameter set to hold the image
         # processing parameters for the background frames.  This would allow the user to specify different
         # parameters for the background frames than for the science frames.
@@ -326,6 +329,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
                                                 scattlight=caliBrate.msscattlight,
                                                 flatimages=caliBrate.flatimages,
                                                 slits=caliBrate.slits,
+                                               slit_slices=caliBrate.slit_slices,
                                                 ignore_saturation=False)
 
         # NOTE: If the spatial flexure exists for sciImg, the subtraction
@@ -352,7 +356,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
 def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str, 
                    det, calibrations_path:str, std_outfile:str=None, 
                    bkg_redux=False, find_negative=False, show:bool=False,
-                   caliBrate=None, slit_name=None):
+                   slit_name=None):
     """
     Perform object finding on a specific detector.
 
@@ -420,8 +424,7 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
     log.info("Object finding begins for {} on det={}".format(basename, det))
 
     # Grab the calibrations
-    if caliBrate is None:
-        caliBrate = load_calibrations_for_frame(
+    caliBrate = load_calibrations_for_frame(
             spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path, slitname=slit_name)
 
     log.info(f'Reducing detector {det}')
@@ -572,8 +575,6 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
             f'{caliBrate.failed_step}.'
         )
 
-    embed()
-
     return caliBrate
 
 
@@ -674,7 +675,7 @@ def extract_det(spectrograph, fitstbl, par,
                 sciImg, final_sky, sobjs_obj, calib_slits,
                 bkg_redux_final_sky=None, bkg_redux:bool=False,
                 find_negative:bool=False,
-                show:bool=False, caliBrate=None, slit_name=None):
+                show:bool=False, slit_name=None):
     """
     Extract Objects in a single exposure/detector pair
 
@@ -739,8 +740,7 @@ def extract_det(spectrograph, fitstbl, par,
                                slit_name=slit_name)
 
     # Grab the calibrations
-    if caliBrate is None:
-        caliBrate = load_calibrations_for_frame(
+    caliBrate = load_calibrations_for_frame(
             spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path, slitname=slit_name)
     # update slits
     caliBrate.slits = calib_slits
@@ -792,17 +792,17 @@ def extract_det(spectrograph, fitstbl, par,
         slitgpm = (slits.mask == 0)
         slitshift = sciImg.flex_shift
         # Generate tilts and waveimg from calibrations
-        if caliBrate.wavetilts is not None:
+        if caliBrate.wavetilts.tiltsimg is None or caliBrate.wv_calib.waveimg is None:
             # Standard calibrations: generate from WaveTilts and WaveCalib
             slitmask = slits.slit_img(flexure=sciImg.spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
             _spat_flexure = 0. if sciImg.spat_flexure is None else sciImg.spat_flexure
             _tilts_spat_flexure = 0. if caliBrate.wavetilts.spat_flexure is None else caliBrate.wavetilts.spat_flexure
-            tilts = caliBrate.wavetilts.fit2tiltimg(slitmask, flexure=_tilts_spat_flexure)
-            waveImg = caliBrate.wv_calib.build_waveimg(tilts, slits, spat_flexure=sciImg.spat_flexure, spec_flexure=slitshift)
+            tilts = caliBrate.wavetilts.fit2tiltimg(slitmask, flexure=_tilts_spat_flexure) if caliBrate.wavetilts.tiltsimg is None else caliBrate.wavetilts.tiltsimg
+            waveImg = caliBrate.wv_calib.build_waveimg(tilts, slits, spat_flexure=sciImg.spat_flexure, spec_flexure=slitshift) if caliBrate.wv_calib.waveimg is None else caliBrate.wv_calib.waveimg
         else:
             # NIRSpec calibrations: use pre-computed tilts and waveimg
-            tilts = caliBrate.tilts
-            waveImg = caliBrate.waveimg
+            tilts = caliBrate.wavetilts.tiltsimg
+            waveImg = caliBrate.wv_calib.waveimg
 
     # Apply a reference frame correction to each object and the waveimg
     vel_corr, waveImg = refframe_correct(spectrograph, par, slits, 
@@ -1499,185 +1499,185 @@ def load_nirspec_sci_data(fitstbl, frames, bg_frames):
 #     return caliBrate, _det, _sci_data, _sci_data_bkg, _slit_slices, headarr
 
 
-def build_nirspec_sciimg(spectrograph, par, _det, _sci_data,
-                         _sci_data_bkg, _slit_slices, caliBrate,
-                         headarr, bkg_redux=False):
-    """
-    Build the processed science image for a single NIRSpec slit.
-
-    This is the NIRSpec analogue of :func:`process_one_det` for the
-    standard pipeline.  It converts JWST data-model arrays into a
-    :class:`~pypeit.images.pypeitimage.PypeItImage`, applies flat
-    fielding, builds the variance model, and optionally subtracts a
-    combined background image.
-
-    Args:
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            The spectrograph instance.
-        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-            The parameter set.
-        _det (:obj:`int`):
-            Detector number (1 or 2).
-        _sci_data (`numpy.ndarray`_):
-            Detector-filtered JWST science data models.
-        _sci_data_bkg (`numpy.ndarray`_ or None):
-            Detector-filtered background data models, or ``None``.
-        _slit_slices (:obj:`list`):
-            Slit pixel slices, one per detector.
-        caliBrate (:class:`~pypeit.calibrations.NIRSpecSlitCalibrations`):
-            The calibration object (provides flatimages and msbpm).
-        headarr (:obj:`list`):
-            List of FITS headers from the first science frame.
-        bkg_redux (:obj:`bool`, optional):
-            If True, subtract combined background images.
-
-    Returns:
-        :class:`~pypeit.images.pypeitimage.PypeItImage`:
-            The processed (and optionally background-subtracted) science image.
-    """
-    from pypeit.images.rawimage import NIRSpecRawImage
-    from pypeit.images import combineimage
-
-    nirspec_raw = NIRSpecRawImage(
-        spectrograph, _det, _sci_data, _slit_slices,
-        caliBrate.flatimages, caliBrate.msbpm, headarr)
-    sciImg = nirspec_raw.process(par['scienceframe']['process'])
-
-    # --- Background subtraction ---
-    if bkg_redux and _sci_data_bkg is not None:
-        sciImg_bkg_list = []
-        for _bg in _sci_data_bkg:
-            bkg_raw = NIRSpecRawImage(
-                spectrograph, _det, [_bg], _slit_slices,
-                caliBrate.flatimages, caliBrate.msbpm, headarr)
-            sciImg_bkg_list.append(
-                bkg_raw.process(par['scienceframe']['process']))
-        combImg = combineimage.CombineImage(
-            sciImg_bkg_list, par['scienceframe']['process'])
-        comb_bkg = combImg.run(ignore_saturation=True)
-        sciImg = sciImg.sub(comb_bkg)
-
-    return sciImg
-
-def process_nirspec_one_det(spectrograph, fitstbl, par, frames:list,
-                    det, calib_ID:str, calibrations_path:str, bg_frames:list=None,
-                    slitname=None, sci_outfile:str=None, bkg_outfile:str=None):
-    """
-    Process a single detector for a given set of frames.
-
-    This function handles the image processing for a specific detector, including
-    loading calibrations, building the science image, and optionally subtracting
-    a background image.
-
-    Args:
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            The spectrograph instance
-        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
-            The class holding the metadata for all the frames in this PypeIt run.
-        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-            The parameter set for the reduction, including slitmask and
-            object finding parameters.
-        frames (:obj:`list`):
-            List of indices corresponding to the science frames in the
-            `fitstbl` to be processed together.
-        det (:obj:`int`):
-            Detector number (1-indexed)
-        calib_ID (:obj:`str`):
-            The calibration group ID
-        calibrations_path (:obj:`str`):
-            Path to the calibration files
-        bg_frames (:obj:`list`, optional):
-            List of indices corresponding to the background frames in the
-            `fitstbl`. If None or empty, no A-B background subtraction is performed.
-            Default is None.
-        sci_outfile (:obj:`str`, optional):
-            The science output file, if this is a science reduction.
-            Default is None.
-        bkg_outfile (:obj:`str`, optional):
-            The background output file, if this is a background
-            subtraction reduction. Default is None.
-
-    Returns:
-        tuple:
-            - sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-              The processed science image, with background
-              subtraction applied if `bg_frames` is provided.
-            - bkg_redux_sciimg (:class:`~pypeit.images.pypeitimage.PypeItImage` or None):
-              The science image without
-              background subtraction, used to generate a global sky model. This is
-              a dictionary with `image` and `ivar` keys if `bg_frames` is provided,
-              otherwise it is None.
-    """
-
-    # Grab some meta-data needed for the reduction from the fitstbl
-    objtype, setup, obstime, basename, binning \
-            = get_sci_metadata(spectrograph, fitstbl, frames[0], det)
-
-    # Grab the calibrations
-    # caliBrate = load_calibrations_for_frame(
-    #     spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
-
-    caliBrate = calib_one_nirspec(spectrograph, fitstbl, par, det, calib_ID, calibrations_path,
-                                   slitname)
-
-    log.info(f"Image processing begins for {basename} on det={det}")
-
-    # Is this a standard star?
-    std_redux = objtype == 'standard'
-    frame_par = par['calibrations']['standardframe'] \
-                    if std_redux else par['scienceframe']
-
-    # Build Science image
-    sci_files = fitstbl.frame_paths(frames)
-    sciImg = buildimage.buildimage_nirspec_fromlist(
-        spectrograph, det, frame_par,
-        sci_files, bias=caliBrate.msbias, bpm=caliBrate.msbpm,
-        dark=caliBrate.msdark,
-        scattlight=caliBrate.msscattlight,
-        flatimages=caliBrate.flatimages,
-        slits=caliBrate.slits,  # For flexure correction
-        slit_slices=caliBrate.slit_slices, kludge_err=1.2,
-        ignore_saturation=False)
-
-    # get no bkg subtracted sciImg to generate a global sky model without bkg subtraction.
-    # it's a dictionary with only `image` and `ivar` keys if bkg_redux=False, otherwise it's None
-    bkg_redux_sciimg = None
-
-    # Background Image?
-    if bg_frames is not None and len(bg_frames) > 0:
-        # get no bkg subtracted sciImg
-        bkg_redux_sciimg = sciImg
-        # Build the background image
-        bg_file_list = fitstbl.frame_paths(bg_frames)
-        # TODO I think we should create a separate self.par['bkgframe'] parameter set to hold the image
-        # processing parameters for the background frames.  This would allow the user to specify different
-        # parameters for the background frames than for the science frames.
-        bgimg = buildimage.buildimage_nirspec_fromlist(spectrograph, det, frame_par, bg_file_list,
-                                                bpm=caliBrate.msbpm,
-                                                bias=caliBrate.msbias,
-                                                dark=caliBrate.msdark,
-                                                scattlight=caliBrate.msscattlight,
-                                                flatimages=caliBrate.flatimages,
-                                                slits=caliBrate.slits,
-                                                ignore_saturation=False)
-
-        # NOTE: If the spatial flexure exists for sciImg, the subtraction
-        # function propagates that to the subtracted image, ignoring any
-        # spatial flexure determined for the background image.
-        sciImg = bkg_redux_sciimg.sub(bgimg)
-
-    # Write out the science image?
-    if sci_outfile is not None:
-        # Generate the folder?
-        if not sci_outfile.parent.is_dir():
-            sci_outfile.parent.mkdir()
-        sciImg.to_file(sci_outfile, overwrite=True)
-        log.info(f'Wrote intermediate science image to {sci_outfile}')
-
-    # Write out the background image?
-    if bkg_outfile is not None and bkg_redux_sciimg is not None:
-        bkg_redux_sciimg.to_file(bkg_outfile, overwrite=True)
-        log.info(f'Wrote intermediate background image to {bkg_outfile}')
-
-    # Return
-    return sciImg, bkg_redux_sciimg
+# def build_nirspec_sciimg(spectrograph, par, _det, _sci_data,
+#                          _sci_data_bkg, _slit_slices, caliBrate,
+#                          headarr, bkg_redux=False):
+#     """
+#     Build the processed science image for a single NIRSpec slit.
+#
+#     This is the NIRSpec analogue of :func:`process_one_det` for the
+#     standard pipeline.  It converts JWST data-model arrays into a
+#     :class:`~pypeit.images.pypeitimage.PypeItImage`, applies flat
+#     fielding, builds the variance model, and optionally subtracts a
+#     combined background image.
+#
+#     Args:
+#         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+#             The spectrograph instance.
+#         par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+#             The parameter set.
+#         _det (:obj:`int`):
+#             Detector number (1 or 2).
+#         _sci_data (`numpy.ndarray`_):
+#             Detector-filtered JWST science data models.
+#         _sci_data_bkg (`numpy.ndarray`_ or None):
+#             Detector-filtered background data models, or ``None``.
+#         _slit_slices (:obj:`list`):
+#             Slit pixel slices, one per detector.
+#         caliBrate (:class:`~pypeit.calibrations.NIRSpecSlitCalibrations`):
+#             The calibration object (provides flatimages and msbpm).
+#         headarr (:obj:`list`):
+#             List of FITS headers from the first science frame.
+#         bkg_redux (:obj:`bool`, optional):
+#             If True, subtract combined background images.
+#
+#     Returns:
+#         :class:`~pypeit.images.pypeitimage.PypeItImage`:
+#             The processed (and optionally background-subtracted) science image.
+#     """
+#     from pypeit.images.rawimage import NIRSpecRawImage
+#     from pypeit.images import combineimage
+#
+#     nirspec_raw = NIRSpecRawImage(
+#         spectrograph, _det, _sci_data, _slit_slices,
+#         caliBrate.flatimages, caliBrate.msbpm, headarr)
+#     sciImg = nirspec_raw.process(par['scienceframe']['process'])
+#
+#     # --- Background subtraction ---
+#     if bkg_redux and _sci_data_bkg is not None:
+#         sciImg_bkg_list = []
+#         for _bg in _sci_data_bkg:
+#             bkg_raw = NIRSpecRawImage(
+#                 spectrograph, _det, [_bg], _slit_slices,
+#                 caliBrate.flatimages, caliBrate.msbpm, headarr)
+#             sciImg_bkg_list.append(
+#                 bkg_raw.process(par['scienceframe']['process']))
+#         combImg = combineimage.CombineImage(
+#             sciImg_bkg_list, par['scienceframe']['process'])
+#         comb_bkg = combImg.run(ignore_saturation=True)
+#         sciImg = sciImg.sub(comb_bkg)
+#
+#     return sciImg
+#
+# def process_nirspec_one_det(spectrograph, fitstbl, par, frames:list,
+#                     det, calib_ID:str, calibrations_path:str, bg_frames:list=None,
+#                     slitname=None, sci_outfile:str=None, bkg_outfile:str=None):
+#     """
+#     Process a single detector for a given set of frames.
+#
+#     This function handles the image processing for a specific detector, including
+#     loading calibrations, building the science image, and optionally subtracting
+#     a background image.
+#
+#     Args:
+#         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+#             The spectrograph instance
+#         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+#             The class holding the metadata for all the frames in this PypeIt run.
+#         par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+#             The parameter set for the reduction, including slitmask and
+#             object finding parameters.
+#         frames (:obj:`list`):
+#             List of indices corresponding to the science frames in the
+#             `fitstbl` to be processed together.
+#         det (:obj:`int`):
+#             Detector number (1-indexed)
+#         calib_ID (:obj:`str`):
+#             The calibration group ID
+#         calibrations_path (:obj:`str`):
+#             Path to the calibration files
+#         bg_frames (:obj:`list`, optional):
+#             List of indices corresponding to the background frames in the
+#             `fitstbl`. If None or empty, no A-B background subtraction is performed.
+#             Default is None.
+#         sci_outfile (:obj:`str`, optional):
+#             The science output file, if this is a science reduction.
+#             Default is None.
+#         bkg_outfile (:obj:`str`, optional):
+#             The background output file, if this is a background
+#             subtraction reduction. Default is None.
+#
+#     Returns:
+#         tuple:
+#             - sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+#               The processed science image, with background
+#               subtraction applied if `bg_frames` is provided.
+#             - bkg_redux_sciimg (:class:`~pypeit.images.pypeitimage.PypeItImage` or None):
+#               The science image without
+#               background subtraction, used to generate a global sky model. This is
+#               a dictionary with `image` and `ivar` keys if `bg_frames` is provided,
+#               otherwise it is None.
+#     """
+#
+#     # Grab some meta-data needed for the reduction from the fitstbl
+#     objtype, setup, obstime, basename, binning \
+#             = get_sci_metadata(spectrograph, fitstbl, frames[0], det)
+#
+#     # Grab the calibrations
+#     # caliBrate = load_calibrations_for_frame(
+#     #     spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
+#
+#     caliBrate = calib_one_nirspec(spectrograph, fitstbl, par, det, calib_ID, calibrations_path,
+#                                    slitname)
+#
+#     log.info(f"Image processing begins for {basename} on det={det}")
+#
+#     # Is this a standard star?
+#     std_redux = objtype == 'standard'
+#     frame_par = par['calibrations']['standardframe'] \
+#                     if std_redux else par['scienceframe']
+#
+#     # Build Science image
+#     sci_files = fitstbl.frame_paths(frames)
+#     sciImg = buildimage.buildimage_nirspec_fromlist(
+#         spectrograph, det, frame_par,
+#         sci_files, bias=caliBrate.msbias, bpm=caliBrate.msbpm,
+#         dark=caliBrate.msdark,
+#         scattlight=caliBrate.msscattlight,
+#         flatimages=caliBrate.flatimages,
+#         slits=caliBrate.slits,  # For flexure correction
+#         slit_slices=caliBrate.slit_slices, kludge_err=1.2,
+#         ignore_saturation=False)
+#
+#     # get no bkg subtracted sciImg to generate a global sky model without bkg subtraction.
+#     # it's a dictionary with only `image` and `ivar` keys if bkg_redux=False, otherwise it's None
+#     bkg_redux_sciimg = None
+#
+#     # Background Image?
+#     if bg_frames is not None and len(bg_frames) > 0:
+#         # get no bkg subtracted sciImg
+#         bkg_redux_sciimg = sciImg
+#         # Build the background image
+#         bg_file_list = fitstbl.frame_paths(bg_frames)
+#         # TODO I think we should create a separate self.par['bkgframe'] parameter set to hold the image
+#         # processing parameters for the background frames.  This would allow the user to specify different
+#         # parameters for the background frames than for the science frames.
+#         bgimg = buildimage.buildimage_nirspec_fromlist(spectrograph, det, frame_par, bg_file_list,
+#                                                 bpm=caliBrate.msbpm,
+#                                                 bias=caliBrate.msbias,
+#                                                 dark=caliBrate.msdark,
+#                                                 scattlight=caliBrate.msscattlight,
+#                                                 flatimages=caliBrate.flatimages,
+#                                                 slits=caliBrate.slits,
+#                                                 ignore_saturation=False)
+#
+#         # NOTE: If the spatial flexure exists for sciImg, the subtraction
+#         # function propagates that to the subtracted image, ignoring any
+#         # spatial flexure determined for the background image.
+#         sciImg = bkg_redux_sciimg.sub(bgimg)
+#
+#     # Write out the science image?
+#     if sci_outfile is not None:
+#         # Generate the folder?
+#         if not sci_outfile.parent.is_dir():
+#             sci_outfile.parent.mkdir()
+#         sciImg.to_file(sci_outfile, overwrite=True)
+#         log.info(f'Wrote intermediate science image to {sci_outfile}')
+#
+#     # Write out the background image?
+#     if bkg_outfile is not None and bkg_redux_sciimg is not None:
+#         bkg_redux_sciimg.to_file(bkg_outfile, overwrite=True)
+#         log.info(f'Wrote intermediate background image to {bkg_outfile}')
+#
+#     # Return
+#     return sciImg, bkg_redux_sciimg

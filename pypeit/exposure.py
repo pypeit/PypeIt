@@ -146,7 +146,7 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
                         calibrations_path:str,
                         std_outfile:str=None, bkg_redux=False, 
                         find_negative=False, show=False,
-                        caliBrate_dict:dict=None, slitname:str=None):
+                        slitname:str=None):
     """
     Identifies objects on a set of exposures for the specified detectors.
     This function loops over the provided detectors, 
@@ -220,8 +220,6 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
     for det in detectors:
         # Grab the science image
         sciImg = sciImg_dict[det]
-        # Grab the pre-loaded caliBrate for this detector if available
-        _caliBrate = caliBrate_dict[det] if caliBrate_dict is not None else None
 
         # Run
         initial_sky, sobjs_obj, objFind = \
@@ -230,7 +228,7 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
                 calibrations_path,
                 bkg_redux=bkg_redux, find_negative=find_negative, show=show, 
                 std_outfile=std_outfile,
-                caliBrate=_caliBrate, slit_name=slitname)
+                slit_name=slitname)
 
         # Slits
         all_slits.append(objFind.slits)
@@ -288,7 +286,7 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
                      calib_ID:str, calibrations_path:str, all_specobjs_objfind,
                      final_sky_dict:dict, bkg_redux_final_sky_dict:dict,
                      calib_slits, bkg_redux:bool=False, find_negative:bool=False,
-                     caliBrate_dict:dict=None, slitname:str=None):
+                     slitname:str=None):
 
     """
     Extracts spectral data from a set of science images and performs background subtraction, 
@@ -356,9 +354,6 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
         else:
             all_specobjs_on_det = all_specobjs_objfind
 
-        # Grab the pre-loaded caliBrate for this detector if available
-        _caliBrate = caliBrate_dict[det] if caliBrate_dict is not None else None
-
         # Extract
         all_spec2d[detname], tmp_sobjs = pypeit_steps.extract_det(
             spectrograph, fitstbl, par, frames, det,
@@ -370,7 +365,6 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
             bkg_redux_final_sky=bkg_redux_final_sky_dict[det],
             bkg_redux=bkg_redux,
             find_negative=find_negative,
-            caliBrate=_caliBrate,
             slit_name=slitname)
 
         # Hold em
@@ -520,7 +514,6 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
                             bkg_redux=bkg_redux,
                             find_negative=find_negative,
                             show=show,
-                            caliBrate_dict=caliBrate_dict,
                             slitname=slitname)
 
     # #####################################
@@ -532,7 +525,6 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         final_sky_dict, bkg_redux_final_sky_dict,
         calib_slits, bkg_redux=bkg_redux,
         find_negative=find_negative,
-        caliBrate_dict=caliBrate_dict,
         slitname=slitname)
 
     # Return

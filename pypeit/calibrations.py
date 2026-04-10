@@ -212,6 +212,9 @@ class Calibrations:
         self.success = False
         self.failed_step = None
 
+        # spectrograph-specific
+        self.slit_slices = None
+
     def check_calibrations(self, file_list, check_lamps=True):
         """
         Check if the input calibration files are consistent with each other.

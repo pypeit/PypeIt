@@ -1532,6 +1532,26 @@ class Spectrograph:
         return mosaic, np.array(raw_img), hdu, exptime, np.array(rawdatasec_img), \
                 np.array(oscansec_img)
 
+    def group_rawfiles(self, raw_files, det=1):
+        """
+        Group raw files. This can be useful for mosaic reductions, when
+        the detectors that need to be mosaiced are in different files.
+        This is spectrograph-specific, and it is not defined for all
+        spectrographs. The use of this method is not restricted to
+        mosaics, but it is expected to be most useful for that.
+
+        Args:
+            raw_files (:obj:`list`):
+                List of raw files to group.
+            det (:obj:`int`, :obj:`tuple`):
+                The single detector or set of detectors in a mosaic to process.
+        Returns:
+            :obj:`list`: List or List of lists of raw files.
+
+        """
+
+        return raw_files
+
     def get_lamps_status(self, headarr):
         """
         Return a string containing the information on the lamp status.

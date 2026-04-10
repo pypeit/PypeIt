@@ -6,7 +6,7 @@ Module for JWST NIRSpec specific methods.
 import copy
 
 import numpy as np
-import glob
+from astropy.io import fits
 
 from pypeit import log
 from pypeit import PypeItError
@@ -163,9 +163,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
         # TODO: Implement proper mosaic geometry for NIRSpec NRS1+NRS2.
 
-        expected_shape = (2048, 4608)
-        shift = np.array([(0.,0.),
-                          (0.,0.)])
+        # expected_shape = (2048, 4608)
+        # shift = np.array(shift = [(0., 0.), (0, self.image[0].shape[0]+ int(self.get_detector_par(1).xgap))])
+        expected_shape = (1031, 25)
+        shift = [(0.0, 0.0), (0, 605)]
         rotation = np.array([0., 0.])
 
         # The binning and process image shape must be the same for all images in
@@ -189,25 +190,25 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
                       np.array(msc_tfm), msc_ord)
 
-    def validate_det(self, det):
-        """
-        Validate the detector specification and return the number of images
-        and a standardized detector tuple.
-
-        Args:
-            det (:obj:`int`, :obj:`tuple`):
-                Detector number or tuple of detector numbers.
-
-        Returns:
-            :obj:`tuple`: Number of images and the validated detector
-            specification.
-        """
-        if isinstance(det, (int, np.integer)):
-            return 1, (det,)
-        elif isinstance(det, (tuple, list)):
-            return len(det), tuple(det)
-        else:
-            raise PypeItError(f'Invalid detector specification: {det}')
+    # def validate_det(self, det):
+    #     """
+    #     Validate the detector specification and return the number of images
+    #     and a standardized detector tuple.
+    #
+    #     Args:
+    #         det (:obj:`int`, :obj:`tuple`):
+    #             Detector number or tuple of detector numbers.
+    #
+    #     Returns:
+    #         :obj:`tuple`: Number of images and the validated detector
+    #         specification.
+    #     """
+    #     if isinstance(det, (int, np.integer)):
+    #         return 1, (det,)
+    #     elif isinstance(det, (tuple, list)):
+    #         return len(det), tuple(det)
+    #     else:
+    #         raise PypeItError(f'Invalid detector specification: {det}')
 
     @classmethod
     def default_pypeit_par(cls):
@@ -221,8 +222,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par = super().default_pypeit_par()
 
         # turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False, use_illumflat=False)
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
-                  use_pixelflat=False, use_specillum=False, apply_gain=False, trim=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False,
+                        subtract_scattlight=False, spat_flexure_correct=False, use_pixelflat=True,
+                        use_specillum=False, apply_gain=False, trim=True)
         par.reset_all_processimages_par(**turn_off)
 
         # Reduce
@@ -470,31 +472,34 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
+        raw_files = np.atleast_1d(raw_file)
+
+        file_list = [str(utils.find_single_file(f'{rfile}*', required=True)) for rfile in raw_files]
+        for fil in file_list:
+             # Check extension
+            self._check_extensions(fil)
         # Read
-        log.info(f'Reading JWST/NIRSpec file: {fil}')
+        log.info(f'Reading JWST/NIRSpec file(s): \n{"\n".join(file_list)}')
 
-        # TODO: implement a proper get_rawimage for NIRSpec
+        # get hdul, headarr, and exptime (we use one of the frames to get this info,
+        # since they should all be the same for the frames in a mosaic)
+        hdul = fits.open(file_list[0])
+        headarr = self.get_headarr(hdul)
+        # Exposure time (used by RawImage)
+        exptime = self.get_meta_value(headarr, 'exptime')
 
-        # Check extension and then open
-        self._check_extensions(fil)
 
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
-
 
         # Grab the detector or mosaic parameters
         mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=None)
         detectors = [self.get_detector_par(det, hdu=None)] if nimg == 1 else mosaic.detectors
 
         # Read the image(s)
-        patt_search = glob.glob(str(fil).split('nrs')[0] + '*')
-        # this is a list of files that have the same name, but different detector (nrs1 and nrs2) if it's a mosaic,
-        # otherwise it's a list with only one file
-        file_list = [a for a in patt_search if a.endswith('_assign_wcs.fits')]
         # check that the number of files found matches the number of detectors in the mosaic
-        if len(file_list) != nimg:
+        if nimg==2 and len(file_list) != nimg:
             raise PypeItError(f'Expected {nimg} files for mosaic with detectors {det}, but found {len(file_list)} files: {file_list}')
         raw_img = [None]*nimg
         rawdatasec_img = [None]*nimg
@@ -503,90 +508,119 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             indx = np.where([f'nrs{detectors[i].det}' in n for n in file_list])[0]
             if len(indx) == 0:
                 raise PypeItError(f'Could not find file for detector nrs{detectors[i].det} in mosaic with detectors {det}.')
-            _hdu = io.fits_open(file_list[indx], ignore_missing_end=True, output_verify='ignore', ignore_blank=True)
+            _hdu = io.fits_open(file_list[indx[0]], ignore_missing_end=True, output_verify='ignore', ignore_blank=True)
             # Raw image
-            raw_img[i] = _hdu[extname].data.T.astype(float)
+            raw_img[i] = _hdu[extname].data.astype(float)
             rawdatasec_img[i] = np.zeros_like(raw_img[i], dtype=int) + int(detectors[i].det)
             oscansec_img = np.zeros_like(raw_img[i], dtype=int)
-            # save also hdul here, so we don't have to do it several times
-            if i == 0:
-                hdul = copy.deepcopy(_hdu)
-
-        headarr = self.get_headarr(hdul)
-
-        # Exposure time (used by RawImage)
-        exptime = self.get_meta_value(headarr, 'exptime')
 
         if nimg == 1:
             return detectors[0], raw_img[0], hdul, exptime, rawdatasec_img[0], oscansec_img[0]
-        return mosaic, raw_img, hdul, exptime, rawdatasec_img, oscansec_img
+        return mosaic, np.array(raw_img), hdul, exptime, np.array(rawdatasec_img), np.array(oscansec_img)
 
-
-    def make_mosaic(self, img_list, det, slit_slices):
+    def group_rawfiles(self, raw_files, det=1):
         """
-        Create a mosaic image from the provided list of images.
-        The images are assumed to be trimmed and oriented to follow
-        the PypeIt shape convention of ``(nspec,nspat)``.
+        Group raw files. This can be useful for mosaic reductions, when
+        the detectors that need to be mosaiced are in different files.
+        This is spectrograph-specific, and it is not defined for all
+        spectrographs. The use of this method is not restricted to
+        mosaics, but it is expected to be most useful for that.
 
         Args:
-            img_list (:obj:`list` or `numpy.ndarray`_):
-                List of images to be combined into a mosaic.  The images must
-                be trimmed and oriented to follow the PypeIt shape
-                convention of ``(nspec,nspat)``.
-            det (:obj:`tuple`):
-                Tuple of detector numbers used to construct the mosaic.  Must be
-                one among the list of possible mosaics as hard-coded by the
-                :func:`allowed_mosaics` function.
-            slit_slices (:obj:`list`):
-                List of slices for the slit in the form
-                ``[(spec_lo, spec_hi), (spat_lo, spat_hi)]`` for each detector
-                in the mosaic.  The slices are used to determine the spatial
-                offset between the two detectors in the mosaic.
+            raw_files (:obj:`list`):
+                List of raw files to group.
+            det (:obj:`int`, :obj:`tuple`):
+                The single detector or set of detectors in a mosaic to process.
         Returns:
-            `numpy.ndarray`_: The mosaic image constructed from the provided
-            list of images.  The image is trimmed and oriented to
-            follow the PypeIt shape convention of ``(nspec,nspat)``.
+            :obj:`list`: List or List of lists of raw files.
+                For a non-mosaic reduction, the list would simply be
+                a list of individual raw files that match the provided detector.
+                For a mosaic reduction, the list would be a list of sublists,
+                where the files in each sublist are grouped together for processing.
         """
 
-
-        nimg, _ = self.validate_det(det)
-
-        if nimg == 1:
-            raise PypeItError('Mosaic cannot be made with only one detector!')
+        if det in [1,2]:
+            detname = f'nrs{det}'
+            # select only the files that have detname in their name
+            return [f for f in raw_files if detname in f]
+        if det in self.allowed_mosaics:
+            grouped_files = {}
+            # group files with the same basename and different detectors
+            for _file in raw_files:
+                key = str(_file).split('nrs')[0]
+                if key not in grouped_files:
+                    grouped_files[key] = []
+                grouped_files[key].append(_file)
+            return list(grouped_files.values())
         else:
-            if len(img_list) != 2:
-                raise PypeItError('Mosaic can only be made with two images!')
-            if det not in self.allowed_mosaics:
-                raise PypeItError(f'Mosaic with detectors {det} is not allowed! '
-                           f'Allowed mosaics are: {self.allowed_mosaics}')
+            log.warning(f'Detector {det} not supported.')
+            return raw_files
 
-        detector_gap = int(self.get_detector_par(1).xgap)
-        spat_offset = (slit_slices[1][1].start - slit_slices[0][1].start)
-        spec_lo1, spec_hi1 = 0, img_list[0].shape[0]
-        spec_lo2, spec_hi2 = img_list[0].shape[0] + detector_gap, \
-                             img_list[0].shape[0] + detector_gap + img_list[1].shape[0]
-        shape = (img_list[0].shape[0] + img_list[1].shape[0] + detector_gap,
-                 np.max([img_list[0].shape[1], img_list[1].shape[1]]) + np.abs(spat_offset))
-
-        if spat_offset >= 0:
-            # Detector nrs2 starts at a larger spat value than detector nrs1
-            spat_lo1, spat_hi1 = 0, img_list[0].shape[1]  # nrs1 not shifted spatially
-            spat_lo2, spat_hi2 = spat_offset, spat_offset + img_list[1].shape[1] # nrs2 shifted spatially
-        else:
-            # Detector nrs1 starts at larger spat value than detector nrs1
-            spat_lo1, spat_hi1 = np.abs(spat_offset), img_list[0].shape[1] + np.abs(spat_offset)
-            spat_lo2, spat_hi2 = 0, img_list[1].shape[1]
-
-
-        nrs1_slice = np.s_[spec_lo1: spec_hi1, spat_lo1: spat_hi1]
-        nrs2_slice = np.s_[spec_lo2: spec_hi2, spat_lo2: spat_hi2]
-
-        # Create the mosaic
-        mosaic = np.zeros(shape, dtype=img_list[0].dtype)
-        mosaic[nrs1_slice] = img_list[0]
-        mosaic[nrs2_slice] = img_list[1]
-
-        return mosaic
+    # def make_mosaic(self, img_list, det, slit_slices):
+    #     """
+    #     Create a mosaic image from the provided list of images.
+    #     The images are assumed to be trimmed and oriented to follow
+    #     the PypeIt shape convention of ``(nspec,nspat)``.
+    #
+    #     Args:
+    #         img_list (:obj:`list` or `numpy.ndarray`_):
+    #             List of images to be combined into a mosaic.  The images must
+    #             be trimmed and oriented to follow the PypeIt shape
+    #             convention of ``(nspec,nspat)``.
+    #         det (:obj:`tuple`):
+    #             Tuple of detector numbers used to construct the mosaic.  Must be
+    #             one among the list of possible mosaics as hard-coded by the
+    #             :func:`allowed_mosaics` function.
+    #         slit_slices (:obj:`list`):
+    #             List of slices for the slit in the form
+    #             ``[(spec_lo, spec_hi), (spat_lo, spat_hi)]`` for each detector
+    #             in the mosaic.  The slices are used to determine the spatial
+    #             offset between the two detectors in the mosaic.
+    #     Returns:
+    #         `numpy.ndarray`_: The mosaic image constructed from the provided
+    #         list of images.  The image is trimmed and oriented to
+    #         follow the PypeIt shape convention of ``(nspec,nspat)``.
+    #     """
+    #
+    #
+    #     nimg, _ = self.validate_det(det)
+    #
+    #     if nimg == 1:
+    #         raise PypeItError('Mosaic cannot be made with only one detector!')
+    #     else:
+    #         if len(img_list) != 2:
+    #             raise PypeItError('Mosaic can only be made with two images!')
+    #         if det not in self.allowed_mosaics:
+    #             raise PypeItError(f'Mosaic with detectors {det} is not allowed! '
+    #                        f'Allowed mosaics are: {self.allowed_mosaics}')
+    #
+    #     detector_gap = int(self.get_detector_par(1).xgap)
+    #     spat_offset = (slit_slices[1][1].start - slit_slices[0][1].start)
+    #     spec_lo1, spec_hi1 = 0, img_list[0].shape[0]
+    #     spec_lo2, spec_hi2 = img_list[0].shape[0] + detector_gap, \
+    #                          img_list[0].shape[0] + detector_gap + img_list[1].shape[0]
+    #     shape = (img_list[0].shape[0] + img_list[1].shape[0] + detector_gap,
+    #              np.max([img_list[0].shape[1], img_list[1].shape[1]]) + np.abs(spat_offset))
+    #
+    #     if spat_offset >= 0:
+    #         # Detector nrs2 starts at a larger spat value than detector nrs1
+    #         spat_lo1, spat_hi1 = 0, img_list[0].shape[1]  # nrs1 not shifted spatially
+    #         spat_lo2, spat_hi2 = spat_offset, spat_offset + img_list[1].shape[1] # nrs2 shifted spatially
+    #     else:
+    #         # Detector nrs1 starts at larger spat value than detector nrs1
+    #         spat_lo1, spat_hi1 = np.abs(spat_offset), img_list[0].shape[1] + np.abs(spat_offset)
+    #         spat_lo2, spat_hi2 = 0, img_list[1].shape[1]
+    #
+    #
+    #     nrs1_slice = np.s_[spec_lo1: spec_hi1, spat_lo1: spat_hi1]
+    #     nrs2_slice = np.s_[spec_lo2: spec_hi2, spat_lo2: spat_hi2]
+    #
+    #     # Create the mosaic
+    #     mosaic = np.zeros(shape, dtype=img_list[0].dtype)
+    #     mosaic[nrs1_slice] = img_list[0]
+    #     mosaic[nrs2_slice] = img_list[1]
+    #
+    #     return mosaic
 
     @staticmethod
     def get_slit_slice(cal_data, slit_name):
@@ -604,11 +638,11 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         if slit_name not in slit_names:
             raise PypeItError(f'Slit name {slit_name} not found in '
                               f'calibration data {cal_data.meta.filename}')
-
+        #TODO: THIS VALUES DO NOT SEEM ACCURATE. FIX IT
         indx = np.where(slit_names == slit_name)[0][0]
         this_slit = cal_data.slits[indx]
         spec_lo = this_slit.xstart - 1
         spec_hi = spec_lo + this_slit.xsize
         spat_lo = this_slit.ystart - 1
         spat_hi = spat_lo + this_slit.ysize
-        return slice(spec_lo, spec_hi), slice(spat_lo, spat_hi)
+        return slice(spat_lo, spat_hi), slice(spec_lo, spec_hi)
