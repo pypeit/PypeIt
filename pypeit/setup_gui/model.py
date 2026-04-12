@@ -22,8 +22,9 @@ from configobj import ConfigObj
 from datetime import datetime, timezone
 
 from pypeit import log
+from pypeit.pkg.logger import clear_text_color
 from pypeit import spectrographs
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import available_spectrographs
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile
@@ -77,8 +78,8 @@ class LogBuffer(io.TextIOBase):
             message (str): The log message being written to the log.
         """
 
-        # Store the message
-        self._buffer.append(message)
+        # Get rid of Terminal escape codes in message
+        self._buffer.append(clear_text_color(message))
 
         # Notify clients for specific watched log messages
         for watch in self._watches.items():

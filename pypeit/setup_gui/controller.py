@@ -12,6 +12,8 @@ import io
 from pathlib import Path
 from functools import partial
 from contextlib import contextmanager
+import signal
+
 from qtpy.QtCore import QCoreApplication, Signal, QMutex, QTimer
 from qtpy.QtGui import QIcon
 
@@ -38,7 +40,11 @@ def lock_qt_mutex(mutex):
     finally:
         mutex.unlock()
 
-class OpCanceledError(Exception):
+class OpCanceledError(BaseException):
+    """Exception thrown to cancel a background operation.
+    This inherits from BaseException instead of Exception so that it isn't caught by
+    the python logging framework.
+    """
     pass
 
 class OperationThread(QThread):
@@ -95,7 +101,7 @@ class OperationThread(QThread):
             self._main_window.create_progress_dialog(self._operation.name, max_progress, self._cancel_op)
             
         # Ignore the progress if there's no max progress yet
-        if mp is not None:            
+        if mp is not None and mp > 0:
             self._main_window.show_operation_progress(increase=1, message = progress_message)
 
     def _op_complete(self, canceled, exc_info):
@@ -152,33 +158,25 @@ class MetadataOperation(QObject):
         super().__init__()
         self._model=model
         self.name = name
-        self._max_progress = None
         self._main_window = main_controller.main_window
 
     def preRun(self):
         """
-        Perform setup required before running the operation. This involves watching the log
-        for files being added to the metadata.
+        Perform setup required before running the operation. 
         """
-        building_metadata_re = re.compile(r"Building metadata for (\d+) ")
-        self._model.log_buffer.watch("building_metadata", building_metadata_re, self._buildingMetadata)
-        
-        added_metadata_re = re.compile(r"Adding metadata for (.*)$")
-        self._model.log_buffer.watch("added_metadata", added_metadata_re, self._addedMetadata)
+        # Setup our _background_progress callback to called for every log message.
+        # We use this to hook into the background thread without having to change
+        # any pre-existing PypeIt code.
+        self._model.log_buffer.watch("background_progress", None, self._background_progress)
         self._model.closeAllFiles()
         return True
 
-    def _buildingMetadata(self, name, match):
-        """Callback used to find the total number of files being read when building metadata."""
-        self._max_progress = int(match.group(1))
-        log.info(f"Found max progress {self._max_progress}")
-
-    def _addedMetadata(self, name, match):
-        """Callback used to report progress on reading files when building metadata."""
+    def _background_progress(self, name):
+        """Callback used to report progress on background operations and to cancel those operations."""
         if QThread.currentThread().isInterruptionRequested():
             raise OpCanceledError()
-
-        self.progressMade.emit(self._max_progress, match.group(1))
+        # Use 0 for max progress so the progress dialog just shows a busy icon
+        self.progressMade.emit(0,"Reading files...")
 
 
     def postRun(self, canceled, exc_info):
@@ -188,8 +186,7 @@ class MetadataOperation(QObject):
             canceled (bool):  True if the operation was canceled. 
             exc_info (tuple): The exception information (as returned by sys.exc_info()) for any errors that occurred.
         """
-        self._model.log_buffer.unwatch("added_metadata")
-        self._model.log_buffer.unwatch("building_metadata")
+        self._model.log_buffer.unwatch("background_progress")
 
         if exc_info[0] is not None:
             traceback_string = "".join(traceback.format_exception(*exc_info))
@@ -197,6 +194,7 @@ class MetadataOperation(QObject):
             display_error(self._main_window, f"Failed to {self.name.lower()} {exc_info[0]}: {exc_info[1]}")
             self._model.reset()
         elif canceled:
+            log.info("f{self.name} Canceled")
             self._model.reset()
 
     def run(self):
@@ -659,9 +657,9 @@ class SetupGUIController(QObject):
         defaultFont = self.app.font()
         log.info(f"Default font pixel size: {defaultFont.pixelSize()}")
         log.info(f"Default font point size: {defaultFont.pointSizeF()}")
-        if defaultFont.pointSizeF() < 12.0:
-            log.info(f"Setting font to 12.")
-            defaultFont.setPointSize(12)
+        if defaultFont.pointSizeF() < 14.0:
+            log.info(f"Setting font to 14.")
+            defaultFont.setPointSize(14)
             self.app.setFont(defaultFont)
 
         self.main_window = SetupGUIMainWindow(self.model, self)
@@ -695,10 +693,19 @@ class SetupGUIController(QObject):
 
         # QT runs it's event loop in C, so the python signal handling mechanism
         # is never called, or it's only called after you give focus to the
-        # window. To make Ctrl+C handling work immediately in a way that still 
-        # calls the PypeIt CTRL+C handler, we set a timer to run every 500ms in the
-        # python interpreter, which will allow the python signal handling
-        # code to it.
+        # window. To make Ctrl+C handling work immediately we set a timer to run 
+        # every 500ms in the python interpreter, which will allow the python 
+        # signal handling to call the below signal handler.
+        def signal_handler(signalnum, handler):
+            """
+            Handle signals sent by the keyboard during code execution
+            """
+            if signalnum == 2:
+                log.info('Ctrl+C was pressed. Ending processes...')
+                sys.exit()
+
+        signal.signal(signal.SIGINT, signal_handler)
+
             
         # This trck was brought to you by this stack exchange thread:
         # https://stackoverflow.com/questions/4938723/what-is-the-correct-way-to-make-my-pyqt-application-quit-when-killed-from-the-co

@@ -61,7 +61,7 @@ from pypeit.par.pypeitpar import PypeItPar
 from pypeit.calibframe import CalibFrame
 from pypeit.core.parse import parse_binning
 from pypeit.scripts import scriptbase
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import available_spectrographs
 from pypeit.slittrace import SlitTraceSet 
 
 from pypeit.scripts.setup_coadd2d import SetupCoAdd2D

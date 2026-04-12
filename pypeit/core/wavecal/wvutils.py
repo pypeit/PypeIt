@@ -17,7 +17,7 @@ from astropy import convolution
 from astropy import constants
 
 from pypeit import log
-from pypeit import cache
+from pypeit.pkg import cache
 from pypeit import utils
 from pypeit.core import arc
 from pypeit import PypeItError

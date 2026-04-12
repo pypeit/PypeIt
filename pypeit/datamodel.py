@@ -470,7 +470,7 @@ from astropy.table import Table
 from pypeit import io
 from pypeit import log
 from pypeit import PypeItDataModelError
-from pypeit.par.util import eval_tuple
+from pypeit.utils import eval_tuple
 
 # TODO: There are methods in, e.g., doc/scripts/build_specobj_rst.py that output
 # datamodels for specific datacontainers.  It would be useful if we had
