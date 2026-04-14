@@ -118,6 +118,10 @@ we have found that this can be improved using:
  [[wavelengths]]
    nsnippet = 5
 
+PypeIt has MANY other parameters that can be used to adjust the reduction; see
+the documentation for details if you want/need to modify the default
+behavior.
+
 
 Non-standard binning
 --------------------

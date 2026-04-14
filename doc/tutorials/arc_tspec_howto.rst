@@ -71,6 +71,16 @@ science frame for this.
 Finally, you will need to identify frame groups for difference imaging.
 See the PypeIt documentation on A-B image differencing.
 
+Note that the default setup for Triplespec turns off cosmic ray detection
+since this seems to have issues over-detecting CRs. If you want to use
+this, you will need to enable CR detection using mask_cr = True, and you 
+will likely need to play with the LAcosmic CR parameters; see the
+PypeIt documentation.
+
+PypeIt has MANY parameters that can be used to adjust the reduction; see
+the documentation for details if you want/need to modify the default
+behavior.
+
 Non-standard binning
 --------------------
 
