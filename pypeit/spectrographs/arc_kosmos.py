@@ -6,7 +6,7 @@ Module for ARC/KOSMOS specific methods.
 import numpy as np
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -143,7 +143,7 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
             else :
                 par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red_ctr.fits"
         else:
-            msgs.error("NEED TO ADD YOUR GRISM HERE!")
+            log.error("NEED TO ADD YOUR GRISM HERE!")
 
         return par
 
@@ -203,7 +203,7 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
             ttime = Time(time, format='isot')
             return ttime.mjd
         else:
-            msgs.error("Not ready for this compound meta")
+            log.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -291,7 +291,7 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
                      (fitstbl['lampstat07'] == 'on') |
                      (fitstbl['lampstat08'] == 'on') |
                      (fitstbl['lampstat09'] == 'on') ))
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 

@@ -6,7 +6,7 @@ Module for ARC/ARCES
 import numpy as np
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -240,7 +240,7 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
             ttime = Time(time, format='isot')
             return ttime.mjd
         else:
-            msgs.error("Not ready for this compound meta")
+            log.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -328,7 +328,7 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
             return (good_exp & 
                     (fitstbl['mirror'] == 'Lamps') &
                     (fitstbl['lampstat02'] == '1') )
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     @property

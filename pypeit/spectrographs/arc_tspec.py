@@ -7,7 +7,7 @@ import numpy as np
 
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -72,7 +72,7 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
             print(time,ttime.mjd,type(ttime.mjd))
             return ttime.mjd
         else:
-            msgs.error("Not ready for this compound meta")
+            log.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -142,7 +142,7 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(3.5),
             ronoise         = np.atleast_1d(3.5),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = None #np.atleast_1d('[:,:]')
+            oscansec        = None 
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -159,9 +159,10 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.103
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 2.9  # As measured in DevSuite
+        par['calibrations']['wavelengths']['cc_thresh']= [0.4,0.7,0.7,0.7,0.7]
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
@@ -192,6 +193,7 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['extraction']['boxcar_radius'] = 2.0  # arcsec
 
         # Model entire slit
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
@@ -201,9 +203,14 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
         # Flexure
         par['flexure']['spec_method'] = 'skip'
 
+        par['scienceframe']['process']['mask_cr'] = False
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-        par['reduce']['extraction']['boxcar_radius'] = 2.0  # arcsec
+        par['scienceframe']['process']['noise_floor'] = 0.
+        par['calibrations']['standardframe']['process']['mask_cr'] = False
+        par['calibrations']['standardframe']['process']['noise_floor'] = 0.
+        par['calibrations']['skyframe']['process']['mask_cr'] = False
+        par['calibrations']['skyframe']['process']['noise_floor'] = 0.
 
 
         # Set the default exposure time ranges for the frame typing
@@ -305,7 +312,7 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
             0.
         """
         # Call the base-class method to generate the empty bpm
-        msgs.info("Custom bad pixel mask for TSPEC")
+        log.info("Custom bad pixel mask for TSPEC")
         return super().bpm(filename, det, shape=shape, msbias=None)
 
     @property
