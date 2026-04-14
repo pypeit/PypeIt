@@ -203,7 +203,7 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-        par['reduce']['extraction']['boxcar_radius'] = 0.75  # arcsec
+        par['reduce']['extraction']['boxcar_radius'] = 2.0  # arcsec
 
 
         # Set the default exposure time ranges for the frame typing
