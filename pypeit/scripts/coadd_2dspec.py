@@ -12,7 +12,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Coadd 2D spectra produced by PypeIt',
-                                    width=width)
+                                    width=width, default_log_file=True)
 
         parser.add_argument('coadd2d_file', type=str, default=None,
                             help='File to guide 2d coadds')
@@ -29,20 +29,13 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                             help="Basename of files to save the parameters, spec1d, and spec2d")
 
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
-        #parser.add_argument("--wave_method", type=str, default=None,
-        #                    help="Wavelength method for wavelength grid. If not set, code will "
-        #                         "use linear for Multislit and log10 for Echelle")
-        #parser.add_argument("--std", default=False, action="store_true",
-        #                    help="This is a standard star reduction.")
 
         return parser
 
-    @staticmethod
-    def main(args):
-        """ Executes 2d coadding
+    @classmethod
+    def main(cls, args):
+        """
+        Executes 2d coadding
         """
 
         from pathlib import Path
@@ -54,15 +47,15 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         from astropy.io import fits
 
-        from pypeit import msgs
+        from pypeit import log
         from pypeit import coadd2d
         from pypeit import history
         from pypeit import inputfiles
         from pypeit import specobjs
         from pypeit import spec2dobj
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
+        # Initialize the log
+        cls.init_log(args)
 
         # Load the file
         coadd2dFile = inputfiles.Coadd2DFile.from_file(args.coadd2d_file)
@@ -71,16 +64,16 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # Check some of the parameters
         # TODO Heliocentric for coadd2d needs to be thought through. Currently turning it off.
         if par['calibrations']['wavelengths']['refframe'] != 'observed':
-            msgs.warn('Wavelength reference frame shift (e.g., heliocentric correction) not yet '
+            log.warning('Wavelength reference frame shift (e.g., heliocentric correction) not yet '
                       'fully developed.  Ignoring input and setting "refframe = observed".')
             par['calibrations']['wavelengths']['refframe'] = 'observed'
         # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
         if par['flexure']['spec_method'] != 'skip':
-            msgs.warn('Spectroscopic flexure correction not yet fully developed.  Skipping.')
+            log.warning('Spectroscopic flexure correction not yet fully developed.  Skipping.')
             par['flexure']['spec_method'] = 'skip'
         # TODO This is currently the default for 2d coadds, but we need a way to toggle it on/off
         if not par['reduce']['findobj']['skip_skysub']:
-            msgs.warn('Must skip sky subtraction when finding objects (i.e., sky should have '
+            log.warning('Must skip sky subtraction when finding objects (i.e., sky should have '
                       'been subtracted during primary reduction procedure).  Skipping.')
             par['reduce']['findobj']['skip_skysub'] = True
 
@@ -107,13 +100,13 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         find_negative = head2d['FINDOBJ'] == 'POS_NEG'
 
         # Print status message
-        msgs_string = f'Reducing target {basename}' + msgs.newline()
-        msgs_string += f"Coadding frame sky-subtracted with {head2d['SKYSUB']}" + msgs.newline()
-        msgs_string += f"Searching for objects that are {head2d['FINDOBJ']}" + msgs.newline()
-        msgs_string += 'Combining frames in 2d coadd:' + msgs.newline()
+        log_string = f'Reducing target {basename}\n'
+        log_string += f"Coadding frame sky-subtracted with {head2d['SKYSUB']}\n"
+        log_string += f"Searching for objects that are {head2d['FINDOBJ']}\n"
+        log_string += 'Combining frames in 2d coadd:\n'
         for f, file in enumerate(spec2d_files):
-            msgs_string += f'File {f}: {Path(file).name}' + msgs.newline()
-        msgs.info(msgs_string)
+            log_string += f'File {f}: {Path(file).name}\n'
+        log.info(log_string)
 
         # Instantiate the sci_dict
         # TODO Why do we need this sci_dict at all?? JFH
@@ -127,7 +120,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'] if par['coadd2d']['only_slits'] is None
                                                   else par['coadd2d']['only_slits'])
 
-        msgs.info(f'Detectors to work on: {detectors}')
+        log.info(f'Detectors to work on: {detectors}')
 
         # container for specobjs
         all_specobjs = specobjs.SpecObjs()
@@ -143,14 +136,14 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             only_dets, only_spat_ids = parse.parse_slitspatnum(par['coadd2d']['only_slits'])
         if par['coadd2d']['exclude_slits'] is not None:
             if par['coadd2d']['only_slits'] is not None:
-                msgs.warn('Both `only_slits` and `exclude_slits` are provided. They are mutually exclusive. '
+                log.warning('Both `only_slits` and `exclude_slits` are provided. They are mutually exclusive. '
                           'Using `only_slits` and ignoring `exclude_slits`')
             else:
                 exclude_dets, exclude_spat_ids = parse.parse_slitspatnum(par['coadd2d']['exclude_slits'])
 
         # Loop on detectors
         for det in detectors:
-            msgs.info("Working on detector {0}".format(det))
+            log.info("Working on detector {0}".format(det))
 
             detname = spectrograph.get_det_name(det)
             this_only_slits = only_spat_ids[only_dets == detname] if np.any(only_dets == detname) else None
@@ -170,7 +163,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             # Create the pseudo images
             pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
             # Reduce
-            msgs.info('Running the extraction')
+            log.info('Running the extraction')
 
             # TODO -- This should mirror what is in pypeit.extract_one
             

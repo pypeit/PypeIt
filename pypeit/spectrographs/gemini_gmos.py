@@ -10,10 +10,10 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units
 from astropy.time import Time
-from astropy.wcs import wcs
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
 from pypeit import io
@@ -184,7 +184,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 # binning in the spec2d file
                 binning = headarr[0].get('BINNING')
             if binning is None:
-                msgs.error('Binning not found')
+                raise PypeItError('Binning not found')
             return binning
 
         if meta_key == 'mjd':
@@ -192,7 +192,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             if obsepoch is not None:
                 return Time(obsepoch, format='jyear').mjd
             else:
-                msgs.warn('OBSEPOCH header keyword not found. Using today as the date.')
+                log.warning('OBSEPOCH header keyword not found. Using today as the date.')
                 return Time.now().mjd
 
     def config_independent_frames(self):
@@ -293,7 +293,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if ftype == 'bias':
             return good_exp & (fitstbl['target'] == 'Bias')#& (fitstbl['idname'] == 'BIAS')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     @classmethod
@@ -431,7 +431,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Read
-        msgs.info(f'Attempting to read GMOS file: {raw_file}')
+        log.info(f'Attempting to read GMOS file: {raw_file}')
         # NOTE: io.fits_open checks that the file exists
         hdu = io.fits_open(raw_file)
         head0 = hdu[0].header
@@ -447,7 +447,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Number of amplifiers is hard-coded as follows
         numamp = (len(hdu) - 1) // self.ndet
         if numamp != detectors[0].numamplifiers:
-            msgs.error(f'Unexpected number of amplifiers for {self.name} based on number of '
+            raise PypeItError(f'Unexpected number of amplifiers for {self.name} based on number of '
                        f'extensions in {raw_file}.')
 
         # First read over the header info to determine the size of the output array...
@@ -544,7 +544,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
         # Binning *must* be consistent for all detectors
         if any(d.binning != detectors[0].binning for d in detectors[1:]):
-            msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+            raise PypeItError('Binning is somehow inconsistent between detectors in the mosaic!')
 
         # Collect the offsets and rotations for *all unbinned* detectors in the
         # full instrument, ordered by the number of the detector.  Detector
@@ -598,30 +598,30 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     def default_mosaic(self):
         return self.allowed_mosaics[0]
 
-
-    def get_slitmask(self, filename):
+    def get_slitmask(self, filename:str, det:int=1):
         """
-        Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
+        Parse the slitmask data from a raw file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
-        This can be used for multi-object slitmask, but it it's not good
-        for "LONGSLIT" nor "long2pos". Both "LONGSLIT" and "long2pos" have emtpy/incomplete
-        binTable where the slitmask data are stored.
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Name of the file to read.
+        det : :obj:`int`, optional
+            1-indexed detector number to read the slitmask for.  Ignored for
+            Gemini/GMOS.
 
-
-        Args:
-            filename (:obj:`str`):
-                Name of the file to read.
-
-        Returns:
-            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
-            data read from the file. The returned object is the same as
-            :attr:`slitmask`.
+        Returns
+        -------
+        :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            The slitmask data read from the file. The returned object is the
+            same as :attr:`slitmask`.
         """
         # Open the file
         mask_tbl = Table.read(filename, format='fits')
 
-        # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
+        # Projected distance (in arcsec) of the object from the left and right
+        # (top and bot) edges of the slit
         slit_length = mask_tbl['slitsize_y'].to('arcsec').value # arcsec
         topdist = np.round(slit_length/2. -
                            mask_tbl['slitpos_y'].to('arcsec').value, 3)
@@ -698,29 +698,49 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
            posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
-                              trc_path:str=None, binning=None):
-        """ Determine the slit edges from the mask file
-
-        Here, we take advantage of the WCS solution from the input
-        `wcs_file`, which should be an alighment image from the observations.
-
-        Args:
-            binning(str, optional): spec,spat binning of the flat field image
-            filename (:obj:`list`, optional): Name the mask design info
-            debug (:obj:`bool`, optional): Debug
-            ccdnum (:obj:`int`, optional): detector number
-            trc_path (:obj:`str`, optional): path to location of the mask design file
-
-        Returns:
-            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
-            Two arrays are the predictions of the slit edges from the slitmask design and
-            one contains the indices to order the slits from left to right in the PypeIt orientation
+    def get_maskdef_slitedges(self, filename:str=None, det:1=None, debug:bool=None, 
+                              binning:str=None, trc_path:str=None):
         """
+        Provides the slit edges positions predicted by the slitmask design.
 
+        For Gemini/GMOS, we take advantage of the WCS solution from the input
+        ``wcs_file``, which should be an alignment image from the observations.
+
+        Parameters
+        ---------- 
+        filename : :obj:`str`, :obj:`list`, optional:
+            Name of the file holding the mask design info or the maskfile and
+            wcs_file in that order
+        det : :obj:`int`, optional
+            Detector number.  Ignored by Gemini/GMOS.
+        debug : :obj:`bool`, optional
+            Flag to run in debugging mode
+        trc_path : str, optional
+            Path to the first trace file used to generate the trace flat
+        binning : str, optional
+            String with the comma-separated number of pixels binned in each
+            dimension of the flat-field image.  Order must be spectral then
+            spatial.
+
+        Returns
+        -------
+        top_edges : :class:`numpy.ndarray`
+            Predicted locations of the top edges of the slits in spatial pixel
+            coordinates.
+        bot_edges : :class:`numpy.ndarray`
+            Predicted locations of the bottom edges of the slits in spatial pixel
+            coordinates.
+        sortindx : :class:`numpy.ndarray`
+            Indices of the slits in the provided ``slitmask`` object that orders
+            the slits from left to right, in the PypeIt orientation.
+        slitmask : :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            Slit mask metadata read from the provided input file(s).
+        """
         # check if the binning is provided, even if optional, it's needed for this spectrograph
         if binning is None:
-            msgs.error('Binning must be provided to get the slit edges from the mask definition file.')
+            raise PypeItError(
+                'Binning must be provided to get the slit edges from the mask definition file.'
+            )
 
         # Parse the binning
         _, bin_spat = parse.parse_binning(binning)
@@ -734,7 +754,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # check if the mask design file exists
         if not Path(_maskfile).exists():
-            msgs.error(f'The mask design file {_maskfile} does not exist.')
+            raise PypeItError(f'The mask design file {_maskfile} does not exist.')
 
         # read the mask design file
         mask_tbl = Table.read(_maskfile, format='fits')
@@ -794,13 +814,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if maskfile is None or maskdef_ids is None or nspec is None:
             # If any of these are not provided, we cannot get the maskdef spec minmax
             # and we will use the whole spectral length instead.
-            msgs.warn('maskfile, maskdef_id, and nspec must be provided to get the maskdef spec minmax. '
-                       'The whole spectral length will be used instead.')
+            log.warning(
+                'maskfile, maskdef_id, and nspec must be provided to get the maskdef spec minmax. '
+                'The whole spectral length will be used instead.'
+            )
             return None, None
 
         # check if the binning is provided, even if optional, it's needed for this spectrograph
         if binning is None:
-            msgs.error('Binning must be provided to get the slit edges from the mask definition file.')
+            raise PypeItError(
+                'Binning must be provided to get the slit edges from the mask definition file.'
+            )
 
         # Parse the binning
         bin_spec, _ = parse.parse_binning(binning)
@@ -983,7 +1007,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
             if obs_date >= t_upgrade:
                 self.detid = 'BI11-41-4k-2,BI13-19-4k-3,BI12-34-4k-1'
-                msgs.info(f'Using the detector parameters for GMOS-S Hamamatsu after the upgrade on '
+                log.info(f'Using the detector parameters for GMOS-S Hamamatsu after the upgrade on '
                           f'{t_upgrade.iso.split(" ")[0]}')
             else:
                 self.detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
@@ -1054,13 +1078,13 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
         # Add the detector-specific, hard-coded bad columns
         if 1 in _det:
-            msgs.info("Using hard-coded BPM for det=1 on GMOSs")
+            log.info("Using hard-coded BPM for det=1 on GMOSs")
             i = _det.index(1)
             # Apply the mask
             badc = 616//bin_spec
             _bpm_img[i,badc,:] = 1
         if 2 in _det:
-            msgs.info("Using hard-coded BPM for det=2 on GMOSs")
+            log.info("Using hard-coded BPM for det=2 on GMOSs")
             i = _det.index(2)
             # Apply the mask
             # Up high
@@ -1075,7 +1099,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 badr = (768*2)//bin_spec
                 _bpm_img[i,badr:,:] = 1
         if 3 in _det:
-            msgs.info("Using hard-coded BPM for det=3 on GMOSs")
+            log.info("Using hard-coded BPM for det=3 on GMOSs")
             i = _det.index(3)
             # Apply the mask
             badr = (281*2)//bin_spec # Transposed
@@ -1692,6 +1716,3 @@ def gemini_read_amp(inp, ext):
 
     # Return
     return data, overscan, datasec, biassec, x1, x2
-
-
-

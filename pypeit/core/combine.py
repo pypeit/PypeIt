@@ -6,7 +6,8 @@ import numpy as np
 
 from astropy import stats
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 
 from IPython import embed
@@ -120,7 +121,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
 
     if sigma_clip and nimgs >= 3:
         if sigma_clip_stack is None:
-            msgs.error('You must specify sigma_clip_stack; sigma-clipping is based on this array '
+            raise PypeItError('You must specify sigma_clip_stack; sigma-clipping is based on this array '
                        'and propagated to the arrays to be stacked.')
         if sigrej is None:
             # NOTE: If these are changed, make sure to update the doc-string!
@@ -143,7 +144,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         mask_stack = np.logical_not(data_clipped.mask)  # mask_stack = True are good values
     else:
         if sigma_clip and nimgs < 3:
-            msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 '
+            log.warning('Sigma clipping requested, but you cannot sigma clip with less than 3 '
                       'images.  Proceeding without sigma clipping')
         mask_stack = inmask_stack  # mask_stack = True are good values
 
@@ -194,22 +195,22 @@ def img_list_error_check(sci_list, var_list):
     for img in sci_list:
         shape_sci_list.append(img.shape)
         if img.ndim < 2:
-            msgs.error('Dimensionality of an image in sci_list is < 2')
+            raise PypeItError('Dimensionality of an image in sci_list is < 2')
 
     shape_var_list = []
     for img in var_list:
         shape_var_list.append(img.shape)
         if img.ndim < 2:
-            msgs.error('Dimensionality of an image in var_list is < 2')
+            raise PypeItError('Dimensionality of an image in var_list is < 2')
 
     for isci in shape_sci_list:
         if isci != shape_sci_list[0]:
-            msgs.error('An image in sci_list have different dimensions')
+            raise PypeItError('An image in sci_list have different dimensions')
         for ivar in shape_var_list:
             if ivar != shape_var_list[0]:
-                msgs.error('An image in var_list have different dimensions')
+                raise PypeItError('An image in var_list have different dimensions')
             if isci != ivar:
-                msgs.error('An image in sci_list had different dimensions than an image in var_list')
+                raise PypeItError('An image in sci_list had different dimensions than an image in var_list')
 
     shape = shape_sci_list[0]
 
@@ -248,22 +249,22 @@ def broadcast_weights(weights, shape):
         elif len(shape) == 3:
             weights_stack = np.einsum('i,ijk->ijk', weights, np.ones(shape))
         else:
-            msgs.error('Image shape is not supported')
+            raise PypeItError('Image shape is not supported')
     elif weights.ndim == 2:
         # Wavelength dependent weights per image
         if len(shape) == 2:
             if weights.shape != shape:
-                msgs.error('The shape of weights does not match the shape of the image stack')
+                raise PypeItError('The shape of weights does not match the shape of the image stack')
             weights_stack = weights
         elif len(shape) == 3:
             weights_stack = np.einsum('ij,k->ijk', weights, np.ones(shape[2]))
     elif weights.ndim == 3:
         # Full image stack of weights
         if weights.shape != shape:
-            msgs.error('The shape of weights does not match the shape of the image stack')
+            raise PypeItError('The shape of weights does not match the shape of the image stack')
         weights_stack = weights
     else:
-        msgs.error('Unrecognized dimensionality for weights')
+        raise PypeItError('Unrecognized dimensionality for weights')
 
     return weights_stack
 
@@ -314,7 +315,7 @@ def broadcast_lists_of_weights(weights, shapes):
             elif weight.ndim == 2:
                 weights_list.append(weight)
             else:
-                msgs.error('Weights must be a float or a 1D or 2D ndarray')
+                raise PypeItError('Weights must be a float or a 1D or 2D ndarray')
 
     return weights_list
 

@@ -8,7 +8,8 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.core import combine
 from pypeit.core import procimg
 from pypeit.par import pypeitpar
@@ -40,14 +41,14 @@ class CombineImage:
     """
     def __init__(self, rawImages, par):
         if not isinstance(par, pypeitpar.ProcessImagesPar):
-            msgs.error('Provided ParSet for must be type ProcessImagesPar.')
+            raise PypeItError('Provided ParSet for must be type ProcessImagesPar.')
         self.rawImages = list(rawImages) if hasattr(rawImages, '__len__') else [rawImages]
         self.par = par  # This musts be named this way as it is frequently a child
 
         # NOTE: nimgs is a property method.  Defining rawImages above must come
         # before this check!
         if self.nimgs == 0:
-            msgs.error('CombineImage requires a list of files to instantiate')
+            raise PypeItError('CombineImage requires a list of files to instantiate')
 
 
     def run(self, ignore_saturation=False, maxiters=5):
@@ -140,9 +141,9 @@ class CombineImage:
         
         # Check the input (i.e., bomb out *before* it does any processing)
         if self.nimgs == 0:
-            msgs.error('Object contains no files to process!')
+            raise PypeItError('Object contains no files to process!')
         if self.nimgs > 1 and self.par['combine'] not in ['mean', 'median']:
-            msgs.error(f'Unknown image combination method, {self.par["combine"]}.  Must be '
+            raise PypeItError(f'Unknown image combination method, {self.par["combine"]}.  Must be '
                        '"mean" or "median".')
         file_list = []
         # Loop on the files
@@ -191,7 +192,7 @@ class CombineImage:
         # TODO: JFH suggests that we move this to calibrations.check_calibrations
         if np.any(np.absolute(np.diff(exptime)) > 0):
             # TODO: This should likely throw an error instead!
-            msgs.warn('Exposure time is not consistent for all images being combined!  '
+            log.warning('Exposure time is not consistent for all images being combined!  '
                       'Using the average.')
             comb_texp = np.mean(exptime)
         else:
@@ -204,15 +205,15 @@ class CombineImage:
         no_nan = np.logical_not(np.isnan(spat_flex))
         if np.sum(no_nan) > 0:
             if np.any(np.absolute(np.diff(spat_flex[no_nan])) > 0.1):
-                msgs.warn(f'Spatial flexure is not consistent for all images being combined: {spat_flex}.')
+                log.warning(f'Spatial flexure is not consistent for all images being combined: {spat_flex}.')
                 comb_spat_flex = np.round(np.mean(spat_flex[no_nan]),3)
-                msgs.warn(f'Using the average: {comb_spat_flex}.')
+                log.warning(f'Using the average: {comb_spat_flex}.')
             else:
                 comb_spat_flex = spat_flex[no_nan][0]
 
         # scale the images to their mean, if requested, before combining
         if self.par['scale_to_mean']:
-            msgs.info("Scaling images to have the same mean before combining")
+            log.info("Scaling images to have the same mean before combining")
             # calculate the mean of the images
             [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nimgs, dtype=float)/self.nimgs,
                                                                   [img_stack],
@@ -273,7 +274,7 @@ class CombineImage:
         else:
             # NOTE: Given the check at the beginning of the function, the code
             # should *never* make it here.
-            msgs.error("Bad choice for combine.  Allowed options are 'median', 'mean'.")
+            raise PypeItError("Bad choice for combine.  Allowed options are 'median', 'mean'.")
 
         # Recompute the inverse variance using the combined image
         comb_var = procimg.variance_model(comb_basev,

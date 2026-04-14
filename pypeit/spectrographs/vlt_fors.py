@@ -11,7 +11,8 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy import units
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
@@ -143,9 +144,9 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
                     # This is for the bias frames
                     return None
                 else:
-                    msgs.error(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
+                    raise PypeItError(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -209,7 +210,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             return good_exp & ((fitstbl['target'] == 'LAMP,WAVE')
                                | (fitstbl['target'] == 'WAVE,LAMP'))
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -305,7 +306,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         elif chip == 'CHIP2':
             return detector_container.DetectorContainer(**detector_dict2)
         else:
-            msgs.error(f'Unknown chip: {chip}!')
+            raise PypeItError(f'Unknown chip: {chip}!')
 
     def config_specific_par(
             self,
@@ -460,7 +461,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 ra, dec = meta.convert_radec(self.get_meta_value(hdr, 'ra', no_fussing=True),
                                     self.get_meta_value(hdr, 'dec', no_fussing=True))
             except:
-                msgs.warn('Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets')
+                log.warning('Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets')
                 ra, dec = 0.0, 0.0
             if ifile == 0:
                 coord_ref = SkyCoord(ra*units.deg, dec*units.deg)
@@ -478,8 +479,12 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 u_hat_this  = np.array([ra_off.to('arcsec').value/separation, dec_off.to('arcsec').value/separation])
                 dot_product = np.dot(u_hat_slit, u_hat_this)
                 if not np.isclose(np.abs(dot_product),1.0, atol=1e-2):
-                    msgs.error('The slit appears misaligned with the angle between the coordinates: dot_product={:7.5f}'.format(dot_product) + msgs.newline() +
-                               'The position angle in the headers {:5.3f} differs from that computed from the coordinates {:5.3f}'.format(posang_this, posang_ref))
+                    raise PypeItError(
+                        'The slit appears misaligned with the angle between the coordinates: '
+                        f'dot_product={dot_product:7.5f}\n'
+                        f'The position angle in the headers {posang_this:5.3f} differs from that '
+                        f'computed from the coordinates {posang_ref:5.3f}'
+                    )
                 offset_arcsec[ifile] = separation*np.sign(dot_product)
 
 #            dither_id.append(hdr['FRAMEID'])

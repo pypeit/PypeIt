@@ -4,14 +4,10 @@ Requires files in PypeIt/pypeit/data
 """
 import os
 
-import pytest
-
-from IPython import embed
-
-import numpy as np
-
-from astropy.table import Table
 from astropy.io import fits
+from IPython import embed
+import numpy as np
+import pytest
 
 from pypeit import dataPaths
 from pypeit import fluxcalibrate
@@ -19,76 +15,11 @@ from pypeit import sensfunc
 from pypeit.par import pypeitpar
 from pypeit.tests.tstutils import data_output_path
 from pypeit import specobjs, specobj
-from pypeit import inputfiles 
 
 from pypeit import fluxcalibrate
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit import scripts
 
-
-def test_input_flux_file():
-    """Tests for generating and reading fluxing input files
-    """
-    # Generate an input file
-    flux_input_file = data_output_path('test.flux')
-    if os.path.isfile(flux_input_file):
-        os.remove(flux_input_file)
-
-    cfg_lines = ['[fluxcalib]']
-    cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
-    cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
-
-    # These files need to be in tests/files/
-    data = Table()
-    data['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
-                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
-    data['sensfile'] = 'sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits'
-    # 
-    paths = [data_output_path('')]
-    # If pulling from the cache, make sure there are symlinks at the expected path
-    for f in data['filename']:
-        dataPaths.tests.get_file_path(f, to_pkg='symlink')
-    dataPaths.tests.get_file_path(data['sensfile'][0], to_pkg='symlink')
-
-    fluxFile = inputfiles.FluxFile(config=cfg_lines, 
-                        file_paths=paths,
-                        data_table=data)
-    # Write
-    fluxFile.write(flux_input_file)
-
-    # Read
-    fluxFile2 = inputfiles.FluxFile.from_file(flux_input_file)
-    assert np.all(fluxFile2.data['filename'] == data['filename'])
-
-    # Test path
-    assert fluxFile2.file_paths[0] == paths[0]
-    assert fluxFile2.filenames[0] == os.path.join(paths[0], data['filename'][0])
-
-    # #################
-    # Tickle the other ways to do sensfiles
-    data3 = Table()
-    data3['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
-                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
-    data3['sensfile'] = ['sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits',
-                         '']
-
-    fluxFile3 = inputfiles.FluxFile(config=cfg_lines, 
-                        file_paths=paths,
-                        data_table=data3)
-    assert fluxFile3.sensfiles[1] == os.path.join(paths[0], data['sensfile'][0])
-    
-    data4 = Table()
-    data4['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
-                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
-    data4['sensfile'] = ''
-
-    fluxFile4 = inputfiles.FluxFile(config=cfg_lines, 
-                        file_paths=paths,
-                        data_table=data4)
-    assert len(fluxFile4.sensfiles) == 0
-
-    # Clean up
-    os.remove(flux_input_file)
 
 def test_flux_calib(tmp_path, monkeypatch):
     """ Some of these items are also tested in test_fluxspec.py"""

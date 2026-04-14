@@ -1,8 +1,8 @@
-pypeit.pypeitdata module
+pypeit.pkg.logger module
 ========================
 
-.. automodule:: pypeit.pypeitdata
+.. automodule:: pypeit.pkg.logger
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

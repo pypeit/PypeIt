@@ -15,5 +15,5 @@ Module contents
 .. automodule:: pypeit.specutils
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

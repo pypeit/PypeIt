@@ -7,7 +7,8 @@ Module for constructing output file names and paths for PypeIt reductions.
 import numpy as np
 from pathlib import Path
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 
 def get_std_outfile(fitstbl, par, standard_frames:list):
     """
@@ -35,9 +36,12 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
     std_outfile = par['reduce']['findobj']['std_spec1d']
     if std_outfile is not None:
         if not par['reduce']['findobj']['use_std_trace']:
-            msgs.error('If you provide a standard star spectrum for tracing, you must set use_std_trace=True')
+            raise PypeItError(
+                'If you provide a standard star spectrum for tracing, you must set '
+                'use_std_trace=True'
+            )
         elif not Path(std_outfile).absolute().exists():
-            msgs.error(f'Provided standard spec1d file does not exist: {std_outfile}')
+            raise PypeItError(f'Provided standard spec1d file does not exist: {std_outfile}')
         return std_outfile
 
     # TODO: Need to decide how to associate standards with
@@ -52,7 +56,7 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
         std_outfile = spec_output_file(fitstbl, par, std_frame) \
                         if isinstance(std_frame, (int,np.integer)) else None
     if std_outfile is not None and not std_outfile.is_file():
-        msgs.error(f'Could not find standard file: {std_outfile}')
+        raise PypeItError(f'Could not find standard file: {std_outfile}')
     return std_outfile
 
 def intermediate_filename(itype:str, basename:str, det_name:str, 
