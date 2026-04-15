@@ -43,6 +43,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    Keck NIRSPEC <nirspec_high_howto>
    LBT MODS <mods_howto>
    LDT DeVeny <deveny_howto>
+   LDT RIMAS <rimas_howto>
    Shane Kast <kast_howto>
    Subaru FOCAS <focas_howto>
 

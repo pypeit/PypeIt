@@ -66,6 +66,14 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``lbt_mods2r``                1    0         False     False     4         1.7, 1.67, 1.66, 1.66       2.95, 2.65, 2.78, 2.87  0.4       -1.0e+10  65535.0       0.9900     0.1230    
 ``lbt_mods2r_proc``           1    0         True      False     4         1.67, 1.7, 1.66, 1.66       2.65, 2.95, 2.87, 2.78  0.4       -1.0e+10  65535.0       0.9900     0.1230    
 ``ldt_deveny``                1    1         True      False     1         1.52                        4.9                     4.5       -1.0e+10  65535.0       0.9700     0.3400    
+``ldt_rimas_grism``           1    1         True      False     1         1.8                         4.9                     0         -1.0e+10  65535         0.9700     0.1900    
+...                           2    1         True      False     1         1.8                         4.9                     0.0       -1.0e+10  65535         0.9700     0.1900    
+``ldt_rimas_hk_grism``        1    1         True      False     1         1.8                         4.9                     4.5       -1.0e+10  65535.0       0.9700     0.3400    
+``ldt_rimas_hk_vph``          1    1         True      False     1         1.8                         4.9                     4.5       -1.0e+10  65535.0       0.9700     0.3400    
+``ldt_rimas_vph``             1    1         True      False     1         1.8                         4.9                     0         -1.0e+10  65535         0.9700     0.1900    
+...                           2    1         True      False     1         1.8                         4.9                     0.0       -1.0e+10  65535         0.9700     0.1900    
+``ldt_rimas_yj_grism``        1    1         True      False     1         1.8                         4.9                     0         -1.0e+10  0             0.0000     0.1900    
+``ldt_rimas_yj_vph``          1    1         True      False     1         1.8                         4.9                     0         -1.0e+10  0             0.0000     0.1900    
 ``magellan_fire``             1    1         True      False     1         1.2                         5.0                     3.06      -1.0e+10  100000.0      1.0000     0.1800    
 ``magellan_fire_long``        1    0         False     False     1         3.8                         6.0                     3.06      -1.0e+10  320000.0      0.8750     0.1500    
 ``magellan_mage``             1    1         True      False     1         1.02                        2.9                     1.0       -1.0e+10  65535.0       0.9900     0.3000    
