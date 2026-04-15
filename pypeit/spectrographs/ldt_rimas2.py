@@ -1,3 +1,4 @@
+# pylint: disable=use-dict-literal
 """
 Module for LDT/RIMAS specific methods.
 
@@ -187,7 +188,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["binning"] = dict(card=None, compound=True)
         self.meta["mjd"] = dict(card=None, compound=True)
         self.meta["airmass"] = dict(ext=0, card="AIRMASS")
-        self.meta["exptime"] = dict(ext=0, card="EXPTIME")
+        self.meta["exptime"] = dict(card=None, compound=True)
         self.meta["instrument"] = dict(ext=0, card="INSTRUME")
 
         # Extras for config and frametyping
@@ -233,6 +234,15 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             ttime = self.scrub_isot_dateobs(headarr[0]["DATE-BEG"])
             return ttime.mjd
 
+        if meta_key == "exptime":
+            # If older than mid-March 2026, fix bug by computing effective exptime
+            if self.scrub_isot_dateobs(headarr[0]["DATE-BEG"]).mjd > 61114.0:
+                # Total exposure time minus the time for the "pedestal" initial frame
+                return np.round(headarr[0]["EXPTIME"] - headarr[0]["FRTIME"], 2)
+
+            # Otherwise, return EXPTIMEE (correct effective exposure time)
+            return np.round(headarr[0]["EXPTIMEE"], 2)
+
         if meta_key == "lampstat01":
             # The spectral comparison lamps turned on are listed in `LAMPCAL`, but
             #  if no lamps are on, then this string is blank.  Return either the
@@ -263,7 +273,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 return "ABBAABBA"
             return "None"
 
-        log.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
+        log.error("Not ready for compound meta %s for LDT/DeVeny", meta_key)
 
     def config_independent_frames(self):
         """
@@ -519,10 +529,10 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         ]:
             # DeVeny doesn't have any of these types of frames
             return np.zeros(len(fitstbl), dtype=bool)
-        log.warning(f"Cannot determine if frames are of type {ftype}")
+        log.warning("Cannot determine if frames are of type %s", ftype)
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def get_rawimage(self, raw_file, det):
+    def get_rawimage(self, raw_file, det, sec_includes_binning=False):
         """
         Read raw spectrograph image files and return data and relevant metadata
         needed for image processing.
@@ -531,8 +541,15 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         finite staturated values.
         """
         # Call the super()
-        detector_par, raw_img, hdu, exptime, rawdatasec_img, oscansec_img = (
-            super().get_rawimage(raw_file, det)
+        (
+            detector_par,
+            raw_img,
+            hdu,
+            exptime,
+            rawdatasec_img,
+            oscansec_img,
+        ) = super().get_rawimage(
+            raw_file, det, sec_includes_binning=sec_includes_binning
         )
 
         # Get the locations of NaN pixels & replace with saturated value
@@ -1253,6 +1270,7 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         :class:`~pypeit.par.parset.ParSet`
             Modified parameter set for the YJ arm / grism
         """
+        return par
 
     def config_specific_par_grism_hk(
         self, par: parset.ParSet, grating: str, decker: str
@@ -1273,6 +1291,7 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         :class:`~pypeit.par.parset.ParSet`
             Modified parameter set for the HK arm / grism
         """
+        return par
 
     @property
     def norders(self):
