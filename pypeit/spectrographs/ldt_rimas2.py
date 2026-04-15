@@ -200,7 +200,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["slitwid"] = dict(card=None, compound=True)
         self.meta["dithpat"] = dict(ext=0, card="DITHTYP")
         self.meta["dithpos"] = dict(card=None, compound=True)
-        self.meta["dithoff"] = dict(ext=0, card="DITHRAD")
+        # self.meta["dithoff"] = dict(ext=0, card="DITHRAD")
 
     def compound_meta(self, headarr: list, meta_key: str) -> object:
         """
@@ -253,24 +253,28 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         if meta_key == "slitwid":
             # Convert the decker into a slitwidth in arcseconds
-            match headarr[0]["FILTER4"].strip():
-                case "250 um":
-                    return 2.5
-                case "1.2'' long":
-                    return 1.2
-                case "0.6''":
-                    return 0.6
-                case _:
-                    return 0
+            decker = headarr[0]["FILTER4"].strip()
+            if decker == "0.6''":
+                return 0.6
+            if decker == "1.0''":
+                return 1.0
+            if decker == "2.0''":
+                return 2.0
+            if decker == "1.2'' long":
+                return 1.2
+            return 0
 
         if meta_key == "dithpos":
-            # Do some magic related to the objtype, maybe?
-            if "ON" in headarr[0]["OBJTYPE"].upper():
-                return "On"
-            if "OFF" in headarr[0]["OBJTYPE"].upper():
-                return "Off"
-            if "AB" in headarr[0]["OBJTYPE"].upper():
-                return "ABBAABBA"
+            # Parse the dither type and location in pattern
+            dithtype = headarr[0]["DITHTYP"].strip().upper()
+            if dithtype == "ABBA":
+                # For ABBA dithers, convert DITHNUM to A or B
+                cyclepos = (headarr[0]["DITHNUM"] - 1) % 4
+                return "A" if cyclepos in [0, 3] else "B"
+            if dithtype == "ONOFF":
+                # For OnOff dithers, convert DITHNUM to On or Off
+                cyclepos = (headarr[0]["DITHNUM"] - 1) % 2
+                return "On" if cyclepos == 0 else "Off"
             return "None"
 
         log.error("Not ready for compound meta %s for LDT/DeVeny", meta_key)
@@ -531,6 +535,155 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         log.warning("Cannot determine if frames are of type %s", ftype)
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def get_comb_group(self, fitstbl):
+        """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns for LDT/RIMAS.
+
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``calib``, ``comb_id``, and ``bkg_id`` columns in the
+        provided table.
+
+        Specifically here for RIMAS, science and standard frames are grouped
+        together and assigned calibration groups according to their exposure times.
+        Dark frames are assigned to the matching science/standard calibration
+        group, while ``lampoffflats`` and ``pixelflat,illumflat,trace`` frames are
+        assigned ``calib = "all"``. Any remaining frame types are assigned
+        sequential calibration groups after the science/standard and dark frames.
+
+        Moreover, this method parses from the header the dither pattern of the
+        science/standard frames in a given calibration group and assigns to each of
+        them a default ``comb_id`` and ``bkg_id``. The dither patterns used here
+        are: ``ABBA``, ``OnOff``, and ``None``. For both ``ABBA`` and ``OnOff``,
+        each frame retains its own ``comb_id``, and the ``bkg_id`` is assigned
+        using the nearest-in-time frame with the opposite dither position. The
+        ``comb_id`` and ``bkg_id`` will *not* be assigned if the dither pattern
+        recorded in the header is not recognized or is set to ``NONE`` or
+        ``MANUAL``.
+
+        Args:
+            fitstbl(`astropy.table.Table`_):
+                The table with the metadata for all the frames.
+
+        Returns:
+            `astropy.table.Table`_:
+                Modified fitstbl.
+        """
+        # Find index of fitstbl that contains science and standard frames
+        sci_idx = np.array(
+            ["science" in _tab for _tab in fitstbl["frametype"]]
+        ) | np.array(["standard" in _tab for _tab in fitstbl["frametype"]])
+
+        if "calib" in fitstbl.keys():
+            # Find index of fitstbl that contains lampoffflats, pixelflat,
+            # illumflat, or trace frames
+            flat_idx = (
+                np.array(["lampoffflats" in _tab for _tab in fitstbl["frametype"]])
+                | np.array(["pixelflat" in _tab for _tab in fitstbl["frametype"]])
+                | np.array(["illumflat" in _tab for _tab in fitstbl["frametype"]])
+                | np.array(["trace" in _tab for _tab in fitstbl["frametype"]])
+            )
+            # Set calib for those frames to "all"
+            fitstbl["calib"][flat_idx] = "all"
+
+            # Find index of fitstbl that contains dark frames
+            dark_idx = np.array(["dark" in _tab for _tab in fitstbl["frametype"]])
+
+            # Initialize calib_id / group by exposure times
+            calib_id = 0
+            exptime_to_calib = {}
+
+            # Assign calib groups for science/standard frames by unique exptime
+            sci_exptimes = np.unique(fitstbl[sci_idx]["exptime"])
+            for exptime in sci_exptimes:
+                this_sci = sci_idx & np.isclose(fitstbl["exptime"], exptime, atol=0.1)
+                fitstbl["calib"][this_sci] = f"{calib_id}"
+                exptime_to_calib[exptime] = calib_id
+                calib_id += 1
+
+            # Assign darks to the matching science/standard exptime calibration group
+            dark_exptimes = np.unique(fitstbl[dark_idx]["exptime"])
+            for exptime in dark_exptimes:
+                this_dark = dark_idx & np.isclose(fitstbl["exptime"], exptime, atol=0.1)
+
+                matched = None
+                for sci_exptime, calib_id in exptime_to_calib.items():
+                    if np.isclose(exptime, sci_exptime, atol=0.1):
+                        matched = calib_id
+                        break
+
+                if matched is not None:
+                    fitstbl["calib"][this_dark] = f"{matched}"
+                else:
+                    # Assign the next sequential ID to these frames
+                    fitstbl["calib"][this_dark] = f"{calib_id}"
+                    calib_id += 1
+
+            # Assign calib groups to any remaining frame types
+            assigned_idx = flat_idx | sci_idx | dark_idx
+            remaining_frametypes = np.unique(fitstbl["frametype"][~assigned_idx])
+            for ftype in remaining_frametypes:
+                this_ftype = fitstbl["frametype"] == ftype
+                fitstbl["calib"][this_ftype] = str(calib_id)
+                calib_id += 1
+
+        # Loop over the setups (generally there is only one setup, but we check anyway)
+        for setup in np.unique(fitstbl[sci_idx]["setup"]):
+            in_setup = sci_idx & (fitstbl["setup"] == setup)
+
+            for target in np.unique(fitstbl[in_setup]["target"]):
+                targ_idx = in_setup & (fitstbl["target"] == target)
+
+                if np.sum(targ_idx) <= 1:
+                    continue
+
+                for dpat in np.unique(fitstbl[targ_idx]["dithpat"]):
+
+                    if dpat.upper() in ["NONE",  "MANUAL"]:
+                        continue
+
+                    dpat_idx = targ_idx & (fitstbl["dithpat"] == dpat)
+                    if np.sum(dpat_idx) <= 1:
+                        continue
+
+                    combid = fitstbl["comb_id"][dpat_idx].data.copy()
+                    bkgid = fitstbl["bkg_id"][dpat_idx].data.copy()
+                    dpos = fitstbl["dithpos"][dpat_idx].data
+                    mjd = fitstbl["mjd"][dpat_idx].data
+
+                    for i in range(len(combid)):
+
+                        if dpat == "ABBA":
+                            opp = (
+                                "B"
+                                if dpos[i] == "A"
+                                else "A" if dpos[i] == "B" else None
+                            )
+                        elif dpat == "OnOff":
+                            opp = (
+                                "Off"
+                                if dpos[i] == "On"
+                                else "On" if dpos[i] == "Off" else None
+                            )
+                        else:
+                            continue
+
+                        if opp is None:
+                            continue
+
+                        match = dpos == opp
+                        if not np.any(match):
+                            continue
+
+                        j = np.argmin(np.abs(mjd[match] - mjd[i]))
+                        bkgid[i] = combid[match][j]
+
+                    fitstbl["bkg_id"][dpat_idx] = bkgid
+                    fitstbl["comb_id"][dpat_idx] = combid
+
+        return fitstbl
 
     def get_rawimage(self, raw_file, det, sec_includes_binning=False):
         """

@@ -52,7 +52,7 @@ that should look like this:
 .. code-block::
 
   # Auto-generated PypeIt input file using PypeIt version: 2.0.2
-  # UTC 2026-04-14T21:15:24.229+00:00
+  # UTC 2026-04-15T20:34:11.295+00:00
 
   # User-defined execution parameters
   [rdx]
@@ -69,23 +69,25 @@ that should look like this:
   # Data block 
   data read
   path /path/to/PypeIt-development-suite/RAW_DATA/ldt_rimas/Vph300_HK
-                    filename |                 frametype |                 ra |                dec |    target | dispname |     decker | binning |                mjd |         airmass |            exptime | arm | slitwid | lampstat01 | filter1 | dithpat | dithpos | dithoff | calib | comb_id | bkg_id
-  20260305.rimas.0090.HK.fits |          arc,science,tilt |  76.37620833333332 |  52.82658333333334 |  G191-B2B |   Vph300 | 1.2'' long |     1,1 |  61104.15109470735 |  1.127862339736 | 122.97999999999999 |  HK |     1.2 |        off |    open |    ABBA |    None |    20.0 |     0 |       1 |      2
-  20260305.rimas.0091.HK.fits |          arc,science,tilt |  76.37608333333333 |  52.82655555555556 |  G191-B2B |   Vph300 | 1.2'' long |     1,1 |  61104.15274768438 | 1.1312480823158 | 122.97999999999999 |  HK |     1.2 |        off |    open |    ABBA |    None |    20.0 |     0 |       2 |      1
-  20260305.rimas.0092.HK.fits |          arc,science,tilt |  76.37620833333332 |  52.82377777777778 |  G191-B2B |   Vph300 | 1.2'' long |     1,1 |  61104.15440055214 | 1.1344665152388 | 122.97999999999999 |  HK |     1.2 |        off |    open |    ABBA |    None |    20.0 |     0 |       3 |      4
-  20260305.rimas.0093.HK.fits |          arc,science,tilt |  76.37620833333332 |  52.82380555555556 |  G191-B2B |   Vph300 | 1.2'' long |     1,1 |  61104.15605343813 | 1.1370478282663 | 122.97999999999999 |  HK |     1.2 |        off |    open |    ABBA |    None |    20.0 |     0 |       4 |      3
-  20260306.rimas.0006.HK.fits |                      dark |                0.0 |                0.0 |      null |   Vph300 | 1.2'' long |     1,1 |   61105.7330886759 |             0.0 | 122.97999999999999 |  HK |     1.2 |        off |   blank |    None |    None |     0.0 |     0 |      -1 |     -1
-  20260306.rimas.0008.HK.fits |                      dark |                0.0 |                0.0 |      null |   Vph300 | 1.2'' long |     1,1 | 61105.736362018804 |             0.0 | 122.97999999999999 |  HK |     1.2 |        off |   blank |    None |    None |     0.0 |     0 |      -1 |     -1
-  20260306.rimas.0010.HK.fits |                      dark |                0.0 |                0.0 |      null |   Vph300 | 1.2'' long |     1,1 | 61105.739635376565 |             0.0 | 122.97999999999999 |  HK |     1.2 |        off |   blank |    None |    None |     0.0 |     0 |      -1 |     -1
-  20260305.rimas.0026.HK.fits |              lampoffflats | 114.79933333333332 | 10.882238888888889 | dome dark |   Vph300 | 1.2'' long |     1,1 |  61104.05372127251 | 1.4611465635881 |               8.58 |  HK |     1.2 |        off |    open |    None |    None |     0.0 |     0 |      -1 |     -1
-  20260305.rimas.0027.HK.fits |              lampoffflats | 114.87870833333332 | 10.882425000000001 | dome dark |   Vph300 | 1.2'' long |     1,1 |   61104.0539187306 | 1.4611465635881 |               8.58 |  HK |     1.2 |        off |    open |    None |    None |     0.0 |     0 |      -1 |     -1
-  20260305.rimas.0028.HK.fits |              lampoffflats | 114.94558333333332 | 10.882580555555556 | dome dark |   Vph300 | 1.2'' long |     1,1 | 61104.054116183346 | 1.4611465635881 |               8.58 |  HK |     1.2 |        off |    open |    None |    None |     0.0 |     0 |      -1 |     -1
-  20260305.rimas.0011.HK.fits | pixelflat,illumflat,trace | 111.41887499999999 | 10.874152777777779 | dome flat |   Vph300 | 1.2'' long |     1,1 |  61104.04439927659 | 1.4611488954213 |               8.58 |  HK |     1.2 |        off |    open |    None |    None |     0.0 |     0 |      -1 |     -1
-  20260305.rimas.0012.HK.fits | pixelflat,illumflat,trace | 111.66958333333332 | 10.874752777777779 | dome flat |   Vph300 | 1.2'' long |     1,1 |  61104.04505091693 | 1.4611488954213 |               8.58 |  HK |     1.2 |        off |    open |    None |    None |     0.0 |     0 |      -1 |     -1
-  20260305.rimas.0013.HK.fits | pixelflat,illumflat,trace | 111.73645833333332 | 10.874913888888889 | dome flat |   Vph300 | 1.2'' long |     1,1 |  61104.04524836759 | 1.4611488954213 |               8.58 |  HK |     1.2 |        off |    open |    None |    None |     0.0 |     0 |      -1 |     -1
+                     filename |                 frametype |                 ra |                dec |    target | dispname |     decker | binning |                mjd |         airmass | exptime | arm | slitwid | lampstat01 | filter1 | dithpat | dithpos | calib | comb_id | bkg_id
+  20260305.rimas.0090.HK.fits |          arc,science,tilt |  76.37620833333332 |  52.82658333333334 |  G191-B2B |   Vph300 | 1.2'' long |     1,1 |  61104.15109470735 |  1.127862339736 |  120.12 |  HK |     1.2 |        off |    open |    ABBA |       A |     0 |       1 |      2
+  20260305.rimas.0091.HK.fits |          arc,science,tilt |  76.37608333333333 |  52.82655555555556 |  G191-B2B |   Vph300 | 1.2'' long |     1,1 |  61104.15274768438 | 1.1312480823158 |  120.12 |  HK |     1.2 |        off |    open |    ABBA |       B |     0 |       2 |      1
+  20260305.rimas.0092.HK.fits |          arc,science,tilt |  76.37620833333332 |  52.82377777777778 |  G191-B2B |   Vph300 | 1.2'' long |     1,1 |  61104.15440055214 | 1.1344665152388 |  120.12 |  HK |     1.2 |        off |    open |    ABBA |       B |     0 |       3 |      4
+  20260305.rimas.0093.HK.fits |          arc,science,tilt |  76.37620833333332 |  52.82380555555556 |  G191-B2B |   Vph300 | 1.2'' long |     1,1 |  61104.15605343813 | 1.1370478282663 |  120.12 |  HK |     1.2 |        off |    open |    ABBA |       A |     0 |       4 |      3
+  20260306.rimas.0006.HK.fits |                      dark |                0.0 |                0.0 |      null |   Vph300 | 1.2'' long |     1,1 |   61105.7330886759 |             0.0 |  120.12 |  HK |     1.2 |        off |   blank |    None |    None |     0 |      -1 |     -1
+  20260306.rimas.0008.HK.fits |                      dark |                0.0 |                0.0 |      null |   Vph300 | 1.2'' long |     1,1 | 61105.736362018804 |             0.0 |  120.12 |  HK |     1.2 |        off |   blank |    None |    None |     0 |      -1 |     -1
+  20260306.rimas.0010.HK.fits |                      dark |                0.0 |                0.0 |      null |   Vph300 | 1.2'' long |     1,1 | 61105.739635376565 |             0.0 |  120.12 |  HK |     1.2 |        off |   blank |    None |    None |     0 |      -1 |     -1
+  20260305.rimas.0026.HK.fits |              lampoffflats | 114.79933333333332 | 10.882238888888889 | dome dark |   Vph300 | 1.2'' long |     1,1 |  61104.05372127251 | 1.4611465635881 |    5.72 |  HK |     1.2 |        off |    open |    None |    None |   all |      -1 |     -1
+  20260305.rimas.0027.HK.fits |              lampoffflats | 114.87870833333332 | 10.882425000000001 | dome dark |   Vph300 | 1.2'' long |     1,1 |   61104.0539187306 | 1.4611465635881 |    5.72 |  HK |     1.2 |        off |    open |    None |    None |   all |      -1 |     -1
+  20260305.rimas.0028.HK.fits |              lampoffflats | 114.94558333333332 | 10.882580555555556 | dome dark |   Vph300 | 1.2'' long |     1,1 | 61104.054116183346 | 1.4611465635881 |    5.72 |  HK |     1.2 |        off |    open |    None |    None |   all |      -1 |     -1
+  20260305.rimas.0011.HK.fits | pixelflat,illumflat,trace | 111.41887499999999 | 10.874152777777779 | dome flat |   Vph300 | 1.2'' long |     1,1 |  61104.04439927659 | 1.4611488954213 |    5.72 |  HK |     1.2 |        off |    open |    None |    None |   all |      -1 |     -1
+  20260305.rimas.0012.HK.fits | pixelflat,illumflat,trace | 111.66958333333332 | 10.874752777777779 | dome flat |   Vph300 | 1.2'' long |     1,1 |  61104.04505091693 | 1.4611488954213 |    5.72 |  HK |     1.2 |        off |    open |    None |    None |   all |      -1 |     -1
+  20260305.rimas.0013.HK.fits | pixelflat,illumflat,trace | 111.73645833333332 | 10.874913888888889 | dome flat |   Vph300 | 1.2'' long |     1,1 |  61104.04524836759 | 1.4611488954213 |    5.72 |  HK |     1.2 |        off |    open |    None |    None |   all |      -1 |     -1
   data end
 
 
+For this example data set, the default output of ``pypeit_setup`` nails the
+frametyping and grouping of frames.
 
 
 
@@ -93,7 +95,7 @@ that should look like this:
 
 
 
-.. include:: ../include/keck_nires_A.pypeit.rst
+
 
 For this example dataset, the details of the default pypeit file are not
 completely correct; see :ref:`here <nires_config_report>` for an example where the frame
