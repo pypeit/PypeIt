@@ -1777,6 +1777,9 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
             wpix = (this_specpos[this_sl], this_spatpos[this_sl])
             # Create an array to index each subpixel
             numpix = wpix[0].size
+            if numpix == 0:
+                # Slit is masked or has no good pixels - skip
+                continue
             # Generate a spline between spectral pixel position and wavelength
             yspl = this_tilts[wpix] * (this_slits.nspec - 1)
             tiltpos = np.add.outer(yspl, spec_y).flatten()
