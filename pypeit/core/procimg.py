@@ -587,6 +587,48 @@ def rect_slice_with_mask(image, mask, mask_val=1):
     return image[slices], slices
 
 
+def clean_overscan_vector(overscan, w=9, nsig=1.0, rdnoise=4.0):
+    """
+    Clean a 1D overscan vector by median-filtering and interpolating
+    over outliers.
+
+    Replicates the IDL ``clean_overscan_vector`` function from the
+    Binospec ``bino_mosaic.pro`` pipeline.
+
+    Parameters
+    ----------
+    overscan : `numpy.ndarray`_
+        1D overscan vector to clean.
+    w : :obj:`int`, optional
+        Window size for median filtering. Must be >= 3. Default is 9.
+    nsig : :obj:`float`, optional
+        Sigma threshold for outlier rejection. Pixels deviating from
+        the median-filtered vector by more than ``nsig * rdnoise`` are
+        replaced by interpolation. Default is 1.0.
+    rdnoise : :obj:`float`, optional
+        Read noise in ADU, used to set the outlier threshold.
+        Default is 4.0.
+
+    Returns
+    -------
+    clean : `numpy.ndarray`_
+        Cleaned overscan vector with outliers interpolated over.
+    """
+    w = max(w, 3)
+    m_overscan = scipy.ndimage.median_filter(overscan, size=w, mode='reflect')
+    bad = np.abs(overscan - m_overscan) > rdnoise * nsig
+    good = ~bad
+    if not np.any(bad):
+        return overscan.copy()
+    if not np.any(good):
+        return overscan.copy()
+    clean = overscan.copy()
+    good_idx = np.where(good)[0]
+    bad_idx = np.where(bad)[0]
+    clean[bad_idx] = np.interp(bad_idx, good_idx, overscan[good_idx])
+    return clean
+
+
 def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', params=[5,65],
                       var=None):
     """

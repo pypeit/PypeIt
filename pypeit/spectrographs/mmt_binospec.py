@@ -14,6 +14,7 @@ from IPython import embed
 import matplotlib.pyplot as plt
 from matplotlib import patches
 import numpy as np
+from astropy.stats import sigma_clipped_stats
 
 from pypeit import dataPaths
 from pypeit import io
@@ -23,6 +24,7 @@ from pypeit import telescopes
 from pypeit import utils
 from pypeit.core import framematch
 from pypeit.core import parse
+from pypeit.core import procimg
 from pypeit.images import detector_container
 from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
@@ -35,6 +37,22 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 2
     name = 'mmt_binospec'
+
+    # Per-amplifier nonlinearity correction coefficients from IDL calibration
+    # file (scicam_bino_sep2017.fits, measured 2017-09). Polynomial form:
+    # C_corr = c[0] + c[1]*C + c[2]*C^2 + c[3]*C^3 + c[4]*C^4
+    # Compatible with np.polynomial.polynomial.polyval.
+    # Shape: (8 amplifiers, 5 coefficients for degree-4 polynomial)
+    nonlinearity_coeffs = np.array([
+        [0.00000000e+00, 1.00400089e+00, -1.39235362e-06, 8.31711824e-12, -1.20653479e-17],
+        [0.00000000e+00, 1.00361458e+00, -1.29223833e-06, 6.93723177e-12, -9.67406255e-18],
+        [0.00000000e+00, 1.00269542e+00, -9.29361806e-07, 5.97902827e-12, -2.30257302e-17],
+        [0.00000000e+00, 1.00339616e+00, -8.47134521e-07, 7.92441693e-12, -4.46542834e-17],
+        [0.00000000e+00, 1.00727205e+00, -1.69093388e-06, 2.07225055e-11, -1.62655178e-16],
+        [0.00000000e+00, 1.00858745e+00, -2.35668901e-06, 2.40641019e-11, -1.50286358e-16],
+        [0.00000000e+00, 1.00728526e+00, -1.80779473e-06, 1.73427719e-11, -1.01685780e-16],
+        [0.00000000e+00, 1.00845168e+00, -2.02050567e-06, 2.97587091e-11, -2.65508521e-16],
+    ])
     telescope = telescopes.MMTTelescopePar()
     camera = 'BINOSPEC'
     url = 'https://lweb.cfa.harvard.edu/mmti/binospec.html'
@@ -1051,26 +1069,40 @@ def binospec_read_amp(inp, ext):
     x1, x2, y1, y2 = chain.from_iterable(parse.load_sections(datasec, fmt_iraf=False))
     datasec = f'[{x1-1}:{x2},{y1-1}:{y2}]'
 
-    # NOTE: Since pypeit can only subtract overscan along one axis, I'm subtract
-    # the overscan here using median method.
-    # Overscan X-axis
+    # Overscan subtraction following IDL pipeline (bino_mosaic.pro):
+    # Y-axis first, then X-axis. Uses sigma-clipped mean (resistant_mean)
+    # with outlier cleaning, matching IDL defaults (clean_w=9, clean_nsig=1.0).
+
+    # Y-axis overscan: postscan rows after datasec
+    if y2 < nyt:
+        overscan_y = temp[:, y2:nyt]
+        overscan_vec, _, _ = sigma_clipped_stats(overscan_y, sigma=3.0, axis=1)
+        overscan_vec = procimg.clean_overscan_vector(overscan_vec, w=9, nsig=1.0)
+        temp = temp - overscan_vec[:, None]
+
+    # X-axis overscan: prescan + postscan columns
+    overscan_x_regions = []
     if x1 > 1:
-        overscanx = temp[2:x1-1, :]
-        overscanx_vec = np.median(overscanx, axis=0)
-        temp = temp - overscanx_vec[None,:]
+        overscan_x_regions.append(temp[0:x1-1, :])
+    if x2 < nxt:
+        overscan_x_regions.append(temp[x2:nxt, :])
+    if len(overscan_x_regions) > 0:
+        overscan_x = np.concatenate(overscan_x_regions, axis=0)
+        overscan_x_vec, _, _ = sigma_clipped_stats(overscan_x, sigma=3.0, axis=0)
+        overscan_x_vec = procimg.clean_overscan_vector(overscan_x_vec, w=9, nsig=1.0)
+        temp = temp - overscan_x_vec[None, :]
+
+    # Crop to datasec
     data = temp[x1-1:x2, y1-1:y2]
 
-    ## Overscan Y-axis
-    if y2 < nyt:
-        os1, os2 = y2+1, nyt-1
-        overscany = temp[x1 - 1:x2, y2:os2]
-        overscany_vec = np.median(overscany, axis=1)
-        data = data -  overscany_vec[:,None]
+    # Apply per-amplifier nonlinearity correction (IDL: poly(im_cur, c_poly))
+    data = np.polynomial.polynomial.polyval(
+        data, MMTBINOSPECSpectrograph.nonlinearity_coeffs[ext - 1])
 
-    # Overscan
+    # Fake overscan for PypeIt's general pipeline (effectively a no-op)
     biassec = f'[0:{x1-1},{y1-1}:{y2}]'
     xos1, xos2, yos1, yos2 = chain.from_iterable(parse.load_sections(biassec, fmt_iraf=False))
-    overscan = np.zeros_like(temp[xos1:xos2, yos1:yos2]) # Give a zero fake overscan at the edge of each amplifiers
+    overscan = np.zeros_like(temp[xos1:xos2, yos1:yos2])
 
     return data, overscan, datasec, biassec
 
