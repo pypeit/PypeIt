@@ -105,6 +105,7 @@ Documentation = "https://pypeit.readthedocs.io/"
 # non-GUI scripts
 pypeit_rectify_2dspec = "pypeit.scripts.rectify_2dspec:Rectify2DSpec.entry_point"
 pypeit_arxiv_solution = "pypeit.scripts.arxiv_solution:ArxivSolution.entry_point"
+pypeit_binospec_ifu_cube = "pypeit.scripts.binospec_ifu_cube:BinospecIFUCube.entry_point"
 pypeit_cache_github_data = "pypeit.scripts.cache_github_data:CacheGithubData.entry_point"
 pypeit_clean_cache = "pypeit.scripts.clean_cache:CleanCache.entry_point"
 pypeit_chk_flexure = "pypeit.scripts.chk_flexure:ChkFlexure.entry_point"

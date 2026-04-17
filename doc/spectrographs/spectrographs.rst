@@ -51,6 +51,7 @@ instrument-specific details for running PypeIt.
    magellan_fire
    mdm_osmos
    mmt_binospec
+   mmt_binospec_pipeline_comparison
    mmt_bluechannel
    mmt_mmirs
    not_alfosc
