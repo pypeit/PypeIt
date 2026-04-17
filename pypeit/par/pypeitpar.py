@@ -1141,7 +1141,7 @@ class ScatteredLightPar(ParSet):
         """
         Return the valid scattered light methods.
         """
-        return ['model', 'frame', 'archive']
+        return ['model', 'frame', 'archive', 'gaps']
 
     @staticmethod
     def valid_finecorr_scattlight_methods():

@@ -23,6 +23,7 @@ from pypeit import calibframe
 from pypeit import slittrace, wavecalib
 from pypeit.display import display
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core import tracewave
 from pypeit.core.wavecal import autoid
 from pypeit.images import buildimage
@@ -144,17 +145,24 @@ class WaveTilts(calibframe.CalibFrame):
 
         _flexure = 0. if flexure is None else flexure
 
-        final_tilts = np.zeros_like(slitmask).astype(float)
+        nspec, nspat = slitmask.shape
+        xnspecmin1 = float(nspec - 1)
+        xnspatmin1 = float(nspat - 1)
+        final_tilts = np.zeros_like(slitmask, dtype=float)
         gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)
         # Loop
         for slit_spat in gdslit_spat:
             slit_idx = self.spatid_to_zero(slit_spat)
-            # Calculate
             coeff_out = self.coeffs[:self.spec_order[slit_idx]+1,:self.spat_order[slit_idx]+1,slit_idx]
-            _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d, spat_shift=-1*_flexure)
-            # Fill
-            thismask_science = slitmask == slit_spat
-            final_tilts[thismask_science] = _tilts[thismask_science]
+            thismask = slitmask == slit_spat
+            # Evaluate only at pixels within this slit to save memory
+            spec_coords, spat_coords = np.where(thismask)
+            pypeitFit = fitting.PypeItFit(fitc=coeff_out, minx=0.0, maxx=1.0,
+                                          minx2=0.0, maxx2=1.0, func=self.func2d)
+            tilts_this = pypeitFit.eval(spec_coords / xnspecmin1,
+                                        x2=(spat_coords - _flexure) / xnspatmin1)
+            tilts_this = np.fmax(np.fmin(tilts_this, 1.2), -0.2)
+            final_tilts[thismask] = tilts_this
         # Return
         return final_tilts
 
