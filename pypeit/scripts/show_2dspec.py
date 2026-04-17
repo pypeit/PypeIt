@@ -244,7 +244,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                         log.info(f'Offseting slits by {sci_spat_flexure} pixels.')
                     pypeline = hdu[f'{detname}-SCIIMG'].header['PYPELINE'] \
                                     if 'PYPELINE' in hdu[f'{detname}-SCIIMG'].header else None
-                    if pypeline in ['MultiSlit', 'SlicerIFU']:
+                    if pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
                         slit_slid_IDs = slit_spat_id
                     elif pypeline == 'Echelle':
                         slit_slid_IDs = hdu[_ext].data['ech_order'] \

@@ -13,6 +13,7 @@ import numpy as np
 from scipy import interpolate, ndimage
 
 from astropy.io import fits
+from astropy.table import Table
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -476,6 +477,142 @@ class FlatImages(calibframe.CalibFrame):
                               (0.9, 1.1), (0.95, 1.05), (0.9, 1.1), None])
         # Display frames
         show_flats(image_list, wcs_match=wcs_match, slits=slits, waveimg=self.pixelflat_waveimg)
+
+
+class FiberFlatImages(datamodel.DataContainer):
+    """
+    Container for processed flat-field calibrations specific to fiber-fed
+    spectrographs.
+
+    Stores the globally-normalized extracted flat field spectra following the
+    IDL Binospec pipeline approach (Chilingarian et al. 2025, Section 6):
+    all extracted fiber flat spectra are divided by a single global
+    normalization coefficient, preserving the full spectral shape and
+    fiber-to-fiber throughput variation.
+
+    All of the items in the datamodel can be None.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_fiberflatimages.rst
+
+    """
+
+    version = '2.0.0'
+
+    hdu_prefix = None
+
+    datamodel = {
+        'PYP_SPEC': dict(otype=str,
+                         descr='PypeIt spectrograph name'),
+        'normflat': dict(otype=np.ndarray, atype=np.floating,
+                         descr='Globally-normalized extracted flat spectra, '
+                               'shape (nfibers, nwave). Retains full spectral '
+                               'shape and fiber-to-fiber throughput variation.'),
+        'normflat_wave': dict(otype=np.ndarray, atype=np.floating,
+                              descr='Wavelength array for normflat, shape (nwave,)'),
+        'global_norm': dict(otype=float,
+                            descr='Global normalization coefficient (max of '
+                                  'central region)'),
+        'fiber_ids': dict(otype=np.ndarray, atype=np.integer,
+                          descr='Fiber ID numbers'),
+        'fiber_types': dict(otype=np.ndarray, atype=str,
+                            descr='Fiber type labels (e.g. sky, science)'),
+    }
+
+    internals = ['calib_key', 'calib_dir']
+
+    def __init__(self, normflat=None, normflat_wave=None, global_norm=None,
+                 fiber_ids=None, fiber_types=None, PYP_SPEC=None):
+        # Parse
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k, values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
+    def _bundle(self):
+        """
+        Override the default _bundle() method to write one HDU per field.
+        Numeric arrays are written as ImageHDUs.  The ``fiber_types`` string
+        array is written as a single-column BinTableHDU.  Scalar values
+        (``PYP_SPEC``, ``global_norm``) are stored as header cards in
+        each extension.
+
+        Returns:
+            :obj:`list`: A list of single-item dictionaries, one per
+            non-None field, each written to its own FITS extension.
+        """
+        scalar_keys = ('PYP_SPEC', 'global_norm')
+        # Scalar header entries to attach to each extension
+        scalars = {}
+        if self.PYP_SPEC is not None:
+            scalars['PYP_SPEC'] = self.PYP_SPEC
+        if self.global_norm is not None:
+            scalars['global_norm'] = self.global_norm
+
+        d = []
+        for key in self.keys():
+            if self[key] is None or key in scalar_keys:
+                continue
+            if key == 'fiber_types':
+                # String arrays cannot be stored in ImageHDU; use an
+                # astropy Table so dict_to_hdu routes to BinTableHDU.
+                tbl = Table({key: self[key]})
+                for sk, sv in scalars.items():
+                    tbl.meta[sk] = sv
+                entry = {key: tbl}
+            else:
+                # Numeric arrays: scalar header cards go alongside the array
+                # and land in the extension header via dict_to_hdu.
+                entry = {key: self[key]}
+                entry.update(scalars)
+            d.append({key: entry})
+        return d
+
+    @classmethod
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None, **kwargs):
+        """
+        Override the base-class parser to convert the ``fiber_types``
+        BinTableHDU back from an ``astropy.table.Table`` to a plain
+        ``numpy.ndarray``.
+
+        See :func:`~pypeit.datamodel.DataContainer._parse` for argument
+        descriptions and return values.
+        """
+        d, version_passed, type_passed, parsed_hdus = super()._parse(
+            hdu, ext=ext, transpose_table_arrays=transpose_table_arrays,
+            hdu_prefix=hdu_prefix, **kwargs)
+        # The base _parse reads BinTableHDUs (when the extension name matches
+        # a datamodel key) as astropy Tables.  Convert fiber_types back to a
+        # plain numpy array.
+        if isinstance(d.get('fiber_types'), Table):
+            d['fiber_types'] = np.asarray(d['fiber_types']['fiber_types'])
+        return d, version_passed, type_passed, parsed_hdus
+
+    def set_paths(self, calib_dir, calib_key, det_str):
+        """
+        Set the internals needed to construct the I/O path for this file.
+
+        Args:
+            calib_dir (:obj:`str`, `Path`_):
+                Directory where the calibration file will be written.
+            calib_key (:obj:`str`):
+                Calibration key string identifying the setup/configuration.
+            det_str (:obj:`str`):
+                Detector string identifier (e.g. ``'DET01'``).
+        """
+        self.calib_dir = str(Path(calib_dir).absolute())
+        self.calib_key = f'{calib_key}_{det_str}'
+
+    def get_path(self):
+        """
+        Return the full path to the output file based on :attr:`calib_dir` and
+        :attr:`calib_key`.
+
+        Returns:
+            `Path`_: Absolute path to the output FITS file.
+        """
+        return Path(self.calib_dir) / f'FiberFlat_{self.calib_key}.fits'
 
 
 class FlatField:
@@ -989,14 +1126,28 @@ class FlatField:
             # Collapse the slit spatially and fit the spectral function
             # TODO: Put this stuff in a self.spectral_fit method?
 
-            # Create the tilts image for this slit
+            # Create the tilts for pixels in this slit only (not full image)
             if self.slitless:
                 tilts = np.tile(np.arange(rawflat.shape[0]) / rawflat.shape[0], (rawflat.shape[1], 1)).T
+                spec_coo = tilts * (nspec-1)
             else:
                 # TODO -- JFH Confirm the sign of this shift is correct!
                 _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
-                tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
-                                            self.wavetilts['func2d'], spat_shift=-1*_flexure)
+                # Evaluate tilts only at slit pixels to save memory
+                _coeff = self.wavetilts['coeffs'][:,:,slit_idx]
+                _spec, _spat = np.where(onslit_padded)
+                _pypeitFit = fitting.PypeItFit(fitc=_coeff, minx=0.0, maxx=1.0,
+                                               minx2=0.0, maxx2=1.0,
+                                               func=self.wavetilts['func2d'])
+                _xnspecmin1 = float(nspec - 1)
+                _xnspatmin1 = float(rawflat.shape[1] - 1)
+                _tilts_slit = _pypeitFit.eval(_spec / _xnspecmin1,
+                                              x2=(_spat + _flexure) / _xnspatmin1)
+                _tilts_slit = np.fmax(np.fmin(_tilts_slit, 1.2), -0.2)
+                # Build a full-frame tilts image placeholder with only slit pixels filled
+                tilts = np.zeros(rawflat.shape, dtype=float)
+                tilts[onslit_padded] = _tilts_slit
+                del _tilts_slit, _spec, _spat
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
@@ -1243,6 +1394,13 @@ class FlatField:
             twod_sigrej = 4.0
 
             poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
+
+            if not np.any(twod_gpm_data):
+                log.warning('No valid data for 2D flat-field fit on slit {0}!  '
+                          'Skipping 2D correction.'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(
+                    self.slits.mask[slit_idx], 'BADFLATCALIB')
+                continue
 
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
@@ -1727,6 +1885,214 @@ class FlatField:
             return flat.tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=maxfrac, debug=debug)
         else:
             raise PypeItError("Method for tweaking slit edges not recognized: {0}".format(method))
+
+
+class FiberFlatField(FlatField):
+    """
+    Flat-field reduction routines specific to fiber-fed spectrographs.
+
+    Inherits from :class:`FlatField` to access the standard flat-field
+    infrastructure (raw image, wavelength calibration, slit traces, etc.)
+    and adds fiber-specific methods.
+
+    Follows the IDL Binospec pipeline approach (Chilingarian et al. 2025,
+    Section 6): extract fiber spectra from the flat, then normalize by a
+    single global scalar to produce a 2D normalized flat (nfiber x nwave)
+    that retains the full spectral shape and fiber-to-fiber throughput
+    variation.
+    """
+
+    def run(self, doqa=False, debug=False, show=False):
+        """Build fiber flat field calibration products.
+
+        Produces:
+
+        1. A unity 2D pixelflat (no 2D pixel correction for fibers)
+        2. A globally-normalized extracted flat (nfiber x nwave) preserving
+           spectral shape and fiber-to-fiber throughput differences
+
+        Parameters
+        ----------
+        doqa : :obj:`bool`, optional
+            Save QA plots.  Default is False.
+        debug : :obj:`bool`, optional
+            Run in debug mode.  Default is False.
+        show : :obj:`bool`, optional
+            Show results in a ginga viewer.  Default is False.
+
+        Returns
+        -------
+        flatImages : :class:`FlatImages`
+            Standard flat images with unity ``pixelflat_norm``.
+        fiber_flatimages : :class:`FiberFlatImages`
+            Fiber-specific flat products (normflat, wavelengths, metadata).
+        """
+        from pypeit.core.extract import extract_boxcar
+
+        rawflat = self.rawflatimg.image
+        ivar = self.rawflatimg.ivar
+        gpm = self.rawflatimg.select_flag(invert=True)
+        det = self.rawflatimg.detector.det
+
+        # ------------------------------------------------------------------
+        # Step 1: pixelflat_norm = 1.0 (no 2D pixel correction)
+        # ------------------------------------------------------------------
+        # For fiber spectrographs, spectral response is handled in 1D by
+        # dividing extracted science spectra by the extracted flat.  A 2D
+        # pixel flat would imprint fiber profile structure.
+        log.info("Fiber pypeline: setting pixelflat_norm to unity "
+                 "(no 2D pixel correction)")
+        pixelflat_norm = np.ones_like(rawflat)
+
+        # ------------------------------------------------------------------
+        # Step 2: build wavelength image (or pixel-coordinate proxy)
+        # ------------------------------------------------------------------
+        if self.wavetilts is not None and self.wv_calib is not None:
+            log.info("Building wavelength image for fiber flat extraction")
+            flex = self.wavetilts.spat_flexure
+            slitmask = self.slits.slit_img(initial=True, flexure=flex)
+            tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+            waveimg = self.wv_calib.build_waveimg(tilts, self.slits,
+                                                  spat_flexure=flex)
+        else:
+            log.warning("Wavelength calibration unavailable; using pixel "
+                        "coordinates as wavelength proxy for fiber flat "
+                        "extraction.")
+            nspec = rawflat.shape[0]
+            waveimg = np.tile(np.arange(nspec, dtype=float)[:, np.newaxis],
+                              (1, rawflat.shape[1]))
+
+        # Sky model is zero for a flat-field image
+        skyimg = np.zeros_like(rawflat)
+
+        # ------------------------------------------------------------------
+        # Step 3: extract flat fibers block by block
+        # ------------------------------------------------------------------
+        # Scattered light should already be subtracted from the rawflat
+        # via processimages (subtract_scattlight=True for pixelflatframe).
+        log.info("Extracting flat spectra for all fiber blocks")
+        blocks = self.spectrograph.get_fiber_blocks(det)
+
+        all_fiber_spectra = []
+        all_fiber_waves = []
+        all_fiber_ivar = []
+        all_fiber_ids = []
+        all_fiber_names = []
+        all_fiber_types = []
+
+        for slit_idx in range(self.slits.nslits):
+            if slit_idx >= len(blocks):
+                log.warning(f"Slit index {slit_idx} exceeds number of fiber "
+                            f"blocks ({len(blocks)}); skipping.")
+                continue
+
+            block = blocks[slit_idx]
+            fiber_centers = block['fiber_positions']
+            if len(fiber_centers) == 0:
+                continue
+
+            # Identify fibers via spectrograph metadata
+            fiber_meta = self.spectrograph.identify_fibers_in_block(
+                det, slit_idx, fiber_centers)
+
+            # Compute inter-fiber half-spacings for BOX_R_PIX
+            spacings = np.diff(fiber_centers)
+            half_spacings = np.zeros(len(fiber_centers))
+            if len(spacings) > 0:
+                half_spacings[0] = spacings[0] / 2.0
+                half_spacings[-1] = spacings[-1] / 2.0
+                half_spacings[1:-1] = (
+                    np.minimum(spacings[:-1], spacings[1:]) / 2.0)
+            else:
+                half_spacings[0] = np.median(
+                    self.slits.slit_img(initial=True) != -1) / 2.0
+
+            nspec = rawflat.shape[0]
+            for j, center_pix in enumerate(fiber_centers):
+                trace_spat = np.full(nspec, center_pix)
+                box_r = half_spacings[j]
+
+                wave, flux, flux_ivar = extract_boxcar(
+                    box_r, trace_spat, rawflat, ivar, gpm,
+                    waveimg, skyimg)[:3]
+
+                all_fiber_spectra.append(flux)
+                all_fiber_waves.append(wave)
+                all_fiber_ivar.append(flux_ivar)
+
+                if fiber_meta is not None:
+                    all_fiber_ids.append(int(fiber_meta['fiber_id'][j]))
+                    all_fiber_names.append(fiber_meta['fiber_name'][j])
+                    all_fiber_types.append(fiber_meta['fiber_type'][j])
+                else:
+                    all_fiber_ids.append(j)
+                    all_fiber_names.append(f'FIBER_{j:04d}')
+                    all_fiber_types.append('science')
+
+        if len(all_fiber_spectra) == 0:
+            log.warning("No fiber spectra extracted from flat field.")
+            flat_images = FlatImages(
+                pixelflat_raw=rawflat,
+                pixelflat_norm=pixelflat_norm,
+                PYP_SPEC=self.spectrograph.name,
+                spat_id=self.slits.spat_id)
+            return flat_images, None
+
+        fiber_spectra_arr = np.array(all_fiber_spectra)
+        fiber_waves_arr = np.array(all_fiber_waves)
+        fiber_ids = np.array(all_fiber_ids, dtype=np.int64)
+        fiber_types = np.array(all_fiber_types)
+
+        # ------------------------------------------------------------------
+        # Step 4: global normalization (IDL pipeline approach)
+        # ------------------------------------------------------------------
+        # Normalize all extracted flat spectra by a single scalar: the max
+        # of the central wavelength region.  This preserves the full
+        # spectral shape AND fiber-to-fiber throughput variation.
+        # After scattered light subtraction, sky fibers will have ~3x
+        # higher normflat values than science fibers.
+        nwave = fiber_spectra_arr.shape[1]
+        central_slice = slice(nwave // 10, 9 * nwave // 10)
+        global_norm = float(np.nanmax(fiber_spectra_arr[:, central_slice]))
+        if global_norm <= 0:
+            global_norm = float(np.nanmax(fiber_spectra_arr))
+        log.info(f"Global flat normalization coefficient: {global_norm:.1f}")
+
+        normflat = fiber_spectra_arr / global_norm
+        # Bad pixel cleanup: replace non-finite or negative with 1.0
+        bad = ~np.isfinite(normflat) | (normflat <= 0)
+        normflat[bad] = 1.0
+
+        # Build a common wavelength grid (median across fibers)
+        normflat_wave = np.median(fiber_waves_arr, axis=0)
+
+        # Log sky vs science normflat levels as diagnostic
+        sky_mask = np.array([t.lower() == 'sky' for t in fiber_types])
+        if np.any(sky_mask):
+            sky_med = np.nanmedian(normflat[sky_mask])
+            sci_med = np.nanmedian(normflat[~sky_mask])
+            log.info(f"Normflat median: sky={sky_med:.4f}, "
+                     f"science={sci_med:.4f}, "
+                     f"ratio={sky_med/sci_med:.3f}")
+
+        # ------------------------------------------------------------------
+        # Step 5: assemble and return output containers
+        # ------------------------------------------------------------------
+        flat_images = FlatImages(
+            pixelflat_raw=rawflat,
+            pixelflat_norm=pixelflat_norm,
+            PYP_SPEC=self.spectrograph.name,
+            spat_id=self.slits.spat_id)
+
+        fiber_flatimages = FiberFlatImages(
+            normflat=normflat,
+            normflat_wave=normflat_wave,
+            global_norm=global_norm,
+            fiber_ids=fiber_ids,
+            fiber_types=fiber_types,
+            PYP_SPEC=self.spectrograph.name)
+
+        return flat_images, fiber_flatimages
 
 
 class SlitlessFlat:

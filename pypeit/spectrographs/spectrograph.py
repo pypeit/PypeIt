@@ -485,7 +485,7 @@ class Spectrograph:
 
         # The following are added for SlicerIFU spectrographs, as they are
         #   needed by the coadd3d routine
-        if self.pypeline == "SlicerIFU":
+        if self.pypeline in ["SlicerIFU", "Fiber"]:
             slicer_keys = [
                 "slitwid", "airmass", "parangle", "pressure", "temperature", "humidity"
             ]
@@ -836,6 +836,66 @@ class Spectrograph:
         """
         raise PypeItError('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
+
+    def get_fiber_metadata(self, det, slit_spat_ids, slit_centers=None):
+        """
+        Return fiber identification metadata for a fiber-fed spectrograph.
+
+        Spectrographs that use the ``Fiber`` pypeline should override this
+        method to map detected slit/fiber positions to instrument-defined
+        fiber identifiers (IDs, names, types, etc.).
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            1-indexed detector number.
+        slit_spat_ids : `numpy.ndarray`_
+            Array of ``spat_id`` values for each detected slit/fiber,
+            shape ``(nslits,)``.
+        slit_centers : `numpy.ndarray`_, optional
+            Float-valued slit center positions at the spectral midpoint.
+            If provided, subclasses may use these for more accurate
+            fiber matching than the integer ``slit_spat_ids``.
+
+        Returns
+        -------
+        :obj:`dict` or None
+            None if not implemented. Otherwise a dict with keys:
+
+            - ``'fiber_id'``: `numpy.ndarray`_ of int, instrument fiber
+              IDs for each slit. -1 for unmatched.
+            - ``'fiber_name'``: `numpy.ndarray`_ of str, human-readable
+              fiber names (e.g. ``'A42'``, ``'SKY6-1'``).
+            - ``'fiber_type'``: `numpy.ndarray`_ of str, fiber type
+              (e.g. ``'SCI'``, ``'SKY'``).
+
+            All arrays have shape ``(nslits,)``.
+        """
+        return None
+
+    def get_arc_extract_center(self, slitcen, slits, det):
+        """
+        Return adjusted slit centers for arc spectrum extraction.
+
+        For most spectrographs, the arc is extracted at the geometric center
+        of each slit.  Fiber-fed spectrographs may override this to place
+        the extraction center on a fiber rather than in an inter-fiber gap.
+
+        Parameters
+        ----------
+        slitcen : `numpy.ndarray`_
+            Slit center traces, shape ``(nspec, nslits)``.
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
+            Slit traces.
+        det : :obj:`int`
+            1-indexed detector number.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Adjusted slit center traces, same shape as ``slitcen``.
+        """
+        return slitcen
 
     @staticmethod
     def maskdef_spec_minmax(maskfile=None, maskdef_ids=None, nspec=None, shift=150):
@@ -1330,6 +1390,55 @@ class Spectrograph:
         if not isinstance(det, (int, np.integer)):
             raise PypeItError(f'Provided det must have type tuple or integer, not {type(det)}.')
         return 1, (det,)
+
+    def modify_pixelflat(self, flatimages, slits, det):
+        """
+        Spectrograph-specific modifications to the pixel flat.
+
+        Called after the flat is built but before it is saved to disk.
+        The default implementation does nothing.  Override in subclasses
+        to apply instrument-specific corrections (e.g., fiber-to-fiber
+        throughput for fiber-fed spectrographs).
+
+        Args:
+            flatimages (:class:`~pypeit.flatfield.FlatImages`):
+                Flat-field images to modify (in place).
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit traces.
+            det (:obj:`int`):
+                1-indexed detector number.
+        """
+        pass
+
+    def skyline_illum_correct(self, sciimg, waveimg, slits, slitmask):
+        """
+        Spectrograph-specific sky-line-based illumination correction.
+
+        Measures bright sky emission line fluxes across fibers and builds
+        a wavelength-dependent throughput correction.  The default
+        implementation does nothing.
+
+        This method should only modify ``sciimg`` in place (dividing by
+        the correction).  Variance propagation is handled separately by
+        the caller via
+        :meth:`~pypeit.find_objects.FindObjects.apply_relative_scale`.
+
+        Args:
+            sciimg (`numpy.ndarray`_):
+                2D flat-fielded science image (nspec, nspat).  Modified
+                in place (divided by the correction).
+            waveimg (`numpy.ndarray`_):
+                Wavelength image in Angstroms.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit traces.
+            slitmask (`numpy.ndarray`_):
+                2D image mapping pixels to slit ``spat_id``.
+
+        Returns:
+            `numpy.ndarray`_: 2D correction image that was applied
+            (1.0 everywhere if no correction).
+        """
+        return np.ones_like(sciimg)
 
     def get_rawimage(self, raw_file, det, sec_includes_binning=False):
         """

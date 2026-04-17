@@ -9,10 +9,12 @@ Main driver class for object finding, global skysubtraction and skymask construc
 import inspect
 import numpy as np
 import os
+from pathlib import Path
 
 from astropy import stats
 from abc import ABCMeta
 
+from pypeit import specobj
 from pypeit import specobjs
 from pypeit import log, utils
 from pypeit import PypeItError
@@ -1064,6 +1066,18 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         _global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
         inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(bool)
+        # If the spectrograph has dedicated sky fibers, restrict the sky fit
+        # to only those fibers. The sky model will still be evaluated at all
+        # pixels within thismask, but the bspline fit uses only sky fiber data.
+        # Keep the full inmask for other operations (e.g. illum correction).
+        skysub_inmask = inmask
+        has_sky_fibers = hasattr(self.spectrograph, 'get_sky_fiber_mask')
+        if has_sky_fibers:
+            sky_fiber_mask = self.spectrograph.get_sky_fiber_mask(self.det, self.slits.nslits)
+            sky_spat_ids = self.slits.spat_id[sky_fiber_mask]
+            sky_slit_mask = np.isin(self.slitmask, sky_spat_ids)
+            skysub_inmask = inmask & sky_slit_mask
+            log.info(f"Using {np.sum(sky_fiber_mask)} dedicated sky fibers for joint sky fit")
         # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
         # the tilts frame, but conserves wavelength position in each slit)
         wavemin = self.waveimg[self.waveimg != 0.0].min()
@@ -1091,16 +1105,32 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # Prepare the slitmasks for the relative spectral illumination
         slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
         slitmask_trim = self.slits.slit_img(pad=-3, flexure=self.spat_flexure_shift)
+        # Apply spectrograph-specific sky-line illumination correction.
+        # For fiber-fed spectrographs (e.g. Binospec IFU), this equalizes
+        # throughput differences between sky and science fibers that are
+        # not captured by the dome-flat-based illumination correction.
+        # Only sciimg (a copy) is modified here; variance propagation to
+        # self.sciImg is deferred to apply_relative_scale after the loop.
+        # NOTE: This interacts with the illum_profile_spectral_poly
+        # iteration below — both corrections converge together, which is
+        # the desired behavior.
+        skyline_corr = self.spectrograph.skyline_illum_correct(
+            sciimg, self.waveimg, self.slits, slitmask)
+        # When using dedicated sky fibers, most pixels in thismask are
+        # science fibers excluded by skysub_inmask.  Override max_mask_frac
+        # so the masking check doesn't reject the fit.
+        skysub_max_mask_frac = 1.0 if has_sky_fibers \
+            else self.par['reduce']['skysub']['max_mask_frac']
         for nn in range(numiter):
             log.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
             _global_sky[thismask] = skysub.global_skysub(sciimg, model_ivar, tilt_wave,
-                                                         thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                         thismask, self.slits_left, self.slits_right, inmask=skysub_inmask,
                                                          sigrej=sigrej, trim_edg=trim_edg,
                                                          bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                                          no_poly=self.par['reduce']['skysub']['no_poly'],
                                                          pos_mask=not self.bkg_redux and not objs_not_masked,
-                                                         max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                                                         max_mask_frac=skysub_max_mask_frac,
                                                          show_fit=show_fit)
 
             # Calculate the relative spectral illumination
@@ -1141,15 +1171,20 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
         # Now we have a correct scale, apply it to the original science image
         self.apply_relative_scale(scaleImg)
+        # Apply the skyline illumination correction to the original
+        # science image (and propagate to variance) so the final sky
+        # recalculation uses corrected data.
+        if not np.allclose(skyline_corr, 1.0):
+            self.apply_relative_scale(skyline_corr)
 
         # Recalculate the joint sky using the original image
         _global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
-                                                     thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                     thismask, self.slits_left, self.slits_right, inmask=skysub_inmask,
                                                      sigrej=sigrej, trim_edg=trim_edg,
                                                      bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                                      no_poly=self.par['reduce']['skysub']['no_poly'],
                                                      pos_mask=not self.bkg_redux and not objs_not_masked,
-                                                     max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                                                     max_mask_frac=skysub_max_mask_frac,
                                                      show_fit=show_fit)
 
         # Update the ivar image used in the sky fit
@@ -1196,12 +1231,28 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         trace_spat = 0.5 * (self.slits_left + self.slits_right)
         iwv = np.where(self.wv_calib.spat_ids == self.slits.spat_id[sl_ref])[0][0]
         ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm
-        # Extract a spectrum of the sky
-        thismask = (self.slitmask == self.slits.spat_id[sl_ref])
-        ref_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
-                                               global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
-                                               self.pypeline, self.det)
-        # Calculate the flexure
+
+        # Check if the spectrograph has dedicated sky fibers (e.g. fiber-fed IFU)
+        has_sky_fibers = hasattr(self.spectrograph, 'get_sky_fiber_mask')
+
+        if has_sky_fibers:
+            # Build a combined sky spectrum from ALL dedicated sky fibers
+            sky_fiber_mask = self.spectrograph.get_sky_fiber_mask(self.det, self.slits.nslits)
+            sky_spat_ids = self.slits.spat_id[sky_fiber_mask]
+            # Combined mask covering all sky fiber pixels
+            thismask = np.isin(self.slitmask, sky_spat_ids)
+            log.info(f"Building combined sky spectrum from {np.sum(sky_fiber_mask)} dedicated sky fibers")
+            ref_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
+                                                   global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
+                                                   self.pypeline, self.det)
+        else:
+            # Standard behavior: use reference slit only
+            thismask = (self.slitmask == self.slits.spat_id[sl_ref])
+            ref_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
+                                                   global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
+                                                   self.pypeline, self.det)
+
+        # Calculate the absolute flexure against the archive sky spectrum
         flex_dict_ref = flexure.spec_flex_shift(ref_skyspec, sky_file=self.par['flexure']['spectrum'], spec_fwhm_pix=ref_fwhm_pix,
                                             mxshft=self.par['flexure']['spec_maxshift'],
                                             excess_shft=self.par['flexure']['excessive_shift'],
@@ -1212,26 +1263,34 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         if flex_dict_ref is not None:
             log.warning("Only a relative spectral flexure correction will be performed")
             this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
-        # Now loop through all slits to calculate the additional shift relative to the reference slit
-        flex_list = []
-        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            thismask = (self.slitmask == slit_spat)
-            # Extract sky spectrum for this slit
-            this_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
-                                                    global_sky, box_rad, self.slits, trace_spat[:, slit_idx],
-                                                    self.pypeline, self.det)
-            # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, arx_skyspec=ref_skyspec, arx_fwhm_pix=ref_fwhm_pix * 1.01,
-                                                spec_fwhm_pix=ref_fwhm_pix,
-                                                mxshft=self.par['flexure']['spec_maxshift'],
-                                                excess_shft=self.par['flexure']['excessive_shift'],
-                                                method="slitcen",
-                                                minwave=self.par['flexure']['minwave'],
-                                                maxwave=self.par['flexure']['maxwave'])
-            this_slitshift[slit_idx] += flex_dict['shift']
-            flex_list.append(flex_dict.copy())
-        # Replace the reference slit with the absolute shift
-        flex_list[sl_ref] = flex_dict_ref.copy()
+
+        if has_sky_fibers:
+            # For fiber-fed IFUs, all fibers share the same optical path.
+            # Apply uniform flexure correction (skip per-slit relative loop).
+            flex_list = [flex_dict_ref.copy() if flex_dict_ref is not None else {'shift': 0.0}
+                         for _ in range(self.slits.nslits)]
+            log.info("Fiber-fed IFU: applying uniform flexure correction to all fibers")
+        else:
+            # Now loop through all slits to calculate the additional shift relative to the reference slit
+            flex_list = []
+            for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+                thismask = (self.slitmask == slit_spat)
+                # Extract sky spectrum for this slit
+                this_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
+                                                        global_sky, box_rad, self.slits, trace_spat[:, slit_idx],
+                                                        self.pypeline, self.det)
+                # Calculate the flexure
+                flex_dict = flexure.spec_flex_shift(this_skyspec, arx_skyspec=ref_skyspec, arx_fwhm_pix=ref_fwhm_pix * 1.01,
+                                                    spec_fwhm_pix=ref_fwhm_pix,
+                                                    mxshft=self.par['flexure']['spec_maxshift'],
+                                                    excess_shft=self.par['flexure']['excessive_shift'],
+                                                    method="slitcen",
+                                                    minwave=self.par['flexure']['minwave'],
+                                                    maxwave=self.par['flexure']['maxwave'])
+                this_slitshift[slit_idx] += flex_dict['shift']
+                flex_list.append(flex_dict.copy())
+            # Replace the reference slit with the absolute shift
+            flex_list[sl_ref] = flex_dict_ref.copy()
         # Add this flexure to the previous flexure correction
         new_slitshift = self.slitshift + this_slitshift
         # Now report the flexure values
@@ -1267,3 +1326,500 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         if np.any(_bpm):
             self.sciImg.update_mask('BADSCALE', indx=_bpm)
         self.sciImg.ivar = utils.inverse(varImg)
+
+
+class FiberFindObjects(SlicerIFUFindObjects):
+    """
+    Child of FindObjects for fiber-fed spectrographs.
+
+    For fiber spectrographs, each fiber IS the object — there is no need
+    for peak-detection object finding. This class creates one SpecObj per
+    fiber within each block-slit, using reference fiber positions from
+    the spectrograph.
+
+    Follows the IDL Binospec pipeline approach (Chilingarian et al. 2025,
+    Section 6) for sky subtraction: extract all fibers, divide by the
+    globally-normalized flat and fiber illumination correction, then fit
+    a 2D B-spline sky model (wavelength + spatial Legendre polynomial)
+    to the dedicated sky fibers and subtract from all fibers.
+
+    See parent doc string for Args and Attributes.
+    """
+    def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
+        super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
+
+    def run(self, std_trace=None, show_peaks=False, show_skysub_fit=False):
+        """
+        Primary code flow for fiber object finding with 1D sky subtraction.
+
+        For fiber spectrographs, each fiber IS the object -- no peak-detection
+        is needed.  Sky subtraction follows the IDL Binospec pipeline:
+
+        1. Build wavelength image (if not already available).
+        2. Load ``FiberFlatImages`` calibration products.
+        3. Create one ``SpecObj`` per fiber via ``find_objects_pypeline``.
+        4. Boxcar-extract every fiber from the un-subtracted 2D image.
+        5. Divide by normalized flat and fiber illumination correction.
+        6. Fit a 2D B-spline sky model (wavelength + spatial polynomial)
+           to the dedicated sky fibers.
+        7. Subtract the sky model from all fibers in 1D.
+        8. Reconstruct a diagnostic 2D sky image.
+
+        Parameters
+        ----------
+        std_trace : `astropy.table.Table`_, optional
+            Ignored for fiber reductions.
+        show_peaks : :obj:`bool`, optional
+            Ignored for fiber reductions.
+        show_skysub_fit : :obj:`bool`, optional
+            Ignored for fiber reductions.
+
+        Returns
+        -------
+        initial_sky : `numpy.ndarray`_
+            Reconstructed 2D sky model (diagnostic; actual subtraction is 1D).
+        sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
+            List of objects found (one per fiber), with sky-subtracted
+            ``BOX_COUNTS`` and ``BOX_COUNTS_SKY`` populated.
+        """
+        from pypeit.core import extract
+
+        # 1. Build wavelength image if needed
+        if self.waveimg is None:
+            if self.wv_calib is None:
+                raise PypeItError("Wavelength calibration required for "
+                                  "fiber sky subtraction")
+            self.waveimg = self.wv_calib.build_waveimg(
+                self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+
+        # 2. Load fiber flat products
+        fiber_flatimages = self._load_fiber_flatimages()
+
+        # 3. Create SpecObjs for all fibers (reuse find_objects_pypeline)
+        self.reduce_bpm = self.reduce_bpm_init.copy()
+        sobjs_obj, self.nobj = self.find_objects(
+            self.sciImg.image, self.sciImg.ivar,
+            std_trace=std_trace, show=self.findobj_show,
+            show_peaks=show_peaks)
+
+        if len(sobjs_obj) == 0:
+            return np.zeros_like(self.sciImg.image), sobjs_obj
+
+        # 4. Boxcar extract all fibers from the un-subtracted image
+        gpm = self.sciImg.select_flag(invert=True)
+        slitmask = self.slits.slit_img(initial=True)
+        zero_sky = np.zeros_like(self.sciImg.image)
+
+        for sobj in sobjs_obj:
+            thismask = slitmask == sobj.SLITID
+            inmask = gpm & thismask
+            # extract_boxcar expects imgminsky; pass raw image with skyimg=0
+            wave, flux, flux_ivar, flux_sig, flux_nivar, box_gpm, \
+                fwhm, flat_spec, sky, base, npix = extract.extract_boxcar(
+                    sobj.BOX_R_PIX, sobj.TRACE_SPAT,
+                    self.sciImg.image, self.sciImg.ivar,
+                    inmask, self.waveimg, zero_sky)
+            sobj.BOX_WAVE = wave
+            sobj.BOX_COUNTS = flux
+            sobj.BOX_COUNTS_IVAR = flux_ivar
+            sobj.BOX_COUNTS_SKY = sky
+            sobj.BOX_MASK = box_gpm
+
+        # 5. Equalize and subtract sky in 1D
+        initial_sky = self._fiber_skysub(sobjs_obj, fiber_flatimages)
+
+        return initial_sky, sobjs_obj
+
+    def _load_fiber_flatimages(self):
+        """
+        Load :class:`~pypeit.flatfield.FiberFlatImages` from the calibrations
+        directory.
+
+        Uses the ``calib_dir`` stored on the slits object (inherited from
+        :class:`~pypeit.calibframe.CalibFrame`) to search for files matching
+        the ``FiberFlat_*.fits`` pattern.
+
+        Returns
+        -------
+        fiber_flatimages : :class:`~pypeit.flatfield.FiberFlatImages` or None
+            Loaded fiber flat calibration, or ``None`` if no file is found.
+        """
+        from pypeit.flatfield import FiberFlatImages
+        import glob
+
+        calib_dir = getattr(self.slits, 'calib_dir', None)
+        if calib_dir is None:
+            log.warning("No calib_dir available on slits; "
+                        "proceeding without fiber flat equalization")
+            return None
+
+        # Search for FiberFlat files matching the detector
+        pattern = str(Path(calib_dir) / f'FiberFlat_*{self.detname}*.fits')
+        files = sorted(glob.glob(pattern))
+        if not files:
+            # Try broader search
+            pattern = str(Path(calib_dir) / 'FiberFlat_*.fits')
+            files = sorted(glob.glob(pattern))
+
+        if files:
+            log.info(f"Loading FiberFlatImages from {Path(files[0]).name}")
+            return FiberFlatImages.from_file(files[0])
+
+        log.warning("No FiberFlatImages found; "
+                     "proceeding without equalization")
+        return None
+
+    def _apply_flat_correction(self, sobjs, fiber_flatimages):
+        """
+        Apply normalized flat and fiber illumination correction to extracted
+        spectra.
+
+        Follows the IDL Binospec pipeline approach (Chilingarian et al. 2025):
+
+        1. Divide by the globally-normalized flat (per-fiber, per-wavelength) —
+           removes lamp × system spectral response and fiber throughput variation.
+        2. Divide by the ``fiber_illumination`` per-fiber scalar — removes
+           residual fiber-to-fiber throughput differences from the static
+           calibration.
+
+        Parameters
+        ----------
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            Spectral objects with populated ``BOX_COUNTS``, ``BOX_WAVE``,
+            ``BOX_COUNTS_IVAR``.
+        fiber_flatimages : :class:`~pypeit.flatfield.FiberFlatImages` or None
+            Fiber flat calibration products.
+        """
+        if fiber_flatimages is None or fiber_flatimages.normflat is None:
+            log.warning("No fiber flat available; skipping flat correction")
+            return
+
+        normflat = fiber_flatimages.normflat
+        normflat_wave = fiber_flatimages.normflat_wave
+        flat_fiber_ids = fiber_flatimages.fiber_ids
+
+        # Load fiber illumination correction from spectrograph
+        det = self.sciImg.detector.det
+        try:
+            f_illum = self.spectrograph.load_fiber_illumination(det)
+            ref = self.spectrograph.load_fiber_ref_profile(det)
+            ref_ids = ref['FIB_ID']
+        except Exception as e:
+            log.warning(f"Could not load fiber_illumination: {e}; "
+                        f"using unity illumination")
+            f_illum = None
+            ref_ids = None
+
+        n_corrected = 0
+        for sobj in sobjs:
+            if sobj.BOX_COUNTS is None or sobj.BOX_WAVE is None:
+                continue
+            fid = sobj.MASKDEF_ID
+            if fid is None or fid < 0:
+                continue
+
+            # Look up this fiber in the normflat
+            flat_idx = np.where(flat_fiber_ids == fid)[0]
+            if len(flat_idx) == 0:
+                continue
+            flat_idx = flat_idx[0]
+
+            # Interpolate normflat to this fiber's wavelength grid
+            nf = np.interp(sobj.BOX_WAVE, normflat_wave,
+                           normflat[flat_idx], left=1.0, right=1.0)
+            nf[nf <= 0] = 1.0
+
+            # Look up fiber_illumination scalar
+            illum = 1.0
+            if f_illum is not None and ref_ids is not None:
+                ref_idx = np.where(ref_ids == fid)[0]
+                if len(ref_idx) > 0 and ref_idx[0] < len(f_illum):
+                    illum = float(f_illum[ref_idx[0]])
+                    if illum < 0.1 or not np.isfinite(illum):
+                        illum = 1.0
+
+            # Apply: divide by normflat * fiber_illumination
+            total_corr = nf * illum
+            sobj.BOX_COUNTS = sobj.BOX_COUNTS / total_corr
+            sobj.BOX_COUNTS_IVAR = sobj.BOX_COUNTS_IVAR * total_corr**2
+            # Store correction factor for re-use in optimal extraction
+            sobj.flat_corr = total_corr.copy()
+            n_corrected += 1
+
+        log.info(f"Applied flat + illumination correction to "
+                 f"{n_corrected}/{len(sobjs)} fibers")
+
+    def _fiber_skysub(self, sobjs, fiber_flatimages):
+        """
+        Perform 1D sky subtraction following the IDL Binospec pipeline.
+
+        1. Apply normalized flat + fiber illumination correction.
+        2. Fit a 2D B-spline to sky fibers (wavelength + spatial Legendre
+           polynomial along the pseudo-slit).
+        3. Subtract the sky model from all fibers.
+
+        Parameters
+        ----------
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            Spectral objects with populated ``BOX_COUNTS``, ``BOX_WAVE``,
+            ``BOX_COUNTS_IVAR``.
+        fiber_flatimages : :class:`~pypeit.flatfield.FiberFlatImages` or None
+            Fiber flat calibration products.
+
+        Returns
+        -------
+        sky_2d : `numpy.ndarray`_
+            Reconstructed 2D sky image for diagnostics. Shape matches
+            ``self.sciImg.image``.
+        """
+        from pypeit.core.fitting import iterfit
+
+        nspec, nspat = self.sciImg.image.shape
+
+        # Step 1: apply flat field + fiber illumination correction
+        self._apply_flat_correction(sobjs, fiber_flatimages)
+
+        # Step 2: identify sky fibers
+        sky_indices = []
+        for i, sobj in enumerate(sobjs):
+            name = sobj.MASKDEF_OBJNAME
+            if name is not None and str(name).upper().startswith('SKY'):
+                sky_indices.append(i)
+
+        log.info(f"Building sky model from {len(sky_indices)} sky fibers")
+
+        if len(sky_indices) == 0:
+            log.warning("No sky fibers found; returning zero sky model")
+            return np.zeros((nspec, nspat))
+
+        # Use the full wavelength range of the data.  The flat correction
+        # is applied everywhere — even where the flat has low signal, a
+        # noisy correction is better than none.  The Poisson ivar will
+        # naturally downweight low-S/N regions in the B-spline fit.
+        wave_lo, wave_hi = 0.0, np.inf
+
+        # Step 3: build super-sampled sky spectrum with spatial coordinate
+        # Get detector gain and read noise for Poisson weights
+        gain = float(np.mean(self.sciImg.detector['gain']))
+        rdnoise = float(np.mean(self.sciImg.detector['ronoise']))
+
+        all_wave, all_flux, all_ivar, all_x2 = [], [], [], []
+        for idx in sky_indices:
+            sobj = sobjs[idx]
+            if sobj.BOX_COUNTS is None or sobj.BOX_WAVE is None:
+                continue
+            good = ((sobj.BOX_WAVE > 0)
+                    & np.isfinite(sobj.BOX_COUNTS)
+                    & (sobj.BOX_WAVE >= wave_lo)
+                    & (sobj.BOX_WAVE <= wave_hi))
+            if sobj.BOX_MASK is not None:
+                good &= sobj.BOX_MASK
+            if not np.any(good):
+                continue
+
+            # Poisson inverse-variance weights (IDL formula)
+            raw_counts = np.abs(sobj.BOX_COUNTS[good])
+            poisson_ivar = gain**2 / (gain * raw_counts + rdnoise**2)
+
+            # Spatial coordinate: normalized pixel position [0, 1]
+            spat_pos = sobj.SPAT_PIXPOS / nspat
+
+            all_wave.append(sobj.BOX_WAVE[good])
+            all_flux.append(sobj.BOX_COUNTS[good])
+            all_ivar.append(poisson_ivar)
+            all_x2.append(np.full(np.sum(good), spat_pos))
+
+        if len(all_wave) == 0:
+            log.warning("No valid sky fiber data; returning zero sky model")
+            return np.zeros((nspec, nspat))
+
+        all_wave = np.concatenate(all_wave)
+        all_flux = np.concatenate(all_flux)
+        all_ivar = np.concatenate(all_ivar)
+        all_x2 = np.concatenate(all_x2)
+
+        # Sort by wavelength (required by bspline)
+        srt = np.argsort(all_wave)
+        all_wave = all_wave[srt]
+        all_flux = all_flux[srt]
+        all_ivar = all_ivar[srt]
+        all_x2 = all_x2[srt]
+
+        # Step 4: fit 2D B-spline (wavelength + spatial Legendre polynomial)
+        bsp = self.par['reduce']['skysub']['bspline_spacing']
+        if bsp is None:
+            bsp = 1.2
+
+        # npoly=2: constant + linear Legendre terms along pseudo-slit
+        # (matches IDL pipeline skydegy=2 for IFU mode)
+        npoly = 2
+
+        log.info(f"B-spline sky fit: {len(all_wave)} pixels, "
+                 f"bkspace={bsp}, npoly={npoly}")
+
+        try:
+            sset, outmask = iterfit(
+                all_wave, all_flux, invvar=all_ivar,
+                x2=all_x2,
+                upper=3, lower=3, maxiter=10,
+                nord=4,
+                kwargs_bspline={'bkspace': bsp, 'npoly': npoly})
+        except Exception as e:
+            log.warning(f"Sky B-spline fit failed: {e}")
+            return np.zeros((nspec, nspat))
+
+        n_rej = np.sum(~outmask)
+        log.info(f"Sky model: {n_rej}/{len(outmask)} pixels rejected "
+                 f"({100*n_rej/len(outmask):.1f}%)")
+
+        # Wavelength range of the fit data (for clipping extrapolation)
+        wave_min = all_wave[0]
+        wave_max = all_wave[-1]
+
+        # Step 5: subtract sky from ALL fibers
+        for sobj in sobjs:
+            if sobj.BOX_WAVE is None or sobj.BOX_COUNTS is None:
+                continue
+            # Only evaluate sky model within the B-spline fit range
+            in_range = ((sobj.BOX_WAVE >= wave_min)
+                        & (sobj.BOX_WAVE <= wave_max))
+            sky_spec = np.zeros_like(sobj.BOX_COUNTS)
+            if np.any(in_range):
+                spat_pos = sobj.SPAT_PIXPOS / nspat
+                x2_fiber = np.full(np.sum(in_range), spat_pos)
+                sky_spec[in_range], _ = sset.value(
+                    sobj.BOX_WAVE[in_range], x2=x2_fiber)
+
+            sobj.BOX_COUNTS_SKY = sky_spec.copy()
+            sobj.BOX_COUNTS = sobj.BOX_COUNTS - sky_spec
+
+        # Reconstruct 2D sky image for diagnostics
+        sky_2d = np.zeros((nspec, nspat))
+        valid = (self.waveimg >= wave_min) & (self.waveimg <= wave_max)
+        if np.any(valid):
+            # Use midpoint spatial position for the 2D reconstruction
+            mid_spat = 0.5
+            x2_2d = np.full(np.sum(valid), mid_spat)
+            sky_2d[valid], _ = sset.value(self.waveimg[valid], x2=x2_2d)
+
+        return sky_2d
+
+    def find_objects_pypeline(self, image, ivar, std_trace=None,
+                              manual_extract_dict=None,
+                              show_peaks=False, show_fits=False, show_trace=False,
+                              show=False, save_objfindQA=False, neg=False, debug=False):
+        """
+        Create one SpecObj per fiber within each block-slit.
+
+        For each block-slit, uses fiber positions from the spectrograph's
+        reference profile to create SpecObjs at known fiber locations.
+        FWHM and BOX_R_PIX are set from inter-fiber spacing so adjacent
+        boxcar apertures touch but don't overlap.
+
+        Parameters
+        ----------
+        image : `numpy.ndarray`_
+            Image to search for objects from. Shape ``(nspec, nspat)``.
+        ivar : `numpy.ndarray`_
+            Inverse variance of ``image``.
+        std_trace : `astropy.table.Table`_, optional
+            Ignored for fiber reductions.
+        manual_extract_dict : :obj:`dict`, optional
+            Ignored for fiber reductions.
+        show_peaks : :obj:`bool`, optional
+            Ignored for fiber reductions.
+        show_fits : :obj:`bool`, optional
+            Ignored for fiber reductions.
+        show_trace : :obj:`bool`, optional
+            Ignored for fiber reductions.
+        show : :obj:`bool`, optional
+            Show QA plots.
+        save_objfindQA : :obj:`bool`, optional
+            Ignored for fiber reductions.
+        neg : :obj:`bool`, optional
+            Ignored for fiber reductions.
+        debug : :obj:`bool`, optional
+            Ignored for fiber reductions.
+
+        Returns
+        -------
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            Container holding one SpecObj per fiber.
+        nobj : :obj:`int`
+            Number of objects identified.
+        """
+        gdslits = np.where(np.logical_not(self.reduce_bpm))[0]
+        sobjs = specobjs.SpecObjs()
+        nspec = image.shape[0]
+        obj_counter = 0
+
+        # Get block structure from spectrograph
+        blocks = self.spectrograph.get_fiber_blocks(self.det)
+
+        for slit_idx in gdslits:
+            slit_spat_id = self.slits.spat_id[slit_idx]
+            left = self.slits_left[:, slit_idx]
+            right = self.slits_right[:, slit_idx]
+
+            # Get reference fiber positions for this block
+            if slit_idx >= len(blocks):
+                continue
+            block = blocks[slit_idx]
+            fiber_centers = block['fiber_positions'].copy()
+
+            if len(fiber_centers) == 0:
+                continue
+
+            # Identify fibers using spectrograph reference
+            fiber_meta = self.spectrograph.identify_fibers_in_block(
+                self.det, slit_idx, fiber_centers)
+
+            # Compute inter-fiber spacings for BOX_R_PIX
+            spacings = np.diff(fiber_centers)
+            half_spacings = np.zeros(len(fiber_centers))
+            if len(spacings) > 0:
+                half_spacings[0] = spacings[0] / 2.0
+                half_spacings[-1] = spacings[-1] / 2.0
+                half_spacings[1:-1] = np.minimum(spacings[:-1], spacings[1:]) / 2.0
+            else:
+                half_spacings[0] = np.median(right - left) / 2.0
+
+            for j, center_pix in enumerate(fiber_centers):
+                obj_counter += 1
+                trace_center = np.full(nspec, center_pix)
+
+                thisobj = specobj.SpecObj(
+                    PYPELINE='Fiber',
+                    DET=self.sciImg.detector.name,
+                    OBJTYPE=self.objtype,
+                    SLITID=slit_spat_id,
+                )
+                thisobj.TRACE_SPAT = trace_center.astype(float)
+                thisobj.trace_spec = np.arange(nspec)
+                thisobj.SPAT_PIXPOS = float(center_pix)
+                thisobj.SPAT_PIXPOS_ID = int(np.rint(center_pix))
+                thisobj.SPAT_FRACPOS = (center_pix - np.median(left)) / \
+                    np.median(right - left)
+                thisobj.FWHM = 2.0 * half_spacings[j]
+                thisobj.maskwidth = half_spacings[j] / np.median((right - left) / 2.0)
+                thisobj.BOX_R_PIX = half_spacings[j]
+                thisobj.smash_peakflux = 1.0
+                thisobj.smash_snr = 100.0
+                thisobj.OBJID = obj_counter
+
+                # Assign fiber metadata
+                if fiber_meta is not None:
+                    thisobj.MASKDEF_ID = int(fiber_meta['fiber_id'][j])
+                    thisobj.MASKDEF_OBJNAME = fiber_meta['fiber_name'][j]
+
+                thisobj.set_name()
+                sobjs.add_sobj(thisobj)
+
+        # Steps
+        self.steps.append(inspect.stack()[0][3])
+        if show:
+            gpm = self.sciImg.select_flag(invert=True)
+            self.show('image', image=image*gpm.astype(float),
+                      chname='objfind', sobjs=sobjs, slits=True)
+
+        return sobjs, len(sobjs)
