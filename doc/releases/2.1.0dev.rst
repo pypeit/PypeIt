@@ -26,6 +26,9 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
+- Updated the MMT Binospec bad pixel mask to match the IDL pipeline, adding
+  ~12,500 individual bad pixels, additional bad columns, and detector trap
+  region masking from static calibration files.
 
 Script Changes
 --------------

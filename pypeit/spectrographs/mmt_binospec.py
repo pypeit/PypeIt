@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 import numpy as np
 
+from pypeit import dataPaths
 from pypeit import io
 from pypeit import log
 from pypeit import PypeItError
@@ -322,6 +323,10 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         """
         Generate a default bad-pixel mask.
 
+        Loads a pre-built static BPM from the IDL pipeline calibration data
+        (``badpix_binospec.fits`` + hard-coded bad columns and detector trap
+        regions from ``bino_mosaic.pro``).
+
         Even though they are both optional, either the precise shape for
         the image (``shape``) or an example file that can be read to get
         the shape (``filename`` using :func:`get_image_shape`) *must* be
@@ -348,40 +353,11 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        if det == 1:
-            log.info("Using hard-coded BPM for det=1 on BINOSPEC")
-
-            # TODO: Fix this
-            # Get the binning
-            hdu = io.fits_open(filename)
-            binning = hdu[1].header['CCDSUM']
-            hdu.close()
-
-            # Apply the mask
-            xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
-            bpm_img[2447 // xbin, 2056 // ybin:4112 // ybin] = 1
-            bpm_img[2111 // xbin, 2056 // ybin:4112 // ybin] = 1
-
-        elif det == 2:
-            log.info("Using hard-coded BPM for det=2 on BINOSPEC")
-
-            # Get the binning
-            hdu = io.fits_open(filename)
-            binning = hdu[5].header['CCDSUM']
-            hdu.close()
-
-            # Apply the mask
-            xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
-            #ToDo: Need to double check the  BPM for detector 2
-            ## Identified by FW from flat observations
-            bpm_img[3336 // xbin, 0:2056 // ybin] = 1
-            bpm_img[3337 // xbin, 0:2056 // ybin] = 1
-            bpm_img[4056 // xbin, 0:2056 // ybin] = 1
-            bpm_img[3011 // xbin, 2057 // ybin:4112 // ybin] = 1
-            ## Got from IDL pipeline
-            #bpm_img[2378 // xbin, 0:2056 // ybin] = 1
-            #bpm_img[2096 // xbin, 2057 // ybin:4112 // ybin] = 1
-            #bpm_img[1084 // xbin, 0:2056 // ybin] = 1
+        # Load and apply the static BPM from IDL pipeline calibration
+        bpm_file = dataPaths.static_calibs.get_file_path(
+            f'mmt_binospec/bpm_binospec_det{det}.fits.gz')
+        static_bpm = fits.getdata(bpm_file)
+        bpm_img |= static_bpm
 
         return bpm_img
 
