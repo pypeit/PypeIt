@@ -12,9 +12,9 @@ from pypeit import pypeit
 
 def run_pypeit_main_wrapper(args):
     pypeIt = pypeit.PypeIt(
-        args.pypeit_file, reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
-        redux_path=args.redux_path, calib_only=args.calib_only, show=args.show
-    )
+            args.pypeit_file, reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
+            redux_path=args.redux_path, calib_only=args.calib_only, show=args.show
+            )
 
     if args.calib_only:
         pypeIt.calib_all()
@@ -30,12 +30,16 @@ def run_pypeit_main_wrapper(args):
 
 def PypeItWorker(setup_file_path,log_queue):
 
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    root.addHandler(QueueHandler(log_queue))
 
     parser = RunPypeIt.get_parser()
 
     args = parser.parse_args([
         setup_file_path,
-    ])
+        ])
 
     # Run the worker
     # RunPypeIt.main(args)
@@ -47,7 +51,7 @@ def check_pypeit_status(setup_file_path):
 
     args = parser.parse_args([
         setup_file_path,
-    ])
+        ])
 
     pypeIt = pypeit.PypeIt(
             args.pypeit_file, # is presenting paths as POSIX paths and not strings which is causing a warning
@@ -60,7 +64,7 @@ def check_pypeit_status(setup_file_path):
     # pypeIt.run_state.write() # should only really do this if pypeit is actively running
 
     return pypeIt.run_state.get_status() # returns a pandas dataframe
-    
-    # Pretty-print the state
+
+# Pretty-print the state
     # pypeIt.run_state.print_status()
 
