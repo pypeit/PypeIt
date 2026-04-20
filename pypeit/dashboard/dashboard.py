@@ -12,8 +12,8 @@ from contextlib import redirect_stdout
 
 from PyQt6.QtCore import pyqtSignal
 import qtpy
-from qtpy.QtCore import QTimer, QSize, Qt, QMargins, QObject 
-from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter
+from qtpy.QtCore import QTimer, QSize, Qt, QMargins, QObject, QDir
+from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter, QFileSystemModel
 from qtpy.QtWidgets import (
         QApplication,
         QWidget, 
@@ -29,7 +29,8 @@ from qtpy.QtWidgets import (
         QFileDialog,
         QTextEdit,
         QTableWidget,
-        QTableWidgetItem
+        QTableWidgetItem,
+        QTreeView,
         )
 
 # from pypeit.setup_gui.controller import start_gui
@@ -113,9 +114,6 @@ class StatusWidget(FilledBackgroundWidget):
         value_cm = QMargins(fm.averageCharWidth(),0,fm.averageCharWidth(),0)
         value_style_sheet = "background-color:rgb(80,80,80);"
         layout = QGridLayout()
-        #l = QLabel(text="Status")
-        #l.setStyleSheet("font: normal 36pt")
-        #layout.addWidget(l, 0, 0, 1, 3,alignment=Qt.AlignmentFlag.AlignLeft)
 
 
         #---------------------- setup file group -------------------
@@ -172,14 +170,7 @@ class StatusWidget(FilledBackgroundWidget):
         self.calibration_step.setStyleSheet(value_style_sheet)
         layout.addWidget(self.calibration_step,2,3,1,1)
 
-        # # ------------------ progress bar ---------------------
-        # progress_bar = QProgressBar()
-        # progress_bar.setMaximum(100)
-        # progress_bar.setValue(33)
-        # progress_bar.setTextVisible(True)
-        # layout.addWidget(progress_bar,3,0,1,4)
 
-        #layout.addWidget(SpacerWidget(rows=5,cols=40),3,4,3,4)
         layout.setVerticalSpacing(self.fontMetrics().lineSpacing())
         layout.setHorizontalSpacing(self.fontMetrics().averageCharWidth())
         self.setLayout(layout)
@@ -237,6 +228,57 @@ class calibration_table_widget(QTableWidget):
             for j in range(df.shape[1]):
                 self.setItem(i, j, QTableWidgetItem(str(df.iat[i, j])))
 
+class FileDisplayWidget(QWidget):
+    def __init__(self,directory_name=""):
+        super().__init__()
+
+        self.model = QFileSystemModel()
+        self.current_path = QDir.currentPath()
+        self.directory_name = "/" + directory_name # will not work on windows 
+        root_index = self.model.setRootPath(self.current_path+self.directory_name)
+
+        self.tree = QTreeView()
+        self.tree.setModel(self.model)
+        self.tree.setRootIndex(root_index)
+
+        # Optional: hide extra columns
+        self.tree.hideColumn(1)
+        self.tree.hideColumn(2)
+        self.tree.hideColumn(3)
+
+        self.button = QPushButton("Change Directory...")
+        self.button.clicked.connect(self.change_directory)
+        self.tree.doubleClicked.connect(self.on_double_clicked)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.tree)
+        layout.addWidget(self.button)
+        self.setLayout(layout)
+
+    def change_directory(self):
+        new_path = QFileDialog.getExistingDirectory(
+            self, "Select Directory", self.current_path
+        )
+        if new_path:
+            self.set_directory(new_path)
+
+    def set_directory(self, path):
+        self.current_path = path
+        root_index = self.model.setRootPath(path)
+        self.tree.setRootIndex(root_index)
+
+    def on_double_clicked(self, index):
+        # Get the file path from the model using the index
+        file_path = self.model.filePath(index)
+        
+        # Check if the path is a file (not a directory)
+        if Path(file_path).is_dir():
+            return
+            
+        # Open the file with the default system application
+        # QDesktopServices.openUrl(QUrl.fromLocalFile(file_path))
+        print(file_path)
+
 class DashboardWidget(FilledBackgroundWidget):
     """this widget is the bottom widget"""
     def __init__(self):
@@ -247,8 +289,8 @@ class DashboardWidget(FilledBackgroundWidget):
         # ------------- definitions --------------
         self.status_widget = StatusWidget()
         self.calibration_widget = calibration_table_widget(pd.DataFrame())
-        self.qa_widget = QListWidget()
-        self.science_widget = QListWidget()
+        self.qa_widget = FileDisplayWidget(directory_name="QA/PNGs")
+        self.science_widget = FileDisplayWidget(directory_name="Science")
         self.logs_widget = logs_view_widget()
 
         # -------------- main layout -------------
@@ -337,9 +379,6 @@ class MainWindow(QWidget):
         check = check_pypeit_status(self.setup_file_path) # returns a pandas dataframe
         self.dashboard_widget.calibration_widget.setDataFrame(check) # updates the calibration_table_widget
 
-        # next need to update the main display
-
-
     def import_setup_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
                 self,
@@ -397,9 +436,6 @@ def start_pypeit_process(file_path,log_queue):
     p.start()
     return p
 
-def step_listener(step):
-    # print(step)
-    pass
 
 # --------------------------------------------
 def main():
@@ -441,7 +477,7 @@ def main():
     log_listener.start()
     # ----------------- start pypeit on start button ----------
 
-
+    # only shows logs when run_pypeit button is pressed
     main_window.setup_widget.run_all_button.clicked.connect(
             lambda: start_pypeit_process(
                 main_window.setup_file_path,
