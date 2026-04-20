@@ -1,6 +1,7 @@
 import sys
 import io
 import re
+import pandas as pd
 import subprocess
 from pathlib import Path
 from qtpy import QtWidgets
@@ -11,9 +12,25 @@ from contextlib import redirect_stdout
 
 from PyQt6.QtCore import pyqtSignal
 import qtpy
-from qtpy.QtCore import QTimer, QSize, Qt, QMargins, QObject
+from qtpy.QtCore import QTimer, QSize, Qt, QMargins, QObject 
 from qtpy.QtGui import QIcon, QColor, QColorConstants, QPainter
-from qtpy.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QGridLayout, QLabel, QProgressBar,QTabWidget, QListWidget, QAbstractItemView, QFileDialog, QTextEdit
+from qtpy.QtWidgets import (
+        QApplication,
+        QWidget, 
+        QHBoxLayout, 
+        QVBoxLayout, 
+        QPushButton,
+        QGridLayout,
+        QLabel,
+        QProgressBar,
+        QTabWidget,
+        QListWidget,
+        QAbstractItemView,
+        QFileDialog,
+        QTextEdit,
+        QTableWidget,
+        QTableWidgetItem
+        )
 
 # from pypeit.setup_gui.controller import start_gui
 # from pypeit.scripts import setup
@@ -38,7 +55,7 @@ class FilledBackgroundWidget(QWidget):
         if self.color is not None:
             painter = QPainter(self)
             painter.fillRect(event.rect(), QColor(self.color))
-    
+
 
 class ButtonWidget(FilledBackgroundWidget):
     """this widget is the top left corner"""
@@ -70,7 +87,7 @@ class ButtonWidget(FilledBackgroundWidget):
             widget.setIcon(QIcon.fromTheme(icon))
             widget.setIconSize(QSize(32,32))
             layout.addWidget(widget)
-            
+
 
         self.setLayout(layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -99,7 +116,7 @@ class StatusWidget(FilledBackgroundWidget):
         #l = QLabel(text="Status")
         #l.setStyleSheet("font: normal 36pt")
         #layout.addWidget(l, 0, 0, 1, 3,alignment=Qt.AlignmentFlag.AlignLeft)
-        
+
 
         #---------------------- setup file group -------------------
         setup_file_label = QLabel(text="Setup File")
@@ -109,7 +126,7 @@ class StatusWidget(FilledBackgroundWidget):
         self.setup_file.setContentsMargins(value_cm)
         self.setup_file.setStyleSheet(value_style_sheet)
         layout.addWidget(self.setup_file,0,1,1,1)
-        
+
         # --------------------- Calibration id group --------------
         calibration_id_label = QLabel(text="Calibration ID")
         layout.addWidget(calibration_id_label,1,0,1,1)
@@ -118,7 +135,7 @@ class StatusWidget(FilledBackgroundWidget):
         self.calibration_id.setContentsMargins(value_cm)
         self.calibration_id.setStyleSheet(value_style_sheet)
         layout.addWidget(self.calibration_id,1,1,1,1)#,alignment=Qt.AlignmentFlag.AlignLeft)
-        
+
         # --------------------- Detector group ---------------------
         detector_label = QLabel(text="Detector")
         layout.addWidget(detector_label,2,0,1,1)
@@ -127,7 +144,7 @@ class StatusWidget(FilledBackgroundWidget):
         self.detector.setContentsMargins(value_cm)
         self.detector.setStyleSheet(value_style_sheet)
         layout.addWidget(self.detector,2,1,1,1)
-        
+
         # ------------------- Science file group ------------------
         science_file_label = QLabel(text="Science File")
         layout.addWidget(science_file_label,0,2,1,1)
@@ -155,12 +172,12 @@ class StatusWidget(FilledBackgroundWidget):
         self.calibration_step.setStyleSheet(value_style_sheet)
         layout.addWidget(self.calibration_step,2,3,1,1)
 
-        # ------------------ progress bar ---------------------
-        progress_bar = QProgressBar()
-        progress_bar.setMaximum(100)
-        progress_bar.setValue(33)
-        progress_bar.setTextVisible(True)
-        layout.addWidget(progress_bar,3,0,1,4)
+        # # ------------------ progress bar ---------------------
+        # progress_bar = QProgressBar()
+        # progress_bar.setMaximum(100)
+        # progress_bar.setValue(33)
+        # progress_bar.setTextVisible(True)
+        # layout.addWidget(progress_bar,3,0,1,4)
 
         #layout.addWidget(SpacerWidget(rows=5,cols=40),3,4,3,4)
         layout.setVerticalSpacing(self.fontMetrics().lineSpacing())
@@ -169,7 +186,7 @@ class StatusWidget(FilledBackgroundWidget):
         cm = self.layout().contentsMargins()
         cm.setTop(0)
         #self.layout().setContentsMargins(cm)
-        
+
     def update_setup_file(self,setup_file_path):
         # sets the setup_file_label to have the setup file path next to it that is updated
         self.setup_file.setText(str(setup_file_path))
@@ -183,11 +200,9 @@ class StatusWidget(FilledBackgroundWidget):
         self.meta_step.setText(step)
     def update_calibration_step(self,step):
         self.calibration_step.setText(step)
-    def update_progress_bar(self,update):
-        pass # I don't really know how much I will need this but we shall see
 
 
-        
+
 
 # special QlistWidget for easy adding of items
 class logs_view_widget(QTextEdit):
@@ -199,6 +214,28 @@ class logs_view_widget(QTextEdit):
     def update_logs(self,message):
         self.append(message)
 
+class calibration_table_widget(QTableWidget):
+    def __init__(self, df):
+        super().__init__()
+        self.df = None
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setDataFrame(df)
+
+    def setDataFrame(self, df):
+        """Replace the entire DataFrame and refresh the table."""
+        self.df = df
+
+        self.clear()  # clears items + headers
+
+        self.setRowCount(df.shape[0])
+        self.setColumnCount(df.shape[1])
+
+        self.setHorizontalHeaderLabels(df.columns.astype(str))
+        self.setVerticalHeaderLabels(df.index.astype(str))
+
+        for i in range(df.shape[0]):
+            for j in range(df.shape[1]):
+                self.setItem(i, j, QTableWidgetItem(str(df.iat[i, j])))
 
 class DashboardWidget(FilledBackgroundWidget):
     """this widget is the bottom widget"""
@@ -209,7 +246,7 @@ class DashboardWidget(FilledBackgroundWidget):
 
         # ------------- definitions --------------
         self.status_widget = StatusWidget()
-        self.calibration_widget = QTextEdit() # should eventually change this to a table
+        self.calibration_widget = calibration_table_widget(pd.DataFrame())
         self.qa_widget = QListWidget()
         self.science_widget = QListWidget()
         self.logs_widget = logs_view_widget()
@@ -270,7 +307,7 @@ def parse_pypeit_setup_file(file_path):
 
 
 class MainWindow(QWidget):
-    
+
     def __init__(self):
         super().__init__()
 
@@ -297,21 +334,19 @@ class MainWindow(QWidget):
 
     def check_status(self):
         # need to have a seperate thing for when pypeit is running or not
-        if self.setup_file_path != None:
-            f = io.StringIO()
-            with redirect_stdout(f):
-                check_pypeit_status(self.setup_file_path)
-            captured_output = f.getvalue()
-            self.dashboard_widget.calibration_widget.append(captured_output)
+        check = check_pypeit_status(self.setup_file_path) # returns a pandas dataframe
+        self.dashboard_widget.calibration_widget.setDataFrame(check) # updates the calibration_table_widget
 
- 
+        # next need to update the main display
+
+
     def import_setup_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select a PypeIt setup file",
-            "",
-            "PypeIt (*.pypeit)" 
-        )
+                self,
+                "Select a PypeIt setup file",
+                "",
+                "PypeIt (*.pypeit)" 
+                )
 
         if file_path: 
             # maybe add a fuction to this class that just updates everything by calling other functions for the class
@@ -332,6 +367,7 @@ class MainWindow(QWidget):
     def update_qa_tab(self,directory_path):
         items = [str(item) for item in directory_path.iterdir()]
         self.dashboard_widget.qa_widget.addItems(items)
+
     def update_science_tab(self,directory_path):
         items = [str(item) for item in directory_path.iterdir()]
         self.dashboard_widget.science_widget.addItems(items)
@@ -350,7 +386,7 @@ class QtLogHandler(QObject, logging.Handler):
 
     def emit(self, record):
         msg = self.format(record)
-        
+
         if record.levelname == "STEP":
             self.step_signal.emit(msg)
         else:
@@ -367,7 +403,7 @@ def step_listener(step):
 
 # --------------------------------------------
 def main():
-        # Note QT expects the program name as arg 0
+    # Note QT expects the program name as arg 0
     import signal
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
@@ -379,7 +415,7 @@ def main():
         num = 1
     else:
         app.setWindowIcon(QIcon(str(iconPath)))
-    
+
 
     defaultFont = app.font()
     if defaultFont.pointSizeF() < 18.0:
@@ -397,21 +433,21 @@ def main():
     qt_handler = QtLogHandler()
     qt_handler.setFormatter(logging.Formatter(
         " %(levelname)s | %(message)s"
-    ))
+        ))
 
     qt_handler.log_signal.connect(main_window.update_logs)
 
     log_listener = QueueListener(log_queue, qt_handler)
     log_listener.start()
-    # ----------------- STEP TRACKER ----------
+    # ----------------- start pypeit on start button ----------
 
 
     main_window.setup_widget.run_all_button.clicked.connect(
             lambda: start_pypeit_process(
                 main_window.setup_file_path,
                 log_queue
+                )
             )
-        )
     # --------------------- this is for the SetupGUIController ----------------         
 
     # QT runs it's event loop in C, so the python signal handling mechanism
@@ -420,7 +456,7 @@ def main():
     # calls the PypeIt CTRL+C handler, we set a timer to run every 500ms in the
     # python interpreter, which will allow the python signal handling
     # code to it.
-        
+
     # This trck was brought to you by this stack exchange thread:
     # https://stackoverflow.com/questions/4938723/what-is-the-correct-way-to-make-my-pyqt-application-quit-when-killed-from-the-co
     timer = QTimer()
