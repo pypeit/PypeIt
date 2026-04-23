@@ -26,6 +26,7 @@ from pypeit import slittrace
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit.calibframe import CalibFrame
+from pypeit.core import jwst_flatfield
 from pypeit.images import buildimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
@@ -2168,6 +2169,9 @@ class NIRSpecSlitCalibrations(Calibrations):
         Build a flat-field image for a single detector index, including
         pathloss and barshadow corrections.
 
+        This is the **original** method that reads the pre-computed
+        ``_interpolatedflat.fits`` product from ``calwebb_spec2``.
+
         Args:
             idx (:obj:`int`):
                 Index into ``slit_index_flat`` / ``slit_index_cal``.
@@ -2202,6 +2206,138 @@ class NIRSpecSlitCalibrations(Calibrations):
 
         tot_flat = np.ones_like(flat)
         tot_flat[mask] = exptime * flat[mask] * pathloss[mask] * barshadow[mask]
+        tot_flat[np.isnan(tot_flat)] = 1.0
+
+        return tot_flat
+
+    def _build_single_flat_from_crds(self, idx):
+        """
+        Build a flat-field image for a single detector index by computing
+        the interpolated flat directly from CRDS reference files, reproducing
+        the ``calwebb_spec2`` ``flat_field`` step.
+
+        This is the **new** method that uses
+        :func:`~pypeit.core.jwst_flatfield.create_interpolated_flat` instead
+        of reading the pre-computed ``_interpolatedflat.fits`` file.
+
+        Pathloss and barshadow corrections are still read from the ``_cal.fits``
+        datamodel (since those are separate pipeline steps).
+
+        Args:
+            idx (:obj:`int`):
+                Index into ``slit_index_flat`` / ``slit_index_cal``.
+
+        Returns:
+            `numpy.ndarray`_: The total flat-field correction for one detector.
+        """
+        cal_data_slit = self.jwst_cal_data[idx].slits[self.slit_index_cal[idx]]
+
+        # --- Get the wavelength image for this slit (in microns) ---
+        # Use the wavelength from the _cal data (post-wavecorr), which is the
+        # same array that calwebb_spec2 uses for the flat-field step.
+        waveimg_microns = np.array(cal_data_slit.wavelength, dtype=float)
+        if waveimg_microns.shape == (0, 0):
+            # Fall back to the flat data wavelength
+            log.warning('No wavelength in _cal data; falling back to '
+                        '_interpolatedflat wavelength.')
+            waveimg_microns = np.array(
+                self.jwst_flat_data[idx].slits[
+                    self.slit_index_flat[idx]].wavelength, dtype=float)
+
+        # --- Get slit geometry ---
+        slit_xstart = int(cal_data_slit.xstart)
+        slit_xsize = int(cal_data_slit.xsize)
+        slit_ystart = int(cal_data_slit.ystart)
+        slit_ysize = int(cal_data_slit.ysize)
+
+        # --- Get exposure type ---
+        exposure_type = str(cal_data_slit.meta.exposure.type).upper()
+
+        # --- CRDS reference file paths ---
+        # These must be set on the instance before calling get_flats().
+        # Example:  calib.crds_fflat = '/path/to/fflat.fits'
+        self.crds_fflat='/Users/dpelliccia/Desktop/jwst/dev/NIRSPEC_MSA_PID1287/crds/references/jwst/nirspec/jwst_nirspec_fflat_0163.fits'
+        self.crds_sflat='/Users/dpelliccia/Desktop/jwst/dev/NIRSPEC_MSA_PID1287/crds/references/jwst/nirspec/jwst_nirspec_sflat_0222.fits'
+        self.crds_dflat='/Users/dpelliccia/Desktop/jwst/dev/NIRSPEC_MSA_PID1287/crds/references/jwst/nirspec/jwst_nirspec_dflat_0001.fits'
+        fflat_file = getattr(self, 'crds_fflat', None)
+        sflat_file = getattr(self, 'crds_sflat', None)
+        dflat_file = getattr(self, 'crds_dflat', None)
+
+        if fflat_file is None and sflat_file is None and dflat_file is None:
+            log.warning('No CRDS flat reference files set (crds_fflat, '
+                        'crds_sflat, crds_dflat).  Flat will be unity.')
+
+        # --- MSA-specific info ---
+        slit_name = str(cal_data_slit.name)
+        # For MSA data the quadrant/shutter info is needed for the fflat
+        quadrant = getattr(cal_data_slit, 'quadrant', None)
+        if quadrant is not None:
+            quadrant = int(quadrant) - 1  # convert to 0-indexed
+        msa_x = getattr(cal_data_slit, 'xcen', None)
+        msa_y = getattr(cal_data_slit, 'ycen', None)
+
+        # --- Dispersion direction ---
+        try:
+            dispaxis = int(cal_data_slit.meta.wcsinfo.dispersion_direction)
+        except (AttributeError, TypeError):
+            dispaxis = 1  # default horizontal
+
+        log.info(f'Computing CRDS flat for slit {slit_name} '
+                 f'(xstart={slit_xstart}, ystart={slit_ystart}, '
+                 f'xsize={slit_xsize}, ysize={slit_ysize})')
+
+        # --- Call the standalone flat-field computation ---
+        flat_2d, flat_dq, flat_err, _ = jwst_flatfield.create_interpolated_flat(
+            waveimg=waveimg_microns,
+            slit_xstart=slit_xstart,
+            slit_xsize=slit_xsize,
+            slit_ystart=slit_ystart,
+            slit_ysize=slit_ysize,
+            fflat_file=fflat_file,
+            sflat_file=sflat_file,
+            dflat_file=dflat_file,
+            exposure_type=exposure_type,
+            slit_name=slit_name,
+            quadrant=quadrant,
+            msa_x=msa_x,
+            msa_y=msa_y,
+            dispaxis=dispaxis,
+        )
+
+        # Transpose to PypeIt convention (spec, spat) = (ny, nx) after .T
+        flat_2d = flat_2d.T
+
+        # --- Apply pathloss and barshadow from the _cal data ---
+        # (These are separate pipeline steps, not part of the flat-field
+        # computation, but PypeIt folds them into the total flat.)
+        exptime = cal_data_slit.meta.exposure.effective_exposure_time
+        conversion = cal_data_slit.meta.photometry.conversion_megajanskys
+
+        # Normalize flat by the photometric conversion factor
+        mask = flat_2d != 1.0
+        flat_normalized = np.ones_like(flat_2d)
+        flat_normalized[mask] = flat_2d[mask] / conversion
+
+        # Pathloss correction
+        if cal_data_slit.source_type == 'EXTENDED':
+            pathloss = cal_data_slit.pathloss_uniform.T
+        else:
+            pathloss = cal_data_slit.pathloss_point.T
+        if pathloss.shape == (0, 0):
+            log.warning(f'No pathloss for slit '
+                        f'{self.user_slits["slit_info"]}, setting to 1.0')
+            pathloss = np.ones_like(flat_normalized)
+
+        # Barshadow correction
+        barshadow = cal_data_slit.barshadow.T
+        if barshadow.shape == (0, 0):
+            log.warning(f'No barshadow for slit '
+                        f'{self.user_slits["slit_info"]}, setting to 1.0')
+            barshadow = np.ones_like(flat_normalized)
+
+        tot_flat = np.ones_like(flat_normalized)
+        tot_flat[mask] = (exptime * flat_normalized[mask]
+                          * pathloss[mask] * barshadow[mask])
         tot_flat[np.isnan(tot_flat)] = 1.0
 
         return tot_flat

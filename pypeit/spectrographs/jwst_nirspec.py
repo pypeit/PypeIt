@@ -641,8 +641,26 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         #TODO: THIS VALUES DO NOT SEEM ACCURATE. FIX IT
         indx = np.where(slit_names == slit_name)[0][0]
         this_slit = cal_data.slits[indx]
-        spec_lo = this_slit.xstart - 1
-        spec_hi = spec_lo + this_slit.xsize
-        spat_lo = this_slit.ystart - 1
-        spat_hi = spat_lo + this_slit.ysize
-        return slice(spat_lo, spat_hi), slice(spec_lo, spec_hi)
+
+        # --- Get slit geometry ---
+        slit_xstart = int(this_slit.xstart)
+        slit_xsize = int(this_slit.xsize)
+        slit_ystart = int(this_slit.ystart)
+        slit_ysize = int(this_slit.ysize)
+
+        # Convert slit position to 0-indexed full-frame coordinates
+        # xstart = slit_xstart - 1 + subarray_xstart - 1
+        # ystart = slit_ystart - 1 + subarray_ystart - 1
+        xstart = slit_xstart - 1
+        ystart = slit_ystart - 1
+        xstop = xstart + slit_xsize
+        ystop = ystart + slit_ysize
+
+
+        # spec_lo = this_slit.xstart - 1
+        # spec_hi = spec_lo + this_slit.xsize
+        # spat_lo = this_slit.ystart - 1
+        # spat_hi = spat_lo + this_slit.ysize
+
+        # spat_start, spat_end, spec_start, spec_end = ystart, ystop, xstart, xstop
+        return ystart, ystop, xstart, xstop

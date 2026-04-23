@@ -1800,9 +1800,10 @@ class NIRSpecRawImage(RawImage):
         bpm = None
         # update datasec_img to use the slit_slices
         for i in range(len(self.datasec_img)):
-            _slice = slit_slices[i] if i < len(slit_slices) else slit_slices[0]
+            # spat_start, spat_end, spec_start, spec_end
+            ystart, ystop, xstart, xstop = slit_slices[i] if i < len(slit_slices) else slit_slices[0]
             self.datasec_img[i] = np.zeros_like(self.datasec_img[i], dtype=int)
-            self.datasec_img[i][_slice] = self.detector[i].det
+            self.datasec_img[i][ystart:ystop, xstart:xstop] = self.detector[i].det
 
         return super().process(par, bpm=bpm, scattlight=scattlight, flatimages=flatimages, bias=bias, slits=slits, dark=dark,
                                mosaic=mosaic, slit_slices=slit_slices, kludge_err=kludge_err, debug=debug)
