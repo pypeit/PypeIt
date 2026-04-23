@@ -2199,7 +2199,7 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
 
     return wave_grid_mid, wave_stack, flux_stack, ivar_stack, gpm_stack
 
-def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
+def multi_combspec(waves, fluxes, ivars, gpms, sn_smooth_npix=None,
                    wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
                    wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
@@ -2213,17 +2213,17 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     Parameters
     ----------
     waves : list
-        List of `numpy.ndarray`_ wavelength arrays with shape (nspec_i,) with
+        List of `numpy.ndarray`_ arrays with shape (nspec_i,) with
         the wavelength arrays of the spectra to be coadded.
     fluxes : list
-        List of `numpy.ndarray`_ wavelength arrays with shape (nspec_i,) with
+        List of `numpy.ndarray`_ arrays with shape (nspec_i,) with
         the flux arrays of the spectra to be coadded.
     ivars : list
-        List of `numpy.ndarray`_ wavelength arrays with shape (nspec_i,) with
+        List of `numpy.ndarray`_ arrays with shape (nspec_i,) with
         the ivar arrays of the spectra to be coadded.
-    masks : list
-        List of `numpy.ndarray`_ wavelength arrays with shape (nspec_i,) with
-        the mask arrays of the spectra to be coadded.
+    gpms : list
+        List of `numpy.ndarray`_ arrays with shape (nspec_i,) with
+        the GPM arrays of the spectra to be coadded (True=good).
     sn_smooth_npix : int, optional
         Number of pixels to median filter by when computing S/N used to decide
         how to scale and weight spectra. If set to None, the code will determine
@@ -2319,7 +2319,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         core.wavecal.wvutils.py for more.
     wave_stack : `numpy.ndarray`_, (ngrid,)
         Wavelength grid for stacked spectrum. As discussed above, this is the
-        weighted average of the wavelengths of each spectrum that contriuted to
+        weighted average of the wavelengths of each spectrum that contributed to
         a bin in the input wave_grid wavelength grid. It thus has ngrid
         elements, whereas wave_grid has ngrid+1 elements to specify the ngrid
         total number of bins. Note that wave_stack is NOT simply the wave_grid
@@ -2341,7 +2341,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         log.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
     wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
-        waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
+        waves, fluxes,ivars, gpms, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
         spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
