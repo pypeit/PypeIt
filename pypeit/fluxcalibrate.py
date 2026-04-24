@@ -4,12 +4,11 @@ import os
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import specobjs
 from pypeit import sensfunc
 from pypeit.history import History
-from astropy import table
 from IPython import embed
 
 

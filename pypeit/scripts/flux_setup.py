@@ -14,12 +14,12 @@ import numpy as np
 from astropy.table import Table
 from astropy.time import Time
 
-
-from pypeit import msgs
+from pypeit import log
 from pypeit import io
 from pypeit.scripts import scriptbase
 from pypeit import inputfiles
 from pypeit.spectrographs.util import load_spectrograph
+from IPython import embed
 
 
 def parse_date_from_filename(path):
@@ -28,7 +28,7 @@ def parse_date_from_filename(path):
     try:
         result = datetime.fromisoformat(datetime_str)
     except Exception as e:
-        msgs.warn(f"Failed to parse date from {path.name}")
+        log.warning(f"Failed to parse date from {path.name}")
         raise
     return result
 
@@ -52,7 +52,7 @@ def read_metadata(spectrograph, pypeit_file_names, spec1dfiles):
         found = False
         for i, pf in enumerate(pypeit_files):
             for row in pf.data:
-                if Path(row['filename']).stem in spec1dfile.name:
+                if Path(row['filename']).name.split('.fits')[0] in spec1dfile.name:
                     spec1d_config = read_config_from_pypeit_fits(spectrograph, spec1dfile)
                     data.append([str(spec1dfile.parent),spec1dfile.name,str(row['frametype']),str(row['mjd']), chr(ord('A') + i)] + [spec1d_config[key] for key in spectrograph.configuration_keys()])
                     found = True
@@ -103,7 +103,7 @@ def match_spec1ds_to_sensfuncs(args, spectrograph, metadata, sensfiles):
                 matching_sensfiles.append(sensfiles[j])
                 
         if len(matching_sensfiles) == 0:
-            msgs.warn(f"{metadata_row['filename']} does not have any matching sensitivity functions.")
+            log.warning(f"{metadata_row['filename']} does not have any matching sensitivity functions.")
         elif len(matching_sensfiles) == 1:
             spec1d_to_sensfile[metadata_row['filename']] = matching_sensfiles[0]
         else:
@@ -120,7 +120,7 @@ def match_spec1ds_to_sensfuncs(args, spectrograph, metadata, sensfiles):
                 spec1d_to_sensfile[metadata_row['filename']] = min(time_differences, key=lambda x: x[1])[0]
 
             except Exception as e:
-                msgs.warn(f"Could not compare sensfunc files by date. Using first found sensfile for {metadata_row['filename']}")
+                log.warning(f"Could not compare sensfunc files by date. Using first found sensfile for {metadata_row['filename']}")
                 spec1d_to_sensfile[metadata_row['filename']] = matching_sensfiles[0]
             
     return spec1d_to_sensfile
@@ -150,8 +150,8 @@ class FluxSetup(scriptbase.ScriptBase):
                                  '\n')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         """
         This setups PypeIt input files for fluxing, coadding, and telluric
         corrections.  It will produce three files named as
@@ -159,6 +159,8 @@ class FluxSetup(scriptbase.ScriptBase):
         spectrograph name but can be overriden on the command line.
 
         """
+        # Initialize the log
+        cls.init_log(args)
         allpaths = []
         for path in args.paths:
             allpaths.append(Path(path))
@@ -186,13 +188,14 @@ class FluxSetup(scriptbase.ScriptBase):
                 elif ifile.suffix == ".pypeit":
                     pypeit_file_names.append(ifile)
                 else:
-                    msgs.info('{:} is not a standard PypeIt output, skipping.'.format(ifile))
+                    # log.info('{:} is not a standard PypeIt output, skipping.'.format(ifile))
+                    continue
 
         if len(spec2dfiles) > len(spec1dfiles):
-            msgs.warn('The following exposures do not have 1D extractions:')
+            log.warning('The following exposures do not have 1D extractions:')
             for ii in range(len(spec2dfiles)):
-                if (spec2dfiles[ii].parent / spec2dfiles[ii].name.replace("spec2d", "spec1d")).exists():
-                    msgs.info('\t {:}'.format(spec2dfiles[ii]))
+                if not (spec2dfiles[ii].parent / spec2dfiles[ii].name.replace("spec2d", "spec1d")).exists():
+                    log.info('\t {:}'.format(spec2dfiles[ii]))
 
         if len(spec1dfiles) > 0:
             with io.fits_open(str(spec1dfiles[0])) as hdul:
@@ -246,8 +249,9 @@ class FluxSetup(scriptbase.ScriptBase):
 
 
             all_specfiles, all_obj, all_setup_ids = [], [], []
+            metadata_table.sort('filename')
             for metadata_row in metadata_table:
-                if metadata_row['frametype'] == 'standard':
+                if 'standard' in metadata_row['frametype']:
                     # Skip coadding standard frames
                     continue
                 txtinfofile = Path(metadata_row['dirname'], Path(metadata_row['filename']).stem + ".txt")

@@ -87,19 +87,20 @@ Therefore, the integrated counts for a boxcar extraction are given by the
 pypeit_show_1dspec
 ==================
 
-The spectra may be viewed with the `pypeit_show_1dspec`_ script,
-which loads the data and launches a GUI from the `linetools`_ package.
+The spectra may be viewed with the `pypeit_show_1dspec`_ script.  This script
+can be used to view both 1D extractions from a basic run of the reductions or 1D
+coadds.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_1dspec.rst
 
-Here is a typical call::
+Here is a typical call:
+
+.. code-block:: console
 
     pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits --exten 1
-
-This should launch an `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`__.
 
 .. warning::
 
@@ -111,54 +112,77 @@ This should launch an `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspe
     file is typically written to the ``VERSPYP`` header keyword) or re-reduce
     the data with the new PypeIt version.
 
-Options
--------
+.. _pypeit_show_1dspec_interact:
 
-Here are the typical options you will use:
+Interacting with the display
+----------------------------
 
---list
-++++++
+The spec1d mode is a mode enabled by ginga to interact with the spectrum plot.
+**To get a listing of the key-bindings in the ginga window, type 'h'.**  If that
+doesn't work, or if the key bindings themselves don't seem to work, you may have
+exited the mode.  To restart the mode, hit the space-bar and then the 1 key.  If
+you're still having trouble, please submit an issue via GitHub or post a
+question to the Users Slack.
 
-This prints a list to the screen of all the objects extracted.  An example:
+The key-bindings below are copied from the relevant docstring; if anything is
+different from the dialog you get when pressing 'h' in ginga, you should defer
+to what is shown there.  The key-bindigs are as follows:
 
-.. code-block:: console
+Enter the mode
+++++++++++++++
+* Space, then "1"
 
-    EXT0000001 = SPAT0351-SLIT0000-DET01
-    EXT0000002 = SPAT0392-SLIT0001-DET01
-    EXT0000003 = SPAT0463-SLIT0003-DET01
-    EXT0000004 = SPAT0556-SLIT0004-DET01
-    EXT0000005 = SPAT0621-SLIT0005-DET01
-    EXT0000006 = SPAT0731-SLIT0006-DET01
-    EXT0000007 = SPAT0824-SLIT0007-DET01
-    EXT0000008 = SPAT0865-SLIT0007-DET01
-    EXT0000009 = SPAT0910-SLIT0008-DET01
-    EXT0000010 = SPAT0962-SLIT0009-DET01
-    EXT0000011 = SPAT0073-SLIT0000-DET02
-    EXT0000012 = SPAT0093-SLIT0000-DET02
-    EXT0000013 = SPAT0130-SLIT0001-DET02
+Exit the mode
++++++++++++++
+* Esc
 
-This indicates the extension of the object with this :ref:`spec1d-naming`.
+Mouse/trackpad bindings in mode
++++++++++++++++++++++++++++++++
+* Shift + left click : set pan position
+* middle click : set pan position
+* scroll : zoom in/out
+* ctrl + scroll : zoom in/out X axis only
+* shift + scroll : zoom in/out Y axis only (On MacOS, trackpad only)
+* alt + scroll(mouse) : zoom in/out Y axis only (Option key on Macs)
+* alt + scroll : zoom in/out at cursor
 
---exten
+Zooming
 +++++++
+* equals : zoom in one zoom level
+* ctrl + equals : zoom in X axis one zoom level
+* plus (shift + equals) : zoom in Y axis one zoom level
+* minus : zoom out one zoom level
+* ctrl + minus : zoom out X axis one zoom level
+* underscore (shift + minus): zoom out Y axis one zoom level
+* 9 : zoom out maintaining cursor position
+* ctrl + 9 : zoom out X axis maintaining cursor position
+* left paren (shift + 9): zoom out Y axis maintaining cursor position
+* 0 : zoom in maintaining cursor position
+* ctrl + 0 : zoom in X axis maintaining cursor position
+* right paren (shift + 0): zoom in Y axis maintaining cursor position
+* backquote : zoom X and Y axes to fit window
+* 1 : zoom X axis only to fit window
+* 2 : zoom Y axis only to fit window
+* k : set lower X range to X value at cursor
+* l : set upper X range to X value at cursor
+* K : set lower Y range to Y value at cursor
+* L : set upper Y range to Y value at cursor
 
-This is a short-cut of sorts to pull the object you want without
-typing in its name.
+Panning
++++++++
+* left arrow : pan left
+* right arrow : pan right
+* up arrow : pan up
+* down arrow : pan down
 
---obj
-+++++
-
-Plot this object.
-
---extract
-+++++++++
-
-Choice of :ref:`spec1d-extraction` method.
-
---flux
-++++++
-
-Show the fluxed spectrum (only if it has been fluxed!)
+Regions
++++++++
+* [ : mark lower X boundary of region
+* ] : mark upper X boundary of region
+* backslash : clear region
+* singlequote : (zoom) set X range to region
+* f : fit a Gaussian to the region and show result
+* c : clear fit result
 
 ----
 
@@ -204,7 +228,7 @@ specutils Interface
 ===================
 
 We provide an interface to the `specutils`_ package to facilitate use of PypeIt
-output spectra with code that uses, e.g., `specutils.Spectrum1D`_.  Use of this
+output spectra with code that uses, e.g., `specutils.Spectrum`_.  Use of this
 interface requires you to install the `specutils`_ package.  This can be done
 using PypeIt's :ref:`optional-dependencies`, or simply by directly installing
 `specutils`_ within the same python environment as you've installed PypeIt.

@@ -9,15 +9,8 @@ import pytest
 
 from pypeit.par import pypeitpar
 from pypeit.par import parset
-from pypeit.par import util
 from pypeit.spectrographs.util import load_spectrograph
 
-
-def test_eval_tuple():
-    t = ['(1', '2', '3)']
-    assert util.eval_tuple(t) == [(1,2,3)], 'Bad tuple evaluation'
-    t = ['(1', '2)', '(3', '4)']
-    assert util.eval_tuple(t) == [(1,2),(3,4)], 'Bad tuple evaluation'
 
 
 def test_framegroup():

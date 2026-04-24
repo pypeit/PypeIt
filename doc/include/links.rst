@@ -106,12 +106,6 @@
 .. _pydl.goddard.astro.airtovac: http://pydl.readthedocs.io/en/stable/api/pydl.goddard.astro.airtovac.html#pydl.goddard.astro.airtovac
 .. _pydl.pydlutils.yanny: http://pydl.readthedocs.io/en/stable/api/pydl.pydlutils.yanny.yanny.html
 
-.. linetools
-.. _linetools: https://linetools.readthedocs.io/en/latest/
-.. _linetools.spectra.xspectrum1d.XSpectrum1D: https://linetools.readthedocs.io/en/latest/xspectrum1d.html
-.. _XSpecGUI: https://linetools.readthedocs.io/en/latest/xspecgui.html
-.. _XSpecGUI keystrokes: https://linetools.readthedocs.io/en/latest/xspecgui.html#navigating-these-key-strokes-help-you-explore-the-spectrum-be-sure-to-click-in-the-spectrum-panel-first
-
 .. sphinx
 .. _Sphinx: https://www.sphinx-doc.org/en/master/index.html
 .. _reStructuredText: http://docutils.sourceforge.net/rst.html
@@ -136,11 +130,12 @@
 .. _scikit-image: https://scikit-image.org/
 .. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
 .. _specutils: https://specutils.readthedocs.io/en/stable/
-.. _specutils.Spectrum1D: https://specutils.readthedocs.io/en/stable/api/specutils.Spectrum1D.html
+.. _specutils.Spectrum: https://specutils.readthedocs.io/en/stable/api/specutils.Spectrum.html
 .. _specutils.SpectrumList: https://specutils.readthedocs.io/en/stable/api/specutils.SpectrumList.html
 .. _jdaviz: https://jdaviz.readthedocs.io/en/latest/
 .. _jupyter notebook: https://jupyter.org/
 .. _ppxf: https://pypi.org/project/ppxf/
+.. _ds9: https://sites.google.com/cfa.harvard.edu/saoimageds9
 
 .. ginga
 .. _ginga: https://ginga.readthedocs.io/en/stable/
@@ -155,6 +150,8 @@
 .. _Submit an issue: https://github.com/pypeit/PypeIt/issues
 .. _PypeIt dev-suite Google Drive: https://drive.google.com/drive/folders/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW?usp=sharing
 .. _pypeit.data.filters: https://github.com/pypeit/PypeIt/tree/release/pypeit/data/filters
+.. the invite link below needs to be changed here and in README.rst
+.. _invite: https://join.slack.com/t/pypeit-users/shared_invite/zt-36uxx7isk-pY19si5JzFW4wA7gOaYBBA
 
 .. emails
 .. _Joe Hennawi: joe@physics.ucsb.edu

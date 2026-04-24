@@ -1,6 +1,8 @@
 
 .. include:: ../include/links.rst
 
+.. _bias:
+
 ====
 Bias
 ====

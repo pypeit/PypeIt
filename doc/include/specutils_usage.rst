@@ -22,13 +22,13 @@ Usage
 
   .. code-block:: python
 
-    from pypeit.specutils import Spectrum1D
-    spec = Spectrum1D.read(onespec_file)
+    from pypeit.specutils import Spectrum
+    spec = Spectrum.read(onespec_file)
 
   where ``onespec_file`` is the relative or absolute path to a PypeIt
   :class:`pypeit.onespec.OneSpec` file.  For these files, you can use either
-  ``Spectrum1D`` or ``SpectrumList`` to read the file, but (by definition) the
-  result of using ``SpectrumList`` will just be a list of one ``Spectrum1D``
+  ``Spectrum`` or ``SpectrumList`` to read the file, but (by definition) the
+  result of using ``SpectrumList`` will just be a list of one ``Spectrum``
   object.  The :class:`pypeit.onespec.OneSpec` loader provides a PypeIt-specific
   option that enables you to select the uniform grid wavelength vector, instead
   of the contribution-weighted wavelengths; see
@@ -36,7 +36,7 @@ Usage
 
 .. note::
 
-    Importing ``Spectrum1D`` and ``SpectrumList`` are shown as coming from the
+    Importing ``Spectrum`` and ``SpectrumList`` are shown as coming from the
     ``pypeit.specutils`` module, but the objects themselves are identical to the
     `specutils`_ objects.  The reason they are imported from within PypeIt is
     that, under the hood, the import also "registers" the PypeIt-specific
@@ -48,13 +48,13 @@ Usage
 
     .. code-block:: python
 
-        from pypeit.specutils import Spectrum1D
+        from pypeit.specutils import Spectrum
 
     is really just shorthand for
 
     .. code-block:: python
 
-        from specutils import Spectrum1D
+        from specutils import Spectrum
         from pypeit.specutils import pypeit_loaders
 
 

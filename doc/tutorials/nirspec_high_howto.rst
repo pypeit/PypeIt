@@ -16,9 +16,9 @@ reduction of the sample J Band dataset and include recommendations for reducing
 other sample datasets (Y, H, and K bands).
 
 See :ref:`here <dev-suite>` to find the example dataset, please join our `PypeIt
-Users Slack <pypeit-users.slack.com>`__ (using `this invitation link
-<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
-to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
+Users Slack <https://pypeit-users.slack.com>`__ using `this invitation link
+<invite_>`_ to ask for help, and/or `Submit an issue`_ to Github if you find a
+bug!
 
 ----------------------
 

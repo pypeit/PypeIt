@@ -8,7 +8,8 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.par import pypeitpar
 from pypeit.images import rawimage
 from pypeit.images import combineimage
@@ -241,12 +242,12 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     """
     # Check
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
-        msgs.error('Provided ParSet must be type FrameGroupPar, not '
+        raise PypeItError('Provided ParSet must be type FrameGroupPar, not '
                    f'{frame_par.__class__.__name__}.')
     if not valid_frametype(frame_par['frametype'], quiet=True):
         # NOTE: This should not be necessary because FrameGroupPar explicitly
         # requires frametype to be valid
-        msgs.error(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
+        raise PypeItError(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
 
     # Should the detectors be reformatted into a single image mosaic?
     if mosaic is None:

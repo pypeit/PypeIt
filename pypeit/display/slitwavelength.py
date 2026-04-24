@@ -139,7 +139,7 @@ class SlitWavelength(GingaPlugin.GlobalPlugin):
             byteswap = metadata.get('byteswap', False)
 
             # unpack the auxillary wavelength file
-            data = np.fromstring(wav_buf, dtype=wav_dtype)
+            data = np.frombuffer(wav_buf, dtype=wav_dtype)
             if byteswap:
                 data.byteswap(True)
             wav_np = data.reshape(dims)

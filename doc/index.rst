@@ -9,24 +9,6 @@ PypeIt BibTeX Entries
 
 .. code-block:: latex
 
-    @ARTICLE{pypeit:joss_arXiv,
-           author = {{Prochaska}, J. Xavier and {Hennawi}, Joseph F. and {Westfall}, Kyle B. and
-             {Cooke}, Ryan J. and {Wang}, Feige and {Hsyu}, Tiffany and
-             {Davies}, Frederick B. and {Farina}, Emanuele Paolo},
-            title = "{PypeIt: The Python Spectroscopic Data Reduction Pipeline}",
-          journal = {arXiv e-prints},
-         keywords = {Astrophysics - Instrumentation and Methods for Astrophysics},
-             year = 2020,
-            month = may,
-              eid = {arXiv:2005.06505},
-            pages = {arXiv:2005.06505},
-    archivePrefix = {arXiv},
-           eprint = {2005.06505},
-     primaryClass = {astro-ph.IM},
-           adsurl = {https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P},
-          adsnote = {Provided by the SAO/NASA Astrophysics Data System}
-    }
-
     @article{pypeit:joss_pub,
         doi = {10.21105/joss.02308},
         url = {https://doi.org/10.21105/joss.02308},
@@ -67,7 +49,7 @@ PypeIt BibTeX Entries
    codeconduct
    installing
    whatsnew
-   known_failure_modes
+   trouble
 
 .. toctree::
    :caption: Quickstart & Tutorials
@@ -90,6 +72,7 @@ PypeIt BibTeX Entries
    Execution <running>
    outputs
    QA <qa>
+   Step-by-step Processing <reduce_by_step>
 
 .. toctree::
    :caption: Processing Details
@@ -130,6 +113,15 @@ PypeIt BibTeX Entries
    frametype
    scripts
    bitmasks
+
+.. toctree::
+   :caption: Project Information
+   :maxdepth: 1
+   :hidden:
+
+   governance
+   pac_charter
+   team
 
 .. toctree::
    :caption: For Developers

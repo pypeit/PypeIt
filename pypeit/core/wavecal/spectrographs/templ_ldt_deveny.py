@@ -9,7 +9,7 @@ def ldt_deveny_150(overwrite=False):
 
     Args:
         overwrite: bool, optional
-          Overwrite the existing file? [Default: False]
+          Overwrite the existing file?
     """
 
     binspec = 1
@@ -41,7 +41,7 @@ def ldt_deveny_300(overwrite=False):
 
     Args:
         overwrite: bool, optional
-          Overwrite the existing file? [Default: False]
+          Overwrite the existing file?
     """
 
     binspec = 1
@@ -75,7 +75,7 @@ def ldt_deveny_500(overwrite=False):
 
     Args:
         overwrite: bool, optional
-          Overwrite the existing file? [Default: False]
+          Overwrite the existing file?
     """
 
     binspec = 1
@@ -109,7 +109,7 @@ def ldt_deveny_600(overwrite=False):
 
     Args:
         overwrite: bool, optional
-          Overwrite the existing file? [Default: False]
+          Overwrite the existing file?
     """
 
     binspec = 1
@@ -143,7 +143,7 @@ def ldt_deveny_1200(overwrite=False):
 
     Args:
         overwrite: bool, optional
-          Overwrite the existing file? [Default: False]
+          Overwrite the existing file?
     """
 
     binspec = 1

@@ -12,7 +12,7 @@ from pypeit.utils import to_string, string_table
 from pypeit import datamodel
 
 def link_string(p):
-    return '`{0} Keywords`_'.format(type(p).__name__)
+    return f'`{type(p).__name__} Keywords`_'
 
 #-----------------------------------------------------------------------------
 
@@ -79,14 +79,12 @@ if __name__ == '__main__':
     from pypeit.bspline import bspline
     from pypeit.coadd3d import DataCube
     from pypeit.core.fitting import PypeItFit
-    from pypeit.core.flexure import MultiSlitFlexure
     from pypeit.core.telluric import Telluric
     from pypeit.core.wavecal.wv_fitting import WaveFit
     from pypeit.images.detector_container import DetectorContainer
     from pypeit.images.mosaic import Mosaic
     from pypeit.images.pypeitimage import PypeItImage
-
-    from pypeit.images import buildimage
+    from pypeit.multislit_flexure import MultiSlitFlexure
 
     datacontainers = [Alignments, EdgeTraceSet, FlatImages, ManualExtractionObj, OneSpec, OrderStack, ScatteredLight,
                       SensFunc, SlitTraceSet, Spec2DObj, SpecObj, TracePCA, WaveCalib, WaveTilts,
@@ -104,7 +102,7 @@ if __name__ == '__main__':
         with open(ofile, 'w') as f:
             f.write('\n'.join(lines))
 
-        print('Wrote: {}'.format(ofile))
+        print(f'Wrote: {ofile}')
 
 
 

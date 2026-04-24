@@ -6,16 +6,15 @@ Class for organizing PypeIt setup
 
 """
 from pathlib import Path
-import time
 import os
 
 from IPython import embed
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.metadata import PypeItMetaData
 from pypeit import inputfiles
 from pypeit.par import PypeItPar
-from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -103,7 +102,7 @@ class PypeItSetup:
 
         # The provided list of files cannot be None
         if file_list is None or len(file_list) == 0:
-            msgs.error('Must provide a list of files to be reduced!')
+            raise PypeItError('Must provide a list of files to be reduced!')
 
         # Save input
         self.file_list = file_list
@@ -118,7 +117,7 @@ class PypeItSetup:
 
         # Cannot proceed without spectrograph name
         if _spectrograph_name is None:
-            msgs.error('Must provide spectrograph name directly or using configuration lines.')
+            raise PypeItError('Must provide spectrograph name directly or using configuration lines.')
        
         # Instantiate the spectrograph
         self.spectrograph = load_spectrograph(_spectrograph_name)
@@ -176,7 +175,7 @@ class PypeItSetup:
             spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 The PypeIt name of the spectrograph used to take the
                 observations.  This should be one of the available options in
-                :attr:`~pypeit.spectrographs.available_spectrographs`.
+                :attr:`~pypeit.spectrographs.util.available_spectrographs`.
             extension (:obj:`str`, :obj:`list`, optional):
                 The extension common to all the fits files to reduce; see
                 :func:`~pypeit.io.files_from_extension`.  If None, uses the
@@ -193,9 +192,9 @@ class PypeItSetup:
         files = spec.find_raw_files(root, extension=extension)
         nfiles = len(files)
         if nfiles == 0:
-            msgs.error(f'Unable to find any raw files for {spec.name} in {root}!')
+            raise PypeItError(f'Unable to find any raw files for {spec.name} in {root}!')
         else:
-            msgs.info(f'Found {nfiles} {spec.name} raw files.')
+            log.info(f'Found {nfiles} {spec.name} raw files.')
         return cls.from_rawfiles(files, spectrograph)
 
     @classmethod
@@ -222,17 +221,39 @@ class PypeItSetup:
         """
 
         # Configure me
-        cfg_lines = ['[rdx]']
-        cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
+        cfg_lines = ['[rdx]', f'    spectrograph = {spectrograph}']
 
         # Instantiate
         return cls(data_files, cfg_lines=cfg_lines, frametype=frametype)
+    
+    def append_user_cfg(self, user_cfg:list=None):
+        """
+        Append the user-defined configuration lines
+
+        If additional user configuration lines are provided, append them to the
+        extant list of configuration lines.
+
+        .. important::
+            This method does not perform any checking to ensure appended lines
+            are not repeats of existing lines in ``self.user_cfg``.  Since user
+            configuration parameters are applied *last* to the set of reduction
+            parameters, any repeated lines appended here will override user
+            parameters earlier in the list.
+
+        Args:
+            user_cfg (:obj:`list`, optional):
+                List of configuration lines to be added to the parameter block
+                of the pypeit file.
+        """
+        # Append the lines provided to the instance attribute
+        if user_cfg is not None:
+            self.user_cfg.extend(user_cfg)
 
     @property
     def nfiles(self):
         """The number of files to reduce."""
         if self.fitstbl is None:
-            msgs.warn('No fits files have been read!')
+            log.warning('No fits files have been read!')
         return 0 if self.fitstbl is None else len(self.fitstbl)
 
     def __repr__(self):
@@ -345,7 +366,7 @@ class PypeItSetup:
         if clean_config:
             self.fitstbl.clean_configurations()
             if len(self.fitstbl) == 0:
-                msgs.error('Cleaning the configurations removed all the files!  Rerun '
+                raise PypeItError('Cleaning the configurations removed all the files!  Rerun '
                            'pypeit_setup with the --keep_bad_frames option.')
 
         # Determine the type of each frame.

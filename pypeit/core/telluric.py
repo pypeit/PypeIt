@@ -16,13 +16,15 @@ import scipy.special
 from astropy import table
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import dataPaths
 from pypeit import io
 from pypeit.core import flux_calib
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
 from pypeit.core import fitting
+from pypeit.core import standard
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import onespec
@@ -171,12 +173,17 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
             - coefs_tell_pca: Set of model coefficient values (for prior in future)
             - teltype: Type of telluric model, i.e. 'pca'
     """
-    # load_telluric_grid() takes care of path and existance check
+    # load_telluric_grid() takes care of path and existence check
     hdul = io.load_telluric_grid(filename)
     wave_grid_full = hdul[1].data
     pca_comp_full = hdul[0].data
     nspec_full = wave_grid_full.size
-    ncomp = hdul[0].header['NCOMP']
+    ncomp = hdul[0].header.get('NCOMP')
+    # check that the telgrid file is the correct one for this method
+    if ncomp is None:
+        raise PypeItError("Could NOT read the number of PCA components of the telluric model. "
+                   "Are you using a grid-based model instead? If so, you should "
+                   " set teltype=grid")
     bounds = hdul[2].data
     model_coefs = hdul[3].data
 
@@ -241,6 +248,12 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     wave_grid = wave_grid_full[ind_lower:ind_upper]
     model_grid = model_grid_full[...,ind_lower:ind_upper]
 
+    # check that the telgrid file is the correct one for this method
+    if hdul[0].header.get('PRES0') is None:
+        raise PypeItError("Could NOT read the atmospheric information from the telluric model. "
+                   "Are you using a PCA-based model instead? If so, you should "
+                   " set teltype=pca")
+
     pg = hdul[0].header['PRES0']+hdul[0].header['DPRES']*np.arange(0,hdul[0].header['NPRES'])
     tg = hdul[0].header['TEMP0']+hdul[0].header['DTEMP']*np.arange(0,hdul[0].header['NTEMP'])
     hg = hdul[0].header['HUM0']+hdul[0].header['DHUM']*np.arange(0,hdul[0].header['NHUM'])
@@ -282,7 +295,7 @@ def interp_telluric_grid(theta, tell_dict):
         available wavelengths in ``tell_dict``.
     """
     if len(theta) != 4:
-        msgs.error('Input parameter vector must have 4 and only 4 values.')
+        raise PypeItError('Input parameter vector must have 4 and only 4 values.')
     pg = tell_dict['pressure_grid']
     tg = tell_dict['temp_grid']
     hg = tell_dict['h2o_grid']
@@ -318,13 +331,13 @@ def conv_telluric(tell_model, dloglam, res):
     """
     # Check the input values
     if res <= 0.0:
-        msgs.error('Resolution must be positive.')
+        raise PypeItError('Resolution must be positive.')
     if dloglam == 0.0:
-        msgs.error('The telluric model grid has zero spacing in log wavelength. This is not supported.')
+        raise PypeItError('The telluric model grid has zero spacing in log wavelength. This is not supported.')
     pix_per_sigma = 1.0/res/(dloglam*np.log(10.0))/(2.0 * np.sqrt(2.0 * np.log(2))) # number of dloglam pixels per 1 sigma dispersion
     sig2pix = 1.0/pix_per_sigma # number of sigma per 1 pix
     if sig2pix > 2.0:
-        msgs.warn('The telluric model grid is not sampled finely enough to properly convolve to the desired resolution. '
+        log.warning('The telluric model grid is not sampled finely enough to properly convolve to the desired resolution. '
                   'Skipping resolution convolution for now. Create a higher resolution telluric model grid')
         return tell_model
 
@@ -799,7 +812,7 @@ def general_spec_reader(specfile, ret_flam=False, chk_version=False, ret_order_s
     meta_spec['core'] = spect_dict
     # ASC: Reimplement the ability to return the OrderStack components at some point. 
     #if ret_order_stacks:
-    #    msgs.info('Returning order stacks')
+    #    log.info('Returning order stacks')
     #    return wave_stack, None, counts_stack, counts_ivar_stack, counts_gpm_stack, meta_spec, head
     
     return wave, wave_grid_mid, counts, counts_ivar, counts_gpm, meta_spec, head
@@ -887,14 +900,23 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
 
 
     # Model parameter guess for starting the optimizations
-    flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
-                                           obj_params['std_dict']['flux'].value, kind='linear',
+    flam_true = scipy.interpolate.interp1d(obj_params['std_spec'].wave,
+                                           obj_params['std_spec'].flux, kind='linear',
                                            bounds_error=False, fill_value=-1e20)(wave)
-    flam_true_gpm = (wave >= obj_params['std_dict']['wave'].value.min()) \
-                        & (wave <= obj_params['std_dict']['wave'].value.max())
-    if np.any(np.logical_not(flam_true_gpm)):
-        msgs.warn('Your data extends beyond the range covered by the standard star spectrum. '
-                  'Proceeding by masking these regions, but consider using another standard star')
+    flam_true_gpm = (wave >= np.min(obj_params['std_spec'].wave)) \
+                        & (wave <= np.max(obj_params['std_spec'].wave))
+    # check the overlap between the archival standard star spectrum and the observed one.
+    if np.all(np.logical_not(flam_true_gpm)):
+        log.warning(
+            'Your data does not overlap with the archival standard star spectrum in this '
+            'slit/order.  The sensitivity function WILL NOT BE COMPUTED for this slit/order.'
+        )
+        return None, None
+    elif np.any(np.logical_not(flam_true_gpm)):
+        log.warning(
+            'Your data extends beyond the range covered by the standard star spectrum.  '
+            'Proceeding by masking these regions, but consider using another standard star'
+        )
     N_lam = counts_per_ang/obj_params['exptime']
     zeropoint_data, zeropoint_data_gpm \
             = flux_calib.compute_zeropoint(wave, N_lam, (gpm & flam_true_gpm), flam_true,
@@ -1128,8 +1150,8 @@ def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     """
 
     # Model parameter guess for starting the optimizations
-    flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
-                                           obj_params['std_dict']['flux'].value, kind='linear',
+    flam_true = scipy.interpolate.interp1d(obj_params['std_spec'].wave,
+                                           obj_params['std_spec'].flux, kind='linear',
                                            bounds_error=False, fill_value=np.nan)(wave)
     flam_model = flam_true*tellmodel
     flam_model_ivar = (100.0*utils.inverse(flam_model))**2 # This is just a bogus noise to give  S/N of 100
@@ -1142,7 +1164,7 @@ def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
     coeff, wave_min, wave_max = fit_tuple
     if(wave_min != wave.min()) or (wave_max != wave.max()):
-        msgs.error('Problem with the wave_min or wave_max')
+        raise PypeItError('Problem with the wave_min or wave_max')
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
                    np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1], obj_params['minmax_coeff_bounds'][1]))
@@ -1262,7 +1284,7 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
     coeff, wave_min, wave_max = fit_tuple
     if(wave_min != wave.min()) or (wave_max != wave.max()):
-        msgs.error('Problem with the wave_min or wave_max')
+        raise PypeItError('Problem with the wave_min or wave_max')
     # Polynomial model
     polymodel = coadd.poly_model_eval(coeff, obj_params['func'], obj_params['model'], wave, wave_min, wave_max)
 
@@ -1318,11 +1340,11 @@ def eval_poly_model(theta, obj_dict):
     return polymodel, (polymodel > 0.0)
 
 
-def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
+def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_spec,
                       telgridfile, log10_blaze_function=None, ech_orders=None, polyorder=8,
-                      tell_npca=4, teltype='pca',
+                      tell_npca=5, teltype='pca',
                       mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
-                      resln_guess=None, resln_frac_bounds=(0.6, 1.4), pix_shift_bounds=(-5.0, 5.0),
+                      resln_guess=None, resln_frac_bounds=(0.3, 1.5), pix_shift_bounds=(-5.0, 5.0),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
                       upper=3.0, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
@@ -1355,9 +1377,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Exposure time
     airmass : :obj:`float`
         Airmass of the observation
-    std_dict : :obj:`dict`
-        Dictionary containing the information for the true flux of the standard
-        star.
+    std_spec : :class:`~pypeit.core.spectrum.Spectrum`
+        Spectrum of the flux-calibration standard.
     log10_blaze_function : `numpy.ndarray`_ , optional
         The log10 blaze function determined from a flat field image.  If this is
         passed in the sensitivity function model will be a (parametric)
@@ -1462,7 +1483,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     # Create the polyorder_vec
     if np.size(polyorder) > 1:
         if np.size(polyorder) != norders:
-            msgs.error('polyorder must have either have norder elements or be a scalar')
+            raise PypeItError('polyorder must have either have norder elements or be a scalar')
         # TODO: Should this be np.asarray?
         polyorder_vec = np.array(polyorder)
     else:
@@ -1470,11 +1491,11 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     func ='legendre'
     # Initalize the object parameters
-    obj_params = dict(std_dict=std_dict, airmass=airmass, delta_coeff_bounds=delta_coeff_bounds,
+    obj_params = dict(std_spec=std_spec, airmass=airmass, delta_coeff_bounds=delta_coeff_bounds,
                       minmax_coeff_bounds=minmax_coeff_bounds, polyorder_vec=polyorder_vec,
-                      exptime=exptime, func=func, sigrej=3.0, std_src=std_dict['std_source'],
-                      std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
-                      std_name=std_dict['name'], std_cal=std_dict['cal_file'],
+                      exptime=exptime, func=func, sigrej=3.0, std_src=std_spec.meta['source'],
+                      std_ra=std_spec.meta['ra_deg'], std_dec=std_spec.meta['dec_deg'],
+                      std_name=std_spec.meta['Name'], std_cal=std_spec.meta['File'],
                       output_meta_keys=('airmass', 'exptime', 'polyorder_vec', 'func', 'std_src',
                                         'std_ra', 'std_dec', 'std_name', 'std_cal'),
                       debug=debug_init)
@@ -1519,7 +1540,7 @@ def create_bal_mask(wave, bal_wv_min_max):
 
     """
     if np.size(bal_wv_min_max) % 2 !=0:
-        msgs.error('bal_wv_min_max must be a list/array with even numbers.')
+        raise PypeItError('bal_wv_min_max must be a list/array with even numbers.')
 
     bal_bpm = np.zeros_like(wave, dtype=bool)
     nbal = int(np.size(bal_wv_min_max) / 2)
@@ -1535,10 +1556,11 @@ def create_bal_mask(wave, bal_wv_min_max):
 
 def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile, npca=8,
                  pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1,
-                 teltype='pca', tell_npca=4,
+                 teltype='pca', tell_npca=5,
                  bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
-                 pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False,
+                 resln_frac_bounds=(0.6,1.4), pix_shift_bounds=(-5.0,5.0),
+                 debug_init=False, debug=False, show=False,
                  chk_version=True):
     """
     Fit and correct a QSO spectrum for telluric absorption.
@@ -1711,11 +1733,12 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                   star_mag=None, star_ra=None, star_dec=None, func='legendre', model='exp',
-                  polyorder=5, teltype='pca', tell_npca=4, mask_hydrogen_lines=True,
+                  polyorder=5, teltype='pca', tell_npca=5, mask_hydrogen_lines=True,
                   mask_helium_lines=False, hydrogen_mask_wid=10., delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
-                  pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False,
+                  resln_frac_bounds=(0.3,1.5), pix_shift_bounds=(-5.0,5.0),
+                  debug_init=False, debug=False, show=False,
                   chk_version=True):
     """
     This needs a doc string.
@@ -1738,8 +1761,9 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     # Read in standard star dictionary and interpolate onto regular telluric wave_grid
     star_ra = meta_spec['core']['RA'] if star_ra is None else star_ra
     star_dec = meta_spec['core']['DEC'] if star_dec is None else star_dec
-    std_dict = flux_calib.get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=star_ra,
-                                                dec=star_dec)
+    std_spec = standard.get_standard_spectrum(
+        spectral_type=star_type, V_mag=star_mag, ra=star_ra, dec=star_dec
+    )
 
     if flux.ndim == 2:
         norders = flux.shape[1]
@@ -1749,18 +1773,18 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     # Create the polyorder_vec
     if np.size(polyorder) > 1:
         if np.size(polyorder) != norders:
-            msgs.error('polyorder must have either have norder elements or be a scalar')
+            raise PypeItError('polyorder must have either have norder elements or be a scalar')
         polyorder_vec = np.array(polyorder)
     else:
         polyorder_vec = np.full(norders, polyorder)
 
     # Initalize the object parameters
-    obj_params = dict(std_dict=std_dict, airmass=meta_spec['core']['AIRMASS'],
+    obj_params = dict(std_spec=std_spec, airmass=meta_spec['core']['AIRMASS'],
                       delta_coeff_bounds=delta_coeff_bounds,
                       minmax_coeff_bounds=minmax_coeff_bounds, polyorder_vec=polyorder_vec,
                       exptime=meta_spec['core']['EXPTIME'], func=func, model=model, sigrej=3.0,
-                      std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
-                      std_name=std_dict['name'], std_cal=std_dict['cal_file'],
+                      std_ra=std_spec.meta['ra_deg'], std_dec=std_spec.meta['dec_deg'],
+                      std_name=std_spec.meta['Name'], std_cal=std_spec.meta['File'],
                       output_meta_keys=('airmass', 'polyorder_vec', 'exptime', 'func', 'std_ra',
                                         'std_dec', 'std_cal'),
                       debug=debug_init)
@@ -1802,7 +1826,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                  alpha=0.3, zorder=1)
         plt.plot(wave, star_model, color='cornflowerblue', linewidth=1.0,
                  label='poly scaled star model', zorder=7, alpha=0.7)
-        plt.plot(std_dict['wave'].value, std_dict['flux'].value, color='green', linewidth=1.0,
+        plt.plot(std_spec.wave, std_spec.flux, color='green', linewidth=1.0,
                  label='original star model', zorder=8, alpha=0.7)
         plt.plot(wave, star_model.max()*0.9*telluric, color='magenta', drawstyle='steps-mid',
                  label='telluric', alpha=0.4)
@@ -1822,9 +1846,10 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre',
                   model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, teltype='pca',
-                  tell_npca=4, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
+                  tell_npca=5, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                   only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
-                  recombination=0.7, polish=True, disp=False, pix_shift_bounds=(-5.0,5.0),
+                  recombination=0.7, polish=True, disp=False,
+                  resln_frac_bounds=(0.3,1.5), pix_shift_bounds=(-5.0,5.0),
                   debug_init=False, debug=False, show=False, chk_version=True):
     """
     This needs a doc string.
@@ -1850,7 +1875,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
     # Create the polyorder_vec
     if np.size(polyorder) > 1:
         if np.size(polyorder) != norders:
-            msgs.error('polyorder must have either have norder elements or be a scalar')
+            raise PypeItError('polyorder must have either have norder elements or be a scalar')
         polyorder_vec = np.array(polyorder)
     else:
         polyorder_vec = np.full(norders, polyorder)
@@ -2309,7 +2334,7 @@ class Telluric(datamodel.DataContainer):
                 ]
 
     @staticmethod
-    def empty_model_table(norders, nspec, tell_npca=4, n_obj_par=0):
+    def empty_model_table(norders, nspec, tell_npca=5, n_obj_par=0):
         """
         Construct an empty `astropy.table.Table`_ for the telluric model
         results.
@@ -2370,7 +2395,7 @@ class Telluric(datamodel.DataContainer):
     def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model, eval_obj_model,
                  log10_blaze_function=None, ech_orders=None, sn_clip=30.0, teltype='pca', tell_npca=4,
                  airmass_guess=1.5, resln_guess=None, resln_frac_bounds=(0.3, 1.5), pix_shift_bounds=(-5.0, 5.0),
-                 pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
+                 pix_stretch_bounds=(0.98,1.02), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
                  recombination=0.7, polish=True, disp=False, sensfunc=False, debug=False):
 
@@ -2425,10 +2450,12 @@ class Telluric(datamodel.DataContainer):
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
         if self.teltype == 'pca':
+            log.info(f'Reading in the pca-based telluric model: {self.telgrid}')
             self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                wave_max=self.wave_in_arr[wv_gpm].max())
         elif self.teltype == 'grid':
             self.tell_npca = 4
+            log.info(f'Reading in the grid-based telluric model: {self.telgrid}')
             self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                 wave_max=self.wave_in_arr[wv_gpm].max())
 
@@ -2478,7 +2505,9 @@ class Telluric(datamodel.DataContainer):
         self.arg_dict_list = [None]*self.norders
         self.max_ntheta_obj = 0
         for counter, iord in enumerate(self.srt_order_tell):
-            msgs.info(f'Initializing object model for order: {iord}, {counter}/{self.norders}'
+            _ord = self.ech_orders[iord] if self.ech_orders is not None and \
+                                            len(self.ech_orders) == self.norders else iord
+            log.info(f'Initializing object model for order: {_ord}, {counter+1}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             tellmodel = eval_telluric(self.tell_guess, self.tell_dict,
                                         ind_lower=self.ind_lower[iord],
@@ -2496,6 +2525,9 @@ class Telluric(datamodel.DataContainer):
                                      self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                      self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                      tellmodel)
+            # if the init_obj_model failed, we skip this slit/order
+            if obj_dict is None:
+                continue
             self.obj_dict_list[iord] = obj_dict
             self.bounds_obj_list[iord] = bounds_obj
             self.max_ntheta_obj = np.fmax(self.max_ntheta_obj, len(bounds_obj))
@@ -2530,7 +2562,22 @@ class Telluric(datamodel.DataContainer):
         only_orders = [only_orders] if (only_orders is not None and
                                         isinstance(only_orders, (int, np.integer))) \
                                     else only_orders
-        good_orders = self.srt_order_tell if only_orders is None else only_orders
+        # by default, we use all orders
+        good_orders = self.srt_order_tell
+        # only if self.ech_orders is defined and its length matches self.norders, we find the only_orders (if exist)
+        if self.ech_orders is not None and len(self.ech_orders) == self.norders:
+            indx_only = np.where(np.isin(self.ech_orders, only_orders))[0]
+            if (indx_only.size == 0) and (only_orders is not None):
+                log.warning(f'All the orders provided in `only_orders` are not among the expected orders. '
+                          f'Using all orders available in the data.')
+            elif indx_only.size > 0:
+                good_orders = indx_only
+                log.info(f'Working only on the following orders: {self.ech_orders[indx_only]}')
+                if len(indx_only) != len(only_orders):
+                    missing_orders = list(set(only_orders) - set(self.ech_orders[indx_only]))
+                    log.warning(f'Some orders provided in `only_orders` are not among the expected orders. '
+                              f'Ignoring orders: {missing_orders}')
+
         # Run the fits
         self.result_list = [None]*self.norders
         self.outmask_list = [None]*self.norders
@@ -2539,9 +2586,11 @@ class Telluric(datamodel.DataContainer):
         self.theta_obj_list = [None]*self.norders
         self.theta_tell_list = [None]*self.norders
         for counter, iord in enumerate(self.srt_order_tell):
-            if iord not in good_orders:
+            if iord not in good_orders or  self.arg_dict_list[iord] is None:
                 continue
-            msgs.info(f'Fitting object + telluric model for order: {iord}, {counter}/{self.norders}'
+            _ord = self.ech_orders[iord] if self.ech_orders is not None and \
+                                            len(self.ech_orders) == self.norders else iord
+            log.info(f'Fitting object + telluric model for order: {_ord}, {counter+1}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] \
                     = fitting.robust_optimize(self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
@@ -2660,36 +2709,36 @@ class Telluric(datamodel.DataContainer):
         self.model['NITER'][iord] = self.result_list[iord].nit
 
     # TODO Purge? This does not appear to be used at the moment.
-    def interpolate_inmask(self, mask, wave_inmask, inmask):
-        """
-        Utitlity routine to interpolate the input mask.
-        """
-
-        if inmask is not None:
-            if wave_inmask is None:
-                msgs.error('If you are specifying a mask you need to pass in the corresponding '
-                           'wavelength grid')
-
-            # TODO we shoudld consider refactoring the interpolator to take a
-            # list of images and masks to remove the the fake zero images in the
-            # call below
-            _, _, inmask_int = coadd.interp_spec(self.wave_grid, wave_inmask,
-                                                 np.ones_like(wave_inmask),
-                                                 np.ones_like(wave_inmask), inmask)
-
-            # If the data mask is 2d, and inmask is 1d, tile to create the
-            # inmask aligned with the data
-            if mask.ndim == 2 & inmask.ndim == 1:
-                inmask_out = np.tile(inmask_int, (self.norders, 1)).T
-            # If the data mask and inmask have the same dimensionlaity,
-            # interpolated mask has correct dimensions
-            elif mask.ndim == inmask.ndim:
-                inmask_out = inmask_int
-            else:
-                msgs.error('Unrecognized shape for data mask')
-            return (mask & inmask_out)
-        else:
-            return mask
+#    def interpolate_inmask(self, mask, wave_inmask, inmask):
+#        """
+#        Utitlity routine to interpolate the input mask.
+#        """
+#
+#        if inmask is not None:
+#            if wave_inmask is None:
+#                raise PypeItError('If you are specifying a mask you need to pass in the corresponding '
+#                           'wavelength grid')
+#
+#            # TODO we shoudld consider refactoring the interpolator to take a
+#            # list of images and masks to remove the the fake zero images in the
+#            # call below
+#            _, _, inmask_int = coadd.interp_spec(self.wave_grid, wave_inmask,
+#                                                 np.ones_like(wave_inmask),
+#                                                 np.ones_like(wave_inmask), inmask)
+#
+#            # If the data mask is 2d, and inmask is 1d, tile to create the
+#            # inmask aligned with the data
+#            if mask.ndim == 2 & inmask.ndim == 1:
+#                inmask_out = np.tile(inmask_int, (self.norders, 1)).T
+#            # If the data mask and inmask have the same dimensionlaity,
+#            # interpolated mask has correct dimensions
+#            elif mask.ndim == inmask.ndim:
+#                inmask_out = inmask_int
+#            else:
+#                raise PypeItError('Unrecognized shape for data mask')
+#            return (mask & inmask_out)
+#        else:
+#            return mask
 
     def get_ind_lower_upper(self):
         """

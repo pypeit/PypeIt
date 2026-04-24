@@ -13,6 +13,7 @@ Subpackages
    pypeit.images
    pypeit.move_median
    pypeit.par
+   pypeit.pkg
    pypeit.scripts
    pypeit.setup_gui
    pypeit.spectrographs
@@ -27,7 +28,6 @@ Submodules
    pypeit.alignframe
    pypeit.archive
    pypeit.bitmask
-   pypeit.cache
    pypeit.calibframe
    pypeit.calibrations
    pypeit.coadd1d
@@ -35,6 +35,7 @@ Submodules
    pypeit.coadd3d
    pypeit.datamodel
    pypeit.edgetrace
+   pypeit.exposure
    pypeit.extraction
    pypeit.find_objects
    pypeit.flatfield
@@ -44,17 +45,17 @@ Submodules
    pypeit.io
    pypeit.manual_extract
    pypeit.metadata
+   pypeit.multislit_flexure
    pypeit.onespec
    pypeit.orderstack
+   pypeit.outputfiles
    pypeit.pypeit
-   pypeit.pypeitdata
+   pypeit.pypeit_steps
    pypeit.pypeitsetup
-   pypeit.pypmsgs
    pypeit.sampling
    pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc
-   pypeit.setup_package
    pypeit.slittrace
    pypeit.spec2dobj
    pypeit.specobj
@@ -72,5 +73,5 @@ Module contents
 .. automodule:: pypeit
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
