@@ -842,7 +842,7 @@ class BuildWaveTilts:
             tilts = tracewave.fit2tilts(coeff_out, self.par['func2d'], spec_eval=_spec_eval, spat_eval=_spat_eval)
             # Check that the tilts image has values that span a reasonable range
             # TODO: Is this the right threshold?
-            if np.nanmax(self.tilts) - np.nanmin(self.tilts) < 0.8:
+            if np.nanmax(tilts) - np.nanmin(tilts) < 0.8:
                 log.warning('Tilts image fit not good. This slit/order will not be reduced!')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
