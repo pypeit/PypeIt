@@ -131,7 +131,7 @@ class PypeItImage(datamodel.DataContainer):
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
                  'spat_flexure': dict(otype=np.ndarray, atype=np.floating,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace. Shape is (nslits, 2), where'
+                                            'and SlitTrace. Shape is (nslits, 2), where '
                                             'spat_flexure[i,0] is the spatial shift of the left '
                                             'edge of slit i and spat_flexure[i,1] is the spatial '
                                             'shift of the right edge of slit i.'),
@@ -141,7 +141,7 @@ class PypeItImage(datamodel.DataContainer):
                                           'wavelength array at the center of each slit to '
                                           'correct for spectral flexure. This is calculated '
                                           'using the sky spectrum, therefore, updated during '
-                                          'object finding/extraction.')
+                                          'object finding/extraction.'),
                  'rel_scaleImg': dict(otype=np.ndarray, atype=np.floating,
                                   descr='Image used to apply a relative scaling to the science '
                                         'image to correct its spectral illumination. Currently '
