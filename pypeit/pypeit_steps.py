@@ -845,8 +845,9 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
 
     # Deal with manual extraction
     row = fitstbl[frames[0]]
-    manual_obj = ManualExtractionObj.by_fitstbl_input(
-        row['filename'], row['manual'], spectrograph) if len(row['manual'].strip()) > 0 else None
+    manual_obj = None
+    if not np.ma.is_masked(row['manual']) and len(row['manual'].strip()) > 0:
+        manual_obj = ManualExtractionObj.by_fitstbl_input(row['filename'], row['manual'], spectrograph)
 
     # TODO - Move this into FindObjects class
     if par['reduce']['skysub']['user_regions'] in [None, '']:
