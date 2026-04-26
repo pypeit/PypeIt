@@ -164,7 +164,7 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
     if method == "detector":
         pass
     elif method in ["slit", "edge"]: # Compute the small correction to the flexure for each slit edge
-        msgs.info(f"Calculating the spatial flexure of each {method}.")
+        log.info(f"Calculating the spatial flexure of each {method}.")
         # Store an array of the small correction to the flexure for each slit
         delta_flexure = np.zeros((slits.nslits, 2))
         # Setup the slits and image properties
@@ -196,13 +196,13 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
         # print the flexure for each slit
         for slit_idx in range(slits.nslits):
             if method == "slit":
-                msgs.info("Slit {0:d}: Spatial flexure = {1:5.3f} pixels".format(slit_idx + 1, total_flexure[slit_idx, 0]))
+                log.info("Slit {0:d}: Spatial flexure = {1:5.3f} pixels".format(slit_idx + 1, total_flexure[slit_idx, 0]))
             elif method == "edge":
-                msgs.info("Slit {0:d}: Left/right spatial flexure = {1:5.3f} / {2:5.3f} pixels".format(slit_idx + 1,
+                log.info("Slit {0:d}: Left/right spatial flexure = {1:5.3f} / {2:5.3f} pixels".format(slit_idx + 1,
                                                                                                 total_flexure[slit_idx, 0],
                                                                                                 total_flexure[slit_idx, 1]))
     else:
-        msgs.error("Not ready for this method")
+        log.error("Not ready for this method")
 
     if qa_outfile is not None:
         # Generate the QA plot
