@@ -12,15 +12,17 @@ from IPython import embed
 import numpy as np
 
 from astropy.table import Table
-from astropy.coordinates import SkyCoord, Angle
+from astropy.coordinates import SkyCoord
 from astropy import units
 from astropy.stats import sigma_clipped_stats
-from scipy.interpolate import RegularGridInterpolator, interp1d
+from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import PypeItBitMaskError
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import datamodel
+from pypeit import calibframe
 from pypeit import specobj
-from pypeit import alignframe
 from pypeit.bitmask import BitMask
 from pypeit.core import parse
 
@@ -29,9 +31,19 @@ class SlitTraceBitMask(BitMask):
     """
     Mask bits used during slit tracing.
     """
-    version = '1.0.0'
+    version = '1.0.1'
+
+    # TODO: Consider using a unique bit prefix for when the bits are written to
+    # the header, like so:
+    #
+    # prefix = 'SLITB'
+    #
+    # It's not necessary, though.
 
     def __init__(self):
+        # !!!!!!!!!!
+        # IMPORTANT: Only ever *append* new bits, and don't remove old ones
+        # !!!!!!!!!!
         mask = dict([
             ('SHORTSLIT', 'Slit formed by left and right edge is too short. Not ignored for flexure'),
             ('BOXSLIT', 'Slit formed by left and right edge is valid (large enough to be a valid '
@@ -39,11 +51,14 @@ class SlitTraceBitMask(BitMask):
             ('USERIGNORE', 'User has specified to ignore this slit. Not ignored for flexure.'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
+            ('BADALIGNCALIB', 'Alignment analysis failed for this slit'),
             ('SKIPFLATCALIB', 'Flat field generation failed for this slit. Skip flat fielding'),
             ('BADFLATCALIB', 'Flat field generation failed for this slit. Ignore it fully.'),
-            ('BADREDUCE', 'Skysub/extraction failed for this slit'),
+            ('BADREDUCE', 'Reduction failed for this slit'), # THIS IS DEPRECATED (we may remove in v1.13) BUT STAYS HERE TO ALLOW FOR BACKWARDS COMPATIBILITY
+            ('BADSKYSUB', 'Skysub failed for this slit'),
+            ('BADEXTRACT', 'Extraction failed for this slit'),
         ])
-        super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
+        super().__init__(list(mask.keys()), descr=list(mask.values()))
 
     @property
     def exclude_for_reducing(self):
@@ -54,59 +69,44 @@ class SlitTraceBitMask(BitMask):
     def exclude_for_flexure(self):
         # Ignore these flags when performing a flexure calculation
         #  Currently they are *all* of the flags..
-        return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB',
-                'SKIPFLATCALIB', 'BADFLATCALIB', 'BADREDUCE']
+        return ['SHORTSLIT', 'BOXSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB', 'BADALIGNCALIB',
+                'SKIPFLATCALIB', 'BADFLATCALIB', 'BADSKYSUB', 'BADEXTRACT']
 
 
 
-class SlitTraceSet(datamodel.DataContainer):
+class SlitTraceSet(calibframe.CalibFrame):
     """
     Defines a generic class for holding and manipulating image traces
     organized into left-right slit pairs.
-
-    Instantiation arguments map directly to the object
-    :attr:`datamodel`. The only additional argument is ``load``,
-    described below.
-
-    :class:`SlitTraceSet` objects can be instantiated with only the
-    master-frame arguments. If this is done, it's expected that
-    you'll attempt to load an existing master frame, either using
-    ``load=True`` on instantiation or by a call to :func:`load`.
-    Otherwise, all the elements of the data model will be empty.
 
     The datamodel attributes are:
 
     .. include:: ../include/class_datamodel_slittraceset.rst
 
-    Args:
-        load (:obj:`bool`, optional):
-            Attempt to load an existing master frame with the slit
-            trace data. WARNING: If ``load`` is True, all of the slit
-            information provided to the initialization is ignored!
-            Only the arguments relevant to the
-            :class:`pypeit.masterframe.MasterFrame` components of
-            :class:`SlitTraceSet` are used.
-
     Attributes:
-        left_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected left
-        right_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected right
-        master_key (:obj:`str`):
-        master_dir (:obj:`str`):
-
+        left_flexure (`numpy.ndarray`_):
+            Convenient spot to hold flexure corrected left
+        right_flexure (`numpy.ndarray`_):
+            Convenient spot to hold flexure corrected right
     """
-    frametype = 'slits'
-    master_type = 'Slits'
-    """Name for type of master frame."""
-    master_file_format = 'fits.gz'
-    """File format for the master frame file."""
-    minimum_version = '1.1.0'
-    version = '1.1.4'
+    calib_type = 'Slits'
+    """Name for type of calibration frame."""
+
+    calib_file_format = 'fits.gz'
+    """File format for the calibration frame file."""
+
+    version = '1.1.5'
     """SlitTraceSet data model version."""
 
-    hdu_prefix = None
-    output_to_disk = None
-
     bitmask = SlitTraceBitMask()
+    """
+    Bit interpreter for slit masks.
+    """
+
+    internals = calibframe.CalibFrame.internals + ['left_flexure', 'right_flexure']
+    """
+    Attributes kept separate from the datamodel.
+    """
 
     # Define the data model
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
@@ -126,13 +126,18 @@ class SlitTraceSet(datamodel.DataContainer):
                                  descr='Slit ID number from SPAT measured at half way point.'),
                  'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer),
                                     descr='Slit ID number slitmask'),
-                 'maskdef_designtab': dict(otype=Table, descr='Table with slitmask design and object info'),
+                 'maskdef_designtab': dict(otype=Table,
+                                           descr='Table with slitmask design and object info'),
                  'maskfile': dict(otype=str, descr='Data file that yielded the slitmask info'),
-                 'maskdef_posx_pa': dict(otype=float, descr='PA that aligns with spatial dimension of the detector'),
-                 'maskdef_offset': dict(otype=float, descr='Slitmask offset (pixels) from position expected '
-                                                           'by the slitmask design'),
+                 'maskdef_posx_pa': dict(otype=float,
+                                         descr='PA that aligns with spatial dimension of the '
+                                               'detector'),
+                 'maskdef_offset': dict(otype=float,
+                                        descr='Slitmask offset (pixels) from position expected '
+                                              'by the slitmask design'),
                  'maskdef_objpos': dict(otype=np.ndarray, atype=np.floating,
-                                         descr='Object positions expected by the slitmask design [relative pixels]'),
+                                        descr='Object positions expected by the slitmask design '
+                                              '[relative pixels]'),
                  'maskdef_slitcen': dict(otype=np.ndarray, atype=np.floating,
                                          descr='Slit centers expected by the slitmask design'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
@@ -163,13 +168,12 @@ class SlitTraceSet(datamodel.DataContainer):
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Bit mask for slits (fully good slits have 0 value).  Shape '
                                     'is Nslits.'),
-                'slitbitm': dict(otype=str, descr='List of BITMASK keys from SlitTraceBitMask'),
                 'specmin': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Minimum spectral position allowed for each slit/order.  '
-                                      'Shape is Nslits.'),
+                                descr='Minimum spectral position (pixel units) allowed for each '
+                                      'slit/order.  Shape is Nslits.'),
                 'specmax': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Maximum spectral position allowed for each slit/order.  '
-                                      'Shape is Nslits.')}
+                                descr='Maximum spectral position (pixel units) allowed for each '
+                                      'slit/order.  Shape is Nslits.')}
     """Provides the class data model."""
 
     # TODO: Allow tweaked edges to be arguments?
@@ -180,15 +184,15 @@ class SlitTraceSet(datamodel.DataContainer):
                  pad=0, spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
                  maskdef_posx_pa=None, maskdef_offset=None, maskdef_objpos=None,
                  maskdef_slitcen=None, ech_order=None, nslits=None, left_tweak=None,
-                 right_tweak=None, center=None, mask=None, slitbitm=None):
+                 right_tweak=None, center=None, mask=None):
 
         # Instantiate the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         # The dictionary passed to DataContainer.__init__ does not
-        # contain self or the MasterFrame arguments.
+        # contain self.
         # TODO: Does it matter if the calling function passes the
-        # keyword arguments in a different order?
+        # keyword arguments in a different order? No.
         datamodel.DataContainer.__init__(self, d=_d)
 
     def _validate(self):
@@ -244,7 +248,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # If the echelle order is provided, check that the number of
         # orders matches the number of provided "slits"
         if self.ech_order is not None and len(self.ech_order) != self.nslits:
-            msgs.error('Number of provided echelle orders does not match the number of '
+            raise PypeItError('Number of provided echelle orders does not match the number of '
                        'order traces.')
 
         # Make sure mask, specmin, and specmax are at least 1D arrays.
@@ -252,22 +256,28 @@ class SlitTraceSet(datamodel.DataContainer):
         self.mask_init = np.atleast_1d(self.mask_init)
         self.specmin = np.atleast_1d(self.specmin)
         self.specmax = np.atleast_1d(self.specmax)
-        if self.slitbitm is None:
-            self.slitbitm = ','.join(list(self.bitmask.keys()))
-        else:
-            # Validate
-            if self.slitbitm != ','.join(list(self.bitmask.keys())):
-                msgs.error("Input BITMASK keys differ from current data model!")
         # Mask
         if self.mask is None:
             self.mask = self.mask_init.copy()
 
-    def _init_internals(self):
-        self.left_flexure = None
-        self.right_flexure = None
-        # Master stuff
-        self.master_key = None
-        self.master_dir = None
+    def _base_header(self, hdr=None):
+        """
+        Construct the baseline header for all HDU extensions.
+
+        This appends the :class:`SlitTraceBitMask` data to the supplied header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_, optional):
+                Baseline header for additional data. If None, set by
+                :func:`pypeit.io.initialize_header()`.
+
+        Returns:
+            `astropy.io.fits.Header`_: Header object to include in
+            all HDU extensions.
+        """
+        _hdr = super()._base_header(hdr=hdr)
+        self.bitmask.to_header(_hdr)
+        return _hdr
 
     def _bundle(self):
         """
@@ -276,7 +286,7 @@ class SlitTraceSet(datamodel.DataContainer):
         See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
         always written to a 'SLITS' extension.
         """
-        bndl = super(SlitTraceSet, self)._bundle(ext='SLITS', transpose_arrays=True)
+        bndl = super()._bundle(ext='SLITS', transpose_arrays=True)
         if self.maskdef_designtab is not None:
             # save the table
             tab_detached = bndl[0]['SLITS']['maskdef_designtab']
@@ -285,8 +295,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # create a dict for the `tab_detached`
             tab_dict = {'maskdef_designtab': tab_detached}
             return [bndl[0], tab_dict]
-        else:
-            return bndl
+        return bndl
 
     # TODO: Although I don't like doing it, kwargs is here to catch the
     # extraneous keywords that can be passed to _parse from the base class but
@@ -300,7 +309,7 @@ class SlitTraceSet(datamodel.DataContainer):
         always read from the 'SLITS' extension.
         """
         if not hasattr(hdu, '__len__'):
-            return super(SlitTraceSet, cls)._parse(hdu, transpose_table_arrays=True)
+            return super()._parse(hdu, transpose_table_arrays=True)
 
         # TODO: My edit to the code causes the code below to fault in some cases
         # because of a consistency limitation that I put on the values that ext
@@ -308,11 +317,53 @@ class SlitTraceSet(datamodel.DataContainer):
         # code in the except block will always fault now, and I don't remember
         # why we needed this try/except block in the first place.
         try:
-            return super(SlitTraceSet, cls)._parse(hdu, ext=['SLITS', 'MASKDEF_DESIGNTAB'],
-                                                   transpose_table_arrays=True)
+            return super()._parse(hdu, ext=['SLITS', 'MASKDEF_DESIGNTAB'],
+                                  transpose_table_arrays=True)
         except KeyError:
-            return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS',
-                                                   transpose_table_arrays=True)
+            return super()._parse(hdu, ext='SLITS', transpose_table_arrays=True)
+
+    @classmethod
+    def from_hdu(cls, hdu, chk_version=True, **kwargs):
+        """
+        Instantiate the object from an HDU extension.
+
+        This overrides the base-class method, only to add checks (or not) for
+        the bitmask.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            chk_version (:obj:`bool`, optional):
+                If True, raise an error if the datamodel version or
+                type check failed. If False, throw a warning only.
+            **kwargs:
+                Passed directly to :func:`_parse`.
+        """
+        # Run the default parser
+        d, version_passed, type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
+        # Check
+        cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
+
+        # Instantiate
+        self = super().from_dict(d=d)
+
+        # Calibration frame attributes
+        # NOTE: If multiple HDUs are parsed, this assumes that the information
+        # necessary to set all the calib internals is always in *every* header.
+        # BEWARE!
+        self.calib_keys_from_header(hdu[parsed_hdus[0]].header)
+
+        # Check the bitmasks. Bits should have been written to *any* header
+        # associated with the object
+        hdr = hdu[parsed_hdus[0]].header if isinstance(hdu, fits.HDUList) else hdu.header
+        hdr_bitmask = BitMask.from_header(hdr)
+        if chk_version and hdr_bitmask.bits != self.bitmask.bits:
+            raise PypeItBitMaskError(
+                'The bitmask in this fits file appear to be out of date!  Recreate this file by '
+                're-running the relevant script or set chk_version=False.'
+            )
+
+        return self
 
     def init_tweaked(self):
         """
@@ -346,18 +397,33 @@ class SlitTraceSet(datamodel.DataContainer):
     @property
     def slitord_id(self):
         """
-        Return array of slit_spatId (MultiSlit, IFU) or ech_order (Echelle) values
+        Return array of slit_spatId (MultiSlit, SlicerIFU) or ech_order (Echelle) values
 
         Returns:
             `numpy.ndarray`_:
 
         """
-        if self.pypeline in ['MultiSlit', 'IFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
             return self.spat_id
-        elif self.pypeline == 'Echelle':
+        if self.pypeline == 'Echelle':
             return self.ech_order
-        else:
-            msgs.error('Unrecognized Pypeline {:}'.format(self.pypeline))
+        raise PypeItError(f'Unrecognized Pypeline {self.pypeline}')
+
+    @property
+    def slitord_txt(self):
+        """
+        Return string indicating if the logs/QA should use "slit" (MultiSlit,
+        SlicerIFU) or "order" (Echelle).
+
+        Returns:
+            str: Either 'slit' or 'order'
+
+        """
+        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
+            return 'slit'
+        if self.pypeline == 'Echelle':
+            return 'order'
+        raise PypeItError(f'Unrecognized Pypeline {self.pypeline}')
 
     def spatid_to_zero(self, spat_id):
         """
@@ -383,12 +449,11 @@ class SlitTraceSet(datamodel.DataContainer):
             int: zero-based index of the input spat_id
 
         """
-        if self.pypeline in ['MultiSlit', 'IFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
             return np.where(self.spat_id == slitord)[0][0]
-        elif self.pypeline in ['Echelle']:
+        if self.pypeline == 'Echelle':
             return np.where(self.ech_order == slitord)[0][0]
-        else:
-            msgs.error('Unrecognized Pypeline {:}'.format(self.pypeline))
+        raise PypeItError('Unrecognized Pypeline {:}'.format(self.pypeline))
 
     def get_slitlengths(self, initial=False, median=False):
         """
@@ -414,58 +479,66 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         left, right, _ = self.select_edges(initial=initial)
         slitlen = right - left
-        if median is True:
-            slitlen = np.median(slitlen, axis=1)
-        return slitlen
+        return np.median(slitlen, axis=1) if median else slitlen
 
-    def get_radec_image(self, wcs, traces, tilts, locations, gpm, initial=True, flexure=None):
+    def get_radec_image(self, wcs, alignSplines, tilts, slit_compute=None, slice_offset=None, initial=False, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
-        NOTE: This function is currently only used for IFU reductions.
+        NOTE: This function is currently only used for SlicerIFU reductions.
 
         Parameters
         ----------
-        wcs : astropy.wcs
+        wcs : `astropy.wcs.WCS`_
             The World Coordinate system of a science frame
-        traces : `numpy.ndarray`
-            The alignments (traces) of the slits. This allows different slices
-            to be aligned correctly. Ideally, this variable will be assigned the
-            value of alignments.traces. However, this can also be assigned the
-            left and right slit edges:
-            traces = np.append(left.reshape((left.shape[0],1,left.shape[1])),
-                   right.reshape((left.shape[0],1,left.shape[1])), axis=1)
-            In this case, locations=np.array([0,1])
-        tilts : `numpy.ndarray`
+        alignSplines : :class:`pypeit.alignframe.AlignmentSplines`
+            An instance of the AlignmentSplines class that allows one to build and
+            transform between detector pixel coordinates and WCS pixel coordinates.
+        tilts : `numpy.ndarray`_
             Spectral tilts.
-        locations : `numpy.ndarray`_, list
-            locations along the slit of the alignment traces. Must
-            be a 1D array of the same length as alignments.traces.shape[1]
-        gpm : `numpy.ndarray`
-            2D good pixel mask with the same shape as tilts.
-        initial : bool, optional
+        slit_compute : int, list, `numpy.ndarray`_, optional
+            The slit indices to compute the RA and DEC image for. If None, all slits
+            are computed. If an integer, the RA and DEC image for the slit with this
+            index is computed. If a list or `numpy.ndarray`_, the RA and DEC image
+            for the slits with these indices are computed.
+        slice_offset : float, optional
+            Offset to apply to the slice positions. A value of 0.0 means that the
+            slice positions are the centre of the slits. A value of +/-0.5 means that
+            the slice positions are at the edges of the slits. If None, the slice_offset
+            is set to 0.0.
+        initial : bool
             Select the initial slit edges?
         flexure : float, optional
             If provided, offset each slit by this amount.
 
         Returns
         -------
-        tuple : There are four elements in the tuple. The first two are 2D numpy arrays
-                of shape (nspec, nspat), where the first ndarray is the RA image, and the
-                second ndarray is the DEC image. RA and DEC are in units degrees. The third
-                element of the tuple stores the minimum and maximum difference (in pixels)
-                between the WCS reference (usually the centre of the slit) and the edges of
-                the slits. The third array has a shape of (nslits, 2). The fourth contains
-                the transformation between detector pixel coordinates and the WCS pixel
-                coordinates.
+        raimg : `numpy.ndarray`_
+            Image with the RA coordinates of each pixel in degrees.  Shape is
+            (nspec, nspat).
+        decimg : `numpy.ndarray`_
+            Image with the DEC coordinates of each pixel in degrees.  Shape is
+            (nspec, nspat).
+        minmax : `numpy.ndarray`_
+            The minimum and maximum difference (in pixels) between the WCS
+            reference (usually the centre of the slit) and the edges of the
+            slits. Shape is (nslits, 2).
         """
-        msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
-        if type(locations) is list:
-            locations = np.array(locations)
-        if locations.size != traces.shape[1]:
-            msgs.error("The size of locations must be the same as traces.shape[1]")
+        # Check the input
+        if slit_compute is None:
+            # Compute all of the slits
+            slit_compute = np.arange(self.nslits)
+        elif isinstance(slit_compute, (int, list)):
+            slit_compute = np.atleast_1d(slit_compute)
+        else:
+            raise PypeItError('Unrecognized type for slit_compute')
 
-        # Calculate the astrometric transform
-        alignSplines = alignframe.AlignmentSplines(traces, locations, tilts)
-
+        # Prepare the print out
+        substring = '' if slice_offset is None else f' with slice_offset={slice_offset:.3f}'
+        log.info("Generating an RA/DEC image"+substring)
+        # Check the input
+        if slice_offset is None:
+            slice_offset = 0.0
+        if slice_offset < -0.5 or slice_offset > 0.5:
+            raise PypeItError(f"Slice offset must be between -0.5 and 0.5. slice_offset={slice_offset}")
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
@@ -473,21 +546,24 @@ class SlitTraceSet(datamodel.DataContainer):
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
         for slit_idx, spatid in enumerate(self.spat_id):
-            onslit = (slitid_img_init == spatid) & gpm
+            if slit_idx not in slit_compute:
+                continue
+            onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             if self.mask[slit_idx] != 0:
-                msgs.error(f"Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot generate RA/DEC image.")
+                raise PypeItError(f'Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot '
+                           'generate RA/DEC image.')
             # Retrieve the pixel offset from the central trace
             evalpos = alignSplines.transform(slit_idx, onslit_init[1], onslit_init[0])
             minmax[slit_idx, 0] = np.min(evalpos)
             minmax[slit_idx, 1] = np.max(evalpos)
             # Calculate the WCS from the pixel positions
-            slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
+            slitID = np.ones(evalpos.size) * slit_idx + slice_offset
             world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
-        return raimg, decimg, minmax, alignSplines
+        return raimg, decimg, minmax
 
     def select_edges(self, initial=False, flexure=None):
         """
@@ -527,9 +603,8 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return left.copy(), right.copy(), self.mask.copy()
 
-    def slit_img(self, pad=None, slitidx=None, initial=False, 
-                 flexure=None,
-                 exclude_flag=None, use_spatial=True):
+    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None, exclude_flag=None,
+                 use_spatial=True):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -573,8 +648,8 @@ class SlitTraceSet(datamodel.DataContainer):
                 :attr:`right_init`) are used. To use the nominal edges
                 regardless of the presence of the tweaked edges, set
                 this to True. See :func:`select_edges`.
-            exclude_flag (:obj:`str`, optional):
-                Bitmask flag to ignore when masking
+            exclude_flag (:obj:`str`, :obj:`list`, optional):
+                One or more bitmask flag names to ignore when masking
                 Warning -- This could conflict with input slitids, i.e. avoid using both
             use_spatial (bool, optional):
                 If True, use self.spat_id value instead of 0-based indices
@@ -588,13 +663,13 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         #
         if slitidx is not None and exclude_flag is not None:
-            msgs.error("Cannot pass in both slitidx and exclude_flag!")
+            raise PypeItError("Cannot pass in both slitidx and exclude_flag!")
         # Check the input
         if pad is None:
             pad = self.pad
         _pad = pad if isinstance(pad, tuple) else (pad,pad)
         if len(_pad) != 2:
-            msgs.error('Padding for both left and right edges should be provided as a 2-tuple!')
+            raise PypeItError('Padding for both left and right edges should be provided as a 2-tuple!')
 
         # Pixel coordinates
         spat = np.arange(self.nspat)
@@ -606,10 +681,11 @@ class SlitTraceSet(datamodel.DataContainer):
         if slitidx is not None:
             slitidx = np.atleast_1d(slitidx).ravel()
         else:
-            bpm = self.mask.astype(bool)
-            if exclude_flag:
-                bpm &= np.invert(self.bitmask.flagged(self.mask, flag=exclude_flag))
-            slitidx = np.where(np.invert(bpm))[0]
+            bpm = self.bitmask.flagged(self.mask, and_not=exclude_flag)
+#            bpm = self.mask.astype(bool)
+#            if exclude_flag:
+#                bpm &= np.logical_not(self.bitmask.flagged(self.mask, flag=exclude_flag))
+            slitidx = np.where(np.logical_not(bpm))[0]
 
         # TODO: When specific slits are chosen, need to check that the
         # padding doesn't lead to slit overlap.
@@ -675,14 +751,14 @@ class SlitTraceSet(datamodel.DataContainer):
         # Slit indices to include
         _slitidx = np.arange(self.nslits) if slitidx is None else np.atleast_1d(slitidx).ravel()
         if full and len(_slitidx) > 1:
-            msgs.error('For a full image with the slit coordinates, must select a single slit.')
+            raise PypeItError('For a full image with the slit coordinates, must select a single slit.')
 
         # Generate the slit ID image if it wasn't provided
         if not full:
             if slitid_img is None:
                 slitid_img = self.slit_img(pad=pad, slitidx=_slitidx, initial=initial)
             if slitid_img.shape != (self.nspec,self.nspat):
-                msgs.error('Provided slit ID image does not have the correct shape!')
+                raise PypeItError('Provided slit ID image does not have the correct shape!')
 
         # Choose the slit edges to use
         left, right, _ = self.select_edges(initial=initial, flexure=flexure_shift)
@@ -697,7 +773,7 @@ class SlitTraceSet(datamodel.DataContainer):
         if np.any(indx[:,_slitidx]):
             bad_slits = np.where(np.any(indx, axis=0))[0]
             # TODO: Shouldn't this fault?
-            msgs.warn('Slits {0} have negative (or 0) slit width!'.format(bad_slits))
+            log.warning('Slits {0} have negative (or 0) slit width!'.format(bad_slits))
 
         # Output image
         coo_img = np.zeros((self.nspec,self.nspat), dtype=float)
@@ -761,16 +837,17 @@ class SlitTraceSet(datamodel.DataContainer):
             spatial coordinates.
         """
         if left.shape != right.shape:
-            msgs.error('Left and right traces must have the same shape.')
+            raise PypeItError('Left and right traces must have the same shape.')
         nspec = left.shape[0]
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
     def mask_add_missing_obj(self, sobjs, spat_flexure, fwhm, boxcar_rad):
         """
-        Generate new SpecObj and add them into the SpecObjs object for any slits missing the targeted source.
+        Generate new SpecObj and add them into the SpecObjs object for any slits
+        missing the targeted source.
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced
             spat_flexure (:obj:`float`):
                 Shifts, in spatial pixels, between this image and SlitTrace
@@ -780,19 +857,22 @@ class SlitTraceSet(datamodel.DataContainer):
                 BOX_RADIUS in pixels to be used in the boxcar extraction
 
         Returns:
-            :class:`pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have been found and traced
+            :class:`~pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have
+            been found and traced
 
         """
-        msgs.info('Add undetected objects at the expected location from slitmask design.')
+        log.info('Add undetected objects at the expected location from slitmask design.')
 
         if fwhm is None:
-            msgs.error('A FWHM for the optimal extraction must be provided. See `find_fwhm` in `FindObjPar`.')
+            raise PypeItError('A FWHM for the optimal extraction must be provided. See `find_fwhm` in '
+                       '`FindObjPar`.')
 
         if self.maskdef_objpos is None:
-            msgs.error('An array with the object positions expected from slitmask design is missing.')
+            raise PypeItError('An array with the object positions expected from slitmask design is '
+                       'missing.')
 
         if self.maskdef_offset is None:
-            msgs.error('A value for the slitmask offset must be provided.')
+            raise PypeItError('A value for the slitmask offset must be provided.')
 
         # Restrict to objects on this detector
         if sobjs.nobj > 0:
@@ -801,10 +881,10 @@ class SlitTraceSet(datamodel.DataContainer):
         else:
             cut_sobjs = sobjs
 
-        # get slits edges init
-        left_init, _, _ = self.select_edges(initial=True, flexure=spat_flexure)  # includes flexure
-        # get slits edges tweaked
-        left_tweak, right_tweak, _ = self.select_edges(initial=False, flexure=spat_flexure)  # includes flexure
+        # get slits edges init; includes flexure
+        left_init, _, _ = self.select_edges(initial=True, flexure=spat_flexure)
+        # get slits edges tweaked; includes flexure
+        left_tweak, right_tweak, _ = self.select_edges(initial=False, flexure=spat_flexure)
 
         # midpoint in the spectral direction
         specmid = left_init[:,0].size//2
@@ -829,7 +909,7 @@ class SlitTraceSet(datamodel.DataContainer):
             #  If we keep what follows, probably should add some tolerance to be off the edge
             #  Otherwise things break in skysub
             if (SPAT_PIXPOS > right_tweak[specmid, islit]) or (SPAT_PIXPOS < left_tweak[specmid, islit]):
-                msgs.warn("Targeted object is off the detector")
+                log.warning("Targeted object is off the detector")
                 continue
 
             # Generate a new specobj
@@ -845,6 +925,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 xoff = SPAT_PIXPOS - self.center[specmid, islit]
                 thisobj.TRACE_SPAT = self.center[:, islit] + xoff
                 thisobj.SPAT_PIXPOS = SPAT_PIXPOS
+                thisobj.SPAT_PIXPOS_ID = int(np.rint(thisobj.SPAT_PIXPOS))
                 thisobj.SPAT_FRACPOS = (SPAT_PIXPOS - left_tweak[specmid, islit]) / \
                                        (right_tweak[specmid, islit]-left_tweak[specmid, islit])
                 thisobj.trace_spec = np.arange(left_tweak.shape[0])
@@ -857,6 +938,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 xoff = SPAT_PIXPOS - cut_sobjs[idx_nearest].TRACE_SPAT[specmid]
                 thisobj.TRACE_SPAT = cut_sobjs[idx_nearest].TRACE_SPAT + xoff
                 thisobj.SPAT_PIXPOS = SPAT_PIXPOS
+                thisobj.SPAT_PIXPOS_ID = int(np.rint(thisobj.SPAT_PIXPOS))
                 thisobj.trace_spec = cut_sobjs[idx_nearest].trace_spec
                 thisobj.SPAT_FRACPOS = (SPAT_PIXPOS - left_tweak[specmid, islit]) / \
                                        (right_tweak[specmid, islit]-left_tweak[specmid, islit])
@@ -869,7 +951,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
             # FWHM
             thisobj.FWHM = fwhm  # pixels
-            thisobj.BOX_RADIUS = boxcar_rad  # pixels
+            thisobj.BOX_R_PIX = boxcar_rad  # pixels
             thisobj.maskwidth = 4. * fwhm  # matches objfind() in extract.py
             thisobj.smash_snr = 0.
             thisobj.smash_peakflux = 0.
@@ -880,6 +962,8 @@ class SlitTraceSet(datamodel.DataContainer):
             thisobj.RA = self.maskdef_designtab['OBJRA'][oidx]
             thisobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
             thisobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
+            thisobj.MASKDEF_OBJMAG = self.maskdef_designtab['OBJMAG'][oidx]
+            thisobj.MASKDEF_OBJMAG_BAND = self.maskdef_designtab['OBJMAG_BAND'][oidx]
             thisobj.MASKDEF_ID = self.maskdef_designtab['MASKDEF_ID'][oidx]
             thisobj.MASKDEF_EXTRACT = True
             thisobj.hand_extract_flag = False
@@ -894,7 +978,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # Vette
             for sobj in sobjs:
                 if not sobj.ready_for_extraction():
-                    msgs.error("Bad SpecObj.  Can't proceed")
+                    raise PypeItError("Bad SpecObj.  Can't proceed")
 
         # Return
         return sobjs
@@ -920,11 +1004,11 @@ class SlitTraceSet(datamodel.DataContainer):
         """
 
         if self.maskdef_objpos is None:
-            msgs.error('An array of object positions predicted by the slitmask design must be provided.')
+            raise PypeItError('An array of object positions predicted by the slitmask design must be provided.')
         if self.maskdef_slitcen is None:
-            msgs.error('An array of slit centers predicted by the slitmask design must be provided.')
+            raise PypeItError('An array of slit centers predicted by the slitmask design must be provided.')
         if self.maskdef_offset is None:
-            msgs.error('A value for the slitmask offset must be provided.')
+            raise PypeItError('A value for the slitmask offset must be provided.')
 
         # Unpack -- Remove this once we have a DataModel
         obj_maskdef_id = self.maskdef_designtab['MASKDEF_ID'].data
@@ -939,13 +1023,13 @@ class SlitTraceSet(datamodel.DataContainer):
             on_det = (sobjs.DET == self.detname) & (sobjs.OBJID > 0) # use only positive detections
             cut_sobjs = sobjs[on_det]
             if cut_sobjs.nobj == 0:
-                msgs.warn('NO detected objects.')
+                log.warning('NO detected objects.')
                 return sobjs
         else:
-            msgs.warn('NO detected objects.')
+            log.warning('NO detected objects.')
             return sobjs
 
-        msgs.info('Assign slitmask design info to detected objects. '
+        log.info('Assign slitmask design info to detected objects. '
                   'Matching tolerance includes user-provided tolerance, slit tracing uncertainties and object size.')
 
         # get slits edges init
@@ -992,8 +1076,8 @@ class SlitTraceSet(datamodel.DataContainer):
             # Within TOLER?
             # separation in pixels
             separ = measured[idx] - (expected[idx] + self.maskdef_offset)
-            msgs.info('MASKDEF_ID:{}'.format(maskid))
-            msgs.info('Difference between expected and detected object '
+            log.info('MASKDEF_ID:{}'.format(maskid))
+            log.info('Difference between expected and detected object '
                       'positions: {} arcsec'.format(np.round(separ*plate_scale, 2)))
             # we include in the tolerance the rms of the slit edges matching and the size of
             # the detected object with the highest peak flux
@@ -1020,6 +1104,8 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj.RA = self.maskdef_designtab['OBJRA'][oidx]
                 sobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
                 sobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
+                sobj.MASKDEF_OBJMAG = self.maskdef_designtab['OBJMAG'][oidx]
+                sobj.MASKDEF_OBJMAG_BAND = self.maskdef_designtab['OBJMAG_BAND'][oidx]
                 sobj.MASKDEF_EXTRACT = False
                 # Remove that idx value
                 idx = idx.tolist()
@@ -1049,6 +1135,35 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Return
         return sobjs
+
+    def det_of_slit(self, spat_id:int, det_img:np.ndarray,
+                    slit_img:np.ndarray=None):
+        """ Identify the 'best' detector for this slit/order
+        The metric is the detector where the slit appears
+        the most frequently.
+
+        Only sensibly used for mosaic images
+
+        Args:
+            spat_id (`int`):
+                spat_id value for the slit of interest
+            det_img (`numpy.ndarray`_):
+                :obj:`int` image specifying the detector number
+                (1-based) for each pixel in the mosaic
+            slit_img (`numpy.ndarray`_, optional):
+                image identifying each pixel with its associated slit.
+
+        Returns:
+            :obj:`int`: Detector number for the slit (1-based)
+        """
+        # Grab slit image?
+        if slit_img is None:
+            slit_img = self.slit_img()
+        # Find the most common detector value
+        det, cnt = np.unique(
+            det_img[(slit_img == spat_id) & (det_img > 0)],
+            return_counts=True)
+        return det[np.argmax(cnt)]
 
     def get_maskdef_objpos(self, plate_scale, det_buffer):
         """
@@ -1140,20 +1255,20 @@ class SlitTraceSet(datamodel.DataContainer):
 
         """
         if self.maskdef_objpos is None:
-            msgs.error('An array of object positions predicted by the slitmask design must be provided.')
+            raise PypeItError('An array of object positions predicted by the slitmask design must be provided.')
         if self.maskdef_slitcen is None:
-            msgs.error('An array of slit centers predicted by the slitmask design must be provided.')
+            raise PypeItError('An array of slit centers predicted by the slitmask design must be provided.')
 
         # If slitmask offset provided by the user, just save it and return
         if slitmask_off is not None:
             self.maskdef_offset = slitmask_off
-            msgs.info('User-provided slitmask offset: {} pixels ({} arcsec)'.format(round(self.maskdef_offset, 2),
+            log.info('User-provided slitmask offset: {} pixels ({} arcsec)'.format(round(self.maskdef_offset, 2),
                                                                             round(self.maskdef_offset*platescale, 2)))
             return
         # If using the dither offeset recorde in the header, just save it and return
         if dither_off is not None:
             self.maskdef_offset = -dither_off/platescale
-            msgs.info('Slitmask offset from the dither pattern: {} pixels ({} arcsec)'.
+            log.info('Slitmask offset from the dither pattern: {} pixels ({} arcsec)'.
                       format(round(self.maskdef_offset, 2), round(self.maskdef_offset*platescale, 2)))
             return
 
@@ -1162,12 +1277,12 @@ class SlitTraceSet(datamodel.DataContainer):
             on_det = (sobjs.DET == self.detname) & (sobjs.OBJID > 0) # use only positive detections
             cut_sobjs = sobjs[on_det]
             if cut_sobjs.nobj == 0:
-                msgs.warn('NO detected objects. Slitmask offset cannot be estimated in '
+                log.warning('NO detected objects. Slitmask offset cannot be estimated in '
                           f'{self.detname}.')
                 self.maskdef_offset = 0.0
                 return
         else:
-            msgs.warn('NO detected objects. Slitmask offset cannot be estimated in '
+            log.warning('NO detected objects. Slitmask offset cannot be estimated in '
                       f'{self.detname}.')
             self.maskdef_offset = 0.0
             return
@@ -1226,12 +1341,12 @@ class SlitTraceSet(datamodel.DataContainer):
             if align_offs.size > 0:
                 mean, median_off, std = sigma_clipped_stats(align_offs, sigma=2.)
                 self.maskdef_offset = median_off
-                msgs.info(f'Slitmask offset estimated using ALIGN BOXES in {self.detname}: '
+                log.info(f'Slitmask offset estimated using ALIGN BOXES in {self.detname}: '
                           f'{round(self.maskdef_offset, 2)} pixels ('
                           f'{round(self.maskdef_offset*platescale, 2)} arcsec).')
             else:
                 self.maskdef_offset = 0.0
-                msgs.info('NO objects detected in ALIGN BOXES. Slitmask offset '
+                log.info('NO objects detected in ALIGN BOXES. Slitmask offset '
                           f'cannot be estimated in {self.detname}.')
             return
 
@@ -1242,7 +1357,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 sidx = np.where(cut_sobjs.MASKDEF_ID == bright_maskdefid)[0]
                 if sidx.size == 0:
                     self.maskdef_offset = 0.0
-                    msgs.info(f'Object in slit {bright_maskdefid} not detected. Slitmask offset '
+                    log.info(f'Object in slit {bright_maskdefid} not detected. Slitmask offset '
                               f'cannot be estimated in {self.detname}.')
                 else:
                     # Parse the peak fluxes
@@ -1252,7 +1367,7 @@ class SlitTraceSet(datamodel.DataContainer):
                     bright_measured = measured[imx_sidx]
                     bright_expected = expected[imx_sidx]
                     self.maskdef_offset = bright_measured - bright_expected
-                    msgs.info('Slitmask offset computed using bright object in slit '
+                    log.info('Slitmask offset computed using bright object in slit '
                               f'{bright_maskdefid} ({self.detname}): '
                               f'{round(self.maskdef_offset, 2)} pixels ('
                               f'{round(self.maskdef_offset*platescale, 2)} arcsec)')
@@ -1270,15 +1385,15 @@ class SlitTraceSet(datamodel.DataContainer):
                 off = highsnr_measured - highsnr_expected
                 mean, median_off, std = sigma_clipped_stats(off, sigma=2.)
                 self.maskdef_offset = median_off
-                msgs.info(f'Slitmask offset estimated in {self.detname}: '
+                log.info(f'Slitmask offset estimated in {self.detname}: '
                           f'{round(self.maskdef_offset, 2)} pixels ('
                           f'{round(self.maskdef_offset*platescale, 2)} arcsec)')
             else:
-                msgs.warn(f'Less than 3 objects detected above {snr_thrshd} sigma threshold. '
+                log.warning(f'Less than 3 objects detected above {snr_thrshd} sigma threshold. '
                           f'Slitmask offset cannot be estimated in {self.detname}.')
                 self.maskdef_offset = 0.0
         else:
-            msgs.warn(f'Less than 3 objects detected above {snr_thrshd} sigma threshold. '
+            log.warning(f'Less than 3 objects detected above {snr_thrshd} sigma threshold. '
                       f'Slitmask offset cannot be estimated in {self.detname}.')
             self.maskdef_offset = 0.0
 
@@ -1292,25 +1407,27 @@ class SlitTraceSet(datamodel.DataContainer):
         will be computed using the average fwhm of the detected objects.
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced.
             platescale (:obj:`float`):
                 Platescale.
             fwhm_parset (:obj:`float`, optional):
-                Parset that guides the determination of the fwhm of the maskdef_extract objects.
-                If None (default) the fwhm are computed as the averaged from the detected objects,
+                :class:`~pypeit.par.parset.Parset` that guides the determination
+                of the fwhm of the maskdef_extract objects.  If None (default)
+                the fwhm are computed as the averaged from the detected objects,
                 if it is a number it will be adopted as the fwhm.
             find_fwhm (:obj:`float`):
-            Initial guess of the objects fwhm in pixels (used in object finding)
+                Initial guess of the objects fwhm in pixels (used in object
+                finding)
 
         Returns:
             :obj:`float`: FWHM in pixels to be used in the optimal extraction
 
         """
-        msgs.info('Determining the FWHM to be used for the optimal extraction of `maskdef_extract` objects')
+        log.info('Determining the FWHM to be used for the optimal extraction of `maskdef_extract` objects')
         fwhm = None
         if fwhm_parset is not None:
-            msgs.info(f'Using user-provided FWHM = {fwhm_parset}"')
+            log.info(f'Using user-provided FWHM = {fwhm_parset}"')
             fwhm = fwhm_parset/platescale
         elif sobjs.nobj > 0:
             # Use average FWHM of detected objects, but remove the objects in the alignment boxes
@@ -1327,10 +1444,10 @@ class SlitTraceSet(datamodel.DataContainer):
             if all_fwhm.size > 0:
                 # compute median
                 _, fwhm, _ = sigma_clipped_stats(all_fwhm, sigma=2.)
-                msgs.info('Using median FWHM = {:.3f}" from detected objects.'.format(fwhm*platescale))
+                log.info('Using median FWHM = {:.3f}" from detected objects.'.format(fwhm*platescale))
         if fwhm is None:
             fwhm = find_fwhm
-            msgs.warn('The median FWHM cannot be determined because no objects were detected. '
+            log.warning('The median FWHM cannot be determined because no objects were detected. '
                       'Using `find_fwhm` = {:.3f}". if the user wants to provide a value '
                       'set parameter `missing_objs_fwhm` in `SlitMaskPar`'.format(fwhm*platescale))
 
@@ -1368,20 +1485,20 @@ class SlitTraceSet(datamodel.DataContainer):
             self.mask[msk] = self.bitmask.turn_on(self.mask[msk],
                                                   'USERIGNORE')
         else:
-            msgs.error('Not ready for this method: {:s}'.format(
+            raise PypeItError('Not ready for this method: {:s}'.format(
                 user_slits['method']))
 
     def mask_flats(self, flatImages):
         """
-        Mask from a :class:`pypeit.flatfield.Flats` object
+        Mask based on a :class:`~pypeit.flatfield.FlatImages` object.
 
         Args:
-            flatImages (:class:`pypeit.flatfield.FlatImages`):
+            flatImages (:class:`~pypeit.flatfield.FlatImages`):
 
         """
         # Loop on all the FLATFIELD BPM keys
         for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
-            bad_flats = self.bitmask.flagged(flatImages.get_bpmflats(), flag)
+            bad_flats = self.bitmask.flagged(flatImages.get_bpmflats(), flag=flag)
             if np.any(bad_flats):
                 self.mask[bad_flats] = self.bitmask.turn_on(self.mask[bad_flats], flag)
 
@@ -1422,7 +1539,7 @@ def merge_user_slit(slitspatnum, maskIDs):
         return None
     #
     if slitspatnum is not None and maskIDs is not None:
-        msgs.error("These should not both have been set")
+        raise PypeItError("These should not both have been set")
     # MaskIDs
     user_slit_dict = {}
     if maskIDs is not None:
@@ -1500,7 +1617,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
 
     calib_slits = np.array(calib_slits)
     if list_detectors is None:
-        msgs.warn('No average slitmask offset computed')
+        log.warning('No average slitmask offset computed')
         return calib_slits
 
     # unpack list_detectors
@@ -1519,15 +1636,15 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
 
     if slitmask_offsets.size == 0:
         # If all detectors have maskdef_offset=0 give a warning
-        msgs.warn('No slitmask offset could be measured. Assumed to be zero. ')
-        msgs.warn('RA, DEC, OBJNAME assignment and forced extraction of undetected objects MAY BE WRONG! '
+        log.warning('No slitmask offset could be measured. Assumed to be zero. ')
+        log.warning('RA, DEC, OBJNAME assignment and forced extraction of undetected objects MAY BE WRONG! '
                   'Especially for dithered observations!')
-        msgs.warn('To provide a value set `slitmask_offset` in `SlitMaskPar`')
+        log.warning('To provide a value set `slitmask_offset` in `SlitMaskPar`')
 
         return calib_slits
 
     # are there dets from calib_slits that are blue?
-    indx_b = np.where(np.in1d(calib_dets, spectrograph_dets[0]))[0]
+    indx_b = np.where(np.isin(calib_dets, spectrograph_dets[0]))[0]
     # if this spectrograph is not split into blue and red detectors
     # or if it is but there are no available offsets in the blue
     if not blue_and_red or indx_b.size == 0:
@@ -1536,7 +1653,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
         for cs in calib_slits:
             # assign median to each det
             cs.maskdef_offset = median_off
-        msgs.info('Average Slitmask offset: {:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
+        log.info('Average Slitmask offset: {:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
         return calib_slits
 
@@ -1547,11 +1664,11 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
             if cs.detname in spectrograph_dets[0]:
                 # assign median to each blue det
                 cs.maskdef_offset = median_off
-        msgs.info('Average Slitmask offset for the blue detectors: '
+        log.info('Average Slitmask offset for the blue detectors: '
                   '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
         # which dets from calib_slits are red?
-        indx_r = np.where(np.in1d(calib_dets, spectrograph_dets[1]))[0]
+        indx_r = np.where(np.isin(calib_dets, spectrograph_dets[1]))[0]
         if indx_r.size > 0:
             # compute median if these red dets have values of slitmask_offsets
             _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_r], sigma=2.)
@@ -1561,7 +1678,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
         for cs in calib_slits:
             if cs.detname in spectrograph_dets[1]:
                 cs.maskdef_offset = median_off
-        msgs.info('Average Slitmask offset for the red detectors: '
+        log.info('Average Slitmask offset for the red detectors: '
                   '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
     return calib_slits
@@ -1594,7 +1711,7 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
     # grab corresponding detectors
     calib_dets = np.array([ss.detname for ss in calib_slits])
     for i in range(calib_dets.size):
-        msgs.info('DET: {}'.format(calib_dets[i]))
+        log.info('DET: {}'.format(calib_dets[i]))
         # Assign RA,DEC, OBJNAME to detected objects and add undetected objects
         if calib_slits[i].maskdef_designtab is not None:
             # Assign slitmask design information to detected objects

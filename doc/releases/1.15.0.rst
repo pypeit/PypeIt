@@ -1,0 +1,135 @@
+
+Version 1.15.0
+==============
+
+Installation Changes
+--------------------
+
+- PypeIt will no longer be available through ``conda-forge`` and must be
+  installed via ``pip`` from PyPI.  Users may still use ``conda`` for management
+  of PypeIt's virtual environment.
+
+Dependency Changes
+------------------
+
+- Removes use of deprecated ``pkg_resources``.
+- Require version ``>=1.12`` for ``specutils``.
+- Add ``psutil`` as a dependency for [dev] installs.
+- Add ``pytest-qt`` as a dependency for [dev] installs.
+- Require version ``>=0.3.1`` for ``linetools``
+
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
+
+- Started the development of instrument-specific scattered light removal. In this
+  release, we only model KCWI/KCRM scattered light.
+- Turned on usage of the use_2dmodel_mask parameter for echelle spectrographs
+- Added support for Keck/KCRM RL data reduction.
+- Allow one to turn off reinit of reduce_bpm in global_skysub and made this
+  the default for the final pass
+- Allow pypeit Spectrum1D loaders to circumvent the requirement that reduced
+  spectrum have monotonically increasing wavelength data.  Non-monotonic
+  wavelength data usually indicate a problem with the data reduction, but this
+  at least lets users ingest the spectrum.
+- Add a sensible error message to the pypeit Spectrum1D loaders in the event a
+  user inadvertently tries to use Spectrum1D instead of SpectrumList for a
+  ``spec1d`` file.
+- Enabled interpolation and extrapolation of missing echelle orders.  This is
+  currently only used for Keck/HIRES, but the code is general.
+- Allow the specification of wavelength limits on the flexure cross-correlation
+  against a sky template to limit the effect of unconstrained wavelength
+  solutions at the ends of the spectrum.
+- Change ``overscan_method = 'polynomial'`` to ``overscan_method = 'chebyshev'``
+  to reflect the *type* of polynomial being fit.  Both names point to the same
+  code, but the name ``'polynomial'`` is deprecated and will be removed in the
+  future.
+- Introduced PCA method for telluric corrections
+- Added slicer subpixel sampling for DataCube generation
+- Added ``trace_rms_tol`` parameter for edge tracing, which helps guard against
+  poorly constrained traces for spectrally truncated slits/orders.
+
+Instrument-specific Updates
+---------------------------
+
+- Add support for the R4K detector for MDM OSMOS
+- Updated archival sensitivity functions for DEIMOS 1200G, 800G, and 600ZD gratings.
+- Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
+- We now support the reduction of VLT/FORS2 data taken in MOS mode.
+- Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
+- LDT/DeVeny: default parameter & wavelength template updates, add instrument-
+  specific line lists, use SCITARG for target name if none entered in the LOUI.
+- Added support for NTT/EFOSC2 Gr#4
+- Keck/KCWI: FeAr are used for wavelength calibration, while the ThAr lamp is used
+  to determine the wavelength tilt.
+- Improvement to the wavelength calibration for Keck/HIRES. New arxiv templates added.
+  Templates available for orders 35-117.
+- Various updates to default parameters for Keck/HIRES.
+- Added ``Keck-LRIS HOWTO`` documentation.
+
+Script Changes
+--------------
+
+- When making datacubes, the user can select a separate frame to use for the sky
+  subtraction.  In this case, it is the processed data that will be used for sky
+  subtraction (akin to nodding).
+- Allow a list of files to be passed to ``pypeit_chk_wavecalib``.
+- A new script has been written (``chk_scattlight``) to check the generation of the scattered
+  light calibration frame model.
+- Added the ``pypeit_edge_inspector`` script, which allows users to edit the
+  edge traces by-hand.
+- ``pypeit_parse_slits`` now prints also the echelle order number, if applicable.
+- Column ``SpatID`` in the output of ``pypeit_chk_wavecalib`` changed to ``SpatOrderID`` and
+  now show the echelle order number, if applicable, otherwise the slit number.
+- ``pypeit_chk_edges`` now load SlitTraceSet (if available) to be able to overlay the echelle order numbers.
+- Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
+- Added a -G option to ``pypeit_setup`` and ``pypeit_obslog`` that will start the new
+  Setup GUI.
+- Improvements and bug fixes for how the mask is displayed by
+  ``pypeit_show_2dspec``, and added ``pypeit_print_bpm`` to allow for a quick
+  report on the flags associated with a given bit value.
+
+Datamodel Changes
+-----------------
+
+- A wavelength array is now stored for DataCube()
+- WaveCalib and WaveFit datacontainers now store information about echelle order
+  number, if applicable.
+- Change to how SlitTraceSet datamodel stores and checks bit flag values.
+
+Under-the-hood Improvements
+---------------------------
+
+- The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
+- Polynomial overscan fitting now uses the ``numpy.polynomial.Chebyshev`` class instead of the
+  deprecated ``numpy.polyfit()`` function.
+- Improvements to echelle wavelength calibration. Code changes in:
+  ``pypeit/core/wavecal/wvutils.py``, ``pypeit/core/wavecal/echelle.py``,
+  ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
+- Fixed some failure modes when matching measured order positions to expected
+  positions for fixed-format echelle spectrographs.
+- More extensive propagation of turning off datamodel version checking (using
+  ``try_old`` and ``chk_version``) throughout the code.
+
+Bug Fixes
+---------
+
+- Fixed bug associated with finding more than one file with the same name (but
+  presumably different extensions).
+- Fixed differential atmospheric refraction (DAR) correction bug. This bug affected
+  datacubes combined using CoAdd3D(). Previously, the DAR was being computed, applied,
+  and then later overwritten. The new routine is faster and more accurate.
+- Fixed a bug associated with an incorrect date for the transition to the Mark4
+  detector for Keck/LRIS RED.
+- Fixed a bug with the ``pypeit_identify`` script when using echelle data. Previously,
+  the sigdetect parameter was a list of all orders, instead of a single value.
+- Fixed a bug with the GUI ``pypeit_skysub_regions``. Previously, the calib header
+  information was not included, and this led to a calibration error.
+- Corrected the binning scaling for BOXCAR_RADIUS in the object-finding algorithm.
+  Previously, the platescale was multiplied by the *spectral* binning and not the
+  *spatial* binning.
+- Aligned the documentation and parameters with the code for polynomial overscan
+  subtraction.  Docs/params specified 3 values to be passed in ``overscan_par`` for
+  ``overscan_method = 'polynomial'``, but the code only uses one (poly order).
+- Fixed duplicate object bug reported in Issue #1690.
+
+

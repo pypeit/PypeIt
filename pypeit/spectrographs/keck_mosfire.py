@@ -4,23 +4,26 @@ Module for Keck/MOSFIRE specific methods.
 .. include:: ../include/links.rst
 """
 import copy
-import os
+from pathlib import Path
+
 import numpy as np
+
 from astropy.io import fits
-from astropy.stats import sigma_clipped_stats
-from pypeit import msgs
+from astropy.table import Table
+
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch, meta
 from pypeit import utils
 from pypeit import io
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from scipy import special
+from pypeit.par import parset
 from pypeit.spectrographs.slitmask import SlitMask
 
-from pypeit.utils import index_of_x_eq_y
-
 from IPython import embed
+
 
 class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     """
@@ -59,7 +62,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.1798,
-            darkcurr        = 0.8,
+            darkcurr        = 28.8,  # e-/pixel/hour  (=0.008 e-/pixel/s)
             saturation      = 1e9, # ADU, this is hacked for now
             nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
@@ -78,13 +81,13 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.30 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.11 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
@@ -123,41 +126,42 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['extrap_blu'] = 0.0  # Y-band contaminated by higher order so don't extrap much
         par['sensfunc']['extrap_red'] = 0.0
         par['fluxcalib']['extrap_sens'] = True
-        par['sensfunc']['extrap_red'] = 0.0
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 13
         par['sensfunc']['IR']['maxiter'] = 2
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
-
-
-    def get_ql_master_dir(self, file):
+    # NOTE: This function is used by the dev-suite
+    def get_ql_calib_dir(self, file):
         """
-        Returns master file directory for quicklook reductions.
+        Returns calibrations file directory for quicklook reductions.
 
         Args:
             file (str):
               Image file
 
         Returns:
-            master_dir (str):
-              Quicklook Master directory
+            :obj:`str`: Quicklook calibrations directory
 
         """
-
         mosfire_filter = self.get_meta_value(file, 'filter1')
-        return os.path.join(self.name, mosfire_filter)
+        return str(Path(self.name) / mosfire_filter)
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -166,10 +170,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        headarr = self.get_headarr(scifile)
-        decker = self.get_meta_value(headarr, 'decker')
+        # Adjust parameters based on decker, filter, and slitrange used
+        decker = self.get_meta_value(inp, 'decker')
+        filter = self.get_meta_value(inp, 'filter1')
+        slitrange = self.get_meta_value(inp, 'slitrange')
+        pix_start, pix_end = slitrange.split(':')
 
         if 'LONGSLIT' in decker:
             # turn PCA off
@@ -177,14 +185,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # if "x" is not in the maskname, the maskname does not include the number of CSU
             # used for the longslit and the length of the longslit cannot be determined
             if ('LONGSLIT-46x' not in decker) and ('x' in decker):
-                # find the spat pixel positions where the longslit starts and ends
-                pix_start, pix_end = self.find_longslit_pos(scifile)
                 # exclude the random slits outside the longslit from slit tracing
-                par['calibrations']['slitedges']['exclude_regions'] = ['1:0:{}'.format(pix_start),
-                                                                       '1:{}:2040'.format(pix_end)]
+                par['calibrations']['slitedges']['exclude_regions'] = (
+                    [f'1:0:{pix_start}', f'1:{pix_end}:2040']
+                )
                 par['calibrations']['slitedges']['det_buffer'] = 0
                 # artificially add left and right edges
                 par['calibrations']['slitedges']['bound_detector'] = True
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'header'
 
         # Turn on the use of mask design
         else:
@@ -197,53 +206,54 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['extract_missing_objs'] = True
             if 'long2pos' in decker:
                 # exclude the random slits outside the long2pos from slit tracing
-                pix_start, pix_end = self._long2pos_pos()
-                par['calibrations']['slitedges']['exclude_regions'] = ['1:0:{}'.format(pix_start),
-                                                                       '1:{}:2040'.format(pix_end)]
+                par['calibrations']['slitedges']['exclude_regions'] = (
+                    [f'1:0:{pix_start}', f'1:{pix_end}:2040']
+                )
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'maskdef_offsets'
 
         # wavelength calibration
         supported_filters = ['Y', 'J', 'J2', 'H', 'K']
-        filter = self.get_meta_value(headarr, 'filter1')
         # using OH lines
         if 'long2pos_specphot' not in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
             par['calibrations']['wavelengths']['sigdetect'] = 10.
             # templates
-            if filter == 'Y':
-                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_Y']
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_Y.fits'
-            elif filter == 'J':
-                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J.fits'
-            elif filter == 'J2':
-                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J2.fits'
-            elif filter == 'H':
-                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_H']
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_H.fits'
-            elif filter == 'K':
-                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_K']
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_K.fits'
+            match filter:
+                case 'Y':
+                    par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_Y']
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_Y.fits'
+                case 'J':
+                    par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J.fits'
+                case 'J2':
+                    par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J2.fits'
+                case 'H':
+                    par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_H']
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_H.fits'
+                case 'K':
+                    par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_K']
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_K.fits'
 
         # using arc lines (we use this as default only for long2pos_specphot mask)
         elif 'long2pos_specphot' in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
             # templates
-            if filter == 'Y':
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
-            elif filter == 'J':
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J.fits'
-            elif filter == 'J2':
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J2.fits'
-            elif filter == 'H':
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_H.fits'
-            elif filter == 'K':
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_K.fits'
+            match filter:
+                case 'Y':
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
+                case 'J':
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J.fits'
+                case 'J2':
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J2.fits'
+                case 'H':
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_H.fits'
+                case 'K':
+                    par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_K.fits'
 
         # Return
         return par
@@ -252,7 +262,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -280,6 +290,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['slitwid'] = dict(card=None, compound=True, rtol=0.1)
         # slit length in numbers of CSU, defined only for only for 'LONGSLIT' masks
         self.meta['slitlength'] = dict(card=None, compound=True, rtol=0.1)
+        # slit start and end pixels, defined only for 'LONGSLIT' masks
+        self.meta['slitrange'] = dict(card=None, compound=True, rtol=0.1)
         # Filter
         self.meta['filter1'] = dict(ext=0, card='FILTER')
         # Lamps on/off or Ar/Ne
@@ -322,6 +334,20 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             else:
                 return None
 
+        if meta_key == 'slitrange':
+            # slitrange is defined only for 'LONGSLIT' masks since this info is generally
+            # included in the slitmask name (MASKNAME) of 'LONGSLIT' masks and
+            # it's useful to associate science frames to calibrations taken with different MASKNAME
+            maskname = headarr[0].get('MASKNAME')
+            if 'LONGSLIT' in maskname and ('LONGSLIT-46x' not in maskname) and ('x' in maskname):
+                # find the spat pixel positions where the longslit starts and ends
+                pix_start, pix_end = self.find_longslit_pos(headarr[0])
+            elif 'long2pos' in maskname:
+                pix_start, pix_end = self._long2pos_pos()
+            else:
+                pix_start, pix_end = 0,-1
+            return f"{pix_start}:{pix_end}"
+
         if meta_key == 'slitwid':
             # slitwid is defined only for 'LONGSLIT' masks since this info is generally
             # included in the slitmask name (MASKNAME) of 'LONGSLIT' masks and
@@ -336,7 +362,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             FLATSPEC = headarr[0].get('FLATSPEC')
             PWSTATA7 = headarr[0].get('PWSTATA7')
             PWSTATA8 = headarr[0].get('PWSTATA8')
-            if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
+            if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0 and headarr[0].get('FILTER') != 'Dark':
                 if 'Flat' in headarr[0].get('OBJECT'):
                     return 'flatlampoff'
                 else:
@@ -348,7 +374,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             elif PWSTATA7 == 1 or PWSTATA8 == 1:
                 return 'arclamp'
             else:
-                msgs.warn('Header keyword FLATSPEC, PWSTATA7, or PWSTATA8 may not exist')
+                log.warning('Header keyword FLATSPEC, PWSTATA7, or PWSTATA8 may not exist')
                 return 'unknown'
         if meta_key == 'lampstat01':
             if headarr[0].get('PWSTATA7') == 1 or headarr[0].get('PWSTATA8') == 1:
@@ -369,7 +395,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             else:
                 return 0.0
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -387,43 +413,76 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         return ['decker_secondary', 'slitlength', 'slitwid', 'dispname', 'filter1']
 
-    def modify_config(self, fitstbl, cfg):
+    def raw_header_cards(self):
         """
-        Modify the configuration dictionary for a given frame. This method is used
-        in :func:`pypeit.metadata.PypeItMetaData.set_configurations` to modify in place
-        the configuration requirement to assign a specific frame to the current setup.
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
 
-        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data, which often use
-        calibrations taken with a different decker (MASKNAME).
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
 
-            - For the 'LONGSLIT' masks, when we are assigning a configuration to a calibration file
-              that was taken with the longest slit available (46 CSUs), since these calibrations are
-              generally used for the reduction of science frames with shorter slits, we remove the
-              configuration requirement on the slit lenght for the current file.
-
-            - For the 'long2pos' masks, when we are assigning a configuration to a calibration file
-              that was taken with the 'long2pos' mask, since these calibrations are generally used
-              for the reduction of science frames taken with 'long2pos_specphot' masks, we modify the
-              configuration requirement on the decker_secondary for the current file.
-
-        Args:
-            fitstbl(`astropy.table.Table`_):
-                The table with the metadata for one frames.
-            cfg (:obj:`dict`):
-                dictionary with metadata associated to a specific configuration.
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
 
         Returns:
-            :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
         """
-        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'LONGSLIT' in fitstbl['decker'] \
-                and 'LONGSLIT' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] and\
-                'standard' not in fitstbl['frametype'] and fitstbl['slitlength'] == 46.:
+        return ['MASKNAME', 'OBSMODE', 'FILTER']
+
+    def modify_config(self, row, cfg):
+        """
+
+        Modify the configuration dictionary for a given frame. This method is
+        used in :func:`~pypeit.metadata.PypeItMetaData.set_configurations` to
+        modify in place the configuration requirement to assign a specific frame
+        to the current setup.
+
+        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data,
+        which often use calibrations taken with a different decker (MASKNAME).
+
+            - For the 'LONGSLIT' masks, when we are assigning a configuration to
+              a calibration file that was taken with the longest slit available
+              (46 CSUs), since these calibrations are generally used for the
+              reduction of science frames with shorter slits, we remove the
+              configuration requirement on the slit length for the current file.
+
+            - For the 'long2pos' masks, when we are assigning a configuration to
+              a calibration file that was taken with the 'long2pos' mask, since
+              these calibrations are generally used for the reduction of science
+              frames taken with 'long2pos_specphot' masks, we modify the
+              configuration requirement on the decker_secondary for the current
+              file.
+
+        Args:
+            row (`astropy.table.Row`_):
+                The table row with the metadata for one frame.
+            cfg (:obj:`dict`):
+                Dictionary with metadata associated to a specific configuration.
+
+        Returns:
+            :obj:`dict`: modified dictionary with metadata associated to a
+            specific configuration.
+        """
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'LONGSLIT' in row['decker'] \
+                and 'LONGSLIT' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype'] \
+                and row['slitlength'] == 46.:
             cfg2 = copy.deepcopy(cfg)
             cfg2.pop('slitlength')
             return cfg2
-        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'long2pos' in fitstbl['decker'] and \
-                'long2pos' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] \
-                and 'standard' not in fitstbl['frametype']:
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'long2pos' in row['decker'] \
+                and 'long2pos' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype']:
             cfg2 = copy.deepcopy(cfg)
             cfg2['decker_secondary'] = 'long2pos'
             return cfg2
@@ -431,22 +490,28 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
     def get_comb_group(self, fitstbl):
         """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
 
-        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
-        and modifies comb_id and bkg_id metas for a specific instrument.
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
 
-        Specifically here, this method parses the dither pattern of the science/standard
-        frames in a given calibration group and assigns to each of them a comb_id and a
-        bkg_id. The dither pattern used here are: "Slit Nod", "Mask Nod", "ABA'B'",
-        "ABAB", "ABBA", "long2pos_specphot", and "Stare". Note that the frames in the
-        same dither positions (A positions or B positions) of each "ABAB" or "ABBA"
-        sequence are 2D coadded  (without optimal weighting) before the background
-        subtraction, while for the other dither patterns, the frames in the same
-        dither positions are not coadded.
-        For "long2pos_specphot" masks, the comb_id and a bkg_id are assigned such that
-        one of the two frames with spectrum taken using the narrower slit is used as background
-        frame and subtracted from the frame with spectrum taken using the wider slit.
+        Specifically here, this method parses the dither pattern of the
+        science/standard frames in a given calibration group and assigns to each
+        of them a comb_id and a bkg_id. The known dither patterns are: "Slit
+        Nod", "Mask Nod", "ABA'B'", "ABAB", "ABBA", "long2pos_specphot", and
+        "Stare". Note that the frames in the same dither positions (A positions
+        or B positions) of each "ABAB" or "ABBA" sequence are 2D coadded
+        (without optimal weighting) before the background subtraction, while for
+        the other dither patterns, the frames in the same dither positions are
+        not coadded.
 
+        For "long2pos_specphot" masks, the ``comb_id`` and a ``bkg_id`` are
+        assigned such that one of the two frames with spectra taken using the
+        narrower slit is used as the background frame and subtracted from the
+        frame with spectra taken using the wider slit.
 
         Args:
             fitstbl(`astropy.table.Table`_):
@@ -623,7 +688,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -639,7 +704,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         pypeit_keys.remove('decker_secondary')
         pypeit_keys.remove('slitwid')
         pypeit_keys.remove('slitlength')
-        return pypeit_keys + ['lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
+        return pypeit_keys + ['slitrange', 'lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -679,9 +744,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             is_arc = fitstbl['idname'] == 'arclamp'
             is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & ('long2pos_specphot' not in fitstbl['decker'])
             return good_exp & (is_arc | is_obj)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    # TODO: Is this supposed to be deprecated in favor of get_comb_group?
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.
@@ -716,40 +782,58 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             offset_arcsec[ifile] = hdr['YOFFSET']
         return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, debug=False):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                       trim_std_pixs=None, log10_blaze_function=None, debug=False):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
         function fits will be well behaved. For example, masking second order light. For instruments that don't
-        require such tweaks it will just return the inputs, but for isntruments that do this function is overloaded
+        require such tweaks it will just return the inputs, but for instruments that do this function is overloaded
         with a method that performs the tweaks.
+
+        NOTE: if the `trim_std_pixs` parameter is not None, then the standard star spectrum will be only trimmed
+        by the specified number of pixels at the start and end of the spectrum, and no other tweaks will be
+        performed.
 
         Parameters
         ----------
-        wave_in: (float np.ndarray) shape = (nspec,)
-            Input standard star wavelenghts
-        counts_in: (float np.ndarray) shape = (nspec,)
-            Input standard star counts
-        counts_ivar_in: (float np.ndarray) shape = (nspec,)
-            Input inverse variance of standard star counts
-        gpm_in: (bool np.ndarray) shape = (nspec,)
-            Input good pixel mask for standard
-        meta_table: (astropy.table)
-            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
-            for the contents of this table.
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
 
         Returns
         -------
-        wave_out: (float np.ndarray) shape = (nspec,)
-            Output standard star wavelenghts
-        counts_out: (float np.ndarray) shape = (nspec,)
-            Output standard star counts
-        counts_ivar_out: (float np.ndarray) shape = (nspec,)
-            Output inverse variance of standard star counts
-        gpm_out: (bool np.ndarray) shape = (nspec,)
-            Output good pixel mask for standard
-
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
         """
+
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
 
         # Could check the wavelenghts here to do something more robust to header/meta data issues
         if 'Y-spectroscopy' in meta_table['DISPNAME']:
@@ -785,11 +869,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             #counts_ivar[apo_pix] = utils.inverse(sigma_apo**2)
             #counts_ivar[apo_pix] = utils.clip_ivar(counts[apo_pix], counts_ivar_in[apo_pix], 10.0, mask=gpm_in[apo_pix])
             wave_blue = 9520.0  # blue wavelength below which there is contamination
-            wave_red = 11256.0  # red wavelength above which the spectrum is containated
+            wave_red = 11256.0  # red wavelength above which the spectrum is contaminated
 
         elif 'J2-spectroscopy' in meta_table['DISPNAME']:
             wave_blue = 11170.0  # blue wavelength below which there is contamination
-            wave_red = 12600.0  # red wavelength above which the spectrum is containated
+            wave_red = 12600.0  # red wavelength above which the spectrum is contaminated
 
         else:
             # keep everything the same
@@ -799,8 +883,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
         wave = wave_in.copy()
         counts = counts_in.copy()
-        gpm = gpm_in.copy()
         counts_ivar = counts_ivar_in.copy()
+        gpm = gpm_in.copy()
+
         wave[second_order_region] = 0.0
         counts[second_order_region] = 0.0
         counts_ivar[second_order_region] = 0.0
@@ -808,6 +893,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
         # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
         gpm[second_order_region] = False
+
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function.copy()
+            log10_blaze_function_out[second_order_region] = 0.0
+        else:
+            log10_blaze_function_out = None
+
+        return wave, counts, counts_ivar, gpm, log10_blaze_function_out
+
         #if debug:
         #    from matplotlib import pyplot as plt
         #    counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
@@ -818,60 +912,25 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         #    plt.axvline(wave_red, color='red')
         #    plt.legend()
         #    plt.show()
-        return wave, counts, counts_ivar, gpm
 
-    def list_detectors(self, mosaic=False):
+    def get_slitmask(self, filename:str, det:int=1):
         """
-        List the *names* of the detectors in this spectrograph.
-
-        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
-        to measure the mean offset between the measured and expected slit
-        locations.
-
-        Detectors separated along the dispersion direction should be ordered
-        along the first axis of the returned array.  For example, Keck/DEIMOS
-        returns:
-        
-        .. code-block:: python
-        
-            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
-                             ['DET05', 'DET06', 'DET07', 'DET08']])
-
-        such that all the bluest detectors are in ``dets[0]``, and the slits
-        found in detectors 1 and 5 are just from the blue and red counterparts
-        of the same slit.
-
-        Args:
-            mosaic (:obj:`bool`, optional):
-                Is this a mosaic reduction?
-                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
-
-        Returns:
-            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
-            the array is 2D, there are detectors separated along the dispersion
-            axis.
-        """
-        return np.array([detector_container.DetectorContainer.get_name(i+1) 
-                            for i in range(self.ndet)])
-
-    def get_slitmask(self, filename):
-        """
-        Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
+        Parse the slitmask data from a raw file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
-        This can be used for multi-object slitmask, but it it's not good
-        for "LONGSLIT" nor "long2pos". Both "LONGSLIT" and "long2pos" have emtpy/incomplete
-        binTable where the slitmask data are stored.
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Name of the file to read.
+        det : :obj:`int`, optional
+            1-indexed detector number to read the slitmask for.  Ignored for
+            Keck/MOSFIRE.
 
-
-        Args:
-            filename (:obj:`str`):
-                Name of the file to read.
-
-        Returns:
-            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
-            data read from the file. The returned object is the same as
-            :attr:`slitmask`.
+        Returns
+        -------
+        :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            The slitmask data read from the file. The returned object is the
+            same as :attr:`slitmask`.
         """
         # Open the file
         hdu = io.fits_open(filename)
@@ -893,7 +952,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         if (numslits.sum() != self._CSUnumslits()) and ('LONGSLIT' not in self.get_meta_value(filename, 'decker')) \
                 and ('long2pos' not in self.get_meta_value(filename, 'decker')):
-            msgs.error('The number of allocated CSU slits does not match the number of possible slits. '
+            raise PypeItError('The number of allocated CSU slits does not match the number of possible slits. '
                        'Slitmask design matching not possible. Turn parameter `use_maskdesign` off')
 
         targ_dist_center = np.array(ssl['Target_to_center_of_slit_distance'], dtype=float)
@@ -914,7 +973,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         botdist = np.round(slit_centers - targ_dist_center, 3)
 
         # Find the index to map the objects in the Science Slit List and the Target list
-        indx = index_of_x_eq_y(targs['Target_Name'], ssl['Target_Name'])
+        indx = utils.index_of_x_eq_y(targs['Target_Name'], ssl['Target_Name'])
         targs_mtch = targs[indx]
         obj_ra = targs_mtch['RA_Hours']+' '+targs_mtch['RA_Minutes']+' '+targs_mtch['RA_Seconds']
         obj_dec = targs_mtch['Dec_Degrees']+' '+targs_mtch['Dec_Minutes']+' '+targs_mtch['Dec_Seconds']
@@ -961,38 +1020,52 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                  posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, filename:str=None, det:1=None, debug:bool=None, 
+                              binning:str=None, trc_path:str=None):
         """
-        Provides the slit edges positions predicted by the slitmask design using
-        the mask coordinates already converted from mm to pixels by the method
-        `mask_to_pixel_coordinates`.
+        Provides the slit edges positions predicted by the slitmask design.
 
-        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
-        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`, and
+        :attr:`bmap` attributes are instantiated; in this case, a file must be
+        provided.
 
-        Args:
-            ccdnum (:obj:`int`):
-                Detector number
-            filename (:obj:`str`):
-                The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
-                Default is None, i.e., to use previously instantiated attributes.
-            debug (:obj:`bool`, optional):
-                Run in debug mode.
+        Parameters
+        ---------- 
+        filename : :obj:`str`, :obj:`list`, optional:
+            Name of the file holding the mask design info or the maskfile and
+            wcs_file in that order
+        det : :obj:`int`, optional
+            Detector number.  Ignored for Keck/MOSFIRE.
+        debug : :obj:`bool`, optional
+            Flag to run in debugging mode
+        trc_path : str, optional
+            Path to the first trace file used to generate the trace flat
+        binning : str, optional
+            String with the comma-separated number of pixels binned in each
+            dimension of the flat-field image.  Order must be spectral then
+            spatial.
 
-        Returns:
-            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
-            Two arrays are the predictions of the slit edges from the slitmask design and
-            one contains the indices to order the slits from left to right in the PypeIt orientation
-
+        Returns
+        -------
+        top_edges : :class:`numpy.ndarray`
+            Predicted locations of the top edges of the slits in spatial pixel
+            coordinates.
+        bot_edges : :class:`numpy.ndarray`
+            Predicted locations of the bottom edges of the slits in spatial pixel
+            coordinates.
+        sortindx : :class:`numpy.ndarray`
+            Indices of the slits in the provided ``slitmask`` object that orders
+            the slits from left to right, in the PypeIt orientation.
+        slitmask : :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            Slit mask metadata read from the provided input file(s).
         """
         # Re-initiate slitmask
-        if filename is not None:
-            self.get_slitmask(filename)
-        else:
-            msgs.error('The name of a science file should be provided')
+        if filename is None:
+            raise PypeItError('The name of a science file should be provided for Keck/MOSFIRE.')
+        self.get_slitmask(filename)
 
         if self.slitmask is None:
-            msgs.error('Unable to read slitmask design info. Provide a file.')
+            raise PypeItError('Unable to read slitmask design info. Provide a file.')
 
         platescale = self.get_detector_par(det=1)['platescale']
         slit_gap = self._slit_gap(platescale)
@@ -1000,7 +1073,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # build an array of values containing the bottom (right) edge of the slits
         # starting edge
         edge = self._starting_edge(filename)
-        bot_edges = np.array([edge], dtype=np.int)
+        bot_edges = np.array([edge], dtype=int)
         for i in range(self.slitmask.nslits - 1):
             # target is the slit number
             edge -= (self.slitmask.onsky[:,2][i]/platescale + slit_gap)
@@ -1019,33 +1092,33 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # This print a QA table with info on the slits sorted from left to right.
         if not debug:
             num = 0
-            msgs.info('Expected slits')
-            msgs.info('*' * 18)
-            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'Slit_Number'))
-            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 13))
+            log.info('Expected slits')
+            log.info('*' * 18)
+            log.info('{0:^6s} {1:^12s}'.format('N.', 'Slit_Number'))
+            log.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 13))
             for i in range(sortindx.shape[0]):
-                msgs.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
+                log.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
                 num += 1
-            msgs.info('*' * 18)
+            log.info('*' * 18)
 
         # If instead we run this method in debug mode, we print more info
         if debug:
             num = 0
-            msgs.info('Expected slits')
-            msgs.info('*' * 92)
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^16s}'.format('N.', 'Slit_Number',
+            log.info('Expected slits')
+            log.info('*' * 92)
+            log.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^16s}'.format('N.', 'Slit_Number',
                                                                                     'slitLen(arcsec)',
                                                                                     'slitWid(arcsec)',
                                                                                     'top_edges(pix)',
                                                                                     'bot_edges(pix)'))
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^14s}'.format('-' * 4, '-' * 13, '-' * 11,
+            log.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^14s}'.format('-' * 4, '-' * 13, '-' * 11,
                                                                                     '-' * 11, '-' * 18, '-' * 15))
             for i in range(sortindx.size):
-                msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f}    {4:^16.2f} {5:^14.2f}'.format(num,
+                log.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f}    {4:^16.2f} {5:^14.2f}'.format(num,
                             self.slitmask.slitid[sortindx][i], self.slitmask.onsky[:,2][sortindx][i],
                             self.slitmask.onsky[:,3][sortindx][i], top_edges[sortindx][i], bot_edges[sortindx][i]))
                 num += 1
-            msgs.info('*' * 92)
+            log.info('*' * 92)
 
         return top_edges, bot_edges, sortindx, self.slitmask
 
@@ -1123,14 +1196,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         return 880, 1190
 
     @staticmethod
-    def find_longslit_pos(scifile):
+    def find_longslit_pos(hdr):
         """
         Given a MOSFIRE science raw file, find the position of the slit
         in the LONGSLIT slitmask
 
         Args:
-            scifile: (:obj:`str`):
-                Name of the science file to read.
+            hdr: (:obj:`~astropy.io.fits.Header`):
+                FITS header from which to pull information
 
         Returns:
             :obj:`tuple`: Two integer number indicating the x position of the
@@ -1138,9 +1211,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         """
         # Read some values from header
-        hdu = io.fits_open(scifile)
-        decker = hdu[0].header['MASKNAME']
-        platescale = hdu[0].header['PSCALE']
+        decker = hdr['MASKNAME']
+        platescale = hdr['PSCALE']
 
         slit_gap = KeckMOSFIRESpectrograph._slit_gap(platescale)  # pixels
         CSUlength = KeckMOSFIRESpectrograph._CSUlength(platescale)  # pixels
@@ -1149,10 +1221,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         CSUnum = int(decker.split("x")[0].split('-')[1])
         slit_length = CSUnum * CSUlength + (CSUnum-1)*slit_gap
         if CSUnum % 2 == 0:
-            pix_start = hdu[0].header['CRPIX2'] - (slit_length/2. + (CSUlength+slit_gap)/2. + 1)
-            pix_end = hdu[0].header['CRPIX2'] + (slit_length/2. - (CSUlength+slit_gap)/2. + 1)
+            pix_start = hdr['CRPIX2'] - (slit_length/2. + (CSUlength+slit_gap)/2. + 1)
+            pix_end = hdr['CRPIX2'] + (slit_length/2. - (CSUlength+slit_gap)/2. + 1)
         else:
-            pix_start = hdu[0].header['CRPIX2'] - (slit_length/2. + 1)
-            pix_end = hdu[0].header['CRPIX2'] + (slit_length/2. + 1)
+            pix_start = hdr['CRPIX2'] - (slit_length/2. + 1)
+            pix_end = hdr['CRPIX2'] + (slit_length/2. + 1)
 
         return int(round(pix_start)), int(round(pix_end))

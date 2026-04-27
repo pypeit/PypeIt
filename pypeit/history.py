@@ -5,7 +5,9 @@ Module for managing the history of PypeIt output files.
 .. include:: ../include/links.rst
 """
 
-import os.path
+from pathlib import Path
+import numpy as np
+from IPython import embed
 
 from astropy.time import Time
 from astropy.io import fits
@@ -85,7 +87,7 @@ class History:
             for frame in calib_frames:
                 self.append(f'{frame["frametype"]} "{frame["filename"]}"', add_date=False)
 
-    def add_coadd1d(self, spec1d_files, objids):
+    def add_coadd1d(self, spec1d_files, objids, gpm_exp=None):
         """
         Add history entries for 1D coadding.
         
@@ -104,27 +106,85 @@ class History:
         Args:
             spec1d_files (:obj:`list`): List of the spec1d files used for coadding.
             objids (:obj:`list`): List of the PypeIt object ids used in coadding.
+            gpm_exp (:obj:`list`, optional): List of boolean indicating which exposures were coadded.
         """
 
-        combined_files_objids = list(zip(spec1d_files, objids))
-        self.append(f'PypeIt Coadded {len(combined_files_objids)} objects from {len(set(spec1d_files))} spec1d files')
+        if gpm_exp is not None:
+            # Not coadded files and objids
+            notcoadded_spec1d_files = [spec1d_file for (spec1d_file, gpm_exp) in zip(spec1d_files, gpm_exp) if not gpm_exp]
+            notcoadded_objids = [objid for (objid, gpm_exp) in zip(objids, gpm_exp) if not gpm_exp]
+            combined_notcoadd_files_objids = list(zip(notcoadded_spec1d_files, notcoadded_objids))
 
-        current_spec1d = ""
-        for (spec1d, objid) in combined_files_objids:
-            if spec1d != current_spec1d:
-                current_spec1d = spec1d
+            # Coadded files and objids
+            coadded_spec1d_files = [spec1d_file for (spec1d_file, gpm_exp) in zip(spec1d_files, gpm_exp) if gpm_exp]
+            coadded_objids = [objid for (objid, gpm_exp) in zip(objids, gpm_exp) if gpm_exp]
+            combined_files_objids = list(zip(coadded_spec1d_files, coadded_objids))
+        else:
+            combined_files_objids = list(zip(spec1d_files, objids))
+            combined_notcoadd_files_objids = None
 
-                self.append(f'From "{os.path.basename(spec1d)}"', add_date=False)
-                header = fits.getheader(spec1d)
-                additional_info = None
-                if 'SEMESTER' in header:
-                    additional_info = f"Semester: {header['SEMESTER']}"
-                if 'PROGID' in header:
-                    additional_info += f" Program ID: {header['PROGID']}"
-                if additional_info is not None:
-                    self.append(additional_info, add_date=False)
-            self.append(objid, add_date=False)
+        files_objids = [combined_files_objids, combined_notcoadd_files_objids]
+        # add history
+        for file_objid in files_objids:
+            if file_objid is None:
+                continue
+            elif file_objid == combined_files_objids:
+                self.append(f'PypeIt Coadded {len(file_objid)} objects '
+                            f'from {np.unique([f[0] for f in file_objid]).size} spec1d files')
+            elif file_objid == combined_notcoadd_files_objids and len(file_objid) > 0:
+                self.append(f'PypeIt DID NOT COADD {len(file_objid)} objects '
+                            f'from {np.unique([f[0] for f in file_objid]).size} spec1d files', add_date=False)
 
+            current_spec1d = ""
+            for (spec1d, objid) in file_objid:
+                if spec1d != current_spec1d:
+                    current_spec1d = spec1d
+
+                    self.append(f'From "{Path(spec1d).name}"', add_date=False)
+                    header = fits.getheader(spec1d)
+                    additional_info = None
+                    if 'SEMESTER' in header:
+                        additional_info = f"Semester: {header['SEMESTER']}"
+                    if 'PROGID' in header:
+                        additional_info += f" Program ID: {header['PROGID']}"
+                    if additional_info is not None:
+                        self.append(additional_info, add_date=False)
+                obj_info = objid
+                # get extension names
+                hnames = [h.name for h in fits.open(spec1d)]
+                # find the extension name that include objid
+                ind_ext = np.where([objid in h for h in hnames])[0]
+                if ind_ext.size > 0:
+                    # get the header for this extension
+                    this_ext_header = fits.getheader(spec1d, ext=ind_ext[0])
+                    if 'MASKDEF_ID' in this_ext_header:
+                        obj_info += f" {this_ext_header['MASKDEF_ID']}"
+                    if 'MASKDEF_OBJNAME' in this_ext_header:
+                        obj_info += f" {this_ext_header['MASKDEF_OBJNAME']}"
+                self.append(obj_info, add_date=False)
+
+    def add_coadd2d(self, spec2d_files:list[str], objname:str):
+        """
+        Add history entries for 2D coadding.
+        
+        The history shows what files and objects were used for coadding.
+        For example::
+            
+            HISTORY 2025-10-30T23:21 PypeIt Coadding target JWST in 4 spec2d files
+            HISTORY File 0: "spec2d_20251008.0053-JWST_DeVeny_20251008T045554.290.fits"
+            HISTORY File 1: "spec2d_20251008.0054-JWST_DeVeny_20251008T050103.240.fits"
+            HISTORY File 2: "spec2d_20251008.0055-JWST_DeVeny_20251008T050611.510.fits"
+            HISTORY File 3: "spec2d_20251008.0056-JWST_DeVeny_20251008T051119.790.fits"
+
+        Args:
+            spec2d_files (:obj:`list`): List of the spec2d files used for coadding.
+            objname (:obj:`str`): Name of the object being coadded
+        """
+        # Add history
+        self.append(f'PypeIt Coadded target {objname} in '
+                    f'{len(spec2d_files)} spec2d files')
+        for i, spec2d in enumerate(spec2d_files):
+            self.append(f'File {i}: "{Path(spec2d).name}"', add_date=False)
 
     def append(self, history, add_date=True):
         """Append a new history entry.

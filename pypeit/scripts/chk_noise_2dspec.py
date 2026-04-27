@@ -4,6 +4,7 @@ for one of the outputs of PypeIt
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
+
 """
 
 import numpy as np
@@ -15,7 +16,8 @@ from astropy.modeling.models import Gaussian1D
 from astropy.table import Table
 
 from pypeit import spec2dobj
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import io
 from pypeit import utils
 from pypeit.scripts import scriptbase
@@ -31,7 +33,7 @@ def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
     """ Generate the plot
 
     Args:
-        image (np.ndarray):
+        image (`numpy.ndarray`_):
             Image of the slit to plot.
         chi_select (`numpy.ndarray`_):
             2D array of the chi value for a selected part of the slit.
@@ -39,7 +41,7 @@ def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
             Array of wavelength of spectral features to be plotted.
         line_names (`numpy.ndarray`_):
             Array of names of spectral features to be plotted.
-        lbda_1d (np.ndarray):
+        lbda_1d (`numpy.ndarray`_):
             1D array of the wavelength
         lbda_min (float):
             Minimum wavelength of the select pat of the slit
@@ -149,8 +151,8 @@ class ChkNoise2D(scriptbase.ScriptBase):
         parser.add_argument('--z', default=None, type=float, nargs='*', help='Object redshift')
         parser.add_argument('--maskdef_id', default=None, type=int, help='MASKDEF_ID of the slit that '
                                                                          'you want to plot. If maskdef_id is '
-                                                                         'not provided, nor a pypeit_id, all the'
-                                                                         ' 2D spectra in the file(s) will be plotted.')
+                                                                         'not provided, nor a pypeit_id, all the '
+                                                                         '2D spectra in the file(s) will be plotted.')
         parser.add_argument('--pypeit_id', default=None, type=int, help='PypeIt ID of the slit that '
                                                                         'you want to plot. If pypeit_id is not '
                                                                         'provided, nor a maskdef_id, all the '
@@ -160,23 +162,28 @@ class ChkNoise2D(scriptbase.ScriptBase):
         parser.add_argument('--aspect_ratio', default=3, type=int, help='Aspect ratio when plotting the spec2d')
         parser.add_argument('--wavemin', default=None, type=float, help='Wavelength min. This is for selecting a '
                                                                         'region of the spectrum to analyze.')
-        parser.add_argument('--wavemax', default=None, type=float, help='Wavelength max.This is for selecting a '
+        parser.add_argument('--wavemax', default=None, type=float, help='Wavelength max. This is for selecting a '
                                                                         'region of the spectrum to analyze.')
-        parser.add_argument('--mode', default='plot', type=str, help='Options are: plot, save, print'
-                                                                     'Do you want to save to disk or open a plot '
-                                                                     'in a mpl window. If you choose save, a '
-                                                                     'folder called spec2d*_noisecheck will be '
-                                                                     'created and all the relevant plot will be '
-                                                                     'placed there. If you choose print, check noise '
-                                                                     'value are printed in the terminal')
+        parser.add_argument('--mode', default='plot', type=str, help='Options are: [plot, save, print].  '
+                                                                     '"plot" will open a plot in a mpl window. '
+                                                                     '"save" will create a folder called '
+                                                                     'spec2d*_noisecheck where all the relevant plots '
+                                                                     'will be placed.  "print" will cause the check '
+                                                                     'noise values to be printed in the terminal.')
         parser.add_argument('--list', default=False, help='List the extensions only?',
                             action='store_true')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
 
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
+        # Initialize the log
+        cls.init_log(args)
+
+        chk_version = not args.try_old
 
         # Parse the detector name
         try:
@@ -205,7 +212,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
             if args.list:
                 io.fits_open(file).info()
                 continue
-            spec2DObj = spec2dobj.Spec2DObj.from_file(file, detname, chk_version=False)
+            spec2DObj = spec2dobj.Spec2DObj.from_file(file, detname, chk_version=chk_version)
 
             # Deal with redshifts
             if args.z is not None:
@@ -234,7 +241,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
             all_maskdef_ids = spec2DObj.slits.maskdef_id
             all_pypeit_ids = spec2DObj.slits.slitord_id
             if args.maskdef_id is not None and all_maskdef_ids is None:
-                msgs.error('This spec2d does not have maskdef_id. Choose a pypeit_id insteed.')
+                raise PypeItError('This spec2d does not have maskdef_id. Choose a pypeit_id insteed.')
 
             # Build the mask
             input_mask = spec2DObj.bpmmask.mask == 0
@@ -270,7 +277,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 # Cut down
                 chi_select = chi_slit * input_mask
                 if np.all(chi_select == 0):
-                    msgs.warn(f"All of the chi values are masked in slit {pypeit_id} of {basename}!")
+                    log.warning(f"All of the chi values are masked in slit {pypeit_id} of {basename}!")
                     continue
 
                 # Flux to show
@@ -289,7 +296,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
 
                 # Wavelengths
                 if spec2DObj.waveimg[input_mask].size == 0:
-                    msgs.warn(f"None of the wavelength values work in slit {pypeit_id} of {basename}!")
+                    log.warning(f"None of the wavelength values work in slit {pypeit_id} of {basename}!")
                     continue
                 lbda_1darray = spec2DObj.waveimg[:, mid_spat]
 

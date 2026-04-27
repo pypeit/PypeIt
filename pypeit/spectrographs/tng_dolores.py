@@ -3,16 +3,21 @@ Module for TNG/Dolores
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
 
 import numpy as np
 
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class TNGDoloresSpectrograph(spectrograph.Spectrograph):
@@ -54,7 +59,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
             ygap            = 0.,
             ysize           = 1.,
             platescale      = 0.252,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65500.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -73,12 +78,12 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 0.1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['scienceframe']['exprng'] = [1, None]
@@ -93,44 +98,57 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         return par
 
     
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'LR-B':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx_v2.fits'
-            # Add CdI
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI']
-        else:
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            msg.warn('Check wavelength calibration file.')
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        match grating:
+            case 'LR-B':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx_v2.fits'
+                # Add CdI
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI']
+            case 'LR-R':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-R_arx.fits'
+                # Add CdI
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI']
+            case _:
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+                log.warning('Check wavelength calibration file.')
 
         # Return
         return par
-    
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -172,7 +190,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'ra':
             radeg = headarr[0]['RA-RAD']*180.0/np.pi  # Convert radians to decimal degrees
             return radeg
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -190,6 +208,25 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'decker']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRM_ID', 'SLT_ID']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -225,7 +262,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'CALIB') & ( (fitstbl['lampstat01'] == 'Ne+Hg') | (fitstbl['lampstat01'] == 'Helium') ) \
                         & (fitstbl['dispname'] != 'OPEN')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 

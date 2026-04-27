@@ -5,14 +5,16 @@
 Tutorials
 =========
 
+If you've landed here without first reading through the :ref:`cookbook`, you're
+encouraged to start there and come back.
+
 If this is your **first time using PypeIt**, you're encouraged to read through
 the :doc:`Shane Kast<kast_howto>` tutorial as a general example of how to use
-PypeIt; see also the :ref:`cookbook`.  **You are also encouraged to pull example
-data from the DevSuite for your instrument when learning how to use the
-software**; see :ref:`dev-suite`.
+PypeIt.  **You are also encouraged to pull example data from the DevSuite for
+your instrument when learning how to use the software**; see :ref:`dev-suite`.
 
-For examples of reductions for different types of data (long-slit, echelle,
-etc), we recommend the following starting points:
+For examples of reductions for different types of data, we recommend the
+following starting points:
 
     - **Long-slit data**: :doc:`Shane Kast<kast_howto>`
 
@@ -31,10 +33,18 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    :caption: Instrument-specific Tutorials
    :maxdepth: 1
 
+   APF Levy <apf_howto>
    Gemini GNIRS <gnirs_howto>
    Keck DEIMOS <deimos_howto>
+   Keck HIRES <hires_howto>
+   Keck LRIS <lris_howto>
    Keck MOSFIRE <mosfire_howto>
+   Keck NIRES <nires_howto>
+   Keck NIRSPEC <nirspec_high_howto>
+   LBT MODS <mods_howto>
+   LDT DeVeny <deveny_howto>
    Shane Kast <kast_howto>
+   Subaru FOCAS <focas_howto>
 
 ----
 
@@ -43,6 +53,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    :maxdepth: 1
 
    2D Coadds <coadd2d_howto>
+   Setup GUI <setup_gui>
 
 
 

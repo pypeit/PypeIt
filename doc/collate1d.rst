@@ -87,7 +87,14 @@ followed by a list of spec1d files. An example configuration file is shown below
 
 .. code-block:: ini
 
-    # User-defined coadding and fluxing parameters can be given but are not required
+    # User-defined rdx, coadding, and fluxing parameters can be given but are not required
+
+    [rdx]
+    # Whether to check that spec1d files and archival sensfunc files have an
+    # up to date datamodel version. If false version numbers are 
+    # not checked. Defaults to True.
+    chk_version = False
+
     [coadd1d]
     sn_clip = 20
 
@@ -119,7 +126,7 @@ followed by a list of spec1d files. An example configuration file is shown below
     # If this list is not empty, each spec1d file to be coadded 
     # must have a matching spec2d file.
 
-    slit_exclude_flags = BOXSLIT
+    exclude_slit_trace_bm  = BOXSLIT
 
     # Exclude SERENDIP objects
     exclude_serendip = False

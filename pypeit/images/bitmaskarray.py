@@ -6,8 +6,6 @@ Class usage examples
 
 .. include:: ../include/bitmaskarray_usage.rst
 
-----
-
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
@@ -15,9 +13,12 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit.datamodel import DataContainer
-from pypeit import msgs
+from astropy.io import fits
 
+from pypeit.datamodel import DataContainer
+from pypeit.bitmask import BitMask
+from pypeit import log
+from pypeit import PypeItError
 
 class BitMaskArray(DataContainer):
     """
@@ -45,6 +46,8 @@ class BitMaskArray(DataContainer):
     Datamodel is simple, containing only the mask array.
     """
 
+    internals = ['lower_keys']
+
     bitmask = None
     """
     :class:`~pypeit.bitmask.BitMask` object used to interpret the bit array.
@@ -58,6 +61,13 @@ class BitMaskArray(DataContainer):
         self._set_keys()
         self.mask = np.zeros(shape, dtype=self.bitmask.minimum_dtype(asuint=asuint))
 
+    @classmethod
+    def from_array(cls, arr):
+        # Instantiate using the shape of the provided array
+        self = cls(arr.shape, asuint=np.issubdtype(arr.dtype, np.unsignedinteger))
+        self.mask[...] = arr[...]
+        return self
+
     def _set_keys(self):
         """
         Set :attr:`lower_keys`, which are needed for the bit access convenience
@@ -66,12 +76,12 @@ class BitMaskArray(DataContainer):
         # Check the bitmask
         keys = self.bit_keys()
         if any([not isinstance(k, str) for k in keys]):
-            msgs.error(f'CODING ERROR: {self.bitmask.__class__.__name__} must only contain '
+            raise PypeItError(f'CODING ERROR: {self.bitmask.__class__.__name__} must only contain '
                        'string bit flags.')
 
         self.lower_keys = [k.lower() for k in keys]
         if len(np.unique(self.lower_keys)) != len(keys):
-            msgs.error('CODING ERROR: All bitmask keys must be case-insensitive and unique: '
+            raise PypeItError('CODING ERROR: All bitmask keys must be case-insensitive and unique: '
                        f'{keys}')
 
     def __getattr__(self, item):
@@ -133,12 +143,6 @@ class BitMaskArray(DataContainer):
         _self.mask &= other.mask
         return _self
 
-    def _init_internals(self):
-        """
-        Initialize attributes that are not part of the datamodel.
-        """
-        self.lower_keys = None
-
     # TODO: This loses the description of the bits.  Might be better to override
     # to_hdu; although this gets sticky trying to figure out which hdu has the
     # mask...  Leaving it this way for now.
@@ -155,6 +159,43 @@ class BitMaskArray(DataContainer):
         d[0].update(self.bitmask.to_dict())
         return d
 
+    @classmethod
+    def from_hdu(cls, hdu, chk_version=True, **kwargs):
+        """
+        Instantiate the object from an HDU extension.
+
+        This overrides the base-class method, only to add checks (or not) for
+        the bitmask.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            chk_version (:obj:`bool`, optional):
+                If True, raise an error if the datamodel version or
+                type check failed. If False, throw a warning only.
+            **kwargs:
+                Passed directly to :func:`_parse`.
+        """
+        # Run the default parser
+        d, version_passed, type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
+        # Check
+        cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
+
+        # Instantiate
+        self = super().from_dict(d=d)
+
+        # Check the bitmasks. Bits should have been written to *any* header
+        # associated with the object
+        hdr = hdu[parsed_hdus[0]].header if isinstance(hdu, fits.HDUList) else hdu.header
+        hdr_bitmask = BitMask.from_header(hdr)
+        if chk_version and hdr_bitmask.bits != self.bitmask.bits:
+            raise PypeItBitMaskError(
+                'The bitmask in this fits file appear to be out of date!  Recreate this file by '
+                're-running the relevant script or set chk_version=False.'
+            )
+
+        return self
+    
     def copy(self):
         """Create a deep copy."""
         _self = super().__new__(self.__class__)

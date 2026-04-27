@@ -2,19 +2,22 @@
 Register the ginga global plugin(s).
 """
 import os.path
-from pkg_resources import iter_entry_points
+from importlib import metadata
 import numpy
 
 from ginga.misc.Bunch import Bunch
 
-required_plugins = ['SlitWavelength']
+required_plugins = ['SlitWavelength', 'Spec1dView']
 
 def plugins_available(return_report=False):
     available_plugins = []
-    for entry_point in iter_entry_points(group='ginga.rv.plugins', name=None):
+    # WARNING:
+    #   - metadata.entry_points(group='ginga.rv.plugins') doesn't work in python3.9
+    #   - and metadata.entry_points()['ginga.rv.plugins'] doesn't work in python3.12
+    for entry_point in metadata.entry_points(group='ginga.rv.plugins'):
         spec = entry_point.load()()
         available_plugins += [spec.get('name', spec.get('menu',
-                                                        spec.get('klass', spec.get('module'))))]
+                                spec.get('klass', spec.get('module'))))]
     indx = numpy.isin(required_plugins, available_plugins)
     result = (numpy.all(indx),)
     if return_report:
@@ -23,7 +26,13 @@ def plugins_available(return_report=False):
     return result
 
 def setup_SlitWavelength():
-    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'ginga_plugins.py'),
-                 module='ginga_plugins', klass='SlitWavelength',
+    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'slitwavelength.py'),
+                 module='slitwavelength', klass='SlitWavelength',
                  ptype='global', workspace='right', start=False,
                  category='PypeIt', menu='SlitWavelength', tab='SlitWavelength')
+
+def setup_Spec1dView():
+    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'spec1dview.py'),
+                 module='spec1dview', klass='Spec1dView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='Spec1dView', tab='Spec1dView')

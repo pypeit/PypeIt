@@ -1,11 +1,12 @@
 .. code-block:: console
 
     $ pypeit_chk_noise_2dspec -h
-    usage: pypeit_chk_noise_2dspec [-h] [--det DET] [--z [Z ...]]
+    usage: pypeit_chk_noise_2dspec [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                                   [--log_level LOG_LEVEL] [--det DET] [--z [Z ...]]
                                    [--maskdef_id MASKDEF_ID] [--pypeit_id PYPEIT_ID]
                                    [--pad PAD] [--aspect_ratio ASPECT_RATIO]
                                    [--wavemin WAVEMIN] [--wavemax WAVEMAX]
-                                   [--mode MODE] [--list]
+                                   [--mode MODE] [--list] [--try_old]
                                    [files ...]
     
     Examine the noise in a PypeIt slit/order
@@ -13,8 +14,20 @@
     positional arguments:
       files                 PypeIt spec2d file(s) (default: None)
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: None)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
       --det DET             Detector name or number. If a number, the name is
                             constructed assuming the reduction is for a single
                             detector. If a string, it must match the name of the
@@ -35,13 +48,14 @@
                             Aspect ratio when plotting the spec2d (default: 3)
       --wavemin WAVEMIN     Wavelength min. This is for selecting a region of the
                             spectrum to analyze. (default: None)
-      --wavemax WAVEMAX     Wavelength max.This is for selecting a region of the
+      --wavemax WAVEMAX     Wavelength max. This is for selecting a region of the
                             spectrum to analyze. (default: None)
-      --mode MODE           Options are: plot, save, printDo you want to save to
-                            disk or open a plot in a mpl window. If you choose save,
-                            a folder called spec2d*_noisecheck will be created and
-                            all the relevant plot will be placed there. If you
-                            choose print, check noise value are printed in the
-                            terminal (default: plot)
+      --mode MODE           Options are: [plot, save, print]. "plot" will open a
+                            plot in a mpl window. "save" will create a folder called
+                            spec2d*_noisecheck where all the relevant plots will be
+                            placed. "print" will cause the check noise values to be
+                            printed in the terminal. (default: plot)
       --list                List the extensions only? (default: False)
+      --try_old             Attempt to load old datamodel versions. A crash may
+                            ensue.. (default: False)
     

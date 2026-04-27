@@ -5,9 +5,7 @@ Define a utility base class used to hold parameters.
 .. include:: ../include/links.rst
 """
 import os
-import warnings
 import textwrap
-import sys
 
 from IPython import embed
 
@@ -15,6 +13,7 @@ import numpy
 
 from astropy.io import fits
 
+from pypeit import log
 from pypeit.par import util
 
 
@@ -209,8 +208,10 @@ class ParSet:
         if isinstance(value, list):
             is_parset_or_dict = [ isinstance(v, (ParSet, dict)) for v in value ]
             if numpy.any(is_parset_or_dict) and not numpy.all(is_parset_or_dict):
-                warnings.warn('List includes a mix of ParSet and dicts with other types.  '
-                              'Displaying and writing the ParSet will not be correct!')
+                log.warning(
+                    "List includes a mix of ParSet and dicts with other types.  "
+                    "Displaying and writing the ParSet will not be correct!"
+                )
 
         if self.options[key] is not None:
             if isinstance(value, list):
@@ -316,7 +317,7 @@ class ParSet:
         columns and add a header (first row) and contents delimeter.
 
         Args:
-            data_table (:obj:`numpy.ndarray`):
+            data_table (`numpy.ndarray`_):
                 Array of string representations of the data to print.
 
         Returns:
@@ -344,7 +345,7 @@ class ParSet:
         return '\n'.join(row_string)+'\n'
 
     @staticmethod
-    def _data_string(data, use_repr=True, verbatim=False):
+    def _data_string(data, use_repr=False, verbatim=False, check_dir=False):
         """
         Convert a single datum into a string
         
@@ -362,18 +363,24 @@ class ParSet:
                 Use quotes around the provided string to indicate that
                 the string should be representated in a verbatim (fixed
                 width) font.
+            check_dir (:obj:`bool`, optional):
+                If ``data`` is a string, check if it matches the current working
+                directory and replace it with a generic string if it does.
         
         Returns:
             str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
+            _data = '$PWD' if check_dir and data == os.getcwd() else data
             if verbatim:
-                return '..' if len(data) == 0 else '``' + data + '``'
-            return data
+                return '..' if len(_data) == 0 else '``' + _data + '``'
+            return _data
         if isinstance(data, list):
-            # TODO: When the list is empty, should the return include the
-            # brackets?
-            return '[]' if len(data) == 0 \
+            # When the list is empty, return an empty string, which config_lines will append a "," to.
+            # This allows ConfigObj to interpret it as an empty list, instead of string, when re-reading the
+            # configuration lines into a ParSet
+            
+            return '' if len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
                                                              verbatim=verbatim) for d in data ])
         return data.__repr__() if use_repr else str(data)
@@ -414,7 +421,7 @@ class ParSet:
                      exclude_defaults=False, include_descr=True):
         """
         Recursively generate the lines of a configuration file based on
-        the provided ParSet or dict (par).
+        the provided :class:`ParSet` or :obj:`dict` (see ``par``).
 
         Args:
             section_name (:obj:`str`, optional):
@@ -487,8 +494,10 @@ class ParSet:
             except:
                 pass
             if not exclude_defaults or par[k] != par.default[k]:
-                lines += [ component_indent + k + ' = ' + ParSet._data_string(par[k]) ]
-
+                argvalue = ParSet._data_string(par[k])
+                if isinstance(par[k], list):
+                    argvalue += ','
+                lines += [ component_indent + k + ' = ' + argvalue ]
         # Then add the items that are ParSets as subsections
         for k in parset_keys:
             section_comment = None
@@ -617,23 +626,22 @@ class ParSet:
 
         Args:
             cfg_file (:obj:`str`, optional):
-                The name of the file to write/append to.  If None
-                (default), the function will just return the list of
-                strings that would have been written to the file.  These
-                lines can be used to construct a :class:`ConfigObj`
-                instance.
+                The name of the file to write/append to.  If None (default), the
+                function will just return the list of strings that would have
+                been written to the file.  These lines can be used to construct
+                a `configobj`_ instance.
             section_name (:obj:`str`, optional):
                 The top-level name for the config section.  This must be
                 provided if :attr:`cfg_section` is None or any of the
-                parameters are not also ParSet instances themselves.
+                parameters are not also :class:`ParSet` instances themselves.
             section_comment (:obj:`str`, optional):
                 The top-level comment for the config section based on
-                this ParSet.
+                this :class:`ParSet`.
             section_level (:obj:`int`, optional):
-                The top level of this ParSet.  Used for recursive output
-                of nested ParSets.
+                The top level of this :class:`ParSet`.  Used for recursive output
+                of nested :class:`ParSet` instances.
             append (:obj:`bool`, optional):
-                Append this configuration output of this ParSet to the
+                Append this configuration output of this :class:`ParSet` to the
                 file.  False by default.  If not appending and the file
                 exists, the file is automatically overwritten.
             quiet (:obj:`bool`, optional):
@@ -646,12 +654,12 @@ class ParSet:
 
         Raises:
             ValueError:
-                Raised if there are types other than ParSet in the
+                Raised if there are types other than :class:`ParSet` in the
                 parameter list, :attr:`cfg_section` is None, and no
                 section_name argument was provided.
         """
         if cfg_file is not None and os.path.isfile(cfg_file) and not append and not quiet:
-            warnings.warn('Selected configuration file already exists and will be overwritten!')
+            log.warning("Selected configuration file already exists and will be overwritten!")
 
         config_output = []
         if numpy.all([ isinstance(d, ParSet) or d is None for d in self.data.values() ]):
@@ -720,10 +728,11 @@ class ParSet:
                 data_table[i+1,1] = ParSet._rst_class_name(self.data[k])
                 data_table[i+1,3] = '`{0} Keywords`_'.format(type(self.data[k]).__name__)
             else: 
-                data_table[i+1,1] = ', '.join([t.__name__ for t in self.dtype[k]])
+                data_table[i+1,1] = '..' if self.dtype[k] is None \
+                                    else ', '.join([t.__name__ for t in self.dtype[k]])
                 data_table[i+1,3] = '..' if self.default[k] is None \
                                     else ParSet._data_string(self.default[k], use_repr=False,
-                                                             verbatim=True)
+                                                             verbatim=True, check_dir=True)
 
             data_table[i+1,2] = '..' if self.options[k] is None \
                                     else ParSet._data_string(self.options[k], use_repr=False,
@@ -768,7 +777,7 @@ class ParSet:
         """
         Write the parameters to a fits header.
 
-        Any element that has a value of None or is a ParSet itself is
+        Any element that has a value of None or is a :class:`ParSet` itself is
         *not* written to the header.
 
         Args:
@@ -798,8 +807,10 @@ class ParSet:
                 continue
             if isinstance(value, ParSet):
                 if not quiet:
-                    warnings.warn('ParSets within ParSets are not written to headers!  '
-                                  'Skipping {0}.'.format(key))
+                    log.warning(
+                        "ParSets within ParSets are not written to headers!  "
+                        f"Skipping {key}."
+                    )
                 continue
             if isinstance(value, list):
                 _value = '[' + ', '.join([str(v) for v in value]) + ']'
@@ -816,10 +827,9 @@ class ParSet:
     @classmethod
     def from_header(cls, hdr, prefix=None):
         """
-        Instantiate the ParSet using data parsed from a fits header.
+        Instantiate the :class:`ParSet` using data parsed from a fits header.
 
-        This is a simple wrapper for
-        :func:`ParSet.parse_par_from_hdr` and
+        This is a simple wrapper for :func:`ParSet.parse_par_from_hdr` and
         :func:`ParSet.from_dict`.
 
         .. warning::
@@ -1008,9 +1018,11 @@ class ParDatabase(object):
             # inp.dtype is always a list
             if any([t in inp[i].dtype[k] for t in [int , float]]) \
                 and any([t in inp[i].dtype[k] for t in [list, numpy.ndarray]]):
-                warnings.warn('Parameter set has elements that can be either individual ' \
-                              'ints/floats or lists/arrays.  Database column {0} will have type ' \
-                              '\'object\'.'.format(k))
+                log.warning(
+                    "Parameter set has elements that can be either individual "
+                    f"ints/floats or lists/arrays.  Database column {k} will have type "
+                    "'object'."
+                )
                 dtypes += [(k,object)]
             elif len(list({int, float} - set(inp[i].dtype[k]))) == 0:
                 dtypes += [(k,float)]

@@ -1,0 +1,27 @@
+# logfile = /s/sdata1004/ccd_gain/gain_check.Direct.2023-Dec-11.log
+# datestr = Mon Dec 11 01:23:00 2023
+# mode = Direct
+# flatfile1 = /sdata1005/deimos2/2023dec11/d1211_0014.fits
+# flatfile2 = /sdata1005/deimos2/2023dec11/d1211_0015.fits
+# flatfile3 = /sdata1005/deimos2/2023dec11/d1211_0016.fits
+# flatfile4 = /sdata1005/deimos2/2023dec11/d1211_0017.fits
+# flatfile5 = /sdata1005/deimos2/2023dec11/d1211_0018.fits
+# zerofile1 = /sdata1005/deimos2/2023dec11/d1211_0011.fits
+# zerofile2 = /sdata1005/deimos2/2023dec11/d1211_0012.fits
+# column1 = videoinp
+# column2 = amploc
+# column3 = ccdloc
+# column4 = amptype
+# column5 = gain [e-/DN]
+# column6 = sigma_gain [e-/DN]
+# column7 = readnoise [e-]
+# column8 = sigma_readnoise [e-]
+#----------------------------------------
+   1 2   1   A         1.2298    0.016408      2.5785    0.034402
+   2 1   1   B         1.1769    0.016055      2.4676    0.033662
+   3 4   2   A         1.7054    0.022554      1.7879    0.023644
+   4 3   2   B         1.1711    0.021072      2.4555    0.044182
+   5 6   3   A         1.1532    0.010453      2.4180    0.021917
+   6 5   3   B         1.2657    0.024084      3.7961     0.49716
+   7 8   4   A         1.2384    0.019650      3.8947    0.061800
+   8 7   4   B         1.2181    0.014519      2.5541    0.030443

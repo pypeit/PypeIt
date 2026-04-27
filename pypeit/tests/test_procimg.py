@@ -143,5 +143,5 @@ def test_boxcar():
     a = np.arange(100).reshape(10,10).astype(float)
     arep = procimg.boxcar_replicate(a, 2)
     assert np.array_equal(procimg.boxcar_average(arep, 2), a), 'Bad replicate/average'
-    assert np.array_equal(utils.rebin_evlist(arep, a.shape), a), 'Bad replicate/rebin'
+    assert np.array_equal(utils.rebinND(arep, a.shape), a), 'Bad replicate/rebin'
 

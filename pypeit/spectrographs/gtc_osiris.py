@@ -3,26 +3,34 @@ Module for GTC OSIRIS specific methods.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 
-from pypeit import msgs
+from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.table import Table
+from astropy.time import Time
+from astropy import units, wcs
+
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from astropy import wcs, units
-import astropy.io.fits as fits
-from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation
+from pypeit.par import parset
+
+from IPython import embed
 
 
-class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
+class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
     """
     Child of Spectrograph to handle GTC/OSIRIS specific code
     """
     ndet = 1
-    name = 'gtc_osiris'
+    name = 'gtc_osiris_plus'
     telescope = telescopes.GTCTelescopePar()
     camera = 'OSIRIS'
     url = 'http://www.gtc.iac.es/instruments/osiris/'
@@ -32,7 +40,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
     def __init__(self):
         super().__init__()
-        self.location = EarthLocation.of_site('lapalma')
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -53,32 +60,27 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
-        msgs.warn("HACK FOR MAAT SIMS --- GAIN HARD-CODED")
-        gain = 2.03# if hdu is None else self.get_headarr(hdu)[0]['GAIN']
-        msgs.warn("HACK FOR MAAT SIMS --- Readout noise not read from header... assuming RON=10")
-        ronoise = 10.0
-        msgs.warn("HACK FOR MAAT SIMS --- Saturation level assumed to be larger than it actually is by 10x")
-
-        msgs.warn("HACK FOR MAAT SIMS --- dataext below should be 0, not 1")
+        gain = 1.90 if hdu is None else self.get_headarr(hdu)[0]['GAIN']
+        ronoise = 4.3 if hdu is None else self.get_headarr(hdu)[0]['RDNOISE']
 
         # Detector 1
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 1,
+            dataext         = 0,
             specaxis        = 1,
             specflip        = True,
             spatflip        = False,
             platescale      = 0.125,  # arcsec per pixel
-            darkcurr        = 0.0,
-            saturation      = 65535.*1.0E7, # ADU
+            darkcurr        = 5.0,  #e-/hr/pixel
+            saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
             numamplifiers   = 1,
             gain            = np.atleast_1d([gain]),
             ronoise         = np.atleast_1d([ronoise]),
-            datasec         = np.atleast_1d('[1:4112,50:4096]'),
-            oscansec        = np.atleast_1d('[1:4112,8:46]')  # Trim down the oscansec - looks like some bad pixels
+            datasec         = np.atleast_1d('[180:4112,50:4096]'),
+            oscansec        = np.atleast_1d('[180:4112,8:46]')  # Trim down the oscansec - looks like some bad pixels
             )
 
         detectors = [detector_dict1]
@@ -93,7 +95,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -105,16 +107,17 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI,ArI']
+        par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI','ArI']
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
 
         # Set the default exposure time ranges for the frame typing
         par['scienceframe']['exprng'] = [90, None]
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
         par['calibrations']['arcframe']['process']['clip'] = False
-        par['calibrations']['standardframe']['exprng'] = [None, 180]
+        par['calibrations']['standardframe']['exprng'] = [None, 300]
         # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
         par['calibrations']['arcframe']['process']['subtract_continuum'] = True
@@ -131,13 +134,23 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Turn off the 2D fit - this seems to be giving bad results for OSIRIS
         par['reduce']['skysub']['no_poly'] = True
+
+        # Don't extrapolate the sensitivity function for the low resolution gratings
+        # Sensitivity function parameters
+        par['sensfunc']['extrap_blu'] = 0.0
+        par['sensfunc']['extrap_red'] = 0.0
+        par['fluxcalib']['extrap_sens'] = True
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 13
+        par['sensfunc']['IR']['maxiter'] = 2
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -173,37 +186,48 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            msgs.warn("HACK FOR MAAT SIMS --- BINNING NEEDS TO BE UPDATED IN GTC_OSIRIS.PY")
-            binspatial, binspec = parse.parse_binning(headarr[0]['CCD-SUM'])
+            binspatial, binspec = parse.parse_binning(headarr[0]['CCDSUM'])
             binning = parse.binning2string(binspec, binspatial)[::-1]
-            # binspatial, binspec = parse.parse_binning(headarr[0]['HIERARCH P_BINNING'].split("_")[1])
-            # binning = parse.binning2string(binspec, binspatial)[::-1]
             return binning
         elif meta_key == 'pressure':
             try:
-                return headarr[0]['PRESSURE'] * 0.001  # Must be in astropy.units.bar
+                return headarr[0]['PRESSURE']  # Must be in astropy.units.mbar
             except KeyError:
-                msgs.warn("Pressure is not in header")
-                return 0.0
+                log.warning("Pressure is not in header")
+                log.info("The default pressure will be assumed: 611 mbar")
+                return 611.0
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['TAMBIENT']  # Must be in astropy.units.deg_C
             except KeyError:
-                msgs.warn("Temperature is not in header")
-                return 0.0
+                log.warning("Temperature is not in header")
+                log.info("The default temperature will be assumed: 1.5 deg C")
+                return 1.5
         elif meta_key == 'humidity':
             try:
                 return headarr[0]['HUMIDITY']
             except KeyError:
-                msgs.warn("Humidity is not in header")
-                return 0.0
+                log.warning("Humidity is not in header")
+                log.info("The default relative humidity will be assumed: 20 %")
+                return 20.0
+        elif meta_key == 'parangle':
+            try:
+                log.debug("Parallactic angle is not available for MAAT - DAR correction may be incorrect")
+                return headarr[0]['PARANG']  # Must be expressed in radians
+            except KeyError:
+                raise PypeItError("Parallactic angle is not in header")
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         elif meta_key == 'gain':
             return headarr[0]['GAIN']
         elif meta_key == 'slitwid':
-            msgs.warn("HACK FOR MAAT SIMS --- NEED TO GET SLICER SCALE FROM HEADER, IDEALLY")
-            return 0.305/3600.0
+            if self.name == "gtc_maat":
+                log.warning("HACK FOR MAAT SIMS --- NEED TO GET SLICER SCALE FROM HEADER, IDEALLY")
+                return 0.305 / 3600.0
+            elif self.name == "gtc_osiris_plus":
+                return headarr[0]['SLITW']/3600.0   # Convert slit width from arcseconds to degrees
+            else:
+                raise PypeItError("Could not determine slit width from header information")
 
     def configuration_keys(self):
         """
@@ -220,6 +244,37 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return ['dispname', 'decker', 'binning']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list` : The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['idname']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRISM', 'MASKNAME', 'CCDSUM', 'obsmode']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -241,7 +296,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science','standard']:
+        if ftype in ['science', 'standard']:
             return good_exp & (np.logical_not(np.char.startswith(np.char.lower(fitstbl['target']), 'arclamp'))) & \
                    (np.char.lower(fitstbl['target']) != 'spectralflat') & \
                    (np.char.lower(fitstbl['target']) != 'bias')
@@ -252,7 +307,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         if ftype == 'bias':
             return good_exp & (np.char.lower(fitstbl['target']) == 'bias')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def config_independent_frames(self):
@@ -271,17 +326,22 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'standard': 'dispname','bias': None, 'dark': None}
+        return {'standard': 'dispname', 'bias': 'binning', 'dark': 'binning'}
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -290,99 +350,83 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'idname') == 'OsirisMOS':
+        # Adjust parameters based on grating and idname
+        grating = self.get_meta_value(inp, 'dispname')
+        idname = self.get_meta_value(inp, 'idname')
+
+        if idname == 'OsirisMOS':
             par['reduce']['findobj']['find_trim_edge'] = [1,1]
             par['calibrations']['slitedges']['sync_predict'] = 'pca'
             par['calibrations']['slitedges']['det_buffer'] = 1
-        elif self.get_meta_value(scifile, 'idname') == 'OsirisLongSlitSpectroscopy':
+        elif idname == 'OsirisLongSlitSpectroscopy':
             # Do not tweak the slit edges for longslit
             par['calibrations']['flatfield']['tweak_slits'] = False
 
         # Wavelength calibration and setup-dependent parameters
-        if self.get_meta_value(scifile, 'dispname') == 'R300B':
-            # par['calibrations']['wavelengths']['wv_cen'] = 4405.
-            # par['calibrations']['wavelengths']['disp'] = 4.96
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
-            par['reduce']['findobj']['find_min_max']=[750,2051]
-            par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
-            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
-            par['calibrations']['slitedges']['smash_range'] = [0.38,0.62]
-            par['calibrations']['flatfield']['slit_illum_finecorr'] = False
-            par['reduce']['cube']['wave_min'] = 3600.0
-            par['reduce']['cube']['wave_max'] = 7200.0
-        elif self.get_meta_value(scifile, 'dispname') == 'R300R':
-            # par['calibrations']['wavelengths']['wv_cen'] = 6635.
-            # par['calibrations']['wavelengths']['disp'] = 7.74
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
-            par['reduce']['findobj']['find_min_max']=[750,2051]
-            par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
-            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
-            par['calibrations']['slitedges']['smash_range'] = [0.38,0.62]
-            par['calibrations']['flatfield']['slit_illum_finecorr'] = False
-            par['reduce']['cube']['wave_min'] = 4800.0
-            par['reduce']['cube']['wave_max'] = 10000.0
-        elif self.get_meta_value(scifile, 'dispname') == 'R500B':
-            # par['calibrations']['wavelengths']['wv_cen'] = 4745.
-            # par['calibrations']['wavelengths']['disp'] = 3.54
-            par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
-            par['reduce']['findobj']['find_min_max']=[500,2051]
-            par['reduce']['cube']['wave_min'] = 3600.0
-            par['reduce']['cube']['wave_max'] = 7200.0
-        elif self.get_meta_value(scifile, 'dispname') == 'R500R':
-            # par['calibrations']['wavelengths']['wv_cen'] = 7165.
-            # par['calibrations']['wavelengths']['disp'] = 4.88
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
-            par['reduce']['findobj']['find_min_max']=[450,2051]
-            par['reduce']['cube']['wave_min'] = 4800.0
-            par['reduce']['cube']['wave_max'] = 10000.0
-        elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
-            # par['calibrations']['wavelengths']['wv_cen'] = 5455.
-            # par['calibrations']['wavelengths']['disp'] = 2.12
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_maat_R1000B.fits'#'gtc_osiris_R1000B.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
-            # par['calibrations']['wavelengths']['wv_cen'] = 7430.
-            # par['calibrations']['wavelengths']['disp'] = 2.62
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2000B':
-            # par['calibrations']['wavelengths']['wv_cen'] = 4755.
-            # par['calibrations']['wavelengths']['disp'] = 0.86
-            par['calibrations']['wavelengths']['fwhm'] = 15.0
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_maat_R2000B.fits'#'gtc_osiris_R2000B.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500U':
-            # par['calibrations']['wavelengths']['wv_cen'] = 3975.
-            # par['calibrations']['wavelengths']['disp'] = 0.62
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500V':
-            # par['calibrations']['wavelengths']['wv_cen'] = 5185.
-            # par['calibrations']['wavelengths']['disp'] = 0.85
-            par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500R':
-            # par['calibrations']['wavelengths']['wv_cen'] = 6560.
-            # par['calibrations']['wavelengths']['disp'] = 1.04
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500I':
-            # par['calibrations']['wavelengths']['wv_cen'] = 8650.
-            # par['calibrations']['wavelengths']['disp'] = 1.36
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,XeI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
-            par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TelFit_MaunaKea_3100_26100_R20000.fits"
-        else:
-            msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        match grating:
+            case 'R300B':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
+                par['reduce']['findobj']['find_min_max'] = [750, 2051]
+                par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
+                par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
+                par['calibrations']['slitedges']['smash_range'] = [0.38, 0.62]
+                par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+                par['reduce']['cube']['wave_min'] = 3600.0
+                par['reduce']['cube']['wave_max'] = 7200.0
+            case 'R300R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
+                par['reduce']['findobj']['find_min_max'] = [750, 2051]
+                par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
+                par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
+                par['calibrations']['slitedges']['smash_range'] = [0.38, 0.62]
+                par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+                par['reduce']['cube']['wave_min'] = 4800.0
+                par['reduce']['cube']['wave_max'] = 10000.0
+            case 'R500B':
+                par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
+                par['reduce']['findobj']['find_min_max'] = [500, 2051]
+                par['reduce']['cube']['wave_min'] = 3600.0
+                par['reduce']['cube']['wave_max'] = 7200.0
+            case 'R500R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
+                par['reduce']['findobj']['find_min_max'] = [450, 2051]
+                par['reduce']['cube']['wave_min'] = 4800.0
+                par['reduce']['cube']['wave_max'] = 10000.0
+            case 'R1000B':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
+            case 'R1000R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
+            case 'R2000B':
+                par['calibrations']['wavelengths']['fwhm'] = 15.0
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
+            case 'R2500U':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
+                par['calibrations']['wavelengths']['nsippet'] = 1
+            case 'R2500V':
+                par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
+            case 'R2500R':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
+            case 'R2500I':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
+                par['sensfunc']['algorithm'] = 'IR'
+                par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
+            case _:
+                log.warning('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Return
         return par
@@ -407,7 +451,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processed bias frame used to identify bad pixels. **This is
                 ignored for KCWI.**
 
         Returns:
@@ -421,27 +465,11 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         # Extract some header info
         head0 = fits.getheader(filename, ext=0)
         binning = self.get_meta_value([head0], 'binning')
-        #binning = head0['CCD-SUM']
 
-        msgs.warn("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
-        bc = []
+        log.warning("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
         # Construct a list of the bad columns
-        # bc = []
-        # if det == 1:
-        #     # No bad pixel columns on detector 1
-        #     pass
-        # elif det == 2:
-        #     if binning == '1 1':
-        #         # The BPM is based on 2x2 binning data, so the 2x2 numbers are just multiplied by two
-        #         msgs.warn("BPM is likely over-estimated for 1x1 binning")
-        #         bc = [[220, 222, 3892, 4100],
-        #               [952, 954, 2304, 4100]]
-        #     elif binning == '2 2':
-        #         bc = [[110, 111, 1946, 2050],
-        #               [476, 477, 1154, 2050]]
-        # else:
-        #     msgs.warn("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
-        #     bc = []
+        bc = []
+        # TODO :: Add BPM
 
         # Apply these bad columns to the mask
         for bb in range(len(bc)):
@@ -449,9 +477,113 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, trim_std_pixs=None,
+                       log10_blaze_function=None, debug=False):
+        """
 
-class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
-    pypeline = 'IFU'
+        This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
+        function fits will be well behaved. For example, masking second order light. For instruments that don't
+        require such tweaks it will just return the inputs, but for instruments that do this function is overloaded
+        with a method that performs the tweaks.
+
+        Parameters
+        ----------
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
+
+        Returns
+        -------
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
+        """
+        # If trim_std_pixs is provided, use the base class method to trim the standard star
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
+
+        # Could check the wavelenghts here to do something more robust to header/meta data issues
+        if 'R300R' in meta_table['DISPNAME']:
+            wave_blue = 4800.0  # blue wavelength below which there is contamination
+            wave_red = 9300.0  # red wavelength above which the spectrum is contaminated
+        elif 'R500R' in meta_table['DISPNAME']:
+            wave_blue = 4800.0  # blue wavelength below which there is contamination
+            wave_red = 9300.0  # red wavelength above which the spectrum is contaminated
+        elif 'R300B' in meta_table['DISPNAME']:
+            wave_blue = 3400.0  # blue wavelength below which there is contamination
+            wave_red = 6500.0  # red wavelength above which the spectrum is contaminated
+        elif 'R500B' in meta_table['DISPNAME']:
+            wave_blue = 3400.0  # blue wavelength below which there is contamination
+            wave_red = 6500.0  # red wavelength above which the spectrum is contaminated
+        elif 'R1000B' in meta_table['DISPNAME']:
+            wave_blue = 3500.0  # blue wavelength below which there is contamination
+            wave_red = 6300.0  # red wavelength above which the spectrum is contaminated
+        else:
+            # keep everything the same
+            wave_blue = 0.0
+            wave_red = np.inf
+
+        second_order_region = (wave_in < wave_blue) | (wave_in > wave_red)
+        wave = wave_in.copy()
+        counts = counts_in.copy()
+        counts_ivar = counts_ivar_in.copy()
+        gpm = gpm_in.copy()
+
+        wave[second_order_region] = 0.0
+        counts[second_order_region] = 0.0
+        counts_ivar[second_order_region] = 0.0
+        # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
+        # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
+        # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
+        gpm[second_order_region] = False
+
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function.copy()
+            log10_blaze_function_out[second_order_region] = 0.0
+        else:
+            log10_blaze_function_out = None
+
+        if debug:
+           from matplotlib import pyplot as plt
+           from pypeit import utils
+           counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
+           plt.plot(wave_in, counts, color='red', alpha=0.7, label='apodized flux')
+           plt.plot(wave_in, counts_in, color='black', alpha=0.7, label='flux')
+           plt.plot(wave_in, counts_sigma, color='blue', alpha=0.7, label='flux')
+           plt.axvline(wave_blue, color='blue')
+           plt.axvline(wave_red, color='red')
+           plt.legend()
+           plt.show()
+
+        return wave, counts, counts_ivar, gpm, log10_blaze_function_out
+
+
+class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
+    pypeline = 'SlicerIFU'
     name = 'gtc_maat'
 
     def init_meta(self):
@@ -460,6 +592,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         self.meta['pressure'] = dict(card=None, compound=True, required=False)
         self.meta['temperature'] = dict(card=None, compound=True, required=False)
         self.meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['parangle'] = dict(card=None, compound=True, required=False)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -481,6 +614,13 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         par['calibrations']['tilts']['spat_order'] = 1
         par['calibrations']['tilts']['spec_order'] = 1
 
+        # Tweak the slit edges using the gradient method for SlicerIFU
+        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
+        par['calibrations']['flatfield']['tweak_slits'] = True  # Tweak the slit edges
+        par['calibrations']['flatfield']['tweak_method'] = 'gradient'  # The gradient method is better for SlicerIFU.
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
+
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
@@ -495,7 +635,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         # Don't correct flexure by default, but you should use slitcen,
         # because this is a slit-based IFU where no objects are extracted.
         par['flexure']['spec_method'] = 'skip'
-        par['flexure']['spec_maxshift'] = 2.5  # Just in case someone switches on spectral flexure, this needs to be minimal
+        par['flexure']['spec_maxshift'] = 3  # Just in case someone switches on spectral flexure, this needs to be minimal
 
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
@@ -521,24 +661,23 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
                 Change in wavelength per spectral pixel.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
-        msgs.info("Calculating the WCS")
+        log.info("Calculating the WCS")
         # Get the x and y binning factors, and the typical slit length
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
         # Get the pixel and slice scales
-        msgs.warn("HACK FOR MAAT SIMS --- SLICER SCALE = 0.305 arcsec")
         pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
         slscl = self.get_meta_value([hdr], 'slitwid')
         if spatial_scale is not None:
             if pxscl > spatial_scale / 3600.0:
-                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+                log.warning("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
             # Update the pixel scale
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
-        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+        slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
 
         # Get RA/DEC
         raval = self.get_meta_value([hdr], 'ra')
@@ -548,7 +687,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
 
         # Get rotator position
-        msgs.warn("HACK FOR MAAT SIMS --- NEED TO FIGURE OUT RPOS and RREF FOR MAAT FROM HEADER INFO")
+        log.warning("HACK FOR MAAT SIMS --- NEED TO FIGURE OUT RPOS and RREF FOR MAAT FROM HEADER INFO")
         if 'ROTPOSN' in hdr:
             rpos = hdr['ROTPOSN']
         else:
@@ -582,7 +721,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset
-        msgs.warn("HACK FOR MAAT SIMS --- Need to obtain offset from header?")
+        log.warning("HACK FOR MAAT SIMS --- Need to obtain offset from header?")
         off1 = 0.
         off2 = 0.
         off1 /= binspec
@@ -591,16 +730,15 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         crpix2 += off2
 
         # Create a new WCS object.
-        msgs.warn("HACK FOR MAAT SIMS --- EQUINOX NOT IN HEADER... ASSUMING J2000")
-        msgs.info("Generating MAAT WCS")
+        log.info("Generating MAAT WCS")
         w = wcs.WCS(naxis=3)
-        w.wcs.equinox = 2000.0
+        w.wcs.equinox = hdr['EQUINOX']
         w.wcs.name = 'MAAT'
         w.wcs.radesys = 'FK5'
         # Insert the coordinate frame
         w.wcs.cname = ['MAAT RA', 'MAAT DEC', 'MAAT Wavelength']
         w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
-        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
         w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
         w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
         w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
@@ -637,12 +775,12 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         return xbins, ybins, spec_bins
 
 
-class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
+class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     """
     Child of Spectrograph to handle GTC/OSIRIS specific code (old detector: MAT-44-82)
     """
     ndet = 2
-    name = 'gtc_osiris_old'
+    name = 'gtc_osiris'
     telescope = telescopes.GTCTelescopePar()
     camera = 'OSIRIS'
     url = 'http://www.gtc.iac.es/instruments/osiris/'
@@ -680,7 +818,7 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,  # arcsec per pixel
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
@@ -699,7 +837,7 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
@@ -722,7 +860,7 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
 
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -734,11 +872,12 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI,ArI']
+        par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI','ArI']
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
 
         # Set the default exposure time ranges for the frame typing
         par['scienceframe']['exprng'] = [90, None]
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
@@ -760,13 +899,23 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
 
         # Turn off the 2D fit - this seems to be giving bad results for OSIRIS
         par['reduce']['skysub']['no_poly'] = True
+
+        # Don't extrapolate the sensitivity function for the low resolution gratings
+        # Sensitivity function parameters
+        par['sensfunc']['extrap_blu'] = 0.0
+        par['sensfunc']['extrap_red'] = 0.0
+        par['fluxcalib']['extrap_sens'] = True
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 13
+        par['sensfunc']['IR']['maxiter'] = 2
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -801,7 +950,7 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['CCD-SUM'])
+            binspatial, binspec = parse.parse_binning(headarr[0]['CCDSUM'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'obstime':
@@ -822,6 +971,37 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
             object.
         """
         return ['dispname', 'decker', 'binning']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list` : The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['idname']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRISM', 'MASKNAME', 'CCDSUM', 'obsmode']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -858,7 +1038,7 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
         if ftype == 'bias':
             return good_exp & (fitstbl['target'] == 'BIAS')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def config_independent_frames(self):
@@ -877,17 +1057,22 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'standard': 'dispname','bias': None, 'dark': None}
+        return {'standard': 'dispname','bias': 'binning', 'dark': 'binning'}
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -896,82 +1081,66 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'idname') == 'OsirisMOS':
+        # Adjust parameters based on grating and idname
+        grating = self.get_meta_value(inp, 'dispname')
+        idname = self.get_meta_value(inp, 'idname')
+
+        if idname == 'OsirisMOS':
             par['reduce']['findobj']['find_trim_edge'] = [1,1]
             par['calibrations']['slitedges']['sync_predict'] = 'pca'
             par['calibrations']['slitedges']['det_buffer'] = 1
-        elif self.get_meta_value(scifile, 'idname') == 'OsirisLongSlitSpectroscopy':
+        elif idname == 'OsirisLongSlitSpectroscopy':
             # Do not tweak the slit edges for longslit
             par['calibrations']['flatfield']['tweak_slits'] = False
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'R300B':
-            # par['calibrations']['wavelengths']['wv_cen'] = 4405.
-            # par['calibrations']['wavelengths']['disp'] = 4.96
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
-            par['reduce']['findobj']['find_min_max']=[750,2051]
-        elif self.get_meta_value(scifile, 'dispname') == 'R300R':
-            # par['calibrations']['wavelengths']['wv_cen'] = 6635.
-            # par['calibrations']['wavelengths']['disp'] = 7.74
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
-            par['reduce']['findobj']['find_min_max']=[750,2051]
-        elif self.get_meta_value(scifile, 'dispname') == 'R500B':
-            # par['calibrations']['wavelengths']['wv_cen'] = 4745.
-            # par['calibrations']['wavelengths']['disp'] = 3.54
-            par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
-            par['reduce']['findobj']['find_min_max']=[500,2051]
-        elif self.get_meta_value(scifile, 'dispname') == 'R500R':
-            # par['calibrations']['wavelengths']['wv_cen'] = 7165.
-            # par['calibrations']['wavelengths']['disp'] = 4.88
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
-            par['reduce']['findobj']['find_min_max']=[450,2051]
-        elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
-            # par['calibrations']['wavelengths']['wv_cen'] = 5455.
-            # par['calibrations']['wavelengths']['disp'] = 2.12
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
-            # par['calibrations']['wavelengths']['wv_cen'] = 7430.
-            # par['calibrations']['wavelengths']['disp'] = 2.62
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2000B':
-            # par['calibrations']['wavelengths']['wv_cen'] = 4755.
-            # par['calibrations']['wavelengths']['disp'] = 0.86
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500U':
-            # par['calibrations']['wavelengths']['wv_cen'] = 3975.
-            # par['calibrations']['wavelengths']['disp'] = 0.62
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500V':
-            # par['calibrations']['wavelengths']['wv_cen'] = 5185.
-            # par['calibrations']['wavelengths']['disp'] = 0.85
-            par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500R':
-            # par['calibrations']['wavelengths']['wv_cen'] = 6560.
-            # par['calibrations']['wavelengths']['disp'] = 1.04
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'R2500I':
-            # par['calibrations']['wavelengths']['wv_cen'] = 8650.
-            # par['calibrations']['wavelengths']['disp'] = 1.36
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,XeI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
-            par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TelFit_MaunaKea_3100_26100_R20000.fits"
-        else:
-            msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        match grating:
+            case 'R300B':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
+                par['reduce']['findobj']['find_min_max']=[750,2051]
+            case 'R300R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
+                par['reduce']['findobj']['find_min_max']=[750,2051]
+            case 'R500B':
+                par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
+                par['reduce']['findobj']['find_min_max']=[500,2051]
+            case 'R500R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
+                par['reduce']['findobj']['find_min_max']=[450,2051]
+            case 'R1000B':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
+            case 'R1000R':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
+            case 'R2000B':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
+            case 'R2500U':
+                par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
+                par['calibrations']['wavelengths']['nsippet'] = 1
+            case 'R2500V':
+                par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
+            case 'R2500R':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
+            case 'R2500I':
+                par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
+                par['sensfunc']['algorithm'] = 'IR'
+                par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
+            case _:
+                log.warning('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Return
         return par
@@ -996,7 +1165,7 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processed bias frame used to identify bad pixels. **This is
                 ignored for KCWI.**
 
         Returns:
@@ -1009,7 +1178,7 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
 
         # Extract some header info
         head0 = fits.getheader(filename, ext=0)
-        binning = head0['CCD-SUM']
+        binning = head0['CCDSUM']
 
         # Construct a list of the bad columns
         bc = []
@@ -1019,14 +1188,14 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
         elif det == 2:
             if binning == '1 1':
                 # The BPM is based on 2x2 binning data, so the 2x2 numbers are just multiplied by two
-                msgs.warn("BPM is likely over-estimated for 1x1 binning")
+                log.warning("BPM is likely over-estimated for 1x1 binning")
                 bc = [[220, 222, 3892, 4100],
                       [952, 954, 2304, 4100]]
             elif binning == '2 2':
                 bc = [[110, 111, 1946, 2050],
                       [476, 477, 1154, 2050]]
         else:
-            msgs.warn("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
+            log.warning("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
             bc = []
 
         # Apply these bad columns to the mask
@@ -1034,3 +1203,105 @@ class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
             bpm_img[bc[bb][2]:bc[bb][3] + 1, bc[bb][0]:bc[bb][1] + 1] = 1
 
         return bpm_img
+
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, trim_std_pixs=None,
+                       log10_blaze_function=None, debug=False):
+        """
+        This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
+        function fits will be well behaved. For example, masking second order light. For instruments that don't
+        require such tweaks it will just return the inputs, but for instruments that do this function is overloaded
+        with a method that performs the tweaks.
+
+        Parameters
+        ----------
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
+        Returns
+        -------
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
+        """
+        # If trim_std_pixs is provided, use the base class method to trim the standard star
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
+
+        # Could check the wavelenghts here to do something more robust to header/meta data issues
+        if 'R300R' in meta_table['DISPNAME']:
+            wave_blue = 4800.0  # blue wavelength below which there is contamination
+            wave_red = 9300.0  # red wavelength above which the spectrum is contaminated
+        elif 'R500R' in meta_table['DISPNAME']:
+            wave_blue = 4800.0  # blue wavelength below which there is contamination
+            wave_red = 9300.0  # red wavelength above which the spectrum is contaminated
+        elif 'R300B' in meta_table['DISPNAME']:
+            wave_blue = 3400.0  # blue wavelength below which there is contamination
+            wave_red = 6500.0  # red wavelength above which the spectrum is contaminated
+        elif 'R500B' in meta_table['DISPNAME']:
+            wave_blue = 3400.0  # blue wavelength below which there is contamination
+            wave_red = 6500.0  # red wavelength above which the spectrum is contaminated
+        elif 'R1000B' in meta_table['DISPNAME']:
+            wave_blue = 3500.0  # blue wavelength below which there is contamination
+            wave_red = 6300.0  # red wavelength above which the spectrum is contaminated
+        else:
+            # keep everything the same
+            wave_blue = 0.0
+            wave_red = np.inf
+
+        second_order_region = (wave_in < wave_blue) | (wave_in > wave_red)
+        wave = wave_in.copy()
+        counts = counts_in.copy()
+        counts_ivar = counts_ivar_in.copy()
+        gpm = gpm_in.copy()
+
+        wave[second_order_region] = 0.0
+        counts[second_order_region] = 0.0
+        counts_ivar[second_order_region] = 0.0
+        # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
+        # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
+        # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
+        gpm[second_order_region] = False
+
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function.copy()
+            log10_blaze_function_out[second_order_region] = 0.0
+        else:
+            log10_blaze_function_out = None
+
+        if debug:
+           from matplotlib import pyplot as plt
+           from pypeit import utils
+           counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
+           plt.plot(wave_in, counts, color='red', alpha=0.7, label='apodized flux')
+           plt.plot(wave_in, counts_in, color='black', alpha=0.7, label='flux')
+           plt.plot(wave_in, counts_sigma, color='blue', alpha=0.7, label='flux')
+           plt.axvline(wave_blue, color='blue')
+           plt.axvline(wave_red, color='red')
+           plt.legend()
+           plt.show()
+
+        return wave, counts, counts_ivar, gpm, log10_blaze_function_out

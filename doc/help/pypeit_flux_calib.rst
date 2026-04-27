@@ -1,7 +1,9 @@
 .. code-block:: console
 
     $ pypeit_flux_calib -h
-    usage: pypeit_flux_calib [-h] [--debug] [--par_outfile] [-v VERBOSITY] flux_file
+    usage: pypeit_flux_calib [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                             [--log_level LOG_LEVEL] [--par_outfile] [--try_old]
+                             flux_file
     
     Flux calibrate 1D spectra produced by PypeIt
     
@@ -46,12 +48,20 @@
                             spectrographs: keck_deimos
                              
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
-      --debug               show debug plots?
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence.
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log.
       --par_outfile         Output to save the parameters
-      -v VERBOSITY, --verbosity VERBOSITY
-                            Verbosity level between 0 [none] and 2 [all]. Default:
-                            1. Level 2 writes a log with filename
-                            flux_calib_YYYYMMDD-HHMM.log
+      --try_old             Attempt to load old datamodel versions. A crash may
+                            ensue..
     

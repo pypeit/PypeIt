@@ -16,7 +16,7 @@ Refer `here
 <https://www.eso.org/sci/facilities/lasilla/instruments/efosc/inst/Efosc2Grisms.html>`__
 for each prism and `here
 <https://www.hq.eso.org/sci/facilities/lasilla/instruments/efosc/inst/Perf_HeArLine.list>`__
-for the whole HeAr line list.  PypeIt only supports Gr#5 and Gr#6 for now.  Note that the
+for the whole HeAr line list.  PypeIt only supports Gr#4, Gr#5 and Gr#6 for now.  Note that the
 9113 line in Gr#5 given by ESO is wrong.
 
 Flat

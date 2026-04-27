@@ -1,0 +1,27 @@
+# logfile = /s/sdata1004/ccd_gain/gain_check.Direct.2022-Nov-14.log
+# datestr = Mon Nov 14 00:21:39 2022
+# mode = Direct
+# flatfile1 = /sdata1004/dmoseng/2022nov14/d1114_0005.fits
+# flatfile2 = /sdata1004/dmoseng/2022nov14/d1114_0006.fits
+# flatfile3 = /sdata1004/dmoseng/2022nov14/d1114_0007.fits
+# flatfile4 = /sdata1004/dmoseng/2022nov14/d1114_0008.fits
+# flatfile5 = /sdata1004/dmoseng/2022nov14/d1114_0009.fits
+# zerofile1 = /sdata1004/dmoseng/2022nov14/d1114_0002.fits
+# zerofile2 = /sdata1004/dmoseng/2022nov14/d1114_0003.fits
+# column1 = videoinp
+# column2 = amploc
+# column3 = ccdloc
+# column4 = amptype
+# column5 = gain [e-/DN]
+# column6 = sigma_gain [e-/DN]
+# column7 = readnoise [e-]
+# column8 = sigma_readnoise [e-]
+#----------------------------------------
+   1 2   1   A         1.2350    0.019341      2.5894    0.040552
+   2 1   1   B         1.1713    0.013260      2.4559    0.027802
+   3 4   2   A         1.7019    0.038561      1.7842    0.040425
+   4 3   2   B         1.1708    0.014360      2.4548    0.030109
+   5 6   3   A         1.1575    0.014873      2.4269    0.031185
+   6 5   3   B         1.2581    0.025157      2.6379    0.052747
+   7 8   4   A         1.2304    0.018116      2.5798    0.037984
+   8 7   4   B         1.2196    0.012423      2.5572    0.026048

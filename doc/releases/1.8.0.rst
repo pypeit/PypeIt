@@ -23,7 +23,7 @@ Datamodel changes and algorithmic improvements
 - Improved performance of L.A. Cosmic implementation
 - Now uses stars in alignment boxes for default calculation of slitmask
   offsets in DEIMOS reductions.
-- 2D wavelength calibration image now added to MasterFlat output
+- 2D wavelength calibration image now added to Flat output
 - Improved treatment of saturation.
 - Dark counts used for calculating the shot noise now includes measured
   dark images if provided.

@@ -13,7 +13,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit.io import hdu_iter_by_ext
 from pypeit.core import trace
@@ -29,9 +30,9 @@ class TracePCA(DataContainer):
     Class to build and interact with PCA model of traces.
 
     This is primarily a container class for the results of
-    :func:`pypeit.core.pca.pca_decomposition`,
-    :func:`pypeit.core.pca.fit_pca_coefficients`, and
-    :func:`pypeit.core.pca.pca_predict`.
+    :func:`~pypeit.core.pca.pca_decomposition`,
+    :func:`~pypeit.core.pca.fit_pca_coefficients`, and
+    :func:`~pypeit.core.pca.pca_predict`.
 
     The datamodel attributes are:
 
@@ -45,13 +46,13 @@ class TracePCA(DataContainer):
             other keyword arguments are ignored.
         npca (:obj:`bool`, optional):
             The number of PCA components to keep. See
-            :func:`pypeit.core.pca.pca_decomposition`.
+            :func:`~pypeit.core.pca.pca_decomposition`.
         pca_explained_var (:obj:`float`, optional):
             The percentage (i.e., not the fraction) of the variance
             in the data accounted for by the PCA used to truncate the
             number of PCA coefficients to keep (see `npca`). Ignored
             if `npca` is provided directly. See
-            :func:`pypeit.core.pca.pca_decomposition`.
+            :func:`~pypeit.core.pca.pca_decomposition`.
         reference_row (:obj:`int`, optional):
             The row (spectral position) in `trace_cen` to use as the
             reference coordinate system for the PCA. If None, set to
@@ -62,7 +63,7 @@ class TracePCA(DataContainer):
             trace},)`. If None, the reference coordinate system is
             defined by the value of `trace_cen` at the spectral
             position defined by `reference_row`. See the `mean`
-            argument of :func:`pypeit.core.pca.pca_decomposition`.
+            argument of :func:`~pypeit.core.pca.pca_decomposition`.
     """
 
     version = '1.1.0'
@@ -104,22 +105,21 @@ class TracePCA(DataContainer):
                                                 'coefficients at a new reference coordinate.')}
     """Object datamodel."""
 
+    internals = ['is_empty']
+
     # TODO: Add a show method that plots the pca coefficients and the
     # current fit, if there is one
     def __init__(self, trace_cen=None, npca=None, pca_explained_var=99.0, reference_row=None,
                  coo=None):
 
         # Instantiate as an empty DataContainer
-        super(TracePCA, self).__init__()
+        super().__init__()
+        self.is_empty = True
 
         # Only do the decomposition if the trace coordinates are provided.
         if trace_cen is not None:
             self.decompose(trace_cen, npca=npca, pca_explained_var=pca_explained_var,
                            reference_row=reference_row, coo=coo)
-
-    def _init_internals(self):
-        """Add any attributes that are *not* part of the datamodel."""
-        self.is_empty = True
 
     def decompose(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None,
                   coo=None):
@@ -133,13 +133,13 @@ class TracePCA(DataContainer):
                 N_{\rm trace})`.  Cannot be None.
             npca (:obj:`bool`, optional):
                 The number of PCA components to keep. See
-                :func:`pypeit.core.pca.pca_decomposition`.
+                :func:`~pypeit.core.pca.pca_decomposition`.
             pca_explained_var (:obj:`float`, optional):
                 The percentage (i.e., not the fraction) of the
                 variance in the data accounted for by the PCA used to
                 truncate the number of PCA coefficients to keep (see
                 `npca`). Ignored if `npca` is provided directly. See
-                :func:`pypeit.core.pca.pca_decomposition`.
+                :func:`~pypeit.core.pca.pca_decomposition`.
             reference_row (:obj:`int`, optional):
                 The row (spectral position) in `trace_cen` to use as
                 the reference coordinate system for the PCA. If None,
@@ -151,7 +151,7 @@ class TracePCA(DataContainer):
                 coordinate system is defined by the value of
                 `trace_cen` at the spectral position defined by
                 `reference_row`. See the `mean` argument of
-                :func:`pypeit.core.pca.pca_decomposition`.
+                :func:`~pypeit.core.pca.pca_decomposition`.
         """
         if trace_cen is None:
             raise ValueError('Must provide traces to construct the PCA.')
@@ -198,7 +198,7 @@ class TracePCA(DataContainer):
     def build_interpolator(self, order, ivar=None, weights=None, function='polynomial', lower=3.0,
                            upper=3.0, maxrej=1, maxiter=25, minx=None, maxx=None, debug=False):
         """
-        Wrapper for :func:`fit_pca_coefficients` that uses class
+        Wrapper for :func:`~pypeit.core.pca.fit_pca_coefficients` that uses class
         attributes and saves the input parameters.
         """
         if self.is_empty:
@@ -236,12 +236,12 @@ class TracePCA(DataContainer):
         if self.is_empty:
             raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
         if self.pca_coeffs_model is None:
-            msgs.error('PCA coefficients have not been modeled; run build_interpolator first.')
+            raise PypeItError('PCA coefficients have not been modeled; run build_interpolator first.')
         return pca.pca_predict(x, self.pca_coeffs_model, self.pca_components, self.pca_mean, x).T
 
     def _bundle(self, ext='PCA'):
         """Bundle the data for writing."""
-        d = super(TracePCA, self)._bundle(ext=ext)
+        d = super()._bundle(ext=ext)
         if self.pca_coeffs_model is None:
             return d
 
@@ -261,16 +261,15 @@ class TracePCA(DataContainer):
         """
         Parse the data from the provided HDU.
 
-        See :func:`pypeit.datamodel.DataContainer._parse` for the
+        See :func:`~pypeit.datamodel.DataContainer._parse` for the
         argument descriptions.
         """
         # Run the default parser to get most of the data
-        d, version_passed, type_passed, parsed_hdus \
-                = super(TracePCA, cls)._parse(hdu, hdu_prefix=hdu_prefix)
+        d, version_passed, type_passed, parsed_hdus = super()._parse(hdu, hdu_prefix=hdu_prefix)
 
         # This should only ever read one hdu!
         if len(parsed_hdus) > 1:
-            msgs.error('CODING ERROR: Parsing saved TracePCA instances should only parse 1 HDU, '
+            raise PypeItError('CODING ERROR: Parsing saved TracePCA instances should only parse 1 HDU, '
                        'independently of the PCA PypeItFit models.')
 
         # Check if any models exist
@@ -289,10 +288,10 @@ class TracePCA(DataContainer):
         Instantiate from a dictionary.
 
         This is a basic wrapper for
-        :class:`pypeit.datamodel.DataContainer.from_dict` that
+        :class:`~pypeit.datamodel.DataContainer.from_dict` that
         appropriately toggles :attr:`is_empty`.
         """
-        self = super(TracePCA, cls).from_dict(d=d)
+        self = super().from_dict(d=d)
         self.is_empty = False
         return self
 
@@ -335,13 +334,13 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
             decomposition.
         npca (:obj:`bool`, optional):
             The number of PCA components to keep. See
-            :func:`pypeit.core.pca.pca_decomposition`.
+            :func:`~pypeit.core.pca.pca_decomposition`.
         pca_explained_var (:obj:`float`, optional):
             The percentage (i.e., not the fraction) of the variance
             in the data accounted for by the PCA used to truncate the
             number of PCA coefficients to keep (see `npca`). Ignored
             if `npca` is provided directly. See
-            :func:`pypeit.core.pca.pca_decomposition`.
+            :func:`~pypeit.core.pca.pca_decomposition`.
         reference_row (:obj:`int`, optional):
             The row (spectral position) in `trace_cen` to use as the
             reference coordinate system for the PCA. If None, set to
@@ -357,26 +356,26 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
             Minimum and maximum values used to rescale the
             independent axis data. If None, the minimum and maximum
             values of `coo` are used. See
-            :func:`utils.robust_polyfit_djs`.
+            :func:`~pypeit.core.fitting.robust_fit`.
         trace_wgt (`numpy.ndarray`_, optional):
             Weights to apply to the PCA coefficient of each trace
             during the fit. Weights are independent of the PCA
             component. See `weights` parameter of
-            :func:`pypeit.core.pca.fit_pca_coefficients`. Shape must
+            :func:`~pypeit.core.pca.fit_pca_coefficients`. Shape must
             be :math:`(N_{\rm trace},)`.
         function (:obj:`str`, optional):
             Type of function used to fit the data.
         lower (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **below** the mean residual. If None, no rejection is
-            performed. See :func:`utils.robust_polyfit_djs`.
+            performed. See :func:`~pypeit.core.fitting.robust_fit`.
         upper (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **above** the mean residual. If None, no rejection is
-            performed. See :func:`utils.robust_polyfit_djs`.
+            performed. See :func:`~pypeit.core.fitting.robust_fit`.
         maxrej (:obj:`int`, optional):
             Maximum number of points to reject during fit iterations.
-            See :func:`utils.robust_polyfit_djs`.
+            See :func:`~pypeit.core.fitting.robust_fit`.
         maxiter (:obj:`int`, optional):
             Maximum number of rejection iterations allows. To force
             no rejection iterations, set to 0.
@@ -388,7 +387,7 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
         use_trace = np.ones(trace_cen.shape[1], dtype=bool)
         _reference_row = trace_cen.shape[0]//2 if reference_row is None else reference_row
     else:
-        use_trace = np.sum(np.invert(trace_bpm), axis=0)/trace_cen.shape[0] > min_length
+        use_trace = np.sum(np.logical_not(trace_bpm), axis=0)/trace_cen.shape[0] > min_length
         _reference_row = trace.most_common_trace_row(trace_bpm[:,use_trace]) \
                                 if reference_row is None else reference_row
     _coo = None if coo is None else coo[use_trace]
@@ -407,8 +406,8 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
     if _order.size == 1:
         _order = np.clip(order - np.arange(cenpca.npca), 1, None).astype(int)
     if _order.size != cenpca.npca:
-        msgs.error('Number of polynomial orders does not match the number of PCA components.')
-    msgs.info('Order of function fit to each component: {0}'.format(_order))
+        raise PypeItError('Number of polynomial orders does not match the number of PCA components.')
+    log.info('Order of function fit to each component: {0}'.format(_order))
 
     # Apply a 10% relative error to each coefficient. This performs
     # better than use_mad, since larger coefficients will always be

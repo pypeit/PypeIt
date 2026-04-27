@@ -12,14 +12,18 @@
 .. _collections.OrderedDict: https://docs.python.org/3/library/collections.html#collections.OrderedDict
 .. _str.splitlines: https://docs.python.org/3/library/stdtypes.html#str.splitlines
 .. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
+.. _Path: https://docs.python.org/3/library/pathlib.html
+.. _Path.glob: https://docs.python.org/3.9/library/pathlib.html#pathlib.Path.glob
+.. _io.TextIOWrapper: https://docs.python.org/3/library/io.html#io.TextIOWrapper
 
 .. numpy
 .. _numpy: https://numpy.org/
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. _numpy.uint8: https://numpy.org/doc/stable/reference/arrays.scalars.html
 .. _numpy.int32: https://numpy.org/doc/stable/reference/arrays.scalars.html
 .. _numpy.integer: https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.integer
 .. _numpy.floating: https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.floating
-.. _numpy.bool_: https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.bool_
+.. _numpy.bool: https://numpy.org/doc/stable/reference/arrays.scalars.html
 .. _numpy.ma.MaskedArray: http://docs.scipy.org/doc/numpy/reference/maskedarray.baseclass.html
 .. _numpy.ma.median: https://numpy.org/doc/stable/reference/generated/numpy.ma.median.html
 .. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
@@ -32,8 +36,8 @@
 .. scipy
 .. _scipy.optimize.curve_fit: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
 .. _scipy.optimize.leastsq: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.leastsq.html
-.. _scipy.interpolate.interp1d: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
 .. _scipy.optimize.least_squares: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
+.. _scipy.optimize.linear_sum_assignment: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.linear_sum_assignment.html
 .. _scipy.optimize.OptimizeResult: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html
 .. _scipy.optimize.differential_evolution: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html
 .. _scipy.interpolate.interp1d: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
@@ -52,12 +56,17 @@
 .. _matplotlib: https://matplotlib.org/
 .. _matplotlib.pyplot.imshow: http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.imshow
 .. _matplotlib.axes.Axes: https://matplotlib.org/api/axes_api.html#matplotlib.axes.Axes
+.. _matplotlib.image.AxesImage: https://matplotlib.org/stable/api/image_api.html#matplotlib.image.AxesImage
+.. _matplotlib.backend_bases.Event: https://matplotlib.org/stable/api/backend_bases_api.html#matplotlib.backend_bases.Event
+.. _matplotlib.widgets.Button.on_clicked: https://matplotlib.org/stable/api/widgets_api.html#matplotlib.widgets.Button.on_clicked
+.. _matplotlib.widgets.RangeSlider: https://matplotlib.org/stable/api/widgets_api.html#matplotlib.widgets.RangeSlider
 
 .. configobj
 .. _configobj: http://configobj.readthedocs.io/en/latest/
 
 .. astropy
 .. _astropy.io.fits: http://docs.astropy.org/en/stable/io/fits/index.html
+.. _astropy.io.fits.getheader: https://docs.astropy.org/en/stable/io/fits/api/files.html#astropy.io.fits.getheader
 .. _astropy.io.fits.open: http://docs.astropy.org/en/stable/io/fits/api/files.html#astropy.io.fits.open
 .. _astropy.io.fits.HDUList: http://docs.astropy.org/en/stable/io/fits/api/hdulists.html
 .. _astropy.io.fits.HDUList.writeto: http://docs.astropy.org/en/stable/io/fits/api/hdulists.html#astropy.io.fits.HDUList.writeto
@@ -69,8 +78,9 @@
 .. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.table.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.table.Table.read: https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.read
+.. _astropy.table.Table.remove_rows: https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.remove_rows
 .. _astropy.table.Row: https://docs.astropy.org/en/stable/api/astropy.table.Row.html
-.. _astropy.wcs.wcs.WCS: http://docs.astropy.org/en/stable/api/astropy.wcs.WCS.html
+.. _astropy.wcs.WCS: http://docs.astropy.org/en/stable/api/astropy.wcs.WCS.html
 .. _astropy.modeling: http://docs.astropy.org/en/stable/modeling/index.html
 .. _astropy.modeling.polynomial.Legendre1D: http://docs.astropy.org/en/stable/api/astropy.modeling.polynomial.Legendre1D.html
 .. _astropy.modeling.models.CompoundModel: http://docs.astropy.org/en/stable/modeling/compound-models.html
@@ -78,12 +88,16 @@
 .. _astropy.cosmology.FlatLambdaCDM: http://docs.astropy.org/en/stable/api/astropy.cosmology.FlatLambdaCDM.html#flatlambdacdm
 .. _astropy.constants: http://docs.astropy.org/en/stable/constants/index.html
 .. _astropy.time.Time: https://docs.astropy.org/en/stable/time/
+.. _astropy.coordinates.Angle: https://docs.astropy.org/en/stable/api/astropy.coordinates.Angle.html
 .. _astropy.coordinates.SkyCoord: https://docs.astropy.org/en/stable/api/astropy.coordinates.SkyCoord.html
 .. _astropy.coordinates.EarthLocation: https://docs.astropy.org/en/stable/api/astropy.coordinates.EarthLocation.html
 .. _astropy.coordinates.SkyCoord.radial_velocity_correction: https://docs.astropy.org/en/stable/api/astropy.coordinates.SkyCoord.html#astropy.coordinates.SkyCoord.radial_velocity_correction
 .. _astropy.stats.SigmaClip: https://docs.astropy.org/en/stable/api/astropy.stats.SigmaClip.html
 .. _astropy.stats.sigma_clipped_stats: https://docs.astropy.org/en/stable/api/astropy.stats.sigma_clipped_stats.html
+.. _astropy.units.Unit: https://docs.astropy.org/en/stable/api/astropy.units.Unit.html
 .. _astropy.units.Quantity: https://docs.astropy.org/en/stable/api/astropy.units.Quantity.html
+.. _astropy.utils.data: https://docs.astropy.org/en/stable/utils/data.html
+.. _astropy.utils.data.download_file: https://docs.astropy.org/en/stable/api/astropy.utils.data.download_file.html
 
 .. scikit
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
@@ -92,15 +106,15 @@
 .. _pydl.goddard.astro.airtovac: http://pydl.readthedocs.io/en/stable/api/pydl.goddard.astro.airtovac.html#pydl.goddard.astro.airtovac
 .. _pydl.pydlutils.yanny: http://pydl.readthedocs.io/en/stable/api/pydl.pydlutils.yanny.yanny.html
 
-.. linetools
-.. _linetools: https://linetools.readthedocs.io/en/latest/
-.. _linetools.spectra.xspectrum1d.XSpectrum1D: https://linetools.readthedocs.io/en/latest/xspectrum1d.html
-
 .. sphinx
 .. _Sphinx: https://www.sphinx-doc.org/en/master/index.html
 .. _reStructuredText: http://docutils.sourceforge.net/rst.html
 .. _Google-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html#example-google
 .. _Numpy-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html#example-numpy
+
+.. git/github
+.. _github.Repository: https://pygithub.readthedocs.io/en/latest/examples/Repository.html
+.. _github.ContentFile: https://pygithub.readthedocs.io/en/latest/github_objects/ContentFile.html
 
 .. misc packages
 .. _bumpversion: https://pypi.org/project/bumpversion/
@@ -108,17 +122,24 @@
 .. _pip: https://pip.pypa.io/en/stable/
 .. _anaconda: https://www.anaconda.com/products/individual
 .. _conda: https://docs.conda.io/projects/conda/en/latest/index.html
-.. _virtualenv: https://virtualenv.pypa.io/en/latest/
+.. _venv: https://docs.python.org/3/library/venv.html
 .. _pdb: https://docs.python.org/3/library/pdb.html
 .. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
 .. _pytest: https://docs.pytest.org/en/latest/
 .. _shapely: https://shapely.readthedocs.io/en/stable/manual.html
 .. _scikit-image: https://scikit-image.org/
 .. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
+.. _specutils: https://specutils.readthedocs.io/en/stable/
+.. _specutils.Spectrum: https://specutils.readthedocs.io/en/stable/api/specutils.Spectrum.html
+.. _specutils.SpectrumList: https://specutils.readthedocs.io/en/stable/api/specutils.SpectrumList.html
+.. _jdaviz: https://jdaviz.readthedocs.io/en/latest/
+.. _jupyter notebook: https://jupyter.org/
+.. _ppxf: https://pypi.org/project/ppxf/
+.. _ds9: https://sites.google.com/cfa.harvard.edu/saoimageds9
 
 .. ginga
-
 .. _ginga: https://ginga.readthedocs.io/en/stable/
+.. _ginga.RemoteClient: https://ginga.readthedocs.io/en/stable/manual/plugins_global/rc.html
 .. _AstroImage: https://ginga.readthedocs.io/en/stable/dev_manual/image_wrappers.html#astroimage
 .. _ginga GlobalPlugin: https://ginga.readthedocs.io/en/stable/dev_manual/developers.html#writing-a-global-plugin
 
@@ -129,6 +150,8 @@
 .. _Submit an issue: https://github.com/pypeit/PypeIt/issues
 .. _PypeIt dev-suite Google Drive: https://drive.google.com/drive/folders/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW?usp=sharing
 .. _pypeit.data.filters: https://github.com/pypeit/PypeIt/tree/release/pypeit/data/filters
+.. the invite link below needs to be changed here and in README.rst
+.. _invite: https://join.slack.com/t/pypeit-users/shared_invite/zt-36uxx7isk-pY19si5JzFW4wA7gOaYBBA
 
 .. emails
 .. _Joe Hennawi: joe@physics.ucsb.edu

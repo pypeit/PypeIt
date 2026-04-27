@@ -42,6 +42,22 @@ def p200_dbsp_red_1200_9400_d55(overwrite=False):  # DBSPr 1200/9400 D55
         lowredux=False, ifiles=ifiles, normalize=True, overwrite=overwrite)
 
 # ##############################
+def p200_dbsp_red_1200_7100_d55(overwrite=False):  # DBSPr 1200/7100 D55
+
+    binspec = 1
+    outroot = 'p200_dbsp_red_1200_7100_d55_6680.fits'
+    #
+    ifiles = [0]
+    slits = [55]  # Be careful with the order..
+    lcut = None
+    wfile0 = os.path.join(templates.template_path, 'P200_DBSP',
+        'R1200_7100_D55', 'wvcalib_6680.fits')
+
+    #
+    templates.build_template([wfile0], slits, lcut, binspec, outroot,
+        lowredux=False, ifiles=ifiles, normalize=True, overwrite=overwrite)
+
+# ##############################
 def p200_dbsp_red_600_10000_d55(overwrite=False):  # DBSPr 600/10000 D55
 
     binspec = 1
@@ -144,4 +160,5 @@ def p200_dbsp_blue_1200_5000_d68(overwrite=False):  # DBSPb 1200/5000 D68
 if __name__ == '__main__':
     # p200_dbsp_red_316_7500_d55(overwrite=True)
     # p200_dbsp_red_600_10000_d55(overwrite=True)
-    p200_dbsp_red_1200_7100_d68(overwrite=True)
+    # p200_dbsp_red_1200_7100_d68(overwrite=True)
+    p200_dbsp_red_1200_7100_d55(overwrite=True)

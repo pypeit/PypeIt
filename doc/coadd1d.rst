@@ -202,7 +202,7 @@ Filters
 +++++++
 
 The list of available filters is provided in
-`this file <https://github.com/pypeit/PypeIt/blob/master/pypeit/data/filters/filter_list.ascii>`__.
+`this file <https://github.com/pypeit/PypeIt/blob/release/pypeit/data/filters/filter_list.ascii>`__.
 
 
 Scaling
@@ -284,19 +284,53 @@ be provided directly using the ``coadd1dfile`` parameter in the
 is ``coadd1d_<target>_<instrument name>_<YYYYMMDD>.fits`` or
 ``coadd1d_<target>_<instrument name>_<YYYYMMDD>-<YYYYMMDD>.fits``, if the coadd
 included more than one day's worth of data. The default location of the file
-will be along side the first spec1d file.  Currently ``instrument_name`` is
+will be along side the first spec1d file.  
+Currently ``instrument_name`` is
 taken from the ``camera`` attribute of the relevant
 :class:`~pypeit.spectrographs.spectrograph.Spectrograph` class.
 
-The format of the 1D coadd file follows follows the general
-class :class:`~pypeit.onespec.OneSpec`, such that its file extensions are:
+The format of the 1D coadd file follows the general
+class :class:`~pypeit.onespec.OneSpec`, such 
+that its file extensions are:
 
 .. include:: include/datamodel_onespec.rst
 
-You view the spectrum using the ``lt_xspec`` script, which loads the data
-and launches a GUI from the `linetools`_ package. e.g.:
+To view the coadded spectrum, using :ref:`pypeit_show_1dspec`.
+
+UVES_popler coaddition
+======================
+
+If you prefer to use a GUI for the coaddition (to manually remove
+bad pixels, ghosts, cosmic rays etc.), then you can use the UVES_popler tool.
+This tool is developed by Michael Murphy and is available at
+`this link <https://github.com/MTMurphy77/UVES_popler/>`__.
+Here is an example of a coadded spectrum using UVES_popler:
+
+.. image:: figures/uves_popler.png
+   :scale: 60%
+
+UVES_popler was originally written to coadd ESO/UVES echelle spectra
+that were reduced by the ESO pipeline, and it has been recently modified
+to support the reduction of PypeIt longslit and echelle data.
+For details on how to use the tool, please refer to the
+`UVES_popler documentation <https://astronomy.swin.edu.au/~mmurphy/UVES_popler/>`__.
+To get you started with reading in PypeIt :doc:`out_spec1D` files,
+you need to generate a text file that lists the absolute paths to the
+:doc:`out_spec1D` files. Here is an example of how to generate this file:
 
 .. code-block:: console
 
-    lt_xspec J1217p3905_coadd.fits
+    ls -1 /path/to/your/pypeit_output/Science/spec1d/*.fits > /path/to/your/pypeit_output/pypeit_spec1d_files.txt
 
+Then you can use this file as input to UVES_popler, by using the following command:
+
+.. code-block:: console
+
+    cd /path/to/your/pypeit_output/
+    UVES_popler -disp 50 -filetype 11 pypeit_spec1d_files.txt
+
+This will launch the GUI, where you can interactively coadd your spectra. The
+``-disp 50`` option is used to set the pixel sampling of the spectra to 50 km/s,
+and the ``-filetype 11`` option is used to specify that the input files are PypeIt
+:doc:`out_spec1D` files. For more information on the options available, you can
+specify the ``-h`` option.

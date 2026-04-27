@@ -2,28 +2,18 @@
 Dynamically build the rst documentation of the pypeit parameters.
 """
 
-import os
-import time
+from importlib import resources
 import textwrap
 
-from IPython import embed
-
-import numpy
-
-from pkg_resources import resource_filename
 from pypeit.par import pypeitpar
 from pypeit.par.parset import ParSet
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import load_spectrograph, available_spectrographs
 
-#-----------------------------------------------------------------------------
-#def class_name(p):
-#    return '.'.join([type(p).__module__, type(p).__name__])
+from IPython import embed
 
 
 def link_string(p):
     return f':ref:`{type(p).__name__.lower()}`'
-#    return '`{0} Keywords`_'.format(type(p).__name__)
 
 
 def par_hierarchy(p, indent_level=0, key=''):
@@ -32,7 +22,6 @@ def par_hierarchy(p, indent_level=0, key=''):
     if len(line_head) > 0:
         line_head = '``' + line_head + '``: '
     lines = [ indent_step + line_head + link_string(p) ]
-#    lines += [ '' ]
 
     for k in p.keys():
         if not isinstance(p[k], ParSet):
@@ -44,12 +33,10 @@ def par_hierarchy(p, indent_level=0, key=''):
 #-----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    t = time.perf_counter()
-
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
-    pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
-    input_base = os.path.join(pypeit_root, 'doc', 'scripts', 'base_par.rst')
+    pypeit_root = resources.files('pypeit').parent 
+    input_base = pypeit_root / 'doc' / 'scripts' / 'base_par.rst'
     with open(input_base, 'r') as f:
         lines = [ l.replace('\n','') for l in f.readlines() ]
     lines += ['']
@@ -88,7 +75,7 @@ if __name__ == '__main__':
         s = load_spectrograph(spec)
         lines += [ f'.. _instr_par-{s.name}:']
         lines += ['']
-        lines += [ ' '.join([s.telescope['name'], s.camera, '(``{0}``)'.format(s.name)]) ]
+        lines += [ ' '.join([s.telescope['name'], s.camera, f'(``{s.name}``)']) ]
         lines += [ '-'*len(lines[-1]) ]
         lines += [ 'Alterations to the default parameters are:' ]
         lines += ['']
@@ -99,11 +86,6 @@ if __name__ == '__main__':
         lines += ['']
     lines += ['']
 
-    output_rst = os.path.join(pypeit_root, 'doc', 'pypeit_par.rst')
+    output_rst = pypeit_root / 'doc' / 'pypeit_par.rst'
     with open(output_rst, 'w') as f:
         f.write('\n'.join(lines))
-    
-    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
-
-
-

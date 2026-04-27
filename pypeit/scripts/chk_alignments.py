@@ -12,23 +12,27 @@ class ChkAlignments(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        from pypeit.spectrographs import available_spectrographs
-
-        parser = super().get_parser(description='Display MasterAlignment image and the trace data',
+        parser = super().get_parser(description='Display Alignment image and the trace data',
                                     width=width)
 
-        parser.add_argument('master_file', type=str, default = None,
-                            help='PypeIt Master Alignment file [e.g. MasterAlignment_A_1_01.fits]')
+        parser.add_argument('file', type=str, default = None,
+                            help='PypeIt Alignment file [e.g. Alignment_A_1_DET01.fits]')
         parser.add_argument('--chname', default='Alignments', type=str,
                             help='Channel name for image in Ginga')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(pargs):
+    @classmethod
+    def main(cls, args):
         from pypeit import alignframe
 
+        # Initialize the log
+        cls.init_log(args)
+
         # Load
-        alignments = alignframe.Alignments.from_file(pargs.master_file)
+        chk_version = not args.try_old
+        alignments = alignframe.Alignments.from_file(args.file, chk_version=chk_version)
         # Show
         alignments.show()
 

@@ -1,0 +1,100 @@
+
+Version 1.14.0
+==============
+
+Dependency Changes
+------------------
+
+- Main dependency bumps: numpy>=1.22, matplotlib>=3.7, ginga>=4.1.1,
+  qtpy>=2.0.1
+
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
+
+- Improvements to wavelength grids and masking in coadd routines.
+- Refactored coadding routines to work with lists to support coadding
+  data from different setups.
+- Sensitivity function models can now be computed relative to the
+  flat-field spectrum.
+- Improvements in 2D coaddition
+
+    - Fix a bug in ``pypeit_setup_coadd2d`` for the output file name of
+      the ``.coadd2d`` file
+    - Added possibility to specify more than one Science folder in
+      ``pypeit_setup_coadd2d``
+    - Now ``only_slits`` parameter in ``pypeit_coadd_2dspec`` includes
+      the detector number (similar to ``slitspatnum``)
+    - Added ``exclude_slits`` parameter in ``pypeit_coadd_2dspec`` to
+      exclude specific slits
+    - Fix wrong RA and Dec for 2D coadded serendips
+
+- Allow wavelength calibrations for specific slits/orders to be redone
+  (instead of adopting the value from a processed calibration frame);
+  see new ``redo_slits`` parameter.
+
+Instrument-specific Updates
+---------------------------
+
+- Adds/Improves support for Gemini/GNIRS (IFU), Keck/KCRM, Keck/ESI,
+  MDM/Modspec, Keck/HIRES, JWST
+- HIRES wavelength solution improvements galore
+- Improvements for Keck/LRIS
+
+    - Generated wavelength templates for all the LRIS grism & grating
+    - Added FeAr line list
+    - Improved calibration association and frame typing
+    - Improved and added documentation
+    - Changes to ``metadata.py`` including commenting out, in the pypeit
+      file, files that have frametype None (this prevent ``run_pypeit``
+      to crash)
+    - Added a function ``check_spectrograph()`` (currently only defined
+      for LRIS), that checks (during ``pypeit_setup``) if the selected
+      spectrograph is the corrected one for the data used. 
+
+Script Changes
+--------------
+
+- Added a script to convert a wavelength solution into something that
+  can be placed in the reid archive.
+- Store user-generated wavelength solution in pypeit cache
+
+Datamodel Changes
+-----------------
+
+- Changed calibration frame naming as an attempt to avoid very long
+  names for files with many calibration groups.  Sequential numbers are
+  reduced to a range; e.g., ``'0-1-2-3-4'`` becomes ``'0+4'`` and
+  ``'3-5-6-10-11-12-15-18-19'`` becomes ``'3-5+6-10+12-15-18+19'``
+- Instrumental FWHM map is calculated and output in ``Calibrations`` and
+  ``spec1d`` files.
+
+Under-the-hood Improvements
+---------------------------
+
+- Change how masking is dealt with in extraction to fix a bug in how
+  masks were being treated for echelle data
+- Refactored function that loads wavelength calibration line lists
+
+Bug Fixes
+---------
+
+- Hotfix for GTC/OSIRIS lamp list
+- Hotfix for Arc1D stats annotations on the QA
+- Hotfix for metadata:
+
+    - correctly set ``config_independent_frames`` when multiple
+      configurations are being setup
+    - support lists in ``config_independent_frames``
+
+- Hotfix for rebin (speed-up and conserves flux)
+- Hotfix for skysub regions GUI that used ``np.bool``
+- Hotfix to stop pypeit_setup from crashing on data from lbt_luci1,
+  lbt_luci2, magellan_fire, magellan_fire_long, p200_tspec, or
+  vlt_sinfoni.
+- Hotfix to set BPM for each type of calibration file.
+- Fixed a bug in echelle coadding where the wrong coadded spectra were
+  being used in final stacks.
+- Fix a bug in ``spectrograph.select_detectors``, where a list of
+  ``slitspatnum`` could not be used.
+
+

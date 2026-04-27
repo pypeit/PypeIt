@@ -3,18 +3,24 @@ Module for NOT ALFOSC spectrograph
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 from IPython import embed
 
 import numpy as np
 
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
@@ -28,7 +34,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.not.iac.es/instruments/alfosc/'
     header_name = 'ALFOSC_FASU'
     supported = True
-    comment = 'For use with the standard horizontal slits only. Grisms 4, 7, 8, 17, 18, 19'
+    comment = 'For use with the standard horizontal slits only. Grisms 3, 4, 5, 7, 8, 10, 11, 17, 18, 19, 20'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -104,14 +110,15 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
 
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['bound_detector'] = True
-        # Flats are sometimes quite ugly due to dust on the slit which leads to the erroneous detection of multiple slits. Setting a higher edge_thresh seems to fail because of the bound_detector.
+        # Flats are sometimes quite ugly due to dust on the slit which leads to the erroneous detection of multiple slits. So set a higher edge_thresh and minimum_slit_gap.
+        par['calibrations']['slitedges']['edge_thresh'] = 30
         par['calibrations']['slitedges']['minimum_slit_gap'] = 15
 
         # Set pixel flat combination method
@@ -119,7 +126,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Wavelength calibration methods
         #par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
+        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
@@ -148,7 +155,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -194,7 +201,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'ra':
             objra = headarr[0]['OBJRA'] # Given in hours, not deg
             return objra*15.
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -211,6 +218,26 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return ['dispname', 'decker', 'binning']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['ALGRNM', 'ALAPRTNM', 'DETXBIN', 'DETYBIN']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -235,8 +262,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'standard':
-            return good_exp & ((fitstbl['target'] == 'STD')
-                                | (fitstbl['target'] == 'STD,SLIT'))
+            return good_exp & ((fitstbl['idname'] == 'STD') | (fitstbl['target'] == 'STD') | (fitstbl['target'] == 'STD,SLIT'))
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'BIAS')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
@@ -246,18 +272,23 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc','tilt']:
             return good_exp & (fitstbl['idname'] == 'WAVE,LAMP')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -266,24 +297,41 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#7':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism7.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#8':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism8.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#17':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism17.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#18':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism18.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#19':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism19.fits'
-        else:
-            msgs.warn('not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        # Wavelength calibrations (metadata has already removed the '#')
+        match grating.replace('#',''):
+            case 'Grism_3':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism3.fits'
+            case 'Grism_4':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
+                par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI']
+            case 'Grism_5':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism5.fits'
+            case 'Grism_7':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism7.fits'
+            case 'Grism_8':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism8.fits'
+            case 'Grism_10':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism10.fits'
+            case 'Grism_11':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism11.fits'
+            case 'Grism_17':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism17.fits'
+            case 'Grism_18':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism18.fits'
+                par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','ArII']
+            case 'Grism_19':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism19.fits'
+                par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','ArII']
+            case 'Grism_20':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism20.fits'
+            case _:
+                log.warning('not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
 
         # Return
         return par
@@ -296,7 +344,7 @@ class NOTALFOSCSpectrographVert(NOTALFOSCSpectrograph):
     Child to handle Vertical slits for NOT ALFOSC spectrograph
     """
     name = 'not_alfosc_vert'
-    comment = 'Grisms 4, 7, 8, 17, 18, 19. For vertical slits only'
+    comment = 'Grisms 3, 4, 5, 7, 8, 10, 11, 17, 18, 19, 20. For vertical slits only'
 
     def get_detector_par(self, det, hdu=None):
         """

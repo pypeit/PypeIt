@@ -1,5 +1,5 @@
 """
-Wrapper to the linetools XSpecGUI
+Wrapper for 1D spectrum viewer in ginga.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -14,31 +14,52 @@ class Show1DSpec(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Show a 1D spectrum', width=width)
-        parser.add_argument("file", type=str, help="Spectral file")
-        parser.add_argument("--list", default=False, help="List the extensions only?",
-                            action="store_true")
-        parser.add_argument("--exten", type=int, default=1, help="FITS extension")
-        parser.add_argument("--obj", type=str,
-                            help="Object name in lieu of extension, e.g. SPAT0424-SLIT0000-DET01")
-        parser.add_argument("--extract", type=str, default='OPT',
-                            help="Extraction method. Default is OPT. ['BOX', 'OPT']")
-        parser.add_argument("--flux", default=False, action="store_true",
-                            help="Show fluxed spectrum?")
+        parser.add_argument(
+            'file', type=str,
+            help='PypeIt spec1d file (this script does not work with coadd_1dspec output spectra).'
+        )
+        parser.add_argument(
+            '--list', default=False, action='store_true',
+            help='Instead of plotting any spectra, simply list the extensions with spectra'
+        )
+        grp = parser.add_mutually_exclusive_group()
+        grp.add_argument(
+            '--exten', type=int, default=1, help='Number of the extension to plot'
+        )
+        grp.add_argument(
+            '--obj', type=str, help='Extension (object) name to plot, e.g. SPAT0424-SLIT0000-DET01'
+        )
+        parser.add_argument(
+            '--extract', type=str, default='OPT', choices=['BOX', 'OPT'],
+            help='Method used to extract the spectrum'
+        )
+        parser.add_argument(
+            '--flux', default=False, action='store_true',
+            help='Show the flux-calibrated spectrum (if available)'
+        )
+        parser.add_argument(
+            '-m', '--unmasked', dest='masked', default=True, action='store_false',
+            help='Only show the unmasked data.'
+        )
+#        parser.add_argument('--jdaviz', default=False, action='store_true',
+#                            help='Open the spectrum in jdaviz (requires specutils and jdaviz '
+#                                 'to be installed)')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         """ Runs the XSpecGui on an input file
         """
-        import sys
+        from pathlib import Path
+
         import numpy as np
 
-        from qtpy.QtWidgets import QApplication
-
-        from linetools.guis.xspecgui import XSpecGui
-
+        from pypeit import PypeItError
         from pypeit import specobjs
-        from pypeit import msgs
+        from pypeit.display.display import show_1dspec
+
+        # Initialize the log
+        cls.init_log(args)
 
         sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
 
@@ -60,29 +81,61 @@ class Show1DSpec(scriptbase.ScriptBase):
                 print(line)
             return
 
+        # TODO: Keep this for now, assuming jdaviz ever allows users to
+        # instantiate from within a python script.
+#        if args.jdaviz:
+#            from pypeit.specutils import Spectrum1D, SpectrumList
+#            if Spectrum1D is None:
+#                raise PypeItError('specutils package must be installed.')
+#            try:
+#                from jdaviz import Specviz
+#            except ModuleNotFoundError:
+#                raise PypeItError('jdaviz package must be installed.')
+#
+#            # First try reading it as a list
+#            try:
+#                spec = SpectrumList.read(args.file, extract=args.extract, fluxed=args.flux)
+#            except:
+#                pass
+#            else:
+#                specviz = Specviz()
+#                specviz.load_spectrum(spec)
+#                specviz.show()
+#                return
+#
+#            # Maybe it's a OneSpec?
+#            try:
+#                # TODO: add "grid" as a command-line argument
+#                spec = Spectrum1D.read(args.file)
+#            except:
+#                pass
+#            else:
+#                specviz = Specviz()
+#                specviz.load_spectrum(spec)
+#                specviz.show()
+#                return
+#
+#            # If we get here, the file couldn't be parsed
+#            raise PypeItError(f'Could not parse input file: {args.file}')
+
+
         if args.obj is not None:
             exten = np.where(sobjs.NAME == args.obj)[0][0]
-            if exten < 0:
-                msgs.error("Bad input object name: {:s}".format(args.obj))
         else:
             exten = args.exten-1 # 1-index in FITS file
+        if exten < 0:
+            raise PypeItError(f"Bad input extension/object name: {args.obj}")
 
         # Check Extraction
         if args.extract == 'OPT':
             if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
-                    msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
+                    raise PypeItError("Spectrum not extracted with OPT.  Try --extract BOX")
 
-        spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+        # Pre-pend cwd to filename (in case RC Ginga was launched already)
+        full_file = Path(args.file).absolute()
 
-        # Setup
-        app = QApplication(sys.argv)
-        # Screen dimensions
-        width = app.screens()[0].geometry().width()
-        scale = 2. * (width/3200.)
-
-        # Launch
-        gui = XSpecGui(spec)#, screen_scale=scale)
-        gui.show()
-        app.exec_()
-
-
+        # Ginga
+        show_1dspec(
+            str(full_file), ext=exten, masked=args.masked, extraction=args.extract,
+            fluxed=args.flux
+        )

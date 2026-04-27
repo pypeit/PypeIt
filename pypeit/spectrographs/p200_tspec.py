@@ -7,7 +7,8 @@ import numpy as np
 
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -33,7 +34,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -71,7 +72,43 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             ttime = Time(time, format='isot')
             return ttime.mjd
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['FPA']
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -97,7 +134,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip=False,
             platescale      = 0.37,
-            darkcurr        = 0.085,
+            darkcurr        = 306.0,  # e-/pixel/hour  (=0.085 e-/pixel/s)
             saturation      = 28000,
             nonlinear       = 0.9,
             mincounts       = -1e10,
@@ -116,15 +153,15 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.3
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.103
         par['calibrations']['wavelengths']['sigdetect']=5.0
-        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['fwhm']= 2.9  # As measured in DevSuite
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
@@ -179,29 +216,17 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
 
         return par
 
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return ['dispname']
-
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -271,7 +296,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processed bias frame used to identify bad pixels. **This is
                 always ignored.**
 
         Returns:
@@ -280,7 +305,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             0.
         """
         # Call the base-class method to generate the empty bpm
-        msgs.info("Custom bad pixel mask for TSPEC")
+        log.info("Custom bad pixel mask for TSPEC")
         return super().bpm(filename, det, shape=shape, msbias=None)
 
     @property

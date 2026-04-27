@@ -22,8 +22,8 @@ class QAHtml(scriptbase.ScriptBase):
         return parser
 
     # TODO: unit_test and path aren't used, right?
-    @staticmethod
-    def main(args, unit_test=False, path=''):
+    @classmethod
+    def main(cls, args, unit_test=False, path=''):
         """Builds the HTML files.
 
         Args:
@@ -37,6 +37,9 @@ class QAHtml(scriptbase.ScriptBase):
 
         from pypeit.core import qa
 
+        # Initialize the log
+        cls.init_log(args)
+
         # Flags
         flg_MF, flg_exp = False, False
         if args.type == 'MF':
@@ -46,7 +49,6 @@ class QAHtml(scriptbase.ScriptBase):
         elif args.type == 'all':
             flg_exp, flg_MF = True, True
 
-        # Master Frame
         if flg_MF:
             qa.gen_mf_html(args.pypeit_file, args.qapath)
 

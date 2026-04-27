@@ -13,6 +13,10 @@ should adhere to the following approach.
 
 Note that:
 
+  - Essentially all PypeIt reduction steps are done via executing command-line
+    scripts using a terminal window.  We provide specific commands below and
+    throughout our documentation.
+
   - This cookbook provides minimal detail, but serves as a basic introduction to
     the primary steps used to reduce your data with PypeIt.  We guide you to
     other parts of our documentation that explain specific functionality in more
@@ -27,8 +31,9 @@ Note that:
   - Specific advice on :doc:`spectrographs/spectrographs` is provided in their own doc page
     (although not every supported spectrograph has stand-alone documentation).
 
-  - Invariably something will be out of date.  When you see an egregious
-    example, please holler on GitHub or Slack.
+  - Invariably something will be out of date in our doc pages.  When you see an
+    egregious example, please holler on `GitHub
+    <https://github.com/pypeit/PypeIt>`__ or `Slack <https://pypeit-users.slack.com>`__.
 
 Finally, note that before you keep going, you should have already done the following:
 
@@ -65,7 +70,8 @@ what we recommend:
  - We will refer to that folder as ``RAWDIR``
 
 The raw images can be gzip-compressed, although this means opening files will be
-slower.
+slower.  See :ref:`setup-file-searching` for specific comments about the files
+in your raw directory.
 
 A word on calibration data
 --------------------------
@@ -185,8 +191,8 @@ Although :ref:`run-pypeit` provides a few command-line options, the
 :ref:`parameters` used by its algorithms.
 
 In the above example, a successful execution of :ref:`run-pypeit` will yield a
-set of calibration "master" frames held in the
-``${RDXDIR}/keck_deimos_A/Masters`` directory, extracted 1D and 2D spectra in
+set of calibration frames held in the
+``${RDXDIR}/keck_deimos_A/Calibrations`` directory, extracted 1D and 2D spectra in
 the ``${RDXDIR}/keck_deimos_A/Science`` directory, and a set of quality
 assessment plots in the ``${RDXDIR}/keck_deimos_A/QA`` directory.
 
@@ -198,7 +204,7 @@ assessment plots in the ``${RDXDIR}/keck_deimos_A/QA`` directory.
 *For more detail, see* :doc:`calibrations/calibrations`.
 
 As the code runs, when a new calibration is generated the default is to write it
-to disk as a "Master Frame" file.  Quality assessment plots for some of these
+to disk as a "calibration frame" file.  Quality assessment plots for some of these
 are written to the :doc:`qa` folder for inspection.  We encourage you to inspect
 these calibration outputs as they come, both the files themselves and the QA
 plots.
@@ -207,13 +213,13 @@ Here is the order they tend to be created
 with a separate doc for how to view each, what they should
 look like, and how to troubleshoot:
 
-  - View the :doc:`calibrations/master_bias` image (if you produced one)
-  - View the :doc:`calibrations/master_arc` image
-  - Check slit edges with the :doc:`calibrations/master_edges` file
-  - View the :doc:`calibrations/master_tilt` image
-  - Check the 1D wavelength solution in the :doc:`calibrations/master_wvcalib` output
-  - Check the 2D wavelength solution in the :doc:`calibrations/master_tilts` output
-  - Check the :doc:`calibrations/master_flat` images
+  - View the :doc:`calibrations/bias` image (if you produced one)
+  - View the :doc:`calibrations/arc` image
+  - Check slit edges with the :doc:`calibrations/edges` file
+  - View the :doc:`calibrations/tilt` image
+  - Check the 1D wavelength solution in the :doc:`calibrations/wvcalib` output
+  - Check the 2D wavelength solution in the :doc:`calibrations/tilts` output
+  - Check the :doc:`calibrations/flat` images
 
 Note that only a subset of these files may be made, depending on your
 spectrograph and the calibration files available.

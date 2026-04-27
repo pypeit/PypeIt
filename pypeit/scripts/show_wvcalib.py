@@ -21,30 +21,37 @@ class ShowWvCalib(scriptbase.ScriptBase):
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Show the result of wavelength calibration',
                                     width=width)
-        parser.add_argument("file", type=str, help="MasterWaveCalib file")
+        parser.add_argument("file", type=str, help="WaveCalib file")
         parser.add_argument("slit_order", type=int, help="Slit or Order number")
-        parser.add_argument("--slit_file", type=str, help="Master Slit file")
+        parser.add_argument("--slit_file", type=str, help="Slit file")
         parser.add_argument("--is_order", default=False, action="store_true",
                             help="Input slit/order is an order")
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(pargs, unit_test=False):
+    @classmethod
+    def main(cls, args, unit_test=False):
         """ Shows the spectrum
         """
 
         from matplotlib import pyplot as plt
 
+        # Initialize the log
+        cls.init_log(args)
+
+        chk_version = not args.try_old
+
         # Load
-        wvcalib = wavecalib.WaveCalib.from_file(pargs.file)
-        if pargs.slit_file is not None:
-            slits = slittrace.SlitTraceSet.from_file(pargs.slit_file)
+        wvcalib = wavecalib.WaveCalib.from_file(args.file, chk_version=chk_version)
+        if args.slit_file is not None:
+            slits = slittrace.SlitTraceSet.from_file(args.slit_file, chk_version=chk_version)
 
         # Parse
-        if pargs.is_order:
-            idx = np.where(slits.ech_order == pargs.slit_order)[0][0]
+        if args.is_order:
+            idx = np.where(slits.ech_order == args.slit_order)[0][0]
         else:
-            idx = np.where(wvcalib.spat_ids == pargs.slit_order)[0][0]
+            idx = np.where(wvcalib.spat_ids == args.slit_order)[0][0]
 
         # Grab it
         spec = wvcalib.arc_spectra[:,idx]

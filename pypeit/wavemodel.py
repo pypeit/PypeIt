@@ -1,5 +1,8 @@
 """
 Module to create models of arc lines.
+
+.. include:: ../include/links.rst
+
 """
 import os
 
@@ -16,12 +19,12 @@ from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.table import Table
 from astropy import units
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import dataPaths
 from pypeit.core import arc
 from pypeit import utils
 from pypeit.core.wave import airtovac
 from pypeit import io
-from pypeit import data
 
 from IPython import embed
 
@@ -31,7 +34,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
 
     Parameters
     ----------
-    wavelength : np.array
+    wavelength : `numpy.ndarray`_
         wavelength vector in microns
     T_BB : float 
         black body temperature in Kelvin. Default is set to:
@@ -39,10 +42,10 @@ def blackbody(wavelength, T_BB=250., debug=False):
 
     Returns
     -------
-    blackbody : np.array
+    blackbody : `numpy.ndarray`_
         spectral radiance of the black body in cgs units:
         B_lambda = 2.*h*c^2/lambda^5.*(1./(exp(h*c/(lambda*k_b*T_BB))-1.)
-    blackbody_counts : np.array
+    blackbody_counts : `numpy.ndarray`_
         Same as above but in flux density
     """
 
@@ -52,7 +55,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
     K_BOLTZ = astropy.constants.k_B.cgs.value  # erg/K
     RADIAN_PER_ARCSEC = 1./3600.*np.pi/180.
 
-    msgs.info("Creating BB spectrum at T={}K".format(T_BB))
+    log.info("Creating BB spectrum at T={}K".format(T_BB))
     lam = wavelength / 1e4 # convert wave in cm.
     blackbody_pol = 2.*PLANCK*np.power(C_LIGHT,2) / np.power(lam,5)
     blackbody_exp = np.exp(PLANCK*C_LIGHT/(lam*K_BOLTZ*T_BB)) - 1.
@@ -62,7 +65,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
 
     if debug:
         utils.pyplot_rcparams()
-        msgs.info("Plot of the blackbody spectrum.")
+        log.info("Plot of the blackbody spectrum.")
         plt.figure()
         plt.plot(wavelength, blackbody,
                  color='navy', linestyle='-', alpha=0.8,
@@ -71,7 +74,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
         plt.xlabel(r"Wavelength [micron]")
         plt.ylabel(r"Spectral Radiance")
         plt.title(r"Planck's law")
-        msgs.info("Close the Figure to continue.")
+        log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
         utils.pyplot_rcparams_default()
@@ -85,10 +88,12 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
     
     Parameters
     ----------
-    wavelength : np.array
+    wavelength : `numpy.ndarray`_
         wavelength vector of the input spectrum
-    wl_line, fl_line : np.arrays
-        wavelength and flux of each individual line
+    wl_line : `numpy.ndarray`_
+        wavelength of each individual line
+    fl_line : `numpy.ndarray`_
+        flux of each individual line
     resolution : float
         resolution of the spectrograph. In other words, the lines
         will have a FWHM equal to:
@@ -96,12 +101,12 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
     scale_spec : float
         rescale all the  normalization of the final spectrum.
         Default scale_spec=1.
-    debug : boolean
+    debug : bool
         If True will show debug plots
 
     Returns
     -------
-    line_spec : np.array
+    line_spec : `numpy.ndarray`_
         Spectrum with lines
 
     """
@@ -114,14 +119,14 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
     # define sigma of the gaussians
     sigma = wl_line_good / resolution / 2.355
 
-    msgs.info("Creating line spectrum")
+    log.info("Creating line spectrum")
     for ii in np.arange(len(wl_line_good)):
         line_spec += scale_spec*fl_line_good[ii]*\
                      np.exp(-np.power((wl_line_good[ii]-wavelength),2.)/(2.*np.power(sigma[ii],2.)))
 
     if debug:
         utils.pyplot_rcparams()
-        msgs.info("Plot of the line spectrum.")
+        log.info("Plot of the line spectrum.")
         plt.figure()
         plt.plot(wavelength, line_spec,
                  color='navy', linestyle='-', alpha=0.8,
@@ -129,7 +134,7 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
         plt.legend()
         plt.xlabel(r'Wavelength')
         plt.ylabel(r'Flux')
-        msgs.info("Close the Figure to continue.")
+        log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
         utils.pyplot_rcparams_default()
@@ -142,13 +147,13 @@ def oh_lines():
 
     Returns
     -------
-    wavelength, amplitude : np.arrays
-        Wavelength [in microns] and amplitude of the OH lines.
+    wavelength : `numpy.ndarray`_
+        Wavelength [in microns] of the OH lines.
+    amplitude : `numpy.ndarray`_
+        Amplitude of the OH lines.
     """
-
-    msgs.info("Reading in the Rousselot (2000) OH line list")
-    oh = np.loadtxt(data.get_skisim_filepath('rousselot2000.dat'),
-                    usecols=(0, 1))
+    log.info("Reading in the Rousselot (2000) OH line list")
+    oh = np.loadtxt(dataPaths.skisim.get_file_path('rousselot2000.dat'), usecols=(0, 1))
     return oh[:,0]/10000., oh[:,1] # wave converted to microns
 
 
@@ -158,20 +163,20 @@ def transparency(wavelength, debug=False):
 
     Parameters
     ----------
-    wavelength : np.array
+    wavelength : `numpy.ndarray`_
         wavelength vector in microns
-    debug : boolean
+    debug : bool
         If True will show debug plots
 
     Returns
     -------
-    transparency : np.array
-        Transmission of the sky over the considered wavelength rage.
-        1. means fully transparent and 0. fully opaque
+    transparency : `numpy.ndarray`_
+        Transmission of the sky over the considered wavelength range.  1. means
+        fully transparent and 0. fully opaque
     """
 
-    msgs.info("Reading in the atmospheric transmission model")
-    transparency = np.loadtxt(data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat'))
+    log.info("Reading in the atmospheric transmission model")
+    transparency = np.loadtxt(dataPaths.skisim.get_file_path('atm_transmission_secz1.5_1.6mm.dat'))
     wave_mod = transparency[:,0]
     tran_mod = transparency[:,1]
 
@@ -193,7 +198,7 @@ def transparency(wavelength, debug=False):
 
     if debug:
         utils.pyplot_rcparams()
-        msgs.info("Plot of the sky transmission template")
+        log.info("Plot of the sky transmission template")
         plt.figure()
         plt.plot(wave_mod, tran_mod,
                  color='navy', linestyle='-', alpha=0.8,
@@ -205,7 +210,7 @@ def transparency(wavelength, debug=False):
         plt.xlabel(r'Wavelength [microns]')
         plt.ylabel(r'Transmission')
         plt.title(r' IR Transmission Spectra ')
-        msgs.info("Close the Figure to continue.")
+        log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
         utils.pyplot_rcparams_default()
@@ -219,14 +224,13 @@ def h2o_lines():
 
     Returns
     -------
-    wavelength, flux : np.arrays
-        Wavelength [in microns] and flux of the H2O atmospheric 
-        spectrum.
+    wavelength : `numpy.ndarray`_
+        Wavelength [in microns] of the H2O atmospheric spectrum.
+    flux : `numpy.ndarray`_
+        Flux of the H2O atmospheric spectrum.
     """
-
-    msgs.info("Reading in the water atmsopheric spectrum")
-    h2o = np.loadtxt(data.get_skisim_filepath('HITRAN.txt'),
-                     usecols=(0, 1))
+    log.info("Reading in the water atmsopheric spectrum")
+    h2o = np.loadtxt(dataPaths.skisim.get_file_path('HITRAN.dat'), usecols=(0, 1))
     h2o_wv = 1./ h2o[:,0] * 1e4 # microns
     h2o_rad = h2o[:,1] * 5e11 # added to match XIDL
 
@@ -239,13 +243,13 @@ def thar_lines():
 
     Returns
     -------
-    wavelength, flux : np.arrays
-        Wavelength [in angstrom] and flux of the ThAr lamp 
-        spectrum.
+    wavelength : `numpy.ndarray`_
+        Wavelength [in microns] of the ThAr lamp spectrum.
+    flux : `numpy.ndarray`_
+        Flux of the ThAr lamp spectrum.
     """
-
-    msgs.info("Reading in the ThAr spectrum")
-    thar = data.load_thar_spec()
+    log.info("Reading in the ThAr spectrum")
+    thar = io.load_thar_spec()
     
     # create pixel array
     thar_pix = np.arange(thar[0].header['CRPIX1'],len(thar[0].data[0,:])+1)
@@ -280,7 +284,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         If flgd='True' it is a bin in velocity (km/s). If flgd='False'
         it is a bin in linear space (microns).
         Default is: 40.0 (with flgd='True')
-    flgd : boolean
+    flgd : bool
         if flgd='True' (default) wavelengths are created with 
         equal steps in log space. If 'False', wavelengths will be
         created wit equal steps in linear space.
@@ -302,25 +306,26 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
     WAVE_WATER : float
         wavelength (in microns) at which the H2O are inclued.
         Default: WAVE_WATER = 2.3
-    debug : boolean
+    debug : bool
         If True will show debug plots
 
     Returns
     -------
-    wave, sky_model : np.arrays
-        wavelength (in Ang.) and flux of the final model of the sky.
+    wave : `numpy.ndarray`_
+        Wavelength (in Ang.) of the final model of the sky.
+    sky_model : `numpy.ndarray`_
+        Flux of the final model of the sky.
     """
-
     # Create the wavelength array:
     wv_min = waveminmax[0]
     wv_max = waveminmax[1]
     if flgd :
-        msgs.info("Creating wavelength vector in velocity space.")
+        log.info("Creating wavelength vector in velocity space.")
         velpix = dlam # km/s
         loglam = np.log10(1.0 + velpix/299792.458)
         wave = np.power(10.,np.arange(np.log10(wv_min), np.log10(wv_max), loglam))
     else :
-        msgs.info("Creating wavelength vector in linear space.")
+        log.info("Creating wavelength vector in linear space.")
         wave = np.arange(wv_min, wv_max, dlam)
 
     # Calculate transparency
@@ -330,14 +335,14 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
     logy = - 0.55 - 0.55 * (wave-1.0)
     y = np.power(10.,logy)
 
-    msgs.info("Add in a blackbody for the atmosphere.")
+    log.info("Add in a blackbody for the atmosphere.")
     bb, bb_counts = blackbody(wave, T_BB=T_BB, debug=debug)
     bb_counts = bb_counts
 
-    msgs.info("Add in OH lines")
+    log.info("Add in OH lines")
     oh_wv, oh_fx = oh_lines()
     # produces better wavelength solutions with 1.0 threshold
-    msgs.info("Selecting stronger OH lines")
+    log.info("Selecting stronger OH lines")
     filt_oh = oh_fx > 1.
     oh_wv, oh_fx = oh_wv[filt_oh], oh_fx[filt_oh]
     # scale_spec was added to match the XIDL code
@@ -346,7 +351,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
                            debug=debug)
 
     if wv_max > WAVE_WATER :
-        msgs.info("Add in H2O lines")
+        log.info("Add in H2O lines")
         h2o_wv, h2o_rad = h2o_lines()
         filt_h2o = (h2o_wv>wv_min-0.1) & (h2o_wv<wv_max+0.1)
         h2o_wv  = h2o_wv[filt_h2o]
@@ -374,7 +379,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
     sky_model = y+bb_counts*SCL_BB+ohspec*SCL_OH+h2ospec*SCL_H2O
 
     if nirsky_outfile is not None:
-        msgs.info("Saving the sky model in: {}".format(nirsky_outfile))
+        log.info("Saving the sky model in: {}".format(nirsky_outfile))
         hdu = fits.PrimaryHDU(np.array(sky_model))
         header = hdu.header
         if flgd :
@@ -389,7 +394,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
 
     if debug:
         utils.pyplot_rcparams()
-        msgs.info("Plot of the sky emission at R={}".format(resolution))
+        log.info("Plot of the sky emission at R={}".format(resolution))
         plt.figure()
         plt.plot(wave, sky_model,
                  color='black', linestyle='-', alpha=0.8,
@@ -410,7 +415,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         plt.xlabel(r'Wavelength [microns]')
         plt.ylabel(r'Emission')
         plt.title(r'Sky Emission Spectrum at R={}'.format(resolution))
-        msgs.info("Close the Figure to continue.")
+        log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
         utils.pyplot_rcparams_default()
@@ -439,35 +444,37 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
         If flgd='True' it is a bin in velocity (km/s). If flgd='False'
         it is a bin in linear space (microns).
         Default is: 40.0 (with flgd='True')
-    flgd : boolean
+    flgd : bool
         if flgd='True' (default) wavelengths are created with 
         equal steps in log space. If 'False', wavelengths will be
         created wit equal steps in linear space.
     thar_outfile : str
         name of the fits file where the model sky spectrum will be stored.
         default is 'None' (i.e., no file will be written).
-    debug : boolean
+    debug : bool
         If True will show debug plots
 
     Returns
     -------
-    wave, thar_model : np.arrays
-        wavelength (in Ang.) and flux of the final model of the ThAr lamp emission.
+    wave : `numpy.ndarray`_
+        Wavelength (in Ang.) of the final model of the ThAr lamp emission.
+    thar_model : `numpy.ndarray`_
+        Flux of the final model of the ThAr lamp emission.
     """
 
     # Create the wavelength array:
     wv_min = waveminmax[0]
     wv_max = waveminmax[1]
     if flgd :
-        msgs.info("Creating wavelength vector in velocity space.")
+        log.info("Creating wavelength vector in velocity space.")
         velpix = dlam # km/s
         loglam = np.log10(1.0 + velpix/299792.458)
         wave = np.power(10.,np.arange(np.log10(wv_min), np.log10(wv_max), loglam))
     else :
-        msgs.info("Creating wavelength vector in linear space.")
+        log.info("Creating wavelength vector in linear space.")
         wave = np.arange(wv_min, wv_max, dlam)
 
-    msgs.info("Add in ThAr lines")
+    log.info("Add in ThAr lines")
     th_wv, th_fx = thar_lines()
 
     # select spectral region
@@ -490,14 +497,14 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
     thar_spec[thar_spec<0.] = 0.
     # Remove regions of the spectrum outside the wavelength covered by the ThAr model
     if wv_min<np.min(th_wv):
-        msgs.warn("Model of the ThAr spectrum outside the template coverage.")
+        log.warning("Model of the ThAr spectrum outside the template coverage.")
         thar_spec[wave<np.min(th_wv)] = 0.
     if wv_max<np.max(th_wv):
-        msgs.warn("Model of the ThAr spectrum outside the template coverage.")
+        log.warning("Model of the ThAr spectrum outside the template coverage.")
         thar_spec[wave>np.max(th_wv)] = 0.
 
     if thar_outfile is not None:
-        msgs.info("Saving the ThAr model in: {}".format(thar_outfile))
+        log.info("Saving the ThAr model in: {}".format(thar_outfile))
         hdu = fits.PrimaryHDU(np.array(thar_spec))
         header = hdu.header
         if flgd :
@@ -512,7 +519,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
 
     if debug:
         utils.pyplot_rcparams()
-        msgs.info("Plot of the Murphy et al. template at R={}".format(resolution))
+        log.info("Plot of the Murphy et al. template at R={}".format(resolution))
         plt.figure()
         plt.plot(th_wv, th_fx,
                  color='navy', linestyle='-', alpha=0.3,
@@ -527,7 +534,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
         plt.xlabel(r'Wavelength [Ang.]')
         plt.ylabel(r'Emission')
         plt.title(r'Murphy et al. ThAr spectrum at R={}'.format(resolution))
-        msgs.info("Close the Figure to continue.")
+        log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
         utils.pyplot_rcparams_default()
@@ -543,21 +550,21 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
 
     Parameters
     ----------
-    wavelength : np.array
+    wavelength : `numpy.ndarray`_
         wavelength
-    flux : np.array
+    flux : `numpy.ndarray`_
         flux
     resolution : float
         resolution of the spectrograph
     central_wl 
         if 'midpt' the central pixel of wavelength is used, otherwise
         the central_wl will be used.
-    debug : boolean
+    debug : bool
         If True will show debug plots
 
     Returns
     -------
-    flux_convolved :np.array
+    flux_convolved : `numpy.ndarray`_
         Resulting flux after convolution
     px_sigma : float
         Size of the sigma in pixels at central_wl
@@ -571,18 +578,18 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
         wl_cent = float(central_wl)
     wl_sigma =  wl_cent / resolution / 2.355
     wl_bin = np.abs((wavelength - np.roll(wavelength,1))[np.where( np.abs(wavelength-wl_cent) == np.min(np.abs(wavelength-wl_cent)) )])
-    msgs.info("The binning of the wavelength array at {} is: {}".format(wl_cent, wl_bin[0]))
+    log.info("The binning of the wavelength array at {} is: {}".format(wl_cent, wl_bin[0]))
     px_bin = wl_bin[0]
     px_sigma = wl_sigma / px_bin
 
-    msgs.info("Covolving with a Gaussian kernel with sigma = {} pixels".format(px_sigma))
+    log.info("Covolving with a Gaussian kernel with sigma = {} pixels".format(px_sigma))
     gauss_kernel = Gaussian1DKernel(px_sigma)
 
     flux_convolved = convolve(flux, gauss_kernel)
 
     if debug:
         utils.pyplot_rcparams()
-        msgs.info("Spectrum Convolved at R = {}".format(resolution))
+        log.info("Spectrum Convolved at R = {}".format(resolution))
         plt.figure()
         plt.plot(wavelength, flux,
                  color='navy', linestyle='-', alpha=0.8,
@@ -594,7 +601,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
         plt.xlabel(r'Wavelength')
         plt.ylabel(r'Flux')
         plt.title(r'Spectrum Convolved at R = {}'.format(resolution))
-        msgs.info("Close the Figure to continue.")
+        log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
         utils.pyplot_rcparams_default()
@@ -603,7 +610,8 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
 
 
 def iraf_datareader(database_dir, id_file):
-    """Reads in a line identification database created with IRAF
+    """
+    Reads in a line identification database created with IRAF
     identify. These are usually locate in a directory called 'database'.
     This read pixel location and wavelength of the lines that
     have been id with IRAF. Note that the first pixel in IRAF
@@ -612,16 +620,18 @@ def iraf_datareader(database_dir, id_file):
 
     Parameters
     ----------
-    database_dir : string
+    database_dir : str
         directory where the id files are located.
-    id_file : string
+    id_file : str
         filename that is going to be read.
 
     Returns
     -------
-    pixel, line_id : np.arrays
-        Position of the line in pixel and ID of the line. 
-        For IRAF output, these are usually in Ang.
+    pixel : `numpy.ndarray`_
+        Position of the line in pixel of the line.  For IRAF output, these are
+        usually in Ang.
+    line_id : `numpy.ndarray`_
+        ID of the line.
     """
 
     lines_database = []
@@ -632,9 +642,9 @@ def iraf_datareader(database_dir, id_file):
             lines_database.append(line.split())
             feat_line = re.search(r'features\t(\d+)', line)
             if feat_line is not None:
-                N_lines = np.int(feat_line.group(1))
+                N_lines = int(feat_line.group(1))
 
-    msgs.info("The number of IDs in the IRAF database {} is {}".format(id_file, N_lines))
+    log.info("The number of IDs in the IRAF database {} is {}".format(id_file, N_lines))
 
     pixel = np.zeros(N_lines)
     line_id = np.zeros(N_lines)
@@ -657,9 +667,9 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
 
     Parameters
     ----------
-    wavelength : np.array
+    wavelength : `numpy.ndarray`_
         wavelength
-    spec : np.array
+    spec : `numpy.ndarray`_
         spectrum
     fwhm : float
         fwhm in pixels used for filtering out arc lines that are too
@@ -679,11 +689,11 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
     iraf_frmt : bool
         if True, the file is written in the IRAF format (i.e. wavelength,
         ion name, amplitude).
-    convert_air_to_vac (bool):
+    convert_air_to_vac : bool
         If True, convert the wavelengths of the created linelist from air to vacuum
     """
 
-    msgs.info("Searching for peaks {} sigma above background".format(sigdetec))
+    log.info("Searching for peaks {} sigma above background".format(sigdetec))
     tampl_true, tampl, tcent, twid, centerr, ww, arcnorm, nsig = arc.detect_lines(spec, sigdetect=sigdetec,
                                                                                   fwhm=fwhm, cont_samp=cont_samp,
                                                                                   debug=debug)
@@ -695,7 +705,7 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
     wave_peak = scipy.interpolate.interp1d(pixvec, wavelength, bounds_error=False, fill_value='extrapolate')(peaks_good)
     # Convert to vacuum?
     if convert_air_to_vac:
-        msgs.info("Converting wavelengths from air to vacuum")
+        log.info("Converting wavelengths from air to vacuum")
         wave_peak = airtovac(wave_peak * units.AA).value
 
     npeak = len(wave_peak)
@@ -705,12 +715,12 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
     Source = npeak*['wavemodel.py']
 
     if iraf_frmt:
-        msgs.info("Printing file in IRAF format: {}".format(file_root_name+'_iraf_lines.dat'))
+        log.info("Printing file in IRAF format: {}".format(file_root_name+'_iraf_lines.dat'))
         ion = np.array(ion)
         id_lines_iraf = np.vstack( (np.round(wave_peak,5), ion, np.round(ampl_good,5)) ).T
         np.savetxt(file_root_name+'_iraf_lines.dat', id_lines_iraf, fmt="%15s %6s %15s", delimiter="  ")
     else:
-        msgs.info("Printing file: {}".format(file_root_name+'_lines.dat'))
+        log.info("Printing file: {}".format(file_root_name+'_lines.dat'))
         dat = Table([wave_peak, ion, NIST, Instr, ampl_good, Source], names=('wave', 'ion','NIST','Instr','amplitude','Source'))
         dat.write(file_root_name+'_lines.dat',format='ascii.fixed_width')
 
@@ -734,7 +744,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
         If flgd='True' it is a bin in velocity (km/s). If flgd='False'
         it is a bin in linear space (microns).
         Default is: 40.0 (with flgd='True')
-    flgd : boolean
+    flgd : bool
         if flgd='True' (default) wavelengths are created with 
         equal steps in log space. If 'False', wavelengths will be
         created wit equal steps in linear space.
@@ -758,7 +768,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
     iraf_frmt : bool
         if True, the file is written in the IRAF format (i.e. wavelength,
         ion name, amplitude).
-    debug : boolean
+    debug : bool
         If True will show debug plots
     """
 
@@ -766,7 +776,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
                                        flgd=flgd, nirsky_outfile=nirsky_outfile, debug=debug)
 
     if fwhm is None:
-        msgs.warn("No min FWHM for the line detection set. Derived from the resolution at the center of the spectrum")
+        log.warning("No min FWHM for the line detection set. Derived from the resolution at the center of the spectrum")
         wl_cent = np.average(wavelength)
         wl_fwhm = wl_cent / resolution
         wl_bin = np.abs((wavelength-np.roll(wavelength,1))[np.where(np.abs(wavelength-wl_cent)==np.min(np.abs(wavelength-wl_cent)))])
@@ -774,15 +784,15 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
         # the minimum fwhm of the spectrum
         fwhm = 1.1 * wl_fwhm / wl_bin[0]
         if fwhm < 1.:
-             msgs.warn("Lines are unresolved. Setting FWHM=2.pixels")
+             log.warning("Lines are unresolved. Setting FWHM=2.pixels")
              fwhm = 2.
 
     if line_name is None:
-        msgs.warn("No line_name as been set. The file will contain XXX as ion")
+        log.warning("No line_name as been set. The file will contain XXX as ion")
         line_name = 'XXX'
 
     if file_root_name is None:
-        msgs.warn("No file_root_name as been set. The file will called OH_SKY_lines.dat")
+        log.warning("No file_root_name as been set. The file will called OH_SKY_lines.dat")
         file_root_name = 'OH_SKY'
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
@@ -808,7 +818,7 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
         If flgd='True' it is a bin in velocity (km/s). If flgd='False'
         it is a bin in linear space (angstrom).
         Default is: 40.0 (with flgd='True')
-    flgd : boolean
+    flgd : bool
         if flgd='True' (default) wavelengths are created with 
         equal steps in log space. If 'False', wavelengths will be
         created wit equal steps in linear space.
@@ -832,16 +842,16 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
     iraf_frmt : bool
         if True, the file is written in the IRAF format (i.e. wavelength,
         ion name, amplitude).
-    debug : boolean
+    debug : bool
         If True will show debug plots
-    convert_air_to_vac (bool):
+    convert_air_to_vac : bool
         If True, convert the wavelengths of the created linelist from air to vacuum
     """
 
     wavelength, spec = optical_modelThAr(resolution, waveminmax=waveminmax, dlam=dlam,
                                          flgd=flgd, thar_outfile=thar_outfile, debug=debug)
     if fwhm is None:
-        msgs.warn("No min FWHM for the line detection set. Derived from the resolution at the center of the spectrum")
+        log.warning("No min FWHM for the line detection set. Derived from the resolution at the center of the spectrum")
         wl_cent = np.average(wavelength)
         wl_fwhm = wl_cent / resolution
         wl_bin = np.abs((wavelength-np.roll(wavelength,1))[np.where(np.abs(wavelength-wl_cent)==np.min(np.abs(wavelength-wl_cent)))])
@@ -849,15 +859,15 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
         # the minimum fwhm of the spectrum
         fwhm = 1.1 * wl_fwhm / wl_bin[0]
         if fwhm < 1.:
-             msgs.warn("Lines are unresolved. Setting FWHM=2.*pixels")
+             log.warning("Lines are unresolved. Setting FWHM=2.*pixels")
              fwhm = 2.
 
     if line_name is None:
-        msgs.warn("No line_name as been set. The file will contain XXX as ion")
+        log.warning("No line_name as been set. The file will contain XXX as ion")
         line_name = 'XXX'
 
     if file_root_name is None:
-        msgs.warn("No file_root_name as been set. The file will called ThAr_lines.dat")
+        log.warning("No file_root_name as been set. The file will called ThAr_lines.dat")
         file_root_name = 'ThAr'
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,

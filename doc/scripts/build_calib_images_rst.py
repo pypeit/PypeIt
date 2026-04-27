@@ -2,22 +2,18 @@
 Dynamically build the rst documentation for the Calibration Images
 """
 
-from pathlib import Path
-from pkg_resources import resource_filename
+from importlib import resources
 
 import numpy
 
 from pypeit.utils import to_string, string_table
 from pypeit.datamodel import DataContainer
 from pypeit.images import buildimage
-from pypeit.flatfield import FlatImages
-from pypeit.edgetrace import EdgeTraceSet
-from pypeit.slittrace import SlitTraceSet
 
 from IPython import embed
 
 def link_string(p):
-    return '`{0} Keywords`_'.format(type(p).__name__)
+    return f'`{type(p).__name__} Keywords`_'
 
 #-----------------------------------------------------------------------------
 
@@ -90,13 +86,13 @@ def single_table_datamodel(obj, output_root, ext, descr):
                        'Empty data HDU.  Contains basic header information.']
     data_table[2,:] = [f'``{ext}``', '`astropy.io.fits.BinTableHDU`_', '...', descr]
 
-    lines = [''] + ['Version {:s}'.format(obj.version)] + [''] \
+    lines = [''] + [f'Version {obj.version}'] + [''] \
                 + [string_table(data_table, delimeter='rst')]
 
     ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 def edges_datamodel(output_root):
 
@@ -146,13 +142,13 @@ def edges_datamodel(output_root):
                         ':class:`~pypeit.core.fitting.PypeItFit`.']
     data_table[20,:] = [ '...', '...', '...', '...']
 
-    lines = [''] + ['Version {:s}'.format(EdgeTraceSet.version)] + [''] \
+    lines = [''] + [f'Version {EdgeTraceSet.version}'] + [''] \
                 + [string_table(data_table, delimeter='rst')]
 
     ofile = output_root / f'datamodel_{EdgeTraceSet.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 def slits_datamodel(output_root):
@@ -186,7 +182,7 @@ def slits_datamodel(output_root):
                 else combined[key].dtype.type.__name__
         data_table[i+1,:] = [f'``{key}``', t, combined[key].description]
 
-    lines = [''] + ['Version {:s}'.format(SlitTraceSet.version)] + [''] \
+    lines = [''] + [f'Version {SlitTraceSet.version}'] + [''] \
                 + [string_table(hdu_table, delimeter='rst')] + [''] \
                 + ['MASKDEF_DESIGNTAB content'] + [''] \
                 + [string_table(data_table, delimeter='rst')]
@@ -194,7 +190,7 @@ def slits_datamodel(output_root):
     ofile = output_root / f'datamodel_{SlitTraceSet.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 def wavecalib_datamodel(output_root):
@@ -222,13 +218,13 @@ def wavecalib_datamodel(output_root):
                        WaveCalib.datamodel['arc_spectra']['descr']]
 
 
-    lines = [''] + ['Version {:s}'.format(WaveCalib.version)] + [''] \
+    lines = [''] + [f'Version {WaveCalib.version}'] + [''] \
                 + [string_table(data_table, delimeter='rst')]
 
     ofile = output_root / f'datamodel_{WaveCalib.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 def flatfield_datamodel(output_root):
@@ -276,35 +272,35 @@ def flatfield_datamodel(output_root):
     data_table[18,:] = ['``SPAT_ID``', '`astropy.io.fits.ImageHDU`_', 'int64',
                         FlatImages.datamodel['spat_id']['descr']]
 
-    lines = [''] + ['Version {:s}'.format(FlatImages.version)] + [''] \
+    lines = [''] + [f'Version {FlatImages.version}'] + [''] \
                 + [string_table(data_table, delimeter='rst')]
 
     ofile = output_root / f'datamodel_{FlatImages.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 if __name__ == '__main__':
     # Set the output directory
-    output_root = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+    output_root = resources.files('pypeit').parent / 'doc' / 'include'
 
-    # Simple datamodels for MasterArc, MasterBias, MasterDark, MasterTiltimg
+    # Simple datamodels for Arc, Bias, Dark, Tiltimg
     for obj in [buildimage.ArcImage, buildimage.BiasImage, buildimage.DarkImage,
                 buildimage.TiltImage]:
 
         # Build the Table
-        lines = [''] + ['Version {:s}'.format(obj.version)] + [''] \
+        lines = [''] + [f'Version {obj.version}'] + [''] \
                     + basic_pypeitimage_datamodel(obj)
 
         ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
         with open(ofile, 'w') as f:
             f.write('\n'.join(lines))
 
-        print('Wrote: {}'.format(ofile))
+        print(f'Wrote: {ofile}')
 
 
-    # All data written to a single extension for MasterAlignments and MasterTilts
+    # All data written to a single extension for Alignments and Tilts
     from pypeit.alignframe import Alignments
     single_table_datamodel(Alignments, output_root, 'ALIGN',
                            'Spatial alignment data; see :class:`~pypeit.alignframe.Alignments`.')
@@ -312,16 +308,16 @@ if __name__ == '__main__':
     single_table_datamodel(WaveTilts, output_root, 'TILTS',
                            'Tilts data; see :class:`~pypeit.wavetilts.WaveTilts`.')
 
-    # MasterEdges
+    # Edges
     edges_datamodel(output_root)
 
-    # MasterSlits
+    # Slits
     slits_datamodel(output_root)
 
-    # MasterWaveCalib
+    # WaveCalib
     wavecalib_datamodel(output_root)
 
-    # MasterFlat
+    # Flat
     flatfield_datamodel(output_root)
 
 

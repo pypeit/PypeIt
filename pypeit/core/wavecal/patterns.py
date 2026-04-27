@@ -1,8 +1,10 @@
 """ Module for finding patterns in arc line spectra
+
+.. include:: ../include/links.rst
 """
 import numpy as np
-from scipy.ndimage.filters import maximum_filter
-from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
+import scipy.ndimage
+
 #import numba as nb
 
 
@@ -23,16 +25,18 @@ def detect_2Dpeaks(image):
 
     """
     # Define an 8-connected neighborhood
-    neighborhood = generate_binary_structure(2, 2)
+    neighborhood = scipy.ndimage.generate_binary_structure(2, 2)
 
     # Apply the local maximum filter
-    local_max = maximum_filter(image, footprint=neighborhood) == image
+    local_max = scipy.ndimage.maximum_filter(image, footprint=neighborhood) == image
 
     # Background mask
     background = (image == 0)
 
     # Remove artifacts from local maximum filter
-    eroded_background = binary_erosion(background, structure=neighborhood, border_value=1)
+    eroded_background = scipy.ndimage.binary_erosion(
+        background, structure=neighborhood, border_value=1
+    )
 
     # Remove the background from the local_max mask
     pimage = local_max ^ eroded_background
@@ -618,19 +622,28 @@ def empty_patt_dict(nlines):
     return patt_dict
 
 
-def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, nreid_min = 4, cc_local_thresh = 0.8):
+def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, 
+                nreid_min:int=4, cc_local_thresh:float=0.8):
     """  Given a starting solution, find the best match for all detlines
 
     Parameters
     ----------
-    detlines : ndarray
+    detlines : `numpy.ndarray`_
         list of detected lines in pixels (sorted, increasing)
-    linelist : ndarray
+    linelist : `numpy.ndarray`_
         list of lines that should be detected (sorted, increasing)
-    dindex : ndarray
+    dindex : `numpy.ndarray`_
         Index array of all detlines (pixels) used in each triangle
-    lindex : ndarray
+    lindex : `numpy.ndarray`_
         Index array of the assigned line (wavelengths)to each index in dindex
+    line_cc : `numpy.ndarray`_
+        local cross correlation coefficient computed for each line
+    cc_local_thresh : float, default = 0.8, optional
+        Threshold to satisy for local cross-correlation 
+    nreid_min: int, default = 4, optional
+        Minimum number of matches 
+        to receive a score of 'Perfect' or 'Very Good'
+        Passed to score_xcorr()
 
     Returns
     -------
@@ -707,9 +720,11 @@ def score_xcorr(counts, cc_avg, nreid_min = 4, cc_local_thresh = -1.0):
         counts. The more different wavelengths that are attributed to
         the same detected line (i.e. not ideal) the longer the counts
         list will be.
-    nmin_match: int, default = 4, optional
-        Minimum number of slits/solutions that have to have been matched
+    nreid_min: int, default = 4, optional
+        Minimum number of matches 
         to receive a score of 'Perfect' or 'Very Good'
+    cc_local_thresh: float, default = -1.0, optional
+        What does this do??
 
     Returns
     -------

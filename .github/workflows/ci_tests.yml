@@ -6,9 +6,6 @@ on:
     - release
     - develop
   pull_request:
-  schedule:
-    # run every Monday at 6am UTC
-    - cron: '0 6 * * 1'
 
 env:
   SETUP_XVFB: True  # avoid issues if something tries to open a GUI window
@@ -17,16 +14,18 @@ jobs:
   ci-tests:
     name: Tox env ${{ matrix.python }}-${{ matrix.toxenv }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: [3.8, 3.9]
-        toxenv: [test, test-alldeps-cov, test-linetoolsdev, test-gingadev, test-astropydev, conda]
+        python: ['3.11', '3.12', '3.13']
+        toxenv: [test, test-alldeps-cov, test-numpydev, test-gingadev, test-astropydev]
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
     - name: Install base dependencies
@@ -34,30 +33,32 @@ jobs:
         python -m pip install --upgrade pip tox
     - name: Test with tox
       run: |
-        tox -e ${{ matrix.toxenv }}
-    - name: Upload coverage to codecov
-      if: "contains(matrix.toxenv, '-cov')"
-      uses: codecov/codecov-action@v1
-      with:
-        token: ${{ secrets.CODECOV }}
-        file: ./coverage.xml
-        fail_ci_if_error: true
+        tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
+#    - name: Upload coverage to codecov
+#      if: "contains(matrix.toxenv, '-cov')"
+#      uses: codecov/codecov-action@v3
+#      with:
+#        token: ${{ secrets.CODECOV }}
+#        file: ./coverage.xml
+#        fail_ci_if_error: true
 
   os-tests:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       # set this to false for now so windows failures don't prevent macos test from finishing
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest]
-        python: [3.8, 3.9]
+        python: ['3.11', '3.12', '3.13']
         toxenv: [test-alldeps]
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
     - name: Install base dependencies
@@ -65,55 +66,35 @@ jobs:
         python -m pip install --upgrade pip tox
     - name: Test with tox
       run: |
-        tox -e ${{ matrix.toxenv }}
+        tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
 
-  centos:
-    # Some PypeIt users have to run under CentOS and have run into unique issues. GitHub Actions does not
-    # provide CentOS as a runtime environment like it does Ubuntu. However, it can be used by running
-    # it as a container within a provided Ubuntu environment.
-    name: CentOS ${{ matrix.centos_ver }} ${{ matrix.toxenv }}
+  conda:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        # Test CentOS 7
-        centos_ver: [7]
-        # Test both pip and conda for installing dependencies
-        toxenv: [test-alldeps, conda]
-
-    container:
-      image: "centos:${{ matrix.centos_ver }}"
-
+    permissions:
+      contents: read
     steps:
-    - name: Install base CentOS dependencies
-      run: |
-        yum update -y && yum install -y wget git gcc
-    - name: Check out repository
-      uses: actions/checkout@v1
+    - uses: actions/checkout@v3
+    - name: Conda environment check
+      uses: actions/setup-python@v4
       with:
-        fetch-depth: 0
-    - name: Install and configure miniconda
-      # Restrict to 3.9 until we migrate to 3.10
-      run: |
-        wget https://repo.anaconda.com/miniconda/Miniconda3-py39_22.11.1-1-Linux-x86_64.sh -O miniconda.sh
-        bash ./miniconda.sh -b -p /conda
-        /conda/bin/conda update -y --all
-        /conda/bin/conda init
+        python-version: '3.12'
     - name: Install base dependencies
       run: |
-        source ~/.bashrc && python -m pip install --upgrade pip tox && python --version
-    - name: Test with tox
+        python -m pip install --upgrade pip tox
+    - name: Run pypeit tests from environment built with conda
       run: |
-        source ~/.bashrc && tox -e ${{ matrix.toxenv }}
+        tox -e conda
 
   codestyle:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Python codestyle check
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.9
+        python-version: '3.12'
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip

@@ -20,8 +20,10 @@ Attribute             Type                          Array Type  Description
 ``std_name``          str                                       Type of standard source                                                                               
 ``std_ra``            float                                     RA of the standard source                                                                             
 ``std_src``           str                                       Name of the standard source                                                                           
-``telgrid``           str                                       File containing grid of HITRAN atmosphere models                                                      
+``telgrid``           str                                       File containing PCA components or grid of HITRAN atmosphere models                                    
 ``tell_norm_thresh``  float                                     ??                                                                                                    
+``tell_npca``         int                                       Number of telluric PCA components used                                                                
+``teltype``           str                                       Type of telluric model, `pca` or `grid`                                                               
 ``tol``               float                                     Relative tolerance for converage of the differential evolution optimization.                          
 ``ubound_norm``       float                                     Flux normalization upper bound                                                                        
 ``z_qso``             float                                     Redshift of the QSO                                                                                   

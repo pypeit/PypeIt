@@ -10,14 +10,40 @@ Coadd 2D Spectra
 Overview
 ========
 
-This document will describe how to combine the 2D spectra from multiple
-exposures.  **For worked examples,** see :doc:`tutorials/coadd2d_howto`.
+This document describes how to combine the 2D spectra from multiple exposures.
+**For a worked examples,** see :doc:`tutorials/coadd2d_howto`.
 
 Coadding must be done outside of the data reduction pipeline (:ref:`run-pypeit`);
 i.e., PypeIt will *not* coadd your spectra as
 part of the data reduction process, although it can
 combine (without weighting) multiple exposures
 during reductions (see :ref:`2d_combine`).
+
+.. note::
+
+        Because the flux of the single reduced science frames is expressed in ``counts``,
+        coadding frames with different exposure times is not recommended.  If the user still
+        wishes to do so, the fluxes of the individual frames are rescaled by the median
+        exposure time. For example, if we have four frames with exposure times of
+        ``1800``, ``1800``, ``1800``, and ``1200`` seconds, the exposure
+        time of the coadded frame will be:
+
+        .. code-block:: python
+
+            coadd_exptime = np.percentile([1800,1800,1800,1200],50, method='higher')
+
+        and the flux of the individual frames will be rescaled by:
+
+        .. code-block:: python
+
+            rescale_factor = coadd_exptime / exptime
+
+        where ``exptime`` is the exposure time of the individual frames. ``coadd_exptime`` is saved
+        in the header of the coadded frame as ``ALLSPEC2D_EFFECTIVE_EXPTIME``, so that the user can
+        easily convert the flux of the coadded frame from ``counts`` to ``counts/s``.
+
+        Note, also, that the combination (without weighting) of multiple exposures during main reduction
+        (i.e, :ref:`2d_combine`) does not perform this rescaling.
 
 .. _coadd2d_file:
 
@@ -74,33 +100,40 @@ is a simple list of the :doc:`out_spec2D` files.
 You may also include file-specific options in the :ref:`data_block`
 as additional columns.  See :ref:`data_block` for its formatting.
 
-.. warning::
+.. _pypeit_setup_coadd2d:
 
-    .. deprecated:: 1.9.2
+Setup script
+------------
 
-        Previously the :ref:`data_block` did not require 
-        the column name ``filename`` and the ``path`` was not permitted.
-        It might have looked like this:
+Similar to :ref:`pypeit_setup`, we provide a script that helps you construct the
+required input file.  In this case, ``pypeit_setup_coadd2d`` helps you build the
+required ``.coadd2d`` file.
 
-        .. code-block:: ini
+The script usage can be displayed by calling the script with the
+``-h`` option:
 
-            # Data block
-            spec2d read
-            spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits
-            spec2d end
+.. include:: help/pypeit_setup_coadd2d.rst
 
-        Edit it accordingly to meet the new standard above.
+For example, assuming you have already executed :ref:`run-pypeit` on your data
+using a pypeit file, you can construct the default coadd2d file(s) using:
+
+.. code-block:: console
+
+    pypeit_setup_coadd2d -f keck_lris_A.pypeit
+
+This will produce one ``.coadd2d`` file per unique ``target`` in the pypeit file
+with associated ``spec2d`` files in the output science directory.  The script
+provides additional options that allow you to select specific objects/targets,
+specify the method used to set the offsets and/or weights, specify the detectors
+to coadd, and/or specify the slits that should be coadded.
 
 .. _pypeit-coadd-2dspec:
 
 pypeit_coadd_2dspec
 ===================
 
-The primary script is called ``pypeit_coadd_2dspec``, which takes
-an input file or *object name* to guide the process.
-
-usage
------
+Once you have prepared a ``.coadd2d`` file, the primary script to execute is
+``pypeit_coadd_2dspec``.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -129,8 +162,6 @@ If not provided, defaults to a portion of the input spec2d filenames.
 
 Provides additional debugging diagnostic plots compared to using ``--show``.
 
-
-
 run
 ---
 
@@ -138,13 +169,12 @@ Then run the script:
 
 .. code-block:: console
 
-    pypeit_coadd_2dspec --file FRB190711_XS_coadd2d.cfg --show
+    pypeit_coadd_2dspec  FRB190711_XS.coadd2d --show
 
-
-
-The parameters that guide the coadd process are also written
-to disk for your records. The default location is ``coadd2d.par``.
-You can choose another location by modifying `--basename`_.
+The parameters that guide the coadd process are also written to disk for your
+records.  The default location is ``*_coadd2d.par``, where the wildcard should
+contain the frames included and the target/object name.  You can choose another
+location by modifying `--basename`_.
 
 **For worked examples,** see :doc:`tutorials/coadd2d_howto`.
 

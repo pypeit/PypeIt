@@ -3,18 +3,24 @@ Module for VLT FORS (1 and 2)
 
 .. include:: ../include/links.rst
 """
-import os
+from pathlib import Path
+
 import numpy as np
-from pypeit import msgs
+from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.table import Table
+from astropy import units
+
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.core import meta
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from astropy.coordinates import SkyCoord
-from astropy import units
-from astropy.io import fits
+from pypeit.par import parset
+
 from IPython import embed
 
 class VLTFORSSpectrograph(spectrograph.Spectrograph):
@@ -33,7 +39,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -58,7 +64,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']  # Grating dependent
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0  # Good for 2x binning
         par['calibrations']['wavelengths']['n_final'] = 4
@@ -70,7 +76,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 5
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_9800_25000_R25000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
 
 
@@ -80,7 +86,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -122,16 +128,25 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'decker':
-            try:  # Science
-                decker = headarr[0]['HIERARCH ESO INS SLIT NAME']
-            except KeyError:  # Standard!
-                try:
-                    decker = headarr[0]['HIERARCH ESO SEQ SPEC TARG']
-                except KeyError:
+            if 'DECKER' in headarr[0]:
+                return headarr[0]['DECKER']
+            else:
+                mode = headarr[0]['HIERARCH ESO INS MODE']
+                if mode in ['LSS', 'MOS']:
+                    try:  # Science
+                        return headarr[0]['HIERARCH ESO INS SLIT NAME']
+                    except KeyError:  # Standard!
+                        try:
+                            return headarr[0]['HIERARCH ESO SEQ SPEC TARG']
+                        except KeyError:
+                            return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
+                elif mode == 'IMG':
+                    # This is for the bias frames
                     return None
-            return decker
+                else:
+                    raise PypeItError(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -195,7 +210,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             return good_exp & ((fitstbl['target'] == 'LAMP,WAVE')
                                | (fitstbl['target'] == 'WAVE,LAMP'))
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -208,7 +223,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
     camera = 'FORS2'
     header_name = 'FORS2'
     supported = True
-    comment = '300I, 300V gratings'
+    comment = '300I, 300V gratings. Supports LSS and MOS mode only.'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -242,7 +257,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         # These numbers are from the ESO FORS2 user manual at: 0
         # http://www.eso.org/sci/facilities/paranal/instruments/fors/doc/VLT-MAN-ESO-13100-1543_P01.1.pdf
         # They are for the MIT CCD (which is the default detector) for the high-gain, 100 khZ readout mode used for
-        # spectroscpy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
+        # spectroscopy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
 
         # CHIP1
         detector_dict1 = dict(
@@ -253,7 +268,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 2.1,
+            darkcurr        = 2.1,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -273,7 +288,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 1.4,
+            darkcurr        = 1.4,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -291,17 +306,22 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         elif chip == 'CHIP2':
             return detector_container.DetectorContainer(**detector_dict2)
         else:
-            msgs.error(f'Unknown chip: {chip}!')
+            raise PypeItError(f'Unknown chip: {chip}!')
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -310,32 +330,65 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating & decker used
+        grating = self.get_meta_value(inp, 'dispname')
+        decker = self.get_meta_value(inp, 'decker')
+
         # TODO: Should we allow the user to override these?
 
         #detector = self.get_meta_value(scifile, 'detector')
         #self.set_detector(detector)
         # Wavelengths
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_600z':
-            par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            # Since we are using the sky to fit the wavelengths don't correct for flexure
-            par['flexure']['spec_method'] = 'skip'
-            #par['reduce']['skysub']['bspline_spacing'] = 0.6
+        match grating:
+            case 'GRIS_300I':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_300V':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_600z':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+                # Since we are using the sky to fit the wavelengths don't correct for flexure
+                par['flexure']['spec_method'] = 'skip'
+                #par['reduce']['skysub']['bspline_spacing'] = 0.6
+            case 'GRIS_1200B':
+                par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI','HgI','CdI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1200B.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_1400V':
+                par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','HgI','CdI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1400V.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
 
-        if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
+        if 'lSlit' in decker or 'LSS' in decker:
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-
         return par
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': 'detector', 'dark': 'detector'}
 
     def configuration_keys(self):
         """
@@ -353,7 +406,28 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         """
         return ['dispname', 'dispangle', 'decker', 'detector']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
 
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['HIERARCH ESO INS GRIS1 NAME', 'HIERARCH ESO INS GRIS1 WLEN',
+                'HIERARCH ESO INS SLIT NAME', 'HIERARCH ESO SEQ SPEC TARG']
+
+    # TODO -- Convert this into get_comb_group()
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.
@@ -387,7 +461,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 ra, dec = meta.convert_radec(self.get_meta_value(hdr, 'ra', no_fussing=True),
                                     self.get_meta_value(hdr, 'dec', no_fussing=True))
             except:
-                msgs.warn('Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets')
+                log.warning('Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets')
                 ra, dec = 0.0, 0.0
             if ifile == 0:
                 coord_ref = SkyCoord(ra*units.deg, dec*units.deg)
@@ -405,8 +479,12 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 u_hat_this  = np.array([ra_off.to('arcsec').value/separation, dec_off.to('arcsec').value/separation])
                 dot_product = np.dot(u_hat_slit, u_hat_this)
                 if not np.isclose(np.abs(dot_product),1.0, atol=1e-2):
-                    msgs.error('The slit appears misaligned with the angle between the coordinates: dot_product={:7.5f}'.format(dot_product) + msgs.newline() +
-                               'The position angle in the headers {:5.3f} differs from that computed from the coordinates {:5.3f}'.format(posang_this, posang_ref))
+                    raise PypeItError(
+                        'The slit appears misaligned with the angle between the coordinates: '
+                        f'dot_product={dot_product:7.5f}\n'
+                        f'The position angle in the headers {posang_this:5.3f} differs from that '
+                        f'computed from the coordinates {posang_ref:5.3f}'
+                    )
                 offset_arcsec[ifile] = separation*np.sign(dot_product)
 
 #            dither_id.append(hdr['FRAMEID'])

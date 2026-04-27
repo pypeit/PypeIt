@@ -1,0 +1,27 @@
+# logfile = /s/sdata1004/ccd_gain/gain_check.Spectral.2023-Jan-06.log
+# datestr = Fri Jan  6 22:28:15 2023
+# mode = Spectral
+# flatfile1 = /sdata1005/deimos2/2023jan07/d0107_0037.fits
+# flatfile2 = /sdata1005/deimos2/2023jan07/d0107_0038.fits
+# flatfile3 = /sdata1005/deimos2/2023jan07/d0107_0039.fits
+# flatfile4 = /sdata1005/deimos2/2023jan07/d0107_0040.fits
+# flatfile5 = /sdata1005/deimos2/2023jan07/d0107_0041.fits
+# zerofile1 = /sdata1005/deimos2/2023jan07/d0107_0034.fits
+# zerofile2 = /sdata1005/deimos2/2023jan07/d0107_0035.fits
+# column1 = videoinp
+# column2 = amploc
+# column3 = ccdloc
+# column4 = amptype
+# column5 = gain [e-/DN]
+# column6 = sigma_gain [e-/DN]
+# column7 = readnoise [e-]
+# column8 = sigma_readnoise [e-]
+#----------------------------------------
+   2 1   1   B         1.1790    0.013500      2.4721    0.028305
+   4 3   2   B         1.1731    0.018365      2.4596    0.038507
+   6 5   3   B         1.2702    0.015348      3.9949    0.048269
+   8 7   4   B         1.2170    0.014134      2.5517    0.029635
+  10 10  5   B         1.2471    0.023396      7.7994     0.26533
+  12 12  6   B         1.1977    0.017206      2.5112    0.036076
+  14 14  7   B         1.1976    0.014123      2.5109    0.029612
+  16 16  8   B         1.2485    0.021585      2.6177    0.045256

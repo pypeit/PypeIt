@@ -1,5 +1,8 @@
 """
 This script allows the user to manually select the sky background regions
+
+.. include:: ../include/links.rst
+
 """
 
 import os
@@ -9,7 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 import matplotlib.transforms as mtransforms
 
-from pypeit import msgs
+from pypeit import log
 from pypeit.core import skysub
 from pypeit.images import buildimage
 
@@ -29,7 +32,7 @@ operations = dict({'cursor': "Add sky region (LMB drag)\n" +
                    })
 
 
-class SkySubGUI(object):
+class SkySubGUI:
     """
     GUI to interactively define the sky regions. The GUI can be run within
     PypeIt during data reduction, or as a standalone script outside of
@@ -97,7 +100,7 @@ class SkySubGUI(object):
         self._nslits = slits.nslits
         self._maxslitlength = np.max(self.slits.get_slitlengths(initial=initial))
         self._resolution = int(10.0 * self._maxslitlength) if resolution is None else int(resolution)
-        self._allreg = np.zeros(int(self._resolution), dtype=np.bool)
+        self._allreg = np.zeros(int(self._resolution), dtype=bool)
         self._specx = np.arange(int(self._resolution))
         self._start = [0, 0]
         self._end = [0, 0]
@@ -154,7 +157,7 @@ class SkySubGUI(object):
         ----------
         det : int
             Detector index
-        frame : ndarray
+        frame : `numpy.ndarray`_
             Sky subtracted science image
         slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Object with the image coordinates of the slit edges
@@ -232,7 +235,7 @@ class SkySubGUI(object):
         print("mouse button to click and drag over the sky background region.")
         print("Use the right mouse button (click and drag) to delete a region.")
         print("If you click 'Continue (and save changes)' the sky background")
-        print("regions file will be saved to the Masters directory.")
+        print("regions file will be saved to the Calibrations directory.")
         print("")
         print("To assign regions to all slits simultaneously, click and drag")
         print("over the gray regions on the right toolbar. Alternatively,")
@@ -284,7 +287,7 @@ class SkySubGUI(object):
         would select the first 10%, the inner 30%, and the final 20% of all slits
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 A matplotlib event instance
         """
         self.update_infobox(message='Enter regions in the terminal (see terminal for help)', yesno=False)
@@ -315,7 +318,7 @@ class SkySubGUI(object):
         """What to do when the 'exit and save' button is clicked
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 A matplotlib event instance
         """
         self._respreq = [True, "exit_update"]
@@ -326,7 +329,7 @@ class SkySubGUI(object):
         """What to do when the 'exit and do not save changes' button is clicked
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 A matplotlib event instance
         """
         self._respreq = [True, "exit_restore"]
@@ -373,7 +376,7 @@ class SkySubGUI(object):
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 A matplotlib event instance
         """
         # Get the background
@@ -384,7 +387,7 @@ class SkySubGUI(object):
         """Get the index of the slit closest to the cursor
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
         """
         # Find the current slit
@@ -401,7 +404,7 @@ class SkySubGUI(object):
         """Get the ID of the axis where an event has occurred
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
 
         Returns:
@@ -427,7 +430,7 @@ class SkySubGUI(object):
         """What to do when the mouse button is pressed
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
@@ -449,7 +452,7 @@ class SkySubGUI(object):
         """What to do when the mouse button is released
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
@@ -494,7 +497,7 @@ class SkySubGUI(object):
         """What to do when a key is pressed
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
         """
         # Check that the event is in an axis...
@@ -522,7 +525,7 @@ class SkySubGUI(object):
                                             'again to exit', yesno=False)
                 self._qconf = True
             else:
-                msgs.bug("Need to change this to kill and return the results to PypeIt")
+                log.debug("Need to change this to kill and return the results to PypeIt")
                 plt.close()
         elif self._qconf:
             self.update_infobox(default=True)
@@ -568,22 +571,41 @@ class SkySubGUI(object):
         self.replot()
 
     def get_result(self):
-        """Save a mask containing the skysub regions, and print information
+        """Generate a calibration file containing a mask of the skysub regions, and print information
         for what the user should include in their .pypeit file
+
+        Returns
+        -------
+        msskyreg : :class:`SkyRegions`, None
+            Returns an instance of the :class:`SkyRegions` class. If None is returned,
+            the user has requested to not use the updates.
         """
-        # Only do this if the user wishes to save the result
-        if self._use_updates:
-            # Generate the mask
-            inmask = skysub.generate_mask(self.pypeline, self._skyreg, self.slits, self.slits_left, self.slits_right)
-            # Save the mask
-            outfil = self._outname
-            if os.path.exists(self._outname) and not self._overwrite:
-                outfil = 'temp.fits'
-                msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
-                self._overwrite = True
-            msskyreg = buildimage.SkyRegions(image=inmask.astype(np.float), PYP_SPEC=self.spectrograph)
-            msskyreg.to_master_file(master_filename=outfil)
-        return
+        if not self._use_updates:
+            return None
+
+        # Generate the mask
+        inmask = skysub.generate_mask(self.pypeline, self._skyreg, self.slits, self.slits_left, self.slits_right)
+        if np.all(np.logical_not(inmask)):
+            log.warning("Sky regions are empty - A sky regions calibration frame will not be generated")
+            return None
+
+        # Build the Sky Regions calibration frame
+        return buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
+
+    def get_outname(self):
+        """ Get an output filename
+
+        Returns
+        -------
+        outfil : :obj:`str`
+            The output filename to use for the Sky Regions calibration frame
+        """
+        outfil = self._outname
+        if os.path.exists(self._outname) and not self._overwrite:
+            outfil = 'temp.fits'
+            log.warning(f"A SkyRegions file already exists and you have not forced an overwrite:\n{self._outname}")
+            log.info(f"Adopting the following output filename: {outfil}")
+        return outfil
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
@@ -677,5 +699,6 @@ class SkySubGUI(object):
     def reset_regions(self):
         """ Reset the sky regions for all slits simultaneously
         """
-        self._skyreg = [np.zeros(self._resolution, dtype=np.bool) for all in range(self._nslits)]
+        self._skyreg = [np.zeros(self._resolution, dtype=bool) for all in range(self._nslits)]
         self._allreg[:] = False
+

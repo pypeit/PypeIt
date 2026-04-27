@@ -5,6 +5,8 @@ This script allows the user to add/delete/modify object traces
 
     Implement color scaling with RMB click+drag
 
+.. include:: ../include/links.rst
+
 """
 
 import os
@@ -19,7 +21,7 @@ from scipy.interpolate import RectBivariateSpline
 # TODO: Commented out the import of specobjs because it was only used by
 # the (presumably) defunct method.
 #from pypeit import specobjs
-from pypeit import msgs
+from pypeit import log
 
 # TODO: No globals please
 operations = dict({'cursor': "Select object trace (LMB click)\n" +
@@ -89,16 +91,25 @@ class ObjectTraces:
             self.add_object(det, pos_spat, pos_spec, obj_dict['traces'][ii], spec_trace, obj_dict['fwhm'][ii], addrm=0)
 
     def add_object(self, det, pos_spat, pos_spec, trc_spat, trc_spec, fwhm, addrm=1):
-        """Add an object trace
+        """
+        Add an object trace
 
         Args:
-            det (int): Detector to add a slit on
-            pos_spat (float): Spatial pixel position
-            pos_spec (float): Spectral pixel position
-            trc_spat (ndarray): Spatial trace of object
-            trc_spec (ndarray): Spectral trace of object
-            fwhm (float): FWHM of the object
-            addrm (int): Flag to say if an object was been added (1), removed (-1), or was an auto found slit (0)
+            det (int):
+                Detector to add a slit on
+            pos_spat (float):
+                patial pixel position
+            pos_spec (float):
+                Spectral pixel position
+            trc_spat (`numpy.ndarray`_):
+                Spatial trace of object
+            trc_spec (`numpy.ndarray`_):
+                Spectral trace of object
+            fwhm (float):
+                FWHM of the object
+            addrm (int):
+                Flag to say if an object was been added (1), removed (-1), or
+                was an auto found slit (0)
         """
         self._det.append(det)
         self._add_rm.append(addrm)
@@ -216,18 +227,12 @@ class ObjFindGUI:
             self._object_traces.from_specobj(sobjs, det)
 
         # Unset some of the matplotlib keymaps
-        matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
-        #matplotlib.pyplot.rcParams['keymap.home'] = ''              # home or reset mnemonic (Default: h, r, home)
-        matplotlib.pyplot.rcParams['keymap.back'] = ''              # forward / backward keys to enable (Default: left, c, backspace)
-        matplotlib.pyplot.rcParams['keymap.forward'] = ''           # left handed quick navigation (Default: right, v)
-        #matplotlib.pyplot.rcParams['keymap.pan'] = ''              # pan mnemonic (Default: p)
-        matplotlib.pyplot.rcParams['keymap.zoom'] = ''              # zoom mnemonic (Default: o)
-        matplotlib.pyplot.rcParams['keymap.save'] = ''              # saving current figure (Default: s)
-        matplotlib.pyplot.rcParams['keymap.quit'] = ''              # close the current figure (Default: ctrl+w, cmd+w)
-        matplotlib.pyplot.rcParams['keymap.grid'] = ''              # switching on/off a grid in current axes (Default: g)
-        matplotlib.pyplot.rcParams['keymap.yscale'] = ''            # toggle scaling of y-axes ('log'/'linear') (Default: l)
-        matplotlib.pyplot.rcParams['keymap.xscale'] = ''            # toggle scaling of x-axes ('log'/'linear') (Default: L, k)
-        matplotlib.pyplot.rcParams['keymap.all_axes'] = ''          # enable all axes (Default: a)
+        for key in plt.rcParams.keys():
+            if 'keymap' in key:
+                plt.rcParams[key] = []
+        # Enable some useful ones, though
+        matplotlib.pyplot.rcParams['keymap.home'] = ['h', 'r', 'home']
+        matplotlib.pyplot.rcParams['keymap.pan'] = ['p']
 
         # Initialise the main canvas tools
         canvas.mpl_connect('draw_event', self.draw_callback)
@@ -408,7 +413,7 @@ class ObjFindGUI:
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
 
         Args:
-            event (Event): A matplotlib event instance
+            event (`matplotlib.backend_bases.Event`_): A matplotlib event instance
         """
         # Get the background
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
@@ -418,7 +423,7 @@ class ObjFindGUI:
         """Get the index of the object trace closest to the cursor
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
         """
         mindist = self._spatpos.shape[0]**2
         self._obj_idx = -1
@@ -436,7 +441,7 @@ class ObjFindGUI:
         """Get the ID of the axis where an event has occurred
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
 
         Returns:
             int, None: Axis where the event has occurred
@@ -462,7 +467,7 @@ class ObjFindGUI:
         """What to do when the mouse button is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -481,7 +486,7 @@ class ObjFindGUI:
         """What to do when the mouse button is released
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -533,7 +538,7 @@ class ObjFindGUI:
         """What to do when a key is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
         """
         # Check that the event is in an axis...
         if not event.inaxes:
@@ -557,7 +562,7 @@ class ObjFindGUI:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
             else:
-                msgs.bug("Need to change this to kill and return the results to PypeIt")
+                log.debug("Need to change this to kill and return the results to PypeIt")
                 plt.close()
         elif self._qconf:
             self.update_infobox(default=True)
@@ -776,7 +781,7 @@ class ObjFindGUI:
         """print text that the user should insert into their .pypeit file
         """
         if 1 in self._object_traces._add_rm:
-            msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
+            log.info("Include the following info in the manual_extract column in your .pypeit file:\n")
             print(self._object_traces.get_pypeit_string())
 
     def recenter(self):
@@ -818,7 +823,7 @@ class ObjFindGUI:
             SpecObjs: SpecObjs Class
         """
         if self._use_updates:
-            msgs.work("Have not updated SpecObjs yet")
+            log.debug("Have not updated SpecObjs yet")
             return self.specobjs
         else:
             return None
@@ -865,11 +870,11 @@ def initialise(det, frame, left, right, obj_trace, trace_models, sobjs, slit_ids
     Args:
         det (int):
             1-indexed detector number
-        frame (numpy.ndarray):
+        frame (`numpy.ndarray`_):
             Sky subtracted science image
-        left (numpy.ndarray):
+        left (`numpy.ndarray`_):
             Slit left edges
-        right (numpy.ndarray):
+        right (`numpy.ndarray`_):
             Slit right edges
         obj_trace (dict):
             Result of

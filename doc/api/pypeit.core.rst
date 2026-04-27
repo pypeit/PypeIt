@@ -17,6 +17,7 @@ Submodules
    :maxdepth: 4
 
    pypeit.core.arc
+   pypeit.core.atmextinction
    pypeit.core.basis
    pypeit.core.coadd
    pypeit.core.collate
@@ -40,8 +41,13 @@ Submodules
    pypeit.core.procimg
    pypeit.core.pydl
    pypeit.core.qa
+   pypeit.core.scattlight
+   pypeit.core.skyspec
    pypeit.core.skysub
    pypeit.core.slitdesign_matching
+   pypeit.core.spatialprofile
+   pypeit.core.spectrum
+   pypeit.core.standard
    pypeit.core.telluric
    pypeit.core.trace
    pypeit.core.tracewave
@@ -54,5 +60,5 @@ Module contents
 .. automodule:: pypeit.core
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

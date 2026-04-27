@@ -3,17 +3,22 @@ Module for Bok/B&C specific methods.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
-from pypeit import io
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class BokBCSpectrograph(spectrograph.Spectrograph):
@@ -29,27 +34,11 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
     header_name = 'Bok B&C spectrometer'
     supported = True
 
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return ['dispname', 'decker', 'binning', 'dispangle']
-
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -85,10 +74,14 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial = headarr[0]['CCDBIN1']
-            binspec = headarr[0]['CCDBIN2']
+            if 'CCDBIN1' in headarr[0]:  # Current files
+                binspatial = headarr[0]['CCDBIN1']
+                binspec = headarr[0]['CCDBIN2']
+            elif 'CCDSUM' in headarr[0]:  # For really old files
+                binspatial, binspec = headarr[0]['CCDSUM'].split()
+            else: 
+                raise PypeItError("Could not find a header keyword for the binning")
             return parse.binning2string(binspatial, binspec)
-            #return parse.binning2string(binspec, binspatial)
         elif meta_key == 'mjd':
             """
             Need to combine 'DATE-OBS' and 'UT' headers and then use astropy to make an mjd.
@@ -107,11 +100,47 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['COMPLAMP']
             else:
                 return 'off'
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'decker', 'binning', 'dispangle']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['DISPERSE', 'APERTURE', 'CCDBIN1', 'CCDBIN2', 'TILTPOS']
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -151,7 +180,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             #platescale      = 15.0/18.0,
             platescale      = 0.2,
-            darkcurr        = 5.4,
+            darkcurr        = 5.4,  # e-/hour/unbinned pixel
             saturation      = 65535.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -170,7 +199,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -211,9 +240,9 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'HeI']
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.19
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['fwhm']= 2.6
 
         #par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 5
@@ -223,7 +252,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 120]
@@ -258,11 +287,6 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         """
         Generate a default bad-pixel mask.
 
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
         Args:
             filename (:obj:`str` or None):
                 An example file to use to get the image shape.
@@ -274,7 +298,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -286,24 +310,29 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            msgs.info("Using hard-coded BPM for Bok B&C")
+            log.info("Using hard-coded BPM for Bok B&C")
 
             bpm_img[:, -1] = 1
 
         else:
-            msgs.error(f"Invalid detector number, {det}, for Bok B&C (only one detector).")
+            raise PypeItError(f"Invalid detector number, {det}, for Bok B&C (only one detector).")
 
         return bpm_img
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -312,11 +341,17 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == '300':
+        # NOTE: The str() is needed because this value can be interpreted as
+        #       an :obj:`int` -- i.e., no "300L" or other such unit identifier
+        #       as is common for most other spectrographs.
+        if str(grating) == '300':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'bok_bc_300.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
 
@@ -367,7 +402,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lampstat01'] != 'off')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 

@@ -14,12 +14,13 @@ These routines are taken from the DEEP2 IDL-based pipeline.
 from IPython import embed
 
 import numpy as np
+from scipy import optimize
 from matplotlib import pyplot as plt
 
 from astropy.stats import sigma_clipped_stats
 from pypeit.core import fitting
 
-from pypeit import msgs
+from pypeit import log
 
 
 def best_offset(x_det, x_model, step=1, xlag_range=None):
@@ -55,8 +56,8 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
         # we keep only the x_model values that are in the current detector
         wkeep =(x_model > min_x_det+xlag_range[0]) & (x_model < max_x_det+xlag_range[1])
         if x_model[wkeep].size<2:
-            msgs.warn('Working between {} and {}'.format(min_x_det+xlag_range[0], max_x_det+xlag_range[1]))
-            msgs.warn('Not enough lines to run!!!')
+            log.warning('Working between {} and {}'.format(min_x_det+xlag_range[0], max_x_det+xlag_range[1]))
+            log.warning('Not enough lines to run!!!')
             sdev = 1e10
             return 0.
         x_model_trim = x_model[wkeep]
@@ -73,7 +74,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
     for j in range(xlag.size):
         x_det_lag = x_det+xlag[j]
         join = np.ma.concatenate([x_det_lag, x_model_trim])
-        sind = np.argsort(join)
+        sind = np.argsort(join, kind='stable')
         nj = sind.size
         w1 = np.where(sind < x_det.size)
 
@@ -89,7 +90,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
             offs = np.amin(np.absolute(x_det_lag[:, None] - x_model_trim[None, :]), axis=1)
 
             # use only nbest best matches
-            soffs = np.argsort(np.abs(offs))
+            soffs = np.argsort(np.abs(offs), kind='stable')
             nbest2 = nbest if nbest<x_det.size else x_det.size
             offs = offs[soffs[0:nbest2]]
 
@@ -255,9 +256,9 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
         # Both duplicates and matches with high RMS are considered bad
         dupl = dupl | out
         if edge is not None:
-            msgs.warn('{} duplicate match(es) for {} edges'.format(dupl[dupl == 1].size, edge))
+            log.warning('{} duplicate match(es) for {} edges'.format(dupl[dupl == 1].size, edge))
         else:
-            msgs.warn('{} duplicate match(es)'.format(dupl[dupl == 1].size))
+            log.warning('{} duplicate match(es)'.format(dupl[dupl == 1].size))
         # I commented the 3 lines below because I don't really need to trim the duplicate matches. I just
         # propagate the flag.
         # good = dupl == 0
@@ -265,14 +266,14 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
         # x_det=x_det[good]
     if print_matches:
         if edge is not None:
-            msgs.info('-----------------------------------------------')
-            msgs.info('             {} slit edges               '.format(edge))
-        msgs.info('-----------------------------------------------')
-        msgs.info('Index      omodel_edge       spat_edge               ')
-        msgs.info('-----------------------------------------------')
+            log.info('-----------------------------------------------')
+            log.info('             {} slit edges               '.format(edge))
+        log.info('-----------------------------------------------')
+        log.info('Index      omodel_edge       spat_edge               ')
+        log.info('-----------------------------------------------')
         for i in range(ind.size):
-            msgs.info('{}  {}  {}'.format(ind[i], x_model[ind][i], x_det[i]))
-        msgs.info('-----------------------------------------------')
+            log.info('{}  {}  {}'.format(ind[i], x_model[ind][i], x_det[i]))
+        log.info('-----------------------------------------------')
     return ind, dupl, coeff, sigres
 
 
@@ -362,3 +363,60 @@ def plot_matches(edgetrace, ind, x_model, yref, slit_index, nspat=2048, duplicat
     plt.ylim(0, edgetrace.shape[0])
     plt.legend(loc=1)
     plt.show()
+
+
+def match_positions_1D(measured, nominal, tol=None):
+    """
+    Match a set of measured 1D positions against a nominal expectation with
+    uniqueness (i.e., more than one measured position cannot be matched to the
+    same nominal position).
+
+    The function primarily uses `scipy.optimize.linear_sum_assignment`_ to
+    perform the matching, where the matrix of separations of each measured
+    position to every nominal position is used as the cost matrix.
+
+    Args:
+        measured (`numpy.ndarray`_):
+            Measured positions.  Shape is ``(n,)``.
+        nominal (`numpy.ndarray`_):
+            Expected positions.  Shape is ``(m,)``.
+        tol (:obj:`float`, optional):
+            Maximum separation between measured and nominal positions to be
+            considered a match.  If None, no limit is applied.
+
+    Returns:
+        `numpy.ndarray`_:  Indices of the elements in ``measured`` that are
+        matched to the elements of ``nominal``.  Shape is ``(m,)``.  If the
+        tolerance is set or the number of measurements is less than the nominal
+        set (i.e., ``n < m``), any element of ``nominal`` that does not have an
+        appropriate match in ``measured`` is given an index of -1.
+    """
+    # Calculate the (m,n) separation matrix
+    # NOTE: This is the brute force approach.  For *lots* of measurements, this
+    # can be sped up by using a KDTree to build a sparse matrix with only a
+    # subset of the separations calculated.
+    sep = np.absolute(nominal[:,None] - measured[None,:])
+
+    # Perform the match
+    n_m, m_m = optimize.linear_sum_assignment(sep)
+
+    # Remove any matches that don't meet the provided tolerance.
+    # NOTE: It's possible this approach yields a non-optimal match.  I.e., when
+    # multiple matches are near the tolerance, removing the largest separations
+    # *before* performing the match (above) might ultimately yield a more
+    # optimal result for the ones that remain.  But this approach has worked so
+    # far.
+    if tol is not None:
+        indx = sep[n_m,m_m] < tol
+        n_m = n_m[indx]
+        m_m = m_m[indx]
+
+    # If there aren't any missing matches, just return the match vector
+    if n_m.size == nominal.size:
+        return m_m 
+
+    # Otherwise, insert -1 placeholders.
+    _m_m = np.full(nominal.size, -1, dtype=int)
+    _m_m[n_m] = m_m
+    return _m_m
+

@@ -23,8 +23,8 @@ Assuming it was executed from within the directory created by
 :ref:`pypeit_setup` (e.g., ``${RDXDIR}/keck_deimos_A``), by default
 :ref:`run-pypeit` will produce the following directories:
 
-    - ``${RDXDIR}/${PYP_SPEC}_${SETUP}/Masters``: Directory with all the
-      "master" calibration frames.
+    - ``${RDXDIR}/${PYP_SPEC}_${SETUP}/Calibrations``: Directory with all the
+      calibration frames.
 
     - ``${RDXDIR}/${PYP_SPEC}_${SETUP}/Science``: Directory with all the
       reduced science and standard frames
@@ -62,6 +62,7 @@ they're produced, and their current datamodel.
    calibrations/calibrations
    out_spec2D
    out_spec1D
+   out_masks
 
 .. note::
 
@@ -92,6 +93,16 @@ Importantly note that:
     - execution of :ref:`pypeit_flux_calib` makes direct changes to the :ref:`spec-1d-output`
 
     - the output of :ref:`pypeit_collate_1d` is identical to :ref:`pypeit_coadd_1dspec`
+
+Generally, the further processing scripts that produce 1D spectra that do *not*
+make direct changes to the :ref:`spec-1d-output`, produce ``OneSpec`` files.
+See:
+
+.. toctree::
+   :maxdepth: 1
+
+   out_onespec
+   out_orderstack
 
 ----
 

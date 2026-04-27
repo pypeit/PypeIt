@@ -96,7 +96,7 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
     # Write
     header = fits.PrimaryHDU().header
     header['TST'] = 'TEST'
-    ofile = tstutils.data_path('tst_specobjs.fits')
+    ofile = tstutils.data_output_path('tst_specobjs.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     sobjs.write_to_fits(header, ofile, overwrite=False)

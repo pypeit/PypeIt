@@ -3,14 +3,21 @@ Module for NTT EFOSC2
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 
-from pypeit import msgs
+from astropy.io import fits
+from astropy.table import Table
+
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 from IPython import embed
 
@@ -27,27 +34,11 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
     supported = True
     comment = 'The ESO Faint Object Spectrograph and Camera version 2'
 
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return ['dispname', 'decker', 'binning', 'datasec']
-    
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -115,8 +106,67 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
                                               oscan_x+1*xbin, max_x-1*xbin) # Actually two overscan regions, here I only dealing with the region on x-axis
                 return oscansec
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': ['binning', 'datasec'], 'dark': ['binning', 'datasec']}
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'decker', 'binning', 'datasec']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['HIERARCH ESO INS GRIS1 NAME', 'HIERARCH ESO INS SLIT1 NAME',
+                'HIERARCH ESO SEQ SPEC TARG', 'CDELT1', 'CDELT2',
+                'HIERARCH ESO DET OUT1 NX', 'HIERARCH ESO DET OUT1 NY',
+                'HIERARCH ESO DET OUT1 OVSCY', 'HIERARCH ESO DET OUT1 PRSCX',
+                'HIERARCH ESO DET OUT1 PRSCY', 'HIERARCH ESO DET OUT1 X']
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -159,7 +209,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.12, # Manual 2.2
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535, # Maual Table 8
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -179,7 +229,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -210,7 +260,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
@@ -231,15 +281,20 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -248,18 +303,24 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'Gr#6':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr6.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Gr#5':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr5.fits'
-            # Fringes are affecting this Grism significantly, skip flat fielding
-            par['scienceframe']['process']['use_pixelflat'] = False
-            par['scienceframe']['process']['use_illumflat'] = False
-            par['scienceframe']['process']['use_specillum'] = False
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        # Wavelength calibrations (metadata has already removed the '#')
+        match grating.replace('#',''):
+            case 'Gr6':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr6.fits'
+            case 'Gr5':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr5.fits'
+                # Fringes are affecting this Grism significantly, skip flat fielding
+                par['scienceframe']['process']['use_pixelflat'] = False
+                par['scienceframe']['process']['use_illumflat'] = False
+                par['scienceframe']['process']['use_specillum'] = False
+            case 'Gr4':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr4.fits'
 
         return par
 
@@ -306,7 +367,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp & ((fitstbl['target'] == 'WAVE'))
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
     
     def bpm(self, filename, det, shape=None, msbias=None):
@@ -329,7 +390,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -340,7 +401,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        msgs.info("Using hard-coded BPM for NTT EFOSC2")
+        log.info("Using hard-coded BPM for NTT EFOSC2")
         binning = self.get_meta_value(filename, 'binning')
         binspatial =  int(binning[0])
         binspec =  int(binning[2])

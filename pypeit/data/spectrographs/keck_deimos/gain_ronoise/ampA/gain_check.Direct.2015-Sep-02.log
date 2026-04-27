@@ -1,0 +1,27 @@
+# logfile = /home/dmoseng/data/gain/gain_check.Direct.2015-Sep-02.log
+# datestr = Wed Sep  2 10:13:48 2015
+# mode = Direct
+# flatfile1 = d0903_0012.fits
+# flatfile2 = d0903_0013.fits
+# flatfile3 = d0903_0014.fits
+# flatfile4 = d0903_0015.fits
+# flatfile5 = d0903_0016.fits
+# zerofile1 = d0903_0009.fits
+# zerofile2 = d0903_0010.fits
+# column1 = videoinp
+# column2 = amploc
+# column3 = ccdloc
+# column4 = amptype
+# column5 = gain [e-/DN]
+# column6 = sigma_gain [e-/DN]
+# column7 = readnoise [e-]
+# column8 = sigma_readnoise [e-]
+#----------------------------------------
+   1 2   1   A         1.1941    0.024805      2.5037    0.052008
+   2 1   1   B         1.2292    0.015682      2.5771    0.032881
+   3 4   2   A         1.1656    0.028640      2.4439    0.060050
+   4 3   2   B         1.1856    0.010798      2.4859    0.022639
+   5 6   3   A         1.1427    0.010662      2.3959    0.022356
+   6 5   3   B         1.2428    0.023203      2.6057    0.048650
+   7 8   4   A         1.2297    0.018093      2.5783    0.037935
+   8 7   4   B         1.2209    0.016638      2.5598    0.034885

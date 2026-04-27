@@ -3,14 +3,20 @@ Module for WHT/ISIS specific methods.
 
 .. include:: ../include/links.rst
 """
-import numpy as np
+from pathlib import Path
 
-from pypeit import msgs
+import numpy as np
+from astropy.io import fits
+from astropy.table import Table
+
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class WHTISISSpectrograph(spectrograph.Spectrograph):
@@ -21,27 +27,11 @@ class WHTISISSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.WHTTelescopePar()
     url = 'https://www.ing.iac.es/astronomy/instruments/isis/'
 
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return ['dispname', 'decker', 'binning', 'dispangle', 'dichroic']
-
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -83,11 +73,47 @@ class WHTISISSpectrograph(spectrograph.Spectrograph):
             binspatial = headarr[0]['CCDXBIN']
             binspec = headarr[0]['CCDYBIN']
             return parse.binning2string(binspec, binspatial)
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'decker', 'binning', 'dispangle', 'dichroic']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['ISIGRAT', 'ISISLITU', 'CCDXBIN', 'CCDYBIN', 'CENWAVE', 'ISIDICHR']
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -105,6 +131,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
     name = 'wht_isis_blue'
     camera = 'ISISb'
     comment = 'Blue camera'
+    allowed_extensions = ['.fit', '.fit.gz']
     
     def get_detector_par(self, det, hdu=None):
         """
@@ -134,7 +161,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.20,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.76,
             mincounts       = -1e10,
@@ -152,7 +179,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -175,7 +202,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 120]
@@ -184,15 +211,20 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -201,11 +233,14 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'R1200B':
+        if grating == 'R1200B':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'wht_isis_blue_1200_4800.fits'
 
         return par
@@ -241,7 +276,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lampstat01'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -282,7 +317,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             specflip=False,
             spatflip=False,
             platescale=0.22,
-            darkcurr=0.0,
+            darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=0.76,
             mincounts=-1e10,
@@ -300,7 +335,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -320,7 +355,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 120]
@@ -329,15 +364,20 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -346,11 +386,14 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'R1200R':
+        if grating == 'R1200R':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'wht_isis_red_1200_6000.fits'
 
         # Return
@@ -387,7 +430,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lampstat01'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 

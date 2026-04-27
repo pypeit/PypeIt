@@ -3,12 +3,17 @@ Module for Gemini FLAMINGOS.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 
-from pypeit import msgs
+from astropy.io import fits
+from astropy.table import Table
+from pypeit import log
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.images import detector_container
+from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
 
 
@@ -24,7 +29,7 @@ class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -79,7 +84,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.1787,
-            darkcurr        = 0.5,
+            darkcurr        = 1800.0,  # e-/pixel/hour  (=0.5 e-/pixel/s)
             saturation      = 700000., #155400.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -98,7 +103,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -109,9 +114,9 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
         par['calibrations']['wavelengths']['sigdetect']=5
-        par['calibrations']['wavelengths']['fwhm'] = 5
+        par['calibrations']['wavelengths']['fwhm'] = 5.
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
@@ -143,19 +148,24 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         # TODO: replace the telluric grid file for Gemini-S site.
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -164,15 +174,21 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        # TODO: Should we allow the user to override these?
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'JH_G5801':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_JH_JH.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'HK_G5802':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_HK_HK.fits'
+        # Adjust parameters based on disperser used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        # TODO: Should we allow the user to override these?
+        match grating:
+            case 'JH_G5801':
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_JH_JH.fits'
+            case 'HK_G5802':
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_HK_HK.fits'
+
         return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -206,7 +222,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'OBJECT')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -246,7 +262,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.15,
-            darkcurr        = 0.01,
+            darkcurr        = 1080.0,  # e-/hour/pixel    (=0.3 e-/pixel/s)
             saturation      = 320000., #155400.,
             nonlinear       = 0.875,
             mincounts       = -1e10,
@@ -265,7 +281,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -276,9 +292,9 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05  # this needs to be updated
         par['calibrations']['wavelengths']['sigdetect']=3
-        par['calibrations']['wavelengths']['fwhm'] = 20
+        par['calibrations']['wavelengths']['fwhm'] = 20    # we don't know this value, no dataset in the repo
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']
@@ -337,6 +353,6 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
             return good_exp & (fitstbl['idname'] == 'Science')
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'Arc')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 

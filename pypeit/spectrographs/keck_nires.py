@@ -5,7 +5,8 @@ Module for Keck/NIRES specific methods.
 """
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -27,6 +28,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     pypeline = 'Echelle'
     ech_fixed_format = True
     supported = True
+    comment = 'see :doc:`keck_nires`'
 
 
     def get_detector_par(self, det, hdu=None):
@@ -54,7 +56,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip=False,
             platescale      = 0.15,
-            darkcurr        = 0.01,
+            darkcurr        = 468.0,  # e-/pixel/hour  (=0.13 e-/pixel/s)
             saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
             nonlinear       = 0.76,
             mincounts       = -1e10,
@@ -73,15 +75,15 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.136
         par['calibrations']['wavelengths']['sigdetect']=5.0
-        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['fwhm']= 2.2  # Measured
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
@@ -110,9 +112,17 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                         use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
-        # Extraction
+
+        # Reduce -- Sky-Subtraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
+        # Reduce -- Extraction
         par['reduce']['extraction']['sn_gauss'] = 4.0
+
+        # Reduce -- Object finding
+        #par['reduce']['findobj']['ech_find_nabove_min_snr'] = 1
+        # Require detection in a single order since given only 5 orders and slitlosses for NIRES, often
+        # things are only detected in the K-band? Decided not to make this the default.
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
@@ -123,17 +133,20 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
-        # DP: I don't think we need these. Do we?
-        # par['calibrations']['arcframe']['exprng'] = [100, None]
-        # par['calibrations']['tiltframe']['exprng'] = [100, None]
-        # par['calibrations']['darkframe']['exprng'] = [60, None]
+        par['calibrations']['arcframe']['exprng'] = [61, None]
+        par['calibrations']['tiltframe']['exprng'] = [61, None]
         par['scienceframe']['exprng'] = [61, None]
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['maxiter'] = 2
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+        par['coadd2d']['offsets'] = 'header'
+
 
         return par
 
@@ -141,7 +154,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -163,8 +176,36 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Dithering
         self.meta['dithpat'] = dict(ext=0, card='DPATNAME')
-        self.meta['dithpos'] = dict(ext=0, card='DPATIPOS')
+        self.meta['dithpos'] = dict(card=None, compound=True)
         self.meta['dithoff'] = dict(ext=0, card='YOFFSET')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'dithpos':
+            # the dither positions in NIRES are expressed in numbers 1,2,3,4.
+            # We want to convert those into A,B,C. We need to know the dither pattern to do so.
+            dpat = headarr[0].get('DPATNAME')
+            dpos = headarr[0].get('DPATIPOS')
+            if dpos is not None and ((dpos in [1, 2, 3, 4] and dpat in ["ABBA", "ABBAprime", "ABAB"]) or
+                                     (dpos in [1, 2, 3] and dpat == 'ABC') or
+                                     (dpos in [1, 2] and dpat == 'ABpat')):
+                return dpat[dpos-1]
+            else:
+                return None
+        else:
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -182,28 +223,54 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['INSTR']
+
     def get_comb_group(self, fitstbl):
         """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
 
-        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
-        and modifies calib, comb_id and bkg_id metas for a specific instrument.
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
 
         Specifically here for NIRES, since it's likely to have one set of flat/dark frames for
         different targets, this method sets calib = "all" for the flat and dark frames and
         assigns different calib values to the science/standard frames of different targets.
 
-        Moreover, this method parses from the header the dither pattern of the science/standard
-        frames in a given calibration group and assigns to each of them a comb_id and a
-        bkg_id. The dither patterns used here are: "ABAB", "ABBA", "ABpat", "ABC" (ABC not yet).
-        Note that the frames in the same dither positions (A positions or B positions)
-        of each "ABAB" or "ABBA" sequence are 2D coadded  (without optimal weighting)
-        before the background subtraction, while for the other dither patterns (e.g., "ABpat"),
-        the frames in the same dither positions are not coadded.
-        comb_id and bkg_id will not assigned if:
+        Moreover, this method parses from the header the dither pattern of the
+        science/standard frames in a given calibration group and assigns to each
+        of them a default ``comb_id`` and ``bkg_id``. The dither patterns used
+        here are: "ABAB", "ABBA", "ABpat", and "ABC".  Note that the frames in
+        the same dither positions (A positions or B positions) of each "ABAB" or
+        "ABBA" sequence are 2D coadded  (without optimal weighting) before the
+        background subtraction, while for the other dither patterns (e.g.,
+        "ABpat"), the frames in the same dither positions are not coadded.  The
+        ``comb_id`` and ``bkg_id`` will *not* assigned if:
 
-            - dither offset is zero for every frames of a dither sequence
-            - a dither position within a specific dither sequence is missing
-            - dither pattern recorded in the header is NONE or MANUAL, or is none of the above patterns.
+            - the dither offset is zero for every frame in the dither sequence
+
+            - the dither pattern recorded in the header is not recognized or set
+              to NONE or MANUAL.
 
         Args:
             fitstbl(`astropy.table.Table`_):
@@ -248,11 +315,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                     # where this targ
                     targ_idx = in_cfg & (fitstbl['target'] == targ)
                     if 'calib' in fitstbl.keys():
-                        targ_calib += 1
                         # set different calib for different targs
                         if 'science' in fitstbl['frametype'][targ_idx][0] or \
                            ('standard' in fitstbl['frametype'][targ_idx][0] and 'arc' in fitstbl['frametype'][targ_idx][0]):
-                            fitstbl['calib'][targ_idx] = targ_calib
+                            fitstbl['calib'][targ_idx] = str(targ_calib)
                         elif 'standard' in fitstbl['frametype'][targ_idx]:
                             # find the science frames
                             sci_in_cfg = sci_idx & np.array([setup in _set for _set in fitstbl['setup']])
@@ -260,12 +326,13 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                                 # find the closest (in time) science frame to the standard target
                                 close_idx = np.argmin(np.absolute(fitstbl[sci_in_cfg]['mjd'] - fitstbl[targ_idx]['mjd'][0]))
                                 fitstbl['calib'][targ_idx] = fitstbl['calib'][sci_in_cfg][close_idx]
+                        targ_calib += 1
 
                     # how many dither patterns are used for the selected science/standard target?
                     uniq_dithpats = np.unique(fitstbl[targ_idx]['dithpat'])
                     # loop through the dither patterns
                     for dpat in uniq_dithpats:
-                        if dpat == 'NONE':
+                        if dpat in ['NONE', 'none', 'MANUAL']:
                             continue
                         # where this dpat
                         dpat_idx = targ_idx & (fitstbl['dithpat'] == dpat)
@@ -277,13 +344,13 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             # get default combid and bkgid
                             combid = np.copy(fitstbl['comb_id'][dpat_idx].data)
                             bkgid = np.copy(fitstbl['bkg_id'][dpat_idx].data)
-                            dpos = fitstbl[dpat_idx]['dithpos']
+                            dpos = fitstbl[dpat_idx]['dithpos'].data
 
                             if dpat == "ABAB":
                                 # find the starting index of the ABAB sequence
-                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2") &
-                                                    (np.roll(dpos, -2) == "3") & (np.roll(dpos, -3) == "4"))[0]
-                                for i in dpos:
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                    (np.roll(dpos, -2) == "A") & (np.roll(dpos, -3) == "B"))[0]
+                                for i in dpos_idx:
                                     # make sure that that dither offsets are correct
                                     if i < len(dpos) - 3 and doff[i] == doff[i+2] and doff[i+1] == doff[i+3]:
                                         bkgid[i] = combid[i+1]
@@ -293,10 +360,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                                         combid[i+3] = combid[i+1]
                                         bkgid[i+3] = bkgid[i+1]
 
-                            elif dpat == "ABBA":
+                            elif dpat in ["ABBA", "ABBAprime"]:
                                 # find the starting index of the ABBA sequence
-                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2") &
-                                                    (np.roll(dpos, -2) == "3") & (np.roll(dpos, -3) == "4"))[0]
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                    (np.roll(dpos, -2) == "B") & (np.roll(dpos, -3) == "A"))[0]
                                 for i in dpos_idx:
                                     # make sure that that dither offsets are correct
                                     if i < len(dpos) - 3 and doff[i] == doff[i+3] and doff[i+1] == doff[i+2]:
@@ -308,16 +375,48 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                                         bkgid[i+3] = bkgid[i]
 
                             elif dpat == "ABpat":
-                                # find the starting index of the AB sequence
-                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2"))[0]
+                                # find the starting index of the ABpat sequence
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B"))[0]
                                 for i in dpos_idx:
                                     # exclude when np.roll counts the 1st element of dpos to be in a
                                     # sequence with the last element
                                     if i < len(dpos)-1:
                                         bkgid[i] = combid[i+1]
                                         bkgid[i+1] = combid[i]
-                            #TODO
-                            # elif dpat == "ABC":
+
+                            elif dpat == "ABC":
+                                # find the starting index of the ABC sequence
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                    (np.roll(dpos, -2) == "C"))[0]
+                                for i in dpos_idx:
+                                    # exclude when np.roll counts the 1st element of dpos to be in a
+                                    # sequence with the last element
+                                    if i < len(dpos) - 2:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i+2]
+                                        bkgid[i+2] = combid[i+1]
+
+                            # assign bkgid for files that are part of an incomplete sequence
+                            for i in range(len(fitstbl[dpat_idx])):
+                                # initialize pos_idx
+                                pos_idx = None
+                                # if A frame doesn't have bkgid assigned
+                                if bkgid[i] == -1 and (fitstbl[dpat_idx]['dithpos'][i] == "A"):
+                                    # find B frames to subtract from this A
+                                    pos_idx = fitstbl[dpat_idx]['dithpos'] == "B"
+                                # if B frame doesn't have bkgid assigned
+                                elif bkgid[i] == -1 and (fitstbl[dpat_idx]['dithpos'][i] == "B"):
+                                    # find A frames to subtract from this B
+                                    pos_idx = fitstbl[dpat_idx]['dithpos'] == "A"
+                                # if C frame doesn't have bkgid assigned
+                                elif bkgid[i] == -1 and (fitstbl[dpat_idx]['dithpos'][i] == "C"):
+                                    # find A or B frames to subtract from this C
+                                    pos_idx = (fitstbl[dpat_idx]['dithpos'] == "A") | (fitstbl[dpat_idx]['dithpos'] == "B")
+                                # assign bkgid
+                                if pos_idx is not None and np.any(pos_idx):
+                                    # pick closest (in mjd)
+                                    close_idx = np.argmin(np.absolute(fitstbl[dpat_idx][pos_idx]['mjd'] - fitstbl[dpat_idx]['mjd'][i]))
+                                    bkgid[i] = combid[pos_idx][close_idx]
 
                             fitstbl['bkg_id'][dpat_idx] = bkgid
                             fitstbl['comb_id'][dpat_idx] = combid
@@ -326,16 +425,14 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        pypeit_keys = super().pypeit_file_keys()
-        pypeit_keys += ['dithpat', 'dithpos', 'dithoff','frameno']
-        return pypeit_keys
+        return super().pypeit_file_keys() + ['dithpat', 'dithpos', 'dithoff', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -362,17 +459,19 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'standard':
             return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object') |
-                               (fitstbl['idname'] == 'standard') | (fitstbl['idname'] == 'telluric'))
+                               (fitstbl['idname'] == 'standard') | (fitstbl['idname'] == 'telluric')) \
+                   & (fitstbl['target'] != 'DOME PHLAT')
         if ftype == 'lampoffflats':
             return good_exp & ((fitstbl['idname'] == 'dark') | (fitstbl['idname'] == 'Dark'))
         if ftype in ['pixelflat', 'trace']:
-            return fitstbl['idname'] == 'domeflat'
+            return (fitstbl['idname'] == 'domeflat') | (fitstbl['idname'] == 'DomeFlat')
         if ftype in 'science':
-            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
+            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object')) \
+                   & (fitstbl['target'] != 'DOME PHLAT')
         if ftype in ['arc', 'tilt']:
-            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
+            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object')) \
+                   & (fitstbl['target'] != 'DOME PHLAT')
         return np.zeros(len(fitstbl), dtype=bool)
-
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -394,14 +493,14 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels.
+                Processed bias frame used to identify bad pixels.
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        msgs.info("Custom bad pixel mask for NIRES")
+        log.info("Custom bad pixel mask for NIRES")
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
@@ -461,7 +560,4 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             provided by ``order``.
         """
         return np.full(order_vec.size, 0.15)
-
-
-
 

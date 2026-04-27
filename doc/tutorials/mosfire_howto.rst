@@ -252,7 +252,7 @@ with this explicit call:
 
 .. code-block:: bash
 
-    pypeit_chk_edges Masters/MasterEdges_A_1_DET01.fits.gz
+    pypeit_chk_edges Calibrations/Edges_A_1_DET01.fits.gz
 
 which opens the `ginga`_ image viewer. Here is a zoom-in screenshot from the first tab
 in the `ginga`_ window:
@@ -266,9 +266,9 @@ The green/magenta lines indicate the left/right slit edges.  The aquamarine labe
 ``S`` are the internal slit identifiers of PypeIt, while the cyan numbers are the ``Slit_Number`` values
 from the slitmask design, which within the Pypeit framework are called ``maskdef_id``.
 
-See :doc:`../calibrations/master_edges` for further details.
+See :doc:`../calibrations/edges` for further details.
 
-We can also inspect the ``MasterSlits`` file, which contains the main information on the traced slit edges,
+We can also inspect the ``Slits`` file, which contains the main information on the traced slit edges,
 organized into left-right slit pairs. This is a multi-extension FITS file with two
 `astropy.io.fits.BinTableHDU`_ (for MOSFIRE). The second extension, called ``MASKDEF_DESIGNTAB``, includes
 all the relevant slitmask design information. In this example, ``MASKDEF_DESIGNTAB`` looks like this:
@@ -278,7 +278,7 @@ all the relevant slitmask design information. In this example, ``MASKDEF_DESIGNT
     from astropy.io import fits
     from astropy.table import Table
 
-    hdu=fits.open('Masters/MasterSlits_A_1_DET01.fits.gz')
+    hdu=fits.open('Calibrations/Slits_A_1_DET01.fits.gz')
     Table(hdu['MASKDEF_DESIGNTAB'].data)
 
     TRACEID TRACESROW     TRACELPIX          TRACERPIX      SPAT_ID MASKDEF_ID SLITLMASKDEF SLITRMASKDEF       SLITRA            SLITDEC       SLITLEN SLITWID  SLITPA ALIGN OBJID       OBJRA              OBJDEC       OBJNAME  OBJMAG OBJMAG_BAND OBJ_TOPDIST OBJ_BOTDIST
@@ -293,27 +293,27 @@ all the relevant slitmask design information. In this example, ``MASKDEF_DESIGNT
           6      1020 1499.9742311891168  1806.507759778495    1653          2       1507.0       1812.0 56.311583333333324 32.202536111111115   54.88     0.7  -176.0     0     0  56.30754166666666  32.20280555555556     904   12.91        None       15.13       39.75
           7      1020 1810.4302772426022 2029.2203606069088    1920          1       1817.0       2034.0  56.32729166666665  32.20144166666667   38.93     0.7  -176.0     0     0  56.32429166666666 32.201638888888894   10120   11.99        None      10.355      28.575
 
-See :ref:`master_slits` for a description of all the columns of this table.
+See :ref:`slits` for a description of all the columns of this table.
 
 
 Arc
 +++
 
 As mentioned before, we use the OH lines in the science frames to perform the wavelength calibration,
-therefore, the ``MasterArc`` image is made by the combined science frames.
+therefore, the ``Arc`` image is made by the combined science frames.
 
-Here is a zoom-in screenshot of the ``MasterArc`` image as viewed with `ginga`_:
+Here is a zoom-in screenshot of the ``Arc`` image as viewed with `ginga`_:
 
 .. code-block:: bash
 
-    ginga Masters/MasterArc_A_1_DET01.fits
+    ginga Calibrations/Arc_A_1_DET01.fits
 
 .. image:: ../figures/mosfire_arc_image.png
    :scale: 40%
 
 where we can see several OH lines oriented approximately horizontally.
 
-See :doc:`../calibrations/master_arc` for further details.
+See :doc:`../calibrations/arc` for further details.
 
 Wavelengths
 +++++++++++
@@ -342,22 +342,22 @@ for all the spectra. We can run it with this simple call:
 
 .. code-block:: bash
 
-    pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_DET01.fits
+    pypeit_chk_wavecalib Calibrations/WaveCalib_A_1_DET01.fits
 
 and it prints on screen the following:
 
 .. code-block:: bash
 
-     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%) mesured_fwhm  RMS
-    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ------------ -----
-      0    306 20252.3  22473.7 24689.0 2.167   32 20275.839 - 23914.989            82.0          2.7 0.041
-      1    656 19145.6  21364.7 23574.6 2.164   49 19193.537 - 22741.961            80.1          2.6 0.048
-      2    766 19963.1  22181.5 24392.9 2.163   33 20007.951 - 23914.989            88.2          2.6 0.028
-      3    877 19232.6  21450.8 23659.5 2.163   48 19250.306 - 22741.961            78.9          2.5 0.050
-      4   1010 19213.0  21430.9 23641.0 2.163   48 19250.306 - 22741.961            78.9          2.6 0.047
-      5   1297 20173.6  22392.2 24603.7 2.164   32 20193.227 - 23914.989            84.0          2.6 0.036
-      6   1653 19244.3  21465.0 23678.2 2.166   49 19250.306 - 22741.961            78.7          2.7 0.060
-      7   1920 19251.7  21475.0 23689.8 2.169   47 19350.119 - 22741.961            76.4          2.7 0.042
+     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%) measured_fwhm  RMS
+    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ------------- -----
+      0    306 20252.3  22473.7 24689.0 2.167   32 20275.839 - 23914.989            82.0           2.7 0.041
+      1    656 19145.6  21364.7 23574.6 2.164   49 19193.537 - 22741.961            80.1           2.6 0.048
+      2    766 19963.1  22181.5 24392.9 2.163   33 20007.951 - 23914.989            88.2           2.6 0.028
+      3    877 19232.6  21450.8 23659.5 2.163   48 19250.306 - 22741.961            78.9           2.5 0.050
+      4   1010 19213.0  21430.9 23641.0 2.163   48 19250.306 - 22741.961            78.9           2.6 0.047
+      5   1297 20173.6  22392.2 24603.7 2.164   32 20193.227 - 23914.989            84.0           2.6 0.036
+      6   1653 19244.3  21465.0 23678.2 2.166   49 19250.306 - 22741.961            78.7           2.7 0.060
+      7   1920 19251.7  21475.0 23689.8 2.169   47 19350.119 - 22741.961            76.4           2.7 0.042
 
 See :ref:`pypeit-chk-wavecalib` for a detailed description of all the columns.
 
@@ -375,29 +375,29 @@ Red points were rejected in the 2D fitting.  Provided
 most were not rejected, the fit should be good.
 An RMS<0.1 is also desired for this fit.
 
-See :doc:`../calibrations/master_tilts` for further details.
+See :doc:`../calibrations/tilts` for further details.
 
 Flatfield
 +++++++++
 
 The code produces flat field images for correcting pixel-to-pixel variations and illumination of the detector.
-To inspect the ``MasterFlat`` images we can use the script :ref:`pypeit_chk_flats`, with this explicit call:
+To inspect the ``Flat`` images we can use the script :ref:`pypeit_chk_flats`, with this explicit call:
 
 .. code-block:: bash
 
-    pypeit_chk_flats Masters/MasterFlat_A_1_DET01.fits
+    pypeit_chk_flats Calibrations/Flat_A_1_DET01.fits
 
 Here is a zoom-in screenshot from the first tab in the `ginga`_ window (``pixflat_norm``):
 
 .. image:: ../figures/mosfire_flat.png
    :scale: 40%
 
-In this example, for all the ``MasterFlat`` images the flats with the lamps off have been subtracted.
+In this example, for all the ``Flat`` images the flats with the lamps off have been subtracted.
 Note that the pixel-to-pixel variations are expressed at the percent level.
 The slit edges defined during the `Slit Edges`_ tracing process and tweaked using the illumination flat field
 are also plotted (green/magenta lines).
 
-See :doc:`../calibrations/master_flat` for further details.
+See :doc:`../calibrations/flat` for further details.
 
 Object finding
 --------------
@@ -539,11 +539,6 @@ which lists all the extensions with the associated 1D spectrum PypeIt name and a
 This is a screenshot from the GUI showing the 1D spectrum:
 
 .. image:: ../figures/mosfire_spec1d.png
-
-This uses the
-`XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
-from the `linetools`_ package.  The black line is the flux and the
-red line is the estimated error.
 
 See :doc:`../out_spec1D` for further details.
 

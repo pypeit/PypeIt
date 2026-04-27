@@ -6,8 +6,10 @@ exploring sky spectra in the blue
 .. include:: ../include/links.rst
 """
 
+import argparse
 from pypeit.scripts import scriptbase
 
+from IPython import embed
 
 class CompareSky(scriptbase.ScriptBase):
 
@@ -25,46 +27,41 @@ class CompareSky(scriptbase.ScriptBase):
         parser.add_argument('--scale_user', default=1., type=float,
                             help='Scale user spectrum by a factor')
         parser.add_argument('--test', default=False, action='store_true',
-                            help='Load files but do not show plot')
+                            help=argparse.SUPPRESS)
         return parser
 
     # Script to run XSpec from the command line or ipython
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
-        import os
+        import matplotlib.pyplot as plt
 
-        from matplotlib import pyplot as plt
+        from pypeit import specobjs
+        from pypeit.core import skyspec
 
-        from linetools.spectra.io import readspec
-        from pypeit import data
-
+        # Initialize the log
+        cls.init_log(args)
 
         # Extension
         exten = args.exten if args.exten is not None else 1
 
-        # Read spec keywords
-        ikwargs = {}
-        if args.optimal:
-            ikwargs['wave_tag'] = 'OPT_WAVE'
-            ikwargs['flux_tag'] = 'OPT_COUNTS_SKY'
-            ikwargs['ivar_tag'] = 'OPT_COUNTS_IVAR'
-            ikwargs['sig_tag'] = 'OPT_COUNTS_SIG'
-        else:
-            ikwargs['wave_tag'] = 'BOX_WAVE'
-            ikwargs['flux_tag'] = 'BOX_COUNTS_SKY'
-            ikwargs['ivar_tag'] = 'BOX_COUNTS_IVAR'
-            ikwargs['sig_tag'] = 'BOX_COUNTS_SIG'
-
         # Load user file
-        user_sky = readspec(args.file, exten=exten, **ikwargs)
+        user_sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
+        user_sobj = user_sobjs[exten-1]
+
         # Load sky spec
-        arx_sky = data.load_sky_spectrum(args.skyfile)
+        arx_sky = skyspec.load_sky_spectrum(args.skyfile)
 
         # Plot
         plt.clf()
-        plt.plot(user_sky.wavelength, user_sky.flux*args.scale_user, 'k-', label='user')
-        plt.plot(arx_sky.wavelength, arx_sky.flux, 'b-', label='archive')
+        if args.optimal:
+            usr_wave = user_sobj.OPT_WAVE 
+            usr_flux = user_sobj.OPT_COUNTS_SKY
+        else:
+            usr_wave = user_sobj.BOX_WAVE 
+            usr_flux = user_sobj.BOX_COUNTS_SKY
+        plt.plot(usr_wave, usr_flux*args.scale_user, 'k-', label='user')
+        plt.plot(arx_sky.wave, arx_sky.flux, 'b-', label='archive')
         legend = plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
                             handletextpad=0.3, fontsize='small', numpoints=1)
         if not args.test:

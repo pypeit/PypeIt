@@ -4,6 +4,6 @@ Version 1.6.0
 
 - Improved basic image processing, particularly error propagation and
   documentation
-- Minor changes to MasterBias, MasterBias, and spec1d datamodel.
+- Minor changes to Bias, Dark, and spec1d datamodel.
 
 

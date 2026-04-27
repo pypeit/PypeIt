@@ -2,7 +2,7 @@
 
 .. TODO: We should consider removing bin/pypeit_clean and bin/pypeit_cp_spec1d    
 
-.. TODO: Can we update the ql masters install script to use the cache system?
+.. TODO: Can we update the ql calibs install script to use the cache system?
 
 .. _pypeit_scripts:
 
@@ -15,6 +15,15 @@ into your path (e.g. ``~/anaconda/bin``).  This document provides brief
 summaries of each script and points to other pages with more information.
 
 **If you are developing a new script, see** :ref:`new_script`.
+
+.. warning::
+
+    Whenever you upgrade PypeIt, beware that this may include changes to the
+    output file data models.  These changes are not required to be
+    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
+    when trying to view ``spec2d*`` files produced with your existing PypeIt
+    version after upgrading to a new version.  **The best approach is to always
+    re-reduce data you're still working with anytime you update PypeIt.**
 
 .. contents:: PypeIt Scripts
    :depth: 1
@@ -50,6 +59,14 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_cache_github_data.rst
 
+pypeit_clean_cache
+------------------
+
+View/Remove files from the PypeIt data cache.  The script usage can be displayed
+by calling the script with the ``-h`` option:
+
+.. include:: help/pypeit_clean_cache.rst
+
 pypeit_install_telluric
 -----------------------
 
@@ -68,17 +85,17 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_install_telluric.rst
 
-pypeit_install_ql_masters
--------------------------
+pypeit_install_ql_calibs
+------------------------
 
-After downloading the ``QL_MASTERS`` directory for use with the quick-look
+After downloading the ``QL_CALIB`` directory for use with the quick-look
 scripts, this script "installs" the files by creating a symlink to it within the
 PypeIt code base.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_install_ql_masters.rst
+.. include:: help/pypeit_install_ql_calibs.rst
 
 pypeit_install_linelist
 -----------------------
@@ -103,13 +120,6 @@ install a user-supplied extinction file in the user's PypeIt cache.  See
 The script usage can be displayed by calling the script with the ``-h`` option:
 
 .. include:: help/pypeit_install_extinctfile.rst
-
-pypeit_c_enabled
-----------------
-
-This is a simple script to check of the compiled C code used by PypeIt was
-successfully installed.  The script takes no arguments and reports success if
-the C libraries were successfully imported.
 
 pypeit_chk_plugins
 ------------------
@@ -161,61 +171,8 @@ to the screen; e.g.:
 
     setups pass     scifiles
     ------ -------- ---------------
-         A False ALDc200205.fits
+         A False    ALDc200205.fits
       None True
-
-.. _pypeit-parse-calib-id:
-
-pypeit_parse_calib_id
----------------------
-
-The ``pypeit_parse_calib_id`` script prints a simple summary to the screen
-of the calibration frames.  This enables you (hopefully) to parse the 
-rather obscure PypeIt naming.  Here is a typical call:
-
-.. code-block:: console
-
-    pypeit_parse_calib_id vlt_xshooter_vis_1x1.pypeit
-
-And the associated output:
-
-.. TODO: Make sure this is up to date
-
-.. code-block:: python
-
-    {
-        "1": {
-            "A_1_DET01": {
-                "arc": {
-                    "master_key": "A_1_DET01",
-                    "master_name": "MasterArc_A_1_DET01.fits",
-                    "raw_files": [
-                        "XSHOO.2010-04-28T14:36:27.000.fits.gz"
-                    ]
-                },
-                "bias": {
-                    "master_key": "A_1_DET01",
-                    "master_name": "MasterBias_A_1_DET01.fits",
-                    "raw_files": [
-                        "XSHOO.2010-04-28T10:23:42.901.fits.gz",
-                        "XSHOO.2010-04-28T10:26:26.465.fits.gz",
-                        "XSHOO.2010-04-28T10:29:10.029.fits.gz"
-                    ]
-                },
-                "tilt": {
-                    "master_key": "A_1_DET01",
-                    "master_name": "MasterTiltimg_A_1_DET01.fits",
-                    "raw_files": [
-                        "XSHOO.2010-04-28T14:36:27.000.fits.gz"
-                    ]
-                }
-            }
-        }
-    }
-
-Here, the first level is the calib_grp (``1``), the next level gives
-the Master key (``A_1_DET01``) and then there is a listing of the files
-contributing to each of the :ref:`calibrations`.  See those docs for more.
 
 pypeit_obslog
 -------------
@@ -236,6 +193,48 @@ run_pypeit
 
 This is the main executable for PypeIt for its core end-to-end data processing.
 See :ref:`run-pypeit` for details.
+
+.. _pypeit-run-to-calibstep:
+
+pypeit_run_to_calibstep
+-----------------------
+
+This runs PypeIt to a given calibration step for a given frame.
+This is primarily provided to re-run a single calibration step after 
+the user has modified their ``pypeit`` file.  It is expected that
+the user has already attempted a full reduction with ``run_pypeit``.
+following the details in :ref:`run-pypeit`.
+
+The user provides: (1) the PypeIt file, (2) the calibration step
+to re-run to, and
+(3) either the raw science file whose 
+calibration file(s) you wish to re-run or the calib_group ID. 
+All steps up to and including the requested step will be
+run, although previous steps will be skipped if the calibration files
+are already present (these will be loaded, as appropriate).
+
+Users are strongly advised to use this script until you are happy
+with the calibration of this single step.  Once you are, you should
+re-run the full reduction with ``run_pypeit`` after first removing
+*all* previously generated calibration and science files.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_run_to_calibstep.rst
+
+An example call is:
+
+.. code-block:: console
+
+    pypeit_run_to_calibstep shane_kast_blue_A.pypeit wv_calib --science_frame b28.fits.gz 
+
+pypeit_reduce_by_step
+---------------------
+
+See :doc:`reduce_by_step` for a complete discussion of this 
+script which is used to isolate individual steps of the reduction 
+on individual science/standard frames and detectors/mosaics.
 
 pypeit_trace_edges
 ------------------
@@ -310,24 +309,36 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_sensfunc.rst
 
+.. _pypeit_flux_setup:
+
 pypeit_flux_setup
 -----------------
 
-.. TODO: Can someone please check/edit this?
-
 Once you have a set of 1D object spectra and a sensitivity function, this script
-helps you setup the necessary input file to perform the flux calibration and
-telluric correction.  See :ref:`fluxing` (specifically,
+helps you create the necessary input file to perform the flux calibration, 1d coadding, 
+and telluric correction.  See :ref:`fluxing` (specifically,
 :ref:`apply_fluxcal`), :doc:`coadd1d`, and :doc:`telluric` for details.
 
 Note you will need to hand edit the files generated by this script:
 
-    - Give sensfunc file name in the fluxing pypeit file
-    - Give sensfunc file name in the coadding pypeit file
-    - The coadding pypeit file includes all objects extracted from
-      your main reduction, so you need to pick up the one you are
-      interested in and remove all others in the coadding pypeit file
-      (between coadd1d read and coadd1d end)
+    - Double check the fluxing pypeit file (ending in ``.flux``) to make sure
+      that the correct sensitivity function files were found by the script, and
+      were matched with the right spec1d files. This is in the section between
+      ``flux read`` and ``flux end``.
+
+    - Remove unwanted spec1d files from the fluxing file.
+
+    - The coadding pypeit file (ending in ``.coadd1d``) includes all objects
+      extracted from your main reduction, so you need to pick the ones you are
+      interested in and remove all others in the coadding pypeit file (between
+      ``coadd1d read`` and ``coadd1d end``).
+
+    - For echelle spectrographs, double check that the coadding pypeit file has 
+      the sensitivity function files matched to the correct spec1d files, and
+      that the files have been correctly separated into different setups.
+
+    - Add any additional configuration parameters if needed; see
+      :doc:`pypeit_par`.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -395,6 +406,16 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_multislit_flexure.rst
 
+pypeit_setup_coadd2d
+--------------------
+
+This is used to setup a ``coadd2d`` file for performing 2D coadds; see :doc:`coadd2d`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_setup_coadd2d.rst
+
 pypeit_coadd_2dspec
 -------------------
 
@@ -420,6 +441,8 @@ The script usage can be displayed by calling the script with the
 
 ----
 
+.. _inspect_scripts:
+
 Inspection Scripts
 ==================
 
@@ -441,8 +464,8 @@ The script usage can be displayed by calling the script with the
 pypeit_chk_alignments
 ---------------------
 
-This script simply shows the ``MasterAlignments`` file for visual inspection;
-see :doc:`calibrations/master_align`.
+This script simply shows the ``Alignments`` file for visual inspection;
+see :doc:`calibrations/align`.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -466,7 +489,7 @@ pypeit_parse_slits
 ------------------
 
 This script prints a simple summary of the state of the reduction for all of the
-slits in a given :doc:`out_spec2D` or :doc:`calibrations/master_slits` file.  
+slits in a given :doc:`out_spec2D` or :doc:`calibrations/slits` file.  
 Here is a standard call:
 
 .. code-block:: console
@@ -501,11 +524,13 @@ mask design (e.g. Keck/DEIMOS).  The Flags column describes
 failure modes or reasons why the slit was not reduced.
 *None* is the preferred state for a science slit.
 
+.. _pypeit_chk_wavecalib:
+
 pypeit_chk_wavecalib
 --------------------
 
 This script prints a set of simple wavelength calibration diagnostics for all of
-the slits in a given :doc:`out_spec2D` or :doc:`calibrations/master_wvcalib`
+the slits in a given :doc:`out_spec2D` or :doc:`calibrations/wvcalib`
 file.  See :ref:`pypeit-chk-wavecalib` for more details.  Standard command-line
 calls are:
 
@@ -517,7 +542,7 @@ or:
 
 .. code-block:: console
 
-    pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_DET07.fits
+    pypeit_chk_wavecalib Calibrations/WaveCalib_A_1_DET07.fits
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -533,9 +558,9 @@ solutions.  Here is a standard call:
 
 .. code-block:: console
 
-    pypeit_show_wvcalib MasterWaveCalib_A_1_DET01.fits 17 --is_order  # for magellan_mage
+    pypeit_show_wvcalib WaveCalib_A_1_DET01.fits 17 --is_order  # for magellan_mage
 
-This launches a `matplotlib`_` GUI plot of Order=17 for the magellan_mage spectrograph.
+This launches a `matplotlib`_ GUI plot of Order=17 for the magellan_mage spectrograph.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -553,6 +578,19 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_show_arxiv.rst
 
+pypeit_chk_tilts
+----------------
+
+This script displays Tiltimg and 2D fitted tilts in a `ginga`_ viewer or `matplotlib`_ window,
+allowing to assess the quality of the tilts calibration. See :ref:`pypeit_chk_tilts`
+for more details.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_tilts.rst
+
+
 pypeit_chk_flats
 ----------------
 
@@ -565,6 +603,50 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_chk_flats.rst
 
+.. _pypeit_show_pixflat:
+
+pypeit_show_pixflat
+-------------------
+
+Inspect in a Ginga window the (slitless) pixel flat produced by PypeIt and stored
+in the PypeIt cache (see :ref:`data_installation`).  It displays each detector separately
+in different channels. The script is useful for assessing the quality of the pixel-to-pixel
+response of the detector. Typical call is:
+
+.. code-block:: console
+
+        pypeit_show_pixflat PYPEIT_LRISb_pixflat_B600_2x2_17sep2009_specflip.fits.gz
+
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_show_pixflat.rst
+
+.. _pypeit_chk_flexure:
+
+pypeit_chk_flexure
+--------------------
+
+This script takes as input one or multiple `spec2d*.fits` or `spec1d*.fits` files
+and print to screen the spatial or spectral flexure correction applied to each file.
+Standard command-line calls are:
+
+.. code-block:: console
+
+    pypeit_chk_flexure Science/spec2d_r230417_01033-frb22022_LRISr_20230417T082242.672.fits --spat
+
+or:
+
+.. code-block:: console
+
+    pypeit_chk_flexure Science/spec1d_r230417_01033-frb22022_LRISr_20230417T082242.672.fits --spec
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_flexure.rst
+
 pypeit_show_2dspec
 ------------------
 
@@ -575,6 +657,8 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_2dspec.rst
+
+.. _pypeit_chk_noise_2dspec:
 
 pypeit_chk_noise_2dspec
 -----------------------
@@ -589,7 +673,7 @@ chi values are unit Gaussian distributed.
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_chk_noise_1dspec.rst
+.. include:: help/pypeit_chk_noise_2dspec.rst
 
 Here is an example from the Dev Suite:
 
@@ -600,13 +684,16 @@ Here is an example from the Dev Suite:
 pypeit_show_1dspec
 ------------------
 
-This script loads a 1D spectrum file from PypeIt and launches a GUI from the
-`linetools`_ package for inspection; see :ref:`pypeit_show_1dspec`.
+This script loads a 1D spectrum file from PypeIt and launches a ginga viewer for
+inspection; see :ref:`pypeit_show_1dspec`.  This script can be used to view both
+1D extractions from a basic run of the reductions or 1D coadds.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_1dspec.rst
+
+.. _pypeit_chk_noise_1dspec:
 
 pypeit_chk_noise_1dspec
 -----------------------
@@ -625,6 +712,23 @@ Here is an example from the Dev Suite:
 .. code-block:: console
 
     pypeit_chk_noise_1dspec Science/spec1d_d0225_0054-16045h_DEIMOS_20190225T145727.158.fits
+
+.. _pypeit_rectify_2dspec:
+
+pypeit_rectify_2dspec
+---------------------
+
+This script creates a rectified 2D spectral image. Each slit/order in the
+spec2d output file is rectified onto a common wavelength grid. This rectified 2D
+image must be used only for quick-look visualization purposes, and not for
+scientific analysis. This image can be easily visualized using `ginga`_ (soon!) or
+`ds9`_.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_rectify_2dspec.rst
+
 
 ----
 

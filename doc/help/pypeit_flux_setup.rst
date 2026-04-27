@@ -1,15 +1,34 @@
 .. code-block:: console
 
     $ pypeit_flux_setup -h
-    usage: pypeit_flux_setup [-h] [--objmodel {qso,star,poly}] sci_path
+    usage: pypeit_flux_setup [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                             [--log_level LOG_LEVEL] [--name NAME]
+                             [--objmodel {qso,star,poly}]
+                             paths [paths ...]
     
-    Setup to perform flux calibration
+    Setup configuration files to perform flux calibration, 1D coadding, and telluric
+    correction.
     
     positional arguments:
-      sci_path              Path for Science folder
+      paths                 One or more paths for Science folders or sensitivity
+                            functions. Sensitivity functions must start with 'sens_'
+                            to be detected.
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence.
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log.
+      --name NAME           The base name to use for the output files. Defaults to
+                            the instrument name is used.
       --objmodel {qso,star,poly}
                             science object model used in the telluric fitting. The
                             options are:

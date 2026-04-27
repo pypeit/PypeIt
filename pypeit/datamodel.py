@@ -17,13 +17,13 @@ Derived classes must do the following:
 
     - Define a class attribute called ``datamodel``. See the examples
       below for their format.
-    - Provide an :func:`__init__` method that defines the
+    - Provide an ``__init__`` method that defines the
       instantiation calling sequence and passes the relevant
       dictionary to this base-class instantiation.
-    - Provide a :func:`_validate` method, if necessary, that
-      processes the data provided in the `__init__` into a complete
+    - Provide a ``_validate`` method, if necessary, that
+      processes the data provided in the ``__init__`` into a complete
       instantiation of the object. This method and the
-      :func:`__init__` method are the *only* places where attributes
+      ``__init__`` method are the *only* places where attributes
       can be added to the class.
     - Provide a :func:`_bundle` method that reorganizes the datamodel
       into partitions that can be written to one or more fits
@@ -39,7 +39,7 @@ Derived classes must do the following:
     The attributes of the class are *not required* to be a part of
     the ``datamodel``; however, it makes the object simpler when they
     are. Any attributes that are not part of the ``datamodel`` must
-    be defined in either the :func:`__init__` or :func:`_validate`
+    be defined in either the ``__init__`` or ``_validate``
     methods; otherwise, the class with throw an ``AttributeError``.
 
 Here are some examples of how to and how not to use them.
@@ -424,7 +424,7 @@ With this implementation:
 
     - The following instantiation is fine because
       ``DubiousInitContainer`` handles the fact that some of the
-      arguments to :func:`__init__` are not part of the datamodel::
+      arguments to ``__init__`` are not part of the datamodel::
 
         data = DubiousInitContainer(x,y)
         print(np.array_equal(data.out, data.inp1+data.inp2))
@@ -453,14 +453,11 @@ With this implementation:
         print(data.func == _data.func)
         # True
 
-----
-
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 
 """
-import os
-import warnings
+from pathlib import Path
 
 from IPython import embed
 
@@ -471,8 +468,9 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import io
-from pypeit import masterframe
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItDataModelError
+from pypeit.utils import eval_tuple
 
 # TODO: There are methods in, e.g., doc/scripts/build_specobj_rst.py that output
 # datamodels for specific datacontainers.  It would be useful if we had
@@ -495,13 +493,13 @@ class DataContainer:
     Derived classes must do the following:
 
         - Define a datamodel
-        - Provide an :func:`__init__` method that defines the
+        - Provide an ``__init__`` method that defines the
           instantiation calling sequence and passes the relevant
           dictionary to this base-class instantiation.
-        - Provide a :func:`_validate` method, if necessary, that
-          processes the data provided in the `__init__` into a
+        - Provide a ``_validate`` method, if necessary, that
+          processes the data provided in the ``__init__`` into a
           complete instantiation of the object. This method and the
-          :func:`__init__` method are the *only* places where
+          ``__init__`` method are the *only* places where
           attributes can be added to the class.
         - Provide a :func:`_bundle` method that reorganizes the
           datamodel into partitions that can be written to one or
@@ -517,8 +515,8 @@ class DataContainer:
         The attributes of the class are *not required* to be a part
         of the ``datamodel``; however, it makes the object simpler
         when they are. Any attributes that are not part of the
-        ``datamodel`` must be defined in either the :func:`__init__`
-        or :func:`_validate` methods; otherwise, the class with throw
+        ``datamodel`` must be defined in either the ``__init__``
+        or ``_validate`` methods; otherwise, the class with throw
         an ``AttributeError``.
 
     .. todo::
@@ -530,8 +528,8 @@ class DataContainer:
             Dictionary to copy to the internal attribute dictionary.
             All of the keys in the dictionary *must* be elements of
             the ``datamodel``. Any attributes that are not part of
-            the ``datamodel`` can be set in the :func:`__init__` or
-            :func:`_validate` methods of a derived class. If None,
+            the ``datamodel`` can be set in the ``__init__`` or
+            ``_validate`` methods of a derived class. If None,
             the object is instantiated with all of the relevant data
             model attributes but with all of those attributes set to
             None.
@@ -621,6 +619,11 @@ class DataContainer:
     # looks like this is already possible at least for some types, see
     # pypeit.tracepca.TracePCA.reference_row.
 
+    internals = None
+    """
+    A list of strings identifying a set of internal attributes that are not part
+    of the datamodel.
+    """
 
     def __init__(self, d=None):
 
@@ -675,8 +678,10 @@ class DataContainer:
                         else:
                             break
                     if dc is None:
-                        msgs.error(f'Could not assign dictionary element {key} to datamodel '
-                                   f'for {self.__class__.__name__}.')
+                        raise PypeItDataModelError(
+                            f'Could not assign dictionary element {key} to datamodel for '
+                            f'{self.__class__.__name__}.'
+                        )
                     setattr(self, key, dc)
                     continue
                 
@@ -696,7 +701,10 @@ class DataContainer:
 
         These should be set to None
         """
-        pass
+        if self.internals is None:
+            return
+        for attr in self.internals:
+            setattr(self, attr, None) 
 
     def _validate(self):
         """
@@ -820,8 +828,10 @@ class DataContainer:
             try:
                 d = Table(d)
             except:
-                msgs.error(f'Cannot force all elements of {self.__class__.__name__} datamodel'
-                           'into a single-row astropy Table!')
+                raise PypeItDataModelError(
+                    f'Cannot force all elements of {self.__class__.__name__} datamodelinto a '
+                    'single-row astropy Table!'
+                )
 
         return [d] if ext is None else [{ext:d}]
 
@@ -955,18 +965,21 @@ class DataContainer:
         _ext_pseudo = _ext if ext_pseudo is None else np.atleast_1d(ext_pseudo)
 
         if len(_ext_pseudo) != len(_ext):
-            msgs.error(f'Length of provided extension pseudonym list must match number of '
-                       f'extensions selected: {len(_ext)}.')
+            raise PypeItDataModelError(
+                f'Length of provided extension pseudonym list must match number of extensions '
+                f'selected: {len(_ext)}.'
+            )
 
         str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext_pseudo])
 
         # Construct instantiation dictionary
         _d = dict.fromkeys(cls.datamodel.keys())
 
-        # Log if relevant data is found for this datamodel
+        # Log if relevant data is found for this datamodel, allowing for
+        # DataContainers that have no data, although such a usage case should be
+        # rare.
         if np.all([_hdu[e].data is None for e in _ext]):
-            # TODO: This is a KLUDGE. Not sure we should allow this...
-            msgs.warn('Extensions to be read by {0} have no data!'.format(cls.__name__))
+            log.warning(f'Extensions to be read by {cls.__name__} have no data!')
             # This is so that the returned booleans for reading the
             # data are not tripped as false!
             found_data = True
@@ -1053,8 +1066,10 @@ class DataContainer:
                 for key in keys[indx]:
                     if key in _d.keys() and _d[key] is not None:
                         continue
-                    _d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
-                                else eval(_hdu[e].header[key.upper()])
+                    if cls.datamodel[key]['otype'] == tuple:
+                        _d[key] = eval_tuple(_hdu[e].header[key.upper()].split(','))[0]
+                    else:
+                        _d[key] = _hdu[e].header[key.upper()]
             if isinstance(e, (str, np.str_)) and e in prefkeys:
                 # Already parsed this above
                 continue
@@ -1084,7 +1099,7 @@ class DataContainer:
         #     cause trouble.
         #   - Hack to force native byte ordering
         for key in _d:
-            if isinstance(_d[key], np.chararray):
+            if isinstance(_d[key], np.char.chararray):
                 _d[key] = np.asarray(_d[key])
             elif isinstance(_d[key], np.ndarray) and _d[key].dtype.byteorder not in ['=', '|']:
                 _d[key] = _d[key].astype(_d[key].dtype.type)
@@ -1124,6 +1139,29 @@ class DataContainer:
         return _d, dm_version_passed and found_data, dm_type_passed and found_data, \
                     np.unique(parsed_hdus).tolist()
 
+    @classmethod
+    def _check_parsed(cls, version_passed, type_passed, chk_version=True):
+        """
+        Convenience function that issues the warnings/errors caused by parsing a
+        file into a datamodel.
+
+        Args:
+            version_passed (:obj:`bool`):
+                Flag that the datamodel version is correct.
+            type_passed (:obj:`bool`):
+                Flag that the datamodel class type is correct.
+            chk_version (:obj:`bool`, optional):
+                Flag to impose strict version checking.
+        """
+        if not type_passed:
+            raise PypeItDataModelError(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
+        if not version_passed:
+            msg = f'Current version of {cls.__name__} object in code ({cls.version}) ' \
+                  'does not match version used to write your HDU(s)!'
+            if chk_version:
+                raise PypeItDataModelError(msg)
+            else:
+                log.warning(msg)
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -1174,6 +1212,9 @@ class DataContainer:
         if value is None:
             self.__dict__[item] = value
             return
+        # Convert Path objects to string for saving in the datamodel
+        if isinstance(value, Path):
+            value = str(value)
         # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
             raise TypeError(f'Cannot assign object of type {type(value)} to {item}.\n'
@@ -1202,6 +1243,20 @@ class DataContainer:
             :obj:`dict_keys`: The iterable with the data model keys.
         """
         return self.datamodel.keys()
+
+    def check_populated(self, dm_items):
+        """
+        Check that a set of datamodel items are populated.
+
+        Args:
+            dm_items (:obj:`list`, :obj:`str`):
+                One or more items in the datamodel to check.
+
+        Returns:
+            :obj:`bool`: Flag that *all* the requested datamodel items are
+            populated (not None).
+        """
+        return np.all([key in self.keys() and self[key] is not None for key in dm_items])
 
     def _primary_header(self, hdr=None):
         """
@@ -1253,11 +1308,27 @@ class DataContainer:
         _hdr['DMODVER'] = (self.version, 'Datamodel version')
         return _hdr
 
+    @staticmethod
+    def valid_write_to_hdu_type(obj):
+        """
+        Check if the provided object can be written to an `astropy.io.fits.HDUList`_.
+
+        This needs to be consistent with :func:`~pypeit.io.write_to_hdu`.
+
+        Args:
+            obj (object):
+                Object to write
+
+        Returns:
+            :obj:`bool`: Flag that object can be written.
+        """
+        return isinstance(obj, (DataContainer, dict, Table, np.ndarray, list))
+
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
     # NOTE: This function should *not* include **kwargs.
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_to_bintbl=False, hdu_prefix=None):
+               force_to_bintbl=False, hdu_prefix=None):
         """
         Construct one or more HDU extensions with the data.
 
@@ -1292,8 +1363,6 @@ class DataContainer:
                 are identical.
             primary_hdr (`astropy.io.fits.Header`, optional):
                 Header to add to the primary if add_primary=True
-            limit_hdus (:obj:`list`, optional):
-                Limit the HDUs that can be written to the items in this list
             force_to_bintbl (:obj:`bool`, optional):
                 Force construction of a `astropy.io.fits.BinTableHDU`_ instead
                 of an `astropy.io.fits.ImageHDU`_ when either there are no
@@ -1321,12 +1390,11 @@ class DataContainer:
         if _primary_hdr is not None:
             hdr_keys = np.array([k.upper() for k in self.keys()])
             indx = np.isin(hdr_keys, list(_primary_hdr.keys()))
-            # TODO: This is a hack to deal with PYP_SPEC, but this
-            # needs to be cleaned up, as does masterframe more
-            # generally...
-            if np.sum(indx) > 1 or (np.sum(indx) == 1 and hdr_keys[indx] != 'PYP_SPEC'):
-                msgs.error('CODING ERROR: Primary header should not contain keywords that are the '
-                           'same as the datamodel for {0}.'.format(self.__class__.__name__))
+            if np.sum(indx) > 1:
+                raise PypeItDataModelError(
+                    'CODING ERROR: Primary header should not contain keywords that are the same '
+                    f'as the datamodel for {self.__class__.__name__}.'
+                )
 
         # Initialize the base header
         _hdr = self._base_header(hdr=hdr)
@@ -1334,13 +1402,16 @@ class DataContainer:
         # with any datamodel keys.
         if _hdr is not None \
                 and np.any(np.isin([k.upper() for k in self.keys()], list(_hdr.keys()))):
-            msgs.error('CODING ERROR: Baseline header should not contain keywords that are the '
-                       'same as the datamodel for {0}.'.format(self.__class__.__name__))
+            raise PypeItDataModelError(
+                'CODING ERROR: Baseline header should not contain keywords that are the same as '
+                f'the datamodel for {self.__class__.__name__}.'
+            )
 
         # Construct the list of HDUs
         hdu = []
         for d in data:
-            if isinstance(d, dict) and len(d) == 1:
+            if isinstance(d, dict) and len(d) == 1 \
+                    and DataContainer.valid_write_to_hdu_type(d[list(d.keys())[0]]):
                 ext = list(d.keys())[0]
                 # Allow for embedded DataContainer's
                 if isinstance(d[ext], DataContainer):
@@ -1359,22 +1430,21 @@ class DataContainer:
                                             force_to_bintbl=force_to_bintbl)]
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr, force_to_bintbl=force_to_bintbl)]
+
         # Prefixes
-        _hdu_prefix = (None if self.hdu_prefix is None else self.hdu_prefix) \
-                        if hdu_prefix is None else hdu_prefix
+        _hdu_prefix = self.hdu_prefix if hdu_prefix is None else hdu_prefix
         if _hdu_prefix is not None:
             for ihdu in hdu:
-                ihdu.name = _hdu_prefix+ihdu.name
+                ihdu.name = f'{_hdu_prefix}{ihdu.name}'
         # Limit?
-        if limit_hdus:
-            hdu = [h for h in hdu if h.name in limit_hdus]
+        if self.output_to_disk is not None:
+            hdu = [h for h in hdu if h.name in self.output_to_disk]
+
         # Return
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
-    # NOTE: This function should *not* include **kwargs.
     @classmethod
-    def from_hdu(cls, hdu, ext=None, ext_pseudo=None, hdu_prefix=None, 
-                 chk_version=True, allow_subclasses=False):
+    def from_hdu(cls, hdu, chk_version=True, **kwargs):
         """
         Instantiate the object from an HDU extension.
 
@@ -1383,30 +1453,16 @@ class DataContainer:
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) with the data to use for instantiation.
-            ext (:obj:`str`, optional):
-                Passed to :func:`_parse`.
-            ext_pseudo (:obj:`str`, optional):
-                Passed to :func:`_parse`.
-            hdu_prefix (:obj:`str`, optional):
-                Passed to :func:`_parse`.
             chk_version (:obj:`bool`, optional):
                 If True, raise an error if the datamodel version or
                 type check failed. If False, throw a warning only.
-            allow_subclasses (:obj:`bool`, optional):
-                Passed to :func:`_parse`.
+            **kwargs:
+                Passed directly to :func:`_parse`.
         """
-        d, dm_version_passed, dm_type_passed, parsed_hdus \
-                = cls._parse(hdu, ext=ext, ext_pseudo=ext_pseudo, 
-                             hdu_prefix=hdu_prefix,
-                             allow_subclasses=allow_subclasses)
-
+        # Parse the data
+        d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
         # Check version and type?
-        if not dm_type_passed:
-            msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
-        if not dm_version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
-               + ' does not match version used to write your HDU(s)!')
+        cls._check_parsed(dm_version_passed, dm_type_passed, chk_version=chk_version)
 
         # Instantiate
         # NOTE: We can't use `cls(d)`, where `d` is the dictionary returned by
@@ -1455,7 +1511,7 @@ class DataContainer:
         written fits file is *always* an empty primary header.
 
         Args:
-            ofile (:obj:`str`):
+            ofile (:obj:`str`, `Path`_):
                 Fits file for the data. File names with '.gz'
                 extensions will be gzipped; see
                 :func:`pypeit.io.write_to_fits`.
@@ -1471,46 +1527,7 @@ class DataContainer:
         # because the first argument of the function is always an
         # astropy.io.fits.HDUList.
         io.write_to_fits(self.to_hdu(add_primary=True, **kwargs),
-                         ofile, overwrite=overwrite, checksum=checksum)
-
-    # TODO: This should be moved to a new class that subclasses from
-    # DataContainer.
-    def to_master_file(self, master_filename=None, **kwargs):
-        """
-        Wrapper on to_file() that deals with masterframe naming and header
-
-        This also sets master_key and master_dir internally if
-        when master_filename is provided
-
-        self.hdu_prefix and self.output_to_disk must be set (or None)
-
-        Args:
-            master_filename (str, optional):
-                Name of masterfile;  if provided, parsed for master_key, master_dir
-                If not provided, constructed from internal master_key, master_dir
-            **kwargs: passed to to_file()
-        """
-        # Output file
-        if master_filename is None:
-            master_filename = masterframe.construct_file_name(self, self.master_key,
-                                                              master_dir=self.master_dir)
-        else:
-            self.master_key, self.master_dir = masterframe.grab_key_mdir(
-                master_filename, from_filename=True)
-        # Header
-        if hasattr(self, 'process_steps'):
-            steps = self.process_steps
-        else:
-            steps = None
-        if hasattr(self, 'files'):
-            raw_files = self.files
-        else:
-            raw_files = None
-        hdr = masterframe.build_master_header(self, self.master_key, self.master_dir,
-                                              steps=steps, raw_files=raw_files)
-        # Finish
-        self.to_file(master_filename, primary_hdr=hdr,
-                     limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
+                         str(ofile), overwrite=overwrite, checksum=checksum)
 
     @classmethod
     def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
@@ -1520,7 +1537,7 @@ class DataContainer:
         This is a convenience wrapper for :func:`from_hdu`.
         
         Args:
-            ifile (:obj:`str`):
+            ifile (:obj:`str`, `Path`_):
                 Fits file with the data to read
             verbose (:obj:`bool`, optional):
                 Print informational messages
@@ -1533,35 +1550,16 @@ class DataContainer:
             FileNotFoundError:
                 Raised if the specified file does not exist.
         """
-        if not os.path.isfile(ifile):
-            raise FileNotFoundError('{0} does not exist!'.format(ifile))
+        _ifile = Path(ifile).absolute()
+        if not _ifile.exists():
+            raise FileNotFoundError(f'{_ifile} does not exist!')
 
         if verbose:
-            msgs.info("Loading {} from {}".format(cls.__name__, ifile))
+            log.info(f'Loading {cls.__name__} from {_ifile}')
 
         # Do it
-        with io.fits_open(ifile) as hdu:
-            obj = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
-            # TODO: This stuff should be moved to a new class that subclasses
-            # from DataContainer.
-            if hasattr(obj, 'head0'):
-                obj.head0 = hdu[0].header
-            if hasattr(obj, 'filename'):
-                obj.filename = ifile
-
-            # Master this and that
-            if hasattr(cls, 'master_type'):
-                obj.master_key, obj.master_dir = masterframe.grab_key_mdir(ifile)
-                if hasattr(obj, 'head0'):
-                    if 'MSTRTYP' in obj.head0.keys():
-                        if obj.head0['MSTRTYP'] != cls.master_type:
-                            msgs.error('Master Type read from header incorrect!  '
-                                       'Found {0}; expected {1}'.format(obj.head0['MSTRTYP'],
-                                                                        cls.master_type))
-                    else:
-                        msgs.warn('DataContainer has `master_type` attribute but is missing the '
-                                  'MSTRTYP header keyword!')
-        return obj
+        with io.fits_open(_ifile) as hdu:
+            return cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
 
     def __repr__(self):
         """ Over-ride print representation
