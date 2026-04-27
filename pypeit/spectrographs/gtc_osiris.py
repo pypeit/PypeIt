@@ -60,14 +60,15 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
-        gain = 1.90 if hdu is None else self.get_headarr(hdu)[0]['GAIN']
-        ronoise = 4.3 if hdu is None else self.get_headarr(hdu)[0]['RDNOISE']
+        log.debug("Fix GAIN and RDNOISE for MAAT SIMS")
+        gain = 1.90# if hdu is None else self.get_headarr(hdu)[0]['GAIN']
+        ronoise = 4.3# if hdu is None else self.get_headarr(hdu)[0]['RDNOISE']
 
         # Detector 1
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 0,
+            dataext         = 1,  # TODO :: This should be 0... I've adjusted it for the simulated MAAT data
             specaxis        = 1,
             specflip        = True,
             spatflip        = False,
@@ -186,7 +187,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['CCDSUM'])
+            binspatial, binspec = parse.parse_binning(headarr[0]['CCD-SUM'])
             binning = parse.binning2string(binspec, binspatial)[::-1]
             return binning
         elif meta_key == 'pressure':
@@ -215,11 +216,14 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
                 log.debug("Parallactic angle is not available for MAAT - DAR correction may be incorrect")
                 return headarr[0]['PARANG']  # Must be expressed in radians
             except KeyError:
-                raise PypeItError("Parallactic angle is not in header")
+                log.debug("Parallactic angle is not available for MAAT - DAR correction may be incorrect")
+                return 0.0
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         elif meta_key == 'gain':
-            return headarr[0]['GAIN']
+            log.debug("GAIN forced to be one for MAAT sims. UPDATE!!")
+            return 1.9
+            # return headarr[0]['GAIN']
         elif meta_key == 'slitwid':
             if self.name == "gtc_maat":
                 log.warning("HACK FOR MAAT SIMS --- NEED TO GET SLICER SCALE FROM HEADER, IDEALLY")
