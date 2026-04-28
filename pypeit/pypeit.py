@@ -206,9 +206,7 @@ class PypeIt:
         :func:`reduce_exposure`.
 
         """
-        # Validate the parameter set
-        self.par.validate_keys(required=['rdx', 'calibrations', 'scienceframe', 'reduce',
-                                         'flexure'])
+        # Start a performance counter
         self.tstart = time.perf_counter()
 
         # ############################################################################

@@ -541,45 +541,6 @@ class ParSet:
         """
         pass
 
-    def validate_keys(self, required=None, can_be_None=None):
-        """
-        Validate that a set of keys are present and that they have values that
-        are not None.
-
-        Parameters
-        ----------
-        required : :obj:`list`, optional
-            A list of strings that provide the set of required keys
-        can_be_None : :obj:`list`, optional
-            A list of strings with the keywords that are allowed to be None
-
-        Raises
-        ------
-        ValueError
-            Raised if any of the required keywords are not present or if any of
-            the keyword values are None if they are not allowed to be.
-        """
-        if required is None and can_be_None is None:
-            # No validation rules, so implicitly valid
-            return
-
-        if required is not None:
-            not_defined = np.array([key not in self.keys() for key in required])
-            if np.any(not_defined):
-                raise ValueError(
-                    f'Required keys were not defined: {np.asarray(required)[not_defined].tolist()}'
-                )
-
-        if can_be_None is not None:
-            should_not_be_None = np.array([
-                self._data[key] is None and key not in can_be_None for key in self.keys()
-            ])
-            if np.any(should_not_be_None):
-                raise ValueError(
-                    'The following keys cannot be None: '
-                    f'{np.asarray(self.keys())[should_not_be_None].tolist()}'
-                )
-
     def fill_callable(self, recursive=True):
         """
         Fill any callable parameters with their output.
