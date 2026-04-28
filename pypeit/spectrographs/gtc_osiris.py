@@ -226,7 +226,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             # return headarr[0]['GAIN']
         elif meta_key == 'slitwid':
             if self.name == "gtc_maat":
-                log.warning("HACK FOR MAAT SIMS --- NEED TO GET SLICER SCALE FROM HEADER, IDEALLY")
+                log.debug("HACK FOR MAAT SIMS --- NEED TO GET SLICER SCALE FROM HEADER, IDEALLY")
                 return 0.305 / 3600.0
             elif self.name == "gtc_osiris_plus":
                 return headarr[0]['SLITW']/3600.0   # Convert slit width from arcseconds to degrees
