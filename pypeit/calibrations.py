@@ -256,7 +256,7 @@ class Calibrations:
                           + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
                 print('        ' + '-' * maxlen + "  " + '-' * maxlmp)
 
-    def find_calibrations(self, frametype, frameclass):
+    def find_calibrations(self, frametype, frameclass, slit_name=None):
         """
         Find calibration files and identifiers.
 
@@ -312,6 +312,10 @@ class Calibrations:
         setup = self.fitstbl['setup'][rows[0]]
         calib_id = self.fitstbl['calib'][rows[0]]
         calib_key = frameclass.construct_calib_key(setup, calib_id, detname)
+        # TODO: check that this does not break things
+        # Embed slit name in the setup (for per-slit outputs)
+        if slit_name is not None:
+            calib_key = calib_key + f'_{slit_name}'
         # Construct the expected calibration frame file name
         cal_file = Path(frameclass.construct_file_name(calib_key, calib_dir=self.calib_dir))
 
@@ -1835,7 +1839,12 @@ class NIRSpecSlitCalibrations(Calibrations):
             flat_files =  [ff for ff in flat_files if det_name in Path(ff).name]
         if len(cal_files) == 0:
             raise PypeItError(f'No _cal files found for NIRSpecSlitCalibrations in det {det}')
+
+        # get FITS EXTVER associated with this slit calibrated/reduced here.
+        # _extver = [h.ver for h in fits.open(cal_files[0]) if h.header.get('SLTNAME') == user_slits['slit_info']]
+
         cal_data = np.array(datamodels.open(cal_files))
+        # embed()
 
         if len(flat_files) == 0:
             raise PypeItError(f'No _interpolatedflat files found for NIRSpecSlitCalibrations in det {det}')
@@ -1892,7 +1901,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         # Find the calibrations
         frame = {'type': 'arc', 'class': wavecalib.WaveCalib}
         wave_files, cal_file, calib_key, setup, calib_id, detname \
-                = self.find_calibrations(frame['type'], frame['class'])
+                = self.find_calibrations(frame['type'], frame['class'], slit_name=self.user_slits['slit_info'])
 
         # If a processed calibration frame exists and
         # we want to reuse it, do so (or just load it):
@@ -1952,7 +1961,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         # Find the calibrations
         frame = {'type': 'tilt', 'class': wavetilts.WaveTilts}
         tilt_files, cal_file, calib_key, setup, calib_id, detname \
-                = self.find_calibrations(frame['type'], frame['class'])
+                = self.find_calibrations(frame['type'], frame['class'], slit_name=self.user_slits['slit_info'])
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
@@ -2027,7 +2036,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         # Prep
         frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
         trace_files, cal_file, calib_key, setup, calib_id, detname \
-                = self.find_calibrations(frame['type'], frame['class'])
+                = self.find_calibrations(frame['type'], frame['class'], slit_name=self.user_slits['slit_info'])
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
@@ -2124,7 +2133,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         # get pixel flat frames info
         pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
         pixel_files, cal_file, calib_key, setup, calib_id, detname \
-            = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
+            = self.find_calibrations(pixel_frame['type'], pixel_frame['class'], slit_name=self.user_slits['slit_info'])
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
