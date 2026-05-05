@@ -73,7 +73,8 @@ from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit.core import parse
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import dataPaths
 
 
@@ -98,7 +99,7 @@ def tuple_force(par):
 
     # If the value is a list of one tuple, return the tuple.
     # TODO: This is a hack, and we should probably revisit how this is done.
-    # The issue is that pypeit.par.util.eval_tuple always returns a list of
+    # The issue is that pypeit.utils.eval_tuple always returns a list of
     # tuples, something that's required for allowing lists of detector mosaics.
     # But elements of TelluricPar are forced to be tuples.  When constructing
     # the parameters to use in a given run, the sequence of merging the
@@ -823,7 +824,7 @@ class FlatFieldPar(ParSet):
         # in the right place (data/pixelflats)
         file_path = dataPaths.pixelflat.get_file_path(self.data['pixelflat_file'], return_none=True)
         if file_path is None:
-            msgs.error(
+            raise PypeItError(
                 f'Provided pixelflat file, {self.data["pixelflat_file"]} not found. It is not a direct path, '
                 'a cached file, or a file that can be downloaded from a PypeIt repository.')
 
@@ -2299,12 +2300,12 @@ class SensFuncPar(ParSet):
         """
         allowed_extractions = ['BOX', 'OPT']
         if self.data['extr'] not in allowed_extractions:
-            msgs.error("'extr' must be one of:\n" + ", ".join(allowed_extractions))
+            raise PypeItError("'extr' must be one of:\n" + ", ".join(allowed_extractions))
 
         # check trim_std_pixs format
         if self.data['trim_std_pixs'] is not None:
             if not isinstance(self.data['trim_std_pixs'], (list, tuple)) or len(self.data['trim_std_pixs']) != 2:
-                msgs.error("`trim_std_pixs` must be a list or tuple of two integers.")
+                raise PypeItError("`trim_std_pixs` must be a list or tuple of two integers.")
 
     @staticmethod
     def valid_algorithms():
@@ -3498,7 +3499,8 @@ class EdgeTracePar(ParSet):
                  add_missed_orders=None, order_width_poly=None, order_gap_poly=None,
                  order_fitrej=None, order_outlier=None, order_spat_range=None, overlap=None,
                  max_overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
-                 maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
+                 maskdesign_step=None, maskdesign_sigrej=None, maskdesign_trim=None,
+                 maskdesign_trim_shift=None, pad=None, add_slits=None,
                  add_predict=None, rm_slits=None, maskdesign_filename=None, mask_off_detector=None):
 
         # Grab the parameter names and values from the function
@@ -3987,6 +3989,23 @@ class EdgeTracePar(ParSet):
         descr['maskdesign_sigrej'] = 'Number of sigma for sigma-clipping rejection during slit-mask ' \
                                      'design matching.'
 
+        defaults['maskdesign_trim'] = False
+        dtypes['maskdesign_trim'] = bool
+        descr['maskdesign_trim'] = 'If True, the mask design information is used to trim each ' \
+                                   'slit in the spectral direction. This functionality is ' \
+                                   'only used for spectrographs with slit-mask designs that ' \
+                                   'have information on the spectral extent of each slit (currently, ' \
+                                   'only Gemini GMOS N/S).'
+        defaults['maskdesign_trim_shift'] = 0
+        dtypes['maskdesign_trim_shift'] = [int, float]
+        descr['maskdesign_trim_shift'] = 'Shift in pixels to apply to the mask design information ' \
+                                         'when trimming the slits in the spectral direction.  This ' \
+                                         'is useful for cases where the mask design information ' \
+                                         'is not perfectly aligned with the detector.  This ' \
+                                         'functionality is only used for spectrographs with ' \
+                                         'slit-mask designs that have information on the spectral ' \
+                                        'extent of each slit (currently, only Gemini GMOS N/S).'
+
 #        # Force trim to be a tuple
 #        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
 #            try:
@@ -4103,8 +4122,8 @@ class EdgeTracePar(ParSet):
                    'add_missed_orders', 'order_width_poly', 'order_gap_poly', 'order_fitrej',
                    'order_outlier', 'order_spat_range','overlap', 'max_overlap', 'use_maskdesign',
                    'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                   'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits',
-                   'mask_off_detector']
+                   'maskdesign_filename', 'maskdesign_trim', 'maskdesign_trim_shift',
+                   'pad', 'add_slits', 'add_predict', 'rm_slits', 'mask_off_detector']
 
         # Find the list of keywords provded in `cfg` that are *not* valid
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -4155,10 +4174,10 @@ class EdgeTracePar(ParSet):
             self['sync_predict'] = 'nearest'
 
         if self['max_overlap'] is not None and (self['max_overlap'] < 0 or self['max_overlap'] > 1):
-            msgs.error('If defined, max_overlap must be in the range [0,1].')
+            raise PypeItError('If defined, max_overlap must be in the range [0,1].')
 
         if self['order_outlier'] is not None and self['order_outlier'] < self['order_fitrej']:
-            msgs.warn('Order outlier threshold should not be less than the rejection threshold.')
+            log.warning('Order outlier threshold should not be less than the rejection threshold.')
 
 
 class WaveTiltsPar(ParSet):
@@ -4636,9 +4655,9 @@ class FindObjPar(ParSet):
     def validate(self):
         if self.data['std_spec1d'] is not None:
             if not self.data['use_std_trace']:
-                msgs.error('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
+                raise PypeItError('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
             elif not Path(self.data['std_spec1d']).absolute().exists():
-                msgs.error(f'{self.data["std_spec1d"]} does not exist!')
+                raise PypeItError(f'{self.data["std_spec1d"]} does not exist!')
 
 
 class SkySubPar(ParSet):
@@ -5400,7 +5419,7 @@ class PypeItPar(ParSet):
             if isinstance(merge_with, list):
                 merge_with = (merge_with,)
             if not isinstance(merge_with, tuple):
-                msgs.error('Input merge_with must be a tuple.')
+                raise PypeItError('Input merge_with must be a tuple.')
             # Proceed
             for f in merge_with:
                 cfg.merge(ConfigObj(f))

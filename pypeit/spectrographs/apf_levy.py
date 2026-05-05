@@ -12,9 +12,11 @@ from astropy.table import Table
 from astropy.time import Time
 from IPython import embed
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import io
+from pypeit import par
 from pypeit.core import framematch
 from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
@@ -72,11 +74,12 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-
+        
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False
         par['calibrations']['flatfield']['tweak_slits'] = False
         par['calibrations']['flatfield']['spat_samp'] = 0.7
-        par['calibrations']['flatfield']['slit_trim'] = 0
+        # this is for the 8" decker
+        par['calibrations']['flatfield']['slit_trim'] = 3
 
 
         # Processing steps
@@ -89,7 +92,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         # no sky subtraction on standard stars
         par['reduce']['skysub']['global_sky_std'] = False
-
+        par['reduce']['skysub']['no_local_sky'] = True
         # skip sky subtraction when searching for objects
         # this is because the sky subtraction is not very good with narrow
         # slits and the usual APF target is bright
@@ -189,12 +192,12 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             elif "Pinhole" in decker_str:
                 return 'Pinhole'
             else:
-                msgs.error(f"Unrecognized decker {decker_str}")
+                raise PypeItError(f"Unrecognized decker {decker_str}")
 
         if meta_key == 'binning':
             return f"{headarr[0]['RBIN']+1},{headarr[0]['CBIN']+1}"
 
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -330,7 +333,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         if ftype in ['pinhole']:
             return good_exp & (fitstbl['idname'] == 'NarrowFlat') & (fitstbl['decker'] == 'Pinhole')
 
-        msgs.warn(f'Cannot determine if frames are of type {ftype}.')
+        log.debug(f'Cannot determine if frames are of type {ftype}.')
         return np.zeros(len(fitstbl), dtype=bool)
 
     def is_science(self, fitstbl):
@@ -377,11 +380,13 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             par['reduce']['findobj']['find_trim_edge'] = [0, 0]
             par['calibrations']['slitedges']['pad'] = 5
             par['reduce']['extraction']['sn_gauss'] = 400
+            par['calibrations']['flatfield']['slit_trim'] = 0
             # basically always use the Gaussian model for optimal extraction
 
         if binning == "2,2":
             par['calibrations']['slitedges']['min_edge_side_sep'] = 2.0
             par['calibrations']['slitedges']['pad'] = 2
+            par['calibrations']['flatfield']['slit_trim'] = 1
             par['reduce']['skysub']['no_local_sky'] = True
             par['reduce']['extraction']['sn_gauss'] = 400
             par['reduce']['extraction']['model_full_slit'] = True
@@ -435,7 +440,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         # Check for file; allow for extra .gz, etc. suffix
         if not Path(raw_file).is_file():
-            msgs.error(f'{raw_file} not found!')
+            raise PypeItError(f'{raw_file} not found!')
         hdu = io.fits_open(raw_file)
 
         head0 = hdu[0].header

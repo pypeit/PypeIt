@@ -9,7 +9,7 @@ import pytest
 import astropy.table 
 
 from pypeit import dataPaths
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit import spectrographs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import pypeitsetup
@@ -62,8 +62,13 @@ def test_select_detectors_mosaic():
     # Valid
     assert spec.select_detectors() == [1,2,3], 'Bad detector selection'
     # Valid
-    assert spec.select_detectors(subset=[3,(1,2,3)]) == [3,(1,2,3)], 'Bad detector selection'
+    assert spec.select_detectors(subset=[3,(1,2,3)]) == [3,(1,2,3)], 'Bad mix detector/mosaic selection'
 
+    # String input that is *not* slitspatnum
+    spec = load_spectrograph('keck_deimos') 
+    assert spec.select_detectors(subset='3') == [3]
+    assert spec.select_detectors(subset="3,(1,5)") == [3,(1,5)], 'Bad string of mix detector/mosaic selection'
+    assert spec.select_detectors(subset="[3,(1,5)]") == [3,(1,5)], 'Bad string of mix detector/mosaic selection'
 
 def test_list_detectors_deimos():
     deimos = load_spectrograph('keck_deimos')

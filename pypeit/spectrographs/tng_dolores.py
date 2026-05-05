@@ -11,7 +11,8 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -138,7 +139,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI']
             case _:
                 par['calibrations']['wavelengths']['method'] = 'holy-grail'
-                msgs.warn('Check wavelength calibration file.')
+                log.warning('Check wavelength calibration file.')
 
         # Return
         return par
@@ -189,7 +190,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'ra':
             radeg = headarr[0]['RA-RAD']*180.0/np.pi  # Convert radians to decimal degrees
             return radeg
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -261,7 +262,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'CALIB') & ( (fitstbl['lampstat01'] == 'Ne+Hg') | (fitstbl['lampstat01'] == 'Helium') ) \
                         & (fitstbl['dispname'] != 'OPEN')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 

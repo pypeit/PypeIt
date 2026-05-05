@@ -8,7 +8,8 @@ from IPython import embed
 
 import numpy as np
 from astropy.io import fits
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -212,7 +213,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
                     return None
             return decker
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -313,7 +314,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         if ftype in ['sky']:
             return good_exp & (fitstbl['idname'] == 'SINFONI_IFS_SKY')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 

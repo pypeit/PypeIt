@@ -10,7 +10,7 @@ import numpy as np
 from pypeit.calibframe import CalibFrame
 from pypeit.core import framematch
 from pypeit.tests.tstutils import dummy_fitstbl
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 
 @pytest.fixture

@@ -14,7 +14,7 @@ from pypeit import specobj
 from pypeit import specobjs
 from pypeit.specutils import Spectrum, SpectrumList
 from pypeit.tests import tstutils
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 import pytest
 specutils_required = pytest.mark.skipif(Spectrum is None or SpectrumList is None,

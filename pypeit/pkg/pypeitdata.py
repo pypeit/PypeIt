@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-PypeIt uses the `astropy.utils.data`_ caching system to limit the size of its
-package distribution in PyPI by enabling on-demand downloading of reference
+PypeIt uses the :mod:`astropy.utils.data` caching system to limit the size of
+its package distribution in PyPI by enabling on-demand downloading of reference
 files needed for specific data-reduction steps.  This module provides the class
 used to access to the data files in the code base.
 
-The :mod:`~pypeit.cache` module implements the low-level function used to
+The :mod:`~pypeit.pkg.cache` module implements the low-level function used to
 interface with the PypeIt cache.  To get the location of your pypeit cache (by
 default ``~/.pypeit/cache``) you can run:
 
@@ -15,14 +15,14 @@ default ``~/.pypeit/cache``) you can run:
     print(astropy.config.paths.get_cache_dir('pypeit'))
 
 Every time PypeIt is imported, a new instance of
-:class:`~pypeit.pypeitdata.PypeItDataPaths` is created, and this instance is
+:class:`~pypeit.pkg.pypeitdata.PypeItDataPaths` is created, and this instance is
 used to set paths to PypeIt data files.  "Data files" in this context
 essentially refers to anything in the ``pypeit/data`` directory tree; see the
-attributes of :class:`~pypeit.pypeitdata.PypeItDataPaths` for the list of
+attributes of :class:`~pypeit.pkg.pypeitdata.PypeItDataPaths` for the list of
 directories that can be directly accessed.
 
 Some of files in these directories are included in the package distribution, but
-most are not.  Regardless, the :class:`~pypeit.pypeitdata.PypeItDataPaths`
+most are not.  Regardless, the :class:`~pypeit.pkg.pypeitdata.PypeItDataPaths`
 object should be used to define the relevant file paths.  For example, to access
 a given NIST line list, one would run:
 
@@ -31,21 +31,21 @@ a given NIST line list, one would run:
     from pypeit import dataPaths
     thar = dataPaths.nist.get_file_path('ThAr_vacuum.ascii')
 
-All of the attributes of :class:`~pypeit.pypeitdata.PypeItDataPaths` are
-:class:`~pypeit.pypeitdata.PypeItDataPath` objects, such that the code above is
-effectively equivalent to:
+All of the attributes of :class:`~pypeit.pkg.pypeitdata.PypeItDataPaths` are
+:class:`~pypeit.pkg.pypeitdata.PypeItDataPath` objects, such that the code above
+is effectively equivalent to:
 
 .. code-block:: python
 
-    from pypeit.pypeitdata import PypeItDataPath
+    from pypeit.pkg.pypeitdata import PypeItDataPath
     thar = PypeItDataPath('arc_lines/NIST').get_file_path('ThAr_vacuum.ascii')
 
-Although :class:`~pypeit.pypeitdata.PypeItDataPath` objects can be treated
-similarly to `Path`_ objects, you should always use the
-:func:`~pypeit.pypeitdata.PypeItDataPath.get_file_path` function to access the
-relevant file path.  Behind the scenes, this function looks for the requested
-file in your package distribution and/or downloads the file to your cache before
-returning the appropriate path.
+Although :class:`~pypeit.pkg.pypeitdata.PypeItDataPath` objects can be treated
+similarly to :class:`Path` objects, you should always use the
+:func:`~pypeit.pkg.pypeitdata.PypeItDataPath.get_file_path` function to access
+the relevant file path.  Behind the scenes, this function looks for the
+requested file in your package distribution and/or downloads the file to your
+cache before returning the appropriate path.
 
 Data directories that *MUST* exist as part of the package distribution are:
 
@@ -55,11 +55,16 @@ Data directories that *MUST* exist as part of the package distribution are:
 """
 import pathlib
 import shutil
+import warnings
 
 from IPython import embed
 
-from pypeit import msgs
-from pypeit import cache
+# NOTE: To avoid circular imports, do not import anything from pypeit into this
+# module!  Only import from modules in this directory (pypeit/pkg).  If you need
+# something from elsewhere in the code, things need to be moved around so that
+# you only have to import from modules in `pypeit/pkg`.
+from .exceptions import PypeItError, PypeItPathError
+from . import cache
 
 # NOTE: A better approach may be to subclass from Path.  I briefly tried that,
 # but quickly realized it was going to be more complicated than I'd hoped.  This
@@ -96,7 +101,7 @@ class PypeItDataPath:
 
     def __init__(self, subdirs, remote_host=None):
         if remote_host not in [None, 's3_cloud', 'github']:
-            msgs.error(f'Remote host not recognized: {self.host}')
+            raise PypeItError(f'Remote host not recognized: {self.host}')
         self.host = remote_host
         self.subdirs = subdirs
         self.data = self.check_isdir(cache.__PYPEIT_DATA__)
@@ -147,7 +152,7 @@ class PypeItDataPath:
             where the output type is based on the type of ``p``.
 
         Raises:
-            :class:`~pypeit.pypmsgs.PypeItPathError`:
+            :class:`~pypeit.exceptions.PypeItPathError`:
                 Raised if the requested contents *do not exist*.
         """
         if (self.path / p).is_dir():
@@ -157,8 +162,10 @@ class PypeItDataPath:
                                   remote_host=self.host)
         if (self.path / p).is_file():
             return self.path / p
-        msgs.error(f'{str(self.path / p)} is not a valid PypeIt data path or is a file '
-                   'that does not exist.', cls='PypeItPathError')
+        raise PypeItPathError(
+            f'{str(self.path / p)} is not a valid PypeIt data path or is a file that does not '
+            'exist.'
+        )
 
     @staticmethod
     def check_isdir(path:pathlib.Path) -> pathlib.Path:
@@ -173,11 +180,11 @@ class PypeItDataPath:
             `Path`_: The input path is returned if it is valid.
 
         Raises:
-            :class:`~pypeit.pypmsgs.PypeItPathError`:
+            :class:`~pypeit.exceptions.PypeItPathError`:
                 Raised if the path does not exist or is not a directory.
         """
         if not path.is_dir():
-            msgs.error(f"Unable to find {path}.  Check your installation.", cls='PypeItPathError')
+            raise PypeItPathError(f'Unable to find {path}.  Check your installation.')
         return path
 
     @staticmethod
@@ -223,7 +230,7 @@ class PypeItDataPath:
         return _f.suffix.replace('.','').lower()
 
     def get_file_path(self, data_file, force_update=False, to_pkg=None, return_format=False,
-                      return_none=False, quiet=False):
+                      return_none=False):
         """
         Return the path to a file.
 
@@ -234,7 +241,7 @@ class PypeItDataPath:
         If ``data_file`` is a valid path to a file or is a file within
         :attr:`path`, the full path is returned.  Otherwise, it is assumed that
         the file is accessible remotely in the GitHub repository and can be
-        downloaded using :func:`~pypeit.cache.fetch_remote_file`.  Note,
+        downloaded using :func:`~pypeit.pkg.cache.fetch_remote_file`.  Note,
         ``data_file`` *must* be a file, not a subdirectory within :attr:`path`.
 
         Throughout the code base, this is the main function that should be used
@@ -268,8 +275,6 @@ class PypeItDataPath:
             return_none (:obj:`bool`, optional):
                 If True, return None if the file does not exist.  If False, an
                 error is raised if the file does not exist.
-            quiet (:obj:`bool`, optional):
-                Suppress messages
 
         Returns:
             `Path`_, tuple: The file path and, if requested, the file format;
@@ -291,12 +296,6 @@ class PypeItDataPath:
             # Return the full path and the file format
             return self._get_file_path_return(_data_file, return_format)
 
-        # If it does not, inform the user and download it into the cache.
-        # NOTE: This should not be required for from-source (dev) installations.
-        if not quiet:
-            msgs.info(f'{data_file} does not exist in the expected package directory '
-                      f'({self.path}).  Checking cache or downloading the file now.')
-
         # Get the path to the cached file
         # NOTE: fetch_remote_file will only return the name of the cached file
         # if the file exists in the cache and force_update is False.
@@ -304,7 +303,7 @@ class PypeItDataPath:
         _cached_file = cache.fetch_remote_file(data_file, subdir, remote_host=self.host,
                                                force_update=force_update, return_none=return_none)
         if _cached_file is None:
-            msgs.warn(f'File {data_file} not found in the cache.')
+            warnings.warn(f'File {data_file} not found in the cache.')
             return None
 
         # If we've made it this far, the file is being pulled from the cache.

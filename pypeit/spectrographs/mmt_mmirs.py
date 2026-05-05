@@ -13,7 +13,8 @@ from astropy.time import Time
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
 from pypeit import io
@@ -80,7 +81,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             time = headarr[1]['DATE-OBS']
             ttime = Time(time, format='isot')
             return ttime.mjd
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def raw_header_cards(self):
         """
@@ -284,7 +285,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'object')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'dark')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def bpm(self, filename, det, shape=None, msbias=None):
@@ -317,7 +318,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        msgs.info("Using hard-coded BPM for det=1 on MMIRS")
+        log.info("Using hard-coded BPM for det=1 on MMIRS")
 
         # Get the binning
         hdu = io.fits_open(filename)
@@ -364,7 +365,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info(f'Reading MMIRS file: {fil}')
+        log.info(f'Reading MMIRS file: {fil}')
         hdu = io.fits_open(fil)
         head1 = fits.getheader(fil,1)
 

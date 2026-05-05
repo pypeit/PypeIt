@@ -1,7 +1,8 @@
 .. code-block:: console
 
     $ pypeit_chk_noise_2dspec -h
-    usage: pypeit_chk_noise_2dspec [-h] [--det DET] [--z [Z ...]]
+    usage: pypeit_chk_noise_2dspec [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                                   [--log_level LOG_LEVEL] [--det DET] [--z [Z ...]]
                                    [--maskdef_id MASKDEF_ID] [--pypeit_id PYPEIT_ID]
                                    [--pad PAD] [--aspect_ratio ASPECT_RATIO]
                                    [--wavemin WAVEMIN] [--wavemax WAVEMAX]
@@ -15,6 +16,18 @@
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: None)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
       --det DET             Detector name or number. If a number, the name is
                             constructed assuming the reduction is for a single
                             detector. If a string, it must match the name of the

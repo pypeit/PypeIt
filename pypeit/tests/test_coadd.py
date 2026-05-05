@@ -3,7 +3,7 @@ from IPython import embed
 import numpy as np
 import pytest
 
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit.core import coadd
 from pypeit.core import standard
 from pypeit.core import meta

@@ -6,13 +6,15 @@ from IPython import embed
 from astropy.config import set_temp_cache
 
 from pypeit import dataPaths
-from pypeit import scripts
-from pypeit import cache
+from pypeit.scripts import install_telluric
+from pypeit.scripts import install_extinctfile
+from pypeit.scripts import install_linelist
+from pypeit.pkg import cache
 
 
 def run_install_telluric():
-    scripts.install_telluric.InstallTelluric.main(
-        scripts.install_telluric.InstallTelluric.parse_args(
+    install_telluric.InstallTelluric.main(
+        install_telluric.InstallTelluric.parse_args(
             ['TellPCA_3000_26000_R25000.fits', '--force_update']
         )
     )
@@ -31,8 +33,8 @@ def run_install_extinctfile():
     assert test_file.is_file(), 'File should exist on disk at the start of the test'
 
     # Use the install script to install the file as an extinction file
-    scripts.install_extinctfile.InstallExtinctfile.main(
-        scripts.install_extinctfile.InstallExtinctfile.parse_args([str(test_file)])
+    install_extinctfile.InstallExtinctfile.main(
+        install_extinctfile.InstallExtinctfile.parse_args([str(test_file)])
     )
 
     # Search the cache for the file
@@ -64,8 +66,8 @@ def run_install_linelist():
     assert test_file.is_file(), 'File should exist on disk at the start of the test'
 
     # Use the install script to install the file as a line list
-    scripts.install_linelist.InstallLinelist.main(
-        scripts.install_linelist.InstallLinelist.parse_args([str(test_file)])
+    install_linelist.InstallLinelist.main(
+        install_linelist.InstallLinelist.parse_args([str(test_file)])
     )
 
     # Search the cache for the file

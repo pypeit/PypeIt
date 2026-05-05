@@ -7,7 +7,7 @@ Script to install files from the github repo into the user's cache.
 
 from pypeit import dataPaths
 from pypeit.scripts import scriptbase
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import available_spectrographs
 
 class CacheGithubData(scriptbase.ScriptBase):
 
@@ -41,8 +41,8 @@ class CacheGithubData(scriptbase.ScriptBase):
                             help='Force re-download of existing files')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         import os
         import pathlib
         from IPython import embed
@@ -51,9 +51,12 @@ class CacheGithubData(scriptbase.ScriptBase):
 
         import github
 
-        from pypeit import msgs
-        from pypeit import cache
-        from pypeit.pypeitdata import PypeItDataPath
+        from pypeit import log
+        from pypeit.pkg import cache
+        from pypeit.pkg.pypeitdata import PypeItDataPath
+
+        # Initialize the log
+        cls.init_log(args)
 
         # First check the input spectrograph list
         if any([inst not in available_spectrographs for inst in args.spectrograph]):
@@ -79,7 +82,7 @@ class CacheGithubData(scriptbase.ScriptBase):
 
         # Access the repo; use a token if one is available
         if os.getenv('GITHUB_TOKEN') is None:
-            msgs.warn('GITHUB_TOKEN environmental variable is not defined, meaning script will '
+            log.warning('GITHUB_TOKEN environmental variable is not defined, meaning script will '
                       'not authenticate a GitHub user via an OAuth token.  Beware of rate limits!')
             auth = None
         else:
@@ -88,7 +91,7 @@ class CacheGithubData(scriptbase.ScriptBase):
 
         # Cycle through all the data paths that use github as their host and
         # collect the contents of the directory
-        msgs.info('Searching github repository ... ')
+        log.info('Searching github repository ... ')
         contents = {}
         for datadir, meta in github_paths.items():
             if datadir not in selected_paths:
@@ -96,7 +99,7 @@ class CacheGithubData(scriptbase.ScriptBase):
             # Recursively get the directory contents
             contents[meta['path']] \
                 = cache.github_contents(repo, branch, f'pypeit/data/{meta["path"]}')
-        msgs.info('Searching github repository ... done.')
+        log.info('Searching github repository ... done.')
         
         # Determine which files should be in the cache (or in the repo)
         # TODO: This is currently broken because not all spectrograph-dependent
@@ -106,7 +109,7 @@ class CacheGithubData(scriptbase.ScriptBase):
         # a major effort to rename all those files.  The other (better?) option
         # would be to put all these reid_arxiv files into subdirectories named
         # after each spectrograph.
-        msgs.info('Parsing which files to include in cache.')
+        log.info('Parsing which files to include in cache.')
         to_download = {}
         for path, files in contents.items():
             nfiles = len(files)
@@ -124,9 +127,9 @@ class CacheGithubData(scriptbase.ScriptBase):
 
         # Use the `get_file_path`` function to find each file locally or pull it
         # into the cache
-        msgs.info(f'Number of files to check against package installation/cache:')
+        log.info(f'Number of files to check against package installation/cache:')
         for path in contents.keys():
-            msgs.info(f'    {path}: {np.sum(to_download[path])}')
+            log.info(f'    {path}: {np.sum(to_download[path])}')
             files = np.array(contents[path])[to_download[path]]
             if len(files) == 0:
                 continue

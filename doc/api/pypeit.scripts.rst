@@ -45,6 +45,7 @@ Submodules
    pypeit.scripts.qa_html
    pypeit.scripts.ql
    pypeit.scripts.rectify_2dspec
+   pypeit.scripts.reduce_by_step
    pypeit.scripts.run_pypeit
    pypeit.scripts.run_to_calibstep
    pypeit.scripts.scriptbase
@@ -59,6 +60,7 @@ Submodules
    pypeit.scripts.skysub_regions
    pypeit.scripts.tellfit
    pypeit.scripts.trace_edges
+   pypeit.scripts.util
    pypeit.scripts.version
    pypeit.scripts.view_fits
 
@@ -68,5 +70,5 @@ Module contents
 .. automodule:: pypeit.scripts
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

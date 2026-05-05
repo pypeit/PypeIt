@@ -22,7 +22,8 @@ from astropy.io import fits
 
 from ginga.util import grc
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import io
 from pypeit import utils
 
@@ -73,7 +74,7 @@ def connect_to_ginga(host='localhost', port=grc.default_rc_port,
                 else:
                     break
             if i == maxiter-1:
-                msgs.error('Timeout waiting for ginga to start.  If window does not appear, type '
+                raise PypeItError('Timeout waiting for ginga to start.  If window does not appear, type '
                            f'`ginga --rcport={port} --modules=RC,SlitWavelength` on the command line.  In either '
                            'case, wait for the ginga viewer to open and try the pypeit command '
                            'again.')
@@ -82,7 +83,7 @@ def connect_to_ginga(host='localhost', port=grc.default_rc_port,
         if raise_err:
             raise ValueError
         else:
-            msgs.warn('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
+            log.warning('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
                       f'then continue: \n    ginga --rcport={port} --modules=RC,SlitWavelength')
 
     # Return
@@ -357,7 +358,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     nspec = _left.shape[0]
     if _right.shape[0] != nspec:
         # TODO: Any reason to remove this restriction?
-        msgs.error('Input left and right edges have different spectral lengths.')
+        raise PypeItError('Input left and right edges have different spectral lengths.')
 
     # Spectral pixel location
     if spec_vals is not None:
@@ -368,16 +369,16 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     # Check input
     if synced:
         if left.shape != right.shape:
-            msgs.error('Input left and right traces must have the same shape if they have been '
+            raise PypeItError('Input left and right traces must have the same shape if they have been '
                        'synchronized into slits.')
         if left_ids is not None or right_ids is not None:
-            msgs.warn('For showing synced edges, left and right ID numbers are ignored.')
+            log.warning('For showing synced edges, left and right ID numbers are ignored.')
         nslits = _left.shape[1]
         _left_ids = None
         _right_ids = None
         _slit_ids = np.arange(nslits) if slit_ids is None else np.atleast_1d(slit_ids)
         if len(_slit_ids) != nslits:
-            msgs.error('Incorrect number of slit IDs provided.')
+            raise PypeItError('Incorrect number of slit IDs provided.')
         _slit_id_loc = _left + 0.45*(_right - _left)
         if maskdef_ids is not None and maskdef_ids.size == nslits:
             _maskdef_ids = np.atleast_1d(maskdef_ids)
@@ -386,11 +387,11 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     else:
         _left_ids = -np.arange(nleft) if left_ids is None else np.atleast_1d(left_ids)
         if len(_left_ids) != nleft:
-            msgs.error('Incorrect number of left IDs provided.')
+            raise PypeItError('Incorrect number of left IDs provided.')
         _left_id_loc = _left*1.05
         _right_ids = -np.arange(nright) if right_ids is None else np.atleast_1d(right_ids)
         if len(_right_ids) != nright:
-            msgs.error('Incorrect number of right IDs provided.')
+            raise PypeItError('Incorrect number of right IDs provided.')
         _right_id_loc = _right*(1-0.05)
 
     # Canvas
@@ -577,7 +578,7 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
 
     """
     if tilt_traces is None:
-        return msgs.error('No tilts have been traced or fitted')
+        raise PypeItError('No tilts have been traced or fitted')
 
     canvas = viewer.canvas(ch._chname)
     if clear_canvas:
@@ -685,6 +686,9 @@ def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
     """
     viewer = connect_to_ginga(raise_err=True, allow_new=True)
     sh = viewer.shell()
+    # NOTE: ext may be a numpy integer, which doesn't marshall over the
+    # RPC interface that Ginga currently uses--coerce to a regular Python int
+    ext = int(ext)
 
     chname, plname = "Spec1d", "Spec1dView"
     sh.add_channel(chname)
