@@ -126,6 +126,7 @@
 .. _pdb: https://docs.python.org/3/library/pdb.html
 .. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
 .. _pytest: https://docs.pytest.org/en/latest/
+.. _shapely: https://shapely.readthedocs.io/en/stable/manual.html
 .. _scikit-image: https://scikit-image.org/
 .. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
 .. _specutils: https://specutils.readthedocs.io/en/stable/

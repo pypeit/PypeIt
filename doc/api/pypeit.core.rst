@@ -45,6 +45,7 @@ Submodules
    pypeit.core.skyspec
    pypeit.core.skysub
    pypeit.core.slitdesign_matching
+   pypeit.core.spatialprofile
    pypeit.core.spectrum
    pypeit.core.standard
    pypeit.core.telluric

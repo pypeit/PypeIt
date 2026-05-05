@@ -395,8 +395,10 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     thismask = np.ones_like(flxcube2d, dtype=bool)
 
     # Now do the optimal extraction
-    extract.extract_optimal(flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
-                            sobj, min_frac_use=min_frac_use, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None)
+    sobj.extract_optimal(
+        flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
+        min_frac_use=min_frac_use
+    )
 
     # TODO :: The optimal extraction may suffer from residual DAR correction issues. This is because the
     #      :: object profile assumes that the white light image represents the true spatial profile of the

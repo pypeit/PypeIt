@@ -60,6 +60,7 @@ Submodules
    pypeit.scripts.skysub_regions
    pypeit.scripts.tellfit
    pypeit.scripts.trace_edges
+   pypeit.scripts.util
    pypeit.scripts.version
    pypeit.scripts.view_fits
 

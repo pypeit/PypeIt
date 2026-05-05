@@ -11,6 +11,7 @@ Documentation Updates
 - Updated the documentation about the use of the mask design file for Gemini/GMOS.
   See the :ref:`gemini_gmos` documentation for details.
 
+- Updated the Setup GUI tutorial to reflect the new look of the GUI.
 
 Dependency Changes
 ------------------
@@ -18,7 +19,9 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
-
+- Setup GUI now uses a standard button bar that can be moved. 
+- Re-enabled the Cancel button on the Setup GUI progress dialog.
+- Increased default font size for Setup GUI.
 
 Instrument-specific Updates
 ---------------------------
@@ -26,20 +29,45 @@ Instrument-specific Updates
 
 Script Changes
 --------------
-
+- Removed -G/--gui option from pypeit_obslog.
 
 Testing
 -------
 
+- Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 
 
 Under-the-hood Improvements
 ---------------------------
 
+- Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
+  the pypeit-specific uses of :class:`~pypeit.core.pydl.TraceSet`.  This was
+  primarily done to avoid a circular import.
+- Separated previous functions in :mod:`~pypeit.core.extract` that have to do
+  with modeling the spatial profile of the object into a new module,
+  :mod:`~pypeit.core.spatialprofile`.
+- Restructure modules used to construct globals for an instance of PypeIt (e.g.,
+  ``log`` and ``dataPaths``) into a new ``pkg`` module.  This isolates these
+  operations from the rest of PypeIt.
+- Refactor how script and spectrograph classes are imported.  Instead of
+  importing each module in the relevant ``__init__.py`` file, we now define
+  ``__all__`` and import all the relevant classes where needed.
 
 Bug Fixes
 ---------
 
-- None yet.
-
+- Avoid a circular import by moving
+  :func:`~pypeit.core.wavecal.autoid.arc_fit_qa` out of
+  :mod:`~pypeit.core.wavecal.wv_fitting`.
+- Fix an error in the platescale provided for 2D coadded data; the previous
+  calculation did not account for the ``spat_samp_fact`` parameter.
+- Avoid a circular import by moving
+  :func:`~pypeit.loader.load_wmko_std_spectrum` to the dev-suite repo.
+- Avoid a circular import by (1) removing the use of the
+  :class:`~pypeit.specobj.SpecObj` object in the :mod:`~pypeit.core.extract`
+  functions and (2) pulling :class:`~pypeit.multislit_flexure.MultiSlitFlexure`
+  into its own file (removing it from :mod:`~pypeit.core.flexure`).
+- Avoid a circular import by moving
+  :func:`~pypeit.core.wavecal.waveio.load_tree` into
+  :func:`~pypeit.core.wavecal.kdtree_generator`.

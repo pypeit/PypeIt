@@ -1100,6 +1100,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         if par['reid_arxiv'] is None:
             raise PypeItError('WavelengthSolutionPar parameter `reid_arxiv` not '
                        'specified for "full_template" method.')
+        wvstr = "the entire wavelength range" if par['wvrng_arxiv'] is None else f"wavelength range {par['wvrng_arxiv']} Angstroms"
+        log.info(f"Loading template from {par['reid_arxiv']} for detector {det} and {wvstr}")
         temp_wv_og, temp_spec_og, temp_bin, order, lines_pix, lines_wav, lines_fit_ord = \
             waveio.load_template(par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
@@ -1318,14 +1320,12 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         n_final = wvutils.parse_param(par, 'n_final', slit)
         # Fit
         try:
-            final_fit = wv_fitting.iterative_fitting(obs_spec_i, dets, gd_det,
-                                              IDs[gd_det], line_lists, bdisp,
-                                              verbose=False, n_first=par['n_first'],
-                                              match_toler=par['match_toler'],
-                                              func=par['func'],
-                                              n_final=n_final,
-                                              sigrej_first=par['sigrej_first'],
-                                              sigrej_final=par['sigrej_final'])
+            final_fit = wv_fitting.iterative_fitting(
+                obs_spec_i, dets, gd_det, IDs[gd_det], line_lists, bdisp, verbose=False,
+                n_first=par['n_first'], match_toler=par['match_toler'], func=par['func'],
+                n_final=n_final, sigrej_first=par['sigrej_first'],
+                sigrej_final=par['sigrej_final']
+            )
         except TypeError:
             wvcalib[str(slit)] = None
         else:
@@ -1486,13 +1486,10 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         # Perform the fit
         n_final = wvutils.parse_param(par, 'n_final', iord)
         final_fit = wv_fitting.fit_slit(
-            spec[:, iord], all_patt_dict[str(iord)],
-            detections[str(iord)], tot_line_list,
-            match_toler=par['match_toler'],
-            func=par['func'], n_first=par['n_first'],
-            sigrej_first=par['sigrej_first'],
-            n_final=n_final,
-            sigrej_final=par['sigrej_final'])
+            spec[:, iord], all_patt_dict[str(iord)], detections[str(iord)], tot_line_list,
+            match_toler=par['match_toler'], func=par['func'], n_first=par['n_first'],
+            sigrej_first=par['sigrej_first'], n_final=n_final, sigrej_final=par['sigrej_final']
+        )
         log.info(f"Number of lines used in fit: {len(final_fit['pixel_fit'])}")
         # Did the fit succeed?
         if final_fit is None:
@@ -1807,10 +1804,12 @@ class ArchiveReid:
 
             # Perform the fit
             n_final = wvutils.parse_param(self.par, 'n_final', slit)
-            final_fit = wv_fitting.fit_slit(self.spec[:, slit], self.all_patt_dict[str(slit)],
-                                         self.detections[str(slit)],
-                                         self.tot_line_list, match_toler=self.match_toler,func=self.func, n_first=self.n_first,
-                                         sigrej_first=self.sigrej_first, n_final=n_final,sigrej_final=self.sigrej_final)
+            final_fit = wv_fitting.fit_slit(
+                self.spec[:, slit], self.all_patt_dict[str(slit)], self.detections[str(slit)],
+                self.tot_line_list, match_toler=self.match_toler, func=self.func,
+                n_first=self.n_first, sigrej_first=self.sigrej_first, n_final=n_final,
+                sigrej_final=self.sigrej_final
+            )
 
             # Did the fit succeed?
             if final_fit is None:
@@ -1986,6 +1985,11 @@ class HolyGrail:
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
         self._thar = False
         if 'ThAr' in self._lamps and len(self._lamps) == 1:
+            raise NotImplementedError(
+                'Our algorithm for automatic wavelength calibration of ThAr arc lamps is '
+                'currently too unstable.  For the time-being, we have disabled use of the '
+                'holy-grail algorithm in this case.'
+            )
             self._thar = True
             # Set up the grids to be used for pattern matching
             self.set_grids(ngridw=5000, ngridd=1000)
@@ -2203,7 +2207,7 @@ class HolyGrail:
         """
 
         # Load the linelist KD Tree
-        lsttree, lindex = waveio.load_tree(polygon=polygon, numsearch=lstsrch)
+        lsttree, lindex = kdtree_generator.load_tree(polygon=polygon, numsearch=lstsrch)
 
         # Set the search error to be 5 pixels
         err = pixtol / self._npix
@@ -2542,7 +2546,6 @@ class HolyGrail:
                 new_bad_slits = np.append(new_bad_slits, bs)
                 continue
             final_fit = wv_fitting.fit_slit(self._spec[:, bs], patt_dict, bsdet, self._line_lists)
-            #final_fit = self.fit_slit(bs, patt_dict, bsdet)
             if final_fit is None:
                 # This pattern wasn't good enough
                 new_bad_slits = np.append(new_bad_slits, bs)
@@ -2872,8 +2875,9 @@ class HolyGrail:
                 continue
             # Fit the full set of lines with the derived patterns
             use_tcent, _ = self.get_use_tcent(tpatt_dict['sign'], tcent_ecent)
-            tfinal_dict = wv_fitting.fit_slit(self._spec[:, slit], tpatt_dict, use_tcent, self._line_lists)
-            # tfinal_dict = self.fit_slit(slit, tpatt_dict, use_tcent)
+            tfinal_dict = wv_fitting.fit_slit(
+                self._spec[:, slit], tpatt_dict, use_tcent, self._line_lists
+            )
 
             # get FWHM for this slit
             fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit])
@@ -2988,7 +2992,9 @@ class HolyGrail:
                 continue
             # Save the QA for the best solution
             slittxt = '_Slit{0:03d}'.format(slit+1)
-            use_tcent, use_ecent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],detections[str(slit)])
+            use_tcent, use_ecent = self.get_use_tcent(
+                self._all_patt_dict[str(slit)]['sign'], detections[str(slit)]
+            )
             if self._outroot is not None:
                 # Write IDs
                 out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
@@ -2999,14 +3005,24 @@ class HolyGrail:
 
                 # Plot
                 tmp_list = np.vstack([self._line_lists, self._unknwns])
-                match_qa(self._spec[:, slit], use_tcent, tmp_list,
-                            self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
-                            outfile=self._outroot + slittxt + '.pdf')
-                log.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
+                qa_file = f'{self._outroot}{slittxt}.pdf'
+                match_qa(
+                    self._spec[:, slit], use_tcent, tmp_list,
+                    self._all_patt_dict[str(slit)]['IDs'],
+                    self._all_patt_dict[str(slit)]['scores'],
+                    outfile=qa_file
+                )
+                log.info(f'Wrote: {qa_file}')
             # Perform the final fit for the best solution
-            best_final_fit = wv_fitting.fit_slit(self._spec[:, slit], self._all_patt_dict[str(slit)], use_tcent,
-                                                 self._line_lists, outroot=self._outroot, slittxt=slittxt)
-            #best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], use_tcent, outroot=self._outroot, slittxt=slittxt)
+            best_final_fit = wv_fitting.fit_slit(
+                self._spec[:, slit], self._all_patt_dict[str(slit)], use_tcent, self._line_lists
+            )
+
+            if self._outroot is not None:
+                plot_fil = f'{self._outroot}{slittxt}_fit.pdf'
+                arc_fit_qa(best_final_fit, plot_fil)
+                log.info(f'Wrote: {plot_fil}')
+
             self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
 
     def report_prelim(self, slit, best_patt_dict, best_final_fit):
