@@ -3,7 +3,7 @@
     $ pypeit_extract_datacube -h
     usage: pypeit_extract_datacube [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                                    [--log_level LOG_LEVEL] [-e EXT_FILE] [-s SAVE]
-                                   [-o] [-b BOXCAR_RADIUS]
+                                   [-o] [-b BOXCAR_RADIUS] [--debug]
                                    file
     
     Read in a datacube, extract a spectrum of a point source, and save it as a
@@ -37,4 +37,5 @@
       -b, --boxcar_radius BOXCAR_RADIUS
                             Radius of the circular boxcar (in arcseconds) to use for
                             the extraction. (default: None)
+      --debug               show debug plots? (default: False)
     

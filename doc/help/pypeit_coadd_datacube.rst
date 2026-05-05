@@ -2,7 +2,7 @@
 
     $ pypeit_coadd_datacube -h
     usage: pypeit_coadd_datacube [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                                 [--log_level LOG_LEVEL] [--det DET] [-o]
+                                 [--log_level LOG_LEVEL] [--det DET] [-o] [--debug]
                                  file
     
     Read in an array of spec2D files and convert them into a datacube
@@ -27,4 +27,5 @@
       --det DET             Detector (default: 1)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
+      --debug               show debug plots? (default: False)
     
