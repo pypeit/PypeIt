@@ -2217,6 +2217,11 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     mnmx_wv = np.zeros((slits.nslits, 2))
     for slit_idx, slit_spat in enumerate(slits.spat_id):
         onslit_init = (slitid_img == slit_spat)
+        # Check if a wavelength calibration exists for this slice
+        if np.all(np.logical_not(onslit_init)):
+            log.error(f"Slit {slit_idx+1}/{slits.nslits} ({slit_spat}) has no wavelength solution. Cannot perform "
+                      f"relative spectral sensitivity calculation. You can turn off the relative spectral sensitivity "
+                      f"correction or check that your wavelength calibration is correct for this slit.")
         mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
     wavecen = np.mean(mnmx_wv, axis=1)
