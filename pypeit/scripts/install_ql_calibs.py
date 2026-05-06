@@ -37,7 +37,7 @@ class InstallQLCalibs(scriptbase.ScriptBase):
         import os
         import zipfile
 
-        from pypeit.cache import __PYPEIT_DATA__
+        from pypeit.pkg.cache import __PYPEIT_DATA__
         from pypeit.io import create_symlink
 
         # Initialize the log

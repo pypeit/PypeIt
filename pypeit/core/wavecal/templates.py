@@ -56,7 +56,7 @@ else:
 
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
-                   normalize=False, subtract_conti=False, wvspec=None,
+                   scalespec=False, scalevals=None, subtract_conti=False, wvspec=None,
                    lowredux=False, ifiles=None, det_cut=None, chk=False,
                    miny=None, overwrite=True, ascii_tbl=False, in_vac=True,
                    shift_wave=False, binning=None, micron=False,
@@ -93,9 +93,16 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             Show a plot or two
         miny (float):
             Impose a minimum value
-        normalize (bool, optional):
-            If provided multiple in_files, normalize each
-            snippet to have the same maximum amplitude.
+        scalespec (bool, optional):
+            If True, scale the spectrum by the provided scalevals. If
+            scalevals is None, the spectrum will be scaled to the
+            normalization value (default is 10000). Default is False, which will not scale.
+        scalevals (list, optional):
+            If scalespec is True, the values to scale each spectrum by.
+            Default is None, which will not scale. If provided, the
+            length of scalevals must match the number of in_files. If
+            scalespec is True and scalevals is None, the spectrum will
+            be scaled to the normalization value (default is 10000).
         subtract_conti (bool, optional):
             Subtract the continuum for the final archive
         ascii_tbl (bool, optional):
@@ -117,6 +124,12 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         ifiles = np.arange(len(in_files))
     if binning is None:
         binning = [None]*len(ifiles)
+    if scalespec and scalevals is None:
+        scalevals = [None]*len(ifiles)
+    # Prepare an axis if we are debugging
+    if chk:
+        plt.clf()
+        ax = plt.gca()
     # Load xidl file
     # Grab it
     # Load and splice
@@ -128,6 +141,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     # Loop on the files
     for kk, slit in enumerate(slits):
         # Load up
+        pypeitFit = None  # Default value, in case a PypeItFit is not available
         if wvspec is None:
             in_file = in_files[ifiles[kk]]
             if lowredux:
@@ -146,9 +160,24 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         log.info("wvmin, wvmax of {}: {}, {}".format(in_file, wv_vac.min(), wv_vac.max()))
         # Cut
         if len(slits) > 1:
+            # Plot the inputs if we are debugging
+            if chk:
+                ax.plot(wv_vac, spec, drawstyle='steps-mid')
+            # Rebin spec if binning is different
+            if binning is not None and binning[kk] != binspec:
+                npix_orig = spec.size
+                x_orig = np.arange(npix_orig) / float(npix_orig - 1)
+                npix = int(npix_orig * binning[kk] / binspec)
+                x = np.arange(npix) / float(npix - 1)
+                # Interpolate the wavelengths and spectrum onto the new grid
+                spec = (interp1d(x_orig, spec, axis=0,
+                                 bounds_error=False, fill_value='extrapolate'))(x)
+                wv_vac = (interp1d(x_orig, wv_vac, axis=0,
+                                 bounds_error=False, fill_value='extrapolate'))(x)
+            # Default good pixels
             wvmin, wvmax = grab_wvlim(kk, wv_cuts, len(slits))
-            # Default
             gdi = (wv_vac > wvmin) & (wv_vac < wvmax)
+            npix = wv_vac.size
             if shift_wave:
                 if len(lvals) > 0:
                     # Find pixel closet to end
@@ -161,16 +190,10 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                     # Delta pix -- approximate but should be pretty good
                     dpix = dwv_specs / dwv_snipp[ipix]
                     # Calculate new wavelengths
-                    npix = wv_vac.size
-                    # Rebin spec?
-                    if binning is not None and binning[kk] != binspec:
-                        npix_orig = spec.size
-                        x_orig = np.arange(npix_orig) / float(npix_orig - 1)
-                        x = np.arange(npix) / float(npix - 1)
-                        spec = (interp1d(x_orig, spec, axis=0,
-                                         bounds_error=False, fill_value='extrapolate'))(x)
-                    # Evaluate
-                    new_wave = pypeitFit.eval((-dpix + np.arange(npix)) / (npix - 1))
+                    if pypeitFit is None:
+                        new_wave = -dwv_specs + wv_vac
+                    else:
+                        new_wave = pypeitFit.eval((-dpix + np.arange(npix)) / (npix - 1))
                     # Range
                     iend = np.argmin(np.abs(new_wave - wvmax))
                     # Interpolate
@@ -189,15 +212,16 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         for kk,spec in enumerate(yvals):
             _, _, _, _, spec_cont_sub = wvutils.arc_lines_from_spec(spec)
             yvals[kk] = spec_cont_sub
-    # Normalize?
-    if normalize:
-        norm_val = 10000.
-        # Max values
-        maxs = []
-        for kk,spec in enumerate(yvals):
-            mx = np.max(spec)
-            spec = spec * norm_val / mx
-            yvals[kk] = spec
+    # Scale the input spectra by the user-provided scalevals or by the maximum value of each snippet
+    if scalespec:
+        for kk, spec in enumerate(yvals):
+            if scalevals[kk] is not None:
+                scale_factor = scalevals[kk]
+            else:
+                norm_val = 10000.
+                # Use the normalization value if scalevals is not provided
+                scale_factor = norm_val / np.max(spec)
+            yvals[kk] = spec * scale_factor
     # Concatenate
     nwspec = np.concatenate(yvals)
     nwwv = np.concatenate(lvals)
@@ -206,9 +230,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         nwspec = np.maximum(nwspec, miny)
     # Check
     if chk:
-        plt.clf()
-        ax = plt.gca()
-        ax.plot(nwwv, nwspec)
+        ax.plot(nwwv, nwspec, 'k-', drawstyle='steps-mid')
         plt.show()
     # Generate the table
     wvutils.write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
@@ -603,7 +625,7 @@ def main(flg):
         lcut = [7840.]
         wfile = template_path / 'Keck_LRIS' / 'R600_7500' / 'MasterWaveCalib_I_1_01.json'
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
-                       chk=True, normalize=True, subtract_conti=True)
+                       chk=True, scalespec=True, subtract_conti=True)
 
     # ##################################
     # Magellan/MagE
@@ -877,7 +899,33 @@ def main(flg):
         outfile = dataPaths.reid_arxiv.path / iout
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
-
+    # Keck KCWI
+    if flg & (2**35):
+        pass
+    # Keck KCRM
+    if flg & (2**36):
+        # RM1
+        dirc = template_path / 'KCWI' / 'RM1'
+        infiles = [dirc / 'keck_kcrm_rm1_lcen6230.fits',dirc / 'keck_kcrm_rm1_lcen7010.fits']
+        outroot = 'keck_kcrm_RM1.fits'
+        slits = [0, 0]
+        binspec = 1 # Desired binning
+        binning = [1, 2] # Spectral binning of each infile
+        scalevals = [1.0, 3.4] # Scale the second one down by 2x to match the first
+        lcut = [6910.0]
+        build_template(infiles, slits, lcut, binspec, outroot, scalespec=True, scalevals=scalevals,
+                       binning=binning, reid_files=True, shift_wave=True, chk=True)
+        # RH3
+        dirc = template_path / 'KCWI' / 'RH3'
+        infiles = [dirc / 'keck_kcrm_rh3_lcen8550.fits',dirc / 'keck_kcrm_rh3_lcen9010_coadd.fits']
+        outroot = 'keck_kcrm_RH3.fits'
+        slits = [0, 0]
+        binspec = 1 # Desired binning
+        binning = [2, 2] # Spectral binning of each infile
+        scalevals = [1.0, 11.0] # Scale the second spectrum to match the first
+        lcut = [8920.0]
+        build_template(infiles, slits, lcut, binspec, outroot, scalespec=True, scalevals=scalevals,
+                       binning=binning, reid_files=True, shift_wave=True, chk=True)
 
 # Command line execution
 if __name__ == '__main__':
@@ -938,6 +986,12 @@ if __name__ == '__main__':
 
     # P200 Triplespec
     #flg += 2**34
+
+    # Keck KCWI
+    #flg += 2**35
+
+    # Keck KCRM
+    flg += 2**36
 
     main(flg)
 
