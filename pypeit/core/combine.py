@@ -125,7 +125,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
             raise PypeItError('You must specify sigma_clip_stack; sigma-clipping is based on this array '
                        'and propagated to the arrays to be stacked.')
         elif not isinstance(sigma_clip_stack, np.ndarray):
-            msgs.error('sigma_clip_stack must be a numpy array')
+            raise PypeItError('sigma_clip_stack must be a numpy array')
 
         if sigrej is None:
             # NOTE: If these are changed, make sure to update the doc-string!
@@ -263,7 +263,7 @@ def broadcast_weights(weights, shape):
             weights_stack = weights
         elif len(shape) == 3:
             weights_stack = np.einsum('ij,k->ijk', weights, np.ones(shape[2]))
-    elif (weights.ndim == 3) | (weights.ndim == 4):
+    elif weights.ndim in [3, 4]:
         # Full image stack of weights
         if weights.shape != shape:
             raise PypeItError('The shape of weights does not match the shape of the image stack')

@@ -174,15 +174,18 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
 
     .. include:: ../include/class_datamodel_manualcubeextractionobj.rst
 
-    Args:
-        spatx (`numpy.ndarray`_): Array of spatial positions to hand extract
-        spaty (`numpy.ndarray`_): Array of spectral positions to hand extract
-        fwhm (`numpy.ndarray`_): Array of FWHM for hand extraction in arcserconds.  
-            This must be aligned with spatx and spaty.
-        boxcar_rad (`numpy.ndarray`_, optional): Array of boxcar_radii for hand extraction. 
-            This must be aligned with spatx and spaty.
-            It is to be arcsec and is optional. 
-
+    Parameters
+    ----------
+    spatx : :class:`numpy.ndarray`
+        Array of spatial x positions to hand extract
+    spaty : :class:`numpy.ndarray`
+        Array of spatial y positions to hand extract
+    fwhm : :class:`numpy.ndarray`, optional
+        Array of FWHM for hand extraction in arcseconds.  This must be aligned
+        with spatx and spaty.
+    boxcar_rad : :class:`numpy.ndarray`, optional
+        Array of boxcar_radii in arcseconds for hand extraction.  This must be
+        aligned with spatx and spaty.
     """
     version = '1.1.0'
 

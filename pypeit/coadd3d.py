@@ -283,8 +283,8 @@ class DataCube(datamodel.DataContainer):
         # Write out the white light image
         # TODO This is replicated code from datacube.make_whitelight, clean this up. 
         log.info(f"Saving white light image as: {out_whitelight}")
-        primary_hdu = fits.PrimaryHDU(wl_img.T, header=self._wcs.to_header())
-        primary_hdu.header['EXTNAME'] = 'WHITELIGHT'
+        primary_hdu = fits.PrimaryHDU(wl_img.T, header=self._wcs.WCS.celestial.to_header())
+#        primary_hdu.header['EXTNAME'] = 'WHITELIGHT'
         ivar_hdu = fits.ImageHDU(wl_ivar.T, name='IVAR')
         gpm_hdu = fits.ImageHDU(wl_gpm.astype(np.uint8).T, name='GPM')
         hdul = fits.HDUList([primary_hdu, ivar_hdu, gpm_hdu])
@@ -430,6 +430,8 @@ class CoAdd3D:
                         grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
                         spectrograph=spectrograph, det=det, overwrite=overwrite, show=show, debug=debug)
 
+    # TODO: det is needed to load the spec2d files. Although, what if there are
+    # multiple detectors?  Do we need a det for each spec2d file?
     def __init__(self, spec2dfiles, par, 
                  output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
                  ra_offsets=None, dec_offsets=None, spectrograph=None, det=None,
@@ -470,7 +472,6 @@ class CoAdd3D:
             spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
                 The name or instance of the spectrograph used to obtain the data.
                 If None, this is pulled from the file header.
-                TODO: Why is this an argument?
             det (:obj:`int`_, optional):
                 Detector index
             overwrite (:obj:`bool`, optional):
@@ -1399,17 +1400,17 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         
         Parameters
         ----------
-        fwhm (float): 
-            The full-width half-maximum of the PSF in arcseconds. This is used only if the
-            offsets are computed from point source positions. 
-        show_qa (bool):
-            If True, show QA plots for point source alignment. Default is False. 
+        fwhm : float, optional
+            The full-width half-maximum of the PSF in arcseconds. This is used
+            only if the offsets are computed from point source positions. 
+        show_qa : bool, optional
+            If True, show QA plots for point source alignment.
 
         Returns
         -------
-        ra_offsets ( `numpy.ndarray`_:)
+        ra_offsets : :class:`numpy.ndarray`
             A new set of RA values that have been aligned
-        dec_offsets ( `numpy.ndarray`_:)
+        dec_offsets : :class:`numpy.ndarray`
             A new set of Dec values that have been aligned            
         """
         # Grab cos(dec) for convenience
@@ -1514,8 +1515,15 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         """
         Compute the relative weights to apply to pixels that are collected into the voxels of the output DataCubes
 
-        Returns:
-            `numpy.ndarray`_: The individual pixel weights for each detector pixel, and every frame.
+        Parameters
+        ----------
+        show_qa : bool, optional
+            If True, show QA plots for point source alignment.
+
+        Returns
+        -------
+        :class:`numpy.ndarray`
+            The individual pixel weights for each detector pixel, and every frame.
         """
         # If there is only one file, then all pixels have the same weight
         if self.numfiles == 1:
@@ -1587,6 +1595,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # If we are combining frames, check that alignment has been requested. 
         # If not, then print out a warning. 
         if self.combine and not self.align:
+            # TODO: This warning is debatable.  From R. Cooke: "This is not
+            # quite true. If self.align is False, but the ra_offsets and
+            # dec_offsets of each spec2d frame are manually set, then the
+            # alignment will be based on the manual align. Perhaps we should
+            # rename self.align to self.autoalign? and the function should be
+            # called autoalign()?"
             log.warning(
                 "Combining frames without aligning them.  Make sure that you know what you are "
                 "doing!  Even if your frames are taken at the same position, alignment is still "
@@ -1726,7 +1740,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     hdr=hdr, overwrite=self.overwrite
                 )
                 # TODO fix this transpose issue
-                ivarcube = utils.inverse(np.square(sigcube))
+#                ivarcube = utils.inverse(np.square(sigcube))
+                ivarcube = final_cube.ivar
                 if self.cubepar['save_whitelight']:
                     datacube.make_whitelight(
                         cube_wcs, flxcube.T, ivarcube.T, np.logical_not(bpmcube.T), wave,
@@ -1734,7 +1749,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                         overwrite=self.overwrite
                     )
 
-            if self.combine: #& self.align: 
+            if self.combine:
                 sigrej = 3.0
                 maxiters = 10                
                 sci_list_out, var_list_out, combined_gpm, nused = combine.weighted_combine(

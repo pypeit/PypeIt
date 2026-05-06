@@ -1318,9 +1318,6 @@ class Coadd1DPar(ParSet):
                                             "require a precision better than ~1 per cent." \
                         "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
 
-
-
-
         defaults['maxiter_reject'] = 5
         dtypes['maxiter_reject'] = int
         descr['maxiter_reject'] = 'Maximum number of iterations for stacking and rejection. The code stops iterating ' \
@@ -1846,7 +1843,7 @@ class CubePar(ParSet):
         descr['weights_init_obj_pos'] = 'The initial guess for the object position in the image for computing the optimal weighting. ' \
                                      'If set, this value will be input into `pypeit.core.datacube.fitGaussian2D` as ' \
                                      'the initial guess for the object position. The 2D Gaussian fit will then be performed with the' \
-                                     'position constrainted to be within plus or minus fwhm/3 in x and y. If not set, the position' \
+                                     'position constrained to be within plus or minus fwhm/3 in x and y. If not set, the position' \
                                      'will be determined by running DAOStarFinder on the image.' \
                                      'Formatting follows the Manual extraction parameters convention, i.e. spatx:spaty:fwhm' \
                                      'where spatx,specy are spatial x and y position in the datacube, ' \
@@ -1909,8 +1906,8 @@ class CubePar(ParSet):
 
 class CubeExtractionPar(ParSet):
     """
-    The parameter set used to hold arguments for functionality relevant
-    to cube generation (primarily for IFU data).
+    The parameter set used to hold arguments for functionality relevant to
+    extracting 1D spectra from IFU datacubes.
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
@@ -1963,7 +1960,7 @@ class CubeExtractionPar(ParSet):
         dtypes['snr_thresh'] = [int, float]
         descr['snr_thresh'] = 'The signal-to-noise ratio threshold to use when determining the initial ' \
                               'object position in the whitelight image with DAOStarFinder' \
-                              ' (this is the nsigma parameter in :func:`~pypeit.core.datacube.fitGaussian2D`'
+                              ' (this is the nsigma parameter in :func:`~pypeit.core.datacube.fitGaussian2D`)'
 
         # manual extraction
         defaults['manual'] = None
@@ -1994,7 +1991,7 @@ class CubeExtractionPar(ParSet):
                                 '- ``\'user_gauss\'``: Use a 2D symmetric Gaussian profile. The FWHM of the Gaussian is ' \
                                 'determined by the fwhm parameter, which was also used for the object finding.' \
                                 '' \
-                                '- ``\'fit_gauss\'``: Use the 2D Gaussian (possibly asymmetric) Gaussian fit ' \
+                                '- ``\'fit_gauss\'``: Use the (possibly asymmetric) 2D Gaussian fit ' \
                                 'to the whitelight image which was used to determine the object position. ' \
                                 'This creates a model using :func:`pypeit.core.datacube.fitGaussian2D` but ' \
                                 'the offset is set to zero.' \

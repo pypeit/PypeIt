@@ -72,7 +72,7 @@ class CoAddDataCube(scriptbase.ScriptBase):
 
         # Write the par to disk
         par_outfile = coadd_scidir.parent / f"{parset['reduce']['cube']['output_filename']}_datacube.par"
-        print(f'Writing full parameter set to {par_outfile}.')
+        log.info(f'Writing full parameter set to {par_outfile}.')
         parset.to_config(par_outfile, exclude_defaults=True, include_descr=False)
 
         # Instantiate CoAdd3d
