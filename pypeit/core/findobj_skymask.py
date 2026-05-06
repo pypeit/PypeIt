@@ -454,6 +454,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                   slit_righ:np.ndarray,
                   slit_spat_id: np.ndarray,
                   order_vec:np.ndarray,
+                  plate_scale_ord:np.ndarray,
                   obj_id:np.ndarray,
                   std_trace:table.Table=None,
                   show:bool=False):
@@ -493,6 +494,9 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
             objects.  If the orders are not known, this can be 
             ``np.arange(norders)`` (but this is *not* recommended).
+        plate_scale_ord (`numpy.ndarray`_):
+            An array with shape (norders,) providing the plate
+            scale of each order in arcsec/pix.
         obj_id (`numpy.ndarray`_):
             Object IDs of the objects linked together.
         std_trace (`astropy.table.Table`_, optional):
@@ -642,13 +646,17 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                 imin = np.argmin(np.abs(this_salign.ECH_ORDER - this_order))
                 # NOTE: when assigning FWHM, maskwidth, and BOX_R_PIX (in pixels) using the values
                 # from the nearest detected order, for spectrographs with different platescale per order,
-                # these values will be different in arcseconds (which may not be a desirable approach).
-                thisobj.FWHM = this_salign[imin].FWHM
+                # these values will be different in arcseconds. Therefore, we need to convert these values
+                # using the plate scale of the nearest detected order and the plate scale of the current order.
+                indx = np.where(order_vec == this_salign[imin].ECH_ORDER)[0][0]
+                pscale_conv = plate_scale_ord[indx]/plate_scale_ord[iord]
+                
+                thisobj.FWHM = this_salign[imin].FWHM * pscale_conv
                 thisobj.hand_extract_flag = this_salign[imin].hand_extract_flag
-                thisobj.maskwidth = this_salign[imin].maskwidth
+                thisobj.maskwidth = this_salign[imin].maskwidth * pscale_conv
                 thisobj.smash_peakflux = this_salign[imin].smash_peakflux
                 thisobj.smash_snr = this_salign[imin].smash_snr
-                thisobj.BOX_R_PIX = this_salign[imin].BOX_R_PIX
+                thisobj.BOX_R_PIX = this_salign[imin].BOX_R_PIX * pscale_conv
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
                 thisobj.ECH_FRACPOS_ID = int(np.rint(1000*uni_frac[iobj]))
                 thisobj.ECH_OBJID = uni_obj_id[iobj]
@@ -1319,7 +1327,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
 
     # Fill in Orders
     sobjs_filled = ech_fill_in_orders(
-        sobjs_in_orders, slit_left, slit_righ, slit_spat_id, order_vec, obj_id, std_trace=std_trace)
+        sobjs_in_orders, slit_left, slit_righ, slit_spat_id, order_vec, plate_scale, obj_id, std_trace=std_trace)
 
     # Cut on SNR and number of objects
     sobjs_pre_final = ech_cutobj_on_snr(
