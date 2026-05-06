@@ -24,7 +24,7 @@ from pypeit.utils import all_subclasses
 
 
 def mAB_to_cgs(wave, mAB):
-    """
+    r"""
     Convert AB magnitudes to :math:`F_\lambda` in the cgs units :math:`{\rm erg/cm}^2{\rm/s}/\AA`.
 
     Parameters
@@ -902,7 +902,7 @@ def get_model_standard(spectral_type, V_mag):
             return KuruczModelStandard(V_mag, spectral_type)
 
 
-def get_standard_spectrum(archives, spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None):
+def get_standard_spectrum(archives, spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None,archives='default'):
 #def get_standard_spectrum(spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None,
 #                          archives=None):
     """
