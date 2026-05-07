@@ -350,6 +350,7 @@ def parse_pypeit_setup_file(file_path):
 # except Exception as e:
 #     log.warning(f"Failed to connect to ginga:\n" + traceback.format_exc())
 #     # Display error to user
+# ...
 # try:
 #     display.show_image(img, chname = f"{file.name} {det_name}")
 # except Exception as e:
