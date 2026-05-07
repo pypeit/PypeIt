@@ -752,7 +752,7 @@ def ech_cutobj_on_snr(
     nobj = uni_obj_id.size
 
     # Loop over the objects and perform a quick and dirty extraction to assess S/N.
-    varimg = utils.calc_ivar(ivar)
+    varimg = utils.inverse(ivar)
     flux_box = np.zeros((nspec, norders, nobj))
     ivar_box = np.zeros((nspec, norders, nobj))
     mask_box = np.zeros((nspec, norders, nobj))
@@ -779,7 +779,7 @@ def ech_cutobj_on_snr(
                                  row=sobjs_align[indx][0].trace_spec)[0]
             var_tmp  = moment1d(varimg*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
                                 row=sobjs_align[indx][0].trace_spec)[0]
-            ivar_tmp = utils.calc_ivar(var_tmp)
+            ivar_tmp = utils.inverse(var_tmp)
             pixtot  = moment1d(ivar*0 + 1.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
                                row=sobjs_align[indx][0].trace_spec)[0]
             mask_tmp = moment1d(ivar*inmask_iord == 0.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
