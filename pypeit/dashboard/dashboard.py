@@ -33,11 +33,9 @@ from qtpy.QtWidgets import (
         QTreeView,
         )
 
-# from pypeit.setup_gui.controller import start_gui
-# from pypeit.scripts import setup
 import pypeit
 from pypeit.dashboard.pypeit_worker import PypeItWorker, check_pypeit_status 
-# from pypeit.dashboard.step_tracker import message_listener
+from pypeit.display import display
 
 """
 TODO: give a meta view and specific (show meta step, what step of that step are we one, what step of that step are we on)
@@ -346,7 +344,17 @@ def parse_pypeit_setup_file(file_path):
 
     return spectrograph,raw_path,files,science_file
 
-
+# dusty said this is how he displayed files from ginga
+# try:
+#     display.connect_to_ginga(raise_err=True, allow_new=True)
+# except Exception as e:
+#     log.warning(f"Failed to connect to ginga:\n" + traceback.format_exc())
+#     # Display error to user
+# try:
+#     display.show_image(img, chname = f"{file.name} {det_name}")
+# except Exception as e:
+#     log.warning(f"Failed send image to ginga:\n" + traceback.format_exc())
+#     # Display error to user
 
 class MainWindow(QWidget):
 
