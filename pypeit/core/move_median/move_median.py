@@ -11,4 +11,4 @@ try:
 except:
     warnings.warn('Unable to load bottleneck moving median.  Try reinstalling bottleneck.  In the '
                   'meantime, falling back on the slower pure python code.')
-    from pypeit.move_median.mmpy import move_median
+    from pypeit.core.move_median.mmpy import move_median
