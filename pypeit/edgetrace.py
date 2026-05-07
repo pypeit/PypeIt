@@ -52,7 +52,7 @@ from pypeit import sampling
 from pypeit import slittrace
 from pypeit.datamodel import DataContainer
 from pypeit import calibframe
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 from pypeit.display import display
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, procimg, trace, slitdesign_matching
@@ -4402,7 +4402,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         Args:
             flag (:obj:`str`, :obj:`list`, optional):
                 The bit mask flags to select. If None, any flags are
-                used. See :func:`pypeit.bitmask.BitMask.flagged`.
+                used. See :func:`pypeit.core.bitmask.BitMask.flagged`.
             exclude (:obj:`str`, :obj:`list`, optional):
                 A set of flags to explicitly exclude from
                 consideration as a masked trace. I.e., if any

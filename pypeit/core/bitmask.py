@@ -24,7 +24,7 @@ class BitMask:
     ignored.  The index in the input keys determines the bit value;
     'NULL' keys are included in the count.  For example::
 
-        >>> from pypeit.bitmask import BitMask
+        >>> from pypeit.core.bitmask import BitMask
         >>> keys = [ 'key1', 'key2', 'NULL', 'NULL', 'key3' ]
         >>> bm = BitMask(keys)
         >>> bm.info()
@@ -256,7 +256,7 @@ class BitMask:
             array ``v``, such that:
 
             >>> import numpy
-            >>> from pypeit.bitmask import BitMask
+            >>> from pypeit.core.bitmask import BitMask
             >>> bm = BitMask(['A', 'B'])
             >>> v = numpy.arange(4).astype(numpy.int16)
             >>> v
