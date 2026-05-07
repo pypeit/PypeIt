@@ -6,11 +6,46 @@ import os
 from IPython import embed
 
 import pytest
+from configobj import ConfigObj
 
 from pypeit.par import pypeitpar
 from pypeit.par import parset
+from pypeit.par import util
 from pypeit.spectrographs.util import load_spectrograph
 
+
+def test_detnum_mixed_tuple():
+    """Test parsing of detnum with mixed int and tuple values."""
+
+    # Mixed int and tuple
+    cfg = ConfigObj(['[rdx]', 'detnum = 1,(2,6)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [1, (2, 6)]
+
+    # Single tuple
+    cfg = ConfigObj(['[rdx]', 'detnum = (2,6)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [(2, 6)]
+
+    # Plain list of ints
+    cfg = ConfigObj(['[rdx]', 'detnum = 1,2,3'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [1, 2, 3]
+
+    # Multiple tuples (DEIMOS style)
+    cfg = ConfigObj(['[rdx]', 'detnum = (1,5),(2,6),(3,7),(4,8)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [(1, 5), (2, 6), (3, 7), (4, 8)]
+
+    # Single tuple GMOS style
+    cfg = ConfigObj(['[rdx]', 'detnum = (1,2,3)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [(1, 2, 3)]
+
+    # Int followed by multiple tuples
+    cfg = ConfigObj(['[rdx]', 'detnum = 1,(2,6),(3,7)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [1, (2, 6), (3, 7)]
 
 
 def test_framegroup():
@@ -252,3 +287,5 @@ def test_lists():
     with pytest.raises(TypeError):
         p['calibrations']['alignment']['locations'] = 0.0
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
+
+

@@ -699,6 +699,30 @@ class BuildWaveCalib:
                                              nsnippet=self.par['nsnippet'], 
                                              x_percentile=self.par['cc_percent_ceil'])
 
+            # For SlicerIFU, the wavelength coverage should be roughly the same for all slices, so if just one slit
+            # successfully calibrated, try this as the template.
+            refslit = self.par['reference_slit']
+            if (self.spectrograph.pypeline == "SlicerIFU") and refslit is not None:
+                refslitidx = np.argmin(np.abs(self.slits.slitord_id-refslit))
+                if refslit != self.slits.slitord_id[refslitidx]:
+                    raise PypeItError(f"Reference slit {refslit} not found in the slits. "
+                                      f"Check your reference slit or slit IDs.")
+                log.info(f"Attempting to wavelength calibrate all slits using the solution from slit {refslit}")
+                # Generate a template dict
+                template_dict = {'wave': final_fit[str(refslitidx)].wave_soln,
+                                 'spec': final_fit[str(refslitidx)].spec,
+                                 'bin': self.binspectral,
+                                 'order': self.slits.ech_order if self.slits.ech_order is not None else None,
+                                 'lines_pix': None,
+                                 'lines_wav': None,
+                                 'lines_fit_ord': None}
+                final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
+                                                            self.binspectral, slit_ids=self.slits.slitord_id,
+                                                            measured_fwhms=self.measured_fwhms,
+                                                            nonlinear_counts=self.nonlinear_counts,
+                                                            nsnippet=self.par['nsnippet'],
+                                                            x_percentile=self.par['cc_percent_ceil'],
+                                                            template_dict=template_dict)
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
@@ -1073,7 +1097,7 @@ class BuildWaveCalib:
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
             self.slitcen, self.slitmask, self.msarc.image,
             gpm=self.gpm, slit_bpm=self.wvc_bpm,
-            slitIDs=slitIDs)
+            slitIDs=slitIDs, box_rad=self.par['boxcar_radius'])
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -1185,6 +1209,11 @@ class BuildWaveCalib:
         sv_par = self.par.data.copy()
         j_par = jsonify(sv_par)
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
+
+        # Post a warning if you're reducing SlicerIFU data and not all slits are available
+        ngood = np.where(np.logical_not(self.wvc_bpm))[0].size
+        if self.spectrograph.pypeline == 'SlicerIFU' and ngood < self.slits.nslits:
+            log.warning(f'Wavelength calibration is not available for {self.slits.nslits-ngood} slits.')
 
         return self.wv_calib
 
