@@ -6,7 +6,7 @@ Implements the flat-field class.
 
 """
 from pathlib import Path
-from copy import deepcopy
+import copy
 import inspect
 import numpy as np
 
@@ -995,8 +995,11 @@ class FlatField:
             else:
                 # TODO -- JFH Confirm the sign of this shift is correct!
                 _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
-                tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
-                                            self.wavetilts['func2d'], spat_shift=-1*_flexure)
+                tilts = tracewave.fit2tilts(rawflat.shape,
+                                            self.wavetilts['coeffs'][:,:,slit_idx],
+                                            self.wavetilts['func2d'],
+                                            spat_shift=-1*_flexure,
+                                            slit_mask=onslit_padded)
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
@@ -1874,7 +1877,7 @@ class SlitlessFlat:
                                                       [this_raw_files[0]], dark=msdark, bias=msbias, bpm=msbpm)
             # slit edges
             # we need to change some parameters for the slit edge tracing
-            edges_par = deepcopy(self.par['slitedges'])
+            edges_par = self.par['slitedges'].copy()
             # no maskdesign info
             edges_par['use_maskdesign'] = False
             # lower the threshold for edge detection
@@ -1888,7 +1891,7 @@ class SlitlessFlat:
             edges_par['bound_detector'] = True
             # set the buffer to 0
             edges_par['det_buffer'] = 0
-            _spectrograph = deepcopy(self.spectrograph)
+            _spectrograph = copy.deepcopy(self.spectrograph)
             # need to treat this as a MultiSlit spectrograph (no echelle parameters used)
             _spectrograph.pypeline = 'MultiSlit'
             edges = edgetrace.EdgeTraceSet(traceimg, _spectrograph, edges_par, auto=True)
@@ -1903,7 +1906,7 @@ class SlitlessFlat:
             # increase saturation threshold (some hires slitless flats are very bright)
             slitless_pixel_flat.detector.saturation *= 1.5
             # Initialise the pixel flat
-            flatpar = deepcopy(self.par['flatfield'])
+            flatpar = self.par['flatfield'].copy()
             # do not tweak the slits
             flatpar['tweak_slits'] = False
             flatpar['slit_illum_finecorr'] = False

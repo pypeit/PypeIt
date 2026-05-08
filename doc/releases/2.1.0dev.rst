@@ -71,3 +71,6 @@ Bug Fixes
 - Avoid a circular import by moving
   :func:`~pypeit.core.wavecal.waveio.load_tree` into
   :func:`~pypeit.core.wavecal.kdtree_generator`.
+- Fix a bug in 2D coaddition where manually identified objects were not being
+  used to compute offsets between input frames.  Add description of this failure
+  mode to the :ref:`known_issues_coadd2d` documentation for 2D coaddition.
