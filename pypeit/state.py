@@ -188,8 +188,11 @@ class RunPypeItState(BaseModel):
         
 
         # Collect all unique (calib_id, det) pairs across all steps
-        pairs = {(item.calib_id, item.det) for step in calib_classes for item in getattr(self, step)}
-            
+        pairs = {
+                (item.calib_id, tuple(item.det) if isinstance(item.det, list) else item.det) 
+                for step in calib_classes for item in getattr(self, step)
+                }   
+
         if not pairs:
             return None
 
@@ -199,9 +202,10 @@ class RunPypeItState(BaseModel):
             for step_name, step_class in calib_classes.items():
                 # Find the matching entry
                 items = getattr(self, step_name)
-                entry = next((item for item in items if item.calib_id == calib_id and item.det == det), None)
-
-                # Fill in the values
+                entry = next(
+                        (item for item in items if item.calib_id == calib_id and 
+                        (tuple(item.det) if isinstance(item.det, list) else item.det) == det), None
+                        )
                 rows.append({
                     "calibration_group": calib_id,
                     "detector": det,

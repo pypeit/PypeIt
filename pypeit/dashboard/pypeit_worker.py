@@ -29,6 +29,7 @@ def run_pypeit_main_wrapper(args):
     return 0
 
 def PypeItWorker(setup_file_path,log_queue):
+    print(f"second  {setup_file_path}")
 
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
@@ -38,11 +39,12 @@ def PypeItWorker(setup_file_path,log_queue):
     parser = RunPypeIt.get_parser()
 
     args = parser.parse_args([
-        setup_file_path,
+        setup_file_path, 
         ])
 
     # Run the worker
     # RunPypeIt.main(args)
+    print(f"thesse are the args {args}")
     return run_pypeit_main_wrapper(args)
 
 def check_pypeit_status(setup_file_path):

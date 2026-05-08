@@ -11,8 +11,8 @@ from multiprocessing import Process, Queue
 # from contextlib import redirect_stdout
 
 from PyQt6.QtCore import pyqtSignal
-from qtpy.QtCore import QTimer, QSize, Qt, QMargins, QObject, QDir
-from qtpy.QtGui import QIcon, QColor, QPainter, QFileSystemModel
+from qtpy.QtCore import QTimer, QSize, Qt, QMargins, QObject, QDir, QFileSystemWatcher, QUrl
+from qtpy.QtGui import QIcon, QColor, QPainter, QFileSystemModel, QDesktopServices
 from qtpy.QtWidgets import (
     QApplication,
     QWidget,
@@ -207,7 +207,7 @@ class logs_view_widget(QTextEdit):
         self.append(message)
 
 
-class calibration_table_widget(QTableWidget):
+class status_table_widget(QTableWidget):
     def __init__(self, df):
         super().__init__()
         self.df = None
@@ -235,10 +235,16 @@ class FileDisplayWidget(QWidget):
     def __init__(self, directory_name=""):
         super().__init__()
 
+        # check if full directory exists, if not,
+        # display QA is either not created or not in current directory
+
         self.model = QFileSystemModel()
         self.current_path = QDir.currentPath()
         self.directory_name = "/" + directory_name  # will not work on windows
         root_index = self.model.setRootPath(self.current_path + self.directory_name)
+
+        # path that is used
+        self.path_label = QLabel(self.current_path + self.directory_name)
 
         self.tree = QTreeView()
         self.tree.setModel(self.model)
@@ -248,27 +254,22 @@ class FileDisplayWidget(QWidget):
         self.tree.hideColumn(1)
         self.tree.hideColumn(2)
         self.tree.hideColumn(3)
+        self.tree.setHeaderHidden(True)  # removes "name" from showing up at top
 
-        self.button = QPushButton("Change Directory...")
-        self.button.clicked.connect(self.change_directory)
+        # --- connections ----
         self.tree.doubleClicked.connect(self.on_double_clicked)
 
         layout = QVBoxLayout()
         layout.addWidget(self.tree)
-        layout.addWidget(self.button)
+        layout.addWidget(self.path_label)
         self.setLayout(layout)
 
-    def change_directory(self):
-        new_path = QFileDialog.getExistingDirectory(
-            self, "Select Directory", self.current_path
-        )
-        if new_path:
-            self.set_directory(new_path)
-
     def set_directory(self, path):
+        path = str(path)
         self.current_path = path
         root_index = self.model.setRootPath(path)
         self.tree.setRootIndex(root_index)
+        self.path_label.setText(path)
 
     def on_double_clicked(self, index):
         # Get the file path from the model using the index
@@ -279,21 +280,7 @@ class FileDisplayWidget(QWidget):
             return
 
         # Open the file with the default system application
-        # QDesktopServices.openUrl(QUrl.fromLocalFile(file_path))
-        # dusty said this is how he displayed files from ginga
-        # try:
-        #     display.connect_to_ginga(raise_err=True, allow_new=True)
-        # except Exception as e:
-        #     log.warning(f"Failed to connect to ginga:\n" + traceback.format_exc())
-            # Display error to user
-        # ... something to get detector and file name
-        # chname is channel name (optional)
-        # try:
-        #     display.show_image(img, chname = f"{file.name} {det_name}")
-        # except Exception as e:
-        #     log.warning(f"Failed send image to ginga:\n" + traceback.format_exc())
-        #     # Display error to user
-        print(file_path)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(file_path)) 
 
 
 class DashboardWidget(FilledBackgroundWidget):
@@ -305,15 +292,17 @@ class DashboardWidget(FilledBackgroundWidget):
         layout = QVBoxLayout()
 
         # ------------- definitions --------------
-        self.status_widget = StatusWidget()
-        self.calibration_widget = calibration_table_widget(pd.DataFrame())
-        self.qa_widget = FileDisplayWidget(directory_name="QA/PNGs")
+        self.meta_status_widget = StatusWidget()
+        self.calibration_widget = FileDisplayWidget(directory_name="Calibrations")
+        self.status_widget = status_table_widget(pd.DataFrame())
+        self.qa_widget = FileDisplayWidget(directory_name="QA")
         self.science_widget = FileDisplayWidget(directory_name="Science")
         self.logs_widget = logs_view_widget()
 
         # -------------- main layout -------------
-        layout.addWidget(self.status_widget)
+        layout.addWidget(self.meta_status_widget)
         tab_widget = QTabWidget()
+        tab_widget.addTab(self.status_widget,"Status")
         tab_widget.addTab(self.qa_widget, "QA")  # Quality analysis
         tab_widget.addTab(self.calibration_widget, "Calibrations")
         tab_widget.addTab(self.science_widget, "Science")
@@ -378,10 +367,16 @@ class MainWindow(QWidget):
 
         self.setup_file_path = None
 
+        # -------- setup file watcher --------------
+        self.watcher = QFileSystemWatcher()
+        self.watcher.addPath(str(Path.cwd()))
+        self.known_dirs = set(p for p in Path.cwd().iterdir() if p.is_dir())
+
         # -------- connections ---------
         self.setup_widget.open_setup_button.clicked.connect(self.start_controller)
         self.setup_widget.edit_setup_button.clicked.connect(self.import_setup_file)
         self.setup_widget.check_status_button.clicked.connect(self.check_status)
+        self.watcher.directoryChanged.connect(self.on_directory_changed)
         # run_all_button clicked is handled in main. soon I will maybe make all of
         # the connections to be handled in main but who knows
 
@@ -395,9 +390,9 @@ class MainWindow(QWidget):
     def check_status(self):
         # need to have a seperate thing for when pypeit is running or not
         check = check_pypeit_status(self.setup_file_path)  # returns a pandas dataframe
-        self.dashboard_widget.calibration_widget.setDataFrame(
+        self.dashboard_widget.status_widget.setDataFrame(
             check
-        )  # updates the calibration_table_widget
+        )  # updates the status_widget 
 
     def import_setup_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -412,23 +407,29 @@ class MainWindow(QWidget):
             )
 
             file_name = Path(file_path).name
-            self.dashboard_widget.status_widget.update_setup_file(file_name)
+            self.dashboard_widget.meta_status_widget.update_setup_file(file_name)
             self.update_science_file(science_file)
             self.setup_file_path = file_path
+            print(self.setup_file_path)
 
     def update_science_file(self, science_file):
-        self.dashboard_widget.status_widget.update_science_file(science_file)
+        self.dashboard_widget.meta_status_widget.update_science_file(science_file)
 
     def update_logs(self, line):
         self.dashboard_widget.logs_widget.update_logs(line)
 
-    def update_qa_tab(self, directory_path):
-        items = [str(item) for item in directory_path.iterdir()]
-        self.dashboard_widget.qa_widget.addItems(items)
+    def on_directory_changed(self, path):
+        current_dirs = set(p for p in Path(path).iterdir() if p.is_dir())
+        new_dirs = current_dirs - self.known_dirs
+        self.known_dirs = current_dirs  # update snapshot
 
-    def update_science_tab(self, directory_path):
-        items = [str(item) for item in directory_path.iterdir()]
-        self.dashboard_widget.science_widget.addItems(items)
+        for new_dir in new_dirs: # shouldn't run if there are no new dirs
+            if new_dir.name.endswith("QA"):
+                self.dashboard_widget.qa_widget.set_directory(new_dir)
+            elif new_dir.name.endswith("Science"):
+                self.dashboard_widget.science_widget.set_directory(new_dir)
+            elif new_dir.name.endswith("Calibrations"):
+                self.dashboard_widget.calibration_widget.set_directory(new_dir)
 
 
 # ------------------------------------------------------------------------
