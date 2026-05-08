@@ -285,7 +285,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 else:
                     return 'off'
             elif headarr[0].get('FLIMAGIN') is not None or headarr[0].get('FLSPECTR') is not None:
-                if headarr[0].get('FLIMAGIN') == 'on' or headarr[0].get('FLSPECTR') != 'off':
+                if headarr[0].get('FLIMAGIN') == 'on' or headarr[0].get('FLSPECTR') == 'on':
                     return 'on'
                 else:
                     return 'off'
@@ -628,27 +628,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         else:
             raise ValueError('Bad value for det')
 
-        xmins = np.asarray(xmins)
-        xmaxs = np.asarray(xmaxs)
-        ymins = np.asarray(ymins)
-        ymaxs = np.asarray(ymaxs)
-        # Deal with detectors
-        if det in [1, 2]:
-            n_ext = n_ext // 2
-            det_idx = np.arange(n_ext, dtype=int) + (det - 1) * n_ext
-            xmin = min(xmins[det_idx])
-            xmax = max(xmaxs[det_idx])
-            ymin = min(ymins[det_idx])
-            ymax = max(ymaxs[det_idx])
-        elif det is None:
-            det_idx = np.arange(n_ext).astype(int)
-            xmin = min(xmins)
-            xmax = max(xmaxs)
-            ymin = min(ymins)
-            ymax = max(ymaxs)
-        else:
-            raise ValueError('Bad value for det')
-
         # determine the output array size...
         nx = xmax - xmin + 1
         ny = ymax - ymin + 1
@@ -856,7 +835,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             max_spat = 4112//bin_spat
         else:
             max_spat = 2048//bin_spat
-        if det == 1:
+        if ccdnum == 1:
             if self.name == 'keck_lris_red':
                 good = centers < 0.
                 xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
@@ -867,13 +846,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 xstart = 2073//bin_spat
                 good = centers < max_spat # No chip gap
             else:
-                raise PypeItError(f'Not ready to use slitmasks for {self.name}.  Develop it!')
+                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         else:
             if self.name in ['keck_lris_red', 'keck_lris_blue']:
                 good = centers >= 0.
                 xstart = -48//bin_spat
             else:             
-                raise PypeItError(f'Not ready to use slitmasks for {self.name}.  Develop it!')
+                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         left_edges += xstart
         right_edges += xstart
         left_edges[~good] = -1
