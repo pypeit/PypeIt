@@ -74,7 +74,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             platescale      = 0.125,  # arcsec per pixel
             darkcurr        = 5.0,  #e-/hr/pixel
-            saturation      = 65535., # ADU
+            saturation      = 1.0E20, # ADU     # TODO :: This should be 65535... I've adjusted it for the simulated MAAT data
             nonlinear       = 0.95,
             mincounts       = 0,
             numamplifiers   = 1,
@@ -721,7 +721,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
         cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
         # Get reference pixels (set these to the middle of the FOV)
-        crpix1 = 11   # i.e. see get_datacube_bins (11 is used as the reference point - somewhere in the middle of the FOV)
+        crpix1 = 0   # i.e. see get_datacube_bins (0 is used as the reference point - a value of 11 would be somewhere in the middle of the FOV)
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset
@@ -736,7 +736,8 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         # Create a new WCS object.
         log.info("Generating MAAT WCS")
         w = wcs.WCS(naxis=3)
-        w.wcs.equinox = hdr['EQUINOX']
+        log.warning("HACK FOR MAAT SIMS --- Need to obtain EQUINOX from header?")
+        w.wcs.equinox = 2000.0 #hdr['EQUINOX']
         w.wcs.name = 'MAAT'
         w.wcs.radesys = 'FK5'
         # Insert the coordinate frame
@@ -773,7 +774,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
             when constructing a histogram of the spec2d files. The elements
             are :math:`(x,y,\lambda)`.
         """
-        xbins = np.arange(1 + 23) - 11.0 - 0.5  # 23 is for 23 slices, and 11 is the reference slit
+        xbins = np.arange(1 + 23) - 0.0 - 0.5  # 23 is for 23 slices, and 0.0 is the reference slit
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins
