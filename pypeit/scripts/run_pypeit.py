@@ -27,7 +27,7 @@ class RunPypeIt(scriptbase.ScriptBase):
         descr = 'PypeIt: The Python Spectroscopic Data Reduction Pipeline\n'
         descr += f'Version {__version__}\n\n'
         import textwrap
-        from pypeit.spectrographs import available_spectrographs
+        from pypeit.spectrographs.util import available_spectrographs
         spclist = ', '.join(available_spectrographs)
         spcl = textwrap.wrap(spclist, width=70)
         descr += 'Available spectrographs include:\n'

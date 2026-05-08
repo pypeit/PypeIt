@@ -6,7 +6,6 @@ Script to install user wavelength templates (arxivs) into the PypeIt cache.
 """
 
 from pypeit.scripts import scriptbase
-from pypeit import cache
 
 class InstallWvArxiv(scriptbase.ScriptBase):
 
@@ -24,6 +23,7 @@ class InstallWvArxiv(scriptbase.ScriptBase):
     def main(cls, args):
         import numpy as np
         from pypeit import log
+        from pypeit.pkg import cache
 
         # Initialize the log
         cls.init_log(args)

@@ -17,7 +17,7 @@ from astropy import convolution
 from astropy import constants
 
 from pypeit import log
-from pypeit import cache
+from pypeit.pkg import cache
 from pypeit import utils
 from pypeit.core import arc
 from pypeit import PypeItError
@@ -478,7 +478,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, perc
         sig_ceil (float, optional, default = 10.0):
             Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
             For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
-            perecent_ceil, and this will be the clipping threshold.
+            percent_ceil, and this will be the clipping threshold.
         percent_ceil (float, optional, default=50.0):
             Upper percentile threshold for thresholding positive and negative values. If set to None, no thresholding
             will be performed.

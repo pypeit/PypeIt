@@ -243,3 +243,33 @@ def test_loadjson_bad_gzip_container():
             utils.loadjson(fn)
     finally:
         _cleanup_file(fn)
+
+
+def test_eval_tuple():
+    # one tuple
+    t = ['(1', '2', '3)']
+    assert utils.eval_tuple(t) == [(1,2,3)], 'Bad tuple evaluation'
+    # two tuples
+    t = ['(1', '2)', '(3', '4)']
+    assert utils.eval_tuple(t) == [(1,2),(3,4)], 'Bad tuple evaluation'
+    # a tuple with a mix of int and float types
+    t = ['(1', '2.3)', '(3', '4)']
+    assert utils.eval_tuple(t) == [(1,2.3),(3,4)], 'Bad tuple evaluation'
+    # a tuple with a string
+    t = ['(1', '2.3)', '(test', '4)']
+    assert utils.eval_tuple(t) == [(1, 2.3), ('test', 4)], 'Bad tuple evaluation'
+
+
+def test_eval_list():
+    # one list
+    t = ['[1', '2', '3]']
+    assert utils.eval_list(t) == [[1,2,3]], 'Bad list evaluation'
+    # two lists
+    t = ['[1', '2]', '[3', '4]']
+    assert utils.eval_list(t) == [[1,2],[3,4]], 'Bad list evaluation'
+    # a list with a mix of int and float types
+    t = ['[1', '2.3]', '[3', '4]']
+    assert utils.eval_list(t) == [[1,2.3],[3,4]], 'Bad list evaluation'
+    # a list with a string
+    t = ['[1', '2.3]', '[test', '4]']
+    assert utils.eval_list(t) == [[1, 2.3], ['test', 4]], 'Bad list evaluation'

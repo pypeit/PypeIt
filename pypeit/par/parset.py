@@ -4,6 +4,7 @@ Define a utility base class used to hold parameters.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+import copy
 import os
 import textwrap
 
@@ -536,6 +537,10 @@ class ParSet:
         lines = textwrap.wrap('{0}'.format(comment), full_width-len(head))
         return [ head + l for l in lines ]
    
+    def copy(self):
+        """Return a deep copy of this ParSet
+        """
+        return copy.deepcopy(self)
 
     def info(self, basekey=None):
         """

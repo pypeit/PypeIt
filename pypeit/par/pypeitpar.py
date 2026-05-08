@@ -99,7 +99,7 @@ def tuple_force(par):
 
     # If the value is a list of one tuple, return the tuple.
     # TODO: This is a hack, and we should probably revisit how this is done.
-    # The issue is that pypeit.par.util.eval_tuple always returns a list of
+    # The issue is that pypeit.utils.eval_tuple always returns a list of
     # tuples, something that's required for allowing lists of detector mosaics.
     # But elements of TelluricPar are forced to be tuples.  When constructing
     # the parameters to use in a given run, the sequence of merging the
@@ -1508,7 +1508,7 @@ class Coadd2DPar(ParSet):
         # object to use for weights and offsets
         defaults['user_obj_ids'] = None
         dtypes['user_obj_ids'] = list
-        descr['user_obj_ids'] = 'List of unique object identifiers that the user wants to use '\
+        descr['user_obj_ids'] = 'List of unique object identifiers (integers) that the user wants to use '\
                                 'to compute the weights and/or the offsets for coadding images. '\
                                 'For longslit/multislit spectroscopy, provide the ``SPAT_PIXPOS_ID`` '\
                                 'of the object in each of the exposures. For echelle spectroscopy, '\
@@ -2893,9 +2893,9 @@ class WavelengthSolutionPar(ParSet):
                  reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
                  cc_local_thresh=None, nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None,
                  n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
-                 nfitpix=None, refframe=None,
+                 nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_2dfit=None, ech_separate_2d=None, redo_slits=None, qa_log=None,
+                 ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
                  cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
@@ -3170,6 +3170,10 @@ class WavelengthSolutionPar(ParSet):
         descr['nfitpix'] = 'Number of pixels to fit when deriving the centroid of the arc ' \
                            'lines (an odd number is best)'
 
+        defaults['boxcar_radius'] = 3
+        dtypes['boxcar_radius'] = int
+        descr['boxcar_radius'] = 'Boxcar radius when extracting the arc spectrum'
+
         # TODO: What should the default be?  None or 'heliocentric'?
         defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
@@ -3179,6 +3183,20 @@ class WavelengthSolutionPar(ParSet):
 
         dtypes['redo_slits'] = [int, list]
         descr['redo_slits'] = 'Redo the input slit(s) [multislit] or order(s) [echelle]'
+
+        dtypes['reference_slit'] = int
+        descr['reference_slit'] = 'Primarily for multi-object or IFU data where all slits cover a very similar ' \
+                                  'wavelength range. If the wavelength calibration does not work for some slits, you ' \
+                                  'can attempt to repeat the wavelength calibration for all slits using the slit ' \
+                                  'that has the best wavelength calibration. An excellent choice for a ``reference_slit`` is ' \
+                                  'one that has: ' \
+                                  '(1) the correct wavelength solution; ' \
+                                  '(2) the greatest wavelength overlap with all slits; ' \
+                                  '(3) the most lines correctly identified; and ' \
+                                  '(4) the lowest RMS. ' \
+                                  'in that order of priority. ' \
+                                  'This parameter is the spatial ID of the slit to use ' \
+                                  'as a reference for this process.'
 
         defaults['qa_log'] = True
         dtypes['qa_log'] = bool
@@ -3234,8 +3252,8 @@ class WavelengthSolutionPar(ParSet):
                    'lamps', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
                    'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
-                   'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
-                   'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv',
+                   'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
+                   'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
                    'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])

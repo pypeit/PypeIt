@@ -69,6 +69,7 @@ Thumbs.db
 ######################################
 */version.py
 */cython_version.py
+*/pkg/version.py
 
 # ADDED by KBW
 .eggs
