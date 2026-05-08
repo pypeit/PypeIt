@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    pypeit.core.gui
+   pypeit.core.move_median
    pypeit.core.wavecal
 
 Submodules
@@ -19,6 +20,7 @@ Submodules
    pypeit.core.arc
    pypeit.core.atmextinction
    pypeit.core.basis
+   pypeit.core.bitmask
    pypeit.core.coadd
    pypeit.core.collate
    pypeit.core.combine
@@ -41,6 +43,7 @@ Submodules
    pypeit.core.procimg
    pypeit.core.pydl
    pypeit.core.qa
+   pypeit.core.sampling
    pypeit.core.scattlight
    pypeit.core.skyspec
    pypeit.core.skysub

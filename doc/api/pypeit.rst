@@ -11,7 +11,6 @@ Subpackages
    pypeit.core
    pypeit.display
    pypeit.images
-   pypeit.move_median
    pypeit.par
    pypeit.pkg
    pypeit.scripts
@@ -27,7 +26,6 @@ Submodules
 
    pypeit.alignframe
    pypeit.archive
-   pypeit.bitmask
    pypeit.calibframe
    pypeit.calibrations
    pypeit.coadd1d
@@ -52,7 +50,6 @@ Submodules
    pypeit.pypeit
    pypeit.pypeit_steps
    pypeit.pypeitsetup
-   pypeit.sampling
    pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc
