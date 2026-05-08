@@ -838,7 +838,7 @@ def get_output_filename(output_dir, fil, par_outfile, combine, idx=1):
     Parameters
     ----------
     output_dir : str
-        The output directory to save the datacube. 
+        The output directory to save the datacube.
     fil : str
         The spec2d filename.
     par_outfile : str

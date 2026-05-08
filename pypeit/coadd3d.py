@@ -486,7 +486,8 @@ class CoAdd3D:
         self.spec2d = spec2dfiles
         self.numfiles = len(spec2dfiles)
         self.par = par
-        self.output_dir = output_dir
+        self.output_dir = '' if output_dir is None else output_dir
+#        self.output_dir = output_dir
         self.overwrite = overwrite
         self.chk_version = self.par['rdx']['chk_version']
         # Extract some parsets for simplicity
