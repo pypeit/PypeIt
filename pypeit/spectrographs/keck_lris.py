@@ -5,8 +5,6 @@ Module for LRIS specific methods.
 """
 from pathlib import Path
 
-from IPython import embed
-
 import numpy as np
 
 from astropy.io import fits
@@ -835,7 +833,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             max_spat = 4112//bin_spat
         else:
             max_spat = 2048//bin_spat
-        if ccdnum == 1:
+        good = centers >= 0.
+        xstart = -48//bin_spat
+
+        if det == 1:
             if self.name == 'keck_lris_red':
                 good = centers < 0.
                 xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
@@ -846,13 +847,12 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 xstart = 2073//bin_spat
                 good = centers < max_spat # No chip gap
             else:
-                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
-        else:
-            if self.name in ['keck_lris_red', 'keck_lris_blue']:
-                good = centers >= 0.
-                xstart = -48//bin_spat
-            else:             
-                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
+                err_msg = f'Not ready to use slitmasks for {self.name}.  Develop it!'
+                log.error(err_msg)
+
+        if self.name not in ['keck_lris_red', 'keck_lris_blue']:
+            err_msg = f'Not ready to use slitmasks for {self.name}.  Develop it!'
+            log.error(err_msg)
         left_edges += xstart
         right_edges += xstart
         left_edges[~good] = -1
