@@ -32,7 +32,7 @@ from scipy import signal
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.move_median import move_median
+from pypeit.core.move_median import move_median
 from pypeit import dataPaths
 
 

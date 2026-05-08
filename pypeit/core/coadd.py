@@ -580,7 +580,7 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_fun
 
 # TODO: ``sensfunc`` should be something like "conserve_flux". It would be
 # useful to compare these resampling routines against
-# `pypeit.sampling.Resample`.
+# `pypeit.core.sampling.Resample`.
 def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None, sensfunc=False, kind='cubic'):
     """
     Interpolate a set of spectra onto a new wavelength grid.

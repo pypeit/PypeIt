@@ -24,10 +24,10 @@ from astropy.stats import sigma_clipped_stats, sigma_clip
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
-from pypeit import sampling
 from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit.core import moment
+from pypeit.core import sampling
 
 # TODO: Some of these functions could probably just live in pypeit.edges
 

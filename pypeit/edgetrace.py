@@ -48,10 +48,10 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import PypeItBitMaskError
 from pypeit import utils
-from pypeit import sampling
 from pypeit import slittrace
 from pypeit.datamodel import DataContainer
 from pypeit import calibframe
+from pypeit.core import sampling
 from pypeit.core.bitmask import BitMask
 from pypeit.display import display
 from pypeit.par.pypeitpar import EdgeTracePar
@@ -600,7 +600,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         PCA model.
 
         The is primarily a wrapper for
-        :func:`pypeit.sampling.rectify_image`; see its documentation
+        :func:`pypeit.core.sampling.rectify_image`; see its documentation
         for more detail.
 
         Used parameters from :attr:`par`
@@ -621,7 +621,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 image rectification. When using extraction to rectify
                 the image, flux conservation is not as accurate. If
                 None, the image rectification is performed using
-                :class:`pypeit.sampling.Resample` along each row
+                :class:`pypeit.core.sampling.Resample` along each row
                 (spectral position).
             mask_threshold (:obj:`float`, optional):
                 Either due to `mask` or the bounds of the provided
