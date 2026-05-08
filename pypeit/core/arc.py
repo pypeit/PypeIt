@@ -466,7 +466,8 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
         Shape is (nslits,).
     """
     # Initialize the good pixel mask
-    _gpm = slitmask > -1 if gpm is None else gpm & (slitmask > -1)
+    # TODO :: This is a bug... In echelle spectrographs, slitmask can equal -1 for a valid slit that is just off the detector. We need a different mask value for being off the slitmask.
+    _gpm = (slitmask != -1) if gpm is None else gpm & (slitmask != -1)
     # Mask saturated parts of the arc image for the extraction
     _gpm = _gpm & (arcimg < nonlinear_counts)
 
@@ -489,7 +490,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             continue
         if verbose:
             log.info(f'Extracting approximate arc spectrum of slit {islit+1}/{nslits}')
-        # Create a mask for the pixels that will contribue to the arc
+        # Create a mask for the pixels that will contribute to the arc
         arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster
         indx = np.nonzero(np.any(arcmask, axis=0))[0]

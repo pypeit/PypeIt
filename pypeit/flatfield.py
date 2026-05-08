@@ -6,8 +6,9 @@ Implements the flat-field class.
 
 """
 from pathlib import Path
-from copy import deepcopy
+import copy
 import inspect
+import gc
 import numpy as np
 
 from scipy import interpolate, ndimage
@@ -999,6 +1000,19 @@ class FlatField:
             if self.slitless:
                 tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
             else:
+                # TODO :: Need to figure this out
+                log.error("Here's a problem")
+                #############################
+                # SOMEONE ELSE'S NEW VERSION
+                # TODO -- JFH Confirm the sign of this shift is correct!
+                _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
+                tilts = tracewave.fit2tilts(rawflat.shape,
+                                            self.wavetilts['coeffs'][:,:,slit_idx],
+                                            self.wavetilts['func2d'],
+                                            spat_shift=-1*_flexure,
+                                            slit_mask=onslit_padded)
+                #############################
+                # MY NEW VERSION
                 _flexure = np.zeros(2) if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure[slit_idx,:]
                 _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(self.slits.left_init[:, slit_idx],
                                                                          self.slits.right_init[:, slit_idx],
@@ -1007,6 +1021,8 @@ class FlatField:
                 tilts[onslit_init] = tracewave.fit2tilts(self.wavetilts['coeffs'][:,:,slit_idx],
                                                          self.wavetilts['func2d'],
                                                          spec_eval=_spec_eval, spat_eval=_spat_eval)
+                #############################
+
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
@@ -1359,6 +1375,13 @@ class FlatField:
             if self.flatpar['pixelflat_max_wave'] is not None and self.waveimg is not None:
                 bad_wv = self.waveimg[onslit_tweak] > self.flatpar['pixelflat_max_wave']
                 self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
+
+            # Cleanup to save on memory usage
+            spec_coo_data = None
+            twod_spec_coo_data = None
+            spec_coo = None
+            tilts = None
+            gc.collect(2)
 
         # No need to continue if we're just doing the spatial illumination
         if spat_illum_only:
@@ -1895,7 +1918,7 @@ class SlitlessFlat:
                                                       [this_raw_files[0]], dark=msdark, bias=msbias, bpm=msbpm)
             # slit edges
             # we need to change some parameters for the slit edge tracing
-            edges_par = deepcopy(self.par['slitedges'])
+            edges_par = self.par['slitedges'].copy()
             # no maskdesign info
             edges_par['use_maskdesign'] = False
             # lower the threshold for edge detection
@@ -1909,7 +1932,7 @@ class SlitlessFlat:
             edges_par['bound_detector'] = True
             # set the buffer to 0
             edges_par['det_buffer'] = 0
-            _spectrograph = deepcopy(self.spectrograph)
+            _spectrograph = copy.deepcopy(self.spectrograph)
             # need to treat this as a MultiSlit spectrograph (no echelle parameters used)
             _spectrograph.pypeline = 'MultiSlit'
             edges = edgetrace.EdgeTraceSet(traceimg, _spectrograph, edges_par, auto=True)
@@ -1924,7 +1947,7 @@ class SlitlessFlat:
             # increase saturation threshold (some hires slitless flats are very bright)
             slitless_pixel_flat.detector.saturation *= 1.5
             # Initialise the pixel flat
-            flatpar = deepcopy(self.par['flatfield'])
+            flatpar = self.par['flatfield'].copy()
             # do not tweak the slits
             flatpar['tweak_slits'] = False
             flatpar['slit_illum_finecorr'] = False
@@ -2243,6 +2266,11 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     mnmx_wv = np.zeros((slits.nslits, 2))
     for slit_idx, slit_spat in enumerate(slits.spat_id):
         onslit_init = (slitid_img == slit_spat)
+        # Check if a wavelength calibration exists for this slice
+        if np.all(np.logical_not(onslit_init)):
+            log.error(f"Slit {slit_idx+1}/{slits.nslits} ({slit_spat}) has no wavelength solution. Cannot perform "
+                      f"relative spectral sensitivity calculation. You can turn off the relative spectral sensitivity "
+                      f"correction or check that your wavelength calibration is correct for this slit.")
         mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
     wavecen = np.mean(mnmx_wv, axis=1)
