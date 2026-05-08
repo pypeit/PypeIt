@@ -1508,7 +1508,7 @@ class Coadd2DPar(ParSet):
         # object to use for weights and offsets
         defaults['user_obj_ids'] = None
         dtypes['user_obj_ids'] = list
-        descr['user_obj_ids'] = 'List of unique object identifiers that the user wants to use '\
+        descr['user_obj_ids'] = 'List of unique object identifiers (integers) that the user wants to use '\
                                 'to compute the weights and/or the offsets for coadding images. '\
                                 'For longslit/multislit spectroscopy, provide the ``SPAT_PIXPOS_ID`` '\
                                 'of the object in each of the exposures. For echelle spectroscopy, '\
