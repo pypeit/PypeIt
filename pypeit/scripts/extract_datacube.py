@@ -41,7 +41,7 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
         from pypeit import log
         from pypeit import PypeItError
-        from pypeit import par
+        from pypeit.par import pypeitpar
         from pypeit import inputfiles
         from pypeit import utils
         from pypeit.spectrographs.util import load_spectrograph
@@ -57,35 +57,35 @@ class ExtractDataCube(scriptbase.ScriptBase):
         spectrograph = load_spectrograph(extcube.PYP_SPEC)
 
         if args.ext_file is None:
-            parset = spectrograph.default_pypeit_par()
+            par = spectrograph.default_pypeit_par()
         else:
             # Read in the relevant information from the .extract file
             ext3dfile = inputfiles.ExtractFile.from_file(args.ext_file)
             # Parameters
             spectrograph_def_par = spectrograph.default_pypeit_par()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                  merge_with=(ext3dfile.cfg_lines,))
+            par = pypeitpar.PypeItPar.from_cfg_lines(
+                cfg_lines=spectrograph_def_par.to_config(), merge_with=(ext3dfile.cfg_lines,)
+            )
 
         # Set the boxcar radius
         boxcar_radius = args.boxcar_radius
 
         # Set the output name. If one was provided by the user 
         if args.save is not None:
-            par['cube_extraction']['output_filename'] = args.save
+            par['reduce']['cube_extraction']['output_filename'] = args.save
         if args.boxcar_radius is not None:
-            par['cube_extraction']['boxcar_radius'] = args.boxcar_radius
+            par['reduce']['cube_extraction']['boxcar_radius'] = args.boxcar_radius
         
         # Load the DataCube
         tstart = time.time()
-
         
         # Get the paths
         coadd_scidir, qa_path = map(lambda x : Path(x).absolute(),
-                CoAdd3D.output_paths(args.file, parset, coadd_dir=parset['rdx']['redux_path']))
+                CoAdd3D.output_paths(args.file, par, coadd_dir=par['rdx']['redux_path']))
 
         # Extract the spectrum
         extcube.extract_spec(
-            parset['reduce']['cube_extraction'], output_dir=str(coadd_scidir), overwrite=args.overwrite, 
+            par['reduce']['cube_extraction'], output_dir=str(coadd_scidir), overwrite=args.overwrite, 
             debug=args.debug)
 
         # Report the extraction time
