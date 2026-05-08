@@ -1025,11 +1025,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Load the header
             hdr0 = spec2DObj.head0
             self.all_header.append(hdr0)
-            self.ifu_ra = np.append(self.ifu_ra, self.spec.compound_meta([hdr0], 'ra'))
-            self.ifu_dec = np.append(self.ifu_dec, self.spec.compound_meta([hdr0], 'dec'))
+            self.ifu_ra = np.append(self.ifu_ra, self.spec.get_meta_value(hdr0, 'ra'))
+            self.ifu_dec = np.append(self.ifu_dec, self.spec.get_meta_value(hdr0, 'dec'))
 
             # Get the exposure time
-            exptime = self.spec.compound_meta([hdr0], 'exptime')
+            exptime = self.spec.get_meta_value(hdr0, 'exptime')
 
             # Initialise the slit edges
             log.info("Constructing slit image")
