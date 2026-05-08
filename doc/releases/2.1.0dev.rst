@@ -25,7 +25,7 @@ Functionality/Performance Improvements and Additions
 
 Instrument-specific Updates
 ---------------------------
-
+- Implemented support for VLT/UVES data reduction.
 
 Script Changes
 --------------

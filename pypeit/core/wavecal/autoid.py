@@ -1073,7 +1073,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
     x_percentile : float, optional
         Passed to reidentify to reduce the dynamic range of arc line amplitudes
     template_dict : dict, optional
-        Dict containing tempmlate items, largely for development
+        Dict containing template items, largely for development
     nonlinear_counts : float, optional
         For arc line detection: Arc lines above this saturation threshold
         are not used in wavelength solution fits because they cannot be
@@ -1704,7 +1704,7 @@ class ArchiveReid:
         # List of bad slits
         self.bad_slits = []
 
-        # Pull paramaters out of the parset
+        # Pull parameters out of the parset
         # TODO: Why are we doing this?
         # Parameters for arc line detction
         self.nonlinear_counts = nonlinear_counts # self.par['nonlinear_counts']

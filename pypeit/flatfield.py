@@ -8,6 +8,7 @@ Implements the flat-field class.
 from pathlib import Path
 import copy
 import inspect
+import gc
 import numpy as np
 
 from scipy import interpolate, ndimage
@@ -1352,6 +1353,13 @@ class FlatField:
             if self.flatpar['pixelflat_max_wave'] is not None and self.waveimg is not None:
                 bad_wv = self.waveimg[onslit_tweak] > self.flatpar['pixelflat_max_wave']
                 self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
+
+            # Cleanup to save on memory usage
+            spec_coo_data = None
+            twod_spec_coo_data = None
+            spec_coo = None
+            tilts = None
+            gc.collect(2)
 
         # No need to continue if we're just doing the spatial illumination
         if spat_illum_only:
