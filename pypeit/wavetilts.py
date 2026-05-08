@@ -9,6 +9,7 @@ import inspect
 
 from IPython import embed
 from pathlib import Path
+import gc
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -145,7 +146,7 @@ class WaveTilts(calibframe.CalibFrame):
         _flexure = 0. if flexure is None else flexure
 
         final_tilts = np.zeros_like(slitmask).astype(float)
-        gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)
+        gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)
         # Loop
         for slit_spat in gdslit_spat:
             slit_idx = self.spatid_to_zero(slit_spat)
@@ -157,6 +158,10 @@ class WaveTilts(calibframe.CalibFrame):
                                          slit_mask=thismask_science)
             # Fill
             final_tilts[thismask_science] = _tilts[thismask_science]
+
+            # This is a work around for the Python memory usage issues
+            _tilts = None
+            gc.collect(2)        
         # Return
         return final_tilts
 
@@ -242,7 +247,7 @@ class WaveTilts(calibframe.CalibFrame):
 
         # Show
         # tilt image
-        tilt_img = tilt_img_dict.image * (slitmask > -1) if slitmask is not None else tilt_img_dict.image
+        tilt_img = tilt_img_dict.image * (slitmask != -1) if slitmask is not None else tilt_img_dict.image
         # set cuts
         zmax = stats.sigma_clip(tilt_img, sigma=10, return_bounds=True)[2]
         zmin = stats.sigma_clip(tilt_img, sigma=5, return_bounds=True)[1] * 2
@@ -839,12 +844,17 @@ class BuildWaveTilts:
             # Save to final image
             self.final_tilts[thismask_science] = self.tilts[thismask_science]
 
+            
+            # This is a work around for the Python memory usage issues
+            self.tilts = None
+            gc.collect(2)
+    
         if show:
-            viewer, ch = display.show_image(self.mstilt.image * (self.slitmask > -1), chname='tilts')
+            viewer, ch = display.show_image(self.mstilt.image * (self.slitmask != -1), chname='tilts')
             display.show_tilts(viewer, ch, self.make_tbl_tilt_traces())
 
         if debug:
-            show_tilts_mpl(self.mstilt.image*(self.slitmask > -1), self.make_tbl_tilt_traces())
+            show_tilts_mpl(self.mstilt.image*(self.slitmask != -1), self.make_tbl_tilt_traces())
 
         # Record the Mask
         bpmtilts = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
