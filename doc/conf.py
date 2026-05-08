@@ -57,7 +57,7 @@ napoleon_include_special_with_doc = True
 napoleon_use_admonition_for_examples = False
 napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False
-napoleon_use_ivar = False
+napoleon_use_ivar = True
 napoleon_use_param = True
 napoleon_use_rtype = True
 
@@ -67,6 +67,7 @@ autosectionlabel_prefix_document = True
 
 # Type hints formatting
 autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented_params"
 
 
 # Add any paths that contain templates here, relative to this directory.

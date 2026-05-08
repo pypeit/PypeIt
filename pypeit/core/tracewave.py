@@ -858,9 +858,15 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # log.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
 
-def fit2tilts(shape, coeff2, func2d, spat_shift=None):
+def fit2tilts(shape, coeff2, func2d, spat_shift=None, slit_mask=None):
     """
-    Evaluate the wavelength tilt model over the full image.
+    Evaluate the wavelength tilt model.
+
+    When ``slit_mask`` is not provided, the model is evaluated over a full
+    meshgrid spanning the image.  When ``slit_mask`` is provided, the model
+    is evaluated only at the ``True`` pixels in the mask, which avoids
+    allocating full-frame meshgrid arrays and significantly reduces memory
+    usage for spectrographs with many slits (e.g., fiber-fed IFUs).
 
     Parameters
     ----------
@@ -871,9 +877,13 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
     func2d : str
         the 2d function used to fit the tilts
     spat_shift : float, optional
-        Spatial shift to be added to image pixels before evaluation
+        Spatial shift to be added to image pixels before evaluation.
         If you are accounting for flexure, then you probably wish to
         input -1*flexure_shift into this parameter.
+    slit_mask : `numpy.ndarray`_, bool, optional
+        Boolean mask with the same shape as the image.  If provided,
+        tilts are evaluated only where ``slit_mask`` is ``True`` and
+        the returned image is zero elsewhere.
 
     Returns
     -------
@@ -882,22 +892,28 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
         image. This output is used in the pipeline.
 
     """
-    # Init
     _spat_shift = 0. if spat_shift is None else spat_shift
-    # Compute the tilts image
     nspec, nspat = shape
     xnspecmin1 = float(nspec - 1)
     xnspatmin1 = float(nspat - 1)
-    spec_vec = np.arange(nspec)
-    spat_vec = np.arange(nspat) - _spat_shift
-    spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
-    #
+
     pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
                                   minx2=0.0, maxx2=1.0, func=func2d)
-    tilts = pypeitFit.eval(spec_img / xnspecmin1, x2=spat_img / xnspatmin1)
-    # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
-    # wavelength solution fitting
-    return np.fmax(np.fmin(tilts, 1.2), -0.2)
+
+    if slit_mask is None:
+        spat_pix, spec_pix = map(
+            lambda x : x.ravel(), np.meshgrid(np.arange(nspat), np.arange(nspec))
+        )
+    else:
+        spec_pix, spat_pix = np.where(slit_mask)
+
+    tilts_vals = pypeitFit.eval(spec_pix / xnspecmin1, x2=(spat_pix - _spat_shift) / xnspatmin1)
+    tilts_vals = np.fmax(np.fmin(tilts_vals, 1.2), -0.2)
+    tilts = np.zeros(shape, dtype=float)
+    tilts[(spec_pix,spat_pix)] = tilts_vals
+    del tilts_vals, spec_pix, spat_pix
+
+    return tilts
 
 
 # This method needs to match the name in pypeit.core.qa.set_qa_filename()
