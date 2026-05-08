@@ -1311,6 +1311,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             ivar[onslit_gpm] *= scl_units ** 2
 
             # Calculate the weights relative to the zeroth cube
+            # TODO: Weights are always uniform now, right?  Doesn't this mess up
+            # the selection of the reference image when using a
+            # cross-correlation to get the registration offsets?
             self.weights[ff] = 1.0  # exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
             wghts = self.weights[ff] * np.ones(sciImg.shape)
 
@@ -1461,8 +1464,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     log.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
                 # Calculate the image offsets relative to the reference image
-                image_phase=False
-                if image_phase: 
+                if self.cubepar['register'] == 'phase':
                     for ff in range(self.numfiles):
                         # Calculate the shift
                             ra_shift, dec_shift = calculate_image_phase(
@@ -1478,7 +1480,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             # Store the shift in the RA and DEC offsets in degrees
                             ra_offsets[ff] += ra_shift
                             dec_offsets[ff] += dec_shift
-                else: 
+                elif self.cubepar['register'] == 'fit':
                     ra_pix_star = np.zeros(self.numfiles)
                     dec_pix_star = np.zeros(self.numfiles)
                     for ff in range(self.numfiles):
@@ -1490,7 +1492,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             norm=False
                         )
                         gaussian_position = popt[1], popt[2]
-                        if show_qa & (dd == numiter-1):
+                        if show_qa and dd == numiter-1:
                             datacube.whitelight_objfind_qa(
                                 wl_imgs[:, :, ff], utils.inverse(np.square(sig_imgs[:, :, ff])), 
                                 np.logical_not(bpm_imgs[:, :, ff]), model, gaussian_position, 
@@ -1508,6 +1510,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             f"RA, DEC (arcsec) = {ra_shifts[ff]*3600.0:+0.3f} E, "
                             f"{dec_shifts[ff]*3600.0:+0.3f} N"
                         )
+                else:
+                    raise PypeItError('Registration method must be either "phase" or "fit".')
 
         return ra_offsets, dec_offsets
 

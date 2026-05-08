@@ -1615,6 +1615,8 @@ class Coadd2DPar(ParSet):
             self['manual'] = ';'.join(parse.fix_config_par_image_location(self['manual']))
 
 
+# TODO: This needs to be broken up into parameters that are relevant to the
+# basic reduction and those needed for afterburn scripts like coadding.
 class CubePar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
@@ -1625,7 +1627,7 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
-                 sensfile=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
+                 sensfile=None, register=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
@@ -1700,6 +1702,21 @@ class CubePar(ParSet):
         descr['sensfile'] = 'Filename of a sensitivity function to use to flux calibrate your datacube. ' \
                             'The sensitivity function file will also be used to correct the relative scales ' \
                             'of the slits.'
+
+        defaults['register'] = 'phase'
+        dtypes['register'] = str
+        options['register'] = CubePar.valid_registration_methods()
+        descr['register'] = (
+            'Method used to register datcubes when coadding.  Must be either "phase" or "fit": '
+            'Setting ``register = phase`` will use a cross-correlation method to determine the '
+            'offsets, where the cross-correlation is always with respect to a reference image.  '
+            'The reference image can either be provided (see the "reference_image" parameter), '
+            'or it will be the whitelight image of the first datacube in the stack.  This method '
+            'uses the scikit-image package, if it is installed; otherwise it will use scipy.  '
+            'Setting ``register = fit`` requires that photutils to be installed.  For each '
+            'datacube being combined, a 2D Gaussian is fit the brightest point-like object found '
+            'in each whitelight image and used to set the registration coordinate.'
+        )
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
@@ -1872,7 +1889,7 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'reference_image', 'save_whitelight',
+        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'register', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
                    'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar', 'weights_init_obj_pos', 'sn_smooth_npix']
@@ -1900,6 +1917,13 @@ class CubePar(ParSet):
         allowed_weight_methods = Coadd1DPar.valid_weight_methods()
         if self.data['weight_method'] not in allowed_weight_methods:
             raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
+
+    @staticmethod
+    def valid_registration_methods():
+        """
+        Return the valid method identifiers for registration
+        """
+        return ['phase', 'fit']
 
 
 

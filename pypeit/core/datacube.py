@@ -200,7 +200,6 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         if sources is None:
             display.show_image((objfind_image*np.logical_not(totmask)*np.sqrt(ivar_objfind)).T, 
                             chname='S/N objfind_image', cuts=(-2.0, 5.0))
-            embed()
             raise PypeItError(
                 "No sources found in the image. Try lowering the significance threshold, "
                 f"nsigma = {nsigma:.1f} or adjust the DAOStarFinder parameters."
@@ -234,7 +233,6 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         log.info(f"FWHM_y: {sigma_y_gauss/fwhm2sigma:.2f} pixels")
     log.info(f"Theta: {np.degrees(theta_gauss):.2f} degrees")
     log.info("--------------------------------")    
-    
     
     # Generate a best fit model
     model = gaussian2D((xx, yy), *popt).reshape(image.shape) * wlscl
