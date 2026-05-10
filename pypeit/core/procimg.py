@@ -617,10 +617,8 @@ def clean_overscan_vector(overscan, w=9, nsig=1.0, rdnoise=4.0):
     w = max(w, 3)
     m_overscan = scipy.ndimage.median_filter(overscan, size=w, mode='reflect')
     bad = np.abs(overscan - m_overscan) > rdnoise * nsig
-    good = ~bad
-    if not np.any(bad):
-        return overscan.copy()
-    if not np.any(good):
+    good = np.logical_not(bad)
+    if np.all(good) or np.all(bad):
         return overscan.copy()
     clean = overscan.copy()
     good_idx = np.where(good)[0]
