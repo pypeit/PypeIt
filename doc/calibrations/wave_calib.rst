@@ -258,7 +258,34 @@ shift+stretch analysis of `Reidentify`_.
 We recommend implementing this method for multi-slit
 observations, long-slit observations where wavelengths
 vary (*e.g.*, grating tilts).  We are likely to implement
-this for echelle observations (*e.g.*, HIRES).
+this for echelle observations (*e.g.*, HIRES and UVES).
+
+If you are reducing multislit or IFU data, where the wavelength
+coverage of all slits/slices/fibers is quite similar to each other,
+and some (but not all) of the slits are failing with the
+`full template`_ method, then you can try to use one of the good
+solutions to recalibrate all slits. To do this, first run the
+reduction until the wavelength calibration step completes, then
+identify the spatial ID of the good slit, based on the QA plots.
+Finally, remove the calibration files, and add the following to your
+:ref:`pypeit_file`:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[wavelengths]]
+            reference_slit = 306
+
+where the value of ``reference_slit`` is the spatial ID of the good slit.
+Now re-run the reduction. This will first perform a standard wavelength
+calibration, and subsequently use the good solution of ``reference_slit``
+to recalibrate all slits. An excellent choice for a ``reference_slit`` is
+one that has:
+(1) the correct wavelength solution;
+(2) the greatest wavelength overlap with all slits;
+(3) the most lines correctly identified; and
+(4) the lowest RMS.
+in that order of priority.
 
 .. _wvcalib-echelle:
 
@@ -310,7 +337,7 @@ Mosaics
 -------
 
 For echelle spectrographs with multiple detectors *per* camera
-that are mosaiced (e.g. Keck/HIRES), we fit the 2D solutions on a *per* detector
+that are mosaiced (e.g. Keck/HIRES, VLT/UVES), we fit the 2D solutions on a *per* detector
 basis.  Ths is because we have found the mosaic solutions to be
 too difficult to make sufficiently accurate.
 

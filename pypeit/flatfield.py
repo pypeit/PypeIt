@@ -6,8 +6,9 @@ Implements the flat-field class.
 
 """
 from pathlib import Path
-from copy import deepcopy
+import copy
 import inspect
+import gc
 import numpy as np
 
 from scipy import interpolate, ndimage
@@ -995,8 +996,11 @@ class FlatField:
             else:
                 # TODO -- JFH Confirm the sign of this shift is correct!
                 _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
-                tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
-                                            self.wavetilts['func2d'], spat_shift=-1*_flexure)
+                tilts = tracewave.fit2tilts(rawflat.shape,
+                                            self.wavetilts['coeffs'][:,:,slit_idx],
+                                            self.wavetilts['func2d'],
+                                            spat_shift=-1*_flexure,
+                                            slit_mask=onslit_padded)
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
@@ -1349,6 +1353,13 @@ class FlatField:
             if self.flatpar['pixelflat_max_wave'] is not None and self.waveimg is not None:
                 bad_wv = self.waveimg[onslit_tweak] > self.flatpar['pixelflat_max_wave']
                 self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
+
+            # Cleanup to save on memory usage
+            spec_coo_data = None
+            twod_spec_coo_data = None
+            spec_coo = None
+            tilts = None
+            gc.collect(2)
 
         # No need to continue if we're just doing the spatial illumination
         if spat_illum_only:
@@ -1874,7 +1885,7 @@ class SlitlessFlat:
                                                       [this_raw_files[0]], dark=msdark, bias=msbias, bpm=msbpm)
             # slit edges
             # we need to change some parameters for the slit edge tracing
-            edges_par = deepcopy(self.par['slitedges'])
+            edges_par = self.par['slitedges'].copy()
             # no maskdesign info
             edges_par['use_maskdesign'] = False
             # lower the threshold for edge detection
@@ -1888,7 +1899,7 @@ class SlitlessFlat:
             edges_par['bound_detector'] = True
             # set the buffer to 0
             edges_par['det_buffer'] = 0
-            _spectrograph = deepcopy(self.spectrograph)
+            _spectrograph = copy.deepcopy(self.spectrograph)
             # need to treat this as a MultiSlit spectrograph (no echelle parameters used)
             _spectrograph.pypeline = 'MultiSlit'
             edges = edgetrace.EdgeTraceSet(traceimg, _spectrograph, edges_par, auto=True)
@@ -1903,7 +1914,7 @@ class SlitlessFlat:
             # increase saturation threshold (some hires slitless flats are very bright)
             slitless_pixel_flat.detector.saturation *= 1.5
             # Initialise the pixel flat
-            flatpar = deepcopy(self.par['flatfield'])
+            flatpar = self.par['flatfield'].copy()
             # do not tweak the slits
             flatpar['tweak_slits'] = False
             flatpar['slit_illum_finecorr'] = False
@@ -2217,6 +2228,11 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     mnmx_wv = np.zeros((slits.nslits, 2))
     for slit_idx, slit_spat in enumerate(slits.spat_id):
         onslit_init = (slitid_img == slit_spat)
+        # Check if a wavelength calibration exists for this slice
+        if np.all(np.logical_not(onslit_init)):
+            log.error(f"Slit {slit_idx+1}/{slits.nslits} ({slit_spat}) has no wavelength solution. Cannot perform "
+                      f"relative spectral sensitivity calculation. You can turn off the relative spectral sensitivity "
+                      f"correction or check that your wavelength calibration is correct for this slit.")
         mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
     wavecen = np.mean(mnmx_wv, axis=1)
