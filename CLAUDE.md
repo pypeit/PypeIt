@@ -113,6 +113,10 @@ object — no peak-detection object finding is needed.
 
 - All tests are collected in the `pypeit/tests` directory.
 
+- Tests are written as plain module-level functions, not wrapped in `TestX`
+  classes with `setup_class`. Use module-level constants or pytest fixtures
+  for shared setup.
+
 - Tests in `pypeit/tests` should be limited to unit tests that do not require
   the use of large data files.
 
