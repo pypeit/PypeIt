@@ -2140,10 +2140,6 @@ def generate_cube_subpixel(
         1D array containing the wavelength at each spectral coordinate of the
         datacube. The shape of the wavelength array is (nwave,).
     """
-    # Check the inputs
-    #if whitelight_range is not None and outfile is None:
-    #        raise PypeItError("Must provide an outfile name if whitelight_range is set")
-
     # Subpixellate
     flxcube, sigcube, bpmcube, normcube = subpixellate(
         output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts,
