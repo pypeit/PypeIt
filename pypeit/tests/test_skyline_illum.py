@@ -1,8 +1,10 @@
 """Tests for sky-line-based fiber illumination correction."""
 import numpy as np
-import pytest
 
 from pypeit.spectrographs.mmt_binospec import MMTBINOSPECIFUSpectrograph
+
+
+spec = MMTBINOSPECIFUSpectrograph()
 
 
 def _make_mock_data(nfibers=40, nspec=2000, wmin=5000.0, wmax=9000.0,
@@ -56,78 +58,74 @@ def _make_mock_data(nfibers=40, nspec=2000, wmin=5000.0, wmax=9000.0,
     return sciimg, waveimg, slitmask, spat_ids, sky_indices
 
 
-@pytest.fixture
-def spectrograph():
-    return MMTBINOSPECIFUSpectrograph()
+def test_uniform_throughput_gives_unit_correction():
+    """If all fibers have same throughput, correction should be ~1."""
+    # Use n_sky_fibers=0 so no fibers get a boost, and the random
+    # variation still applies to all fibers equally
+    sciimg, waveimg, slitmask, spat_ids, _ = _make_mock_data(
+        sky_fiber_boost=1.0, n_sky_fibers=0)
+    corr = spec.compute_skyline_illum(
+        sciimg, waveimg, slitmask, spat_ids)
+    # Correction should track the random throughput variation (~5%),
+    # so individual fibers may deviate from 1.0, but the median
+    # correction across all fibers should be ~1.0
+    assert np.abs(np.median(corr[slitmask > 0]) - 1.0) < 0.02
 
 
-class TestComputeSkylineIllum:
-    """Test the core correction algorithm."""
+def test_sky_fibers_get_higher_correction():
+    """Sky fibers with 30% more throughput should get corr > 1."""
+    sciimg, waveimg, slitmask, spat_ids, sky_idx = _make_mock_data(
+        sky_fiber_boost=1.3)
+    corr = spec.compute_skyline_illum(
+        sciimg, waveimg, slitmask, spat_ids)
+    # Sky fiber pixels should have correction > 1
+    for i in sky_idx:
+        sky_pix = slitmask == spat_ids[i]
+        assert np.median(corr[sky_pix]) > 1.1
 
-    def test_uniform_throughput_gives_unit_correction(self, spectrograph):
-        """If all fibers have same throughput, correction should be ~1."""
-        # Use n_sky_fibers=0 so no fibers get a boost, and the random
-        # variation still applies to all fibers equally
-        sciimg, waveimg, slitmask, spat_ids, _ = _make_mock_data(
-            sky_fiber_boost=1.0, n_sky_fibers=0)
-        corr = spectrograph.compute_skyline_illum(
-            sciimg, waveimg, slitmask, spat_ids)
-        # Correction should track the random throughput variation (~5%),
-        # so individual fibers may deviate from 1.0, but the median
-        # correction across all fibers should be ~1.0
-        assert np.abs(np.median(corr[slitmask > 0]) - 1.0) < 0.02
 
-    def test_sky_fibers_get_higher_correction(self, spectrograph):
-        """Sky fibers with 30% more throughput should get corr > 1."""
-        sciimg, waveimg, slitmask, spat_ids, sky_idx = _make_mock_data(
-            sky_fiber_boost=1.3)
-        corr = spectrograph.compute_skyline_illum(
-            sciimg, waveimg, slitmask, spat_ids)
-        # Sky fiber pixels should have correction > 1
-        for i in sky_idx:
-            sky_pix = slitmask == spat_ids[i]
-            assert np.median(corr[sky_pix]) > 1.1
+def test_correction_normalizes_sky_level():
+    """After applying correction, sky line flux should be
+    equalized across fibers."""
+    sciimg, waveimg, slitmask, spat_ids, sky_idx = _make_mock_data(
+        sky_fiber_boost=1.3)
+    corr = spec.compute_skyline_illum(
+        sciimg, waveimg, slitmask, spat_ids)
+    corrected = sciimg / np.where(corr > 0.1, corr, 1.0)
 
-    def test_correction_normalizes_sky_level(self, spectrograph):
-        """After applying correction, sky line flux should be
-        equalized across fibers."""
-        sciimg, waveimg, slitmask, spat_ids, sky_idx = _make_mock_data(
-            sky_fiber_boost=1.3)
-        corr = spectrograph.compute_skyline_illum(
-            sciimg, waveimg, slitmask, spat_ids)
-        corrected = sciimg / np.where(corr > 0.1, corr, 1.0)
+    # Measure flux in a sky line region for sky vs science fibers
+    wave_arr = waveimg[:, 1]
+    line_pix = np.abs(wave_arr - 5577.34) < 10
+    sky_flux = []
+    sci_flux = []
+    nspat_per = 3
+    for i in range(len(spat_ids)):
+        cols = slice(i * nspat_per, (i + 1) * nspat_per)
+        f = np.sum(corrected[line_pix, cols])
+        if i in sky_idx:
+            sky_flux.append(f)
+        else:
+            sci_flux.append(f)
+    # After correction, sky and science fibers should have similar
+    # flux (within 5%)
+    ratio = np.mean(sky_flux) / np.mean(sci_flux)
+    assert abs(ratio - 1.0) < 0.05
 
-        # Measure flux in a sky line region for sky vs science fibers
-        wave_arr = waveimg[:, 1]
-        line_pix = np.abs(wave_arr - 5577.34) < 10
-        sky_flux = []
-        sci_flux = []
-        nspat_per = 3
-        for i in range(len(spat_ids)):
-            cols = slice(i * nspat_per, (i + 1) * nspat_per)
-            f = np.sum(corrected[line_pix, cols])
-            if i in sky_idx:
-                sky_flux.append(f)
-            else:
-                sci_flux.append(f)
-        # After correction, sky and science fibers should have similar
-        # flux (within 5%)
-        ratio = np.mean(sky_flux) / np.mean(sci_flux)
-        assert abs(ratio - 1.0) < 0.05
 
-    def test_no_lines_in_range(self, spectrograph):
-        """If no sky lines fall in wavelength range, return ones."""
-        sciimg, waveimg, slitmask, spat_ids, _ = _make_mock_data(
-            wmin=3000.0, wmax=4000.0)
-        corr = spectrograph.compute_skyline_illum(
-            sciimg, waveimg, slitmask, spat_ids)
-        assert np.allclose(corr, 1.0)
+def test_no_lines_in_range():
+    """If no sky lines fall in wavelength range, return ones."""
+    sciimg, waveimg, slitmask, spat_ids, _ = _make_mock_data(
+        wmin=3000.0, wmax=4000.0)
+    corr = spec.compute_skyline_illum(
+        sciimg, waveimg, slitmask, spat_ids)
+    assert np.allclose(corr, 1.0)
 
-    def test_extreme_corrections_clipped(self, spectrograph):
-        """Corrections should be clipped to [0.3, 3.0]."""
-        sciimg, waveimg, slitmask, spat_ids, _ = _make_mock_data(
-            sky_fiber_boost=5.0)
-        corr = spectrograph.compute_skyline_illum(
-            sciimg, waveimg, slitmask, spat_ids)
-        assert np.all(corr >= 0.3)
-        assert np.all(corr <= 3.0)
+
+def test_extreme_corrections_clipped():
+    """Corrections should be clipped to [0.3, 3.0]."""
+    sciimg, waveimg, slitmask, spat_ids, _ = _make_mock_data(
+        sky_fiber_boost=5.0)
+    corr = spec.compute_skyline_illum(
+        sciimg, waveimg, slitmask, spat_ids)
+    assert np.all(corr >= 0.3)
+    assert np.all(corr <= 3.0)
