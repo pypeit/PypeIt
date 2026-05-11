@@ -12,7 +12,6 @@ from astropy.coordinates import SkyCoord
 from astropy import units
 from astropy.time import Time
 from astropy import wcs
-from IPython import embed
 import matplotlib.pyplot as plt
 from matplotlib import patches
 import numpy as np
@@ -749,12 +748,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
             # insert components into output array...
             inx = data.shape[0]
-            xs = inx * kk
-            xe = xs + inx
-
             iny = data.shape[1]
-            ys = iny * kk
-            yn = ys + iny
 
             b1, b2, b3, b4 = chain.from_iterable(parse.load_sections(biassec, fmt_iraf=False))
 
@@ -856,10 +850,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         x_obj = x_slits
         y_slits = -np.asarray(self.slitmask.center[:, 1])
 
-        # Extract slit corner y-coordinates (for top/bottom edges)
-        y_slitsh = -np.asarray(self.slitmask.corners[:, 0, 1])
-        y_slitsl = -np.asarray(self.slitmask.corners[:, 2, 1])
-
         # Compute object y-position relative to slit center
         y_obj = y_slits + (topdist - botdist) / 2
 
@@ -881,8 +871,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         x_slitobj_pix = (x_obj - corner_x) * y_scl + Nx / 2.0
         y_slits_pix = Ny - 1 - ((y_slits - corner_y) * y_scl) + dy0
         y_slitobj_pix = Ny - 1 - ((y_obj - corner_y) * y_scl) + dy0
-        y_slitsl_pix = Ny - 1 - ((y_slitsl - corner_y) * y_scl) + dy0
-        y_slitsh_pix = Ny - 1 - ((y_slitsh - corner_y) * y_scl) + dy0
 
         # Convert slit lengths and widths to pixel units
         dx_slits_pix = dx_slits * y_scl
@@ -1677,6 +1665,42 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
 
         return adjusted
 
+    def get_fiber_position_shift(self, slits, det):
+        """
+        Measure the bulk shift between reference fiber positions and the
+        observed slit traces.
+
+        The Binospec IFU slit definitions are built from the static reference
+        fiber profile, shifted to match the observed trace image.  Any later
+        fiber extraction must apply the same shift to the reference fiber
+        centers; otherwise apertures are centered on the unshifted reference
+        positions.
+
+        Args:
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Observed block-slit traces.
+            det (:obj:`int`):
+                1-indexed detector number (1=side A, 2=side B).
+
+        Returns:
+            :obj:`float`: Bulk spatial shift in detector pixels.
+        """
+        blocks = self.get_fiber_blocks(det)
+        if len(blocks) != slits.nslits:
+            log.warning(f"Block count ({len(blocks)}) != slit count "
+                        f"({slits.nslits}); assuming zero fiber shift")
+            return 0.0
+
+        mid_row = slits.nspec // 2
+        left, right, _ = slits.select_edges()
+        slit_centers = 0.5 * (left[mid_row] + right[mid_row])
+        ref_centers = np.array([0.5 * (b['min_pix'] + b['max_pix'])
+                                for b in blocks])
+        shift = float(np.median(slit_centers - ref_centers))
+        log.info(f"DET{det:02d}: fiber position shift from slits = "
+                 f"{shift:.2f} px")
+        return shift
+
     def adjust_slit_edges_to_fibers(self, slits, det):
         """
         Shrink slit edges to tightly wrap fiber positions from the reference
@@ -1701,14 +1725,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
                         f"({slits.nslits}); skipping slit edge adjustment")
             return
 
-        # Determine the bulk shift between reference and detected positions
-        # by comparing block centers.
+        # Determine the bulk shift between reference and detected positions.
         mid_row = slits.nspec // 2
         left, right, _ = slits.select_edges()
-        slit_centers = 0.5 * (left[mid_row] + right[mid_row])
-        ref_centers = np.array([0.5 * (b['min_pix'] + b['max_pix'])
-                                for b in blocks])
-        shift = np.median(slit_centers - ref_centers)
+        shift = self.get_fiber_position_shift(slits, det)
         log.info(f"Slit edge adjustment: ref→detector shift = {shift:.1f} px")
 
         # Build new edge arrays (constant across spectral rows)
@@ -1719,7 +1739,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             new_right[i] = block['max_pix'] + shift + margin
 
         # Ensure edges don't extend beyond detector
-        nspat = slits.left_init.shape[0]  # Not used; edges are spatial coords
         new_left = np.clip(new_left, 0, None)
 
         # Log the change
@@ -2650,4 +2669,3 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         return {'fiber_id': fiber_ids,
                 'fiber_name': fiber_names,
                 'fiber_type': fiber_types}
-

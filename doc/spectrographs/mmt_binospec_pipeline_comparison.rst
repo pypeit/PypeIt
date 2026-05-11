@@ -492,8 +492,7 @@ regular spatial grid.
   read noise assumption
 
 
-Summary
-=======
+.. rubric:: Summary
 
 The IDL and PypeIt pipelines share many core algorithmic approaches for
 Binospec data reduction — B-spline sky fitting, cross-correlation fiber

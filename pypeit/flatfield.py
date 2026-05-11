@@ -1970,6 +1970,8 @@ class FiberFlatField(FlatField):
         # via processimages (subtract_scattlight=True for pixelflatframe).
         log.info("Extracting flat spectra for all fiber blocks")
         blocks = self.spectrograph.get_fiber_blocks(det)
+        fiber_shift = self.spectrograph.get_fiber_position_shift(
+            self.slits, det) if hasattr(self.spectrograph, 'get_fiber_position_shift') else 0.0
 
         all_fiber_spectra = []
         all_fiber_waves = []
@@ -1985,7 +1987,7 @@ class FiberFlatField(FlatField):
                 continue
 
             block = blocks[slit_idx]
-            fiber_centers = block['fiber_positions']
+            fiber_centers = block['fiber_positions'] + fiber_shift
             if len(fiber_centers) == 0:
                 continue
 
@@ -2844,7 +2846,7 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pi
     if to_cache:
         # NOTE that the file saved in the cache is gzipped, while the one saved in the outdir is not
         # This prevents `dataPaths.pixelflat.get_file_path()` from returning the file saved in the outdir
-        cache.write_file_to_cache(pixelflat_file, pixelflat_name+'.gz', f"pixelflats")
+        cache.write_file_to_cache(pixelflat_file, pixelflat_name+'.gz', "pixelflats")
         log.info(
             f"The slitless Pixel Flat file has also been saved to the PypeIt cache directory\n"
             f"{str(dataPaths.pixelflat)}\n"
@@ -2958,4 +2960,3 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
                 nrm_image = None
 
     return merge(flatimages, nrm_image)
-

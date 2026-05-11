@@ -11,7 +11,6 @@ import numpy as np
 import os
 from pathlib import Path
 
-from astropy import stats
 from abc import ABCMeta
 
 from pypeit import specobj
@@ -22,8 +21,6 @@ from pypeit.display import display
 from pypeit.core import skysub, qa, parse, flat, flexure
 from pypeit.core import procimg
 from pypeit.core import findobj_skymask
-
-from IPython import embed
 
 
 class FindObjects:
@@ -662,10 +659,6 @@ class FindObjects:
             # global sky subtraction
             # sky subtracted image
             image = (self.sciImg.image - global_sky) * img_gpm.astype(float)
-            mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
-                                                         sigma_upper=5.0)
-            cut_min = mean - 1.0 * sigma
-            cut_max = mean + 4.0 * sigma
             ch_name = chname if chname is not None else f'global_sky_{self.detname}'
             viewer, ch = display.show_image(image, chname=ch_name, mask=mask_in, clear=clear,
                                             wcs_match=True)
@@ -1445,7 +1438,6 @@ class FiberFindObjects(SlicerIFUFindObjects):
             Loaded fiber flat calibration, or ``None`` if no file is found.
         """
         from pypeit.flatfield import FiberFlatImages
-        import glob
 
         calib_dir = getattr(self.slits, 'calib_dir', None)
         if calib_dir is None:
@@ -1454,18 +1446,13 @@ class FiberFindObjects(SlicerIFUFindObjects):
             return None
 
         # Search for FiberFlat files matching the detector
-        pattern = str(Path(calib_dir) / f'FiberFlat_*{self.detname}*.fits')
-        files = sorted(glob.glob(pattern))
-        if not files:
-            # Try broader search
-            pattern = str(Path(calib_dir) / 'FiberFlat_*.fits')
-            files = sorted(glob.glob(pattern))
+        files = sorted(Path(calib_dir).glob(f'FiberFlat_*{self.detname}*.fits'))
 
         if files:
-            log.info(f"Loading FiberFlatImages from {Path(files[0]).name}")
+            log.info(f"Loading FiberFlatImages from {files[0].name}")
             return FiberFlatImages.from_file(files[0])
 
-        log.warning("No FiberFlatImages found; "
+        log.warning(f"No FiberFlatImages found for {self.detname}; "
                      "proceeding without equalization")
         return None
 
@@ -1755,6 +1742,8 @@ class FiberFindObjects(SlicerIFUFindObjects):
 
         # Get block structure from spectrograph
         blocks = self.spectrograph.get_fiber_blocks(self.det)
+        fiber_shift = self.spectrograph.get_fiber_position_shift(
+            self.slits, self.det) if hasattr(self.spectrograph, 'get_fiber_position_shift') else 0.0
 
         for slit_idx in gdslits:
             slit_spat_id = self.slits.spat_id[slit_idx]
@@ -1765,7 +1754,7 @@ class FiberFindObjects(SlicerIFUFindObjects):
             if slit_idx >= len(blocks):
                 continue
             block = blocks[slit_idx]
-            fiber_centers = block['fiber_positions'].copy()
+            fiber_centers = block['fiber_positions'] + fiber_shift
 
             if len(fiber_centers) == 0:
                 continue

@@ -1,6 +1,7 @@
 """Tests for fiber block-slit extraction logic."""
 import numpy as np
 
+from pypeit.slittrace import SlitTraceSet
 from pypeit.spectrographs.mmt_binospec import MMTBINOSPECIFUSpectrograph
 
 
@@ -55,6 +56,23 @@ def test_block_gaps():
     for i in range(len(blocks) - 1):
         gap = blocks[i+1]['min_pix'] - blocks[i]['max_pix']
         assert gap > 50, f"Gap between blocks {i} and {i+1} is only {gap:.1f} px"
+
+
+def test_fiber_position_shift_from_slits():
+    """The slit-derived fiber shift should recover the observed bulk offset."""
+    blocks = spec.get_fiber_blocks(1)
+    nspec = 11
+    shift = 3.25
+    margin = 7.0
+    left = np.zeros((nspec, len(blocks)))
+    right = np.zeros_like(left)
+    for i, block in enumerate(blocks):
+        left[:, i] = block['min_pix'] + shift - margin
+        right[:, i] = block['max_pix'] + shift + margin
+
+    slits = SlitTraceSet(left, right, 'Fiber', nspat=4096,
+                         PYP_SPEC='mmt_binospec_ifu')
+    assert np.isclose(spec.get_fiber_position_shift(slits, 1), shift)
 
 
 def test_identify_fibers_in_block():

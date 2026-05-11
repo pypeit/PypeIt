@@ -10,15 +10,13 @@ import inspect
 import numpy as np
 import os
 
-from astropy import stats
 from abc import ABCMeta
 
 from pypeit import log, utils
 from pypeit import PypeItError
 from pypeit.display import display
-from pypeit.core import skysub, extract, flexure, flat
+from pypeit.core import skysub, flexure, flat
 from pypeit.core.moment import moment1d
-from IPython import embed
 
 
 class Extract:
@@ -621,10 +619,6 @@ class Extract:
             # global sky subtraction
             # sky subtracted image
             image = (self.sciImg.image - self.global_sky) * img_gpm.astype(float)
-            mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
-                                                         sigma_upper=5.0)
-            cut_min = mean - 1.0 * sigma
-            cut_max = mean + 4.0 * sigma
             ch_name = chname if chname is not None else f'global_sky_{detname}'
             viewer, ch = display.show_image(image, chname=ch_name, mask=mask_in, clear=clear,
                                             wcs_match=True)
@@ -633,10 +627,6 @@ class Extract:
             # local sky subtraction
             # sky subtracted image
             image = (self.sciImg.image - self.skymodel) * img_gpm.astype(float)
-            mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
-                                                         sigma_upper=5.0)
-            cut_min = mean - 1.0 * sigma
-            cut_max = mean + 4.0 * sigma
             ch_name = chname if chname is not None else f'local_sky_{detname}'
             viewer, ch = display.show_image(image, chname=ch_name, mask=mask_in, clear=clear,
                                             wcs_match=True)
@@ -1006,9 +996,6 @@ class FiberExtract(Extract):
         """
         self.global_sky = global_sky
         nspec, nspat = self.sciImg.image.shape
-
-        # Get the good slits
-        gdslits = np.where(np.logical_not(self.extract_bpm))[0]
 
         # Initialize output arrays
         self.outmask = self.sciImg.fullmask.copy()
