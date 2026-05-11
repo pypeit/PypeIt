@@ -242,3 +242,63 @@ on the grating and wavelength coverage.
 
       conda install "libblas=*=*newaccelerate"
 
+Interactive 1D fiber extraction
+++++++++++++++++++++++++++++++++
+
+The ``pypeit_binospec_ifu_extract`` script opens an interactive matplotlib
+GUI showing the IFU as a hexagonal grid of fibers, colored by per-fiber
+integrated flux.  Users select fibers via rectangle, circle, or
+individual-click modes and write the combined extracted 1D spectrum as a
+:class:`~pypeit.onespec.OneSpec` FITS file readable by
+``pypeit_show_1dspec``, ``pypeit_coadd_1dspec``, and other 1D-spectrum
+tools.
+
+Basic usage
+^^^^^^^^^^^
+
+.. code-block:: bash
+
+   pypeit_binospec_ifu_extract spec1d_obj.fits
+
+By default the script uses optimal (``OPT_*``) extraction columns; pass
+``--boxcar`` to use boxcar (``BOX_*``) instead.  The output filename
+defaults to the input basename with ``spec1d_`` replaced by
+``extract1d_`` (e.g. ``spec1d_obj.fits`` → ``extract1d_obj.fits``).
+
+Command-line options
+^^^^^^^^^^^^^^^^^^^^
+
+``-o, --output FILENAME``
+   Output OneSpec FITS filename.  Default is auto-generated from the
+   input filename.
+
+``--boxcar``
+   Use boxcar (``BOX_*``) extraction columns from the spec1d file
+   instead of the default optimal (``OPT_*``) columns.
+
+GUI controls
+^^^^^^^^^^^^
+
+- **Rectangle / Circle**: drag in the fiber view to select a spatial
+  region.  Selected fibers are highlighted in cyan as you drag.
+- **Click Fibers**: click individual hexagons to toggle them in or out
+  of the selection.  Combine with rectangle/circle selections — both
+  contribute to the final extraction.
+- **Wavelength slider**: restrict the per-fiber integrated flux used to
+  colour the hex grid.
+- **Extract Spectrum**: resample all selected fibers onto a common
+  wavelength grid and sum, propagating inverse variance.
+- **Reset Display**: clear the selection and restore the full-range
+  wavelength view.
+- **Save Spectrum**: write the extracted spectrum to the output OneSpec
+  FITS file.
+
+Sky-line masking
+^^^^^^^^^^^^^^^^
+
+Per-fiber integrated flux used to colour the hex grid masks out the
+brightest optical sky lines (5577 Å, Na I D 5890/5896 Å, [OI]
+6300/6363 Å, plus the OH band centers around 7340–8867 Å) within
+±10 Å.  This prevents residual sky-subtraction artifacts from biasing
+the visualization.  The masking applies *only* to the hex display:
+extracted spectra are summed over the full wavelength range.

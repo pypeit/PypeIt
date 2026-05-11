@@ -79,6 +79,11 @@ Script Changes
 
 - Removed -G/--gui option from pypeit_obslog.
 
+- Added ``pypeit_binospec_ifu_extract`` for interactive selection of
+  Binospec IFU fibers and extraction of combined 1D spectra from spec1d
+  files. Output is a :class:`~pypeit.onespec.OneSpec` FITS file. See the
+  :ref:`mmt_binospec` documentation for details.
+
 Testing
 -------
 

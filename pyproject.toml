@@ -148,6 +148,7 @@ pypeit_show_wvcalib = "pypeit.scripts.show_wvcalib:ShowWvCalib.entry_point"
 pypeit_tellfit = "pypeit.scripts.tellfit:TellFit.entry_point"
 pypeit_trace_edges = "pypeit.scripts.trace_edges:TraceEdges.entry_point"
 # GUI scripts
+pypeit_binospec_ifu_extract = "pypeit.scripts.binospec_ifu_extract:BinospecIFUExtract.entry_point"
 pypeit_chk_alignments = "pypeit.scripts.chk_alignments:ChkAlignments.entry_point"
 pypeit_chk_edges = "pypeit.scripts.chk_edges:ChkEdges.entry_point"
 pypeit_chk_flats = "pypeit.scripts.chk_flats:ChkFlats.entry_point"
