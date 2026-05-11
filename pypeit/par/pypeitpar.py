@@ -1857,15 +1857,16 @@ class CubePar(ParSet):
         # manual extraction
         defaults['weights_init_obj_pos'] = None
         dtypes['weights_init_obj_pos'] = str
-        descr['weights_init_obj_pos'] = 'The initial guess for the object position in the image for computing the optimal weighting. ' \
-                                     'If set, this value will be input into `pypeit.core.datacube.fitGaussian2D` as ' \
-                                     'the initial guess for the object position. The 2D Gaussian fit will then be performed with the' \
-                                     'position constrained to be within plus or minus fwhm/3 in x and y. If not set, the position' \
-                                     'will be determined by running DAOStarFinder on the image.' \
-                                     'Formatting follows the Manual extraction parameters convention, i.e. spatx:spaty:fwhm' \
-                                     'where spatx,specy are spatial x and y position in the datacube, ' \
-                                     'and fwhm is optional and is in arcsec.' \
-                                     'Currently only the use of spatx:spaty is supported. Default is None.'
+        descr['weights_init_obj_pos'] = (
+            'The initial guess for the object position in the image for computing the optimal '
+            'weighting.  If set, this value will be input into '
+            ':func:`~pypeit.core.datacube.fitGaussian2D` as the initial guess for the object '
+            'position.  The 2D Gaussian fit will then be performed with the position constrained '
+            'to be within +/- fwhm/3 in x and y.  If not set, the position will be determined by '
+            'running DAOStarFinder on the image.  Formatting follows the manual extraction '
+            'parameters convention, i.e. spatx:spaty where spatx,specy are spatial x and y '
+            'position in the datacube.'
+        )
 
         defaults['sn_smooth_npix'] = None
         dtypes['sn_smooth_npix'] = [int, float]
@@ -1938,7 +1939,8 @@ class CubeExtractionPar(ParSet):
     """
 
     def __init__(self, output_filename=None, whitelight_range=None, fwhm=None, 
-                 snr_thresh=None,  manual=None, boxcar_radius=None, opt_prof_method=None, no_skysub=None):
+                 snr_thresh=None,  manual=None, boxcar_radius=None, opt_prof_method=None,
+                 skysub_resid=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1989,46 +1991,48 @@ class CubeExtractionPar(ParSet):
         # manual extraction
         defaults['manual'] = None
         dtypes['manual'] = str
-        descr['manual'] = 'Manual extraction parameters for pypeit_extract_datacube. The format is ' \
-                          'spatx:spaty:fwhm:boxcar_radius. ' \
-                          'Multiple manual extractions are semi-colon separated, ' \
-                          'and spatx,specy are spatial x and y position in the datacube.' \
-                          'fwhm and boxcar_radius are optional and both are in arcsec.' \
-                          'Currently only the use of spatx:spaty is supported, and only single ' \
-                          'objects can be extracted at a time, so the semi-colon separation does not apply.' 
+        descr['manual'] = (
+            'Manual extraction parameters for pypeit_extract_datacube. The format is '
+            '``spatx:spaty:fwhm:boxcar_radius``, and multiple manual extractions must be '
+            'separated by a semi-colon.  Only the first two entries, defining the spatial x and '
+            'y *pixel* positions in the datacube, are required; the FWHM and boxcar radius are '
+            'optional and provided in arcseconds.  Note that you cannot provide boxcar_radius '
+            'without also providing fwhm; if you wish to only provide boxcar_radius, set '
+            'fwhm=-1.  Currently only the use of spatx:spaty is supported, and only single '
+            'objects can be extracted at a time, so the semi-colon separation does not apply.' 
+        )
 
         defaults['boxcar_radius'] = None
         dtypes['boxcar_radius'] = [int, float]
-        descr['boxcar_radius'] = 'Radius of the circular boxcar (in arcseconds) to use for the extraction. ' \
-                                 'Default is None, which means that the radius will be determined ' \
-                                 'from the FWHM of the 2D Gaussian fit to the whitelight image.'
-
+        descr['boxcar_radius'] = (
+            'Radius of the circular boxcar (in arcseconds) to use for the extraction.  By '
+            'default, the radius will be set to 4 times the sigma of the 2D Gaussian fit to '
+            'the whitelight image.'
+        )
 
         #Extraction parameters 
         defaults['opt_prof_method'] = 'fit_gauss'
         options['opt_prof_method'] = CubeExtractionPar.valid_opt_prof_methods()
         dtypes['opt_prof_method'] = str
-        descr['opt_prof_method'] = 'The method to be used to determine the object spatial profile for optimal extraction. ' \
-                                'Options are ``\'user_gauss\'``, ``\'fit_gauss\'``, or ``\'whitelight\'``. The default is ' \
-                                '``\'fit_gauss\'``. Behavior is as follows:' \
-                                '' \
-                                '- ``\'user_gauss\'``: Use a 2D symmetric Gaussian profile. The FWHM of the Gaussian is ' \
-                                'determined by the fwhm parameter, which was also used for the object finding.' \
-                                '' \
-                                '- ``\'fit_gauss\'``: Use the (possibly asymmetric) 2D Gaussian fit ' \
-                                'to the whitelight image which was used to determine the object position. ' \
-                                'This creates a model using :func:`pypeit.core.datacube.fitGaussian2D` but ' \
-                                'the offset is set to zero.' \
-                                '' \
-                                '- ``\'whitelight\'``: Use the whitelight image to determine a non-parametric ' \
-                                'spatial profile. The whitelight image is smoothed with a Gaussian kernel ' \
-                                'of width 0.5*sigma, where sigma is the standard deviation (fwhm/2.35) ' \
-                                'corresponding to the fwhm parameter.'
+        descr['opt_prof_method'] = (
+            'The method to be used to determine the object spatial profile for optimal '
+            'extraction. Options are ``\'fit_gauss\'`` (default), ``\'user_gauss\'``, or '
+            '``\'whitelight\'``: ``\'fit_gauss\'`` uses the (possibly asymmetric) 2D Gaussian '
+            'fit to the whitelight image, which was used to determine the object position.  This '
+            'creates a model using :func:`~pypeit.core.datacube.fitGaussian2D` but the offset is '
+            'set to zero.  ``\'user_gauss\'`` uses a 2D symmetric Gaussian profile. The FWHM of '
+            'the Gaussian is determined by the fwhm parameter, which was also used for '
+            'the object finding.  Note that this assumes the spatial pixel (spaxel) sampling is '
+            'the same in both x and y.  ``\'whitelight\'`` uses the whitelight image to determine '
+            'a non-parametric spatial profile. The whitelight image is smoothed with a Gaussian '
+            'kernel of width 0.5*sigma, where sigma is the standard deviation (fwhm/2.35) '
+            'corresponding to the fwhm parameter.'
+        )
 
 
-        defaults['no_skysub'] = False
-        dtypes['no_skysub'] = bool
-        descr['no_skysub'] = 'If True, the cube will have the residual sky-subtracted before extraction, and the whitelight image will also be residual sky-subtracted.'
+        defaults['skysub_resid'] = True
+        dtypes['skysub_resid'] = bool
+        descr['skysub_resid'] = 'If False, the cube will have the residual sky-subtracted before extraction, and the whitelight image will also be residual sky-subtracted.'
 
         # Instantiate the parameter set
         super(CubeExtractionPar, self).__init__(list(pars.keys()),
@@ -2045,7 +2049,7 @@ class CubeExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['output_filename', 'whitelight_range', 'fwhm', 
-                'snr_thresh', 'manual', 'boxcar_radius', 'opt_prof_method', 'no_skysub']        
+                'snr_thresh', 'manual', 'boxcar_radius', 'opt_prof_method', 'skysub_resid']        
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

@@ -80,7 +80,7 @@ def gaussian2D(tup, intflux, xo, yo, sigma_x, sigma_y, theta, offset):
 
 def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None, 
                   fwhm=3.0, nsigma=5.0, mask_edge=0, median_filter=False, 
-                  norm=False, platescale=None, verbose=False):
+                  norm=False, pixelscale=None, verbose=False):
     """
     Fit a 2D Gaussian to an input image. It is recommended that the input image
     is scaled to a maximum value that is ~1, so that all fit parameters are of
@@ -117,7 +117,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     norm : bool, optional
         If True, the input image will be normalised to the maximum value
         of the input image.
-    platescale : float, optional
+    pixelscale : float, optional
         The plate scale of the image in arcseconds per pixel. This is only used to print the
         FWHM of the Gaussian to the screen in arcseconds.  Default is None, in which 
         case the FWHM will be printed in pixels.
@@ -225,9 +225,9 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     _, xobj, yobj, sigma_x_gauss, sigma_y_gauss, theta_gauss, _ = popt
     log.info("Gaussian fit gives:")
     log.info("--------------------------------")
-    if platescale is not None: 
-        log.info(f"FWHM_x: {sigma_x_gauss*platescale/fwhm2sigma:.2f} arcsec")
-        log.info(f"FWHM_y: {sigma_y_gauss*platescale/fwhm2sigma:.2f} arcsec")
+    if pixelscale is not None: 
+        log.info(f"FWHM_x: {sigma_x_gauss*pixelscale/fwhm2sigma:.2f} arcsec")
+        log.info(f"FWHM_y: {sigma_y_gauss*pixelscale/fwhm2sigma:.2f} arcsec")
     else: 
         log.info(f"FWHM_x: {sigma_x_gauss/fwhm2sigma:.2f} pixels")
         log.info(f"FWHM_y: {sigma_y_gauss/fwhm2sigma:.2f} pixels")
@@ -347,10 +347,11 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
     return grat_corr
 
 
-def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
-                         min_frac_use=0.05, whitelight_range=None, fluxed=False, subpixel=20,
-                         boxcar_radius=None, fwhm=1.5, no_skysub=False, snr_thresh=5.0, manual_position=None,
-                         opt_prof_method='fit_gauss',  spectrograph='keck_kcrm', show_qa=False):
+def extract_point_source(
+    wave, flxcube, ivarcube, bpmcube, wcscube, exptime, min_frac_use=0.05, whitelight_range=None,
+    fluxed=False, subpixel=20, boxcar_radius=None, fwhm=1.5, skysub_resid=True, snr_thresh=5.0,
+    manual_position=None, opt_prof_method='fit_gauss', spectrograph='keck_kcrm', show_qa=False
+):
     """
     Extract a spectrum of a standard star from a datacube
 
@@ -369,9 +370,10 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     exptime : float
         Exposure time listed in the header of the datacube
     min_frac_use : float, optional
-        Minimum accepted value for the sum of the normalized object profile across the spatial direction.
-        For each spectral pixel, if the majority of the object profile has been masked, i.e.,
-        the sum of the normalized object profile across the spatial direction is less than `min_frac_use`,
+        Minimum accepted value for the sum of the normalized object profile
+        across the spatial direction.  For each spectral pixel, if the majority
+        of the object profile has been masked, i.e., the sum of the normalized
+        object profile across the spatial direction is less than `min_frac_use`,
         the optimal extraction will also be masked. The default value is 0.05.
     whitelight_range (None, list, optional):
         A two element list that specifies the minimum and maximum
@@ -386,43 +388,52 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     subpixel : int, optional
         Number of pixels to subpixelate spectrum when creating mask
     boxcar_radius : float, optional
-        Radius of the circular boxcar (in arcseconds) to use for the extraction. Default is None, which
-        means that the radius will be determined from the FWHM of the 2D Gaussian fit to the whitelight image.
+        Radius of the circular boxcar (in arcseconds) to use for the extraction.
+        If None None, the radius is set to 4 times the sigma of the 2D Gaussian
+        fit to the whitelight image.
     fwhm : float, optional
-        FWHM of the PSF in arcseconds. Use to determine the degree of smoothing of the whitelight image, the
-        kernel size for the initial object finding, and the bounds of the parameters for the 2D Gaussian fit. 
-        Note that if the opt_prof_method is set to 'user_gauss', this parameter will be also be used as
-        the FWHM of the the 2D (symmetric) Gaussian spatial profile for optimal extraction.
-        Default is 1.5 arcseconds.
+        FWHM of the PSF in arcseconds. Use to determine the degree of smoothing
+        of the whitelight image, the kernel size for the initial object finding,
+        and the bounds of the parameters for the 2D Gaussian fit.  Note that if
+        the opt_prof_method is set to 'user_gauss', this parameter will be also
+        be used as the FWHM of the the 2D (symmetric) Gaussian spatial profile
+        for optimal extraction.  Default is 1.5 arcseconds.
     no_sksyub : bool, optional
-        If True, the residual sky will not be subtracted from the datacube or the whitelight image. Default is False.
+        If True, the residual sky will not be subtracted from the datacube or
+        the whitelight image. Default is False.
     snr_thresh : float, optional
-        The signal-to-noise ratio threshold to use when determining the initial object position in 
-        the whitelight image with DAOStarFinder (this is the nsigma parameter in 
-        fitGaussian2D). Default is 5.0 
+        The signal-to-noise ratio threshold to use when determining the initial
+        object position in the whitelight image with DAOStarFinder (this is the
+        nsigma parameter in fitGaussian2D). Default is 5.0 
     manual_position : tuple, optional
-        Manual position of the object in the image, where (x, y) is the spatial pixel position in 
-        the cube. Default is None, which means that the position will be determined from the
-        whitelight image.
+        Manual position of the object in the image, where (x, y) is the spatial
+        pixel position in the cube. Default is None, which means that the
+        position will be determined from the whitelight image.
     opt_prof_method : str, optional
-        The method to be used to determine the object spatial profile for optimal extraction. 
-        Options are ``'user_gauss'``, ``'fit_gauss'``,  or ``'whitelight'``. The default is 
-        ``'fit_gauss'``.  Behavior is as follows:
 
-            - ``'user_gauss'``: Use a 2D symmetric Gaussian profile. The FWHM of the Gaussian is
-                determined by the fwhm parameter, which was also used for the object finding. 
+        The method to be used to determine the object spatial profile for
+        optimal extraction.  Options are ``'fit_gauss'``, ``'user_gauss'``, or
+        ``'whitelight'``. The default is ``'fit_gauss'``.  Behavior is as
+        follows:
 
-            - ``'fit_gauss'``:  Use the 2D Gaussian (possibly asymmetric) Gaussian fit 
-                to the whitelight image which was used to determine the object position.
-                This creates a model using func:`pypeit.core.datacube.fitGaussian2D` but
-                the offset is set to zero.
+            - ``'fit_gauss'``:  Use the 2D Gaussian (possibly asymmetric)
+              Gaussian fit to the whitelight image which was used to determine
+              the object position.  This creates a model using
+              func:`pypeit.core.datacube.fitGaussian2D` but the offset is set to
+              zero.
 
-            - ``'whitelight'``: Use the whitelight image to determine a non-parametric 
-                spatial profile. The whitelight image is smoothed with a Gaussian kernel
-                of width 0.5*sigma, where sigma is the standard deviation (fwhm/2.35) 
-                corresponding to the fwhm parameter. 
+            - ``'user_gauss'``: Use a 2D symmetric Gaussian profile. The FWHM of
+              the Gaussian is determined by the fwhm parameter, which was also
+              used for the object finding.  Note that this assumes the spatial
+              pixel (spaxel) sampling is the same in both x and y.
 
-    spectrograph : str or pypeit.spectrographs.spectrograph.Spectrograph, optional
+            - ``'whitelight'``: Use the whitelight image to determine a
+              non-parametric spatial profile. The whitelight image is smoothed
+              with a Gaussian kernel of width 0.5*sigma, where sigma is the
+              standard deviation (fwhm/2.35) corresponding to the fwhm
+              parameter. 
+
+    spectrograph : str, pypeit.spectrographs.spectrograph.Spectrograph, optional
         The spectrograph used to take the data.
     show_qa : bool, optional
         If True, the function will display alignment QA  images in ginga.
@@ -433,14 +444,16 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         SpecObjs object containing the extracted spectrum
     spec2dobj : :class:`~pypeit.spec2dobj.Spec2DObj`
         Spec2DObj object containing a psuedo 2D spectrum for visualization purposes
-    wl_img : `numpy.ndarray`_
-        A whitelight image of the input cube (of type `numpy.ndarray`_) which is the average flux
-        over the set of pixels in the wavelength range specified by wavemin and wavemax that
-        are not masked by the badpixel mask cube or the sigma clipping mask.
-    wl_ivar : `numpy.ndarray`_
+    wl_img : :class:`numpy.ndarray`
+        A whitelight image of the input cube (of type :class:`numpy.ndarray`)
+        which is the average flux over the set of pixels in the wavelength range
+        specified by wavemin and wavemax that are not masked by the badpixel
+        mask cube or the sigma clipping mask.
+    wl_ivar : :class:`numpy.ndarray`
         The inverse variance of the whitelight image.
-    wl_gpm : `numpy.ndarray`_
-        A good pixel mask for the whitelight image. A value of True indicates a good pixel.
+    wl_gpm : :class:`numpy.ndarray`
+        A good pixel mask for the whitelight image. A value of True indicates a
+        good pixel.
     """
     if whitelight_range is None:
         whitelight_range = [np.min(wave), np.max(wave)]
@@ -458,10 +471,10 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
 
     # Convert from counts/s/Ang/arcsec**2 to counts. The sensitivity function expects counts as input
     numxx, numyy, numwave = flxcube.shape
-    platescale_x = np.abs(wcscube.wcs.cdelt[0] * wcscube.wcs.cunit[0].to(units.arcsec))
-    platescale_y = np.abs(wcscube.wcs.cdelt[1] * wcscube.wcs.cunit[1].to(units.arcsec))
-    arcsecSQ = platescale_x * platescale_y
-    platescale = np.sqrt(arcsecSQ)
+    dspat_x = np.abs(wcscube.wcs.cdelt[0] * wcscube.wcs.cunit[0].to(units.arcsec))
+    dspat_y = np.abs(wcscube.wcs.cdelt[1] * wcscube.wcs.cunit[1].to(units.arcsec))
+    arcsecSQ = dspat_x * dspat_y
+    dspat = np.sqrt(arcsecSQ)
     if fluxed:
         # The datacube is flux calibrated, in units of 10^-17 erg/s/cm**2/Ang/arcsec**2
         # Scale the flux and ivar cubes to be in units of erg/s/cm**2/Ang
@@ -488,16 +501,10 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     )
     popt, pcov, model, init_obj_position, flux_opt, sigma_opt = fitGaussian2D(
         wl_img, ivar=wl_ivar, gpm=wl_gpm, init_obj_position=manual_position, 
-        fwhm=fwhm/platescale, nsigma=snr_thresh, norm=False, platescale=platescale
+        fwhm=fwhm/dspat, nsigma=snr_thresh, norm=False, pixelscale=dspat
     )
     _, xpos_gauss, ypos_gauss, sigma_x_gauss, sigma_y_gauss, theta_gauss, _ = popt
     gaussian_position = xpos_gauss, ypos_gauss
-    #log.info("Gaussian fit gives:")
-    #log.info("--------------------------------")
-    #log.info(f"FWHM_x: {sigma_x_gauss*platescale/fwhm2sigma:.2f} arcsec")
-    #log.info(f"FWHM_y: {sigma_y_gauss*platescale/fwhm2sigma:.2f} arcsec")
-    #log.info(f"Theta: {np.degrees(theta_gauss):.2f} degrees")
-    #log.info("--------------------------------")     
     
     # Object location for extraction 
     if manual_position is not None:
@@ -539,7 +546,7 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     # Subtract off the object mask region, so that we just have an annulus around the object
     smask -= mask
 
-    if not no_skysub:
+    if skysub_resid:
         log.info("Subtracting the residual sky")
         # Subtract the residual sky from the datacube
         skymask = np.logical_not(bpmcube) * smask
@@ -605,7 +612,7 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         log.info(f"User provided FWHM: {fwhm:.2f} arcsec")
         log.info("------------------------------------------------")
         # Generate a Gaussian kernel
-        fwhm_pix = fwhm/platescale
+        fwhm_pix = fwhm/dspat
         intflux = 1
         sigma_x, sigma_y = fwhm_pix*fwhm2sigma, fwhm_pix*fwhm2sigma
         theta, offset, = 0.0, 0.0
@@ -622,12 +629,12 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         # Print out the properties of the Gaussian
         log.info("Optimal extraction with fit_gauss method:")
         log.info("--------------------------------")
-        log.info(f"FWHM_x: {sigma_x_gauss*platescale/fwhm2sigma:.2f} arcsec")
-        log.info(f"FWHM_y: {sigma_y_gauss*platescale/fwhm2sigma:.2f} arcsec")
+        log.info(f"FWHM_x: {sigma_x_gauss*dspat/fwhm2sigma:.2f} arcsec")
+        log.info(f"FWHM_y: {sigma_y_gauss*dspat/fwhm2sigma:.2f} arcsec")
         log.info("--------------------------------")        
     elif opt_prof_method == 'whitelight':
         log.info("Optimal extraction with fit_gauss method: using whitelight image as a non-parametric spatial profile")
-        sigma = fwhm/platescale*fwhm2sigma
+        sigma = fwhm/dspat*fwhm2sigma
         smoothed_wl_img = ndimage.gaussian_filter(wl_img, sigma=0.5*sigma, mode='constant', cval=0.0)
         # Create an apodization window using the coordinates and the specified center
         radius = np.sqrt((xx - xobj)**2 + (yy - yobj)**2)
@@ -666,11 +673,11 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     thismask = np.ones_like(flxcube2d, dtype=bool)
 
     # Now do the optimal extraction
-    extract.extract_optimal(
-        flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof, sobj,
-        min_frac_use=min_frac_use, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None
-    )
     sobj.TRACE_SPAT = np.full(numwave, numspat/2.0)
+    sobj.extract_optimal(
+        flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
+        min_frac_use=min_frac_use
+    )
 
     # TODO :: The optimal extraction may suffer from residual DAR correction issues. This is because the
     #      :: object profile assumes that the white light image represents the true spatial profile of the
@@ -1838,11 +1845,12 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                    ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min, wave_max=wave_max)
 
     # Find the location of the object with the highest S/N in the combined white light image
-    platescale = dspat*units.deg.to(units.arcsec)
+    _dspat = dspat*units.deg.to(units.arcsec)
     whitelight_ivar = utils.inverse(np.square(whitelight_sigma))
     popt, pcov, model, init_obj_position, flux_opt, sigma_opt = fitGaussian2D(
-        whitelight_img, ivar=whitelight_ivar, gpm=np.logical_not(whitelight_bpm), fwhm = fwhm/platescale, 
-        init_obj_position=init_obj_position, norm=False, platescale=platescale)
+        whitelight_img, ivar=whitelight_ivar, gpm=np.logical_not(whitelight_bpm),
+        fwhm=fwhm/_dspat, init_obj_position=init_obj_position, norm=False,
+        pixelscale=_dspat)
     gaussian_position = popt[1], popt[2]
     if show_qa: 
         whitelight_objfind_qa(whitelight_img, utils.inverse(np.square(whitelight_sigma)), 
@@ -2041,90 +2049,96 @@ def generate_cube_subpixel(
     Save a datacube using the subpixel algorithm. Refer to the subpixellate()
     docstring for further details about this algorithm
 
-    Args:
-        output_wcs (`astropy.wcs.WCS`_):
-            Output world coordinate system.
-        bins (tuple):
-            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
-            and z wavelength coordinates
-        sciImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the counts of each pixel. If a list,
-            the shape of each numpy array is (nspec, nspat).
-        ivarImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the inverse variance of each pixel. If a list,
-            the shape of each numpy array is (nspec, nspat).
-        waveImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the wavelength of each pixel. If a list,
-            the shape of each numpy array is (nspec, nspat).
-        slitid_img_gpm (`numpy.ndarray`_, list):
-            A list of 2D array containing the slitmask of each pixel. If a list,
-            the shape of each numpy array is (nspec, nspat).
-            A zero value indicates that a pixel is either not on a slit or it is a bad pixel.
-            All other values are the slit spatial ID number.
-        wghtImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the weights of each pixel to be used in the
-            combination. If a list, the shape of each numpy array is (nspec, nspat).
-        all_wcs (`astropy.wcs.WCS`_, list):
-            A list of `astropy.wcs.WCS`_ objects, one for each spec2d file.
-        tilts (list):
-            A list of `numpy.ndarray`_ objects, one for each spec2d file,
-            containing the tilts of each pixel. The shape of each numpy array
-            is (nspec, nspat).
-        slits (:class:`pypeit.slittrace.SlitTraceSet`, list):
-            A list of :class:`pypeit.slittrace.SlitTraceSet` objects, one for each
-            spec2d file, containing the properties of the slit for each spec2d file
-        astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
-            A Class containing the transformation between detector pixel
-            coordinates and WCS pixel coordinates, or a list of Alignment
-            Splines (see all_idx)
-        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
-            A Class containing the DAR correction information, or a list of DARcorrection
-            classes. If a list, it must be the same length as astrom_trans.
-        ra_offset (float, list):
-            A float or list of floats containing the RA offset of each spec2d file
-        dec_offset (float, list):
-            A float or list of floats containing the DEC offset of each spec2d file
-        spec_subpixel (int, optional):
-            What is the subpixellation factor in the spectral direction. Higher
-            values give more reliable results, but note that the time required
-            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
-            which divides each detector pixel into 5 subpixels in the spectral
-            direction.
-        spat_subpixel (int, optional):
-            What is the subpixellation factor in the spatial direction. Higher
-            values give more reliable results, but note that the time required
-            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
-            which divides each detector pixel into 5 subpixels in the spatial
-            direction.
-        slice_subpixel (int, optional):
-            What is the subpixellation factor in the slice direction. Higher
-            values give more reliable results, but note that the time required
-            goes as (``slice_subpixel``). The default value is 5, which divides
-            each IFU slice into 5 subslices in the slice direction.
-        skip_subpix_weights (bool, optional):
-            If True, the computationally expensive step to calculate the
-            subpixellation weights will be skipped. If set the True, note that
-            the variance cubes returned will not be accurate. However, if you
-            are not interested in the variance cubes, this can save a lot of
-            time, and this is an example where you might consider setting this
-            variable to True. The flux datacube is unaffected by this variable.
-            The default is False.
+    Parameters
+    ----------
+    output_wcs : :class:`astropy.wcs.WCS`
+        Output world coordinate system.
+    bins : tuple
+        A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and
+        z wavelength coordinates
+    sciImg : :class:`numpy.ndarray`, list
+        A list of 2D array containing the counts of each pixel. If a list, the
+        shape of each numpy array is (nspec, nspat).
+    ivarImg : :class:`numpy.ndarray`, list
+        A list of 2D array containing the inverse variance of each pixel. If a
+        list, the shape of each numpy array is (nspec, nspat).
+    waveImg : :class:`numpy.ndarray`, list
+        A list of 2D array containing the wavelength of each pixel. If a list,
+        the shape of each numpy array is (nspec, nspat).
+    slitid_img_gpm : :class:`numpy.ndarray`, list
+        A list of 2D array containing the slitmask of each pixel. If a list, the
+        shape of each numpy array is (nspec, nspat).  A zero value indicates
+        that a pixel is either not on a slit or it is a bad pixel.  All other
+        values are the slit spatial ID number.
+    wghtImg : :class:`numpy.ndarray`, list
+        A list of 2D array containing the weights of each pixel to be used in
+        the combination. If a list, the shape of each numpy array is (nspec,
+        nspat).
+    all_wcs : :class:`astropy.wcs.WCS`, list
+        A list of :class:`astropy.wcs.WCS` objects, one for each spec2d file.
+    tilts : list
+        A list of :class:`numpy.ndarray` objects, one for each spec2d file,
+        containing the tilts of each pixel. The shape of each numpy array is
+        (nspec, nspat).
+    slits :class:`~pypeit.slittrace.SlitTraceSet`, list
+        A list of :class:`~pypeit.slittrace.SlitTraceSet` objects, one for each
+        spec2d file, containing the properties of the slit for each spec2d file
+    astrom_trans : :class:`~pypeit.alignframe.AlignmentSplines`, list
+        A Class containing the transformation between detector pixel coordinates
+        and WCS pixel coordinates, or a list of Alignment Splines (see all_idx)
+    all_dar : :class:`~pypeit.coadd3d.DARcorrection`, list
+        A Class containing the DAR correction information, or a list of
+        :class:`~pypeit.coadd3d.DARcorrection` classes. If a list, it must be
+        the same length as ``astrom_trans``.
+    ra_offset : float, list
+        A float or list of floats containing the RA offset of each spec2d file.
+    dec_offset : float, list
+        A float or list of floats containing the DEC offset of each spec2d file.
+    spec_subpixel : int, optional
+        What is the subpixellation factor in the spectral direction? Higher
+        values give more reliable results, but note that the time required goes
+        as (``spec_subpixel * spat_subpixel``). The default value is 5, which
+        divides each detector pixel into 5 subpixels in the spectral direction.
+    spat_subpixel : int, optional
+        What is the subpixellation factor in the spatial direction? Higher
+        values give more reliable results, but note that the time required goes
+        as (``spec_subpixel * spat_subpixel``). The default value is 5, which
+        divides each detector pixel into 5 subpixels in the spatial direction.
+    slice_subpixel : int, optional
+        What is the subpixellation factor in the slice direction? Higher values
+        give more reliable results, but note that the time required goes as
+        (``slice_subpixel``). The default value is 5, which divides each IFU
+        slice into 5 subslices in the slice direction.
+    skip_subpix_weights : bool, optional
+        If True, the computationally expensive step to calculate the
+        subpixellation weights will be skipped. If set the True, note that the
+        variance cubes returned will not be accurate. However, if you are not
+        interested in the variance cubes, this can save a lot of time, and this
+        is an example where you might consider setting this variable to True.
+        The flux datacube is unaffected by this variable.  The default is False.
+    correct_dar : bool, optional
+        If True, the DAR correction will be applied to the datacube. If the DAR
+        correction is not available, the datacube will not be corrected.
 
-        correct_dar (bool, optional):
-            If True, the DAR correction will be applied to the datacube. If the
-            DAR correction is not available, the datacube will not be corrected.
-
-    Returns:
-        :obj:`tuple`: Four `numpy.ndarray`_ objects containing
-        (1) the datacube generated from the subpixellated inputs. The shape of
-        the datacube is (nwave, nspat1, nspat2).
-        (2) the corresponding error cube (standard deviation). The shape of the
-        error cube is (nwave, nspat1, nspat2).
-        (3) the corresponding bad pixel mask cube. The shape of the bad pixel
-        mask cube is (nwave, nspat1, nspat2).
-        (4) A cube indicating the occupation number of a given pixel TODO: elaborate on this
-        (5) a 1D array containing the wavelength at each spectral coordinate of the datacube. The
-        shape of the wavelength array is (nwave,).
+    Returns
+    -------
+    flxcube : :class:`numpy.ndarray`
+        The datacube generated from the subpixellated inputs. The shape of the
+        datacube is (nwave, nspat1, nspat2).
+    sigcube : :class:`numpy.ndarray`
+        The error cube (standard deviation).  Shape matches
+        ``flxcube``.
+    bpmcube : :class:`numpy.ndarray`
+        The bad-pixel mask cube. Shape matches ``flxcube``.
+    normcube : :class:`numpy.ndarray`
+        A cube indicating the occupation number of a given pixel; i.e., the the
+        number of input pixels contributing to each output pixel.  This is
+        roughly the number of exposures; however, this will depend on the
+        subsampling, relative offsets, and masking applied to each individual
+        input cube.
+    wave : :class:`numpy.ndarray`
+        1D array containing the wavelength at each spectral coordinate of the
+        datacube. The shape of the wavelength array is (nwave,).
     """
     # Check the inputs
     #if whitelight_range is not None and outfile is None:
@@ -2143,130 +2157,123 @@ def generate_cube_subpixel(
     wcs_scale = (1.0*output_wcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
     wave = wcs_scale * output_wcs.spectral.wcs_pix2world(np.arange(nspec), 0)[0]
 
-#    # Check if the user requested a white light image
-#    if whitelight_range is not None:
-#        # Grab the WCS of the white light image
-#        whitelight_wcs = output_wcs.celestial
-#        # Determine the wavelength range of the whitelight image
-#        if whitelight_range[0] is None:
-#            whitelight_range[0] = wave[0]
-#        if whitelight_range[1] is None:
-#            whitelight_range[1] = wave[-1]
-#        log.info("White light image covers the wavelength range {0:.2f} A - {1:.2f} A".format(
-#            whitelight_range[0], whitelight_range[1]))
-#        # Get the output filename for the white light image
-#        out_whitelight = get_output_whitelight_filename(outfile)
-#        whitelight_img = make_whitelight_fromcube(flxcube, bpmcube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
-#        log.info("Saving white light image as: {0:s}".format(out_whitelight))
-#        img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
-#        img_hdu.writeto(out_whitelight, overwrite=overwrite)
-
     # TODO :: Avoid transposing these large cubes
     return flxcube.T, sigcube.T, bpmcube.T, normcube.T, wave
 
 
 
-def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                 all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                 spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, skip_subpix_weights=False,
-                 correct_dar=True, verbose=False):
+def subpixellate(
+    output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
+    astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=5, spat_subpixel=5,
+    slice_subpixel=5, skip_subpix_weights=False, correct_dar=True, verbose=False
+):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
-    detector pixel into multiple subpixels and each IFU slice into multiple subslices.
-    Then, the algorithm assigns each subdivided detector pixel to a
-    voxel. For example, if ``spec_subpixel = spat_subpixel = slice_subpixel = 5``, then each
-    detector pixel is divided into :math:`5^3=125` subpixels. Alternatively,
-    when spec_subpixel = spat_subpixel = slice_subpixel = 1, this corresponds to the nearest grid
-    point (NGP) algorithm.
+    detector pixel into multiple subpixels and each IFU slice into multiple
+    subslices.  Then, the algorithm assigns each subdivided detector pixel to a
+    voxel. For example, if ``spec_subpixel = spat_subpixel = slice_subpixel =
+    5``, then each detector pixel is divided into :math:`5^3=125` subpixels.
+    Alternatively, when spec_subpixel = spat_subpixel = slice_subpixel = 1, this
+    corresponds to the nearest grid point (NGP) algorithm.
 
-    Important Note: If spec_subpixel > 1 or spat_subpixel > 1 or slice_subpixel > 1,
-    the errors will be correlated, and the covariance is not being tracked, so the
-    errors will not be (quite) right. There is a tradeoff one has to make between
-    sampling and better looking cubes, versus no sampling and better behaved errors.
+    .. important::
 
-    Args:
-        output_wcs (`astropy.wcs.WCS`_):
-            Output world coordinate system.
-        bins (tuple):
-            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
-            and z wavelength coordinates
-        sciImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the counts of each pixel. The shape of
-            each 2D array is (nspec, nspat).
-        ivarImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the inverse variance of each pixel. The shape of
-            each 2D array is (nspec, nspat).
-        waveImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the wavelength of each pixel. The shape of
-            each 2D array is (nspec, nspat).
-        slitid_img_gpm (`numpy.ndarray`_, list):
-            A list of 2D array containing the slitmask of each pixel. The shape of
-            each 2D array is (nspec, nspat).
-            A zero value indicates that a pixel is either not on a slit or it is a bad pixel.
-            All other values are the slit spatial ID number.
-        wghtImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the weights of each pixel to be used in the
-            combination. The shape of each 2D array is (nspec, nspat).
-        all_wcs (`astropy.wcs.WCS`_, list):
-            A list of `astropy.wcs.WCS`_ objects, one for each spec2d file
-        tilts (list):
-            A list of `numpy.ndarray`_ objects, one for each spec2d file,
-            containing the tilts of each pixel. The shape of each 2D array is
-            (nspec, nspat).
-        slits (:class:`pypeit.slittrace.SlitTraceSet`, list):
-            A list of :class:`pypeit.slittrace.SlitTraceSet` objects, one for each
-            spec2d file, containing the properties of the slit for each spec2d file
-        astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
-            A Class containing the transformation between detector pixel
-            coordinates and WCS pixel coordinates, or a list of Alignment
-            Splines (see all_idx)
-        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
-            A Class containing the DAR correction information, or a list of DARcorrection
-            classes. If a list, it must be the same length as astrom_trans.
-        ra_offset (float, list):
-            A float or list of floats containing the RA offset of each spec2d file
-            relative to the first spec2d file
-        dec_offset (float, list):
-            A float or list of floats containing the DEC offset of each spec2d file
-            relative to the first spec2d file
-        spec_subpixel (int, optional):
-            What is the subpixellation factor in the spectral direction. Higher
-            values give more reliable results, but note that the time required
-            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
-            which divides each detector pixel into 5 subpixels in the spectral
-            direction.
-        spat_subpixel (int, optional):
-            What is the subpixellation factor in the spatial direction. Higher
-            values give more reliable results, but note that the time required
-            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
-            which divides each detector pixel into 5 subpixels in the spatial
-            direction.
-        slice_subpixel (int, optional):
-            What is the subpixellation factor in the slice direction. Higher
-            values give more reliable results, but note that the time required
-            goes as (``slice_subpixel``). The default value is 5, which divides
-            each IFU slice into 5 subslices in the slice direction.
-        skip_subpix_weights (bool, optional):
-            If True, the computationally expensive step to calculate the
-            subpixellation weights will be skipped. If set the True, note that
-            the variance cubes returned will not be accurate. However, if you
-            are not interested in the variance cubes, this can save a lot of
-            time, and this is an example where you might consider setting this
-            variable to True. The flux datacube is unaffected by this variable.
-            The default is False.
-        correct_dar (bool, optional):
-            If True, the DAR correction will be applied to the datacube. The
-            default is True.
-        verbose (bool, optional):
-            If True, the code will print out more information. The default is
-            False.
+        If ``spec_subpixel > 1`` or ``spat_subpixel > 1`` or ``slice_subpixel >
+        1``, the errors will be correlated, and the covariance is not being
+        tracked, so the errors will not be (quite) right. There is a tradeoff
+        one has to make between sampling and better looking cubes, versus no
+        sampling and better behaved errors.
 
-    Returns:
-        :obj:`tuple`: Three or four `numpy.ndarray`_ objects containing (1) the
-        datacube generated from the subpixellated inputs, (2) the corresponding
-        standard deviation cube, and (3) the corresponding bad pixel mask cube. (4) A cube
-        indicating the occupation number of a given pixel TODO: elaborate on this
+    Parameters
+    ----------
+    output_wcs : :class:`astropy.wcs.WCS`
+        Output world coordinate system.
+    bins : tuple
+        A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and
+        z wavelength coordinates
+    sciImg : :class:`numpy.ndarray`, list
+        A list of 2D array containing the counts of each pixel. The shape of
+        each 2D array is (nspec, nspat).
+    ivarImg : :class:`numpy.ndarray`, list
+        A list of 2D array containing the inverse variance of each pixel. The
+        shape of each 2D array is (nspec, nspat).
+    waveImg : :class:`numpy.ndarray`, list
+        A list of 2D array containing the wavelength of each pixel. The shape of
+        each 2D array is (nspec, nspat).
+    slitid_img_gpm : :class:`numpy.ndarray`, list
+        A list of 2D array containing the slitmask of each pixel. The shape of
+        each 2D array is (nspec, nspat).  A zero value indicates that a pixel is
+        either not on a slit or it is a bad pixel.  All other values are the
+        slit spatial ID number.
+    wghtImg : :class:`numpy.ndarray`, list
+        A list of 2D array containing the weights of each pixel to be used in
+        the combination. The shape of each 2D array is (nspec, nspat).
+    all_wcs : :class:`astropy.wcs.WCS`, list
+        A list of :class:`astropy.wcs.WCS` objects, one for each spec2d file.
+    tilts : list
+        A list of :class:`numpy.ndarray` objects, one for each spec2d file,
+        containing the tilts of each pixel. The shape of each 2D array is
+        (nspec, nspat).
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`, list
+        A list of :class:`~pypeit.slittrace.SlitTraceSet` objects, one for each
+        spec2d file, containing the properties of the slit for each spec2d file.
+    astrom_trans : :class:`~pypeit.alignframe.AlignmentSplines`, list
+        A Class containing the transformation between detector pixel coordinates
+        and WCS pixel coordinates, or a list of Alignment Splines (see all_idx).
+    all_dar : :class:`~pypeit.coadd3d.DARcorrection`, list
+        A Class containing the DAR correction information, or a list of
+        :class:`~pypeit.coadd3d.DARcorrection` classes. If a list, it must be
+        the same length as astrom_trans.
+    ra_offset : float, list
+        A float or list of floats containing the RA offset of each spec2d file
+        relative to the first spec2d file
+    dec_offset : float, list
+        A float or list of floats containing the DEC offset of each spec2d file
+        relative to the first spec2d file
+    spec_subpixel : int, optional
+        What is the subpixellation factor in the spectral direction? Higher
+        values give more reliable results, but note that the time required goes
+        as (``spec_subpixel * spat_subpixel``). The default value is 5, which
+        divides each detector pixel into 5 subpixels in the spectral direction.
+    spat_subpixel : int, optional
+        What is the subpixellation factor in the spatial direction? Higher
+        values give more reliable results, but note that the time required goes
+        as (``spec_subpixel * spat_subpixel``). The default value is 5, which
+        divides each detector pixel into 5 subpixels in the spatial direction.
+    slice_subpixel : int, optional
+        What is the subpixellation factor in the slice direction? Higher values
+        give more reliable results, but note that the time required goes as
+        (``slice_subpixel``). The default value is 5, which divides each IFU
+        slice into 5 subslices in the slice direction.
+    skip_subpix_weights : bool, optional
+        If True, the computationally expensive step to calculate the
+        subpixellation weights will be skipped. If set the True, note that the
+        variance cubes returned will not be accurate. However, if you are not
+        interested in the variance cubes, this can save a lot of time, and this
+        is an example where you might consider setting this variable to True.
+        The flux datacube is unaffected by this variable.  The default is False.
+    correct_dar : bool, optional
+        If True, the DAR correction will be applied to the datacube. The default
+        is True.
+    verbose : bool, optional
+        If True, the code will print out more information. The default is False.
 
+    Returns
+    -------
+    flxcube : :class:`numpy.ndarray`
+        The datacube generated from the subpixellated inputs. The shape of the
+        datacube is (nwave, nspat1, nspat2).
+    sigcube : :class:`numpy.ndarray`
+        The error cube (standard deviation).  Shape matches
+        ``flxcube``.
+    bpmcube : :class:`numpy.ndarray`
+        The bad-pixel mask cube. Shape matches ``flxcube``.
+    normcube : :class:`numpy.ndarray`
+        A cube indicating the occupation number of a given pixel; i.e., the the
+        number of input pixels contributing to each output pixel.  This is
+        roughly the number of exposures; however, this will depend on the
+        subsampling, relative offsets, and masking applied to each individual
+        input cube.
     """
     # Check the inputs for combinations of lists or not
     _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
@@ -2354,10 +2361,12 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
                 this_dec_int = dec_spl(spatpos_subpix)
                 # Now apply the DAR correction and any user-supplied offsets
                 this_ra_int += ra_corr + _ra_offset[fr]
-                #this_dec_int += dec_corr + _dec_offset[fr]
-                # TODO: Below was a hack to fix bug for KCRM. I suspected the WCS was being set incorrectly, 
-                # which was true, and this hack fixed it. Old code is the line above. 
-                this_dec_int += dec_corr - _dec_offset[fr]
+                this_dec_int += dec_corr + _dec_offset[fr]
+                # TODO: Below was a hack to fix bug for KCRM. I suspected the
+                # WCS was being set incorrectly, which was true, and this hack
+                # fixed it. Old code is the line above.  See
+                # https://github.com/pypeit/PypeIt/issues/2116
+                #this_dec_int += dec_corr - _dec_offset[fr]
                 # Convert world coordinates to voxel coordinates, then histogram
                 sslo = ss * num_subpixels
                 sshi = (ss + 1) * num_subpixels

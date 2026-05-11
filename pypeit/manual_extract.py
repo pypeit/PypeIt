@@ -208,15 +208,28 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
 
     @classmethod
     def parse(cls, inp: str):
-        """Generate the object from a string input from the manual parameter in the parset
+        """
+        Generate the object from a string input from the manual parameter in the
+        parset.
 
-        Args:
-            inp (str):
-                String specifying the manual aperture: ``spatx:spaty:fwhm``;
-                e.g., ``25.6:10.2:1.1``
+        Parameters
+        ----------
+        inp : str
+            String specifying the manual aperture.  The format is
+            ``spatx:spaty:fwhm:boxcar_radius``, and multiple manual extractions
+            must be separated by a semi-colon.  Only the first two entries,
+            defining the spatial x and y *pixel* positions in the datacube, are
+            required; the FWHM and boxcar radius are optional and provided in
+            arcseconds.  Note that you cannot provide boxcar_radius without also
+            providing fwhm; if you wish to only provide boxcar_radius, set fwhm
+            = -1.  Currently only the use of spatx:spaty is supported, and only
+            single objects can be extracted at a time, so the semi-colon
+            separation does not apply.
 
-        Returns:
-            ManualExtractionObj:
+        Returns
+        -------
+        :class:`~pypeit.manual_extract.ManualCubeExtractionObj`
+            Object used to define the extraction.
         """
         # Generate a dict
         idict = dict(spatx=[], spaty=[], fwhm=[], boxcar_rad=[])
@@ -261,9 +274,12 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
         """
         if len(self.spatx) != len(self.spaty):
             raise ValueError("spatx and spaty not of the same length")
-        #if len(self.fwhm) != len(self.spatx):
-        #    raise ValueError("FWHM and spatx and spaty not of the same length")
-
+        if len(self.fwhm) != len(self.spatx):
+            raise ValueError('Number of FWHM entries does not match the number of coordinates.')
+        if len(self.boxcar_rad) != len(self.spatx):
+            raise ValueError(
+                'Number of boxcar radius entries does not match the number of coordinates.'
+            )
 
     def to_dict(self):
         """

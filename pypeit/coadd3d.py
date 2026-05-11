@@ -238,25 +238,33 @@ class DataCube(datamodel.DataContainer):
             The directory for the output files. If None, the output files are written to the
             directory in which the class is run.
         """
-        _output_dir = '' if output_dir is None else output_dir
+        _output_dir = Path().absolute() if output_dir is None else Path(output_dir).absolute()
         
         # Check if the files exist, if so crash out
-        file_suffix = os.path.basename(self.filename) if parset['output_filename'] \
-            is None else parset['output_filename']
-        spec1d_filename = os.path.join(_output_dir, 'spec1d_' + file_suffix)
-        spec1d_filename = spec1d_filename + '.fits' if not spec1d_filename.endswith('.fits') else spec1d_filename
-        spec2d_filename = os.path.join(_output_dir, 'spec2d_{:s}'.format(file_suffix))
-        spec2d_filename = spec2d_filename + '.fits' if not spec2d_filename.endswith('.fits') else spec2d_filename
-        out_whitelight = datacube.get_output_whitelight_filename(_output_dir, file_suffix)
-
-        if os.path.isfile(spec1d_filename) and not overwrite:
+        file_suffix = (
+            Path(self.filename).name if parset['cube_extraction']['output_filename'] is None
+            else parset['cube_extraction']['output_filename']
+        )
+        spec1d_filename = _output_dir / f'spec1d_{file_suffix}'
+        if spec1d_filename.suffix != '.fits':
+            spec1d_filename = spec1d_filename.with_suffix('.fits')
+        if spec1d_filename.is_file() and not overwrite:
             raise PypeItError(f"{spec1d_filename} exists!  Set overwrite=True to overwrite.")
-        if os.path.isfile(spec2d_filename) and not overwrite:
+
+        spec2d_filename = _output_dir / f'spec2d_{file_suffix}'
+        if spec2d_filename.suffix != '.fits':
+            spec2d_filename = spec2d_filename.with_suffix('.fits')
+        if spec2d_filename.is_file() and not overwrite:
             raise PypeItError(f"{spec2d_filename} exists!  Set overwrite=True to overwrite.")
-        if os.path.isfile(out_whitelight) and not overwrite:
+
+        out_whitelight = Path(
+            datacube.get_output_whitelight_filename(str(_output_dir), file_suffix)
+        ).absolute()
+        if out_whitelight.is_file() and not overwrite:
             raise PypeItError(f"{out_whitelight} exists!  Set overwrite=True to overwrite.")
-        if parset['manual'] is not None and len(parset['manual']) > 0:
-            manual_dict= ManualCubeExtractionObj.parse(parset['manual']).to_dict()
+
+        if parset['cube_extraction']['manual'] is not None and len(parset['cube_extraction']['manual']) > 0:
+            manual_dict= ManualCubeExtractionObj.parse(parset['cube_extraction']['manual']).to_dict()
             manual_position = (manual_dict['spatx'][0], manual_dict['spaty'][0])
         else:
             manual_position = None
@@ -267,29 +275,31 @@ class DataCube(datamodel.DataContainer):
         sobjs, spec2d, wl_img, wl_ivar, wl_gpm = datacube.extract_point_source(
             self.wave, self.flux.T, self.ivar.T, self.bpm.T, self._wcs, exptime, 
             fluxed=self.fluxed, min_frac_use=parset['extraction']['min_frac_prof'],
-            whitelight_range=parset['whitelight_range'],
-            fwhm = parset['fwhm'], no_skysub=parset['no_skysub'], snr_thresh = parset['snr_thresh'], 
-            manual_position=manual_position,  boxcar_radius=parset['boxcar_radius'], 
-            opt_prof_method=parset['opt_prof_method'],
-            spectrograph = self.spectrograph, show_qa=debug)
+            whitelight_range=parset['cube_extraction']['whitelight_range'],
+            fwhm=parset['cube_extraction']['fwhm'],
+            skysub_resid=parset['cube_extraction']['skysub_resid'],
+            snr_thresh=parset['cube_extraction']['snr_thresh'], manual_position=manual_position,
+            boxcar_radius=parset['cube_extraction']['boxcar_radius'], 
+            opt_prof_method=parset['cube_extraction']['opt_prof_method'],
+            spectrograph=self.spectrograph, show_qa=debug
+        )
 
         # Save the extracted spectrum
-        sobjs.write_to_fits(self.head0, spec1d_filename, overwrite=overwrite)
+        sobjs.write_to_fits(self.head0, str(spec1d_filename), overwrite=overwrite)
         # Save the psuedo spec2d images
         all_spec2d = spec2dobj.AllSpec2DObj()
         all_spec2d[spec2d.detector.name] = spec2d
         # Build header for spec2d
-        all_spec2d.write_to_fits(spec2d_filename, pri_hdr=fits.Header(), overwrite=overwrite)
+        all_spec2d.write_to_fits(str(spec2d_filename), pri_hdr=fits.Header(), overwrite=overwrite)
         # Write out the white light image
         # TODO This is replicated code from datacube.make_whitelight, clean this up. 
         log.info(f"Saving white light image as: {out_whitelight}")
-        primary_hdu = fits.PrimaryHDU(wl_img.T, header=self._wcs.WCS.celestial.to_header())
+        primary_hdu = fits.PrimaryHDU(wl_img.T, header=self._wcs.celestial.to_header())
 #        primary_hdu.header['EXTNAME'] = 'WHITELIGHT'
         ivar_hdu = fits.ImageHDU(wl_ivar.T, name='IVAR')
         gpm_hdu = fits.ImageHDU(wl_gpm.astype(np.uint8).T, name='GPM')
         hdul = fits.HDUList([primary_hdu, ivar_hdu, gpm_hdu])
         hdul.writeto(out_whitelight, overwrite=overwrite)
-
 
 
 class DARcorrection:
@@ -1419,7 +1429,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         """
         # Grab cos(dec) for convenience
         cosdec = np.cos(np.mean(self.ifu_dec[0]) * np.pi / 180.0)
-        platescale = (self._dspat*units.deg).to(units.arcsec).value
+        dspat = (self._dspat*units.deg).to(units.arcsec).value
         # Initialize the RA and Dec offset arrays
         ra_offsets, dec_offsets = [0.0]*self.numfiles, [0.0]*self.numfiles
         # Register spatial offsets between all frames
@@ -1489,8 +1499,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             popt, pcov, model, init_obj_position, flux_opt, sigma_opt
                         ) = datacube.fitGaussian2D(
                             wl_imgs[:, :, ff], ivar=utils.inverse(np.square(sig_imgs[:,:, ff])), 
-                            gpm=np.logical_not(bpm_imgs[:, :, ff]), fwhm = fwhm/platescale, 
-                            norm=False
+                            gpm=np.logical_not(bpm_imgs[:, :, ff]), fwhm=fwhm/dspat, norm=False
                         )
                         gaussian_position = popt[1], popt[2]
                         if show_qa and dd == numiter-1:
@@ -1505,14 +1514,15 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     dec_shifts = (dec_pix_star - dec_pix_star[ref_idx]) * self._dspat
                     ra_offsets =[ra_offsets[ff] + ra_shifts[ff] for ff in range(self.numfiles)]
                     dec_offsets =[dec_offsets[ff] + dec_shifts[ff] for ff in range(self.numfiles)]
-                    for ff in range(self.numfiles):
-                        log.info(
-                            f"Spatial shift of cube #{ff + 1}:\n"
-                            f"RA, DEC (arcsec) = {ra_shifts[ff]*3600.0:+0.3f} E, "
-                            f"{dec_shifts[ff]*3600.0:+0.3f} N"
-                        )
                 else:
                     raise PypeItError('Registration method must be either "phase" or "fit".')
+
+                for ff in range(self.numfiles):
+                    log.info(
+                        f"Spatial shift of cube #{ff + 1}:\n"
+                        f"RA, DEC (arcsec) = {ra_offsets[ff]*3600.0:+0.3f} E, "
+                        f"{dec_offsets[ff]*3600.0:+0.3f} N"
+                    )
 
         return ra_offsets, dec_offsets
 
@@ -1620,6 +1630,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Align the frames
         if self.align:
             self.ra_offsets, self.dec_offsets = self.run_align(show_qa=self.debug)
+            log.info('Alignment offsets are:')
+            for i, (rao, dco) in enumerate(zip(self.ra_offsets, self.dec_offsets)):
+                log.info(
+                    f"Cube {i + 1}: RA, DEC (arcsec) = {rao*3600.0:+0.3f} E, {dco*3600.0:+0.3f} N"
+                )
 
         # TODO There should be an if self.combine here, as we only need these weights now if we are going to 
         # combine the cubes.  Furthermore, since the images are aligned, we should be using the full cube to 
@@ -1665,34 +1680,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),
                                                 np.min(self.mnmx_wv[:, :, 1]),
                                                 self.cubepar['whitelight_range'])
-            # if self.combine:
-            #     outfile = datacube.get_output_filename(self.output_dir, "", self.cubepar['output_filename'], True, -1)
-            #     # Generate the datacube
-            #     flxcube, sigcube, bpmcube, normcube, wave = \
-            #         datacube.generate_cube_subpixel(cube_wcs, vox_edges, self.all_sci, self.all_ivar, self.all_wave,
-            #                                         self.all_slitid, self.all_wghts, self.all_wcs,
-            #                                         self.all_tilts, self.all_slits, self.all_align, self.all_dar,
-            #                                         self.ra_offsets, self.dec_offsets,
-            #                                         outfile=outfile, overwrite=self.overwrite, whitelight_range=wl_wvrng,
-            #                                         spec_subpixel=self.spec_subpixel,
-            #                                         spat_subpixel=self.spat_subpixel,
-            #                                         slice_subpixel=self.slice_subpixel,
-            #                                         skip_subpix_weights=self.skip_subpix_weights,
-            #                                         correct_dar=self.correct_dar)
-            #     # Prepare the header
-            #     hdr = cube_wcs.to_header()
-            #     if self.fluxcal:
-            #         hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
-            #     else:
-            #         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
-            #     # Write out the datacube
-            #     msgs.info("Saving datacube as: {0:s}".format(outfile))
-            #     final_cube = DataCube(flxcube, sigcube, bpmcube.astype(np.uint8), 
-            #                           wave, self.specname, self.blaze_wave, self.blaze_spec,
-            #                           sensfunc=sensfunc, fluxed=self.fluxcal)
-            #     # Note, we only store in the primary header the first spec2d file
-            #     final_cube.to_file(os.path.join(self.output_dir, outfile), primary_hdr=self.all_header[0], hdr=hdr, overwrite=self.overwrite)
-            #else:
+
             for ff in range(self.numfiles):
                 outfile = datacube.get_output_filename(self.output_dir, "", self.cubepar['output_filename'], False, ff)
                 # Generate the datacube       
