@@ -730,6 +730,7 @@ Key                       Type        Options                                   
 ``ra_max``                float       ..                                                                               ..            Maximum RA to use when generating the WCS. If None, the default is maximum RA based on the WCS of all spaxels. Units should be degrees.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``ra_min``                float       ..                                                                               ..            Minimum RA to use when generating the WCS. If None, the default is minimum RA based on the WCS of all spaxels. Units should be degrees.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``reference_image``       str         ..                                                                               ..            White light image of a previously combined datacube. The white light image will be used as a reference when calculating the offsets of the input spec2d files. Ideally, the reference image should have the same shape as the data to be combined (i.e. set the ra_min, ra_max etc. params so they are identical to the reference image).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``register``              str         ``phase``, ``fit``                                                               ``phase``     Method used to register datcubes when coadding.  Must be either "phase" or "fit": Setting ``register = phase`` will use a cross-correlation method to determine the offsets, where the cross-correlation is always with respect to a reference image.  The reference image can either be provided (see the "reference_image" parameter), or it will be the whitelight image of the first datacube in the stack.  This method uses the scikit-image package, if it is installed; otherwise it will use scipy.  Setting ``register = fit`` requires that photutils to be installed.  For each datacube being combined, a 2D Gaussian is fit the brightest point-like object found in each whitelight image and used to set the registration coordinate.                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ``save_whitelight``       bool        ..                                                                               False         Save a white light image of the combined datacube. The output filename will be given by the "output_filename" variable with a suffix "_whitelight". Note that the white light image collapses the flux along the wavelength axis, so some spaxels in the 2D white light image may have different wavelength ranges. To set the wavelength range, use the "whitelight_range" parameter. If combine=False, the individual spec3d files will have a suffix "_whitelight".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``scale_corr``            str         ..                                                                               ..            This option performs a small correction for the relative spectral illumination scale of different spec2D files. Specify the relative path+file to the spec2D file that you would like to use for the relative scaling. If you want to perform this correction, it is best to use the spec2d file with the highest S/N sky spectrum. You should choose the same frame for both the standards and science frames.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``sensfile``              str         ..                                                                               ..            Filename of a sensitivity function to use to flux calibrate your datacube. The sensitivity function file will also be used to correct the relative scales of the slits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
@@ -744,7 +745,7 @@ Key                       Type        Options                                   
 ``wave_max``              float       ..                                                                               ..            Maximum wavelength to use when generating the WCS. If None, the default is maximum wavelength based on the WCS of all spaxels. Units should be Angstroms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ``wave_min``              float       ..                                                                               ..            Minimum wavelength to use when generating the WCS. If None, the default is minimum wavelength based on the WCS of all spaxels. Units should be Angstroms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ``weight_method``         str         ``auto``, ``constant``, ``uniform``, ``wave_dependent``, ``relative``, ``ivar``  ``auto``      Method used to weight the spectra for coadding. The options are: 'auto' -- Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.'constant' -- Constant weights based on rms_sn**2'uniform' --  Uniform weighting'wave_dependent' -- Wavelength dependent weights will be used irrespective of the rms_sn ratio. This option will not work well at low S/N ratio although it is useful for objects where only a small fraction of the spectral coverage has high S/N ratio (like high-z quasars).'relative' -- Apply relative weights implying one reference exposure will receive unit weight at all wavelengths and all others receive relatively wavelength dependent weights . Note, relative weighting will only work well when there is at least one spectrum with a reasonable S/N, and a continuum. This option may only be better when the object being used has a strong continuum + emission lines. This is particularly useful if you are dealing with highly variable spectra (e.g. emission lines) andrequire a precision better than ~1 per cent.'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated.
-``weights_init_obj_pos``  str         ..                                                                               ..            The initial guess for the object position in the image for computing the optimal weighting. If set, this value will be input into `pypeit.core.datacube.fitGaussian2D` as the initial guess for the object position. The 2D Gaussian fit will then be performed with theposition constrained to be within plus or minus fwhm/3 in x and y. If not set, the positionwill be determined by running DAOStarFinder on the image.Formatting follows the Manual extraction parameters convention, i.e. spatx:spaty:fwhmwhere spatx,specy are spatial x and y position in the datacube, and fwhm is optional and is in arcsec.Currently only the use of spatx:spaty is supported. Default is None.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+``weights_init_obj_pos``  str         ..                                                                               ..            The initial guess for the object position in the image for computing the optimal weighting.  If set, this value will be input into :func:`~pypeit.core.datacube.fitGaussian2D` as the initial guess for the object position.  The 2D Gaussian fit will then be performed with the position constrained to be within +/- fwhm/3 in x and y.  If not set, the position will be determined by running DAOStarFinder on the image.  Formatting follows the manual extraction parameters convention, i.e. spatx:spaty where spatx,specy are spatial x and y position in the datacube.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
 ``whitelight_range``      list        ..                                                                               None, None    A two element list specifying the wavelength range over which to generate the white light image. The first (second) element is the minimum (maximum) wavelength to use. If either of these elements are None, PypeIt will automatically use a wavelength range that ensures all spaxels have the same wavelength coverage. Note, if you are using a reference_image to align all frames, it is preferable to use the same white light wavelength range for all white light images. For example, you may wish to use an emission line map to register two frames.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
 ========================  ==========  ===============================================================================  ============  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
@@ -758,18 +759,18 @@ CubeExtractionPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.CubeExtractionPar`
 
-====================  ==========  =============================================  =============  ===============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                   Type        Options                                        Default        Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-====================  ==========  =============================================  =============  ===============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``boxcar_radius``     int, float  ..                                             ..             Radius of the circular boxcar (in arcseconds) to use for the extraction. Default is None, which means that the radius will be determined from the FWHM of the 2D Gaussian fit to the whitelight image.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
-``fwhm``              int, float  ..                                             1.5            FWHM of the PSF in arcseconds. Used to determine the degree of smoothing of the whitelight image, the kernel size for the initial object finding, and the bounds of the parameters for the 2D Gaussian fit. Note that if the opt_prof_method is set to 'user_gauss', this parameter will also be used as the FWHM of the 2D (symmetric) Gaussian spatial profile for optimal extraction. Default is 1.5 arcseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-``manual``            str         ..                                             ..             Manual extraction parameters for pypeit_extract_datacube. The format is spatx:spaty:fwhm:boxcar_radius. Multiple manual extractions are semi-colon separated, and spatx,specy are spatial x and y position in the datacube.fwhm and boxcar_radius are optional and both are in arcsec.Currently only the use of spatx:spaty is supported, and only single objects can be extracted at a time, so the semi-colon separation does not apply.                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-``no_skysub``         bool        ..                                             False          If True, the cube will have the residual sky-subtracted before extraction, and the whitelight image will also be residual sky-subtracted.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``opt_prof_method``   str         ``user_gauss``, ``fit_gauss``, ``whitelight``  ``fit_gauss``  The method to be used to determine the object spatial profile for optimal extraction. Options are ``'user_gauss'``, ``'fit_gauss'``, or ``'whitelight'``. The default is ``'fit_gauss'``. Behavior is as follows:- ``'user_gauss'``: Use a 2D symmetric Gaussian profile. The FWHM of the Gaussian is determined by the fwhm parameter, which was also used for the object finding.- ``'fit_gauss'``: Use the (possibly asymmetric) 2D Gaussian fit to the whitelight image which was used to determine the object position. This creates a model using :func:`pypeit.core.datacube.fitGaussian2D` but the offset is set to zero.- ``'whitelight'``: Use the whitelight image to determine a non-parametric spatial profile. The whitelight image is smoothed with a Gaussian kernel of width 0.5*sigma, where sigma is the standard deviation (fwhm/2.35) corresponding to the fwhm parameter.
-``output_filename``   str         ..                                             ..             basename for output files, i.e. outputs will be written tospec1d_basename.fits and spec2d_basename.fits. Default is None, whichmeans that the basename will be taken from the input file.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``snr_thresh``        int, float  ..                                             5.0            The signal-to-noise ratio threshold to use when determining the initial object position in the whitelight image with DAOStarFinder (this is the nsigma parameter in :func:`~pypeit.core.datacube.fitGaussian2D`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
-``whitelight_range``  list        ..                                             None, None     A two element list specifying the wavelength range over which to generate the white light image. The first (second) element is the minimum (maximum) wavelength to use. If either of these elements are None, PypeIt will automatically use a wavelength range that ensures all spaxels have the same wavelength coverage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-====================  ==========  =============================================  =============  ===============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+====================  ==========  =============================================  =============  ============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                   Type        Options                                        Default        Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+====================  ==========  =============================================  =============  ============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``boxcar_radius``     int, float  ..                                             ..             Radius of the circular boxcar (in arcseconds) to use for the extraction.  By default, the radius will be set to 4 times the sigma of the 2D Gaussian fit to the whitelight image.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+``fwhm``              int, float  ..                                             1.5            FWHM of the PSF in arcseconds. Used to determine the degree of smoothing of the whitelight image, the kernel size for the initial object finding, and the bounds of the parameters for the 2D Gaussian fit. Note that if the opt_prof_method is set to 'user_gauss', this parameter will also be used as the FWHM of the 2D (symmetric) Gaussian spatial profile for optimal extraction. Default is 1.5 arcseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``manual``            str         ..                                             ..             Manual extraction parameters for pypeit_extract_datacube. The format is ``spatx:spaty:fwhm:boxcar_radius``, and multiple manual extractions must be separated by a semi-colon.  Only the first two entries, defining the spatial x and y *pixel* positions in the datacube, are required; the FWHM and boxcar radius are optional and provided in arcseconds.  Note that you cannot provide boxcar_radius without also providing fwhm; if you wish to only provide boxcar_radius, set fwhm=-1.  Currently only the use of spatx:spaty is supported, and only single objects can be extracted at a time, so the semi-colon separation does not apply.                                                                                                                                                                                                                                                                                        
+``opt_prof_method``   str         ``user_gauss``, ``fit_gauss``, ``whitelight``  ``fit_gauss``  The method to be used to determine the object spatial profile for optimal extraction. Options are ``'fit_gauss'`` (default), ``'user_gauss'``, or ``'whitelight'``: ``'fit_gauss'`` uses the (possibly asymmetric) 2D Gaussian fit to the whitelight image, which was used to determine the object position.  This creates a model using :func:`~pypeit.core.datacube.fitGaussian2D` but the offset is set to zero.  ``'user_gauss'`` uses a 2D symmetric Gaussian profile. The FWHM of the Gaussian is determined by the fwhm parameter, which was also used for the object finding.  Note that this assumes the spatial pixel (spaxel) sampling is the same in both x and y.  ``'whitelight'`` uses the whitelight image to determine a non-parametric spatial profile. The whitelight image is smoothed with a Gaussian kernel of width 0.5*sigma, where sigma is the standard deviation (fwhm/2.35) corresponding to the fwhm parameter.
+``output_filename``   str         ..                                             ..             basename for output files, i.e. outputs will be written tospec1d_basename.fits and spec2d_basename.fits. Default is None, whichmeans that the basename will be taken from the input file.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+``skysub_resid``      bool        ..                                             True           If False, the cube will have the residual sky-subtracted before extraction, and the whitelight image will also be residual sky-subtracted.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``snr_thresh``        int, float  ..                                             5.0            The signal-to-noise ratio threshold to use when determining the initial object position in the whitelight image with DAOStarFinder (this is the nsigma parameter in :func:`~pypeit.core.datacube.fitGaussian2D`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+``whitelight_range``  list        ..                                             None, None     A two element list specifying the wavelength range over which to generate the white light image. The first (second) element is the minimum (maximum) wavelength to use. If either of these elements are None, PypeIt will automatically use a wavelength range that ensures all spaxels have the same wavelength coverage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+====================  ==========  =============================================  =============  ============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -9703,6 +9704,305 @@ Alterations to the default parameters are:
       polyorder = 7
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+
+.. _instr_par-vlt_uves_blue:
+
+VLT VLT_UVES_blue (``vlt_uves_blue``)
+-------------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = vlt_uves_blue
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 600,
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = echelle
+          echelle = True
+          ech_nspec_coeff = 6
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 4.0
+          reid_cont_sub = False
+          cc_shift_range = (-80.0, 80.0)
+          cc_thresh = 0.6
+          cc_local_thresh = 0.25
+          rms_thresh_frac_fwhm = 0.1
+          match_toler = 1.5
+          n_first = 3
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          max_nudge = 0.0
+          dlength_range = 0.25
+          length_range = 0.3
+          add_missed_orders = True
+          overlap = True
+      [[tilts]]
+          tracethresh = 15
+          spec_order = 5
+  [scienceframe]
+      exprng = 30, None,
+      [[process]]
+          overscan_method = median
+          mask_cr = True
+          use_biasimage = False
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 3, 3,
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          sky_sigrej = 4.0
+          global_sky_std = False
+      [[extraction]]
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+
+.. _instr_par-vlt_uves_red:
+
+VLT VLT_UVES_red (``vlt_uves_red``)
+-----------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = vlt_uves_red
+      detnum = (1, 2),
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 120,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 600,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = echelle
+          echelle = True
+          ech_nspec_coeff = 6
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 4.0
+          reid_cont_sub = False
+          cc_shift_range = (-80.0, 80.0)
+          cc_thresh = 0.6
+          cc_local_thresh = 0.25
+          rms_thresh_frac_fwhm = 0.1
+          match_toler = 1.5
+          n_first = 3
+          ech_separate_2d = True
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          max_nudge = 0.0
+          dlength_range = 0.25
+          length_range = 0.3
+          add_missed_orders = True
+          order_width_poly = 4
+          overlap = True
+          mask_off_detector = True
+      [[tilts]]
+          tracethresh = 15
+          spec_order = 5
+  [scienceframe]
+      exprng = 30, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 3, 3,
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          global_sky_std = False
+      [[extraction]]
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_10500_R120000.fits
+          pix_shift_bounds = (-40.0, 40.0)
+  [telluric]
+      resln_frac_bounds = (0.25, 1.25)
+      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-vlt_xshooter_nir:
 

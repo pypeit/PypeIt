@@ -2046,8 +2046,9 @@ def generate_cube_subpixel(
     slice_subpixel=5, skip_subpix_weights=False, correct_dar=True
 ):
     """
-    Save a datacube using the subpixel algorithm. Refer to the subpixellate()
-    docstring for further details about this algorithm
+    Save a datacube using the subpixel algorithm. Refer to the
+    :func:`~pypeit.core.datcube.subpixellate` docstring for further details
+    about this algorithm.
 
     Parameters
     ----------
