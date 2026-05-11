@@ -25,6 +25,24 @@ Functionality/Performance Improvements and Additions
 
 Instrument-specific Updates
 ---------------------------
+
+- Rewrote MMT Binospec overscan subtraction in ``binospec_read_amp()`` to match
+  the IDL pipeline (``bino_mosaic.pro``): Y-axis postscan first, then X-axis
+  prescan+postscan, using sigma-clipped mean with outlier cleaning.  Added
+  per-amplifier nonlinearity correction using degree-4 polynomial coefficients
+  from the IDL calibration file.
+- Updated the MMT Binospec bad pixel mask to match the IDL pipeline, adding
+  ~12,500 individual bad pixels, additional bad columns, and detector trap
+  region masking from static calibration files.
+
+- MMT/Binospec: extended the ``mmt_binospec_1000`` reid_arxiv template redward
+  from 6760 Å to 7211 Å to support central wavelengths around 6450 Å.  The
+  red extension was wavelength-calibrated from a calibration arc centered at
+  6450 Å, anchored on HeI 5877.249, HeI 6679.995, ArI 6967.352, and HeI
+  7067.138 (vacuum); cubic fit RMS = 0.04 Å.  Spliced at 6700 Å using
+  :func:`~pypeit.core.wavecal.templates.build_template` with continuum
+  subtraction on the new segment.
+
 - Implemented support for VLT/UVES data reduction.
 
 Script Changes
