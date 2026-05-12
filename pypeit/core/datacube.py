@@ -2049,7 +2049,7 @@ def generate_cube_subpixel(
     Save a datacube using the subpixel algorithm. Refer to the
     :func:`~pypeit.core.datcube.subpixellate` docstring for further details
     about this algorithm.
-
+ 
     Parameters
     ----------
     output_wcs : :class:`astropy.wcs.WCS`
@@ -2081,14 +2081,14 @@ def generate_cube_subpixel(
         A list of :class:`numpy.ndarray` objects, one for each spec2d file,
         containing the tilts of each pixel. The shape of each numpy array is
         (nspec, nspat).
-    slits :class:`~pypeit.slittrace.SlitTraceSet`, list
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`, list
         A list of :class:`~pypeit.slittrace.SlitTraceSet` objects, one for each
         spec2d file, containing the properties of the slit for each spec2d file
     astrom_trans : :class:`~pypeit.alignframe.AlignmentSplines`, list
         A Class containing the transformation between detector pixel coordinates
         and WCS pixel coordinates, or a list of Alignment Splines (see all_idx)
     all_dar : :class:`~pypeit.coadd3d.DARcorrection`, list
-        A Class containing the DAR correction information, or a list of
+        A class containing the DAR correction information, or a list of
         :class:`~pypeit.coadd3d.DARcorrection` classes. If a list, it must be
         the same length as ``astrom_trans``.
     ra_offset : float, list
@@ -2141,6 +2141,7 @@ def generate_cube_subpixel(
         1D array containing the wavelength at each spectral coordinate of the
         datacube. The shape of the wavelength array is (nwave,).
     """
+ 
     # Subpixellate
     flxcube, sigcube, bpmcube, normcube = subpixellate(
         output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts,
