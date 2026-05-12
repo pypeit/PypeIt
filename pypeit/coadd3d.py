@@ -5,15 +5,14 @@ Module containing routines used by 3D datacubes.
 """
 
 from pathlib import Path
-import os
-import copy
 import inspect
 
 from astropy import wcs, units
 from astropy.io import fits
 import erfa
-from scipy.interpolate import interp1d
+from IPython import embed
 import numpy as np
+from scipy.interpolate import interp1d
 
 from pypeit import log
 from pypeit import PypeItError
@@ -22,9 +21,6 @@ from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import datacube, extract, flux_calib, parse, combine 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.manual_extract import ManualCubeExtractionObj
-
-
-from IPython import embed
 
 
 class DataCube(datamodel.DataContainer):
@@ -416,10 +412,11 @@ class CoAdd3D:
     """
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec2dfiles, par, 
-                     output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
-                     ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
-                     overwrite=False, show=False, debug=False):
+    def get_instance(
+        cls, spec2dfiles, par, output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None,
+        grating_corr=None, ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
+        overwrite=False, show=False, debug=False
+    ):
         """
         Instantiate the subclass appropriate for the provided spectrograph.
 
@@ -432,20 +429,22 @@ class CoAdd3D:
             :class:`CoAdd3D`: One of the subclasses with
             :class:`CoAdd3D` as its base.
         """
-        return next(c for c in cls.__subclasses__()
-                    if c.__name__ == (spectrograph.pypeline + 'CoAdd3D'))(
-                        spec2dfiles, par, 
-                        output_dir=output_dir, 
-                        skysub_frame=skysub_frame, sensfile=sensfile, scale_corr=scale_corr,
-                        grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
-                        spectrograph=spectrograph, det=det, overwrite=overwrite, show=show, debug=debug)
+        return next(
+            c for c in cls.__subclasses__() if c.__name__ == (spectrograph.pypeline + 'CoAdd3D')
+        )(
+            spec2dfiles, par, output_dir=output_dir, skysub_frame=skysub_frame,
+            sensfile=sensfile, scale_corr=scale_corr, grating_corr=grating_corr,
+            ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph,
+            det=det, overwrite=overwrite, show=show, debug=debug
+        )
 
     # TODO: det is needed to load the spec2d files. Although, what if there are
     # multiple detectors?  Do we need a det for each spec2d file?
-    def __init__(self, spec2dfiles, par, 
-                 output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
-                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=None,
-                 overwrite=False, show=False, debug=False):
+    def __init__(
+        self, spec2dfiles, par, output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None,
+        grating_corr=None, ra_offsets=None, dec_offsets=None, spectrograph=None, det=None,
+        overwrite=False, show=False, debug=False
+    ):
         """
 
         Args:
@@ -491,45 +490,55 @@ class CoAdd3D:
             debug (:obj:`bool`, optional):
                 Show QA for debugging.
         """
-        # TODO :: Consider loading all calibrations into a single variable within the main CoAdd3D parent class.
+
+        # TODO: Consider loading all calibrations into a single variable within
+        # the main CoAdd3D parent class.
+
         # Set the variables
         self.spec2d = spec2dfiles
         self.numfiles = len(spec2dfiles)
         self.par = par
-        self.output_dir = '' if output_dir is None else output_dir
-#        self.output_dir = output_dir
+        self.output_dir = Path().absolute() if output_dir is None else Path(output_dir).absolute()
         self.overwrite = overwrite
         self.chk_version = self.par['rdx']['chk_version']
+
         # Extract some parsets for simplicity
         self.cubepar = self.par['reduce']['cube']
         self.flatpar = self.par['calibrations']['flatfield']
         self.senspar = self.par['sensfunc']
+
         # Extract some commonly used variables
         self.method = self.cubepar['method']
         self.combine = self.cubepar['combine']
         self.align = self.cubepar['align']
         self.correct_dar = self.cubepar['correct_dar']
-        # TODO Only need one of show or debug probably
+
+        # TODO: Only need one of show or debug probably
         self.show = show
         self.debug = debug 
-        # Do some quick checks on the input options
-        if skysub_frame is not None and len(skysub_frame) != self.numfiles:
-            raise PypeItError("The skysub_frame list should be identical length to the spec2dfiles list")
-        if sensfile is not None and len(sensfile) != self.numfiles:
-            raise PypeItError("The sensfile list should be identical length to the spec2dfiles list")
-        if scale_corr is not None and len(scale_corr) != self.numfiles:
-            raise PypeItError("The scale_corr list should be identical length to the spec2dfiles list")
-        if grating_corr is not None and len(grating_corr) != self.numfiles:
-            raise PypeItError("The grating_corr list should be identical length to the spec2dfiles list")
-        if ra_offsets is not None and len(ra_offsets) != self.numfiles:
-            raise PypeItError("The ra_offsets list should be identical length to the spec2dfiles list")
-        if dec_offsets is not None and len(dec_offsets) != self.numfiles:
-            raise PypeItError("The dec_offsets list should be identical length to the spec2dfiles list")
+
+        # Check the input
+        for name, var in zip(
+            [
+                'sky-subtraction frames', 'sensitivity function files',
+                'relative scale correction options', 'flat calibration files', 'RA offsets',
+                'Dec offsets'
+            ], [skysub_frame, sensfile, scale_corr, grating_corr, ra_offsets, dec_offsets]
+        ):
+            if var is not None and len(var) != self.numfiles:
+                raise PypeItError(
+                    f'The list of {name} should have the same length as the spec2dfiles list'
+                )
+
         # Make sure both ra_offsets and dec_offsets are either both None or both lists
-        if ra_offsets is None and dec_offsets is not None:
-            raise PypeItError("If you provide dec_offsets, you must also provide ra_offsets")
-        if ra_offsets is not None and dec_offsets is None:
-            raise PypeItError("If you provide ra_offsets, you must also provide dec_offsets")
+        if (
+            (ra_offsets is None and dec_offsets is not None)
+            or (ra_offsets is not None and dec_offsets is None)
+        ):
+            raise PypeItError(
+                'You must provide both ra_offsets and dec_offsets if you provide either.'
+            )
+
         # Set the frame specific options
         self.sensfile = None
         if sensfile is None:
@@ -540,28 +549,39 @@ class CoAdd3D:
         else:
             # User provided a sensfile for each frame. Use these.
             self.sensfile = sensfile
+
         self.skysub_frame = skysub_frame
         self.scale_corr = scale_corr
         self.grating_corr = grating_corr
         self.ra_offsets = list(ra_offsets) if isinstance(ra_offsets, np.ndarray) else ra_offsets
         self.dec_offsets = list(dec_offsets) if isinstance(dec_offsets, np.ndarray) else dec_offsets
-        # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
+
+        # If there is only one frame being "combined" AND there's no reference
+        # image, then don't compute the translation.
         if self.numfiles == 1 and self.cubepar["reference_image"] is None:
             if self.align:
-                log.warning("Parameter 'align' should be False when there is only one frame and no reference image")
-                log.info("Setting 'align' to False")
+                log.warning(
+                    "Parameter 'align' should be False when there is only one frame and no "
+                    "reference image.  Setting 'align' to False."
+                )
             self.align = False
         if self.ra_offsets is not None:
             if not self.align:
-                log.warning("When 'ra_offset' and 'dec_offset' are set, 'align' must be True.")
-                log.info("Setting 'align' to True")
+                log.warning(
+                    "When 'ra_offset' and 'dec_offset' are set, 'align' must be True.  Setting "
+                    "'align' to True."
+                )
             self.align = True
+
         # If no ra_offsets or dec_offsets have been provided, initialise the lists
         self.user_alignment = True
         if self.ra_offsets is None and self.dec_offsets is None:
             log.info("No RA or Dec offsets have been provided.")
             if self.align:
-                log.info("An automatic alignment will be performed using WCS information from the headers.")
+                log.info(
+                    "An automatic alignment will be performed using WCS information from the "
+                    "headers."
+                )
             # User offsets are not provided, so turn off the user_alignment
             self.user_alignment = False
             # Initialise the lists of ra_offsets and dec_offsets
@@ -570,41 +590,51 @@ class CoAdd3D:
         if self.grating_corr is None:
             self.grating_corr = [None] * self.numfiles
 
-        # Check on Spectrograph input
+        # Initialize the spectrograph
         if spectrograph is None:
             with fits.open(spec2dfiles[0]) as hdu:
                 spectrograph = hdu[0].header['PYP_SPEC']
-
         self.spectrograph = load_spectrograph(spectrograph)
         self.specname = self.spectrograph.name
 
-        # Initialise arrays for storage
-        self.ifu_ra, self.ifu_dec = np.array([]), np.array([])  # The RA and Dec at the centre of the IFU, as stored in the header
-
+        # Initialise arrays for storage.
+        # - The RA and Dec at the centre of the IFU, as stored in the header
+        self.ifu_ra, self.ifu_dec = np.array([]), np.array([])
+        # - Others
         self.all_sci, self.all_ivar, self.all_wave, self.all_slitid, self.all_wghts = [], [], [], [], []
         self.all_tilts, self.all_slits, self.all_align, self.all_header = [], [], [], []
         self.all_wcs, self.all_ra, self.all_dec, self.all_dar = [], [], [], []
-        self.weights = np.ones(self.numfiles)  # Weights to use when combining cubes
+        # - Weights to use when combining cubes
+        self.weights = np.ones(self.numfiles)
 
-        self._dspat = None if self.cubepar['spatial_delta'] is None else self.cubepar['spatial_delta'] / 3600.0  # binning size on the sky (/3600 to convert to degrees)
-        self._dwv = self.cubepar['wave_delta']  # linear binning size in wavelength direction (in Angstroms)
+        # Set the spatial sampling.  Use "/3600.0" to convert to degrees.
+        self._dspat = (
+            None if self.cubepar['spatial_delta'] is None
+            else self.cubepar['spatial_delta'] / 3600.0
+        )
+        # Linear wavelength sampling in Angstroms
+        self._dwv = self.cubepar['wave_delta']
 
-        # TODO :: The default behaviour (combine=False, align=False) produces a datacube that uses the instrument WCS
-        #  It should be possible (and perhaps desirable) to do a spatial alignment (i.e. align=True), apply this to the
-        #  RA,Dec values of each pixel, and then use the instrument WCS to save the output (or, just adjust the crval).
-        #  At the moment, if the user wishes to spatially align the frames, a different WCS is generated.
+        # TODO: The default behaviour (combine=False, align=False) produces a
+        # datacube that uses the instrument WCS.  It should be possible (and
+        # perhaps desirable) to do a spatial alignment (i.e. align=True), apply
+        # this to the RA,Dec values of each pixel, and then use the instrument
+        # WCS to save the output (or, just adjust the crval).  At the moment, if
+        # the user wishes to spatially align the frames, a different WCS is
+        # generated.
 
         # Determine what method is requested
         self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = 1, 1, 1
         self.skip_subpix_weights = True
         if self.method == "subpixel":
-            self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = self.cubepar['spec_subpixel'], self.cubepar['spat_subpixel'], self.cubepar['slice_subpixel']
+            self.spec_subpixel = self.cubepar['spec_subpixel']
+            self.spat_subpixel = self.cubepar['spat_subpixel']
+            self.slice_subpixel = self.cubepar['slice_subpixel']
             self.skip_subpix_weights = False
             log.info(
-                "Adopting the subpixel algorithm to generate the datacube, with subpixellation scales:\n"
-                f"  Spectral: {self.spec_subpixel}\n"
-                f"  Spatial: {self.spat_subpixel}\n"
-                f"  Slices: {self.slice_subpixel}"
+                'Adopting the subpixel algorithm to generate the datacube, with the following '
+                f'subpixellation scales:  Spectral: {self.spec_subpixel}; '
+                f'Spatial: {self.spat_subpixel}; Slices: {self.slice_subpixel}.'
             )
         elif self.method == "ngp":
             log.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
@@ -621,17 +651,20 @@ class CoAdd3D:
         self.check_outputs()
 
         # Check the reference cube and image exist, if requested
-        self.fluxcal = False if self.sensfile is None else True
+        self.fluxcal = self.sensfile is not None
         self.blaze_wave, self.blaze_spec = None, None
         self.blaze_spline, self.flux_spline = None, None
         self.flat_splines = dict()  # A dictionary containing the splines of the flatfield
 
         # If a reference image has been set, check that it exists
         if self.cubepar['reference_image'] is not None:
-            if not os.path.exists(self.cubepar['reference_image']):
+            if not Path(self.cubepar['reference_image']).is_file():
                 raise PypeItError(
-                    "Reference image does not exist:\n" + self.cubepar['reference_image']
+                    f"Reference image does not exist: {self.cubepar['reference_image']}" 
                 )
+
+        import pytest
+        pytest.set_trace()
 
         # Load the default scaleimg frame for the scale correction
         self.scalecorr_default = "none"
@@ -640,9 +673,9 @@ class CoAdd3D:
 
         # Load the default sky frame to be used for sky subtraction
         self.skysub_default = "image"
-        self.skyImgDef, self.skySclDef = None, None  # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
+        # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
+        self.skyImgDef, self.skySclDef = None, None
         self.set_default_skysub()
-
 
     @staticmethod
     def output_paths(spec2d_files, par, coadd_dir=None):
@@ -688,34 +721,75 @@ class CoAdd3D:
 
     def check_outputs(self):
         """
-        Check if any of the intended output files already exist. This check should be done near the
-        beginning of the coaddition, to avoid any computation that won't be saved in the event that
-        files won't be overwritten.
+        Check if any of the intended output files already exist.
+        
+        This check should be done near the beginning of the coaddition, to avoid
+        any computation that won't be saved in the event that files won't be
+        overwritten.
         """
         if self.combine:
-            outfile = datacube.get_output_filename(self.output_dir, "", self.cubepar['output_filename'], self.combine)
-            out_whitelight = datacube.get_output_whitelight_filename(self.output_dir, outfile)
-            if os.path.exists(outfile) and not self.overwrite:
-                raise PypeItError("Output filename already exists:\n"+outfile)
-            if os.path.exists(out_whitelight) and self.cubepar['save_whitelight'] and not self.overwrite:
-                raise PypeItError("Output filename already exists:\n"+out_whitelight)
-        else:
-            # Finally, if there's just one file, check if the output filename is given
-            if self.numfiles == 1 and self.cubepar['output_filename'] != "":
-                outfile = datacube.get_output_filename(self.output_dir, "", self.cubepar['output_filename'], True, -1)
-                out_whitelight = datacube.get_output_whitelight_filename(self.output_dir, outfile)
-                if os.path.exists(outfile) and not self.overwrite:
-                    raise PypeItError("Output filename already exists:\n" + outfile)
-                if os.path.exists(out_whitelight) and self.cubepar['save_whitelight'] and not self.overwrite:
-                    raise PypeItError("Output filename already exists:\n" + out_whitelight)
-            else:
-                for ff in range(self.numfiles):
-                    outfile = datacube.get_output_filename(self.output_dir, self.spec2d[ff], self.cubepar['output_filename'], self.combine, ff+1)
-                    out_whitelight = datacube.get_output_whitelight_filename(self.output_dir, outfile)
-                    if os.path.exists(outfile) and not self.overwrite:
-                        raise PypeItError("Output filename already exists:\n" + outfile)
-                    if os.path.exists(out_whitelight) and self.cubepar['save_whitelight'] and not self.overwrite:
-                        raise PypeItError("Output filename already exists:\n" + out_whitelight)
+            outfile = datacube.get_output_filename(
+                str(self.output_dir), "", self.cubepar['output_filename'], self.combine
+            )
+            if Path(outfile).is_file() and not self.overwrite:
+                raise PypeItError(
+                    f"{outfile} exists!  Use overwrite flag or parameter to overwrite."
+                )
+
+            out_whitelight = datacube.get_output_whitelight_filename(str(self.output_dir), outfile)
+            if (
+                Path(out_whitelight).is_file() and self.cubepar['save_whitelight']
+                and not self.overwrite
+            ):
+                raise PypeItError(
+                    f"{out_whitelight} exists!  Use overwrite flag or parameter to overwrite, or "
+                    "use the save_whitelight parameter to skip saving the image."
+                )
+            return
+
+        # Finally, if there's just one file, check if the output filename is given
+        if self.numfiles == 1 and self.cubepar['output_filename'] != "":
+            outfile = datacube.get_output_filename(
+                str(self.output_dir), "", self.cubepar['output_filename'], True, -1
+            )
+            if Path(outfile).is_file() and not self.overwrite:
+                raise PypeItError(
+                    f"{outfile} exists!  Use overwrite flag or parameter to overwrite."
+                )
+
+            out_whitelight = datacube.get_output_whitelight_filename(
+                str(self.output_dir), outfile
+            )
+            if (
+                Path(out_whitelight).is_file() and self.cubepar['save_whitelight']
+                and not self.overwrite
+            ):
+                raise PypeItError(
+                    f"{out_whitelight} exists!  Use overwrite flag or parameter to overwrite, "
+                    "or use the save_whitelight parameter to skip saving the image."
+                )
+            return
+
+        for ff in range(self.numfiles):
+            # TODO: Is it possible that output_filename can be None?
+            outfile = datacube.get_output_filename(
+                str(self.output_dir), self.spec2d[ff], self.cubepar['output_filename'],
+                self.combine, ff+1
+            )
+            if Path(outfile).is_file() and not self.overwrite:
+                raise PypeItError(
+                    f"{outfile} exists!  Use overwrite flag or parameter to overwrite."
+                )
+
+            out_whitelight = datacube.get_output_whitelight_filename(str(self.output_dir), outfile)
+            if (
+                Path(out_whitelight).is_file() and self.cubepar['save_whitelight']
+                and not self.overwrite
+            ):
+                raise PypeItError(
+                    f"{out_whitelight} exists!  Use overwrite flag or parameter to overwrite, "
+                    "or use the save_whitelight parameter to skip saving the image."
+                )
 
     def set_blaze_spline(self, wave_spl, spec_spl):
         """
