@@ -1108,6 +1108,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
     """
     name = 'mmt_binospec_ifu'
     pypeline = 'Fiber'
+    # Apply the static fiber_illumination vector as an additional throughput
+    # divisor, matching how the IDL pipeline combines it with the flat-field
+    # image.  The alternate sign made both detectors' sky residuals worse.
+    use_static_fiber_illumination = True
     supported = True
 
     # IFU fiber geometry constants
@@ -1354,7 +1358,153 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         par['reduce']['slitmask']['assign_obj'] = False
         par['reduce']['slitmask']['extract_missing_objs'] = False
 
+        # Restore the IFU tilt model after the MOS parent sets higher-order
+        # values.  The IFU block slits are narrow enough that higher spatial
+        # orders overfit arc-line centroid noise and create spurious WAVEIMG
+        # curvature, particularly on DET02.
+        par['calibrations']['tilts']['spat_order'] = 1
+        par['calibrations']['tilts']['spec_order'] = 3
+
         return par
+
+    def clean_calibration_image(self, calib_image, frametype, det):
+        """
+        Remove long diagonal cosmic-ray artifacts from Binospec IFU arc/tilt images.
+
+        The tilt tracing code uses the pixel values in the processed tilt image
+        directly, so a long CR trail can be mistaken for a tilted arc feature.
+        This targets only DET02 arc/tilt calibrations, where such trails have
+        been observed.
+        """
+        if frametype not in ['arc', 'tilt'] or det != 2:
+            return calib_image
+
+        crmask, replacement = self._long_diagonal_arc_cr_mask(calib_image.image)
+        if not np.any(crmask):
+            return calib_image
+
+        calib_image.image[crmask] = replacement[crmask]
+        if hasattr(calib_image, 'update_mask_cr'):
+            calib_image.update_mask_cr(crmask)
+        log.info(f"Cleaned {np.sum(crmask)} long diagonal CR pixels from "
+                 f"Binospec IFU {frametype} image on DET{det:02d}")
+        return calib_image
+
+    @staticmethod
+    def _long_diagonal_arc_cr_mask(image, median_width=51, high_sig=40.0,
+                                   low_sig=5.0, min_high=200.0,
+                                   min_length=500.0, min_count=100,
+                                   line_width=3.0, max_gap=75):
+        """
+        Detect a long, non-horizontal high-pass feature in an arc-like image.
+
+        Returns
+        -------
+        crmask : `numpy.ndarray`_
+            Boolean mask selecting the detected CR trail.
+        replacement : `numpy.ndarray`_
+            Row-local median image used to replace masked pixels.
+        """
+        from scipy import ndimage
+
+        crmask = np.zeros(image.shape, dtype=bool)
+        if image.ndim != 2:
+            return crmask, image
+
+        replacement = ndimage.median_filter(
+            image, size=(1, median_width), mode='nearest')
+        resid = image - replacement
+        finite = np.isfinite(resid)
+        if not np.any(finite):
+            return crmask, replacement
+
+        med = np.nanmedian(resid[finite])
+        sigma = 1.4826 * np.nanmedian(np.abs(resid[finite] - med))
+        if not np.isfinite(sigma) or sigma <= 0.0:
+            return crmask, replacement
+
+        high_thresh = max(min_high, med + high_sig * sigma)
+        ypix, xpix = np.nonzero(finite & (resid > high_thresh))
+        if xpix.size < min_count:
+            return crmask, replacement
+
+        slopes = np.concatenate((np.linspace(-2.0, -0.15, 75),
+                                 np.linspace(0.15, 2.0, 75)))
+        best = None
+        bin_width = 2.0
+        for slope in slopes:
+            intercept = ypix - slope * xpix
+            imin = np.floor(intercept.min() / bin_width) * bin_width
+            ibin = np.floor((intercept - imin) / bin_width).astype(int)
+            counts = np.bincount(ibin)
+            for peak in np.where(counts >= min_count)[0]:
+                select = np.where(ibin == peak)[0]
+                xs = xpix[select]
+                ys = ypix[select]
+                order = np.argsort(xs)
+                xs = xs[order]
+                ys = ys[order]
+                groups = np.split(np.arange(xs.size),
+                                  np.where(np.diff(xs) > max_gap)[0] + 1)
+                for group in groups:
+                    if group.size < min_count:
+                        continue
+                    span = np.hypot(xs[group].max() - xs[group].min(),
+                                    ys[group].max() - ys[group].min())
+                    if span < min_length:
+                        continue
+                    score = group.size * span
+                    candidate = (score, slope, imin + (peak + 0.5) * bin_width,
+                                 xs[group].min(), xs[group].max(),
+                                 ys[group].min(), ys[group].max())
+                    if best is None or score > best[0]:
+                        best = candidate
+
+        if best is None:
+            return crmask, replacement
+
+        _, slope, intercept, xlo, xhi, ylo, yhi = best
+        low_thresh = max(30.0, med + low_sig * sigma)
+        low_y, low_x = np.nonzero(finite & (resid > low_thresh))
+        low_near_line = np.abs(low_y - (slope * low_x + intercept)) \
+            / np.sqrt(1.0 + slope**2) <= line_width
+        low_x = low_x[low_near_line]
+        low_y = low_y[low_near_line]
+        if low_x.size == 0:
+            return crmask, replacement
+
+        order = np.argsort(low_x)
+        low_x = low_x[order]
+        low_y = low_y[order]
+        groups = np.split(np.arange(low_x.size),
+                          np.where(np.diff(low_x) > max_gap)[0] + 1)
+        overlap = []
+        for group in groups:
+            gxlo = low_x[group].min()
+            gxhi = low_x[group].max()
+            if gxlo <= xhi and gxhi >= xlo:
+                span = np.hypot(gxhi - gxlo, low_y[group].max() - low_y[group].min())
+                overlap.append((span, group))
+        if len(overlap) == 0:
+            return crmask, replacement
+
+        group = max(overlap, key=lambda item: item[0])[1]
+        xlo = low_x[group].min()
+        xhi = low_x[group].max()
+        ylo = low_y[group].min()
+        yhi = low_y[group].max()
+
+        rows = np.arange(image.shape[0])[:, None]
+        cols = np.arange(image.shape[1])[None, :]
+        distance = np.abs(rows - (slope * cols + intercept)) \
+            / np.sqrt(1.0 + slope**2)
+        crmask = (distance <= line_width) \
+            & (cols >= xlo - 10) & (cols <= xhi + 10) \
+            & (rows >= ylo - 10) & (rows <= yhi + 10) \
+            & (resid > low_thresh)
+        crmask = ndimage.binary_dilation(
+            crmask, structure=np.ones((3, 3), dtype=bool), iterations=1)
+        return crmask, replacement
 
     def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
         """
@@ -1527,6 +1677,12 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         row = 0 if det == 1 else 1
         with fits.open(illum_file) as hdu:
             f_illum = hdu[1].data['F_ILLUM'][row].copy()
+        if det == 2:
+            # The IDL flat-fielding code applies this vector directly to the
+            # extracted side-B fiber axis.  PypeIt's DET02 detector image is
+            # mirror-flipped relative to that axis, so map the vector back onto
+            # the reference-profile row order used by MASKDEF_ID lookup.
+            f_illum = f_illum[::-1].copy()
         return f_illum
 
     def get_block_slit_edges(self, traceimg, det):
@@ -1951,8 +2107,8 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         Override to skip baking fiber illumination into the pixel flat.
 
         In the block-slit extraction approach, throughput corrections
-        (fiber_illumination.fits and sky-line-based) are applied to
-        extracted 1D spectra, not to the pixel flat.
+        are applied to extracted 1D spectra via ``FiberFlatImages``, not
+        to the pixel flat.
         """
         pass
 

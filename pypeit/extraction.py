@@ -1033,6 +1033,9 @@ class FiberExtract(Extract):
         if self.flatimg is not None:
             empirical_profiles = self._build_empirical_profiles(
                 self.flatimg, slitid_img, self.sobjs, nspec, nspat)
+            if self.spectrograph.pypeline == 'Fiber' and empirical_profiles is not None:
+                self.skymodel = self._reconstruct_profiled_fiber_skymodel(
+                    self.sobjs, empirical_profiles)
 
         # Extract each fiber
         for sobj in self.sobjs:
@@ -1110,6 +1113,53 @@ class FiberExtract(Extract):
 
         return self.skymodel, self.bkg_redux_skymodel, self.objmodel, \
             self.ivarmodel, self.outmask, self.sobjs
+
+    @staticmethod
+    def _reconstruct_profiled_fiber_skymodel(sobjs, empirical_profiles):
+        """Build a 2D fiber sky model using flat-derived spatial profiles.
+
+        ``BOX_COUNTS_SKY`` is a 1D extracted sky spectrum per fiber.  For the
+        diagnostic 2D ``SKYMODEL`` frame, project that spectrum back onto the
+        detector using the empirical flat-field profile for the same fiber,
+        which is normalized to unit sum in each spectral row.
+
+        Parameters
+        ----------
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            Fiber objects with populated ``BOX_COUNTS_SKY``.
+        empirical_profiles : :obj:`dict`
+            Dictionary mapping ``(SLITID, OBJID)`` to profile images.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Profile-weighted per-pixel sky model.
+        """
+        profile0 = next(iter(empirical_profiles.values()), None)
+        if profile0 is None:
+            return None
+
+        skymodel = np.zeros_like(profile0, dtype=float)
+        for sobj in sobjs:
+            sky_spec = sobj.BOX_COUNTS_SKY
+            if sky_spec is None:
+                continue
+
+            profile = empirical_profiles.get((sobj.SLITID, sobj.OBJID))
+            if profile is None:
+                continue
+
+            if getattr(sobj, 'flat_corr', None) is not None \
+                    and np.shape(sobj.flat_corr) == np.shape(sky_spec):
+                sky_spec = sky_spec * sobj.flat_corr
+
+            good = np.isfinite(sky_spec)
+            if not np.any(good):
+                continue
+
+            skymodel[good, :] += profile[good, :] * sky_spec[good, None]
+
+        return skymodel
 
     @staticmethod
     def _build_empirical_profiles(flatimg, slitmask, sobjs, nspec, nspat):

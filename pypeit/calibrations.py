@@ -390,6 +390,7 @@ class Calibrations:
                                                     bias=self.msbias, bpm=self.msbpm,
                                                     dark=self.msdark, calib_dir=self.calib_dir,
                                                     setup=setup, calib_id=calib_id)
+        self.msarc = self.spectrograph.clean_calibration_image(self.msarc, 'arc', self.det)
         # Save the result
         self.msarc.to_file()
         # Return it
@@ -443,6 +444,7 @@ class Calibrations:
                                                      dark=self.msdark, slits=self.slits,
                                                      calib_dir=self.calib_dir, setup=setup,
                                                      calib_id=calib_id)
+        self.mstilt = self.spectrograph.clean_calibration_image(self.mstilt, 'tilt', self.det)
         # Save the result
         self.mstilt.to_file()
         # Return it
@@ -2185,6 +2187,5 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     if pass_calib:
         log.info("Congrats!!  You passed the calibrations inspection!!")
     return pass_calib
-
 
 

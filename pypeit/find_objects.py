@@ -1332,7 +1332,7 @@ class FiberFindObjects(SlicerIFUFindObjects):
 
     Follows the IDL Binospec pipeline approach (Chilingarian et al. 2025,
     Section 6) for sky subtraction: extract all fibers, divide by the
-    globally-normalized flat and fiber illumination correction, then fit
+    globally-normalized fiber flat correction, then fit
     a 2D B-spline sky model (wavelength + spatial Legendre polynomial)
     to the dedicated sky fibers and subtract from all fibers.
 
@@ -1352,7 +1352,7 @@ class FiberFindObjects(SlicerIFUFindObjects):
         2. Load ``FiberFlatImages`` calibration products.
         3. Create one ``SpecObj`` per fiber via ``find_objects_pypeline``.
         4. Boxcar-extract every fiber from the un-subtracted 2D image.
-        5. Divide by normalized flat and fiber illumination correction.
+        5. Divide by normalized fiber flat correction.
         6. Fit a 2D B-spline sky model (wavelength + spatial polynomial)
            to the dedicated sky fibers.
         7. Subtract the sky model from all fibers in 1D.
@@ -1398,15 +1398,38 @@ class FiberFindObjects(SlicerIFUFindObjects):
         if len(sobjs_obj) == 0:
             return np.zeros_like(self.sciImg.image), sobjs_obj
 
-        # 4. Boxcar extract all fibers from the un-subtracted image
+        # 4. Extract all fibers from the un-subtracted image.  Prefer a
+        # flat-profile extraction for the sky-subtraction input, matching the
+        # IDL IFU pipeline more closely than plain boxcar sums.
         gpm = self.sciImg.select_flag(invert=True)
         slitmask = self.slits.slit_img(initial=True)
         zero_sky = np.zeros_like(self.sciImg.image)
+        flatimg = self._load_flatimg()
+        empirical_profiles = None
+        if flatimg is not None:
+            from pypeit.extraction import FiberExtract
+            empirical_profiles = FiberExtract._build_empirical_profiles(
+                flatimg, slitmask, sobjs_obj, *self.sciImg.image.shape)
+            if empirical_profiles is not None:
+                log.info("Using flat-profile extraction for fiber sky subtraction")
 
         for sobj in sobjs_obj:
             thismask = slitmask == sobj.SLITID
             inmask = gpm & thismask
-            # extract_boxcar expects imgminsky; pass raw image with skyimg=0
+            prof_key = (sobj.SLITID, sobj.OBJID)
+            if empirical_profiles is not None and prof_key in empirical_profiles:
+                sobj.extract_optimal(
+                    self.sciImg.image, self.sciImg.ivar, inmask,
+                    self.waveimg, zero_sky, thismask,
+                    empirical_profiles[prof_key],
+                    flatimg=flatimg,
+                    base_var=self.sciImg.base_var,
+                    count_scale=self.sciImg.img_scale,
+                    noise_floor=self.sciImg.noise_floor)
+                self._copy_optimal_to_boxcar(sobj)
+                continue
+
+            # Fallback: extract_boxcar expects imgminsky; pass raw image with skyimg=0
             wave, flux, flux_ivar, flux_sig, flux_nivar, box_gpm, \
                 fwhm, flat_spec, sky, base, npix = extract.extract_boxcar(
                     sobj.BOX_R_PIX, sobj.TRACE_SPAT,
@@ -1422,6 +1445,57 @@ class FiberFindObjects(SlicerIFUFindObjects):
         initial_sky = self._fiber_skysub(sobjs_obj, fiber_flatimages)
 
         return initial_sky, sobjs_obj
+
+    def _load_flatimg(self):
+        """
+        Load the processed flat image used to build empirical fiber profiles.
+
+        Returns
+        -------
+        flatimg : `numpy.ndarray`_ or None
+            Processed flat image in detector-pixel space, or ``None`` if no
+            matching flat calibration is available.
+        """
+        from pypeit.flatfield import FlatImages
+
+        calib_dir = getattr(self.slits, 'calib_dir', None)
+        if calib_dir is None:
+            log.warning("No calibration directory available; "
+                        "using boxcar fiber extraction for sky subtraction")
+            return None
+
+        files = sorted(Path(calib_dir).glob(f'Flat_*{self.detname}*.fits'))
+        if not files:
+            log.warning(f"No FlatImages found for {self.detname}; "
+                        "using boxcar fiber extraction for sky subtraction")
+            return None
+
+        log.info(f"Loading FlatImages from {files[0].name} for fiber profiles")
+        flat_images = FlatImages.from_file(files[0])
+        flat_raw = flat_images.pixelflat_raw
+        if flat_raw is None:
+            return None
+
+        if flat_images.pixelflat_norm is None:
+            return flat_raw.copy()
+
+        flatimg, _ = flat.flatfield(flat_raw, flat_images.pixelflat_norm)
+        return flatimg
+
+    @staticmethod
+    def _copy_optimal_to_boxcar(sobj):
+        """Use profile-fit extraction as the 1D spectrum for sky fitting."""
+        sobj.BOX_WAVE = sobj.OPT_WAVE.copy()
+        sobj.BOX_COUNTS = sobj.OPT_COUNTS.copy()
+        sobj.BOX_COUNTS_IVAR = sobj.OPT_COUNTS_IVAR.copy()
+        sobj.BOX_COUNTS_SIG = sobj.OPT_COUNTS_SIG.copy()
+        sobj.BOX_COUNTS_NIVAR = sobj.OPT_COUNTS_NIVAR.copy()
+        sobj.BOX_MASK = sobj.OPT_MASK.copy()
+        sobj.BOX_FWHM = sobj.OPT_FWHM.copy() if sobj.OPT_FWHM is not None else None
+        sobj.BOX_FLAT = sobj.OPT_FLAT.copy() if sobj.OPT_FLAT is not None else None
+        sobj.BOX_COUNTS_SKY = sobj.OPT_COUNTS_SKY.copy()
+        sobj.BOX_COUNTS_SIG_DET = sobj.OPT_COUNTS_SIG_DET.copy() \
+            if sobj.OPT_COUNTS_SIG_DET is not None else None
 
     def _load_fiber_flatimages(self):
         """
@@ -1465,9 +1539,9 @@ class FiberFindObjects(SlicerIFUFindObjects):
 
         1. Divide by the globally-normalized flat (per-fiber, per-wavelength) —
            removes lamp × system spectral response and fiber throughput variation.
-        2. Divide by the ``fiber_illumination`` per-fiber scalar — removes
-           residual fiber-to-fiber throughput differences from the static
-           calibration.
+        2. Optionally multiply the flat divisor by a static
+           ``fiber_illumination`` scalar for spectrographs that explicitly
+           request the additional throughput correction.
 
         Parameters
         ----------
@@ -1485,17 +1559,22 @@ class FiberFindObjects(SlicerIFUFindObjects):
         normflat_wave = fiber_flatimages.normflat_wave
         flat_fiber_ids = fiber_flatimages.fiber_ids
 
-        # Load fiber illumination correction from spectrograph
+        # The extracted normflat already preserves fiber-to-fiber throughput
+        # variation.  A static illumination vector is therefore an optional
+        # extra factor, not part of the default correction.
         det = self.sciImg.detector.det
-        try:
-            f_illum = self.spectrograph.load_fiber_illumination(det)
-            ref = self.spectrograph.load_fiber_ref_profile(det)
-            ref_ids = ref['FIB_ID']
-        except Exception as e:
-            log.warning(f"Could not load fiber_illumination: {e}; "
-                        f"using unity illumination")
-            f_illum = None
-            ref_ids = None
+        use_static_illum = getattr(self.spectrograph, 'use_static_fiber_illumination',
+                                  False)
+        f_illum = None
+        ref_ids = None
+        if use_static_illum:
+            try:
+                f_illum = self.spectrograph.load_fiber_illumination(det)
+                ref = self.spectrograph.load_fiber_ref_profile(det)
+                ref_ids = ref['FIB_ID']
+            except Exception as e:
+                log.warning(f"Could not load fiber_illumination: {e}; "
+                            f"using unity illumination")
 
         n_corrected = 0
         for sobj in sobjs:
@@ -1525,7 +1604,8 @@ class FiberFindObjects(SlicerIFUFindObjects):
                     if illum < 0.1 or not np.isfinite(illum):
                         illum = 1.0
 
-            # Apply: divide by normflat * fiber_illumination
+            # Apply: divide by normflat and, when requested, the static fiber
+            # illumination vector.
             total_corr = nf * illum
             sobj.BOX_COUNTS = sobj.BOX_COUNTS / total_corr
             sobj.BOX_COUNTS_IVAR = sobj.BOX_COUNTS_IVAR * total_corr**2
@@ -1680,15 +1760,59 @@ class FiberFindObjects(SlicerIFUFindObjects):
             sobj.BOX_COUNTS_SKY = sky_spec.copy()
             sobj.BOX_COUNTS = sobj.BOX_COUNTS - sky_spec
 
-        # Reconstruct 2D sky image for diagnostics
-        sky_2d = np.zeros((nspec, nspat))
-        valid = (self.waveimg >= wave_min) & (self.waveimg <= wave_max)
-        if np.any(valid):
-            # Use midpoint spatial position for the 2D reconstruction
-            mid_spat = 0.5
-            x2_2d = np.full(np.sum(valid), mid_spat)
-            sky_2d[valid], _ = sset.value(self.waveimg[valid], x2=x2_2d)
+        return self._reconstruct_fiber_skymodel(sobjs)
 
+    def _reconstruct_fiber_skymodel(self, sobjs):
+        """Reconstruct a per-pixel sky image from 1D fiber sky spectra.
+
+        ``BOX_COUNTS_SKY`` is an extracted 1D sky spectrum in flat-corrected
+        fiber-flux units.  The spec2d ``SKYMODEL`` image should instead be in
+        the same per-pixel units as ``SCIIMG`` for diagnostics, so distribute
+        each fiber's sky flux over its extraction aperture and undo the 1D flat
+        correction when available.
+
+        Parameters
+        ----------
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            Fiber objects with populated ``BOX_COUNTS_SKY``.
+
+        Returns
+        -------
+        sky_2d : `numpy.ndarray`_
+            Per-pixel diagnostic sky model matching ``self.sciImg.image``.
+        """
+        nspec, nspat = self.sciImg.image.shape
+        sky_sum = np.zeros((nspec, nspat), dtype=float)
+        sky_wgt = np.zeros((nspec, nspat), dtype=float)
+        spat_pix = np.arange(nspat)
+        slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
+
+        for sobj in sobjs:
+            sky_spec = sobj.BOX_COUNTS_SKY
+            if sky_spec is None or sobj.TRACE_SPAT is None or sobj.BOX_R_PIX is None:
+                continue
+
+            if getattr(sobj, 'flat_corr', None) is not None \
+                    and np.shape(sobj.flat_corr) == np.shape(sky_spec):
+                sky_spec = sky_spec * sobj.flat_corr
+
+            rows = np.where(np.isfinite(sky_spec) & np.isfinite(sobj.TRACE_SPAT))[0]
+            for row in rows:
+                in_aperture = (slitmask[row, :] == sobj.SLITID) \
+                    & (np.abs(spat_pix - sobj.TRACE_SPAT[row]) <= sobj.BOX_R_PIX)
+                cols = np.where(in_aperture)[0]
+                if cols.size == 0:
+                    continue
+
+                pix_sky = sky_spec[row] / cols.size
+                if not np.isfinite(pix_sky):
+                    continue
+                sky_sum[row, cols] += pix_sky
+                sky_wgt[row, cols] += 1.0
+
+        sky_2d = np.zeros((nspec, nspat), dtype=float)
+        covered = sky_wgt > 0.0
+        sky_2d[covered] = sky_sum[covered] / sky_wgt[covered]
         return sky_2d
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,
