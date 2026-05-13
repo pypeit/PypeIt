@@ -10,6 +10,7 @@ import copy
 import datetime
 import os
 from pathlib import Path
+from astropy.io import fits
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,11 +29,13 @@ from pypeit import wavetilts
 from pypeit.calibframe import CalibFrame
 from pypeit.core import jwst_flatfield
 from pypeit.images import buildimage
+from pypeit.images import pypeitimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import scattlight as core_scattlight
 from pypeit.core import fitting
+from pypeit.core.mosaic import build_image_mosaic
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import utils
@@ -649,7 +652,7 @@ class Calibrations:
         # Return it
         return self.msdark
 
-    def get_bpm(self, frame=None, force:str=None):
+    def get_bpm(self, frame_file=None, force:str=None):
         """
         Load or generate the bad pixel mask.
 
@@ -659,8 +662,10 @@ class Calibrations:
         Args:
             force (:obj:`str`, optional):
                 Currently ignored
-            frame (:obj:`int`, optional):
-                The row index in :attr:`fitstbl`
+            frame_file (:obj:`str`, optional):
+                The file to use for generating the BPM. If None,
+                the raw file associated to the index `self.frame`
+                is used instead.
 
         Returns:
             `numpy.ndarray`_: The bad pixel mask, which should match the shape
@@ -669,10 +674,10 @@ class Calibrations:
         # Check internals
         self._chk_set(['par', 'det'])
         # Set the frame to use for the BPM
-        if frame is None:
-            frame = self.fitstbl.frame_paths(self.frame)
+        if frame_file is None:
+            frame_file = self.fitstbl.frame_paths(self.frame)
         # Build it
-        self.msbpm = self.spectrograph.bpm(frame, self.det,
+        self.msbpm = self.spectrograph.bpm(frame_file, self.det,
                                            msbias=self.msbias if self.par['bpm_usebias'] else None)
         # Return
         return self.msbpm
@@ -1832,57 +1837,108 @@ class NIRSpecSlitCalibrations(Calibrations):
         # these are if the slit is mosaiced in the 2 detectors, aka det = (1,2)
         cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_ID)
         flat_files = fitstbl.find_frame_files('pixelflat', calib_ID=calib_ID)
-        # if not, filter by detector
-        if det in [1,2]:
-            det_name = f'nrs{det}'
-            cal_files = [cc for cc in cal_files if det_name in Path(cc).name]
-            flat_files =  [ff for ff in flat_files if det_name in Path(ff).name]
-        if len(cal_files) == 0:
-            raise PypeItError(f'No _cal files found for NIRSpecSlitCalibrations in det {det}')
+        cal_files = spectrograph.group_rawfiles(fitstbl.find_frame_files('trace', calib_ID=calib_ID), det)[0]
+        # # if not, filter by detector
+        # if det in [1,2]:
+        #     det_name = f'nrs{det}'
+        #     cal_files = [cc for cc in cal_files if det_name in Path(cc).name]
+        #     flat_files =  [ff for ff in flat_files if det_name in Path(ff).name]
+        # if len(cal_files) == 0:
+        #     raise PypeItError(f'No _cal files found for NIRSpecSlitCalibrations in det {det}')
+        #
+        # # get FITS EXTVER associated with this slit calibrated/reduced here.
+        # # _extver = [h.ver for h in fits.open(cal_files[0]) if h.header.get('SLTNAME') == s]
+        #
+        # cal_data = np.array(datamodels.open(cal_files))
+        # # embed()
+        #
+        # if len(flat_files) == 0:
+        #     raise PypeItError(f'No _interpolatedflat files found for NIRSpecSlitCalibrations in det {det}')
+        # flat_data = np.array(datamodels.open(flat_files))
+        #
+        # # Append FS slits if present
+        # # TODO: is this needed? ASK JFH
+        # for i, _flat_data in enumerate(flat_data):
+        #     fs_path = flat_files[i].replace('_interpolatedflat',
+        #                                     '_interpolatedflat_fs')
+        #     if Path(fs_path).exists():
+        #         log.info(f'Appending FS slits for {Path(flat_files[i]).name}')
+        #         _flat_data_fs = datamodels.open(fs_path)
+        #         for slit in _flat_data_fs.slits:
+        #             _flat_data.slits.append(slit)
+        #
+        # # Input attributes
+        # self.jwst_cal_data = cal_data
+        # self.jwst_flat_data = flat_data
+        # self.slit_slices = [spectrograph.get_slit_slice(cal_data[0], self.user_slits['slit_info'])]
+        #
+        # # Get the index of this slit in cal_data and flat_data
+        # self.slit_index_cal = np.array([], dtype=int)
+        # self.slit_index_flat = np.array([], dtype=int)
+        # for _cal in self.jwst_cal_data:
+        #     slit_names = np.array([s.name for s in _cal.slits])
+        #     indx = np.where(slit_names == self.user_slits['slit_info'])[0]
+        #     if indx.size == 0:
+        #         raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in '
+        #                           f'_cal data {_cal.meta.filename}')
+        #     self.slit_index_cal = np.append(self.slit_index_cal, indx)
+        # for _flat in self.jwst_flat_data:
+        #     slit_names = np.array([s.name for s in _flat.slits])
+        #     indx = np.where(slit_names == self.user_slits['slit_info'])[0]
+        #     if indx.size == 0:
+        #         raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in '
+        #                           f'_flat data {_flat.meta.filename}')
+        #     self.slit_index_flat = np.append(self.slit_index_flat, indx)
 
-        # get FITS EXTVER associated with this slit calibrated/reduced here.
-        # _extver = [h.ver for h in fits.open(cal_files[0]) if h.header.get('SLTNAME') == user_slits['slit_info']]
+    def _build_calibimage(self, cal_files, extname, slit_info):
 
-        cal_data = np.array(datamodels.open(cal_files))
-        # embed()
 
-        if len(flat_files) == 0:
-            raise PypeItError(f'No _interpolatedflat files found for NIRSpecSlitCalibrations in det {det}')
-        flat_data = np.array(datamodels.open(flat_files))
+        steps = []
 
-        # Append FS slits if present
-        # TODO: is this needed? ASK JFH
-        for i, _flat_data in enumerate(flat_data):
-            fs_path = flat_files[i].replace('_interpolatedflat',
-                                            '_interpolatedflat_fs')
-            if Path(fs_path).exists():
-                log.info(f'Appending FS slits for {Path(flat_files[i]).name}')
-                _flat_data_fs = datamodels.open(fs_path)
-                for slit in _flat_data_fs.slits:
-                    _flat_data.slits.append(slit)
+        if isinstance(cal_files, str):
+            cal_files = [cal_files]
 
-        # Input attributes
-        self.jwst_cal_data = cal_data
-        self.jwst_flat_data = flat_data
-        self.slit_slices = [spectrograph.get_slit_slice(cal_data[0], self.user_slits['slit_info'])]
+        extver = []
+        for file in cal_files:
+            with fits.open(file) as ff:
+                # get FITS EXTVER associated with this slit.
+                _extver = [h.ver for h in ff if h.header.get('SLTNAME') == slit_info]
+                if len(_extver) == 0:
+                    raise PypeItError(f'User slit {slit_info} not found in cal file {file}')
+                extver.append(_extver[0])
+        _keys = [(extname, _ver) for _ver in extver]
+        # get image data, header, and exptime for this slit
+        _detector, image, hdu, exptime, _, _ = self.spectrograph.get_rawimage(cal_files, self.det, keys=_keys)
+        self.nimg = 1 if image.ndim == 2 else image.shape[0]
 
-        # Get the index of this slit in cal_data and flat_data
-        self.slit_index_cal = np.array([], dtype=int)
-        self.slit_index_flat = np.array([], dtype=int)
-        for _cal in self.jwst_cal_data:
-            slit_names = np.array([s.name for s in _cal.slits])
-            indx = np.where(slit_names == self.user_slits['slit_info'])[0]
-            if indx.size == 0:
-                raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in '
-                                  f'_cal data {_cal.meta.filename}')
-            self.slit_index_cal = np.append(self.slit_index_cal, indx)
-        for _flat in self.jwst_flat_data:
-            slit_names = np.array([s.name for s in _flat.slits])
-            indx = np.where(slit_names == self.user_slits['slit_info'])[0]
-            if indx.size == 0:
-                raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in '
-                                  f'_flat data {_flat.meta.filename}')
-            self.slit_index_flat = np.append(self.slit_index_flat, indx)
+        det_img = None
+        if self.nimg > 1:
+            # Create images that will track which detector contributes to each pixel
+            # in the mosaic.  These images are created here first *before*
+            # `self.image` is mosaiced below. NOTE: This assumes there is no overlap
+            # in the detector mosaic (which should be true).
+            det_img = np.array([np.full(img.shape, d.det, dtype=int)
+                                     for img, d in zip(image, _detector)])
+            # Transform the image data to the mosaic frame.
+            image, _, _, _tforms = build_image_mosaic(image, _detector.tform, cval=np.nan)[0]
+            det_img = build_image_mosaic(det_img.astype(float), _tforms, mosaic_shape=image.shape)[0]
+            steps.append('build_mosaic')
+
+        # Orient the image to have blue/red run bottom to top
+        image = self.spectrograph.orient_image(_detector, image)
+        if det_img is not None:
+            det_img = self.spectrograph.orient_image(_detector, image)
+        steps.append('orient')
+
+
+        pypeitImage = pypeitimage.PypeItImage(image,det_img=det_img,detector=_detector,
+                                              PYP_SPEC=self.spectrograph.name,
+                                              exptime=exptime,
+                                              filename=','.join(cal_files))
+        pypeitImage.rawheadlist = self.spectrograph.get_headarr(hdu)
+        pypeitImage.process_steps = steps
+
+        return pypeitImage
 
     def get_wv_calib(self, force:str=None):
         """
@@ -1893,10 +1949,12 @@ class NIRSpecSlitCalibrations(Calibrations):
             `numpy.ndarray`_: The wavelength image calibration frame for current slit (in Angstroms).
         """
 
-        # if not self._chk_objs(['slits']):
-        #     log.warning('Not enough information to load/generate the wavelength calibration. '
-        #             'Skipping and may crash down the line')
-        #     return None
+        # Check for existing data
+        if not self._chk_objs(['msbpm']):
+            raise PypeItError('msbpm must be loaded before getting wv_calib')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
 
         # Find the calibrations
         frame = {'type': 'arc', 'class': wavecalib.WaveCalib}
@@ -1917,25 +1975,19 @@ class NIRSpecSlitCalibrations(Calibrations):
                 self.wvcalib_state(cal_file)
                 return self.wv_calib
 
-        if self.nimg == 1:
-            waveimg = 1e4 * self.jwst_flat_data[0].slits[
-                self.slit_index_flat[0]].wavelength.T
-        else:
-            wave_data_list = [
-                fd.slits[idx].wavelength.T
-                for fd, idx in zip(self.jwst_flat_data, self.slit_index_flat)
-            ]
-            waveimg = self.spectrograph.make_mosaic(
-                wave_data_list, self.det, self.slit_slices)
-            waveimg *= 1e4  # Convert microns to Angstroms
+        wave_files = self.spectrograph.group_rawfiles(wave_files, self.det)[0]
+        waveimg = self._build_calibimage(wave_files, 'WAVELENGTH', self.user_slits['slit_info'])
+        waveimg.image[self.msbpm == 1] = 0.
+        waveimg.image *= 1e4  # Convert microns to Angstroms
 
         self.wv_calib = wavecalib.WaveCalib(nslits=self.slits.nslits,
                                             spat_ids=self.slits.spat_id,
                                   PYP_SPEC=self.spectrograph.name,
-                                  waveimg=waveimg)
+                                  waveimg=waveimg.image)
 
         # Save calibration frame
         self.wv_calib.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.wv_calib.calib_key = calib_key
         self.wv_calib.to_file()
 
         # State
@@ -1952,11 +2004,11 @@ class NIRSpecSlitCalibrations(Calibrations):
             `numpy.ndarray`_: The normalized wavelength tilts image for current slit.
         """
         # Check for existing data
-        if not self._chk_objs(['wv_calib', 'msbpm', 'slits']):
-            raise PypeItError('wv_calib and msbpm must be loaded before getting the tilts')
+        if not self._chk_objs(['wv_calib', 'slits']):
+            raise PypeItError('wv_calib and slits must be loaded before getting the tilts')
 
         # Check internals
-        self._chk_set(['det', 'calib_ID', 'par'])
+        self._chk_set(['det', 'calib_ID', 'par',  'user_slits'])
 
         # Find the calibrations
         frame = {'type': 'tilt', 'class': wavetilts.WaveTilts}
@@ -1974,7 +2026,7 @@ class NIRSpecSlitCalibrations(Calibrations):
             return self.wavetilts
 
         # get gpm
-        gpm = np.logical_not(self.msbpm)
+        gpm = np.logical_not(self.wv_calib.waveimg != 0)
         wave_min = np.min(self.wv_calib.waveimg[gpm])
         wave_max = np.max(self.wv_calib.waveimg[gpm])
 
@@ -1985,6 +2037,7 @@ class NIRSpecSlitCalibrations(Calibrations):
                           None, None, PYP_SPEC=self.spectrograph.name,
                           tiltsimg=tiltsimg)
         self.wavetilts.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.wavetilts.calib_key = calib_key
         self.wavetilts.to_file()
 
         # # State
@@ -1992,30 +2045,32 @@ class NIRSpecSlitCalibrations(Calibrations):
 
         return self.wavetilts
 
-    def get_bpm(self, frame=None, force: str = None):
+    def get_bpm(self, frame_file=None, force:str=None):
         """
-        Generate the bad pixel mask from the wavelength image.  Pixels with
-        zero wavelength are flagged as bad.
+        Load or generate the bad pixel mask.
+
+        This is primarily a wrapper for
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm`.
+
+        Args:
+            force (:obj:`str`, optional):
+                Currently ignored
+            frame_file (:obj:`str`, optional):
+                The file to use for generating the BPM. This is always
+                None for NIRSpecSlitCalibrations.
 
         Returns:
-            `numpy.ndarray`_: Boolean bad-pixel mask.
+            `numpy.ndarray`_: The bad pixel mask, which should match the shape
+            and orientation of a *trimmed* and PypeIt-oriented science image!
         """
-
         # Check internals
-        self._chk_set(['par', 'det'])
-
+        self._chk_set(['det', 'calib_ID', 'user_slits'])
+        # Set the frame to use for the BPM
+        frame_file = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
         # Build it
-        if self.nimg == 1:
-            dq_img = self.jwst_flat_data[0].slits[self.slit_index_flat[0]].dq.T
-        else:
-            dq_data_list = [
-                fd.slits[idx].dq.T
-                for fd, idx in zip(self.jwst_flat_data, self.slit_index_flat)
-            ]
-            dq_img = self.spectrograph.make_mosaic(
-                dq_data_list, self.det, self.slit_slices)
+        _img = self._build_calibimage(frame_file, 'WAVELENGTH', self.user_slits['slit_info'])
 
-        self.msbpm = dq_img != 0.
+        self.msbpm = np.isnan(_img.image).astype(int)
         # Return
         return self.msbpm
 
@@ -2031,7 +2086,7 @@ class NIRSpecSlitCalibrations(Calibrations):
             raise PypeItError('msbpm must be loaded before getting the slits')
 
         # Check internals
-        self._chk_set(['det', 'calib_ID', 'par'])
+        self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
 
         # Prep
         frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
@@ -2049,18 +2104,37 @@ class NIRSpecSlitCalibrations(Calibrations):
             #     self.slits.user_mask(detname, self.user_slits)
             return self.slits
 
+        trace_files = self.spectrograph.group_rawfiles(trace_files, self.det)[0]
+        _traceImage = self._build_calibimage(trace_files, 'SCI', self.user_slits['slit_info'])
+        _traceImage.update_mask('BPM', self.msbpm)
+        traceImage = buildimage.TraceImage.from_pypeitimage(_traceImage)
+        traceImage.set_paths(self.calib_dir, setup, calib_id, detname)
+        traceImage.calib_key = calib_key
+
+        edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
+                                        qa_path=self.qa_path, auto=False)
+        edges._reinit_trace_data()
+
         # Get the slit mask
         thismask = np.logical_not(self.msbpm)
-        edges = []
+        slit_width = np.sum(thismask, axis=1)
+        med_slit_width = np.median(slit_width[slit_width > 0])
+        nspec, nspat = thismask.shape
+        spec_vec = np.arange(nspec, dtype=float)
+        spat_vec = np.arange(nspat, dtype=float)
+        spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+        # Initialize arrays
+        edges.edge_fit = np.zeros((nspec, 2), dtype=float)
+        edges.edge_cen = np.zeros((nspec, 2), dtype=float)
+        edges.edge_err = np.zeros((nspec, 2), dtype=float)
+        edges.edge_msk = np.zeros((nspec, 2), dtype=edges.bitmask.minimum_dtype())
+        edges.edge_img = np.zeros((nspec, 2), dtype=int)
+        edges.traceid = np.zeros(2, dtype=int)
 
-        for side in ['left', 'right']:
-            slit_width = np.sum(thismask, axis=1)
-            med_slit_width = np.median(slit_width[slit_width > 0])
-            nspec, nspat = thismask.shape
-            spec_vec = np.arange(nspec, dtype=float)
-            spat_vec = np.arange(nspat, dtype=float)
-            spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+        fitfunc = 'legendre'
+        fit_order = 2
 
+        for i,side in enumerate(['left', 'right']):
             dummy_spat_img = spat_img.copy()
             bad_value = +np.inf if side == 'left' else -np.inf
             dummy_spat_img[np.logical_not(thismask)] = bad_value
@@ -2071,8 +2145,8 @@ class NIRSpecSlitCalibrations(Calibrations):
             bad_for_slit = np.logical_not(good_for_slit)
 
             pypeitFit = fitting.robust_fit(
-                spec_vec[good_for_slit], slit_mask[good_for_slit], 2,
-                function='legendre', maxiter=25, lower=3.0, upper=3.0,
+                spec_vec[good_for_slit], slit_mask[good_for_slit], fit_order,
+                function=fitfunc, maxiter=25, lower=3.0, upper=3.0,
                 maxrej=1, sticky=True, verbose=False,
                 minx=0.0, maxx=float(nspec - 1))
             slit = pypeitFit.eval(spec_vec)
@@ -2084,10 +2158,28 @@ class NIRSpecSlitCalibrations(Calibrations):
                 plt.plot(spec_vec, slit, 'b')
                 plt.show()
 
-            edges.append(slit)
+            edges.traceid[i] = -1 if side == 'left' else 1
+            edges.edge_cen[:, i] = slit_mask
+            edges.edge_fit[:, i] = slit
+            edges.edge_msk[bad_for_slit, i] = edges.bitmask.turn_on(edges.edge_msk[bad_for_slit, i], 'NOEDGE')
+            edges.edge_msk[np.logical_not(pypeitFit.bool_gpm), i] = edges.bitmask.turn_on(edges.edge_msk[np.logical_not(pypeitFit.bool_gpm), i], 'MOMENTERROR')
+            edges.edge_img = np.round(edges.edge_fit).astype(int)
+
+        edges.fittype = f'{fitfunc} : order={fit_order}'
+
+        if self.show:
+            plt.title(f'Slit edges')
+            plt.imshow(traceImage.image, origin='lower', cmap='gray')
+            plt.plot(edges.edge_fit[:,edges.is_left],spec_vec, 'green')
+            plt.plot(edges.edge_fit[:,edges.is_right],spec_vec, 'magenta')
+            plt.show()
+
+        # save edges to disk
+        edges.set_paths(self.calib_dir, setup, calib_id, detname)
+        edges.calib_key = calib_key
+        edges.to_file()
 
         # get spec_min and spec_max for the slit trace set
-        nspec = thismask.shape[0]
         specmin = np.asarray([-np.inf])
         specmax = np.asarray([np.inf])
         if self.par['slitedges']['trim_spec'] is not None:
@@ -2101,12 +2193,13 @@ class NIRSpecSlitCalibrations(Calibrations):
             specmax = np.asarray([self.spectrograph.spec_min_max[1]])
 
         self.slits = slittrace.SlitTraceSet(
-            edges[0], edges[1], self.spectrograph.pypeline,
+            edges.edge_fit[:,edges.is_left], edges.edge_fit[:,edges.is_right], self.spectrograph.pypeline,
             detname=self.spectrograph.get_det_name(self.det),
             nspat=int(thismask.shape[1]), PYP_SPEC=self.spectrograph.name,
             specmin=specmin, specmax=specmax, pad=self.par['slitedges']['pad'])
 
         self.slits.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.slits.calib_key = calib_key
         self.slits.to_file()
 
         # State

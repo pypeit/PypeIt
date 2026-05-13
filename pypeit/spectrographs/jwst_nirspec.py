@@ -412,9 +412,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'science')
-        if ftype in ['pixelflat']:
+        if ftype in ['pixelflat', 'trace']:
             return good_exp & (fitstbl['idname'] == 'interpolatedflat')
-        if ftype in ['arc', 'tilt', 'trace']:
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'calib')
         log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -439,7 +439,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     def default_mosaic(self):
         return self.allowed_mosaics[0]
     
-    def get_rawimage(self, raw_file, det, extname='SCI'):
+    def get_rawimage(self, raw_file, det, keys='SCI'):
         """
         Read raw images and generate a few other bits and pieces
         that are key for image processing.
@@ -448,10 +448,15 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         Parameters
         ----------
-        raw_file : :obj:`str`
-            File to read
+        raw_file : :obj:`str` or :obj:`list` of :obj:`str`
+            File(s) to read
         det : :obj:`int`
             1-indexed detector to read
+        keys : :obj:`list` of or single int, :obj:`str` or :obj:`tuple` of (string, int)
+            A list of keys or a single key identifying the HDU to read.  If a key is a tuple, it is of the
+            form `(name, ver)` where `ver` is an `EXTVER`` value that must
+            match the HDU being searched for. If keys is a list, it has to be of the same length as the number
+            raw files.
 
         Returns
         -------
@@ -493,14 +498,26 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
 
+        # check the keys values
+        if keys is None:
+            keys = ['SCI']*nimg
+        elif isinstance(keys, (str, int, tuple)):
+            keys = [keys]*nimg
+        elif isinstance(keys, list):
+            if len(keys) != nimg:
+                raise PypeItError(f'Number of keys provided ({len(keys)}) does not match the number of detectors ({nimg}).')
+        else:
+            raise PypeItError(f'Invalid keys specification: {keys}')
+
+        # check that the number of files found matches the number of detectors in the mosaic
+        if nimg==2 and len(file_list) != nimg:
+            raise PypeItError(f'Expected {nimg} files for mosaic with detectors {det}, but found {len(file_list)} files: {file_list}')
+
         # Grab the detector or mosaic parameters
         mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=None)
         detectors = [self.get_detector_par(det, hdu=None)] if nimg == 1 else mosaic.detectors
 
         # Read the image(s)
-        # check that the number of files found matches the number of detectors in the mosaic
-        if nimg==2 and len(file_list) != nimg:
-            raise PypeItError(f'Expected {nimg} files for mosaic with detectors {det}, but found {len(file_list)} files: {file_list}')
         raw_img = [None]*nimg
         rawdatasec_img = [None]*nimg
         oscansec_img = [None]*nimg
@@ -510,9 +527,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                 raise PypeItError(f'Could not find file for detector nrs{detectors[i].det} in mosaic with detectors {det}.')
             _hdu = io.fits_open(file_list[indx[0]], ignore_missing_end=True, output_verify='ignore', ignore_blank=True)
             # Raw image
-            raw_img[i] = _hdu[extname].data.astype(float)
+            raw_img[i] = _hdu[keys[i]].data.astype(float)
             rawdatasec_img[i] = np.zeros_like(raw_img[i], dtype=int) + int(detectors[i].det)
-            oscansec_img = np.zeros_like(raw_img[i], dtype=int)
+            oscansec_img[i] = np.zeros_like(raw_img[i], dtype=int)
 
         if nimg == 1:
             return detectors[0], raw_img[0], hdul, exptime, rawdatasec_img[0], oscansec_img[0]

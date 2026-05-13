@@ -1549,7 +1549,7 @@ class NIRSpecRawImage(RawImage):
 
         # NOTE: We don't use the tabulated self.ronoise, but the already available ronoise image from jwst output
 
-        _, var_ronoise,_, _, _, _ = self.spectrograph.get_rawimage(self.filename, self.det, extname='VAR_RNOISE')
+        _, var_ronoise,_, _, _, _ = self.spectrograph.get_rawimage(self.filename, self.det, keys='VAR_RNOISE')
         if self.nimg == 1:
             var_ronoise = np.expand_dims(var_ronoise, 0)
 
@@ -1561,7 +1561,7 @@ class NIRSpecRawImage(RawImage):
 
     def build_poisson_img(self):
 
-        _, var_poisson,_, _, _, _ = self.spectrograph.get_rawimage(self.filename, self.det, extname='VAR_POISSON')
+        _, var_poisson,_, _, _, _ = self.spectrograph.get_rawimage(self.filename, self.det, keys='VAR_POISSON')
         if self.nimg == 1:
             var_poisson = np.expand_dims(var_poisson, 0)
 
