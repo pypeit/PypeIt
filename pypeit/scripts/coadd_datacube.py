@@ -68,7 +68,8 @@ class CoAddDataCube(scriptbase.ScriptBase):
         
         # Get the paths
         coadd_scidir, qa_path = map(lambda x : Path(x).absolute(),
-                CoAdd3D.output_paths(coadd3dfile.filenames, parset, coadd_dir=parset['rdx']['redux_path']))
+                CoAdd3D.output_paths(coadd3dfile.filenames, parset['rdx']['scidir'], parset['rdx']['qadir'],
+                                     coadd_dir=parset['rdx']['redux_path']))
 
         # Write the par to disk
         par_outfile = coadd_scidir.parent / f"{parset['reduce']['cube']['output_filename']}_datacube.par"
@@ -82,8 +83,8 @@ class CoAddDataCube(scriptbase.ScriptBase):
                                      skysub_frame=skysub_frame, sensfile=sensfile,
                                      scale_corr=scale_corr, grating_corr=grating_corr,
                                      ra_offsets=ra_offsets, dec_offsets=dec_offsets,
-                                     spectrograph=spectrograph, det=args.det, overwrite=args.overwrite, 
-                                     debug=args.debug)
+                                     spectrograph=spectrograph, det=args.det, qa_path=qa_path,
+                                     overwrite=args.overwrite, debug=args.debug)
 
         # Coadd the files
         coadd.run()

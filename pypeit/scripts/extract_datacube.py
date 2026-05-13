@@ -26,7 +26,7 @@ class ExtractDataCube(scriptbase.ScriptBase):
         parser.add_argument("-e", "--ext_file", type=str,
                             help='Configuration file with extraction parameters')
         parser.add_argument("-s", "--save", type=str,
-                            help='Basename for output files, i.e. outputs will be written to'
+                            help='Basename for output files, i.e. outputs will be written to '
                             'spec1d_basename.fits and spec2d_basename.fits')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
@@ -81,7 +81,8 @@ class ExtractDataCube(scriptbase.ScriptBase):
         
         # Get the paths
         coadd_scidir, qa_path = map(lambda x : Path(x).absolute(),
-                CoAdd3D.output_paths(args.file, par, coadd_dir=par['rdx']['redux_path']))
+                CoAdd3D.output_paths(args.file, par['rdx']['scidir'], par['rdx']['qadir'],
+                                     coadd_dir=par['rdx']['redux_path']))
 
         # Extract the spectrum
         extcube.extract_spec(

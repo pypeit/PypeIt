@@ -418,7 +418,7 @@ class CoAdd3D:
     @classmethod
     def get_instance(cls, spec2dfiles, par, 
                      output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
-                     ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
+                     ra_offsets=None, dec_offsets=None, spectrograph=None, det=1, qa_path=None,
                      overwrite=False, show=False, debug=False):
         """
         Instantiate the subclass appropriate for the provided spectrograph.
@@ -438,14 +438,15 @@ class CoAdd3D:
                         output_dir=output_dir, 
                         skysub_frame=skysub_frame, sensfile=sensfile, scale_corr=scale_corr,
                         grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
-                        spectrograph=spectrograph, det=det, overwrite=overwrite, show=show, debug=debug)
+                        spectrograph=spectrograph, det=det, qa_path=qa_path,
+                        overwrite=overwrite, show=show, debug=debug)
 
     # TODO: det is needed to load the spec2d files. Although, what if there are
     # multiple detectors?  Do we need a det for each spec2d file?
     def __init__(self, spec2dfiles, par, 
                  output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
                  ra_offsets=None, dec_offsets=None, spectrograph=None, det=None,
-                 overwrite=False, show=False, debug=False):
+                 qa_path=None, overwrite=False, show=False, debug=False):
         """
 
         Args:
@@ -484,6 +485,8 @@ class CoAdd3D:
                 If None, this is pulled from the file header.
             det (:obj:`int`_, optional):
                 Detector index
+            qa_path (:obj:`str`, optional):
+                The path to save QA plots. If None, the QA plots are saved in the default QA directory.
             overwrite (:obj:`bool`, optional):
                 Overwrite the output file, if it exists?
             show (:obj:`bool`, optional):
@@ -497,7 +500,6 @@ class CoAdd3D:
         self.numfiles = len(spec2dfiles)
         self.par = par
         self.output_dir = '' if output_dir is None else output_dir
-#        self.output_dir = output_dir
         self.overwrite = overwrite
         self.chk_version = self.par['rdx']['chk_version']
         # Extract some parsets for simplicity
@@ -509,6 +511,7 @@ class CoAdd3D:
         self.combine = self.cubepar['combine']
         self.align = self.cubepar['align']
         self.correct_dar = self.cubepar['correct_dar']
+        self.qa_path = par['rdx']['qadir'] if qa_path is None else qa_path
         # TODO Only need one of show or debug probably
         self.show = show
         self.debug = debug 
@@ -645,7 +648,7 @@ class CoAdd3D:
 
 
     @staticmethod
-    def output_paths(spec2d_files, par, coadd_dir=None):
+    def output_paths(spec2d_files, science_dir, qa_dir, coadd_dir=None):
         """
         Construct the names and ensure the existence of the science and QA output directories.
 
@@ -658,10 +661,14 @@ class CoAdd3D:
                 ``/path/to/reductions/Science/spec2d_file.fits``, the parent
                 directory for the coadd2d directories is
                 ``/path/to/reductions/``.
-            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-                Full set of parameters.  The only used parameters are
-                ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.  WARNING:
-                This also *alters* the value of ``par['rdx']['qadir']``!!
+            science_dir (:obj:`str`):
+                The name of the science directory to use for the coadd3d output.
+                 For example, if scidir is "Science", the science output directory will be
+                ``/path/to/reductions/Science_cube/``.
+            qa_dir (:obj:`str`):
+                The name of the QA directory to use for the coadd3d output.  For
+                example, if qadir is "QA", the QA output directory will be
+                ``/path/to/reductions/QA_cube/``.
             coadd_dir (:obj:`str`, optional):
                 Path to the directory to use for the coadd3d output.
                 If None, the parent of the science directory is used.
@@ -676,12 +683,11 @@ class CoAdd3D:
             pypeit_scidir = Path(coadd_dir).absolute() / 'Science'
         else:
             pypeit_scidir = Path(spec2d_files[0]).parent
-        coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_cube"
+        coadd_scidir = pypeit_scidir.parent / f'{science_dir}_cube'
         if not coadd_scidir.exists():
             coadd_scidir.mkdir(parents=True)
         # QA directory
-        par['rdx']['qadir'] += '_cube'
-        qa_path = pypeit_scidir.parent / par['rdx']['qadir'] / 'PNGs'
+        qa_path = pypeit_scidir.parent / f'{qa_dir}_cube' / 'PNGs'
         if not qa_path.exists():
             qa_path.mkdir(parents=True)
         return str(coadd_scidir), str(qa_path)
@@ -1032,13 +1038,13 @@ class SlicerIFUCoAdd3D(CoAdd3D):
     """
     def __init__(self, spec2dfiles, par, 
                  output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
-                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
+                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=1, qa_path=None,
                  overwrite=False, show=False, debug=False):
         super().__init__(spec2dfiles, par, 
                          output_dir=output_dir, skysub_frame=skysub_frame, sensfile=sensfile,
                          scale_corr=scale_corr, grating_corr=grating_corr,
                          ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
-                         overwrite=overwrite, show=show, debug=debug)
+                         qa_path=qa_path, overwrite=overwrite, show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)
