@@ -23,16 +23,27 @@ class ExtractDataCube(scriptbase.ScriptBase):
             width=width, default_log_file=True
         )
         parser.add_argument('file', type = str, default=None, help='spec3d.fits DataCube file')
-        parser.add_argument("-e", "--ext_file", type=str,
-                            help='Configuration file with extraction parameters')
-        parser.add_argument("-s", "--save", type=str,
-                            help='Basename for output files, i.e. outputs will be written to'
-                            'spec1d_basename.fits and spec2d_basename.fits')
-        parser.add_argument('-o', '--overwrite', default=False, action='store_true',
-                            help='Overwrite any existing files/directories')
-        parser.add_argument('-b', '--boxcar_radius', type=float, default=None,
-                            help='Radius of the circular boxcar (in arcseconds) to use for the extraction.')
-        parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
+        parser.add_argument(
+            "-e", "--ext_file", type=str, help='Configuration file with extraction parameters'
+        )
+        parser.add_argument(
+            "-s", "--save", type=str,
+            help=(
+                'Basename for output files, i.e. outputs will be written to spec1d_basename.fits '
+                'and spec2d_basename.fits'
+            )
+        )
+        parser.add_argument(
+            '-o', '--overwrite', default=False, action='store_true',
+            help='Overwrite any existing files/directories'
+        )
+        parser.add_argument(
+            '-b', '--boxcar_radius', type=float, default=None,
+            help='Radius of the circular boxcar (in arcseconds) to use for the extraction.'
+        )
+        parser.add_argument(
+            "--debug", default=False, action="store_true", help="Run in debugging mode"
+        )
         return parser
 
     @classmethod
@@ -80,13 +91,18 @@ class ExtractDataCube(scriptbase.ScriptBase):
         tstart = time.time()
         
         # Get the paths
-        coadd_scidir, qa_path = map(lambda x : Path(x).absolute(),
-                CoAdd3D.output_paths(args.file, par, coadd_dir=par['rdx']['redux_path']))
+        # TODO: I think we should set coadd_dir to the parent of args.file...
+        coadd_scidir, qa_path = map(
+            lambda x : Path(x).absolute(), CoAdd3D.output_paths(
+                args.file, par, coadd_dir=par['rdx']['redux_path']
+            )
+        )
 
         # Extract the spectrum
         extcube.extract_spec(
             par['reduce'], output_dir=str(coadd_scidir), overwrite=args.overwrite, 
-            debug=args.debug)
+            debug=args.debug
+        )
 
         # Report the extraction time
         log.info(utils.get_time_string(time.time()-tstart))
