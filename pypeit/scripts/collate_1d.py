@@ -17,7 +17,7 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import log
 from pypeit.utils import is_float
-from pypeit.core.collate import collate_1d
+from pypeit.collate import collate_1d
 from pypeit.scripts import scriptbase
 from pypeit import inputfiles
 
