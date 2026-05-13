@@ -292,10 +292,10 @@ class DataCube(datamodel.DataContainer):
         # Build header for spec2d
         all_spec2d.write_to_fits(str(spec2d_filename), pri_hdr=fits.Header(), overwrite=overwrite)
         # Write out the white light image
-        # TODO This is replicated code from datacube.make_whitelight, clean this up. 
+        # TODO This is replicated code from datacube.make_whitelight, clean this up.
+        # TODO :: Note that this overwrites the whitelight generated from the main code.
         log.info(f"Saving white light image as: {out_whitelight}")
         primary_hdu = fits.PrimaryHDU(wl_img.T, header=self._wcs.celestial.to_header())
-#        primary_hdu.header['EXTNAME'] = 'WHITELIGHT'
         ivar_hdu = fits.ImageHDU(wl_ivar.T, name='IVAR')
         gpm_hdu = fits.ImageHDU(wl_gpm.astype(np.uint8).T, name='GPM')
         hdul = fits.HDUList([primary_hdu, ivar_hdu, gpm_hdu])
@@ -1501,12 +1501,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     ra_pix_star = np.zeros(self.numfiles)
                     dec_pix_star = np.zeros(self.numfiles)
                     for ff in range(self.numfiles):
-                        (
-                            popt, pcov, model, init_obj_position, flux_opt, sigma_opt
-                        ) = datacube.fitGaussian2D(
-                            wl_imgs[:, :, ff], ivar=utils.inverse(np.square(sig_imgs[:,:, ff])), 
-                            gpm=np.logical_not(bpm_imgs[:, :, ff]), fwhm=fwhm/dspat, norm=False
-                        )
+                        popt, pcov, model, init_obj_position, flux_opt, sigma_opt = \
+                            datacube.fitGaussian2D(
+                                wl_imgs[:, :, ff], ivar=utils.inverse(np.square(sig_imgs[:,:, ff])),
+                                gpm=np.logical_not(bpm_imgs[:, :, ff]), fwhm=fwhm/dspat, norm=False
+                            )
                         gaussian_position = popt[1], popt[2]
                         if show_qa and dd == numiter-1:
                             datacube.whitelight_objfind_qa(
@@ -1739,7 +1738,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     hdr=hdr, overwrite=self.overwrite
                 )
                 # TODO fix this transpose issue
-#                ivarcube = utils.inverse(np.square(sigcube))
                 ivarcube = final_cube.ivar
                 if self.cubepar['save_whitelight']:
                     datacube.make_whitelight(
