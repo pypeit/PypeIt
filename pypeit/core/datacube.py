@@ -525,7 +525,7 @@ def extract_point_source(
         # Set the user-defined radius
         wid = boxcar_radius / np.sqrt(arcsecSQ)
     # Set the radius of the extraction boxcar for the sky determination
-    log.info(f"Using a boxcar radius of {wid*np.sqrt(arcsecSQ):0.2f} arcsec")
+    log.info(f"Using a boxcar radius of {wid*dspat:0.2f} arcsec")
     widsky = 2 * wid
     
     # Generate a mask

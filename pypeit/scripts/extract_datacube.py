@@ -94,7 +94,8 @@ class ExtractDataCube(scriptbase.ScriptBase):
         # TODO: I think we should set coadd_dir to the parent of args.file...
         coadd_scidir, qa_path = map(
             lambda x : Path(x).absolute(), CoAdd3D.output_paths(
-                args.file, par, coadd_dir=par['rdx']['redux_path']
+                args.file, par['rdx']['scidir'], par['rdx']['qadir'],
+                coadd_dir=par['rdx']['redux_path']
             )
         )
 

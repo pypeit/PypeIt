@@ -30,7 +30,7 @@
                             Configuration file with extraction parameters (default:
                             None)
       -s, --save SAVE       Basename for output files, i.e. outputs will be written
-                            tospec1d_basename.fits and spec2d_basename.fits
+                            to spec1d_basename.fits and spec2d_basename.fits
                             (default: None)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)

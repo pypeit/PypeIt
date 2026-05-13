@@ -1007,11 +1007,11 @@ class AlignPar(ParSet):
 
         defaults['grow_slit_edge'] = 0.0  
         dtypes['grow_slit_edge'] = [int, float]
-        descr['grow_slit_edge'] = 'Grow the slit edges by this number of pixels when searching' \
-                                  'for alignnment traces. This parameter should typically be invoked' \
-                                  'when alignment fails because an alignment trace is falling off the edge of the' \
-                                  'slit. Both the left and right edges will be expaned by this number of pixels for' \
-                                  'the purpose of alignment grace finding.' 
+        descr['grow_slit_edge'] = 'Grow the slit edges by this number of pixels when searching ' \
+                                  'for alignnment traces. This parameter should typically be invoked ' \
+                                  'when alignment fails because an alignment trace is falling off the edge of the ' \
+                                  'slit. Both the left and right edges will be expanded by this number of pixels for ' \
+                                  'the purpose of alignment trace finding.'
         
 
         # Instantiate the parameter set
@@ -1707,7 +1707,7 @@ class CubePar(ParSet):
         dtypes['register'] = str
         options['register'] = CubePar.valid_registration_methods()
         descr['register'] = (
-            'Method used to register datcubes when coadding.  Must be either "phase" or "fit": '
+            'Method used to register datacubes when coadding.  Must be either "phase" or "fit": '
             'Setting ``register = phase`` will use a cross-correlation method to determine the '
             'offsets, where the cross-correlation is always with respect to a reference image.  '
             'The reference image can either be provided (see the "reference_image" parameter), '
@@ -1959,8 +1959,8 @@ class CubeExtractionPar(ParSet):
 
         defaults['output_filename'] = None
         dtypes['output_filename'] = str
-        descr['output_filename'] = 'basename for output files, i.e. outputs will be written to' \
-                                   'spec1d_basename.fits and spec2d_basename.fits. Default is None, which' \
+        descr['output_filename'] = 'basename for output files, i.e. outputs will be written to ' \
+                                   'spec1d_basename.fits and spec2d_basename.fits. Default is None, which ' \
                                    'means that the basename will be taken from the input file.'
 
         defaults['whitelight_range'] = [None, None]
@@ -2032,7 +2032,8 @@ class CubeExtractionPar(ParSet):
 
         defaults['skysub_resid'] = True
         dtypes['skysub_resid'] = bool
-        descr['skysub_resid'] = 'If False, the cube will have the residual sky-subtracted before extraction, and the whitelight image will also be residual sky-subtracted.'
+        descr['skysub_resid'] = ('If True, the residual sky in the cube will be subtracted before extraction. '
+                                 'The residual sky in the whitelight image will also be subtracted.')
 
         # Instantiate the parameter set
         super(CubeExtractionPar, self).__init__(list(pars.keys()),

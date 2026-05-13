@@ -507,7 +507,7 @@ class CoAdd3D:
         # Get the paths
         self.scidir, self.qadir = map(
             lambda x : Path(x).absolute(), CoAdd3D.output_paths(
-                spec2dfiles, par, coadd_dir=self.output_dir
+                spec2dfiles, par['rdx']['scidir'], par['rdx']['qadir'], coadd_dir=self.output_dir
             )
         )
 
@@ -692,7 +692,7 @@ class CoAdd3D:
         self.set_default_skysub()
 
     @staticmethod
-    def output_paths(spec2d_files, par, coadd_dir=None):
+    def output_paths(spec2d_files, science_dir, qa_dir, coadd_dir=None):
         """
         Construct the names and ensure the existence of the science and QA output directories.
 
@@ -705,10 +705,14 @@ class CoAdd3D:
                 ``/path/to/reductions/Science/spec2d_file.fits``, the parent
                 directory for the coadd2d directories is
                 ``/path/to/reductions/``.
-            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-                Full set of parameters.  The only used parameters are
-                ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.  WARNING:
-                This also *alters* the value of ``par['rdx']['qadir']``!!
+            science_dir (:obj:`str`):
+                The name of the science directory to use for the coadd3d output.
+                 For example, if scidir is "Science", the science output directory will be
+                ``/path/to/reductions/Science_cube/``.
+            qa_dir (:obj:`str`):
+                The name of the QA directory to use for the coadd3d output.  For
+                example, if qadir is "QA", the QA output directory will be
+                ``/path/to/reductions/QA_cube/``.
             coadd_dir (:obj:`str`, optional):
                 Path to the directory to use for the coadd3d output.
                 If None, the parent of the science directory is used.
@@ -723,12 +727,11 @@ class CoAdd3D:
             pypeit_scidir = Path(coadd_dir).absolute() / 'Science'
         else:
             pypeit_scidir = Path(spec2d_files[0]).parent
-        coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_cube"
+        coadd_scidir = pypeit_scidir.parent / f'{science_dir}_cube'
         if not coadd_scidir.exists():
             coadd_scidir.mkdir(parents=True)
         # QA directory
-        par['rdx']['qadir'] += '_cube'
-        qa_path = pypeit_scidir.parent / par['rdx']['qadir'] / 'PNGs'
+        qa_path = pypeit_scidir.parent / f'{qa_dir}_cube' / 'PNGs'
         if not qa_path.exists():
             qa_path.mkdir(parents=True)
         return str(coadd_scidir), str(qa_path)
@@ -1119,13 +1122,13 @@ class SlicerIFUCoAdd3D(CoAdd3D):
     """
     def __init__(self, spec2dfiles, par, 
                  output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
-                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
+                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=1, qa_path=None,
                  overwrite=False, show=False, debug=False):
         super().__init__(spec2dfiles, par, 
                          output_dir=output_dir, skysub_frame=skysub_frame, sensfile=sensfile,
                          scale_corr=scale_corr, grating_corr=grating_corr,
                          ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
-                         overwrite=overwrite, show=show, debug=debug)
+                         qa_path=qa_path, overwrite=overwrite, show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)

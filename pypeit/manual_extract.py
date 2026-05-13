@@ -32,14 +32,14 @@ class ManualExtractionObj(datamodel.DataContainer):
     Args:
         frame (:obj:`str`):
             The name of the fits file for a manual extraction
-        spat (`numpy.ndarray`_): Array of spatial positions to hand extract
-        spec (`numpy.ndarray`_): Array of spectral positions to hand extract
-        det (`numpy.ndarray`_): Array of detectors for hand extraction. 
+        spat (`numpy.ndarray`_): Array of spatial positions to manually extract
+        spec (`numpy.ndarray`_): Array of spectral positions to manually extract
+        det (`numpy.ndarray`_): Array of detectors for manual extraction.
             This must be a aligned with spec and spat .
             The values can be negative (for negative images)
-        fwhm (`numpy.ndarray`_): Array of FWHM for hand extraction. 
+        fwhm (`numpy.ndarray`_): Array of FWHM for manual extraction.
             This must be aligned with spec and spat.
-        boxcar_rad (`numpy.ndarray`_, optional): Array of boxcar_radii for hand extraction. 
+        boxcar_rad (`numpy.ndarray`_, optional): Array of boxcar_radii for manual extraction.
             This must be aligned with spec and spat.
             It is to be in *pixels*, not arcsec.
             This is only intended for multi-slit reductions (not Echelle)
@@ -52,17 +52,17 @@ class ManualExtractionObj(datamodel.DataContainer):
         'frame': dict(otype=str,
                     descr='The name of the fits file for a manual extraction'),
         'detname': dict(otype=np.ndarray, atype=str,
-                    descr='detectors name for hand extraction.'),
+                    descr='detectors name for manual extraction.'),
         'spec': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='spectral positions to hand extract'),
+                    descr='spectral positions to manually extract'),
         'spat': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='spatial positions to hand extract'),
+                    descr='spatial positions to manually extract'),
         'fwhm': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='FWHMs for hand extractions'),
+                    descr='FWHMs for manual extractions'),
         'neg': dict(otype=np.ndarray, atype=np.bool_,
-                     descr='Flags indicating which hand extract is a negative trace'),
+                     descr='Flags indicating which manual extraction is a negative trace'),
         'boxcar_rad': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='Boxcar radius for hand extractions (optional)'),
+                    descr='Boxcar radius for manual extractions (optional)'),
     }
 
     @classmethod
@@ -183,27 +183,27 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
     Parameters
     ----------
     spatx : :class:`numpy.ndarray`
-        Array of spatial x positions to hand extract
+        Array of spatial x positions to manually extract
     spaty : :class:`numpy.ndarray`
-        Array of spatial y positions to hand extract
+        Array of spatial y positions to manually extract
     fwhm : :class:`numpy.ndarray`, optional
-        Array of FWHM for hand extraction in arcseconds.  This must be aligned
+        Array of FWHM for manual extraction in arcseconds.  This must be aligned
         with spatx and spaty.
     boxcar_rad : :class:`numpy.ndarray`, optional
-        Array of boxcar_radii in arcseconds for hand extraction.  This must be
+        Array of boxcar_radii in arcseconds for manual extraction.  This must be
         aligned with spatx and spaty.
     """
     version = '1.1.0'
 
     datamodel = {
         'spatx': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='Cube spatial x positions to hand extract'),
+                    descr='Cube spatial x positions to manually extract'),
         'spaty': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='Cube spatial y positions to hand extract'),
+                    descr='Cube spatial y positions to manually extract'),
         'fwhm': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='FWHMs for hand extractions in arcseconds (optional, not yet used)'),
+                    descr='FWHMs for manual extractions in arcseconds (optional, not yet used)'),
         'boxcar_rad': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='Boxcar radius for hand extractions in arcseconds (optional, not yet used)'),
+                    descr='Boxcar radius for manual extractions in arcseconds (optional, not yet used)'),
     }
 
     @classmethod
@@ -218,7 +218,7 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
             String specifying the manual aperture.  The format is
             ``spatx:spaty:fwhm:boxcar_radius``, and multiple manual extractions
             must be separated by a semi-colon.  Only the first two entries,
-            defining the spatial x and y *pixel* positions in the datacube, are
+            defining the spatial x and y *spaxel* positions in the datacube, are
             required; the FWHM and boxcar radius are optional and provided in
             arcseconds.  Note that you cannot provide boxcar_radius without also
             providing fwhm; if you wish to only provide boxcar_radius, set fwhm
