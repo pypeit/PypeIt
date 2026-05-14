@@ -6,14 +6,12 @@ Module for guiding 1D Wavelength Calibration
 """
 import ast
 import inspect
-import json
 
-import numpy as np
-from matplotlib import pyplot as plt
-
-from pypeit.utils import jsonify
 from astropy.table import Table
 from astropy.io import fits
+from IPython import embed
+from matplotlib import pyplot as plt
+import numpy as np
 
 from pypeit import log
 from pypeit import PypeItError
@@ -27,8 +25,6 @@ from pypeit import calibframe
 from pypeit.core.wavecal import echelle
 from pypeit.par import pypeitpar
 
-
-from IPython import embed
 
 class WaveCalib(calibframe.CalibFrame):
     """
@@ -1216,9 +1212,7 @@ class BuildWaveCalib:
                     self.slits.mask[wv_masked], 'BADWVCALIB')
 
         # Pack up
-        sv_par = self.par.to_dict()
-        j_par = jsonify(sv_par)
-        self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
+        self.wv_calib.strpar = str(self.par.to_dict())
 
         # Post a warning if you're reducing SlicerIFU data and not all slits are available
         ngood = np.where(np.logical_not(self.wvc_bpm))[0].size
