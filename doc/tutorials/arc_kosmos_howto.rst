@@ -49,7 +49,8 @@ probably want to run this from a separate directory in which you want
 the reduced data to reside.
 
 .. code-block:: bash
-       pypeit_setup -s arc_kosmos -r PATH_TO_RAW_DATA/ --gui
+
+    pypeit_setup -s arc_kosmos -r PATH_TO_RAW_DATA/ --gui
 
 The --gui argument will make this open a graphical interface from which
 you can inspect, edit, and/or save the different configurations. You can
@@ -59,7 +60,7 @@ configuration files by itself without showing you the details.
 pypeit_setup attempts to sort files into separate configurations, and
 automatically identify which files are to be used for pixelflats,
 illumflats, bias, arcs, tilts, standards, and science frames; see
-the PypeIt documentation for additional details.
+:ref:`setup_doc` for additional details.
 
 Different configurations are defined as those with different grism,
 slit, and binning combinations. Note that, in the setup gui and the
@@ -77,10 +78,10 @@ exposure. The default line lists are for HeI, NeI, and ArI; if not
 all of these lamps are used, add a section to the .pypeit file
 to specify which lamps were used, e.g.:
 
-.. code-block:: bash
-[calibrations]
- [[wavelengths]]
-   lamps = NeI, ArI
+.. code-block:: ini
+  [calibrations]
+   [[wavelengths]]
+     lamps = NeI, ArI
 
 Wavelength calibration works by cross-correlating a combined
 arc frame with a reference frame. The reference frames have been
@@ -90,20 +91,22 @@ the missing lamp(s) have a lot of lines. There is a Ne only
 reference frame available for the red configuration, to use that
 you would add :
 
-.. code-block:: bash
-[calibrations]
- [[wavelengths]]
-   lamps = NeI
-   reid_arxiv = 'arc_kosmos_red_ctr_ne.fits'
+.. code-block:: ini
+
+  [calibrations]
+   [[wavelengths]]
+     lamps = NeI
+     reid_arxiv = 'arc_kosmos_red_ctr_ne.fits'
 
 If you used the internal lamps in the blue, you can
 use a reference frame made with Kr, Ne, and Ar:
 
-.. code-block:: bash
-[calibrations]
- [[wavelengths]]
-   lamps = KrI,NeI,ArI
-   reid_arxiv = 'arc_kosmos_red_int_ctr.fits'
+.. code-block:: ini
+
+  [calibrations]
+   [[wavelengths]]
+     lamps = KrI,NeI,ArI
+     reid_arxiv = 'arc_kosmos_red_int_ctr.fits'
 
 Since lines in the red are largely from Ne and Ar, the standard
 red reference frame should work with either the internal or the
@@ -113,10 +116,10 @@ Finally, if you are using slit masks and have slits far from the
 center position, the wavelength identification may fail. In some cases,
 we have found that this can be improved using:
 
-.. code-block:: bash
-[calibrations]
- [[wavelengths]]
-   nsnippet = 5
+.. code-block:: ini
+  [calibrations]
+   [[wavelengths]]
+     nsnippet = 5
 
 PypeIt has MANY other parameters that can be used to adjust the reduction; see
 the documentation for details if you want/need to modify the default
@@ -164,21 +167,19 @@ Wavelengths
 +++++++++++
 
 One should inspect the :doc:`../qa` for the wavelength
-calibration.  These are PNGs in the QA/PNG/ folder.
+calibration.  These are PNGs in the QA/PNG/ directory.
 
 Note:  there are multiple files generated for every slit.
 When the reduction is complete, you may prefer to scan
-through them by opening the MF_[configuration].html file under ``QA/``.
+through them by opening the MF_[configuration].html file under ``QA/``;
+note, however, that you may find other useful PNG files in the QA/PNG
+directory that are not listed in the  MF_[configuration].html file.
 
 Note that it is possible to have apparently small residuals
 but still have an incorrect wavelength solution if lines are
 misidentified! This often leads to only having relatively few lines.
 Output science spectra can be the final arbiter of problems, e.g. by
 looking at sky lines.
-
-The final wavelength solution is a two dimensional fit 
-with pixel along the order one axis and the order itself
-being the second. 
 
 Remember, the default calibration is in vacuum wavelengths.
 
@@ -192,4 +193,3 @@ science frame, located in the ``Science/`` folder.
 One can inspect the one dimensional spectra 
 with :ref:`pypeit_show_1dspec`.
 
-Using that tool, you can examine the individual orders. 
