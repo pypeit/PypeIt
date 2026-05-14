@@ -671,7 +671,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                 if pdiff[bstpx] < match_toler:
                     # Using the arxiv arc wavelength solution, search for the nearest line in the line list
                     bstwv = np.abs(wvdata - wvval_arxiv[bstpx])
-                    # This is a good wavelength match if it is within match_toler disperion elements
+                    # This is a good wavelength match if it is within match_toler dispersion elements
                     if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv[iarxiv]:
                         line_indx = np.append(line_indx, np.argmin(bstwv))  # index in the line list array wvdata of this match
                         det_indx = np.append(det_indx, iline)             # index of this line in the detected line array detections
@@ -1071,7 +1071,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
     x_percentile : float, optional
         Passed to reidentify to reduce the dynamic range of arc line amplitudes
     template_dict : dict, optional
-        Dict containing tempmlate items, largely for development
+        Dict containing template items, largely for development
     nonlinear_counts : float, optional
         For arc line detection: Arc lines above this saturation threshold
         are not used in wavelength solution fits because they cannot be
@@ -1702,7 +1702,7 @@ class ArchiveReid:
         # List of bad slits
         self.bad_slits = []
 
-        # Pull paramaters out of the parset
+        # Pull parameters out of the parset
         # TODO: Why are we doing this?
         # Parameters for arc line detction
         self.nonlinear_counts = nonlinear_counts # self.par['nonlinear_counts']

@@ -266,25 +266,25 @@ def fetch_remote_file(
         ):
             err_msg = (
                 f"The file {filename}\n"
-                f"is not hosted in the cloud.  Please download this file from"
-                f"the PypeIt Google Drive and install it using the script"
-                f"pypeit_install_telluric --local.  See instructions at"
+                f"is not hosted in the cloud.  Please download this file from "
+                f"the PypeIt Google Drive and install it using the script "
+                f"pypeit_install_telluric --local.  See instructions at "
                 "https://pypeit.readthedocs.io/en/latest/installing.html#additional-data"
             )
 
         elif filetype == "arc_lines/lists":
             err_msg = (
                 f"Cannot find local arc line list {filename}\n"
-                f"Use the script `pypeit_install_linelist` to install"
-                f"your custom line list into the cache.  See instructions at"
+                f"Use the script `pypeit_install_linelist` to install "
+                f"your custom line list into the cache.  See instructions at "
                 "https://pypeit.readthedocs.io/en/latest/wave_calib.html#line-lists"
             )
 
         elif filetype == "extinction":
             err_msg = (
                 f"Cannot find local extinction file {filename}\n"
-                f"Use the script `pypeit_install_extinctfile` to install"
-                f"your custom extinction file into the cache.  See instructions at"
+                f"Use the script `pypeit_install_extinctfile` to install "
+                f"your custom extinction file into the cache.  See instructions at "
                 "https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction"
             )
 
@@ -295,9 +295,9 @@ def fetch_remote_file(
             err_msg = (
                 f"Error downloading {filename}: {error}\n"
                 f"URL attempted: {remote_url}\n"
-                f"If the error relates to the server not being found,"
-                f"check your internet connection.  If the remote server"
-                f"name has changed, please contact the PypeIt development"
+                f"If the error relates to the server not being found, "
+                f"check your internet connection.  If the remote server "
+                f"name has changed, please contact the PypeIt development "
                 "team."
             )
 

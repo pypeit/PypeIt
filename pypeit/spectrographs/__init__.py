@@ -44,6 +44,7 @@ __all__ = [
     'tng_dolores',
     'vlt_fors',
     'vlt_sinfoni',
+    'vlt_uves',
     'vlt_xshooter',
     'wht_isis',
 ]

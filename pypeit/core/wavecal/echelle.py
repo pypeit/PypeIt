@@ -29,7 +29,7 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs,
         xd_angle_coeffs
             Table holding the arxiv data
         xdisp (str):
-            Corss disperser. For HIRES this is either 'UV' or 'RED'
+            Cross disperser. For HIRES this is either 'UV' or 'RED'
         xdangle (float):
             Cross-disperser angle.
         norders (int):
