@@ -109,7 +109,6 @@ class TelescopePar(parset.ParSet):
         )
 
 
-
 class ScatteredLightPar(parset.ParSet):
     """
     The parameters used when modeling scattered light.
@@ -3413,8 +3412,6 @@ class WavelengthSolutionPar(parset.ParSet):
             ),
         ),
     }
-
-    
 
 
 class EdgeTracePar(parset.ParSet):
