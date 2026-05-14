@@ -381,11 +381,12 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         }
         par.reset_all_processimages_par(**turn_off)
 
+        # Use dark frames for ARC and TILT
+        par["calibrations"]["arcframe"]["process"]["use_darkimage"] = True
+        par["calibrations"]["tiltframe"]["process"]["use_darkimage"] = True
         # Use dark frames for SCIENCE and STANDARD frames
         par["scienceframe"]["process"]["use_darkimage"] = True
         par["calibrations"]["standardframe"]["process"]["use_darkimage"] = True
-        par["calibrations"]["arcframe"]["process"]["use_darkimage"] = True
-        par["calibrations"]["tiltframe"]["process"]["use_darkimage"] = True
         # Do not mask CRs in dark frames -- it actually removes the hot pixels!
         par["calibrations"]["darkframe"]["process"]["mask_cr"] = False
         # Science frames should use illumflat
