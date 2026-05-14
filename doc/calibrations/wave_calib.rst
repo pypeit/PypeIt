@@ -599,8 +599,8 @@ procedure, when possible:
 
 .. _full-template-dev:
 
-Full Template
--------------
+Creating the wavelength calibration template
+--------------------------------------------
 
 The preferred method for multi-slit calibration is now
 called ``full_template`` which
