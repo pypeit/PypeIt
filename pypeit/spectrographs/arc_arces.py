@@ -25,7 +25,7 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
     camera = 'ARCARCES'
     url = 'https://www.apo.nmsu.edu/arc35m/Instruments/ARCES'
     header_name = 'ARCES'
-    supported = True
+    supported = False
     comment = 'ARC ARCES spectrometer'
     pypeline = 'Echelle'
     ech_fixed_format = True
@@ -66,8 +66,6 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d([3.8]),
             ronoise         = np.atleast_1d([7.0]),
-            #datasec         = np.atleast_1d(['[0:1023,0:4095]', '[1024:2047,0:4095]']),
-            #oscansec        = np.atleast_1d(['[2055:2087,0:4095]', '[2105:2137,0:4095]']),
             datasec         = np.atleast_1d(['[1:2048,23:2048]']),
             oscansec        = np.atleast_1d(['[1:2048,2075:2125]']),
         )
@@ -316,10 +314,6 @@ class ARCARCESSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'zero')
         if ftype == 'pixelflat': #Internal Flats
             return good_exp & (fitstbl['idname'] == 'flat') 
-            #return (good_exp & 
-            #        ((fitstbl['lampstat01'] == 'on') |
-            #         (fitstbl['lampstat02'] == 'on') |
-            #         (fitstbl['lampstat06'] == 'on') ))
         if ftype in ['trace', 'illumflat']: 
             return good_exp & (fitstbl['idname'] == 'flat') 
         if ftype in ['pinhole', 'dark']:

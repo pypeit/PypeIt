@@ -70,7 +70,6 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'mjd':
             time = headarr[0]['DATE-OBS']
             ttime = Time(time, format='isot')
-            print(time,ttime.mjd,type(ttime.mjd))
             return ttime.mjd
         else:
             raise PypeItError("Not ready for this compound meta")
