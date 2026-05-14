@@ -8,6 +8,7 @@ import numpy as np
 from astropy.time import Time
 
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -72,7 +73,7 @@ class ARCTSPECSpectrograph(spectrograph.Spectrograph):
             print(time,ttime.mjd,type(ttime.mjd))
             return ttime.mjd
         else:
-            log.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """

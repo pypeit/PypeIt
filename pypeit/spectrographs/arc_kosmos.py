@@ -7,6 +7,7 @@ import numpy as np
 from astropy.time import Time
 
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -143,7 +144,7 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
             else :
                 par['calibrations']['wavelengths']['reid_arxiv'] = "arc_kosmos_red_ctr.fits"
         else:
-            log.error("NEED TO ADD YOUR GRISM HERE!")
+            raise PypeItError("NEED TO ADD YOUR GRISM HERE!")
 
         return par
 
@@ -203,7 +204,7 @@ class ARCKOSMOSSpectrograph(spectrograph.Spectrograph):
             ttime = Time(time, format='isot')
             return ttime.mjd
         else:
-            log.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
