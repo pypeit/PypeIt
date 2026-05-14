@@ -455,7 +455,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         keys : :obj:`list` of or single int, :obj:`str` or :obj:`tuple` of (string, int)
             A list of keys or a single key identifying the HDU to read.  If a key is a tuple, it is of the
             form `(name, ver)` where `ver` is an `EXTVER`` value that must
-            match the HDU being searched for. If keys is a list, it has to be of the same length as the number
+            match the HDU being searched for. If keys is a list, it has to be of the same length as the number of
             raw files.
 
         Returns
@@ -498,7 +498,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
 
-        # check the keys values
+        # check the `keys` values
         if keys is None:
             keys = ['SCI']*nimg
         elif isinstance(keys, (str, int, tuple)):

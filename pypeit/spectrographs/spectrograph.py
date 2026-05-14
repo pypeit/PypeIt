@@ -1389,7 +1389,7 @@ class Spectrograph:
             raise PypeItError(f'Provided det must have type tuple or integer, not {type(det)}.')
         return 1, (det,)
 
-    def get_rawimage(self, raw_file, det, sec_includes_binning=False):
+    def get_rawimage(self, raw_file, det, sec_includes_binning=False, keys=None):
         """
         Read raw spectrograph image files and return data and relevant metadata
         needed for image processing.
@@ -1415,6 +1415,11 @@ class Spectrograph:
             *include* the on-chip binning automatically when the image is
             written, this flag should be set to true so that this reader returns
             the correct image sections.
+        keys : :obj:`list` of or single int, :obj:`str` or :obj:`tuple` of (string, int)
+            A list of keys or a single key identifying the HDU to read.  If a key is a tuple, it is of the
+            form `(name, ver)` where `ver` is an `EXTVER`` value that must
+            match the HDU being searched for. If keys is a list, it has to be of the same length as the number of
+            raw files. This parameter is currently only used for the JWST NIRSpec reduction.
 
         Returns
         -------
@@ -1446,6 +1451,11 @@ class Spectrograph:
 
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
+
+        # add warning about the `keys` parameter
+        if keys is not None:
+            log.warning(f'The `keys` parameter is not used for this spectrograph: {self.name}. Ignoring it.')
+
 
         # Grab the detector or mosaic parameters
         mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)

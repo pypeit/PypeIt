@@ -1644,6 +1644,7 @@ class NIRSpecRawImage(RawImage):
         # if self.dark is None and self.par['shot_noise']:
         #     raise PypeItError('Dark image has not been created!  Run build_dark.')
         # _dark = self.dark if self.par['shot_noise'] else None
+        _dark = None
         _counts = self.poisson if self.par['shot_noise'] else None
         # NOTE: self.dark is expected to be in *counts*.  This means that
         # procimg.base_variance should be called with exptime=None.  If the
@@ -1670,14 +1671,14 @@ class NIRSpecRawImage(RawImage):
 
         # update datasec_img to use the slit_slices
         for i in range(len(self.datasec_img)):
-            # spat_start, spat_end, spec_start, spec_end
-            ystart, ystop, xstart, xstop = self.slit_slices[i] if i < len(self.slit_slices) else self.slit_slices[0]
+            spat_start, spat_end, spec_start, spec_end = self.slit_slices[i] if i < len(self.slit_slices) else self.slit_slices[0]
             self.datasec_img[i] = np.zeros_like(self.datasec_img[i], dtype=int)
-            self.datasec_img[i][ystart:ystop, xstart:xstop] = self.detector[i].det
+            self.datasec_img[i][spec_start:spec_end, spat_start:spat_end] = self.detector[i].det
 
         return super().trim(force=force)
 
-    def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
+    def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None,
+                slits=None, dark=None,
                 mosaic=False, slit_slices=None, kludge_err=1, debug=False):
         """
         Process the data.
@@ -1865,6 +1866,7 @@ class NIRSpecRawImage(RawImage):
         #     and "process" variance images are kept separate because they are
         #     used again when modeling the noise during object extraction.
         self.rn2img = self.build_rn2img()
+        self.poisson = self.build_poisson_img()
         self.proc_var = np.zeros(self.rn2img.shape, dtype=float)
 
         # #   - Subtract the overscan.  Uncertainty from the overscan subtraction
@@ -1981,7 +1983,8 @@ class NIRSpecRawImage(RawImage):
                                               img_scale=_img_scale, detector=_det,
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.name,
-                                              units='e-',
+                                              units=None,
+                                              # units='e-',
                                               exptime=self.exptime,
                                               noise_floor=self.par['noise_floor'],
                                               shot_noise=self.par['shot_noise'],

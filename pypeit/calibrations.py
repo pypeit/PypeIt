@@ -27,7 +27,6 @@ from pypeit import slittrace
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit.calibframe import CalibFrame
-from pypeit.core import jwst_flatfield
 from pypeit.images import buildimage
 from pypeit.images import pypeitimage
 from pypeit.metadata import PypeItMetaData
@@ -1805,90 +1804,7 @@ class NIRSpecSlitCalibrations(Calibrations):
     """
     Calibration class for performing JWST NIRSpec calibration.
     See :class:`Calibrations` for arguments.
-
-    Additional Args:
-        jwst_cal_data (array-like, optional):
-            Array of JWST MultiSlitModel calibration data (_cal.fits files).
-        jwst_flat_data (array-like, optional):
-            Array of JWST MultiSlitModel flat-field data (_interpolatedflat.fits files).
-        slit_slices (:obj:`list`, optional):
-            List of slice tuples ``[(spec_slice, spat_slice), ...]`` for each
-            detector in the mosaic, defining where the slit data lives in
-            full-frame coordinates.
     """
-
-    def __init__(self, fitstbl, par, spectrograph, caldir, calib_ID:str,
-                 frame:int, det:int, qadir=None,
-                 reuse_calibs=False, show=False, user_slits=None, chk_version=True):
-        super().__init__(fitstbl, par, spectrograph, caldir, calib_ID, frame, det,
-                         qadir=qadir, reuse_calibs=reuse_calibs, show=show,
-                         user_slits=user_slits, chk_version=chk_version)
-
-        try:
-            from jwst import datamodels
-        except ModuleNotFoundError:
-            raise PypeItError('Unable to import jwst. Install pypeit with the jwst '
-                              'option to reduce jwst data.')
-
-        self.nimg, _ = self.spectrograph.validate_det(self.det)
-
-        # --- Load JWST calibration and flat-field data models ---
-        # find files
-        # these are if the slit is mosaiced in the 2 detectors, aka det = (1,2)
-        cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_ID)
-        flat_files = fitstbl.find_frame_files('pixelflat', calib_ID=calib_ID)
-        cal_files = spectrograph.group_rawfiles(fitstbl.find_frame_files('trace', calib_ID=calib_ID), det)[0]
-        # # if not, filter by detector
-        # if det in [1,2]:
-        #     det_name = f'nrs{det}'
-        #     cal_files = [cc for cc in cal_files if det_name in Path(cc).name]
-        #     flat_files =  [ff for ff in flat_files if det_name in Path(ff).name]
-        # if len(cal_files) == 0:
-        #     raise PypeItError(f'No _cal files found for NIRSpecSlitCalibrations in det {det}')
-        #
-        # # get FITS EXTVER associated with this slit calibrated/reduced here.
-        # # _extver = [h.ver for h in fits.open(cal_files[0]) if h.header.get('SLTNAME') == s]
-        #
-        # cal_data = np.array(datamodels.open(cal_files))
-        # # embed()
-        #
-        # if len(flat_files) == 0:
-        #     raise PypeItError(f'No _interpolatedflat files found for NIRSpecSlitCalibrations in det {det}')
-        # flat_data = np.array(datamodels.open(flat_files))
-        #
-        # # Append FS slits if present
-        # # TODO: is this needed? ASK JFH
-        # for i, _flat_data in enumerate(flat_data):
-        #     fs_path = flat_files[i].replace('_interpolatedflat',
-        #                                     '_interpolatedflat_fs')
-        #     if Path(fs_path).exists():
-        #         log.info(f'Appending FS slits for {Path(flat_files[i]).name}')
-        #         _flat_data_fs = datamodels.open(fs_path)
-        #         for slit in _flat_data_fs.slits:
-        #             _flat_data.slits.append(slit)
-        #
-        # # Input attributes
-        # self.jwst_cal_data = cal_data
-        # self.jwst_flat_data = flat_data
-        # self.slit_slices = [spectrograph.get_slit_slice(cal_data[0], self.user_slits['slit_info'])]
-        #
-        # # Get the index of this slit in cal_data and flat_data
-        # self.slit_index_cal = np.array([], dtype=int)
-        # self.slit_index_flat = np.array([], dtype=int)
-        # for _cal in self.jwst_cal_data:
-        #     slit_names = np.array([s.name for s in _cal.slits])
-        #     indx = np.where(slit_names == self.user_slits['slit_info'])[0]
-        #     if indx.size == 0:
-        #         raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in '
-        #                           f'_cal data {_cal.meta.filename}')
-        #     self.slit_index_cal = np.append(self.slit_index_cal, indx)
-        # for _flat in self.jwst_flat_data:
-        #     slit_names = np.array([s.name for s in _flat.slits])
-        #     indx = np.where(slit_names == self.user_slits['slit_info'])[0]
-        #     if indx.size == 0:
-        #         raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in '
-        #                           f'_flat data {_flat.meta.filename}')
-        #     self.slit_index_flat = np.append(self.slit_index_flat, indx)
 
     def _build_calibimage(self, cal_files, extname, slit_info):
 
@@ -1909,10 +1825,10 @@ class NIRSpecSlitCalibrations(Calibrations):
         _keys = [(extname, _ver) for _ver in extver]
         # get image data, header, and exptime for this slit
         _detector, image, hdu, exptime, _, _ = self.spectrograph.get_rawimage(cal_files, self.det, keys=_keys)
-        self.nimg = 1 if image.ndim == 2 else image.shape[0]
+        nimg = 1 if image.ndim == 2 else image.shape[0]
 
         det_img = None
-        if self.nimg > 1:
+        if nimg > 1:
             # Create images that will track which detector contributes to each pixel
             # in the mosaic.  These images are created here first *before*
             # `self.image` is mosaiced below. NOTE: This assumes there is no overlap
@@ -1935,7 +1851,7 @@ class NIRSpecSlitCalibrations(Calibrations):
                                               PYP_SPEC=self.spectrograph.name,
                                               exptime=exptime,
                                               filename=','.join(cal_files))
-        pypeitImage.rawheadlist = self.spectrograph.get_headarr(hdu)
+        pypeitImage.rawheadlist = self.spectrograph.get_headarr([hdu[_keys[0]]])
         pypeitImage.process_steps = steps
 
         return pypeitImage
@@ -2215,13 +2131,13 @@ class NIRSpecSlitCalibrations(Calibrations):
         Returns:
             :class:`~pypeit.flatfield.FlatImages`: The flat-field images.
         """
-        self._chk_set(['det', 'calib_ID', 'par'])
 
-        if not self._chk_objs(['slits', 'wv_calib']):
-            log.warning('Flats were requested, but there are quantities missing necessary to '
-                      'create flats.  Proceeding without flat fielding....')
-            self.flatimages = None
-            return self.flatimages
+        # Check for existing data
+        if not self._chk_objs(['msbpm', 'slits', 'wv_calib']):
+            raise PypeItError('msbpm, slits, and wv_calib must be loaded before getting the flats')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
 
         # get pixel flat frames info
         pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
@@ -2239,210 +2155,234 @@ class NIRSpecSlitCalibrations(Calibrations):
             # self.slits.mask_flats(self.flatimages)
             return self.flatimages
 
-        if self.nimg == 1:
-            tot_flat = self._build_single_flat(0)
+        pixel_files = self.spectrograph.group_rawfiles(pixel_files, self.det)[0]
+        flatImg = self._build_calibimage(pixel_files, 'SCI', self.user_slits['slit_info'])
+
+        # get pathloss and barshadow frames info
+        cal_files = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
+        calImg = self._build_calibimage(cal_files, 'SCI', self.user_slits['slit_info'])
+        if calImg.rawheadlist[0].get('SRCTYPE') == 'EXTENDED':
+            pathloss_img = self._build_calibimage(cal_files, 'PATHLOSS_UN', self.user_slits['slit_info'])
         else:
-            tot_flat_list = [self._build_single_flat(i) for i in range(self.nimg)]
-            tot_flat = self.spectrograph.make_mosaic(
-                tot_flat_list, self.det, self.slit_slices)
-            tot_flat[tot_flat == 0] = 1.0  # mosaic zero-padding
+             pathloss_img = self._build_calibimage(cal_files, 'PATHLOSS_PS', self.user_slits['slit_info'])
+
+        barshadow_img = self._build_calibimage(cal_files, 'BARSHADOW', self.user_slits['slit_info'])
+
+        # check that the pathloss and barshadow images actually exist
+        if pathloss_img.image is None or pathloss_img.shape == (0, 0):
+            log.warning(f'No pathloss image found for slit {self.user_slits["slit_info"]}, setting to 1.0')
+            pathloss_img.image = np.ones_like(flatImg.image)
+        if barshadow_img.image is None or barshadow_img.shape == (0, 0):
+            log.warning(f'No barshadow image found for slit {self.user_slits["slit_info"]}, setting to 1.0')
+            barshadow_img.image = np.ones_like(flatImg.image)
+
+        conversion_megajanskys = calImg.rawheadlist[0].get('PHOTMJSR')  # Flux density (MJy/steradian) producing 1 cps
+
+        # set np.nan to masked pixels in the flat image, and apply conversion factor
+        flat_data = flatImg.image.copy()
+        flat_data[flat_data == 1] = np.nan
+        flat_data /= conversion_megajanskys
+
+        # combine the flat images
+        combined_flat_data = calImg.exptime * flat_data * pathloss_img.image * barshadow_img.image
+        combined_flat_data[np.isnan(combined_flat_data)] = 1.0
 
         self.flatimages = flatfield.FlatImages(
             PYP_SPEC=self.spectrograph.name,
-            pixelflat_norm=tot_flat,
+            pixelflat_raw=flatImg.image,
+            pixelflat_norm=combined_flat_data,
             pixelflat_waveimg=self.wv_calib.waveimg,
             pixelflat_bpm=np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype()),
             spat_id=self.slits.spat_id)
 
-        if self.flatimages is not None:
-            self.flatimages.set_paths(self.calib_dir, setup, calib_id, detname)
-            # Save flat images
-            self.flatimages.to_file()
-            # Save slits too, in case they were tweaked
-            # State
-            if self.state is not None:
-                self.state.update_calib('flats', self.calib_ID, self.det,
+        self.flatimages.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.flatimages.calib_key = calib_key
+        # Save flat images
+        self.flatimages.to_file()
+
+        # State
+        if self.state is not None:
+            self.state.update_calib('flats', self.calib_ID, self.det,
                                 'output_file', self.flatimages.get_path())
 
         return self.flatimages
 
-    def _build_single_flat(self, idx):
-        """
-        Build a flat-field image for a single detector index, including
-        pathloss and barshadow corrections.
+    def get_slit_slices(self, force:str=None):
 
-        This is the **original** method that reads the pre-computed
-        ``_interpolatedflat.fits`` product from ``calwebb_spec2``.
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'user_slits'])
 
-        Args:
-            idx (:obj:`int`):
-                Index into ``slit_index_flat`` / ``slit_index_cal``.
+        cal_files = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
 
-        Returns:
-            `numpy.ndarray`_: The total flat-field correction for one detector.
-        """
-        flat_data_slit = self.jwst_flat_data[idx].slits[
-            self.slit_index_flat[idx]].data.T
-        cal_data_slit = self.jwst_cal_data[idx].slits[self.slit_index_cal[idx]]
-        exptime = cal_data_slit.meta.exposure.effective_exposure_time
-        conversion = cal_data_slit.meta.photometry.conversion_megajanskys
+        if isinstance(cal_files, str):
+            cal_files = [cal_files]
 
-        flat = np.ones_like(flat_data_slit)
-        mask = flat_data_slit != 1
-        flat[mask] = flat_data_slit[mask] / conversion
+        self.slit_slices = []
+        for file in cal_files:
+            with fits.open(file) as ff:
+                # get FITS EXTVER associated with this slit.
+                extver = [h.ver for h in ff if h.header.get('SLTNAME') == self.user_slits['slit_info']]
+                if len(extver) == 0:
+                    raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in cal file {file}')
+                hdr = ff[('SCI', extver[0])].header
+                slit_xstart = int(hdr['SLTSTRT1'])
+                slit_xsize = int(hdr['SLTSIZE1'])
+                slit_ystart = int(hdr['SLTSTRT2'])
+                slit_ysize = int(hdr['SLTSIZE2'])
 
-        # Pathloss correction
-        if cal_data_slit.source_type == 'EXTENDED':
-            pathloss = cal_data_slit.pathloss_uniform.T
-        else:
-            pathloss = cal_data_slit.pathloss_point.T
-        if pathloss.shape == (0, 0):
-            log.warning(f'No pathloss for slit {self.user_slits['slit_info']}, setting to 1.0')
-            pathloss = np.ones_like(flat)
+                spat_start = slit_xstart -1
+                spat_end = spat_start + slit_xsize
+                spec_start = slit_ystart -1
+                spec_end = spec_start + slit_ysize
+                self.slit_slices.append((spat_start, spat_end, spec_start, spec_end))
 
-        # Barshadow correction
-        barshadow = cal_data_slit.barshadow.T
-        if barshadow.shape == (0, 0):
-            log.warning(f'No barshadow for slit {self.user_slits['slit_info']}, setting to 1.0')
-            barshadow = np.ones_like(flat)
+        return self.slit_slices
 
-        tot_flat = np.ones_like(flat)
-        tot_flat[mask] = exptime * flat[mask] * pathloss[mask] * barshadow[mask]
-        tot_flat[np.isnan(tot_flat)] = 1.0
-
-        return tot_flat
-
-    def _build_single_flat_from_crds(self, idx):
-        """
-        Build a flat-field image for a single detector index by computing
-        the interpolated flat directly from CRDS reference files, reproducing
-        the ``calwebb_spec2`` ``flat_field`` step.
-
-        This is the **new** method that uses
-        :func:`~pypeit.core.jwst_flatfield.create_interpolated_flat` instead
-        of reading the pre-computed ``_interpolatedflat.fits`` file.
-
-        Pathloss and barshadow corrections are still read from the ``_cal.fits``
-        datamodel (since those are separate pipeline steps).
-
-        Args:
-            idx (:obj:`int`):
-                Index into ``slit_index_flat`` / ``slit_index_cal``.
-
-        Returns:
-            `numpy.ndarray`_: The total flat-field correction for one detector.
-        """
-        cal_data_slit = self.jwst_cal_data[idx].slits[self.slit_index_cal[idx]]
-
-        # --- Get the wavelength image for this slit (in microns) ---
-        # Use the wavelength from the _cal data (post-wavecorr), which is the
-        # same array that calwebb_spec2 uses for the flat-field step.
-        waveimg_microns = np.array(cal_data_slit.wavelength, dtype=float)
-        if waveimg_microns.shape == (0, 0):
-            # Fall back to the flat data wavelength
-            log.warning('No wavelength in _cal data; falling back to '
-                        '_interpolatedflat wavelength.')
-            waveimg_microns = np.array(
-                self.jwst_flat_data[idx].slits[
-                    self.slit_index_flat[idx]].wavelength, dtype=float)
-
-        # --- Get slit geometry ---
-        slit_xstart = int(cal_data_slit.xstart)
-        slit_xsize = int(cal_data_slit.xsize)
-        slit_ystart = int(cal_data_slit.ystart)
-        slit_ysize = int(cal_data_slit.ysize)
-
-        # --- Get exposure type ---
-        exposure_type = str(cal_data_slit.meta.exposure.type).upper()
-
-        # --- CRDS reference file paths ---
-        # These must be set on the instance before calling get_flats().
-        # Example:  calib.crds_fflat = '/path/to/fflat.fits'
-        self.crds_fflat='/Users/dpelliccia/Desktop/jwst/dev/NIRSPEC_MSA_PID1287/crds/references/jwst/nirspec/jwst_nirspec_fflat_0163.fits'
-        self.crds_sflat='/Users/dpelliccia/Desktop/jwst/dev/NIRSPEC_MSA_PID1287/crds/references/jwst/nirspec/jwst_nirspec_sflat_0222.fits'
-        self.crds_dflat='/Users/dpelliccia/Desktop/jwst/dev/NIRSPEC_MSA_PID1287/crds/references/jwst/nirspec/jwst_nirspec_dflat_0001.fits'
-        fflat_file = getattr(self, 'crds_fflat', None)
-        sflat_file = getattr(self, 'crds_sflat', None)
-        dflat_file = getattr(self, 'crds_dflat', None)
-
-        if fflat_file is None and sflat_file is None and dflat_file is None:
-            log.warning('No CRDS flat reference files set (crds_fflat, '
-                        'crds_sflat, crds_dflat).  Flat will be unity.')
-
-        # --- MSA-specific info ---
-        slit_name = str(cal_data_slit.name)
-        # For MSA data the quadrant/shutter info is needed for the fflat
-        quadrant = getattr(cal_data_slit, 'quadrant', None)
-        if quadrant is not None:
-            quadrant = int(quadrant) - 1  # convert to 0-indexed
-        msa_x = getattr(cal_data_slit, 'xcen', None)
-        msa_y = getattr(cal_data_slit, 'ycen', None)
-
-        # --- Dispersion direction ---
-        try:
-            dispaxis = int(cal_data_slit.meta.wcsinfo.dispersion_direction)
-        except (AttributeError, TypeError):
-            dispaxis = 1  # default horizontal
-
-        log.info(f'Computing CRDS flat for slit {slit_name} '
-                 f'(xstart={slit_xstart}, ystart={slit_ystart}, '
-                 f'xsize={slit_xsize}, ysize={slit_ysize})')
-
-        # --- Call the standalone flat-field computation ---
-        flat_2d, flat_dq, flat_err, _ = jwst_flatfield.create_interpolated_flat(
-            waveimg=waveimg_microns,
-            slit_xstart=slit_xstart,
-            slit_xsize=slit_xsize,
-            slit_ystart=slit_ystart,
-            slit_ysize=slit_ysize,
-            fflat_file=fflat_file,
-            sflat_file=sflat_file,
-            dflat_file=dflat_file,
-            exposure_type=exposure_type,
-            slit_name=slit_name,
-            quadrant=quadrant,
-            msa_x=msa_x,
-            msa_y=msa_y,
-            dispaxis=dispaxis,
-        )
-
-        # Transpose to PypeIt convention (spec, spat) = (ny, nx) after .T
-        flat_2d = flat_2d.T
-
-        # --- Apply pathloss and barshadow from the _cal data ---
-        # (These are separate pipeline steps, not part of the flat-field
-        # computation, but PypeIt folds them into the total flat.)
-        exptime = cal_data_slit.meta.exposure.effective_exposure_time
-        conversion = cal_data_slit.meta.photometry.conversion_megajanskys
-
-        # Normalize flat by the photometric conversion factor
-        mask = flat_2d != 1.0
-        flat_normalized = np.ones_like(flat_2d)
-        flat_normalized[mask] = flat_2d[mask] / conversion
-
-        # Pathloss correction
-        if cal_data_slit.source_type == 'EXTENDED':
-            pathloss = cal_data_slit.pathloss_uniform.T
-        else:
-            pathloss = cal_data_slit.pathloss_point.T
-        if pathloss.shape == (0, 0):
-            log.warning(f'No pathloss for slit '
-                        f'{self.user_slits["slit_info"]}, setting to 1.0')
-            pathloss = np.ones_like(flat_normalized)
-
-        # Barshadow correction
-        barshadow = cal_data_slit.barshadow.T
-        if barshadow.shape == (0, 0):
-            log.warning(f'No barshadow for slit '
-                        f'{self.user_slits["slit_info"]}, setting to 1.0')
-            barshadow = np.ones_like(flat_normalized)
-
-        tot_flat = np.ones_like(flat_normalized)
-        tot_flat[mask] = (exptime * flat_normalized[mask]
-                          * pathloss[mask] * barshadow[mask])
-        tot_flat[np.isnan(tot_flat)] = 1.0
-
-        return tot_flat
+# NOTE: the method below currently not used, but we might in the future. It uses a method
+# `jwst_flatfield.create_interpolated_flat` which is currently a local file
+    # def get_flats_from_crds(self, force: str = None):
+    #     """
+    #     Build flat-field calibration images using CRDS reference files
+    #     (fflat/sflat/dflat) instead of a precomputed
+    #     ``_interpolatedflat.fits`` image.
+    #
+    #     This is kept separate from :func:`get_flats` so the default JWST
+    #     behavior remains unchanged.
+    #
+    #     Args:
+    #         force (:obj:`str`, optional):
+    #             ``'remake'`` forces rebuilding, ``'reload'`` only reloads an
+    #             existing product, and ``None`` follows ``reuse_calibs``.
+    #
+    #     Returns:
+    #         :class:`~pypeit.flatfield.FlatImages`: The CRDS-based flat-field
+    #         images.
+    #     """
+    #     # Check for existing data
+    #     if not self._chk_objs(['msbpm', 'slits', 'wv_calib']):
+    #         raise PypeItError('msbpm, slits, and wv_calib must be loaded before getting the flats')
+    #
+    #     # Check internals
+    #     self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
+    #
+    #     # Use pixelflat naming for output calibration product
+    #     pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
+    #     _, cal_file, calib_key, setup, calib_id, detname \
+    #         = self.find_calibrations(pixel_frame['type'], pixel_frame['class'],
+    #                                  slit_name=self.user_slits['slit_info'])
+    #
+    #     # Reuse if requested and possible
+    #     if cal_file is not None:
+    #         self.flatimages = self.process_load_selection(pixel_frame, cal_file, force)
+    #         if not self.success:
+    #             return None
+    #         if self.flatimages is not None:
+    #             return self.flatimages
+    #
+    #     # Load _cal metadata
+    #     cal_files = self.spectrograph.group_rawfiles(
+    #         self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID),
+    #         self.det)[0]
+    #     calImg = self._build_calibimage(cal_files, 'SCI', self.user_slits['slit_info'])
+    #
+    #     # Derive output naming from arc files if no pixelflat calibration exists
+    #     if cal_file is None:
+    #         arc_frame = {'type': 'arc', 'class': flatfield.FlatImages}
+    #         _, cal_file, calib_key, setup, calib_id, detname \
+    #             = self.find_calibrations(arc_frame['type'], arc_frame['class'],
+    #                                      slit_name=self.user_slits['slit_info'])
+    #
+    #     # Slit geometry from SCI extension header
+    #     hdr = calImg.rawheadlist[0]
+    #     slit_xstart = int(hdr.get('SLTSTRT1', 1))
+    #     slit_ystart = int(hdr.get('SLTSTRT2', 1))
+    #     slit_xsize = int(hdr.get('SLTSIZE1', calImg.image.shape[0]))
+    #     slit_ysize = int(hdr.get('SLTSIZE2', calImg.image.shape[1]))
+    #     slit_name = str(self.user_slits['slit_info'])
+    #     quadrant = hdr.get('QUADRANT', None)
+    #     if quadrant is not None:
+    #         quadrant = int(quadrant) - 1
+    #     msa_x = hdr.get('XCEN', None)
+    #     msa_y = hdr.get('YCEN', None)
+    #     dispaxis = int(hdr.get('DISPAXIS', 1))
+    #
+    #     # EXP_TYPE is in primary header
+    #     _cal_file0 = cal_files[0] if isinstance(cal_files, (list, tuple)) else cal_files
+    #     with fits.open(_cal_file0) as ff:
+    #         exposure_type = str(ff[0].header.get('EXP_TYPE', 'NRS_MSASPEC')).upper()
+    #
+    #     # CRDS reference files must be set on the instance by the caller
+    #     fflat_file = getattr(self, 'crds_fflat', None)
+    #     sflat_file = getattr(self, 'crds_sflat', None)
+    #     dflat_file = getattr(self, 'crds_dflat', None)
+    #     if fflat_file is None and sflat_file is None and dflat_file is None:
+    #         log.warning('No CRDS flat reference files set (crds_fflat, crds_sflat, '
+    #                     'crds_dflat).  Flat will be unity.')
+    #
+    #     # PypeIt waveimg is (nspec, nspat) in Angstroms; CRDS expects (ny, nx) in microns
+    #     waveimg_microns = self.wv_calib.waveimg.T / 1e4
+    #
+    #     flat_2d, flat_dq, flat_err, _ = jwst_flatfield.create_interpolated_flat(
+    #         waveimg=waveimg_microns,
+    #         slit_xstart=slit_xstart,
+    #         slit_xsize=slit_xsize,
+    #         slit_ystart=slit_ystart,
+    #         slit_ysize=slit_ysize,
+    #         fflat_file=fflat_file,
+    #         sflat_file=sflat_file,
+    #         dflat_file=dflat_file,
+    #         exposure_type=exposure_type,
+    #         slit_name=slit_name,
+    #         quadrant=quadrant,
+    #         msa_x=msa_x,
+    #         msa_y=msa_y,
+    #         dispaxis=dispaxis,
+    #     )
+    #
+    #     # Back to PypeIt orientation (nspec, nspat)
+    #     flat_2d = flat_2d.T
+    #
+    #     # Pathloss and barshadow come from the _cal products
+    #     if calImg.rawheadlist[0].get('SRCTYPE') == 'EXTENDED':
+    #         pathloss_img = self._build_calibimage(cal_files, 'PATHLOSS_UN', self.user_slits['slit_info'])
+    #     else:
+    #         pathloss_img = self._build_calibimage(cal_files, 'PATHLOSS_PS', self.user_slits['slit_info'])
+    #     barshadow_img = self._build_calibimage(cal_files, 'BARSHADOW', self.user_slits['slit_info'])
+    #
+    #     if pathloss_img.image is None or pathloss_img.shape == (0, 0):
+    #         log.warning(f'No pathloss image found for slit {slit_name}, setting to 1.0')
+    #         pathloss_img.image = np.ones_like(flat_2d)
+    #     if barshadow_img.image is None or barshadow_img.shape == (0, 0):
+    #         log.warning(f'No barshadow image found for slit {slit_name}, setting to 1.0')
+    #         barshadow_img.image = np.ones_like(flat_2d)
+    #
+    #     conversion = calImg.rawheadlist[0].get('PHOTMJSR')
+    #     mask = flat_2d != 1.0
+    #     flat_norm = np.ones_like(flat_2d)
+    #     if conversion is not None:
+    #         flat_norm[mask] = flat_2d[mask] / conversion
+    #     else:
+    #         flat_norm[mask] = flat_2d[mask]
+    #
+    #     combined_flat_data = calImg.exptime * flat_norm * pathloss_img.image * barshadow_img.image
+    #     combined_flat_data[np.isnan(combined_flat_data)] = 1.0
+    #
+    #     self.flatimages = flatfield.FlatImages(
+    #         PYP_SPEC=self.spectrograph.name,
+    #         pixelflat_norm=combined_flat_data,
+    #         pixelflat_waveimg=self.wv_calib.waveimg,
+    #         pixelflat_bpm=np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype()),
+    #         spat_id=self.slits.spat_id)
+    #
+    #     self.flatimages.set_paths(self.calib_dir, setup, calib_id, detname)
+    #     self.flatimages.calib_key = calib_key
+    #     self.flatimages.to_file()
+    #
+    #     if self.state is not None:
+    #         self.state.update_calib('flats', self.calib_ID, self.det,
+    #                                 'output_file', self.flatimages.get_path())
+    #
+    #     return self.flatimages
 
     @staticmethod
     def default_steps():
@@ -2452,7 +2392,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         Returns:
             :obj:`list`: Calibration steps, in order of execution.
         """
-        return ['bpm', 'slits','wv_calib', 'tilts', 'flats']
+        return ['bpm', 'slits','wv_calib', 'tilts', 'flats', 'slit_slices']
 
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
