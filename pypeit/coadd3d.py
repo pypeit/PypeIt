@@ -1633,10 +1633,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Get the output filename
             if self.numfiles == 1 and self.cubepar['output_filename'] != "":
                 outfile = datacube.get_output_filename(self.scidir, "", self.cubepar['output_filename'],
-                                                       True, native=True, idx=-1)
+                                                       False, native=True, idx=-1)
             else:
                 outfile = datacube.get_output_filename(self.scidir, fil, self.cubepar['output_filename'],
-                                                       self.combine, native=True, idx=ff+1)
+                                                       False, native=True, idx=ff+1)
             # Get the coordinate bounds
             wave0 = self.all_wave[ff][self.all_wave[ff] != 0.0].min()
             slitlength = int(np.round(np.median(self.all_slits[ff].get_slitlengths(median=True))))
