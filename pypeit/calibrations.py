@@ -2319,7 +2319,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         return self.slit_slices
 
 # NOTE: the method below currently not used, but we might in the future. It uses a method
-# `jwst_flatfield.create_interpolated_flat` which is currently a local file
+# `jwst_flatfield.create_interpolated_flat` which is located in PypeIt-development-suite/pypeitdev/jwst/jwst_flatfield.py
     # def get_flats_from_crds(self, force: str = None):
     #     """
     #     Build flat-field calibration images using CRDS reference files
