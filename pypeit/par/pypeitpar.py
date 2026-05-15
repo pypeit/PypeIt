@@ -1626,8 +1626,8 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
-                 sensfile=None, register=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
+    def __init__(self, slit_spec=None, weight_method=None, save_native=None, combine=None, output_filename=None,
+                 sensfile=None, alignment_method=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
@@ -1891,9 +1891,9 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'register', 'reference_image', 'save_whitelight',
+        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'save_native', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'alignment_method', 'combine',
                    'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar', 'weights_init_obj_pos', 'sn_smooth_npix']
 
         badkeys = np.array([pk not in parkeys for pk in k])
