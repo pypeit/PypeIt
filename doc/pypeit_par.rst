@@ -472,6 +472,7 @@ Class Instantiation: :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
 Key                       Type                       Options                                                                       Default           Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ========================  =========================  ============================================================================  ================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 ``bad_orders_maxfrac``    float                      ..                                                                            0.25              For echelle spectrographs (i.e., ``echelle=True``), this is the maximum fraction of orders (per detector) with failed 1D fit, for PypeIt to attempt a refit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``boxcar_radius``         int                        ..                                                                            3                 Boxcar radius when extracting the arc spectrum                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
 ``cc_local_thresh``       float                      ..                                                                            0.7               Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  between an input spectrum and the shifted and stretched archive spectrum above which a line must be to be considered a good line for reidentification. The local cross-correlation is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of good reidentifications.                                                                                                                                                                                                                                                                                                                                 
 ``cc_offset_minmax``      float                      ..                                                                            1.0               Fraction of the total spectral pixels used to determine the range of pixel shifts allowed when cross-correlating the input arc spectrum with the archive spectrum. Restricting this can be crucial if there are few reference lines and the cross correlation can get confused. This parameter is only used if ``cc_shift_range`` is None.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ``cc_percent_ceil``       float                      ..                                                                            50.0              Determines the percentile at which to cap lines used in cross correlation, to prevent large lines from dominating. If 100, all lines are allowed at their maximum heights. May produce spurious peaks in xcorr                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
@@ -503,6 +504,7 @@ Key                       Type                       Options                    
 ``qa_log``                bool                       ..                                                                            True              Governs whether the wavelength solution arc line QA plots will have log or linear scalingIf True, the scaling will be log, if False linear                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ``redo_slits``            int, list                  ..                                                                            ..                Redo the input slit(s) [multislit] or order(s) [echelle]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``reference``             str                        ``arc``, ``sky``, ``pixel``                                                   ``arc``           Perform wavelength calibration with an arc, sky frame.  Use 'pixel' for no wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``reference_slit``        int                        ..                                                                            ..                Primarily for multi-object or IFU data where all slits cover a very similar wavelength range. If the wavelength calibration does not work for some slits, you can attempt to repeat the wavelength calibration for all slits using the slit that has the best wavelength calibration. An excellent choice for a ``reference_slit`` is one that has: (1) the correct wavelength solution; (2) the greatest wavelength overlap with all slits; (3) the most lines correctly identified; and (4) the lowest RMS. in that order of priority. This parameter is the spatial ID of the slit to use as a reference for this process.                                                                                                                                                                                
 ``refframe``              str                        ``observed``, ``heliocentric``, ``barycentric``                               ``heliocentric``  Frame of reference for the wavelength calibration.  Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 ``reid_arxiv``            str                        ..                                                                            ..                Name of the archival wavelength solution file that will be used for the wavelength reidentification.  Only used if ``method`` is 'reidentify' or 'full_template'.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
 ``reid_cont_sub``         bool                       ..                                                                            True              If True, continuum subtract the arc and arxiv spectrum before the wavelength reidentification.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
@@ -9673,6 +9675,305 @@ Alterations to the default parameters are:
       polyorder = 7
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+
+.. _instr_par-vlt_uves_blue:
+
+VLT VLT_UVES_blue (``vlt_uves_blue``)
+-------------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = vlt_uves_blue
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 600,
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = echelle
+          echelle = True
+          ech_nspec_coeff = 6
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 4.0
+          reid_cont_sub = False
+          cc_shift_range = (-80.0, 80.0)
+          cc_thresh = 0.6
+          cc_local_thresh = 0.25
+          rms_thresh_frac_fwhm = 0.1
+          match_toler = 1.5
+          n_first = 3
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          max_nudge = 0.0
+          dlength_range = 0.25
+          length_range = 0.3
+          add_missed_orders = True
+          overlap = True
+      [[tilts]]
+          tracethresh = 15
+          spec_order = 5
+  [scienceframe]
+      exprng = 30, None,
+      [[process]]
+          overscan_method = median
+          mask_cr = True
+          use_biasimage = False
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 3, 3,
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          sky_sigrej = 4.0
+          global_sky_std = False
+      [[extraction]]
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+
+.. _instr_par-vlt_uves_red:
+
+VLT VLT_UVES_red (``vlt_uves_red``)
+-----------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = vlt_uves_red
+      detnum = (1, 2),
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 120,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 600,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = echelle
+          echelle = True
+          ech_nspec_coeff = 6
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 4.0
+          reid_cont_sub = False
+          cc_shift_range = (-80.0, 80.0)
+          cc_thresh = 0.6
+          cc_local_thresh = 0.25
+          rms_thresh_frac_fwhm = 0.1
+          match_toler = 1.5
+          n_first = 3
+          ech_separate_2d = True
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          max_nudge = 0.0
+          dlength_range = 0.25
+          length_range = 0.3
+          add_missed_orders = True
+          order_width_poly = 4
+          overlap = True
+          mask_off_detector = True
+      [[tilts]]
+          tracethresh = 15
+          spec_order = 5
+  [scienceframe]
+      exprng = 30, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 3, 3,
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          global_sky_std = False
+      [[extraction]]
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_10500_R120000.fits
+          pix_shift_bounds = (-40.0, 40.0)
+  [telluric]
+      resln_frac_bounds = (0.25, 1.25)
+      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-vlt_xshooter_nir:
 

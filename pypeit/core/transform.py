@@ -1,5 +1,5 @@
 """
-Provide basic coordinate tranformation functions.
+Provide basic coordinate transformation functions.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst

@@ -8,6 +8,7 @@ Implements the flat-field class.
 from pathlib import Path
 import copy
 import inspect
+import gc
 import numpy as np
 
 from scipy import interpolate, ndimage
@@ -1353,6 +1354,13 @@ class FlatField:
                 bad_wv = self.waveimg[onslit_tweak] > self.flatpar['pixelflat_max_wave']
                 self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
 
+            # Cleanup to save on memory usage
+            spec_coo_data = None
+            twod_spec_coo_data = None
+            spec_coo = None
+            tilts = None
+            gc.collect(2)
+
         # No need to continue if we're just doing the spatial illumination
         if spat_illum_only:
             return
@@ -2222,9 +2230,12 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         onslit_init = (slitid_img == slit_spat)
         # Check if a wavelength calibration exists for this slice
         if np.all(np.logical_not(onslit_init)):
-            log.error(f"Slit {slit_idx+1}/{slits.nslits} ({slit_spat}) has no wavelength solution. Cannot perform "
-                      f"relative spectral sensitivity calculation. You can turn off the relative spectral sensitivity "
-                      f"correction or check that your wavelength calibration is correct for this slit.")
+            raise PypeItError(
+                f"Slit {slit_idx+1}/{slits.nslits} ({slit_spat}) has no wavelength solution. "
+                "Cannot perform relative spectral sensitivity calculation. You can turn off the "
+                "relative spectral sensitivity correction or check that your wavelength "
+                "calibration is correct for this slit."
+            )
         mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
     wavecen = np.mean(mnmx_wv, axis=1)

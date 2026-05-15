@@ -10,15 +10,18 @@ Documentation Updates
 
 - Updated the documentation about the use of the mask design file for Gemini/GMOS.
   See the :ref:`gemini_gmos` documentation for details.
-
 - Updated the Setup GUI tutorial to reflect the new look of the GUI.
+- Modified the ``update_docs`` script to allow the docs to be built without
+  access to ``$PYPEIT_DEV/RAW_DATA``.
 
 Dependency Changes
 ------------------
 
+- Adds support for python 3.14
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+
 - Setup GUI now uses a standard button bar that can be moved. 
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
 - Increased default font size for Setup GUI.
@@ -26,9 +29,26 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
+- Rewrote MMT Binospec overscan subtraction in ``binospec_read_amp()`` to match
+  the IDL pipeline (``bino_mosaic.pro``): Y-axis postscan first, then X-axis
+  prescan+postscan, using sigma-clipped mean with outlier cleaning.  Added
+  per-amplifier nonlinearity correction using degree-4 polynomial coefficients
+  from the IDL calibration file.
+- Updated the MMT Binospec bad pixel mask to match the IDL pipeline, adding
+  ~12,500 individual bad pixels, additional bad columns, and detector trap
+  region masking from static calibration files.
+- MMT/Binospec: extended the ``mmt_binospec_1000`` reid_arxiv template redward
+  from 6760 Å to 7211 Å to support central wavelengths around 6450 Å.  The
+  red extension was wavelength-calibrated from a calibration arc centered at
+  6450 Å, anchored on HeI 5877.249, HeI 6679.995, ArI 6967.352, and HeI
+  7067.138 (vacuum); cubic fit RMS = 0.04 Å.  Spliced at 6700 Å using
+  :func:`~pypeit.core.wavecal.templates.build_template` with continuum
+  subtraction on the new segment.
+- Implemented support for VLT/UVES data reduction.
 
 Script Changes
 --------------
+
 - Removed -G/--gui option from pypeit_obslog.
 
 Testing
@@ -36,7 +56,6 @@ Testing
 
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
-
 
 Under-the-hood Improvements
 ---------------------------
