@@ -769,7 +769,7 @@ class CoAdd3D:
         # Finally, if there's just one file, check if the output filename is given
         if self.numfiles == 1 and self.cubepar['output_filename'] != "":
             outfile = datacube.get_output_filename(
-                str(self.scidir), "", self.cubepar['output_filename'], True, -1
+                str(self.scidir), "", self.cubepar['output_filename'], True
             )
             if Path(outfile).is_file() and not self.overwrite:
                 raise PypeItError(
@@ -790,10 +790,30 @@ class CoAdd3D:
             return
 
         for ff in range(self.numfiles):
-            # TODO: Is it possible that output_filename can be None?
+            # Check native first
+            if self.native:
+                outfile = datacube.get_output_filename(
+                    str(self.scidir), self.spec2d[ff], self.cubepar['output_filename'],
+                    self.combine, native=True, idx=ff+1
+                )
+                if Path(outfile).is_file() and not self.overwrite:
+                    raise PypeItError(
+                        f"{outfile} exists!  Use overwrite flag or parameter to overwrite."
+                    )
+                # Now check the whitelight of the native sampling files
+                out_whitelight = datacube.get_output_whitelight_filename(str(self.scidir), outfile)
+                if (
+                    Path(out_whitelight).is_file() and self.cubepar['save_whitelight']
+                    and not self.overwrite
+                ):
+                    raise PypeItError(
+                        f"{out_whitelight} exists!  Use overwrite flag or parameter to overwrite, "
+                        "or use the save_whitelight parameter to skip saving the image."
+                    )
+            # Check not native
             outfile = datacube.get_output_filename(
                 str(self.scidir), self.spec2d[ff], self.cubepar['output_filename'],
-                self.combine, ff+1
+                self.combine, native=False, idx=ff+1
             )
             if Path(outfile).is_file() and not self.overwrite:
                 raise PypeItError(
@@ -1612,10 +1632,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         for ff, fil in enumerate(self.spec2d):
             # Get the output filename
             if self.numfiles == 1 and self.cubepar['output_filename'] != "":
-                outfile = datacube.get_output_filename(self.scidir, "", self.cubepar['output_filename'], True, -1)
+                outfile = datacube.get_output_filename(self.scidir, "", self.cubepar['output_filename'],
+                                                       True, native=True, idx=-1)
             else:
                 outfile = datacube.get_output_filename(self.scidir, fil, self.cubepar['output_filename'],
-                                                       self.combine, ff + 1)
+                                                       self.combine, native=True, idx=ff+1)
             # Get the coordinate bounds
             wave0 = self.all_wave[ff][self.all_wave[ff] != 0.0].min()
             slitlength = int(np.round(np.median(self.all_slits[ff].get_slitlengths(median=True))))
@@ -1649,7 +1670,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 else:
                     hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
                 # Write out the datacube
-                log.info(f"Saving datacube at the native sampling of {self.specname.replace("_", " ")}:\n{outfile}")
+                log.info(f"Saving datacube at the native sampling of {self.specname.replace("_", " ")}: {outfile}")
                 final_cube = DataCube(
                     flxcube, sigcube, bpmcube.astype(np.uint8),
                     wave, self.specname, self.blaze_wave, self.blaze_spec,
@@ -1771,7 +1792,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 )
 
         # If individual frames are to be output with the native resolution of the instrument, write those out now.
-        # TODO :: This needs to go into a core datacube function
         if self.native:
             self.save_native()
 
@@ -1822,7 +1842,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             for ff in range(self.numfiles):
                 outfile = datacube.get_output_filename(
-                    self.scidir, "", self.cubepar['output_filename'], False, ff
+                    self.scidir, "", self.cubepar['output_filename'], False, idx=ff+1
                 )
                 # Generate the datacube       
                 
@@ -1895,7 +1915,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 combined_ivar = utils.inverse(var_list_out[0])
                 combined_bpm = np.logical_not(combined_gpm)
                 combined_outfile = datacube.get_output_filename(
-                    self.scidir, "", self.cubepar['output_filename'], True, -1
+                    self.scidir, "", self.cubepar['output_filename'], True, idx=-1
                 )
                 log.info(f"Saving combined datacube as: {str(combined_outfile)}")
                 final_combined_cube = DataCube(
