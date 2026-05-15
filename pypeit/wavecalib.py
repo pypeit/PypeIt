@@ -587,7 +587,6 @@ class BuildWaveCalib:
             #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
                 self.gpm &= self.msarc.image < self.nonlinear_counts
-
         else:
             self.orders = None
             self.wvc_bpm = None
@@ -686,7 +685,7 @@ class BuildWaveCalib:
             patt_dict, final_fit = arcfitter.get_results()
 
             # Grab arxiv for redo later?
-            if self.par['echelle']: 
+            if self.par['echelle']:
                 # Hold for later usage
                 self.wave_soln_arxiv, self.arcspec_arxiv = arcfitter.get_arxiv(self.orders)
                 self.arccen = arccen
@@ -981,7 +980,7 @@ class BuildWaveCalib:
         # Prep
         if self.par['ech_separate_2d']:
             slit_img = self.slits.slit_img()
-            # Grab the detectors in the mosaice (1-based indexing)
+            # Grab the detectors in the mosaic (1-based indexing)
             dets = np.unique(self.msarc.det_img)
             dets = dets[dets > 0]
         else:

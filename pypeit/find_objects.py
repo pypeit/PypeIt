@@ -1062,7 +1062,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         _global_sky = np.zeros_like(self.sciImg.image)
-        thismask = (self.slitmask > 0)
+        thismask = (self.slitmask != -1)
         inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(bool)
         # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
         # the tilts frame, but conserves wavelength position in each slit)

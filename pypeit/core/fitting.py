@@ -488,7 +488,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                maxiter=10, in_gpm=None, weights=None, invvar=None,
                lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
                groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True,
-               verbose=True):
+               verbose=True, show_fit=False):
     """
     A robust fit is performed to the xarray, yarray pairs ``mask[i] = 1`` are
     good values, if provided.
@@ -583,6 +583,11 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
             standard deviation of the yarray - modelfit. Note that it is
             not possible to specify use_mad=True and also pass in values
             invvar, and the code will return an error if this is done.
+        verbose (:obj:`bool`, optional, default = True):
+            If set to ``True``, increase the verbosity to print additional messages.
+        show_fit (:obj:`bool`, optional, default = False):
+            If set to ``True``, show the final fit and the data in a plot.
+            This is only for debugging purposes and should not be used regularly.
 
     Returns:
         PypeItFit or None:
@@ -642,6 +647,18 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                           maxx2=float(maxx2) if maxx2 is not None else maxx2)
     pypeitFit.fit()
 
+    if show_fit and x2 is None:
+        plt.figure(figsize=(10, 6))
+        plt.plot(xarray, yarray, 'ko', label='Data')
+        plt.plot(xarray[this_gpm], yarray[this_gpm], 'go', label='Good data')
+        plt.plot(xarray[~this_gpm], yarray[~this_gpm], 'ro', label='Rejected data')
+        x_fit = np.linspace(np.min(xarray), np.max(xarray), 1000)
+        y_fit = pypeitFit.eval(x_fit)
+        plt.plot(x_fit, y_fit, 'b-', label='Fit')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.legend()
+        plt.show()
     # Return
     return pypeitFit
 
