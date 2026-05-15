@@ -420,7 +420,7 @@ class CoAdd3D:
         spectrograph (see
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`
         for the relevant spectrograph class).
-    output_dir : :obj: str, optional
+    redux_path : :obj: str, optional
         The top-level directory for all output files.  If None, this is set to
         the current working directory.  Output files may also be put into
         subdirectories within this top-level directory, like Science_cube and
@@ -459,7 +459,7 @@ class CoAdd3D:
 
     @classmethod
     def get_instance(
-        cls, spec2dfiles, par, output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None,
+        cls, spec2dfiles, par, redux_path=None, skysub_frame=None, sensfile=None, scale_corr=None,
         grating_corr=None, ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
         overwrite=False, show=False, debug=False
     ):
@@ -480,7 +480,7 @@ class CoAdd3D:
         return next(
             c for c in cls.__subclasses__() if c.__name__ == (spectrograph.pypeline + 'CoAdd3D')
         )(
-            spec2dfiles, par, output_dir=output_dir, skysub_frame=skysub_frame,
+            spec2dfiles, par, redux_path=redux_path, skysub_frame=skysub_frame,
             sensfile=sensfile, scale_corr=scale_corr, grating_corr=grating_corr,
             ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph,
             det=det, overwrite=overwrite, show=show, debug=debug
@@ -489,7 +489,7 @@ class CoAdd3D:
     # TODO: det is needed to load the spec2d files. Although, what if there are
     # multiple detectors?  Do we need a det for each spec2d file?
     def __init__(
-        self, spec2dfiles, par, output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None,
+        self, spec2dfiles, par, redux_path=None, skysub_frame=None, sensfile=None, scale_corr=None,
         grating_corr=None, ra_offsets=None, dec_offsets=None, spectrograph=None, det=None,
         overwrite=False, show=False, debug=False
     ):
@@ -500,14 +500,14 @@ class CoAdd3D:
         self.spec2d = spec2dfiles
         self.numfiles = len(spec2dfiles)
         self.par = par
-        self.output_dir = Path().absolute() if output_dir is None else Path(output_dir).absolute()
+        self.redux_path = Path().absolute() if redux_path is None else Path(redux_path).absolute()
         self.overwrite = overwrite
         self.chk_version = self.par['rdx']['chk_version']
 
         # Get the paths
         self.scidir, self.qadir = map(
             lambda x : Path(x).absolute(), CoAdd3D.output_paths(
-                spec2dfiles, par['rdx']['scidir'], par['rdx']['qadir'], coadd_dir=self.output_dir
+                spec2dfiles, par['rdx']['scidir'], par['rdx']['qadir'], coadd_dir=self.redux_path
             )
         )
 
@@ -1122,15 +1122,15 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         - White light images are also produced, if requested.
 
     """
-    def __init__(self, spec2dfiles, par, 
-                 output_dir=None, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
-                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=1, qa_path=None,
+    def __init__(self, spec2dfiles, par,
+                 redux_path=None, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
+                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
                  overwrite=False, show=False, debug=False):
-        super().__init__(spec2dfiles, par, 
-                         output_dir=output_dir, skysub_frame=skysub_frame, sensfile=sensfile,
+        super().__init__(spec2dfiles, par,
+                         redux_path=redux_path, skysub_frame=skysub_frame, sensfile=sensfile,
                          scale_corr=scale_corr, grating_corr=grating_corr,
                          ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
-                         qa_path=qa_path, overwrite=overwrite, show=show, debug=debug)
+                         overwrite=overwrite, show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)

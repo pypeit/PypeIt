@@ -84,7 +84,7 @@ class CoAddDataCube(scriptbase.ScriptBase):
         # Instantiate CoAdd3d
         tstart = time.time()
         coadd = CoAdd3D.get_instance(
-            coadd3dfile.filenames, parset, output_dir=parset['rdx']['redux_path'], #str(coadd_scidir),
+            coadd3dfile.filenames, parset, redux_path=parset['rdx']['redux_path'],
             skysub_frame=skysub_frame, sensfile=sensfile, scale_corr=scale_corr,
             grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
             spectrograph=spectrograph, det=args.det, overwrite=args.overwrite, debug=args.debug
