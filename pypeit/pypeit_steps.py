@@ -767,10 +767,10 @@ def extract_det(spectrograph, fitstbl, par,
             sciImg, slits, sobjs_obj, spectrograph,
             par, objtype, global_sky=final_sky,
             bkg_redux_global_sky=bkg_redux_final_sky,
-            waveTilts=caliBrate.wavetilts,
-            wv_calib=caliBrate.wv_calib,
-            tilts=getattr(caliBrate, 'tilts', None),
-            waveimg=getattr(caliBrate, 'waveimg', None),
+            waveTilts=caliBrate.wavetilts if caliBrate.wavetilts.tiltsimg is None else None,
+            wv_calib=caliBrate.wv_calib if caliBrate.wv_calib.waveimg is None else None,
+            tilts=caliBrate.wavetilts.tiltsimg,
+            waveimg=caliBrate.wv_calib.waveimg,
             flatimages=caliBrate.flatimages,
             bkg_redux=bkg_redux, 
             return_negative=par['reduce']['extraction']['return_negative'],
@@ -812,7 +812,7 @@ def extract_det(spectrograph, fitstbl, par,
                                               waveimg=waveImg, sobjs=sobjs)
 
     # Tack on wavelength RMS (only available with standard wv_calib)
-    if caliBrate.wv_calib is not None:
+    if caliBrate.wv_calib is not None and caliBrate.wv_calib.wv_fits is not None:
         for sobj in sobjs:
             iwv = np.where(caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
             sobj.WAVE_RMS =caliBrate.wv_calib.wv_fits[iwv].rms
@@ -824,7 +824,7 @@ def extract_det(spectrograph, fitstbl, par,
 
     # Construct the Spec2DObj
     wavesol = caliBrate.wv_calib.wave_diagnostics(print_diag=False) \
-              if caliBrate.wv_calib is not None else None
+              if caliBrate.wv_calib is not None and caliBrate.wv_calib.wv_fits is not None else None
     spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
                                     ivarraw=sciImg.ivar,
                                     skymodel=skymodel,
@@ -925,8 +925,8 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
         sciImg, caliBrate.slits,
         spectrograph, par, objtype,
         wv_calib=caliBrate.wv_calib,
-        waveTilts=caliBrate.wavetilts,
-        tilts=getattr(caliBrate, 'tilts', None),
+        waveTilts=caliBrate.wavetilts if caliBrate.wavetilts.tiltsimg is None else None,
+        tilts=caliBrate.wavetilts.tiltsimg,
         initial_skymask=initial_skymask,
         bkg_redux=bkg_redux,
         manual=manual_obj,

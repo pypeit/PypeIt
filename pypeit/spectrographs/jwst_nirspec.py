@@ -259,6 +259,8 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         # Skip reference frame correction for now.
         par['calibrations']['wavelengths']['refframe'] = 'observed'
+        # Skip flexure correction.
+        par['flexure']['spec_method'] = 'skip'
 
         return par
 

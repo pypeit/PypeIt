@@ -1945,8 +1945,8 @@ class NIRSpecSlitCalibrations(Calibrations):
 
         self.wv_calib = wavecalib.WaveCalib(nslits=self.slits.nslits,
                                             spat_ids=self.slits.spat_id,
-                                  PYP_SPEC=self.spectrograph.name,
-                                  waveimg=waveimg.image)
+                                            PYP_SPEC=self.spectrograph.name,
+                                            waveimg=waveimg.image)
 
         # Save calibration frame
         self.wv_calib.set_paths(self.calib_dir, setup, calib_id, detname)
