@@ -16,11 +16,15 @@ class CoAddDataCube(scriptbase.ScriptBase):
             description='Read in an array of spec2D files and convert them into a datacube',
             width=width, default_log_file=True
         )
-        parser.add_argument('file', type = str, default=None, help='filename.coadd3d file')
+        parser.add_argument('file', type=str, default=None, help='filename.coadd3d file')
         parser.add_argument('--det', default=1, type=int, help="Detector")
-        parser.add_argument('-o', '--overwrite', default=False, action='store_true',
-                            help='Overwrite any existing files/directories')
-        parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
+        parser.add_argument(
+            '-o', '--overwrite', default=False, action='store_true',
+            help='Overwrite any existing files/directories'
+        )
+        parser.add_argument(
+            "--debug", default=False, action="store_true", help="Run in debugging mode"
+        )
         return parser
 
     @classmethod
@@ -45,12 +49,15 @@ class CoAddDataCube(scriptbase.ScriptBase):
 
         # Read in the relevant information from the .coadd3d file
         coadd3dfile = inputfiles.Coadd3DFile.from_file(args.file)
-        spectrograph = load_spectrograph(coadd3dfile.config['rdx']['spectrograph'], pypeit_fits=True)
+        spectrograph = load_spectrograph(
+            coadd3dfile.config['rdx']['spectrograph'], pypeit_fits=True
+        )
 
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
-        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                              merge_with=(coadd3dfile.cfg_lines,))
+        parset = par.PypeItPar.from_cfg_lines(
+            cfg_lines=spectrograph_def_par.to_config(), merge_with=(coadd3dfile.cfg_lines,)
+        )
 
         # If detector was passed as an argument override whatever was in the coadd3d file
         if args.det is not None:
@@ -65,27 +72,26 @@ class CoAddDataCube(scriptbase.ScriptBase):
         sensfile = coadd3dfile.options['sensfile']
         grating_corr = coadd3dfile.options['grating_corr']
         
-        
-        # Get the paths
-        coadd_scidir, qa_path = map(lambda x : Path(x).absolute(),
-                CoAdd3D.output_paths(coadd3dfile.filenames, parset['rdx']['scidir'], parset['rdx']['qadir'],
-                                     coadd_dir=parset['rdx']['redux_path']))
-
-        # Write the par to disk
-        par_outfile = coadd_scidir.parent / f"{parset['reduce']['cube']['output_filename']}_datacube.par"
-        log.info(f'Writing full parameter set to {par_outfile}.')
-        parset.to_config(par_outfile, exclude_defaults=True, include_descr=False)
+#        # Get the paths
+#        coadd_scidir, qa_path = map(lambda x : Path(x).absolute(),
+#                CoAdd3D.output_paths(coadd3dfile.filenames, parset, coadd_dir=parset['rdx']['redux_path']))
+#
+#        # Write the par to disk
+#        par_outfile = coadd_scidir.parent / f"{parset['reduce']['cube']['output_filename']}_datacube.par"
+#        log.info(f'Writing full parameter set to {par_outfile}.')
+#        parset.to_config(par_outfile, exclude_defaults=True, include_descr=False)
 
         # Instantiate CoAdd3d
         tstart = time.time()
-        coadd = CoAdd3D.get_instance(coadd3dfile.filenames, parset, 
-                                     output_dir=str(coadd_scidir), 
-                                     skysub_frame=skysub_frame, sensfile=sensfile,
-                                     scale_corr=scale_corr, grating_corr=grating_corr,
-                                     ra_offsets=ra_offsets, dec_offsets=dec_offsets,
-                                     spectrograph=spectrograph, det=args.det, qa_path=qa_path,
-                                     overwrite=args.overwrite, debug=args.debug)
+        coadd = CoAdd3D.get_instance(
+            coadd3dfile.filenames, parset, output_dir=parset['rdx']['redux_path'], #str(coadd_scidir),
+            skysub_frame=skysub_frame, sensfile=sensfile, scale_corr=scale_corr,
+            grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
+            spectrograph=spectrograph, det=args.det, overwrite=args.overwrite, debug=args.debug
+        )
 
         # Coadd the files
         coadd.run()
+
+        # Report the execution time
         log.info(utils.get_time_string(time.time()-tstart))

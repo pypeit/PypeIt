@@ -481,11 +481,16 @@ class SlitTraceSet(calibframe.CalibFrame):
         slitlen = right - left
         return np.median(slitlen, axis=1) if median else slitlen
 
-    def get_radec_image(self, wcs, alignSplines, tilts, 
-                        slit_compute=None, slice_offset=None, initial=False, flexure=None, 
-                        verbose=False):
-        """Generate an RA and DEC image for every pixel in the frame
-        NOTE: This function is currently only used for SlicerIFU reductions.
+    def get_radec_image(
+            self, wcs, alignSplines, tilts, slit_compute=None, slice_offset=None, initial=False,
+            flexure=None, verbose=False
+        ):
+        """
+        Generate an RA and DEC image for every pixel in the frame
+
+        .. note::
+        
+            This function is currently only used for SlicerIFU reductions.
 
         Parameters
         ----------
@@ -543,7 +548,9 @@ class SlitTraceSet(calibframe.CalibFrame):
         if slice_offset is None:
             slice_offset = 0.0
         if slice_offset < -0.5 or slice_offset > 0.5:
-            raise PypeItError(f"Slice offset must be between -0.5 and 0.5. slice_offset={slice_offset}")
+            raise PypeItError(
+                f"Slice offset must be between -0.5 and 0.5. slice_offset={slice_offset}"
+            )
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
@@ -556,15 +563,19 @@ class SlitTraceSet(calibframe.CalibFrame):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             if self.mask[slit_idx] != 0:
-                raise PypeItError(f'Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot '
-                           'generate RA/DEC image.')
+                raise PypeItError(
+                    f'Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot '
+                    'generate RA/DEC image.'
+                )
             # Retrieve the pixel offset from the central trace
             evalpos = alignSplines.transform(slit_idx, onslit_init[1], onslit_init[0])
             delta_pix[slit_idx, 0] = np.min(evalpos)
             delta_pix[slit_idx, 1] = np.max(evalpos)
             # Calculate the WCS from the pixel positions
             slitID = np.ones(evalpos.size) * slit_idx + slice_offset
-            world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
+            world_ra, world_dec, _ = wcs.wcs_pix2world(
+                slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0
+            )
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
