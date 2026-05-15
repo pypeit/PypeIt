@@ -297,8 +297,8 @@ class NIRSpecSlitPypeIt(PypeIt):
 
         Mirrors the slit-loop structure of :func:`reduce_all` but calls
         :func:`~pypeit.pypeit_steps.calib_one` for each slit instead of
-        running the full science reduction.  The detector for each slit is
-        taken from the ``slit_det_map`` returned by
+        running the full science reduction.  The slit list and detector
+        mapping are obtained once per calibration group via
         :meth:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_nirspec_slits`.
 
         Calibration files are written to disk for each slit independently.
@@ -345,6 +345,9 @@ class NIRSpecSlitPypeIt(PypeIt):
         # Standard Star(s) Loop
         # ################################################################
         for calib_ID in self.fitstbl.calib_groups:
+            # check first if there is any standard stars frame in this group
+            if not np.any(self.fitstbl.find_frames('standard', calib_ID)):
+                continue
             # get ids of the slits that we want to reduce, could be all (but still the reduction will be separated per slit),
             # or user input slits passed through the parameter self.par['rdx']['maskIDs']
             gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par)
@@ -366,6 +369,9 @@ class NIRSpecSlitPypeIt(PypeIt):
         # Science Frame(s) Loop
         # ################################################################
         for calib_ID in self.fitstbl.calib_groups:
+            # check first if there is any science frames frame in this group
+            if not np.any(self.fitstbl.find_frames('science', calib_ID)):
+                continue
             # get ids of the slits that we want to reduce, could be all (but still the reduction will be separated per slit),
             # or user input slits passed through the parameter self.par['rdx']['maskIDs']
             gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par)

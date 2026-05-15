@@ -686,10 +686,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         """
         Determine the list of NIRSpec slits to reduce for a given calibration group.
 
-        Reads the JWST calibration (``_interpolatedflat.fits``) FITS extensions
-        directly — without any ``jwst.datamodels`` dependency — to discover the
-        available slits, map each slit to its detector (NRS1/NRS2 or mosaic), and
-        optionally filter by ``par['rdx']['maskIDs']``.
+        Reads the JWST calibration FITS extensions  directly — without any ``jwst.datamodels``
+        dependency — to discover the available slits, map each slit to its detector
+        (NRS1/NRS2 or mosaic), and optionally filter by ``par['rdx']['maskIDs']``.
 
         The detector assignment is inferred from the filename: a file whose name
         contains ``'nrs1'`` is classified as NRS1, one containing ``'nrs2'`` as
@@ -718,8 +717,12 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
               both detectors (mosaic).  ``None`` if no slits are found.
         """
 
-        # 'trace' frame type maps to _interpolatedflat.fits files (see check_frame_type).
-        cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_ID)
+        # get cal_files (i.e., _cal.fits), which have the `arc` frametype
+        cal_files = fitstbl.find_frame_files('arc', calib_ID=calib_ID)
+
+        if not cal_files:
+            log.warning(f'No _cal.fits files found for calib_ID {calib_ID}.')
+            return None, None
 
         # Collect per-slit info by reading FITS headers directly.
         slit_names_nrs1 = []
@@ -741,24 +744,25 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                     if slt_name is None:
                         continue
 
-                    src_name = hdu.header.get('SRCNAME', '')
-                    src_id = hdu.header.get('SRCID', -1)
-                    src_alias = hdu.header.get('SRCALIAS', '')
-
+                    # Use two independent checks so a slit appearing in both NRS1
+                    # and NRS2 files is correctly recorded in both lists (mosaic case).
                     if detector == 'NRS1' and slt_name not in slit_names_nrs1:
                         slit_names_nrs1.append(slt_name)
-                    elif detector == 'NRS2' and slt_name not in slit_names_nrs2:
+                    if detector == 'NRS2' and slt_name not in slit_names_nrs2:
                         slit_names_nrs2.append(slt_name)
 
                     # First occurrence wins for source metadata.
                     if slt_name not in slit_info:
+                        src_name = hdu.header.get('SRCNAME', '')
+                        src_id = hdu.header.get('SRCID', -1)
+                        src_alias = hdu.header.get('SRCALIAS', '')
                         slit_info[slt_name] = (src_name, src_id, src_alias)
 
         slit_names_nrs1 = np.array(slit_names_nrs1) if slit_names_nrs1 else np.array([], dtype=str)
         slit_names_nrs2 = np.array(slit_names_nrs2) if slit_names_nrs2 else np.array([], dtype=str)
 
         if not len(slit_names_nrs1) and not len(slit_names_nrs2):
-            log.warning('No slits found in calibration files for calib_ID '
+            log.warning(f'No slits with SLTNAME header keyword found in calibration files for calib_ID '
                         f'{calib_ID}. Skipping.')
             return None, None
 
@@ -776,11 +780,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                 or str(src_alias) in maskIDs
             ]
             if not gd_slits_sources:
-                log.warning(f'No slits or sources found for '
-                            f'maskIDs={par["rdx"]["maskIDs"]}. '
-                            'Skipping reduction.')
+                log.warning(f'No slits or sources matched '
+                            f'maskIDs={par["rdx"]["maskIDs"]}. Skipping.')
                 return None, None
-            elif len(gd_slits_sources) < len(maskIDs):
+            if len(gd_slits_sources) < len(maskIDs):
                 missing = [
                     mid for mid in maskIDs
                     if mid not in [s for s, _, _, _ in gd_slits_sources]
@@ -788,13 +791,14 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                     and mid not in [sa for _, _, _, sa in gd_slits_sources]
                 ]
                 log.warning(f'The following maskIDs were not found: '
-                            f'{", ".join(missing)}. Reduction will be '
-                            'performed on the available slits and sources.')
+                            f'{", ".join(missing)}. Processing will continue '
+                            'on the available slits and sources.')
         else:
             gd_slits_sources = slit_sources_uni
 
         slit_strs = ', '.join([f'({s}, {n})' for s, n, _, _ in gd_slits_sources])
-        log.info(f'Reducing the following (slit_name, src_name): {slit_strs}')
+        log.info(f'Found {len(gd_slits_sources)} slit(s) to process '
+                 f'(slit_name, src_name): {slit_strs}')
 
         # Build a per-slit detector map.
         slit_det_map = {}

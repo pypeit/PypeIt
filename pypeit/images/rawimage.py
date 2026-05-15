@@ -509,7 +509,7 @@ class RawImage:
                correction, and a noise floor that sets a maximum S/N per pixel
                (see the ``noise_floor`` parameter); see
                :func:`~pypeit.core.procimg.variance_model`.
-            
+
             #. :func:`~pypeit.images.pypeitimage.PypeItImage.build_crmask`:
                Generate a cosmic-ray mask
 
@@ -536,13 +536,21 @@ class RawImage:
                 construct the slit illumination profile, if requested via the
                 ``use_illumflat`` parameter in :attr:`par`; see
                 :func:`~pypeit.flatfield.FlatImages.fit2illumflat`.
-            dark (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-                Dark image
+            dark (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+                Dark image.
             mosaic (:obj:`bool`, optional):
                 When processing multiple detectors, resample the images into a
                 mosaic.  If flats or slits are provided (and used), this *must*
                 be true because these objects are always defined in the mosaic
                 frame.
+            slit_slices (:obj:`list`, optional):
+                List of ``(spat_start, spat_end, spec_start, spec_end)`` tuples
+                (0-indexed, exclusive end) giving the bounding box of the slit
+                in the full detector pixel frame, one entry per detector.  Only
+                used by :class:`NIRSpecRawImage`.
+            kludge_err (:obj:`float`, optional):
+                Multiplicative scaling factor applied to variance estimates.
+                Only used by :class:`NIRSpecRawImage`.  Default is 1.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 
@@ -1481,33 +1489,32 @@ class RawImage:
 
 class NIRSpecRawImage(RawImage):
     """
-    Class for constructing a :class:`~pypeit.images.pypeitimage.PypeItImage`
-    from JWST NIRSpec data models, bypassing normal raw FITS file loading.
+    Subclass of :class:`RawImage` for JWST NIRSpec data.
 
-    This class loads data from JWST ``datamodels`` slit objects rather than
-    raw FITS files.  It includes its own :func:`build_mosaic` method for
-    combining multi-detector data into a single image.
+    Overrides the variance-image construction, flat-fielding, trimming, and
+    image-processing methods to match the JWST NIRSpec calibration workflow.
+    Rather than estimating the readnoise from overscan regions or computing a
+    Poisson-noise model from scratch, this class reads the pre-computed
+    ``VAR_RNOISE`` and ``VAR_POISSON`` extensions produced by the JWST pipeline
+    directly from the calibration FITS files.  Processing steps that are
+    already handled upstream by the JWST pipeline (gain, overscan, bias, dark,
+    scattered-light subtraction, spatial flexure) are skipped.
 
-    Args:
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            The spectrograph instance (must be JWST NIRSpec).
-        det (:obj:`int` or :obj:`tuple`):
-            Detector number or tuple of detector numbers.
-        sci_slit_data (array-like):
-            Array of JWST slit data models for the science exposure,
-            one per detector.
+    The constructor signature is identical to :class:`RawImage`.  The NIRSpec-
+    specific ``slit_slices`` argument is passed to :func:`process` rather than
+    to the constructor.
+
+    See :class:`RawImage` for constructor arguments and attributes.
+
+    Additional attributes set during :func:`process`:
         slit_slices (:obj:`list`):
-            List of ``(spec_slice, spat_slice)`` tuples for each detector,
-            defining where the slit data lives in the full-frame coordinates.
-        flatimages (:class:`~pypeit.flatfield.FlatImages`):
-            Flat-field images for flat-fielding.
-        msbpm (`numpy.ndarray`_):
-            Bad pixel mask.
-        headarr (:obj:`list`):
-            List of FITS header objects.
-        kludge_err (:obj:`float`, optional):
-            Error scaling factor applied to JWST variance estimates.
-            Default is 1.2.
+            List of ``(spat_start, spat_end, spec_start, spec_end)`` tuples
+            (0-indexed, exclusive end) defining where the slit data lives in
+            the full-detector pixel frame, one entry per detector.  Set by
+            :func:`process` and consumed by :func:`trim`.
+        poisson (`numpy.ndarray`_):
+            Poisson-noise variance image read from the ``VAR_POISSON`` FITS
+            extension, scaled by the square of the exposure time.
     """
 
     @property
@@ -1531,20 +1538,25 @@ class NIRSpecRawImage(RawImage):
 
     def build_rn2img(self, units='e-', digitization=False):
         """
-        Generate the model readnoise variance image (:attr:`rn2img`).
+        Build the readnoise variance image from the JWST pipeline output.
 
-        This is primarily a wrapper for :func:`~pypeit.core.procimg.rn2_frame`.
+        Instead of estimating readnoise from overscan regions (as in
+        :class:`RawImage`), this reads the pre-computed ``VAR_RNOISE``
+        extension from the calibration FITS file and scales it by the square
+        of the exposure time to convert from rate² to count² units.
+
+        The ``units`` and ``digitization`` arguments are accepted for
+        interface compatibility but are not used.
 
         Args:
             units (:obj:`str`, optional):
-                Units for the output variance.  Options are ``'e-'`` for
-                variance in square electrons (counts) or ``'ADU'`` for square
-                ADU.
+                Ignored; present for interface compatibility with the base class.
             digitization (:obj:`bool`, optional):
-                Include digitization error in the calculation.
+                Ignored; present for interface compatibility with the base class.
 
         Returns:
-            `numpy.ndarray`_: Readnoise variance image.
+            `numpy.ndarray`_: Readnoise variance image with shape
+            ``(nimg, nspec, nspat)``.
         """
 
         # NOTE: We don't use the tabulated self.ronoise, but the already available ronoise image from jwst output
@@ -1560,6 +1572,19 @@ class NIRSpecRawImage(RawImage):
         return np.array(rn2)
 
     def build_poisson_img(self):
+        """
+        Build the Poisson-noise variance image from the JWST pipeline output.
+
+        Reads the pre-computed ``VAR_POISSON`` extension from the calibration
+        FITS file and scales it by the square of the exposure time to convert
+        from rate² to count² units.  The result is stored as :attr:`poisson`
+        and later used by :func:`build_ivar` in place of a shot-noise estimate
+        derived from the image counts.
+
+        Returns:
+            `numpy.ndarray`_: Poisson-noise variance image with shape
+            ``(nimg, nspec, nspat)``.
+        """
 
         _, var_poisson,_, _, _, _ = self.spectrograph.get_rawimage(self.filename, self.det, keys='VAR_POISSON')
         if self.nimg == 1:
@@ -1575,39 +1600,33 @@ class NIRSpecRawImage(RawImage):
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
         """
-        Field flatten the processed image.
+        Divide the image by the pixel-flat normalization array.
 
-        This method uses the results of the flat-field modeling code (see
-        :class:`~pypeit.flatfield.FlatField`) and any measured spatial shift due
-        to flexure to construct slit-illumination, spectral response, and
-        pixel-to-pixel response corrections, and multiplicatively removes them
-        from the current image.  If available, the calculation is propagated to
-        the variance image; however, no uncertainty in the flat-field
-        corrections are included.
+        Unlike the base-class implementation, this method applies *only* the
+        pixel-flat normalization (``pixelflat_norm``).  Slit-illumination
+        corrections, spectral-response corrections, and spatial-flexure
+        offsets are all handled upstream by the JWST pipeline and are therefore
+        skipped here.
 
-        .. warning::
-
-            If you want the spatial flexure to be accounted for, you must first
-            calculate the shift using
-            :func:`~pypeit.images.rawimage.RawImage.spatial_flexure_shift`.
+        The flat correction is also propagated to :attr:`rn2img` and
+        :attr:`poisson` so that the variance model constructed by
+        :func:`build_ivar` remains consistent.
 
         Args:
             flatimages (:class:`~pypeit.flatfield.FlatImages`):
-                Flat-field images used to apply flat-field corrections.
+                Flat-field images.  Must contain a non-``None``
+                ``pixelflat_norm`` array.
             slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
-                Used to construct the slit illumination profile, and only
-                required if this is to be calculated and normalized out.  See
-                :func:`~pypeit.flatfield.FlatImages.fit2illumflat`.
+                Not used; present for interface compatibility with the base
+                class.
             force (:obj:`bool`, optional):
-                Force the image to be field flattened, even if the step log
-                (:attr:`steps`) indicates that it already has been.
+                Force flat-fielding even if already applied.
             debug (:obj:`bool`, optional):
-                Run in debug mode.
+                Not used; present for interface compatibility.
 
         Returns:
-            `numpy.ndarray`_: Returns a boolean array flagging pixels were the
-            total applied flat-field value (i.e., the combination if the
-            pixelflat and illumination corrections) was <=0.
+            `numpy.ndarray`_: Boolean array flagging pixels where
+            ``pixelflat_norm`` was ≤ 0 (``True`` = bad pixel).
         """
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
@@ -1635,11 +1654,15 @@ class NIRSpecRawImage(RawImage):
         """
         Generate the inverse variance in the image.
 
-        This is a simple wrapper for :func:`~pypeit.core.procimg.base_variance`
-        and :func:`~pypeit.core.procimg.variance_model`.
+        Wraps :func:`~pypeit.core.procimg.base_variance` and
+        :func:`~pypeit.core.procimg.variance_model`.  Unlike the base class,
+        dark current is not included (set to ``None``) because it is already
+        accounted for by the JWST pipeline.  Shot noise is taken from
+        :attr:`poisson` (the ``VAR_POISSON`` FITS extension scaled to counts²)
+        rather than being estimated from the image counts.
 
         Returns:
-            `numpy.ndarray`_: The inverse variance in the image.
+            `numpy.ndarray`_: The inverse variance of the processed image.
         """
         # if self.dark is None and self.par['shot_noise']:
         #     raise PypeItError('Dark image has not been created!  Run build_dark.')
@@ -1660,8 +1683,16 @@ class NIRSpecRawImage(RawImage):
         """
         Trim image attributes to include only the science data.
 
+        Before delegating to the base-class :func:`~RawImage.trim`, this
+        method updates :attr:`datasec_img` using the ``slit_slices``
+        bounding boxes set by :func:`process`.  For each detector ``i``,
+        the region ``[spec_start:spec_end, spat_start:spat_end]`` is marked
+        with the detector number; all other pixels are set to zero so that
+        the base-class trim removes them.
+
         This edits :attr:`image`, :attr:`rn2img` (if it exists),
-        :attr:`proc_var` (if it exists), and :attr:`datasec_img` in place.
+        :attr:`proc_var` (if it exists), :attr:`poisson` (if it exists),
+        and :attr:`datasec_img` in place.
 
         Args:
             force (:obj:`bool`, optional):
@@ -1681,122 +1712,75 @@ class NIRSpecRawImage(RawImage):
                 slits=None, dark=None,
                 mosaic=False, slit_slices=None, kludge_err=1, debug=False):
         """
-        Process the data.
+        Process JWST NIRSpec data into a :class:`~pypeit.images.pypeitimage.PypeItImage`.
 
-        See further discussion of :ref:`image_proc` in ``PypeIt``.
+        This is the NIRSpec-specific override of :func:`RawImage.process`.
+        Many standard calibration steps (gain conversion, pattern subtraction,
+        overscan subtraction, bias, dark, scattered-light subtraction, and
+        spatial-flexure correction) are skipped because they are handled
+        upstream by the JWST pipeline.  Only the steps listed below are
+        performed.
 
-        The processing steps used (depending on the parameter toggling in
-        :attr:`par`), in the order they will be applied are:
+        The processing steps applied, in order:
 
-            #. :func:`apply_gain`: The first step is to convert the image units
-               from ADU to electrons, amp by amp, using the gain provided by the
-               :class:`~pypeit.images.detector_container.DetectorContainer`
-               instance(s) for each
-               :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
-               subclass.
+            #. :func:`build_rn2img`: Readnoise variance image read from
+               ``VAR_RNOISE`` (scaled by exposure-time²).
 
-            #. :func:`subtract_pattern`: Analyze and subtract sinusoidal pattern
-               noise from the image; see
-               :func:`~pypeit.core.procimg.subtract_pattern`.
+            #. :func:`build_poisson_img`: Poisson-noise variance image read
+               from ``VAR_POISSON`` (scaled by exposure-time²).  Stored as
+               :attr:`poisson`.
 
-            #. :func:`build_rn2img`: Construct the readnoise variance image,
-               which includes readnoise and digitization error.  If any of the
-               amplifiers on the detector do not have a measured readnoise or if
-               explicitly requested using the ``empirical_rn`` parameter, the
-               readnoise is estimated using :func:`estimate_readnoise`.
+            #. :func:`trim`: Trim to the slit bounding boxes defined by
+               ``slit_slices``.
 
-            #. :func:`subtract_overscan`: Use the detector overscan region to
-               measure and subtract the frame-dependent bias level along the
-               readout direction.
+            #. :func:`orient`: Orient to the ``PypeIt`` convention
+               ``(nspec, nspat)``.
 
-            #. :func:`trim`: Trim the image to include the data regions only
-               (i.e. remove the overscan).
+            #. :func:`build_mosaic`: Resample per-detector images into a single
+               mosaic (only when ``nimg > 1`` and ``mosaic=True``).
 
-            #. :func:`orient`: Orient the image in the PypeIt orientation ---
-               spectral coordinates ordered along the first axis and spatial
-               coordinates ordered along the second, ``(spec, spat)`` --- with
-               blue to red going from small pixel numbers to large.
+            #. :func:`flatfield`: Apply ``pixelflat_norm`` correction (when
+               requested via ``par``).
 
-            #. :func:`subtract_bias`: Subtract the processed bias image.  The
-               shape and orientation of the bias image must match the
-               *processed* image.  I.e., if you trim and orient this image, you
-               must also have trimmed and oriented the bias frames.
-
-            #. :func:`build_dark`: Create dark-current images using both the
-               tabulated dark-current value for each detector and any directly
-               observed dark images.  The shape and orientation of the observed
-               dark image must match the *processed* image.  I.e., if you trim
-               and orient this image, you must also have trimmed and oriented
-               the dark frames.  To scale the dark image by the ratio of the
-               exposure times to ensure the counts/s in the dark are removed
-               from the image being processed, set the ``dark_expscale``
-               parameter to true.
-
-            #. :func:`subtract_dark`: Subtract the processed dark image and
-               propagate any error.
-
-            #. :func:`build_mosaic`: If data from multiple detectors are being
-               processed as components of a detector mosaic, this resamples the
-               individual images into a single image mosaic.  The current
-               "resampling" scheme is restricted to nearest grid-point
-               interpolation; see .  The placement of this step is important in that
-               all of the previous corrections (overscan, trim, orientation,
-               bias- and dark-subtraction) are done on the individual detector
-               images.  However, after this point, we potentially need the slits
-               and flat-field images which are *only defined in the mosaic
-               frame*.  Because of this, bias and dark frames should *never* be
-               reformatted into a mosaic.
-
-            #. :func:`spatial_flexure_shift`: Measure any spatial shift due to
-               flexure.
-
-            #. :func:`subtract_scattlight`: Generate a model of the scattered light
-               contribution and subtract it.
-
-            #. :func:`flatfield`: Divide by the pixel-to-pixel, spatial and
-               spectral response functions.
-
-            #. :func:`build_ivar`: Construct a model estimate of the variance in
-               the image based in the readnoise, errors from the additive
-               processing steps, shot-noise from the observed counts (see the
-               ``shot_noise`` parameter), a rescaling due to the flat-field
-               correction, and a noise floor that sets a maximum S/N per pixel
-               (see the ``noise_floor`` parameter); see
-               :func:`~pypeit.core.procimg.variance_model`.
+            #. :func:`build_ivar`: Construct the inverse variance using the
+               JWST-provided readnoise and Poisson variance images.
 
             #. :func:`~pypeit.images.pypeitimage.PypeItImage.build_crmask`:
-               Generate a cosmic-ray mask
+               Generate a cosmic-ray mask (when ``par['mask_cr']`` is True).
 
         Args:
             par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
-                Parameters that dictate the processing of the images.  See
-                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
-                defaults.
+                Parameters that dictate the processing of the images.
             bpm (`numpy.ndarray`_, optional):
-                The bad-pixel mask.  This is used to *overwrite* the default
-                bad-pixel mask for this spectrograph.  The shape must match a
-                trimmed and oriented processed image.
+                Bad-pixel mask to *overwrite* the default mask for this
+                spectrograph.  The shape must match a trimmed and oriented
+                processed image.
             scattlight (:class:`~pypeit.scattlight.ScatteredLight`, optional):
-                Scattered light model to be used to determine scattered light.
+                Not used; a warning is issued if ``par['subtract_scattlight']``
+                is True.
             flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
-                Flat-field images used to apply flat-field corrections.
+                Flat-field images.  Required when ``par['use_pixelflat']`` is
+                True.
             bias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
-                Bias image for bias subtraction.
+                Not used; a warning is issued if ``par['use_biasimage']`` is
+                True.
             slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
-                Used to calculate spatial flexure between the image and the
-                slits, if requested via the ``spat_flexure_correct`` parameter
-                in :attr:`par`; see
-                :func:`~pypeit.core.flexure.spat_flexure_shift`.  Also used to
-                construct the slit illumination profile, if requested via the
-                ``use_illumflat`` parameter in :attr:`par`; see
-                :func:`~pypeit.flatfield.FlatImages.fit2illumflat`.
-            dark (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-                Dark image
+                Not used directly; a warning is issued if
+                ``par['spat_flexure_correct']`` is True.
+            dark (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+                Not used; a warning is issued if ``par['use_darkimage']`` is
+                True.
             mosaic (:obj:`bool`, optional):
-                When processing multiple detectors, resample the images into a
-                mosaic.  If flats or slits are provided (and used), this *must*
-                be true because these objects are always defined in the mosaic
-                frame.
+                When ``nimg > 1``, resample the per-detector images into a
+                single mosaic.  Default is ``False``.
+            slit_slices (:obj:`list`, optional):
+                List of ``(spat_start, spat_end, spec_start, spec_end)``
+                tuples (0-indexed, exclusive end) giving the bounding box of
+                the slit in the full detector pixel frame, one entry per
+                detector.  Used by :func:`trim`.
+            kludge_err (:obj:`float`, optional):
+                Reserved for future use as a variance scaling factor.
+                Currently unused.  Default is 1.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 
@@ -1804,15 +1788,9 @@ class NIRSpecRawImage(RawImage):
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The processed
             image.
         """
-        # TODO: Reset steps to all be false at the beginning of the function?
-        # If we're careful with book-keeping of the attributes (i.e., resetting
-        # image to rawimage, etc), calling process multiple times could be a way
-        # for developers to *re*process an image multiple times from scratch
-        # with different parameters to test changes.
 
         self.slit_slices = slit_slices
 
-        bpm = None
 
         # Set input to attributes
         self.par = par
