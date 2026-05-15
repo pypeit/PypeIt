@@ -639,45 +639,183 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     #
     #     return mosaic
 
-    @staticmethod
-    def get_slit_slice(cal_data, slit_name):
+    # @staticmethod
+    # def get_slit_slice(cal_data, slit_name):
+    #     """
+    #     Get the pixel slice for a named slit from JWST calibration data.
+    #
+    #     Args:
+    #         cal_data: JWST MultiSlitModel calibration data
+    #         slit_name (:obj:`str`): The slit name, e.g. 'S200A1'.
+    #
+    #     Returns:
+    #         :obj:`tuple`: A tuple of two slices ``(spec_slice, spat_slice)``.
+    #     """
+    #     slit_names = np.array([slit.name for slit in cal_data.slits])
+    #     if slit_name not in slit_names:
+    #         raise PypeItError(f'Slit name {slit_name} not found in '
+    #                           f'calibration data {cal_data.meta.filename}')
+    #     #TODO: THIS VALUES DO NOT SEEM ACCURATE. FIX IT
+    #     indx = np.where(slit_names == slit_name)[0][0]
+    #     this_slit = cal_data.slits[indx]
+    #
+    #     # --- Get slit geometry ---
+    #     slit_xstart = int(this_slit.xstart)
+    #     slit_xsize = int(this_slit.xsize)
+    #     slit_ystart = int(this_slit.ystart)
+    #     slit_ysize = int(this_slit.ysize)
+    #
+    #     # Convert slit position to 0-indexed full-frame coordinates
+    #     # xstart = slit_xstart - 1 + subarray_xstart - 1
+    #     # ystart = slit_ystart - 1 + subarray_ystart - 1
+    #     xstart = slit_xstart - 1
+    #     ystart = slit_ystart - 1
+    #     xstop = xstart + slit_xsize
+    #     ystop = ystart + slit_ysize
+    #
+    #
+    #     # spec_lo = this_slit.xstart - 1
+    #     # spec_hi = spec_lo + this_slit.xsize
+    #     # spat_lo = this_slit.ystart - 1
+    #     # spat_hi = spat_lo + this_slit.ysize
+    #
+    #     # spat_start, spat_end, spec_start, spec_end = ystart, ystop, xstart, xstop
+    #     return ystart, ystop, xstart, xstop
+
+    def get_nirspec_slits(self, fitstbl, calib_ID, par, is_std=False):
         """
-        Get the pixel slice for a named slit from JWST calibration data.
+        Determine the list of NIRSpec slits to reduce for a given calibration group.
+
+        Reads the JWST calibration (``_interpolatedflat.fits``) FITS extensions
+        directly — without any ``jwst.datamodels`` dependency — to discover the
+        available slits, map each slit to its detector (NRS1/NRS2 or mosaic), and
+        optionally filter by ``par['rdx']['maskIDs']``.
+
+        The detector assignment is inferred from the filename: a file whose name
+        contains ``'nrs1'`` is classified as NRS1, one containing ``'nrs2'`` as
+        NRS2, and the primary–header ``DETECTOR`` keyword is used as a fallback.
+        Slit metadata (name, source name, source identifier, source alias) is
+        read from the per-extension FITS header keywords ``SLTNAME``,
+        ``SRCNAME``, ``SRCID``, and ``SRCALIAS``, respectively.
 
         Args:
-            cal_data: JWST MultiSlitModel calibration data
-            slit_name (:obj:`str`): The slit name, e.g. 'S200A1'.
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The metadata table for this reduction run.
+            calib_ID (:obj:`str`):
+                The calibration group identifier.
+            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+                The full parameter set for the reduction.
+            is_std (:obj:`bool`, optional):
+                If ``True`` look for standard–star frames; otherwise look for
+                science frames.  Default is ``False``.
 
         Returns:
-            :obj:`tuple`: A tuple of two slices ``(spec_slice, spat_slice)``.
+            :obj:`tuple`: A 2-tuple ``(gd_slits_sources, slit_det_map)``:
+
+            - **gd_slits_sources** (:obj:`list` or ``None``): List of
+              ``(slit_name, source_name, source_id, source_alias)`` tuples
+              for each slit to be reduced.  ``None`` if no relevant frames
+              or slits are found.
+            - **slit_det_map** (:obj:`dict` or ``None``): Dictionary mapping
+              each slit name to its detector — ``1`` for NRS1-only slits,
+              ``2`` for NRS2-only slits, and ``(1, 2)`` for slits that span
+              both detectors (mosaic).  ``None`` if no slits are found.
         """
-        slit_names = np.array([slit.name for slit in cal_data.slits])
-        if slit_name not in slit_names:
-            raise PypeItError(f'Slit name {slit_name} not found in '
-                              f'calibration data {cal_data.meta.filename}')
-        #TODO: THIS VALUES DO NOT SEEM ACCURATE. FIX IT
-        indx = np.where(slit_names == slit_name)[0][0]
-        this_slit = cal_data.slits[indx]
+        frames = (fitstbl.find_frames('standard') & fitstbl.find_calib_group(calib_ID)) if is_std else \
+                 (fitstbl.find_frames('science') & fitstbl.find_calib_group(calib_ID))
 
-        # --- Get slit geometry ---
-        slit_xstart = int(this_slit.xstart)
-        slit_xsize = int(this_slit.xsize)
-        slit_ystart = int(this_slit.ystart)
-        slit_ysize = int(this_slit.ysize)
+        if not np.any(frames):
+            return None, None
 
-        # Convert slit position to 0-indexed full-frame coordinates
-        # xstart = slit_xstart - 1 + subarray_xstart - 1
-        # ystart = slit_ystart - 1 + subarray_ystart - 1
-        xstart = slit_xstart - 1
-        ystart = slit_ystart - 1
-        xstop = xstart + slit_xsize
-        ystop = ystart + slit_ysize
+        # 'trace' frame type maps to _interpolatedflat.fits files (see check_frame_type).
+        cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_ID)
 
+        # Collect per-slit info by reading FITS headers directly.
+        slit_names_nrs1 = []
+        slit_names_nrs2 = []
+        slit_info = {}  # slit_name -> (source_name, source_id, source_alias)
 
-        # spec_lo = this_slit.xstart - 1
-        # spec_hi = spec_lo + this_slit.xsize
-        # spat_lo = this_slit.ystart - 1
-        # spat_hi = spat_lo + this_slit.ysize
+        for cal_file in cal_files:
+            with fits.open(cal_file) as hdul:
+                # Determine detector from filename first, fall back to primary header.
+                if 'nrs1' in str(cal_file).lower():
+                    detector = 'NRS1'
+                elif 'nrs2' in str(cal_file).lower():
+                    detector = 'NRS2'
+                else:
+                    detector = hdul[0].header.get('DETECTOR', '').upper()
 
-        # spat_start, spat_end, spec_start, spec_end = ystart, ystop, xstart, xstop
-        return ystart, ystop, xstart, xstop
+                for hdu in hdul:
+                    slt_name = hdu.header.get('SLTNAME')
+                    if slt_name is None:
+                        continue
+
+                    src_name = hdu.header.get('SRCNAME', '')
+                    src_id = hdu.header.get('SRCID', -1)
+                    src_alias = hdu.header.get('SRCALIAS', '')
+
+                    if detector == 'NRS1' and slt_name not in slit_names_nrs1:
+                        slit_names_nrs1.append(slt_name)
+                    elif detector == 'NRS2' and slt_name not in slit_names_nrs2:
+                        slit_names_nrs2.append(slt_name)
+
+                    # First occurrence wins for source metadata.
+                    if slt_name not in slit_info:
+                        slit_info[slt_name] = (src_name, src_id, src_alias)
+
+        slit_names_nrs1 = np.array(slit_names_nrs1) if slit_names_nrs1 else np.array([], dtype=str)
+        slit_names_nrs2 = np.array(slit_names_nrs2) if slit_names_nrs2 else np.array([], dtype=str)
+
+        if not len(slit_names_nrs1) and not len(slit_names_nrs2):
+            log.warning('No slits found in calibration files for calib_ID '
+                        f'{calib_ID}. Skipping.')
+            return None, None
+
+        all_slit_names = np.unique(np.hstack([slit_names_nrs1, slit_names_nrs2]))
+        slit_sources_uni = [(slt, *slit_info[slt]) for slt in all_slit_names]
+
+        # Filter by maskIDs if specified.
+        if par['rdx']['maskIDs'] is not None:
+            maskIDs = [str(mid).strip() for mid in par['rdx']['maskIDs']]
+            gd_slits_sources = [
+                (slt, src_n, src_id, src_alias)
+                for slt, src_n, src_id, src_alias in slit_sources_uni
+                if str(slt).strip() in maskIDs
+                or str(src_id) in maskIDs
+                or str(src_alias) in maskIDs
+            ]
+            if not gd_slits_sources:
+                log.warning(f'No slits or sources found for '
+                            f'maskIDs={par["rdx"]["maskIDs"]}. '
+                            'Skipping reduction.')
+                return None, None
+            elif len(gd_slits_sources) < len(maskIDs):
+                missing = [
+                    mid for mid in maskIDs
+                    if mid not in [s for s, _, _, _ in gd_slits_sources]
+                    and mid not in [str(si) for _, _, si, _ in gd_slits_sources]
+                    and mid not in [sa for _, _, _, sa in gd_slits_sources]
+                ]
+                log.warning(f'The following maskIDs were not found: '
+                            f'{", ".join(missing)}. Reduction will be '
+                            'performed on the available slits and sources.')
+        else:
+            gd_slits_sources = slit_sources_uni
+
+        slit_strs = ', '.join([f'({s}, {n})' for s, n, _, _ in gd_slits_sources])
+        log.info(f'Reducing the following (slit_name, src_name): {slit_strs}')
+
+        # Build a per-slit detector map.
+        slit_det_map = {}
+        for slit_name, _, _, _ in gd_slits_sources:
+            in_nrs1 = slit_name in slit_names_nrs1
+            in_nrs2 = slit_name in slit_names_nrs2
+            if in_nrs1 and not in_nrs2:
+                slit_det_map[slit_name] = 1
+            elif in_nrs2 and not in_nrs1:
+                slit_det_map[slit_name] = 2
+            else:
+                slit_det_map[slit_name] = (1, 2)  # Slit spans both detectors (mosaic).
+
+        return gd_slits_sources, slit_det_map
+

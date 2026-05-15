@@ -300,9 +300,9 @@ class NIRSpecSlitPypeIt(PypeIt):
         """
         NIRSpec-specific reduction driver.
 
-        Loads JWST calibration data and determines slits via
-        :func:`~pypeit.pypeit_steps.get_nirspec_slits`, then
-        iterates over slits.  For each slit the standard-star and
+        Determines slits to reduce via
+        :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_nirspec_slits`,
+        then iterates over slits.  For each slit the standard-star and
         science calibration-group loops call
         :func:`reduce_calibID` (which internally calls the unified
         :func:`~pypeit.exposure.reduce_exposure` with ``slitname``
@@ -318,7 +318,7 @@ class NIRSpecSlitPypeIt(PypeIt):
         for calib_ID in self.fitstbl.calib_groups:
             # get ids of the slits that we want to reduce, could be all (but still the reduction will be separated per slit),
             # or user input slits passed through the parameter self.par['rdx']['maskIDs']
-            gd_slits_sources, slit_det_map = pypeit_steps.get_nirspec_slits(self.fitstbl, calib_ID, self.par, is_std=True)
+            gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par, is_std=True)
             if gd_slits_sources is None:
                 continue
             for ii, (islit, isource, isource_id, isource_alias) in enumerate(gd_slits_sources):
@@ -339,7 +339,7 @@ class NIRSpecSlitPypeIt(PypeIt):
         for calib_ID in self.fitstbl.calib_groups:
             # get ids of the slits that we want to reduce, could be all (but still the reduction will be separated per slit),
             # or user input slits passed through the parameter self.par['rdx']['maskIDs']
-            gd_slits_sources, slit_det_map = pypeit_steps.get_nirspec_slits(self.fitstbl, calib_ID, self.par, is_std=False)
+            gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par, is_std=False)
             if gd_slits_sources is None:
                 continue
             for ii, (islit, isource, isource_id, isource_alias) in enumerate(gd_slits_sources):
@@ -500,6 +500,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
                 exposure.save_exposure(spectrograph,
                                     fitstbl, par, frames[0],
                                     this_spec2d, this_sobjs, calibrations_path,
+                                    slitname=slitname,
                                     history=history,
                                     skip_write_2d=par['scienceframe']['process']['skip_write_2d'])
             else:

@@ -1802,12 +1802,47 @@ class IFUCalibrations(Calibrations):
 
 class NIRSpecSlitCalibrations(Calibrations):
     """
-    Calibration class for performing JWST NIRSpec calibration.
-    See :class:`Calibrations` for arguments.
+    Calibration class for JWST NIRSpec slit-by-slit reductions.
+
+    Instead of the standard calibration workflow (bias, dark, arc, tilts…),
+    this class retrieves wavelength, slit-trace, flat-field, pathloss, and
+    barshadow information directly from the JWST pre-processed calibration
+    products (``_cal.fits`` and ``_interpolatedflat.fits`` files).  One
+    instance is created *per slit*; the slit identity is carried in
+    :attr:`user_slits` (key ``'slit_info'``).
+
+    See :class:`Calibrations` for constructor arguments.
     """
 
     def _build_calibimage(self, cal_files, extname, slit_info):
+        """
+        Build a :class:`~pypeit.images.pypeitimage.PypeItImage` from a
+        named FITS extension of one or more JWST calibration files, for
+        a single slit.
 
+        This helper is used by :func:`get_bpm`, :func:`get_wv_calib`,
+        :func:`get_slits`, and :func:`get_flats` to load per-slit image
+        data (e.g. ``'SCI'``, ``'WAVELENGTH'``, ``'PATHLOSS_PS'``, …)
+        from the JWST pipeline output.  For mosaic reductions (two
+        detectors), the images are combined into a mosaic before
+        orientation.
+
+        Args:
+            cal_files (:obj:`str` or :obj:`list` of :obj:`str`):
+                Path(s) to the JWST calibration FITS file(s).  A
+                single string is promoted to a list.
+            extname (:obj:`str`):
+                Name of the FITS extension to read (e.g. ``'SCI'``,
+                ``'WAVELENGTH'``, ``'PATHLOSS_PS'``, ``'BARSHADOW'``).
+            slit_info (:obj:`str`):
+                JWST slit name (the value of the ``SLTNAME`` header
+                keyword) used to identify the correct ``EXTVER``.
+
+        Returns:
+            :class:`~pypeit.images.pypeitimage.PypeItImage`:
+                The calibration image for the requested slit, trimmed
+                and oriented to the PypeIt ``(nspec, nspat)`` frame.
+        """
 
         steps = []
 
@@ -1836,14 +1871,14 @@ class NIRSpecSlitCalibrations(Calibrations):
             det_img = np.array([np.full(img.shape, d.det, dtype=int)
                                      for img, d in zip(image, _detector)])
             # Transform the image data to the mosaic frame.
-            image, _, _, _tforms = build_image_mosaic(image, _detector.tform, cval=np.nan)[0]
+            image, _, _, _tforms = build_image_mosaic(image, _detector.tform, cval=np.nan)
             det_img = build_image_mosaic(det_img.astype(float), _tforms, mosaic_shape=image.shape)[0]
             steps.append('build_mosaic')
 
         # Orient the image to have blue/red run bottom to top
         image = self.spectrograph.orient_image(_detector, image)
         if det_img is not None:
-            det_img = self.spectrograph.orient_image(_detector, image)
+            det_img = self.spectrograph.orient_image(_detector, det_img)
         steps.append('orient')
 
 
@@ -1858,11 +1893,23 @@ class NIRSpecSlitCalibrations(Calibrations):
 
     def get_wv_calib(self, force:str=None):
         """
-        Load the wavelength image calibration frame from the JWST flat-field
-        data model.
+        Load the wavelength image calibration frame from the JWST calibration
+        data product.
+
+        The ``WAVELENGTH`` extension of the ``_cal.fits`` file contains a
+        per-pixel wavelength map in microns.  This method converts it to
+        Angstroms and stores it in a :class:`~pypeit.wavecalib.WaveCalib`
+        object.
+
+        Args:
+            force (:obj:`str`, optional):
+                ``'remake'`` forces rebuilding, ``'reload'`` only reloads an
+                existing product, and ``None`` follows ``reuse_calibs``.
 
         Returns:
-            `numpy.ndarray`_: The wavelength image calibration frame for current slit (in Angstroms).
+            :class:`~pypeit.wavecalib.WaveCalib`:
+                The wavelength calibration object, containing the wavelength
+                image for the current slit (in Angstroms).
         """
 
         # Check for existing data
@@ -1916,8 +1963,19 @@ class NIRSpecSlitCalibrations(Calibrations):
         Create a "fake" wavelength tilts calibration frame by normalizing the
         wavelength image to [0, 1].
 
+        The normalized image is stored in a :class:`~pypeit.wavetilts.WaveTilts`
+        object so that it can be consumed by the rest of the PypeIt pipeline
+        in the same way as a regular tilts frame.
+
+        Args:
+            force (:obj:`str`, optional):
+                ``'remake'`` forces rebuilding, ``'reload'`` only reloads an
+                existing product, and ``None`` follows ``reuse_calibs``.
+
         Returns:
-            `numpy.ndarray`_: The normalized wavelength tilts image for current slit.
+            :class:`~pypeit.wavetilts.WaveTilts`:
+                The wavelength tilts object containing the normalized
+                wavelength image for the current slit.
         """
         # Check for existing data
         if not self._chk_objs(['wv_calib', 'slits']):
@@ -1942,7 +2000,7 @@ class NIRSpecSlitCalibrations(Calibrations):
             return self.wavetilts
 
         # get gpm
-        gpm = np.logical_not(self.wv_calib.waveimg != 0)
+        gpm = self.wv_calib.waveimg != 0
         wave_min = np.min(self.wv_calib.waveimg[gpm])
         wave_max = np.max(self.wv_calib.waveimg[gpm])
 
@@ -2208,6 +2266,28 @@ class NIRSpecSlitCalibrations(Calibrations):
         return self.flatimages
 
     def get_slit_slices(self, force:str=None):
+        """
+        Extract the pixel-level bounding box of the current slit from the
+        JWST calibration file headers.
+
+        The ``SLTSTRT1``, ``SLTSIZE1``, ``SLTSTRT2``, and ``SLTSIZE2``
+        keywords in the ``SCI`` extension header give the 1-indexed start
+        position and size of the slit cutout within the full detector array.
+        These are converted to 0-indexed Python slices and stored in
+        :attr:`slit_slices`.  When multiple calibration files are provided
+        (e.g. one per detector in a mosaic), one tuple is appended per file.
+
+        Args:
+            force (:obj:`str`, optional):
+                Currently ignored; reserved for future use.
+
+        Returns:
+            :obj:`list`:
+                A list of ``(spat_start, spat_end, spec_start, spec_end)``
+                tuples (0-indexed, exclusive end) giving the bounding box of
+                the slit in the full detector pixel frame, one entry per
+                calibration file.
+        """
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'user_slits'])
