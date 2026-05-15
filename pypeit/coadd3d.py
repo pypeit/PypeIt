@@ -1156,7 +1156,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             log.info("Constructing slit image")
             slits = spec2DObj.slits
             slitid_img = slits.slit_img(pad=0, flexure=spat_flexure)
-            slits_left, slits_right, _ = slits.select_edges(flexure=spat_flexure)
 
             # The order of operations below proceeds as follows:
             #  (1) Get science image
