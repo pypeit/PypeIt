@@ -292,9 +292,38 @@ class NIRSpecSlitPypeIt(PypeIt):
         pass
 
     def calib_all(self):
+        """
+        Process all calibration frames for all NIRSpec slits.
 
-        raise NotImplementedError(
-            'calib_only reductions are not currently implemented for NIRSpec slit-by-slit reductions.')
+        Mirrors the slit-loop structure of :func:`reduce_all` but calls
+        :func:`~pypeit.pypeit_steps.calib_one` for each slit instead of
+        running the full science reduction.  The detector for each slit is
+        taken from the ``slit_det_map`` returned by
+        :meth:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_nirspec_slits`.
+
+        Calibration files are written to disk for each slit independently.
+        """
+        self.tstart = time.perf_counter()
+
+        for calib_ID in self.fitstbl.calib_groups:
+            gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(
+                self.fitstbl, calib_ID, self.par)
+            if gd_slits_sources is None:
+                log.warning(f'No slits found for calibration group {calib_ID}. Skipping.')
+                continue
+
+            for ii, (islit, isource, isource_id, isource_alias) in enumerate(gd_slits_sources):
+                det = slit_det_map[islit]
+                log.info(f'Working on detector {det}, slit {islit} ({ii + 1}/{len(gd_slits_sources)})')
+                pypeit_steps.calib_one(
+                    self.spectrograph, self.fitstbl, self.par,
+                    det, calib_ID, self.calibrations_path,
+                    slitname=islit, reuse_calibs=self.reuse_calibs,
+                    qa_path=self.qa_path, show=self.show,
+                    run_state=self.run_state)
+
+        # Finish
+        self.print_end_time()
 
     def reduce_all(self):
         """
@@ -318,7 +347,7 @@ class NIRSpecSlitPypeIt(PypeIt):
         for calib_ID in self.fitstbl.calib_groups:
             # get ids of the slits that we want to reduce, could be all (but still the reduction will be separated per slit),
             # or user input slits passed through the parameter self.par['rdx']['maskIDs']
-            gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par, is_std=True)
+            gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par)
             if gd_slits_sources is None:
                 continue
             for ii, (islit, isource, isource_id, isource_alias) in enumerate(gd_slits_sources):
@@ -339,7 +368,7 @@ class NIRSpecSlitPypeIt(PypeIt):
         for calib_ID in self.fitstbl.calib_groups:
             # get ids of the slits that we want to reduce, could be all (but still the reduction will be separated per slit),
             # or user input slits passed through the parameter self.par['rdx']['maskIDs']
-            gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par, is_std=False)
+            gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par)
             if gd_slits_sources is None:
                 continue
             for ii, (islit, isource, isource_id, isource_alias) in enumerate(gd_slits_sources):

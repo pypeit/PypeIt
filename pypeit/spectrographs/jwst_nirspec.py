@@ -682,7 +682,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     #     # spat_start, spat_end, spec_start, spec_end = ystart, ystop, xstart, xstop
     #     return ystart, ystop, xstart, xstop
 
-    def get_nirspec_slits(self, fitstbl, calib_ID, par, is_std=False):
+    def get_nirspec_slits(self, fitstbl, calib_ID, par):
         """
         Determine the list of NIRSpec slits to reduce for a given calibration group.
 
@@ -705,27 +705,18 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                 The calibration group identifier.
             par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
                 The full parameter set for the reduction.
-            is_std (:obj:`bool`, optional):
-                If ``True`` look for standard–star frames; otherwise look for
-                science frames.  Default is ``False``.
 
         Returns:
             :obj:`tuple`: A 2-tuple ``(gd_slits_sources, slit_det_map)``:
 
             - **gd_slits_sources** (:obj:`list` or ``None``): List of
               ``(slit_name, source_name, source_id, source_alias)`` tuples
-              for each slit to be reduced.  ``None`` if no relevant frames
-              or slits are found.
+              for each slit to be reduced.  ``None`` if no slits are found.
             - **slit_det_map** (:obj:`dict` or ``None``): Dictionary mapping
               each slit name to its detector — ``1`` for NRS1-only slits,
               ``2`` for NRS2-only slits, and ``(1, 2)`` for slits that span
               both detectors (mosaic).  ``None`` if no slits are found.
         """
-        frames = (fitstbl.find_frames('standard') & fitstbl.find_calib_group(calib_ID)) if is_std else \
-                 (fitstbl.find_frames('science') & fitstbl.find_calib_group(calib_ID))
-
-        if not np.any(frames):
-            return None, None
 
         # 'trace' frame type maps to _interpolatedflat.fits files (see check_frame_type).
         cal_files = fitstbl.find_frame_files('trace', calib_ID=calib_ID)
