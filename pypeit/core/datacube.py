@@ -2345,8 +2345,8 @@ def subpixellate(
                     # Only print this if there are multiple subslices
                     log.info(f"Resampling subslice {ss+1}/{slice_subpixel}")
                 # Generate an RA/Dec image for this subslice
-                raimg, decimg, minmax = this_slits.get_radec_image(this_wcs, this_astrom_trans, this_tilts,
-                                                                   slit_compute=sl, slice_offset=slice_offs[ss])
+                raimg, decimg, delta_pix = this_slits.get_radec_image(this_wcs, this_astrom_trans, this_tilts,
+                                                                      slit_compute=sl, slice_offset=slice_offs[ss])
                 this_ra = raimg[this_onslit_gpm]
                 this_dec = decimg[this_onslit_gpm]
                 # Interpolate the RA/Dec over the subpixel spatial positions

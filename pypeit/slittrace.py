@@ -521,9 +521,9 @@ class SlitTraceSet(calibframe.CalibFrame):
         decimg : `numpy.ndarray`_
             Image with the DEC coordinates of each pixel in degrees.  Shape is
             (nspec, nspat).
-        minmax : `numpy.ndarray`_
+        delta_pix : `numpy.ndarray`_
             The minimum and maximum difference (in pixels) between the WCS
-            reference (usually the centre of the slit) and the edges of the
+            reference (usually the center of the slit) and the edges of the
             slits. Shape is (nslits, 2).
         """
         # Check the input
@@ -547,7 +547,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
-        minmax = np.zeros((self.nslits, 2))
+        delta_pix = np.zeros((self.nslits, 2))
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
         for slit_idx, spatid in enumerate(self.spat_id):
@@ -560,15 +560,15 @@ class SlitTraceSet(calibframe.CalibFrame):
                            'generate RA/DEC image.')
             # Retrieve the pixel offset from the central trace
             evalpos = alignSplines.transform(slit_idx, onslit_init[1], onslit_init[0])
-            minmax[slit_idx, 0] = np.min(evalpos)
-            minmax[slit_idx, 1] = np.max(evalpos)
+            delta_pix[slit_idx, 0] = np.min(evalpos)
+            delta_pix[slit_idx, 1] = np.max(evalpos)
             # Calculate the WCS from the pixel positions
             slitID = np.ones(evalpos.size) * slit_idx + slice_offset
             world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
-        return raimg, decimg, minmax
+        return raimg, decimg, delta_pix
 
     def select_edges(self, initial=False, flexure=None):
         """
