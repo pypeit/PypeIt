@@ -1677,13 +1677,10 @@ class CubePar(ParSet):
                         "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
 
 
-        defaults['align'] = False
-        dtypes['align'] = [bool]
-        descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
-                         'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
-                         'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, ' \
-                         'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) ' \
-                         'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
+        defaults['save_native'] = False
+        dtypes['save_native'] = [bool]
+        descr['save_native'] = ('If set to True, PypeIt will write spec3d datacube files for each of the '
+                                'input spec2d files.')
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -1703,20 +1700,24 @@ class CubePar(ParSet):
                             'The sensitivity function file will also be used to correct the relative scales ' \
                             'of the slits.'
 
-        defaults['register'] = 'phase'
-        dtypes['register'] = str
-        options['register'] = CubePar.valid_registration_methods()
-        descr['register'] = (
-            'Method used to register datacubes when coadding.  Must be either "phase" or "fit": '
-            'Setting ``register = phase`` will use a cross-correlation method to determine the '
-            'offsets, where the cross-correlation is always with respect to a reference image.  '
-            'The reference image can either be provided (see the "reference_image" parameter), '
-            'or it will be the whitelight image of the first datacube in the stack.  This method '
-            'uses the scikit-image package, if it is installed; otherwise it will use scipy.  '
-            'Setting ``register = fit`` requires that photutils to be installed.  For each '
+        defaults['alignment_method'] = 'phase'
+        dtypes['alignment_method'] = str
+        options['alignment_method'] = CubePar.valid_alignment_methods()
+        descr['alignment_method'] = (
+            'Whitelight images of all input frames will be generated and spatially aligned using either a '
+            'reference image (see ``reference_image``) or the whitelight '
+            'image of the first spec2d listed in the coadd3d file. This parameter allows you to set the '
+            'method used to spatially align the datacubes. The current allowed options include "none", "phase", '
+            '"fit", and "user". Setting ``alignment_method = phase`` (the default) will use a cross-correlation '
+            'method to determine the offsets, where the cross-correlation is always with respect to a reference '
+            'image. This method uses the scikit-image package, if it is installed; otherwise it will use scipy. '
+            'Setting ``alignment_method = fit`` requires that photutils is installed. For each '
             'datacube being combined, a 2D Gaussian is fit the brightest point-like object found '
-            'in each whitelight image and used to set the registration coordinate.'
-        )
+            'in each whitelight image and used to set the alignment coordinate. Setting ``alignment_method = user`` '
+            'allows the user to specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) '
+            'in the spec2d block of the coadd3d file. See the documentation for examples of this usage. Finally,'
+            'setting ``alignment_method = none`` will turn off the alignment, and use only the world coordinate '
+            'system specified in the input spec2d files.')
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
@@ -1920,11 +1921,11 @@ class CubePar(ParSet):
             raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
 
     @staticmethod
-    def valid_registration_methods():
+    def valid_alignment_methods():
         """
         Return the valid method identifiers for registration
         """
-        return ['phase', 'fit']
+        return ['none', 'user', 'phase', 'fit']
 
 
 

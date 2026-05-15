@@ -509,7 +509,9 @@ class CoAdd3D:
         # Extract some commonly used variables
         self.method = self.cubepar['method']
         self.combine = self.cubepar['combine']
-        self.align = self.cubepar['align']
+        self.alignment_method = None if self.cubepar['alignment_method'].lower() in ["none"] else self.cubepar['alignment_method']
+        self.align = False if self.alignment_method is None else True
+        self.native = self.cubepar['save_native']
         self.correct_dar = self.cubepar['correct_dar']
         self.qa_path = par['rdx']['qadir'] if qa_path is None else qa_path
         # TODO Only need one of show or debug probably
@@ -551,22 +553,27 @@ class CoAdd3D:
         # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
         if self.numfiles == 1 and self.cubepar["reference_image"] is None:
             if self.align:
-                log.warning("Parameter 'align' should be False when there is only one frame and no reference image")
-                log.info("Setting 'align' to False")
+                log.warning("Parameter 'alignment_method' should be 'none' when there is only one frame and no reference image")
+                log.info("Setting 'alignment_method' to 'none'")
             self.align = False
+            self.alignment_method = None
         if self.ra_offsets is not None:
-            if not self.align:
-                log.warning("When 'ra_offset' and 'dec_offset' are set, 'align' must be True.")
-                log.info("Setting 'align' to True")
-            self.align = True
-        # If no ra_offsets or dec_offsets have been provided, initialise the lists
-        self.user_alignment = True
+            if self.alignment_method is None:
+                log.warning("You have provided ra_offsets and dec_offsets, but set 'alignment_method' to 'none'. "
+                            "The datacubes will not be aligned. If you wish to align the datacubes using the "
+                            "user-specified offsets, please set 'alignment_method' to 'user'.")
+                self.align = False
+                self.alignment_method = None
+            elif self.alignment_method != "user":
+                log.warning("When 'ra_offset' and 'dec_offset' are set, 'alignment_method' must be 'user'.")
+                log.info("Setting 'alignment_method' to 'user'")
+                self.align = True
+                self.alignment_method = "user"
+        # If no ra_offsets or dec_offsets have been provided, initialize the lists
         if self.ra_offsets is None and self.dec_offsets is None:
             log.info("No RA or Dec offsets have been provided.")
             if self.align:
-                log.info("An automatic alignment will be performed using WCS information from the headers.")
-            # User offsets are not provided, so turn off the user_alignment
-            self.user_alignment = False
+                log.info(f"An automatic alignment will be performed the {self.alignment_method} method.")
             # Initialise the lists of ra_offsets and dec_offsets
             self.ra_offsets = [0.0]*self.numfiles
             self.dec_offsets = [0.0]*self.numfiles
@@ -1001,7 +1008,7 @@ class CoAdd3D:
         Main entry routine to set the order of operations to coadd the data. For specific
         details of this procedure, see the child routines.
         """
-        raise NotImplementedError('Base class run function must be overriden by deerived class.')
+        raise NotImplementedError('Parent class run() function must be overwritten in child class.')
 
 
 class SlicerIFUCoAdd3D(CoAdd3D):
@@ -1048,8 +1055,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)
-        # Loop through all of the frames, load the data, and save datacubes if no combining is required
-        self.load()
 
     def get_alignments(self, spec2DObj, slits, spat_flexure=None):
         """
@@ -1096,11 +1101,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         log.info("Generating alignment splines")
         return alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
 
-    def load(self):
+    def load_data(self):
         """
         This is the main function that loads in the data, and performs several frame-specific corrections.
-        If the user does not wish to align or combine the individual datacubes, then this routine will also
-        produce a spec3d file, which is a DataCube representation of a PypeIt spec2d frame for SlicerIFU data.
 
         This function should be called in the __init__ method, and initialises multiple variables. The variables
         initialised by this function include:
@@ -1337,68 +1340,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Get the slit image and then unset pixels in the slit image that are bad
             slitid_img_gpm = slitid_img * onslit_gpm.astype(int)
 
-            # TODO JFH I don't agree with this block of code being here in the load method. Load should load, 
-            # not perform other operations (like cube generation).  
-            
-            # If individual frames are to be output without aligning them,
-            # there's no need to store information, just make the cubes now
-            if not self.combine and not self.align:
-                # Get the output filename
-                if self.numfiles == 1 and self.cubepar['output_filename'] != "":
-                    outfile = datacube.get_output_filename(self.output_dir, "", self.cubepar['output_filename'], True, -1)
-                else:
-                    outfile = datacube.get_output_filename(self.output_dir, fil, self.cubepar['output_filename'], self.combine, ff + 1)
-                # Get the coordinate bounds
-                slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
-                numwav = int((np.max(waveimg) - wave0) / dwv)
-                bins = self.spectrograph.get_datacube_bins(slitlength, minmax, numwav)
-                # Set the wavelength range of the white light image.
-                wl_wvrng = None
-                if self.cubepar['save_whitelight']:
-                    wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[ff, :, 0]),
-                                                             np.min(self.mnmx_wv[ff, :, 1]),
-                                                             self.cubepar['whitelight_range'])
-                # Make the datacube
-                if self.method in ['subpixel', 'ngp']:
-                    # Generate the datacube
-                    flxcube, sigcube, bpmcube, normcube, wave = \
-                        datacube.generate_cube_subpixel(self.all_wcs[ff], bins, sciImg, ivar, waveimg, slitid_img_gpm, wghts,
-                                                        self.all_wcs[ff], spec2DObj.tilts, slits, alignSplines, darcorr,
-                                                        self.ra_offsets[ff], self.dec_offsets[ff],
-                                                        spec_subpixel=self.spec_subpixel,
-                                                        spat_subpixel=self.spat_subpixel,
-                                                        slice_subpixel=self.slice_subpixel,
-                                                        skip_subpix_weights=self.skip_subpix_weights,
-                                                        correct_dar=self.correct_dar)
-                    # Prepare the header
-                    hdr = self.all_wcs[ff].to_header()
-                    if self.fluxcal:
-                        hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
-                    else:
-                        hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
-                    # Write out the datacube
-                    log.info("Saving datacube as: {0:s}".format(outfile))
-                    final_cube = DataCube(
-                        flxcube, sigcube, bpmcube.astype(np.uint8), 
-                        wave, self.specname, self.blaze_wave, self.blaze_spec,
-                        sensfunc=None, fluxed=self.fluxcal
-                    )
-                    final_cube.to_file(
-                        os.path.join(self.output_dir, outfile), primary_hdr=self.all_header[ff],
-                        hdr=hdr, overwrite=self.overwrite
-                    )
-                    
-                    # TODO fix this transpose issue
-                    ivarcube = utils.inverse(np.square(sigcube))
-                    if self.cubepar['save_whitelight']:
-                        datacube.make_whitelight(
-                            self.all_wcs[ff], flxcube.T, ivarcube.T, np.logical_not(bpmcube.T), 
-                            wave, self.output_dir, outfile, whitelight_range=wl_wvrng, overwrite=self.overwrite)
-                    
-                # No need to proceed and store arrays - we are writing individual datacubes
-                # TESTING JFH, always store
-                #continue
-
             # Store the information if we are combining multiple frames
             self.all_sci.append(sciImg.copy())
             self.all_ivar.append(ivar.copy())
@@ -1439,7 +1380,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Initialize the RA and Dec offset arrays
         ra_offsets, dec_offsets = [0.0]*self.numfiles, [0.0]*self.numfiles
         # Register spatial offsets between all frames
-        if self.user_alignment:
+        if self.alignment_method == "user":
             # The user has specified offsets - update these values accounting for the difference in header RA/DEC
             ra_offsets, dec_offsets = datacube.align_user_offsets(self.ifu_ra, self.ifu_dec,
                                                                   self.ra_offsets, self.dec_offsets)
@@ -1481,7 +1422,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     log.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
                 # Calculate the image offsets relative to the reference image
-                if self.cubepar['register'] == 'phase':
+                if self.alignment_method == 'phase':
                     for ff in range(self.numfiles):
                         # Calculate the shift
                             ra_shift, dec_shift = calculate_image_phase(
@@ -1497,7 +1438,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             # Store the shift in the RA and DEC offsets in degrees
                             ra_offsets[ff] += ra_shift
                             dec_offsets[ff] += dec_shift
-                elif self.cubepar['register'] == 'fit':
+                elif self.alignment_method == 'fit':
                     ra_pix_star = np.zeros(self.numfiles)
                     dec_pix_star = np.zeros(self.numfiles)
                     for ff in range(self.numfiles):
@@ -1520,7 +1461,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     ra_offsets =[ra_offsets[ff] + ra_shifts[ff] for ff in range(self.numfiles)]
                     dec_offsets =[dec_offsets[ff] + dec_shifts[ff] for ff in range(self.numfiles)]
                 else:
-                    raise PypeItError('Registration method must be either "phase" or "fit".')
+                    raise PypeItError(f"self.alignment_method method '{self.alignment_method}' is not supported.")
 
                 for ff in range(self.numfiles):
                     log.info(
@@ -1608,7 +1549,67 @@ class SlicerIFUCoAdd3D(CoAdd3D):
           Note, there are several algorithms used to combine multiple frames. Refer to the subpixellate() routine for
           more details about the combination options.
         """
+        # Loop through all frames and load the data
+        self.load_data()
+
         # No need to continue if we are not combining nor aligning frames
+        # If individual frames are to be output without aligning them,
+        # TODO :: This needs to go into a core datacube function
+        if self.native:
+            # Get the output filename
+            if self.numfiles == 1 and self.cubepar['output_filename'] != "":
+                outfile = datacube.get_output_filename(self.output_dir, "", self.cubepar['output_filename'], True, -1)
+            else:
+                outfile = datacube.get_output_filename(self.output_dir, fil, self.cubepar['output_filename'],
+                                                       self.combine, ff + 1)
+            # Get the coordinate bounds
+            slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
+            numwav = int((np.max(waveimg) - wave0) / dwv)
+            bins = self.spectrograph.get_datacube_bins(slitlength, minmax, numwav)
+            # Set the wavelength range of the white light image.
+            wl_wvrng = None
+            if self.cubepar['save_whitelight']:
+                wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[ff, :, 0]),
+                                                         np.min(self.mnmx_wv[ff, :, 1]),
+                                                         self.cubepar['whitelight_range'])
+            # Make the datacube
+            if self.method in ['subpixel', 'ngp']:
+                # Generate the datacube
+                flxcube, sigcube, bpmcube, normcube, wave = \
+                    datacube.generate_cube_subpixel(self.all_wcs[ff], bins, sciImg, ivar, waveimg, slitid_img_gpm,
+                                                    wghts,
+                                                    self.all_wcs[ff], spec2DObj.tilts, slits, alignSplines, darcorr,
+                                                    self.ra_offsets[ff], self.dec_offsets[ff],
+                                                    spec_subpixel=self.spec_subpixel,
+                                                    spat_subpixel=self.spat_subpixel,
+                                                    slice_subpixel=self.slice_subpixel,
+                                                    skip_subpix_weights=self.skip_subpix_weights,
+                                                    correct_dar=self.correct_dar)
+                # Prepare the header
+                hdr = self.all_wcs[ff].to_header()
+                if self.fluxcal:
+                    hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+                else:
+                    hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
+                # Write out the datacube
+                log.info("Saving datacube as: {0:s}".format(outfile))
+                final_cube = DataCube(
+                    flxcube, sigcube, bpmcube.astype(np.uint8),
+                    wave, self.specname, self.blaze_wave, self.blaze_spec,
+                    sensfunc=None, fluxed=self.fluxcal
+                )
+                final_cube.to_file(
+                    os.path.join(self.output_dir, outfile), primary_hdr=self.all_header[ff],
+                    hdr=hdr, overwrite=self.overwrite
+                )
+
+                # TODO fix this transpose issue
+                ivarcube = utils.inverse(np.square(sigcube))
+                if self.cubepar['save_whitelight']:
+                    datacube.make_whitelight(
+                        self.all_wcs[ff], flxcube.T, ivarcube.T, np.logical_not(bpmcube.T),
+                        wave, self.output_dir, outfile, whitelight_range=wl_wvrng, overwrite=self.overwrite)
+
         if not self.combine and not self.align:
             return
 
