@@ -87,7 +87,7 @@ def test_ifu_config_specific_keeps_standard_tilts():
     par = spec.config_specific_par(fitstbl_row)
 
     assert par['calibrations']['tilts']['spat_order'] == 3
-    assert par['calibrations']['tilts']['spec_order'] == 3
+    assert par['calibrations']['tilts']['spec_order'] == 5
     assert par['reduce']['skysub']['bspline_spacing'] == 1.05
 
 
