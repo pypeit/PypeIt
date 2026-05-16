@@ -1627,7 +1627,7 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, weight_method=None, save_native=None, combine=None, output_filename=None,
-                 sensfile=None, alignment_method=None, method=None, extract=None,
+                 sensfile=None, alignment_method=None, method=None, extraction=None,
                  reference_image=None, save_whitelight=None, whitelight_range=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
@@ -1650,9 +1650,9 @@ class CubePar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
 
         # Extraction of the cube
-        defaults['extract'] = CubeExtractionPar()
-        dtypes['extract'] = [ ParSet, dict ]
-        descr['extract'] = 'Parameters for cube spectral extraction algorithms'
+        defaults['extraction'] = CubeExtractionPar()
+        dtypes['extraction'] = [ ParSet, dict ]
+        descr['extraction'] = 'Parameters for cube spectral extraction algorithms'
 
         # Cube Parameters
         defaults['slit_spec'] = True
@@ -1898,7 +1898,7 @@ class CubePar(ParSet):
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'sensfile', 'save_native', 'reference_image', 'save_whitelight',
-                   'extract', 'method',
+                   'extraction', 'method',
                    'spec_subpixel', 'spat_subpixel', 'slice_subpixel',
                    'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'alignment_method', 'combine',
@@ -1912,7 +1912,7 @@ class CubePar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
 
-        pk = 'extract'
+        pk = 'extraction'
         kwargs[pk] = CubeExtractionPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
