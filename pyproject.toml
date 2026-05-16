@@ -140,6 +140,7 @@ pypeit_run_to_calibstep = "pypeit.scripts.run_to_calibstep:RunToCalibStep.entry_
 pypeit_reduce_by_step = "pypeit.scripts.reduce_by_step:ReducebyStep.entry_point"
 pypeit_sensfunc = "pypeit.scripts.sensfunc:SensFunc.entry_point"
 pypeit_setup = "pypeit.scripts.setup:Setup.entry_point"
+pypeit_dashboard = "pypeit.scripts.pypeit_dashboard:RunDashboard.entry_point"
 pypeit_setup_coadd2d = "pypeit.scripts.setup_coadd2d:SetupCoAdd2D.entry_point"
 pypeit_show_arxiv = "pypeit.scripts.show_arxiv:ShowArxiv.entry_point"
 pypeit_version = "pypeit.scripts.version:Version.entry_point"
