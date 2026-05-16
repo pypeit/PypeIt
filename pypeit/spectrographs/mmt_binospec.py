@@ -1140,6 +1140,18 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         7993.327, 8465.353, 8885.843, 9502.808
     ])
 
+    # Cosmic-ray cleanup constants for arc/tilt frames.  See
+    # claude_docs/specs/2026-05-15-binospec-arc-lacosmic-residual-design.md.
+    # Row-median subtraction removes the near-horizontal arc/tilt line
+    # signal so the residual is dominated by noise plus CRs; LA Cosmic
+    # then runs without compact-object filtering as a thresholded
+    # high-pass detector that catches trail bodies (which Laplacian S/N
+    # alone misses on raw arc/tilt frames).
+    _ARC_CR_MEDIAN_WIDTH = 51
+    _ARC_CR_SIGCLIP = 10.0
+    _ARC_CR_MAXITER = 2
+    _ARC_CR_GROW = 2.0
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -1304,12 +1316,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         par['calibrations']['flatfield']['slit_trim'] = 0
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False
 
-        # Tilts: linear spatial tilts for block-slits.  Sky blocks are only
-        # ~60 px wide with few arc lines — higher orders over-fit and
-        # introduce spurious curvature that degrades sky subtraction.
-        par['calibrations']['tilts']['spat_order'] = 1
-        par['calibrations']['tilts']['spec_order'] = 3
-
         # Flexure: Binospec has active flexure control, so spectral
         # flexure correction is not needed for IFU mode
         par['flexure']['spec_method'] = 'skip'
@@ -1358,153 +1364,69 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         par['reduce']['slitmask']['assign_obj'] = False
         par['reduce']['slitmask']['extract_missing_objs'] = False
 
-        # Restore the IFU tilt model after the MOS parent sets higher-order
-        # values.  The IFU block slits are narrow enough that higher spatial
-        # orders overfit arc-line centroid noise and create spurious WAVEIMG
-        # curvature, particularly on DET02.
-        par['calibrations']['tilts']['spat_order'] = 1
-        par['calibrations']['tilts']['spec_order'] = 3
+        # Restore the IFU tilt model after the MOS parent overrides it. The IFU fibers
+        # are lined up much more like the long-slit case. The fiber blocks share roughly
+        # the same wavelength solution, but with higher order effects due to optical distortion
+        # and mechanical placement of the fiber heads.
+        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spec_order'] = 5
 
         return par
 
     def clean_calibration_image(self, calib_image, frametype, det):
         """
-        Remove long diagonal cosmic-ray artifacts from Binospec IFU arc/tilt images.
+        Remove bright cosmic-ray artifacts from Binospec IFU arc/tilt images.
 
-        The tilt tracing code uses the pixel values in the processed tilt image
-        directly, so a long CR trail can be mistaken for a tilted arc feature.
-        This targets only DET02 arc/tilt calibrations, where such trails have
-        been observed.
+        Arc and tilt frames are taken as single exposures per observing
+        block and cannot rely on median-combine CR rejection.  Standard
+        LA Cosmic on the raw frame either misses the body of long thin
+        trails (Laplacian S/N is low for non-edge pixels along an
+        extended feature) or masks the arc lines themselves.  Subtracting
+        a row-local median first removes the (near-)horizontal arc/tilt
+        line signal, leaving a residual on which a sigma-clipped LA Cosmic
+        pass cleanly identifies CRs.
         """
-        if frametype not in ['arc', 'tilt'] or det != 2:
+        if frametype not in ('arc', 'tilt'):
             return calib_image
 
-        crmask, replacement = self._long_diagonal_arc_cr_mask(calib_image.image)
+        from scipy import ndimage
+
+        image = calib_image.image
+        replacement = ndimage.median_filter(
+            image, size=(1, self._ARC_CR_MEDIAN_WIDTH), mode='nearest')
+        resid = image - replacement
+
+        if getattr(calib_image, 'ivar', None) is not None:
+            var = utils.inverse(calib_image.ivar)
+        else:
+            var = np.maximum(np.abs(image), 1.0)
+
+        bpm = None
+        fullmask = getattr(calib_image, 'fullmask', None)
+        if fullmask is not None:
+            try:
+                bpm = fullmask.flagged('BPM')
+            except Exception:
+                bpm = None
+
+        crmask = procimg.lacosmic(
+            resid, varframe=var, bpm=bpm,
+            sigclip=self._ARC_CR_SIGCLIP, sigfrac=0.3,
+            objlim=0.0, remove_compact_obj=False,
+            maxiter=self._ARC_CR_MAXITER, grow=self._ARC_CR_GROW,
+        )
         if not np.any(crmask):
             return calib_image
 
         calib_image.image[crmask] = replacement[crmask]
         if hasattr(calib_image, 'update_mask_cr'):
             calib_image.update_mask_cr(crmask)
-        log.info(f"Cleaned {np.sum(crmask)} long diagonal CR pixels from "
-                 f"Binospec IFU {frametype} image on DET{det:02d}")
+        log.info(
+            f"Cleaned {int(crmask.sum())} CR pixels from Binospec IFU "
+            f"{frametype} image on DET{det:02d} "
+            f"(row-median residual + LA Cosmic)."
+        )
         return calib_image
-
-    @staticmethod
-    def _long_diagonal_arc_cr_mask(image, median_width=51, high_sig=40.0,
-                                   low_sig=5.0, min_high=200.0,
-                                   min_length=500.0, min_count=100,
-                                   line_width=3.0, max_gap=75):
-        """
-        Detect a long, non-horizontal high-pass feature in an arc-like image.
-
-        Returns
-        -------
-        crmask : `numpy.ndarray`_
-            Boolean mask selecting the detected CR trail.
-        replacement : `numpy.ndarray`_
-            Row-local median image used to replace masked pixels.
-        """
-        from scipy import ndimage
-
-        crmask = np.zeros(image.shape, dtype=bool)
-        if image.ndim != 2:
-            return crmask, image
-
-        replacement = ndimage.median_filter(
-            image, size=(1, median_width), mode='nearest')
-        resid = image - replacement
-        finite = np.isfinite(resid)
-        if not np.any(finite):
-            return crmask, replacement
-
-        med = np.nanmedian(resid[finite])
-        sigma = 1.4826 * np.nanmedian(np.abs(resid[finite] - med))
-        if not np.isfinite(sigma) or sigma <= 0.0:
-            return crmask, replacement
-
-        high_thresh = max(min_high, med + high_sig * sigma)
-        ypix, xpix = np.nonzero(finite & (resid > high_thresh))
-        if xpix.size < min_count:
-            return crmask, replacement
-
-        slopes = np.concatenate((np.linspace(-2.0, -0.15, 75),
-                                 np.linspace(0.15, 2.0, 75)))
-        best = None
-        bin_width = 2.0
-        for slope in slopes:
-            intercept = ypix - slope * xpix
-            imin = np.floor(intercept.min() / bin_width) * bin_width
-            ibin = np.floor((intercept - imin) / bin_width).astype(int)
-            counts = np.bincount(ibin)
-            for peak in np.where(counts >= min_count)[0]:
-                select = np.where(ibin == peak)[0]
-                xs = xpix[select]
-                ys = ypix[select]
-                order = np.argsort(xs)
-                xs = xs[order]
-                ys = ys[order]
-                groups = np.split(np.arange(xs.size),
-                                  np.where(np.diff(xs) > max_gap)[0] + 1)
-                for group in groups:
-                    if group.size < min_count:
-                        continue
-                    span = np.hypot(xs[group].max() - xs[group].min(),
-                                    ys[group].max() - ys[group].min())
-                    if span < min_length:
-                        continue
-                    score = group.size * span
-                    candidate = (score, slope, imin + (peak + 0.5) * bin_width,
-                                 xs[group].min(), xs[group].max(),
-                                 ys[group].min(), ys[group].max())
-                    if best is None or score > best[0]:
-                        best = candidate
-
-        if best is None:
-            return crmask, replacement
-
-        _, slope, intercept, xlo, xhi, ylo, yhi = best
-        low_thresh = max(30.0, med + low_sig * sigma)
-        low_y, low_x = np.nonzero(finite & (resid > low_thresh))
-        low_near_line = np.abs(low_y - (slope * low_x + intercept)) \
-            / np.sqrt(1.0 + slope**2) <= line_width
-        low_x = low_x[low_near_line]
-        low_y = low_y[low_near_line]
-        if low_x.size == 0:
-            return crmask, replacement
-
-        order = np.argsort(low_x)
-        low_x = low_x[order]
-        low_y = low_y[order]
-        groups = np.split(np.arange(low_x.size),
-                          np.where(np.diff(low_x) > max_gap)[0] + 1)
-        overlap = []
-        for group in groups:
-            gxlo = low_x[group].min()
-            gxhi = low_x[group].max()
-            if gxlo <= xhi and gxhi >= xlo:
-                span = np.hypot(gxhi - gxlo, low_y[group].max() - low_y[group].min())
-                overlap.append((span, group))
-        if len(overlap) == 0:
-            return crmask, replacement
-
-        group = max(overlap, key=lambda item: item[0])[1]
-        xlo = low_x[group].min()
-        xhi = low_x[group].max()
-        ylo = low_y[group].min()
-        yhi = low_y[group].max()
-
-        rows = np.arange(image.shape[0])[:, None]
-        cols = np.arange(image.shape[1])[None, :]
-        distance = np.abs(rows - (slope * cols + intercept)) \
-            / np.sqrt(1.0 + slope**2)
-        crmask = (distance <= line_width) \
-            & (cols >= xlo - 10) & (cols <= xhi + 10) \
-            & (rows >= ylo - 10) & (rows <= yhi + 10) \
-            & (resid > low_thresh)
-        crmask = ndimage.binary_dilation(
-            crmask, structure=np.ones((3, 3), dtype=bool), iterations=1)
-        return crmask, replacement
 
     def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
         """

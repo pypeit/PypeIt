@@ -81,12 +81,12 @@ def test_fiber_position_shift_from_slits():
     assert np.isclose(spec.get_fiber_position_shift(slits, 1), shift)
 
 
-def test_ifu_config_specific_keeps_linear_tilts():
-    """IFU config overrides should not inherit MOS higher-order tilt fits."""
+def test_ifu_config_specific_keeps_standard_tilts():
+    """IFU config overrides should keep the intended tilt fit orders."""
     fitstbl_row = Table({'dispname': ['x270'], 'decker': ['IFU']})
     par = spec.config_specific_par(fitstbl_row)
 
-    assert par['calibrations']['tilts']['spat_order'] == 1
+    assert par['calibrations']['tilts']['spat_order'] == 3
     assert par['calibrations']['tilts']['spec_order'] == 3
     assert par['reduce']['skysub']['bspline_spacing'] == 1.05
 
@@ -223,26 +223,36 @@ def test_profiled_fiber_skymodel_uses_spatial_profile():
     assert np.all(skymodel[:, [0, 4]] == 0.0)
 
 
-def test_long_diagonal_arc_cr_mask():
-    """Long diagonal arc artifacts should be detected without masking arc rows."""
-    rng = np.random.default_rng(1)
+def test_clean_calibration_image_residual_cr():
+    """clean_calibration_image must catch a synthetic diagonal CR
+    without damaging synthetic arc lines."""
+    rng = np.random.default_rng(7)
     image = 10.0 + rng.normal(scale=1.0, size=(120, 160))
     image[35, :] += 500.0
     image[85, :] += 300.0
-
     xs = np.arange(20, 135)
     ys = np.rint(15 + 0.48 * xs).astype(int)
     image[ys, xs] += 1000.0
 
-    crmask, replacement = spec._long_diagonal_arc_cr_mask(
-        image, median_width=21, min_length=50.0, min_count=20)
+    arc_line_pixels = image[[35, 85]].copy()
 
-    assert np.mean(crmask[ys, xs]) > 0.8
-    assert np.sum(crmask[35, :]) < 10
+    bpm_2d = np.zeros(image.shape, dtype=bool)
+    fullmask = SimpleNamespace(flagged=lambda flag: bpm_2d.copy())
+    calib_image = SimpleNamespace(
+        image=image,
+        ivar=None,
+        fullmask=fullmask,
+        update_mask_cr=lambda mask: None,
+    )
 
-    cleaned = image.copy()
-    cleaned[crmask] = replacement[crmask]
-    assert np.nanmedian(cleaned[ys, xs]) < 50.0
+    spec.clean_calibration_image(calib_image, "arc", det=2)
+
+    assert np.nanmedian(calib_image.image[ys, xs]) < 50.0
+    # Arc-line rows are preserved everywhere except where the trail
+    # crosses them (at most a handful of pixels per row).
+    for row, original in zip([35, 85], arc_line_pixels):
+        unchanged = np.isclose(calib_image.image[row, :], original, atol=2.0)
+        assert unchanged.sum() >= original.size - 5
 
 
 def test_identify_fibers_in_block():
