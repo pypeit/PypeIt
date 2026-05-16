@@ -1627,7 +1627,8 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, weight_method=None, save_native=None, combine=None, output_filename=None,
-                 sensfile=None, alignment_method=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
+                 sensfile=None, alignment_method=None, method=None, extract=None,
+                 reference_image=None, save_whitelight=None, whitelight_range=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
@@ -1647,6 +1648,11 @@ class CubePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+
+        # Extraction of the cube
+        defaults['extract'] = CubeExtractionPar()
+        dtypes['extract'] = [ ParSet, dict ]
+        descr['extract'] = 'Parameters for cube spectral extraction algorithms'
 
         # Cube Parameters
         defaults['slit_spec'] = True
@@ -1892,7 +1898,9 @@ class CubePar(ParSet):
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'sensfile', 'save_native', 'reference_image', 'save_whitelight',
-                   'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'extract', 'method',
+                   'spec_subpixel', 'spat_subpixel', 'slice_subpixel',
+                   'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'alignment_method', 'combine',
                    'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar', 'weights_init_obj_pos', 'sn_smooth_npix']
 
@@ -1903,6 +1911,10 @@ class CubePar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+
+        pk = 'extract'
+        kwargs[pk] = CubeExtractionPar.from_dict(cfg[pk]) if pk in k else None
+
         return cls(**kwargs)
 
     def validate(self):
@@ -2071,6 +2083,18 @@ class CubeExtractionPar(ParSet):
         if self.data['opt_prof_method'] not in allowed_opt_prof_methods:
             raise ValueError("'opt_prof_method' must be one of:\n" + ", ".join(allowed_opt_prof_methods))
 
+        # Check that only spatx and spaty are provided for manual extraction
+        if self.data['manual'] is not None:
+            m_es = self.data['manual'].split(';')
+            for m_e in m_es:
+                parse = m_e.split(':')
+                if len(parse) != 2:
+                    raise ValueError("When providing manual extraction parameters, only spatx and spaty can be "
+                                     "provided, and the format must be spatx:spaty. You can also provide a semi-colon "
+                                     "separated list of values if you would like to extract more than one object "
+                                     "(e.g. spatx1:spaty1;spatx2:spaty2). If you wish to also provide "
+                                     "fwhm and boxcar_radius, the format is spatx:spaty:fwhm:boxcar_radius (NOTE: the "
+                                     "fwhm and boxcar_radius parameters are not currently supported).")
 
     @staticmethod
     def valid_opt_prof_methods():
@@ -4413,7 +4437,7 @@ class ReducePar(ParSet):
     """
 
     def __init__(self, findobj=None, skysub=None, extraction=None,
-                 cube=None, cube_extraction=None, trim_edge=None, slitmask=None):
+                 cube=None, trim_edge=None, slitmask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4449,10 +4473,6 @@ class ReducePar(ParSet):
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
         
-        defaults['cube_extraction'] = CubeExtractionPar()
-        dtypes['cube_extraction'] = [ ParSet, dict ]
-        descr['cube_extraction'] = 'Parameters for cube spectral extraction algorithms'
-
         defaults['trim_edge'] = [3, 3]
         dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky subtraction'
@@ -4470,7 +4490,7 @@ class ReducePar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'cube_extraction', 'trim_edge', 'slitmask']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge', 'slitmask']
         badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
@@ -4485,8 +4505,6 @@ class ReducePar(ParSet):
         kwargs[pk] = ExtractionPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'cube'
         kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
-        pk = 'cube_extraction'
-        kwargs[pk] = CubeExtractionPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'slitmask'
         kwargs[pk] = SlitMaskPar.from_dict(cfg[pk]) if pk in k else None
 
