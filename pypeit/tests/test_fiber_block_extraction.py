@@ -244,8 +244,17 @@ def test_clean_calibration_image_residual_cr():
         fullmask=fullmask,
         update_mask_cr=lambda mask: None,
     )
+    process_par = {
+        'cr_median_width': 51,
+        'sigclip': 10.0,
+        'sigfrac': 0.3,
+        'objlim': 0.0,
+        'lamaxiter': 2,
+        'grow': 2.0,
+        'rmcompact': False,
+    }
 
-    spec.clean_calibration_image(calib_image, "arc", det=2)
+    spec.clean_calibration_image(calib_image, "arc", det=2, process_par=process_par)
 
     assert np.nanmedian(calib_image.image[ys, xs]) < 50.0
     # Arc-line rows are preserved everywhere except where the trail

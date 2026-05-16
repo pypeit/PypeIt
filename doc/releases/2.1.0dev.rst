@@ -61,6 +61,14 @@ Instrument-specific Updates
   ~12,500 individual bad pixels, additional bad columns, and detector trap
   region masking from static calibration files.
 
+- Added a Binospec-specific cosmic-ray cleanup for arc and tilt frames
+  (``MMTBINOSPECSpectrograph.clean_calibration_image``) that subtracts a
+  row-local median and runs LA Cosmic on the residual.  This catches the
+  body of extended trails that the standard 3x3 Laplacian misses.  All
+  parameters are exposed via the standard
+  ``[calibrations][arcframe/tiltframe][process]`` blocks; new key
+  ``cr_median_width`` controls the row-median window size (0 disables).
+
 - MMT/Binospec: extended the ``mmt_binospec_1000`` reid_arxiv template redward
   from 6760 Å to 7211 Å to support central wavelengths around 6450 Å.  The
   red extension was wavelength-calibrated from a calibration arc centered at

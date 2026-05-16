@@ -390,7 +390,8 @@ class Calibrations:
                                                     bias=self.msbias, bpm=self.msbpm,
                                                     dark=self.msdark, calib_dir=self.calib_dir,
                                                     setup=setup, calib_id=calib_id)
-        self.msarc = self.spectrograph.clean_calibration_image(self.msarc, 'arc', self.det)
+        self.msarc = self.spectrograph.clean_calibration_image(
+            self.msarc, 'arc', self.det, self.par['arcframe']['process'])
         # Save the result
         self.msarc.to_file()
         # Return it
@@ -444,7 +445,8 @@ class Calibrations:
                                                      dark=self.msdark, slits=self.slits,
                                                      calib_dir=self.calib_dir, setup=setup,
                                                      calib_id=calib_id)
-        self.mstilt = self.spectrograph.clean_calibration_image(self.mstilt, 'tilt', self.det)
+        self.mstilt = self.spectrograph.clean_calibration_image(
+            self.mstilt, 'tilt', self.det, self.par['tiltframe']['process'])
         # Save the result
         self.mstilt.to_file()
         # Return it

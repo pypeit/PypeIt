@@ -199,7 +199,8 @@ Comparison Table
      - ``ivar`` updated for flat noise
      - No error map
    * - Sky subtraction
-     - B-spline weighted by ``ivar``; model ``ivar`` iteratively updated
+     - B-spline weighted by ``ivar``; IFU uses extracted fiber-flat and
+       static illumination corrections before fitting
      - Weighted internally; no error output
    * - Extraction
      - Optimal with model variance; outputs ``ivar``
@@ -255,6 +256,15 @@ IFU Fiber Tracing
    * - Dead fiber handling
      - Excluded during matching (distance set to infinity)
      - Interpolation from reference catalog
+
+For PypeIt Binospec reductions, arc and tilt images on both detectors
+pass through an instrument-specific cleanup that subtracts a row-local
+median and runs LA Cosmic on the residual.  This removes extended
+cosmic-ray trails (including the body of long trails that the standard
+3x3 Laplacian misses) before tilt fitting; such features can otherwise
+drive spurious curvature in the wavelength image.  The cleanup is tuned
+via the standard ``[calibrations][arcframe/tiltframe][process]`` blocks
+(see ``cr_median_width``, ``sigclip``, ``lamaxiter``, ``grow``, etc.).
 
 
 Fiber Identification (IFU)
@@ -355,7 +365,8 @@ IFU
      - PypeIt
      - IDL Pipeline
    * - Strategy
-     - Sky fibers extracted first, throughput-corrected, then B-spline sky model projected to 2D
+     - All fibers are extracted, throughput-corrected, fit with a
+       sky-fiber B-spline model, and subtracted in 1D
      - Dedicated sky fibers with ``resistant_mean`` or B-spline
    * - Sky fibers
      - 40 per side, identified by fiber name (``SKY*``)
@@ -364,7 +375,7 @@ IFU
      - Grating-dependent (1.05/0.50/0.35 Angstrom)
      - Grating-dependent (same values)
    * - Sky line correction
-     - Not explicitly corrected
+     - Not currently applied
      - PSF difference kernel applied (``sigdiff > 0.2`` px)
    * - Flexure
      - Spectral flexure disabled (active flexure control)
@@ -376,21 +387,27 @@ and the same grating-dependent B-spline knot spacing.
 
 In PypeIt, the IFU sky subtraction is handled by
 :class:`~pypeit.find_objects.FiberFindObjects`, which inherits the joint
-sky fitting from :class:`~pypeit.find_objects.SlicerIFUFindObjects`.
+sky fitting framework from :class:`~pypeit.find_objects.SlicerIFUFindObjects`.
 The sky subtraction flow is:
 
-1. Sky fibers (identified by ``FIB_NAME`` prefix ``SKY*``) are extracted
-   first from the sky-subtracted 2D image
-2. Extracted sky spectra are throughput-corrected using per-fiber
-   throughput weights derived from the flat field
-3. A B-spline sky model is fit to the throughput-corrected sky fiber
-   spectra and projected back onto the 2D detector frame
-4. The 2D sky model is subtracted before science fiber extraction
+1. One spectrum is created for each identified fiber.  Flat-derived
+   empirical profiles are used for the sky-subtraction extraction when
+   the processed flat is available; otherwise PypeIt falls back to
+   boxcar extraction.
+2. Extracted spectra are divided by the globally normalized
+   ``FiberFlatImages`` spectrum for that fiber.
+3. For Binospec IFU, the static ``fiber_illumination.fits`` vector is
+   applied as an additional per-fiber throughput divisor.  The DET02
+   vector is mirrored before the fiber-ID lookup to account for the
+   side-B detector/extraction-axis flip.
+4. A B-spline sky model is fit to the throughput-corrected dedicated
+   sky fibers using wavelength plus a low-order spatial coordinate.
+5. The sky model is evaluated and subtracted from all fibers in 1D.
 
-Per-fiber sky fitting initially rejects narrow fibers (~5-6 pixels wide)
-as "bad sky fit"; the ``reduce_bpm`` is then reset before object
-creation so that all fibers remain available for extraction after the
-joint fit across dedicated sky fibers succeeds.
+The spec2d ``SKYMODEL`` frame is a diagnostic reconstruction from the
+1D fiber sky spectra, in the same detector-pixel units as ``SCIIMG``.
+When flat-derived profiles are available, the diagnostic model uses
+those profiles to reproduce the spatial illumination of each fiber.
 
 
 Extraction
@@ -416,16 +433,18 @@ IFU
      - PypeIt
      - IDL Pipeline
    * - Method
-     - Multi-fiber extraction within block-slits; boxcar + optimal (Horne 1986) with flat-derived profiles
+     - Per-fiber boxcar + optimal (Horne 1986) extraction with
+       flat-derived profiles
      - Bounded least-squares (positivity constraint)
    * - Sky subtraction
-     - Global sky model used directly (no local sky)
+     - Global 1D fiber sky model used directly (no local sky)
      - Sky subtracted during linearization
    * - Cross-talk
-     - Handled by simultaneous multi-object profile fitting within blocks
+     - Mitigated by flat-derived profiles, but not solved
+       simultaneously across neighboring fibers
      - Simultaneous multi-fiber solve per block
    * - Profile
-     - Empirical from flat field (median-collapsed); Gaussian fallback
+     - Empirical from flat field, normalized per spectral row
      - Gaussian-Hermite from flat field
    * - Error output
      - Full ``ivar`` per spectral pixel
@@ -433,11 +452,11 @@ IFU
 
 PypeIt's IFU extraction (:class:`~pypeit.extraction.FiberExtract`)
 performs both boxcar and Horne (1986) optimal extraction for each fiber.
-The global sky model is used directly — there is no local sky
+The global fiber sky model is used directly — there is no local sky
 subtraction step.  Spatial profiles are built empirically from the flat
-field by median-collapsing each fiber's cross-section and normalizing to
-unit sum.  If fewer than half the fibers have valid empirical profiles,
-the code falls back to Gaussian profiles.
+field within each fiber aperture and normalized to unit sum per spectral
+row.  If fewer than half the fibers have valid empirical profiles, the
+code falls back to simpler extraction behavior.
 
 The IDL pipeline solves for fiber fluxes simultaneously in blocks using
 bounded least-squares with a positivity constraint.  This naturally
@@ -504,11 +523,15 @@ sky fiber subtraction for IFU mode.  They differ primarily in:
   final cube-building stage
 - **Extraction**: PypeIt uses Horne (1986) optimal extraction with
   empirical profiles for IFU mode; the IDL pipeline uses simultaneous
-  bounded least-squares which models inter-fiber cross-talk
+  bounded least-squares which more explicitly models inter-fiber
+  cross-talk
 - **Scattered light**: PypeIt fits a parametric model per-frame;
   the IDL pipeline samples inter-fiber gaps on a coarse grid
 - **Fiber matching**: Both use the same cross-correlation approach;
   PypeIt adds two-pass iterative matching for displaced fibers and
   sub-pixel position accuracy
+- **Throughput mapping**: PypeIt applies the extracted fiber flat plus
+  the static IDL ``fiber_illumination.fits`` vector, including the
+  side-B mirror mapping needed for DET02
 - **Sky line sharpness**: The IDL pipeline applies a PSF difference
   kernel correction not yet implemented in PypeIt

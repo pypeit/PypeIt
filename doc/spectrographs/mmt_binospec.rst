@@ -53,6 +53,25 @@ hard-coded bad columns previously identified from 2019 flat and bias
 observations.  The mask files are distributed with the package as
 ``static_calibs/mmt_binospec/bpm_binospec_det{1,2}.fits.gz``.
 
+Cosmic-ray cleanup for arc and tilt frames
+++++++++++++++++++++++++++++++++++++++++++
+
+For Binospec arc and tilt calibrations on both detectors, PypeIt applies
+an instrument-specific cosmic-ray cleanup before the wavelength-tilt fit.
+The cleanup subtracts a row-local median (default 51-pixel window along
+the dispersion axis) and runs LA Cosmic on the residual.  This catches
+the body of extended cosmic-ray trails, which standard LA Cosmic's 3x3
+Laplacian structurally cannot see on raw arc images.  Without this
+cleanup, long trails can be mistaken for tilted arc lines and produce
+distorted wavelength images.
+
+The cleanup is tuned via the standard ``[calibrations][arcframe][process]``
+and ``[calibrations][tiltframe][process]`` blocks.  Defaults for Binospec
+are ``cr_median_width=51``, ``sigclip=10``, ``sigfrac=0.3``, ``objlim=0``,
+``lamaxiter=2``, ``grow=2.0``, ``rmcompact=False``.  These can be
+overridden in a user ``.pypeit`` file; setting ``cr_median_width=0``
+disables the cleanup.
+
 IFU Mode
 ========
 
@@ -105,7 +124,7 @@ output file.
 
 The pipeline produces spec1d files containing one extracted spectrum per
 fiber.  Each spectrum is identified by its instrument fiber name (e.g.,
-``SCI1-1``, ``SKY6-1``) via cross-correlation against a reference
+``A1``, ``B1``, ``SKY6-1``) via cross-correlation against a reference
 profile.  Both boxcar (``BOX``) and optimal Horne (1986) (``OPT``)
 extractions are performed.  The spec1d files can be inspected with
 ``pypeit_show_1dspec``.
@@ -119,22 +138,28 @@ extractions are performed.  The spec1d files can be inspected with
 Fiber illumination correction
 +++++++++++++++++++++++++++++
 
-The pipeline applies two levels of fiber-to-fiber throughput correction
-during reduction:
+IFU fiber throughput corrections are applied to extracted 1D spectra,
+not baked into the pixel flat.  During sky subtraction PypeIt:
 
-1. **Dome-flat illumination correction**: The relative throughput from
-   flat field observations is baked into the pixel flat during
-   flat-fielding.
+1. Loads the ``FiberFlatImages`` calibration and divides each fiber
+   spectrum by the globally normalized, wavelength-dependent fiber flat.
 
-2. **Sky-line illumination correction**: During joint sky subtraction,
-   the pipeline measures bright sky emission lines across all fibers
-   to derive a per-fiber throughput correction.  This accounts for the
-   different optical paths of sky fibers (bare fibers) versus science
-   fibers (lenslet-fed), which cannot be fully captured by dome flat
-   illumination alone.
+2. Applies the static ``fiber_illumination.fits`` vector from the
+   Binospec IFU calibration set as an additional per-fiber throughput
+   divisor.
 
-Both corrections are applied automatically by the pipeline and require
-no additional post-processing steps.
+3. Mirrors the side-B (``DET02``) static illumination vector before the
+   fiber-ID lookup, because the IDL calibration vector is stored in the
+   extracted side-B fiber-axis order whereas PypeIt's DET02 reference
+   profile is in detector order.
+
+The sky model is then fit to the flat-corrected dedicated sky fibers and
+subtracted from all fibers in 1D.  The spec2d ``SKYMODEL`` image is a
+diagnostic reconstruction of that 1D model in detector-pixel units,
+using flat-derived spatial profiles when available.
+
+The IDL pipeline also has optional sky-line wavelength and line-spread
+function matching steps.  These are not currently applied by PypeIt.
 
 Producing datacubes
 +++++++++++++++++++
@@ -170,8 +195,8 @@ The script then:
 .. note::
 
    Fiber-to-fiber throughput correction is handled entirely by the
-   pipeline (dome-flat illumination + sky-line correction during sky
-   subtraction).  No additional illumination correction is needed
+   pipeline (extracted fiber flat + static fiber illumination during
+   sky subtraction).  No additional illumination correction is needed
    before building datacubes.  Spectral response (flux calibration)
    from standard star observations is not yet implemented.
 
