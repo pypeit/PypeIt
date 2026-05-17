@@ -83,9 +83,9 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
         # Set the output name. If one was provided by the user 
         if args.save is not None:
-            par['reduce']['cube_extraction']['output_filename'] = args.save
+            par['reduce']['cube']['extraction']['output_filename'] = args.save
         if args.boxcar_radius is not None:
-            par['reduce']['cube_extraction']['boxcar_radius'] = args.boxcar_radius
+            par['reduce']['cube']['extraction']['boxcar_radius'] = args.boxcar_radius
         
         # Load the DataCube
         tstart = time.time()
