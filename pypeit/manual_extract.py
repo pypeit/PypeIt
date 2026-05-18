@@ -83,30 +83,36 @@ class ManualExtractionObj(datamodel.DataContainer):
         Returns:
             ManualExtractionObj:
         """
-        # Generate a dict
-        idict = dict(spat=[], spec=[], detname=[], fwhm=[], neg=[], boxcar_rad=[])
         m_es = inp.split(';')
-        for m_e in m_es:
+
+        # Set up the empty arrays
+        n_m = len(m_es)
+        neg = np.empty(n_m, dtype=bool)
+        detname = np.empty(n_m, dtype=np.dtypes.StringDType)
+        spat = np.empty(n_m, dtype=float)
+        spec = np.empty(n_m, dtype=float)
+        fwhm = np.empty(n_m, dtype=float)
+        boxcar_rad = np.empty(n_m, dtype=float)
+
+        # Loop
+        for i, m_e in enumerate(m_es):
             loc = parse.parse_image_location(m_e, spectrograph)
             if len(loc) not in [5,6]:
                 raise PypeItError('Definition of manual extraction aperture does not have the correct '
                            f'number of parameters: {m_e}.')
 
             # TODO: Why is this spat:spec and not spec:spat like everything else??
-            idict['neg'] += [loc[0]]
-            idict['detname'] += [loc[1]]
-            idict['spat'] += [loc[2]]
-            idict['spec'] += [loc[3]]
-            idict['fwhm'] += [loc[4]]
-            idict['boxcar_rad'] += [loc[5] if len(loc) == 6 else -1.]
+            neg[i] = loc[0]
+            detname[i] = loc[1]
+            spat[i] = loc[2]
+            spec[i] = loc[3]
+            fwhm[i] = loc[4]
+            boxcar_rad[i] = loc[5] if len(loc) == 6 else -1.
                 
         # Build me
-        return cls(frame=frame, spat=np.array(idict['spat']), 
-                   spec=np.array(idict['spec']),
-                   fwhm=np.array(idict['fwhm']),
-                   detname=np.array(idict['detname']),
-                   neg=np.array(idict['neg']),
-                   boxcar_rad=np.array(idict['boxcar_rad']))
+        return cls(
+            frame=frame, spat=spat, spec=spec, fwhm=fwhm, detname=detname, neg=neg, boxcar_rad=boxcar_rad
+        )
 
     def __init__(self, frame=None, spat=None, spec=None, detname=None, 
                  fwhm=None, neg=None, boxcar_rad=None):

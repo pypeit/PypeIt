@@ -1,3 +1,6 @@
+
+.. _keck_hires:
+
 ==========
 Keck HIRES
 ==========
@@ -7,7 +10,7 @@ Overview
 
 This file summarizes several instrument specific settings that are related to the Keck/HIRES spectrograph.
 Currently, PypeIt only supports the reduction of the post detector upgrade HIRES data (around August 2004).
-Information on the frame typing and instrument configuration can be found in ref:`hiresframes` and :ref:`hires_config`.
+Information on the frame typing and instrument configuration can be found in :ref:`hires_frames` and :ref:`hires_config`.
 
 Default Settings
 ----------------

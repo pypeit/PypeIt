@@ -58,6 +58,7 @@ instrument-specific details for running PypeIt.
    shane_kast
    soar_goodman
    subaru_focas
+   vlt_uves
    xshooter
 
 
