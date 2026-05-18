@@ -238,12 +238,16 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 5.0
         par['scienceframe']['process']['objlim'] = 2.0
 
-        # Cosmic-ray cleanup parameters for arc and tilt frames.  These are
-        # consumed by clean_calibration_image, which runs a row-median
-        # subtraction followed by LA Cosmic on the residual to catch the
-        # body of extended trails that the standard 3x3 Laplacian misses.
-        # See claude_docs/specs/2026-05-15-binospec-arc-lacosmic-residual-design.md.
+        # Cosmic-ray cleanup parameters for arc and tilt frames.  Setting
+        # mask_cr=True together with cr_median_width > 1 triggers the
+        # residual-CR path inside PypeItImage.build_crmask
+        # (pypeit.core.procimg.lacosmic_spatial_median_residual): a
+        # row-local median is subtracted and LA Cosmic is run on the
+        # residual, catching extended trails that the standard 3x3
+        # Laplacian misses.  Masked pixels are filled with the row-local
+        # median.
         for _frame in ('arcframe', 'tiltframe'):
+            par['calibrations'][_frame]['process']['mask_cr'] = True
             par['calibrations'][_frame]['process']['cr_median_width'] = 51
             par['calibrations'][_frame]['process']['sigclip'] = 10.0
             par['calibrations'][_frame]['process']['sigfrac'] = 0.3
@@ -332,74 +336,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['coadd2d']['offsets'] = 'maskdef_offsets'
 
         return par
-
-    def clean_calibration_image(self, calib_image, frametype, det, process_par=None):
-        """
-        Remove bright cosmic-ray artifacts from Binospec arc/tilt images.
-
-        Arc and tilt frames are taken as single exposures per observing
-        block and cannot rely on median-combine CR rejection.  Standard
-        LA Cosmic on the raw frame either misses the body of long thin
-        trails (Laplacian S/N is low for non-edge pixels along an
-        extended feature) or masks the arc lines themselves.  Subtracting
-        a row-local median of width ``cr_median_width`` removes the
-        (near-)horizontal arc/tilt line signal, leaving a residual on
-        which a sigma-clipped LA Cosmic pass cleanly identifies CRs.
-
-        All tunables (``cr_median_width``, ``sigclip``, ``sigfrac``,
-        ``objlim``, ``lamaxiter``, ``grow``, ``rmcompact``) are read from
-        ``process_par`` so they can be overridden in user ``.pypeit``
-        files via the standard ``[calibrations][arcframe/tiltframe][process]``
-        blocks.
-        """
-        if frametype not in ('arc', 'tilt') or process_par is None:
-            return calib_image
-
-        median_width = int(process_par['cr_median_width'])
-        if median_width <= 1:
-            return calib_image
-
-        from scipy import ndimage
-
-        image = calib_image.image
-        replacement = ndimage.median_filter(
-            image, size=(1, median_width), mode='nearest')
-        resid = image - replacement
-
-        if getattr(calib_image, 'ivar', None) is not None:
-            var = utils.inverse(calib_image.ivar)
-        else:
-            var = np.maximum(np.abs(image), 1.0)
-
-        bpm = None
-        fullmask = getattr(calib_image, 'fullmask', None)
-        if fullmask is not None:
-            try:
-                bpm = fullmask.flagged('BPM')
-            except Exception:
-                bpm = None
-
-        crmask = procimg.lacosmic(
-            resid, varframe=var, bpm=bpm,
-            sigclip=process_par['sigclip'],
-            sigfrac=process_par['sigfrac'],
-            objlim=process_par['objlim'],
-            remove_compact_obj=process_par['rmcompact'],
-            maxiter=process_par['lamaxiter'],
-            grow=process_par['grow'],
-        )
-        if not np.any(crmask):
-            return calib_image
-
-        calib_image.image[crmask] = replacement[crmask]
-        if hasattr(calib_image, 'update_mask_cr'):
-            calib_image.update_mask_cr(crmask)
-        log.info(
-            f"Cleaned {int(crmask.sum())} CR pixels from Binospec "
-            f"{frametype} image on DET{det:02d} "
-            f"(row-median residual + LA Cosmic)."
-        )
-        return calib_image
 
     def update_edgetracepar(self, par):
         """

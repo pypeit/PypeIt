@@ -223,47 +223,6 @@ def test_profiled_fiber_skymodel_uses_spatial_profile():
     assert np.all(skymodel[:, [0, 4]] == 0.0)
 
 
-def test_clean_calibration_image_residual_cr():
-    """clean_calibration_image must catch a synthetic diagonal CR
-    without damaging synthetic arc lines."""
-    rng = np.random.default_rng(7)
-    image = 10.0 + rng.normal(scale=1.0, size=(120, 160))
-    image[35, :] += 500.0
-    image[85, :] += 300.0
-    xs = np.arange(20, 135)
-    ys = np.rint(15 + 0.48 * xs).astype(int)
-    image[ys, xs] += 1000.0
-
-    arc_line_pixels = image[[35, 85]].copy()
-
-    bpm_2d = np.zeros(image.shape, dtype=bool)
-    fullmask = SimpleNamespace(flagged=lambda flag: bpm_2d.copy())
-    calib_image = SimpleNamespace(
-        image=image,
-        ivar=None,
-        fullmask=fullmask,
-        update_mask_cr=lambda mask: None,
-    )
-    process_par = {
-        'cr_median_width': 51,
-        'sigclip': 10.0,
-        'sigfrac': 0.3,
-        'objlim': 0.0,
-        'lamaxiter': 2,
-        'grow': 2.0,
-        'rmcompact': False,
-    }
-
-    spec.clean_calibration_image(calib_image, "arc", det=2, process_par=process_par)
-
-    assert np.nanmedian(calib_image.image[ys, xs]) < 50.0
-    # Arc-line rows are preserved everywhere except where the trail
-    # crosses them (at most a handful of pixels per row).
-    for row, original in zip([35, 85], arc_line_pixels):
-        unchanged = np.isclose(calib_image.image[row, :], original, atol=2.0)
-        assert unchanged.sum() >= original.size - 5
-
-
 def test_identify_fibers_in_block():
     """Given fiber peak positions within a block, identify each fiber."""
     blocks = spec.get_fiber_blocks(1)

@@ -1410,32 +1410,6 @@ class Spectrograph:
         """
         pass
 
-    def clean_calibration_image(self, calib_image, frametype, det, process_par=None):
-        """
-        Spectrograph-specific cleanup of processed calibration images.
-
-        Called after a calibration image is built and before it is saved to
-        disk. The default implementation does nothing. Override in subclasses
-        to remove instrument-specific artifacts from calibration frames.
-
-        Args:
-            calib_image (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-                Calibration image to modify.
-            frametype (:obj:`str`):
-                Frame type being processed.
-            det (:obj:`int`):
-                1-indexed detector number.
-            process_par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`, optional):
-                Process parameters for this frame type.  Subclasses may read
-                CR-cleanup tunables (``sigclip``, ``lamaxiter``, ``grow``,
-                ``sigfrac``, ``objlim``, ``rmcompact``, ``cr_median_width``)
-                from here.
-
-        Returns:
-            :class:`~pypeit.images.pypeitimage.PypeItImage`: Modified image.
-        """
-        return calib_image
-
     def skyline_illum_correct(self, sciimg, waveimg, slits, slitmask):
         """
         Spectrograph-specific sky-line-based illumination correction.

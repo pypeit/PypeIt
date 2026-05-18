@@ -466,12 +466,14 @@ class ProcessImagesPar(ParSet):
 
         defaults['cr_median_width'] = 0
         dtypes['cr_median_width'] = int
-        descr['cr_median_width'] = 'Width (in pixels, along the dispersion axis) of the ' \
-                                   'row-local median filter applied before running LA Cosmic ' \
-                                   'on the residual.  Used by spectrograph-specific ' \
-                                   'clean_calibration_image hooks (e.g. MMT/Binospec) to ' \
-                                   'subtract arc/tilt line signal so trail bodies become ' \
-                                   'detectable.  0 disables the median pre-step.'
+        descr['cr_median_width'] = 'Width (in pixels, along axis 1) of the row-local ' \
+                                   'median filter applied by build_crmask before running ' \
+                                   'L.A.Cosmic on the residual.  Useful for line-rich ' \
+                                   'frames (e.g. arcs, tilts) where the standard 3x3 ' \
+                                   'Laplacian misses the bodies of extended trails.  ' \
+                                   'Masked pixels are filled with the row-local median.  ' \
+                                   'Only active when mask_cr=True.  Set to 0 (default) to ' \
+                                   'disable; set to an odd integer (e.g. 51) to enable.'
 
 #        defaults['calib_setup_and_bit'] = None
 #        dtypes['calib_setup_and_bit'] = str
