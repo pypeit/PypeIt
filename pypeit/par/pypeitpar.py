@@ -219,6 +219,7 @@ class ProcessImagesPar(ParSet):
                  comb_sigrej=None,
 #                 calib_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
+                 cr_median_width=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  dark_expscale=None, correct_nonlinear=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
@@ -463,6 +464,17 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
+        defaults['cr_median_width'] = 0
+        dtypes['cr_median_width'] = int
+        descr['cr_median_width'] = 'Width (in pixels, along axis 1) of the row-local ' \
+                                   'median filter applied by build_crmask before running ' \
+                                   'L.A.Cosmic on the residual.  Useful for line-rich ' \
+                                   'frames (e.g. arcs, tilts) where the standard 3x3 ' \
+                                   'Laplacian misses the bodies of extended trails.  ' \
+                                   'Masked pixels are filled with the row-local median.  ' \
+                                   'Only active when mask_cr=True.  Set to 0 (default) to ' \
+                                   'disable; set to an odd integer (e.g. 51) to enable.'
+
 #        defaults['calib_setup_and_bit'] = None
 #        dtypes['calib_setup_and_bit'] = str
 #        descr['calib_setup_and_bit'] = 'Over-ride the calibration setup and bit, e.g. "A_7".  ' \
@@ -490,7 +502,7 @@ class ProcessImagesPar(ParSet):
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
-                   'sigclip', 'sigfrac', 'objlim']
+                   'sigclip', 'sigfrac', 'objlim', 'cr_median_width']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

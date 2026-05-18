@@ -301,6 +301,75 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     return grow_mask(crmask, grow) if grow > 0 else crmask
 
 
+def lacosmic_spatial_median_residual(image, median_width, varframe=None, bpm=None,
+                                     sigclip=5.0, sigfrac=0.3, objlim=5.0,
+                                     remove_compact_obj=True, maxiter=1, grow=1.5):
+    r"""
+    Identify cosmic rays by running L.A.Cosmic on the residual obtained
+    by subtracting a row-local median filter from the input image.
+
+    The image is filtered with a 1D median of width ``median_width`` along
+    axis 1 (i.e., ``size=(1, median_width)``), and L.A.Cosmic is run on
+    ``image - median_image``.  This catches the extended bodies of long,
+    narrow CR trails that the standard 3x3 Laplacian misses, while
+    leaving sharp, line-like calibration signal (arc/tilt lines) intact
+    because the moving median subtracts it.
+
+    Like :func:`cr_screen`, the median is taken along axis 1; unlike
+    :func:`cr_screen`, it is a windowed median rather than a single
+    per-row median, so slowly-varying structure along axis 1 is
+    preserved in the residual.
+
+    Args:
+        image (`numpy.ndarray`_):
+            2D image to process.
+        median_width (:obj:`int`):
+            Width of the 1D median window applied along axis 1.  Values
+            of :math:`\leq 1` disable the filter and the function
+            returns an empty CR mask.
+        varframe (`numpy.ndarray`_, optional):
+            Variance frame to pass through to :func:`lacosmic`.  If
+            None, ``numpy.maximum(numpy.abs(image), 1.0)`` is used,
+            providing a conservative shot-noise floor derived from the
+            input image rather than the residual.
+        bpm (`numpy.ndarray`_, optional):
+            Bad-pixel mask to pass through to :func:`lacosmic`.
+        sigclip (:obj:`float`, optional):
+            See :func:`lacosmic`.
+        sigfrac (:obj:`float`, optional):
+            See :func:`lacosmic`.
+        objlim (:obj:`float`, optional):
+            See :func:`lacosmic`.
+        remove_compact_obj (:obj:`bool`, optional):
+            See :func:`lacosmic`.
+        maxiter (:obj:`int`, optional):
+            See :func:`lacosmic`.
+        grow (:obj:`float`, optional):
+            See :func:`lacosmic`.
+
+    Returns:
+        :obj:`tuple`: Two-element tuple ``(crmask, median_image)``.
+        ``crmask`` is a boolean array flagging detected cosmic rays;
+        ``median_image`` is the row-local median filter result, useful
+        for replacing the flagged pixels.  If ``median_width <= 1`` the
+        returned mask is all False and ``median_image`` is a copy of
+        ``image``.
+    """
+    if median_width is None or int(median_width) <= 1:
+        return np.zeros(image.shape, dtype=bool), image.copy()
+    median_image = scipy.ndimage.median_filter(
+        image, size=(1, int(median_width)), mode='nearest')
+    if varframe is None:
+        varframe = np.maximum(np.abs(image), 1.0)
+    crmask = lacosmic(
+        image - median_image, varframe=varframe, bpm=bpm,
+        sigclip=sigclip, sigfrac=sigfrac, objlim=objlim,
+        remove_compact_obj=remove_compact_obj,
+        maxiter=maxiter, grow=grow,
+    )
+    return crmask, median_image
+
+
 def boxcar_fill(img, width, bpm=None, maxiter=None, fill_value=np.nan):
     """
     Use convolution with a boxcar kernel to iteratively fill masked regions of
