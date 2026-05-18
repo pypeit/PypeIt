@@ -169,8 +169,8 @@ def ech_findobj_ineach_order(
     order_vec, spec_min_max, plate_scale_ord,
     det='DET01', inmask=None, std_trace=None, ncoeff=5, 
     hand_extract_dict=None,
-    box_radius=2.0, fwhm=3.0,
-    use_user_fwhm=False, maxdev=2.0, nperorder=2, numiterfit=9,
+    box_radius=2.0, fwhm=3.0,use_user_fwhm=False,
+    maxshift=1.0, maxdev=2.0, nperorder=2, numiterfit=9,
     extract_maskwidth=3.0, snr_thresh=10.0,
     specobj_dict=None, trim_edg=(5,5),
     show_peaks=False, show_single_fits=False,
@@ -259,6 +259,9 @@ def ech_findobj_ineach_order(
             If True, ``PypeIt`` will use the spatial profile FWHM input by the
             user (see ``fwhm``) rather than determine the spatial FWHM from the
             smashed spatial profile via the automated algorithm.
+        maxshift (:obj:`float`, optional):
+            Maximum shift allowed between the input and recalculated
+            centroid (see :func:`~pypeit.core.trace.fit_trace`).
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -334,7 +337,7 @@ def ech_findobj_ineach_order(
                 slit_left[:,iord], slit_righ[:,iord], 
                 spec_min_max=spec_min_max[:,iord],
                 inmask=inmask_iord,std_trace=std_in, 
-                ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
+                ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev, maxshift=maxshift,
                 numiterfit=numiterfit, hand_extract_dict=hand_extract_dict,
                 nperslit=nperorder, extract_maskwidth=extract_maskwidth,
                 snr_thresh=snr_thresh, trim_edg=trim_edg, 
@@ -864,7 +867,8 @@ def ech_pca_traces(
     order_vec:np.ndarray, spec_min_max,
     npca:int=None, coeff_npoly:int=None,
     pca_explained_var:float=99.0, 
-    ncoeff:int=5, maxdev:float=2.0, fwhm:float=3.0,
+    ncoeff:int=5, maxshift:float=1.0,
+    maxdev:float=2.0, fwhm:float=3.0,
     show_trace:bool=False, show_fits:bool=False, 
     show_pca:bool=False):
     """
@@ -913,6 +917,11 @@ def ech_pca_traces(
             directly; see :func:`~pypeit.tracepca.pca_trace_object`.
         ncoeff (:obj:`int`, optional):
             Order of polynomial fit to traces.
+        maxshift (:obj:`float`, optional):
+            Maximum shift in pixels allowed between the original trace and the
+            new trace during the iterative flux-weighted centroiding.  This is
+            used to prevent the traces from jumping to nearby objects during
+            the iterative flux-weighted centroiding.  If None, no limit is applied.
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -976,13 +985,13 @@ def ech_pca_traces(
         inmask_now = inmask & allmask
         xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.logical_not(inmask_now),
                                  trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 debug=show_fits)[0]
+                                 maxshift=maxshift, debug=show_fits)[0]
 
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
         xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.logical_not(inmask_now),
                                  trace_bpm=np.logical_not(trc_inmask), weighting='gaussian', fwhm=fwhm,
-                                 maxdev=maxdev, debug=show_fits)[0]
+                                 maxdev=maxdev, maxshift=maxshift, debug=show_fits)[0]
 
         #TODO  Assign the new traces. Only assign the orders that were not orginally detected and traced. If this works
         # well, we will avoid doing all of the iter_tracefits above to make the code faster.
@@ -1054,8 +1063,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
                 std_trace=None, ncoeff=5, npca=None, 
                 coeff_npoly=None, max_snr=2.0, min_snr=1.0,
                 nabove_min_snr=2, pca_explained_var=99.0, 
-                box_radius=2.0, fwhm=3.0,
-                use_user_fwhm=False, maxdev=2.0, 
+                box_radius=2.0, fwhm=3.0, use_user_fwhm=False,
+                maxshift=1.0, maxdev=2.0,
                 nperorder=2, numiterfit=9,
                 extract_maskwidth=3.0, snr_thresh=10.0,
                 specobj_dict=None, trim_edg=(5,5),
@@ -1196,6 +1205,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
             If True, ``PypeIt`` will use the spatial profile FWHM input by the
             user (see ``fwhm``) rather than determine the spatial FWHM from the
             smashed spatial profile via the automated algorithm.
+        maxshift (:obj:`float`, optional):
+            Maximum shift allowed between the input and recalculated
+            centroid (see :func:`~pypeit.core.trace.fit_trace`).
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -1309,6 +1321,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         fwhm=fwhm,
         use_user_fwhm=use_user_fwhm,
         nperorder=nperorder,
+        maxshift=maxshift,
         maxdev=maxdev,
         numiterfit=numiterfit,
         box_radius=box_radius,
@@ -1353,6 +1366,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         coeff_npoly=coeff_npoly,
         ncoeff=ncoeff, npca=npca,
         pca_explained_var=pca_explained_var,
+        maxshift=maxshift,
         maxdev=maxdev,
         fwhm=fwhm,
         show_trace=show_trace, show_fits=show_fits, 
