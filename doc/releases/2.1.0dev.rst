@@ -25,17 +25,10 @@ Functionality/Performance Improvements and Additions
 - Setup GUI now uses a standard button bar that can be moved.
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
 - Increased default font size for Setup GUI.
-- Added a residual-CR path inside ``PypeItImage.build_crmask``: when
-  ``mask_cr=True`` and ``cr_median_width > 1`` in a frame's process
-  parameters, the image is filtered with a row-local median (along
-  axis 1, ``size=(1, cr_median_width)``) and L.A.Cosmic is run on the
-  residual.  This catches the bodies of long, narrow CR trails that
-  the standard 3x3 Laplacian misses, and is well-suited to line-rich
-  frames such as arcs and tilts.  Masked pixels are filled with the
-  row-local median.  The core algorithm is exposed as
-  :func:`pypeit.core.procimg.lacosmic_spatial_median_residual` and is
-  usable on any frame type via the standard
-  ``[calibrations][...][process]`` or ``[scienceframe][process]`` blocks.
+- Added an optional residual-CR path to L.A.Cosmic-based cosmic-ray
+  rejection, controlled by the new ``cr_median_width`` process
+  parameter.  Useful for line-rich frames with small tilts; see
+  :ref:`image_proc-cr` for details.
 
 Instrument-specific Updates
 ---------------------------

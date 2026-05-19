@@ -469,11 +469,11 @@ class ProcessImagesPar(ParSet):
         descr['cr_median_width'] = 'Width (in pixels, along axis 1) of the row-local ' \
                                    'median filter applied by build_crmask before running ' \
                                    'L.A.Cosmic on the residual.  Useful for line-rich ' \
-                                   'frames (e.g. arcs, tilts) where the standard 3x3 ' \
-                                   'Laplacian misses the bodies of extended trails.  ' \
-                                   'Masked pixels are filled with the row-local median.  ' \
-                                   'Only active when mask_cr=True.  Set to 0 (default) to ' \
-                                   'disable; set to an odd integer (e.g. 51) to enable.'
+                                   'frames with small tilts (e.g. arcs, tilts) where the ' \
+                                   'standard 3x3 Laplacian misses the bodies of extended ' \
+                                   'trails.  Only active when mask_cr=True.  Set to 0 ' \
+                                   '(default) to disable; set to an odd integer (e.g. 31) ' \
+                                   'to enable.'
 
 #        defaults['calib_setup_and_bit'] = None
 #        dtypes['calib_setup_and_bit'] = str
