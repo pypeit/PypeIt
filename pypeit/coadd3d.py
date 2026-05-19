@@ -1533,93 +1533,95 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Register spatial offsets between all frames
         if self.alignment_method == "user":
             # The user has specified offsets - update these values accounting for the difference in header RA/DEC
-            ra_offsets, dec_offsets = datacube.align_user_offsets(self.ifu_ra, self.ifu_dec,
-                                                                  self.ra_offsets, self.dec_offsets)
-        else:
-            # Find the wavelength range where all frames overlap
-            min_wl, max_wl = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),  # The max blue wavelength
-                                                           np.min(self.mnmx_wv[:, :, 1]),  # The min red wavelength
-                                                           self.cubepar['whitelight_range'])  # The user-specified values (if any)
-            # Get the good white light pixels
-            slitid_img_gpm, wavediff = datacube.get_whitelight_pixels(self.all_wave, self.all_slitid, min_wl, max_wl)
-            # Iterate over white light image generation and spatial shifting
-            numiter = 5
-            for dd in range(numiter):
-                log.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
-                # Generate the WCS
-                image_wcs, voxedge, reference_image = \
-                    datacube.create_wcs(self.all_ra, self.all_dec, self.all_wave, slitid_img_gpm, self._dspat, wavediff,
-                                        ra_offsets=ra_offsets, dec_offsets=dec_offsets,
-                                        ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
-                                        dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
-                                        wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
-                                        reference=self.cubepar['reference_image'], collapse=True, equinox=2000.0,
-                                        specname=self.specname)
-                if voxedge[2].size != 2:
-                    raise PypeItError("Spectral range for WCS is incorrect for white light image")
-                
-                wl_imgs, sig_imgs, bpm_imgs = datacube.generate_image_subpixel(
-                    image_wcs, voxedge, self.all_sci, self.all_ivar, self.all_wave,
-                    slitid_img_gpm, self.all_wghts, self.all_wcs,
-                    self.all_tilts, self.all_slits, self.all_align, self.all_dar,
-                    ra_offsets, dec_offsets, spec_subpixel=self.spec_subpixel,
-                    spat_subpixel=self.spat_subpixel, slice_subpixel=self.slice_subpixel)
-                if reference_image is None:
-                    # ref_idx will be the index of the cube with the highest S/N
-                    ref_idx = np.argmax(self.weights)
-                    reference_image = wl_imgs[:, :, ref_idx].copy()
-                    log.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
-                else:
-                    log.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
+            return datacube.align_user_offsets(
+                self.ifu_ra, self.ifu_dec, self.ra_offsets, self.dec_offsets
+            )
 
-                # Calculate the image offsets relative to the reference image
-                if self.alignment_method == 'phase':
-                    for ff in range(self.numfiles):
-                        # Calculate the shift
-                            ra_shift, dec_shift = calculate_image_phase(
-                                reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
-                            # Convert pixel shift to degrees shift
-                            ra_shift *= self._dspat/cosdec
-                            dec_shift *= self._dspat
-                            log.info(
-                                f"Spatial shift of cube #{ff+1}:\n"
-                                f"RA, DEC (arcsec) = {ra_shift*3600.0:+0.3f} E, "
-                                f"{dec_shift*3600.0:+0.3f} N"
-                            )
-                            # Store the shift in the RA and DEC offsets in degrees
-                            ra_offsets[ff] += ra_shift
-                            dec_offsets[ff] += dec_shift
-                elif self.alignment_method == 'fit':
-                    ra_pix_star = np.zeros(self.numfiles)
-                    dec_pix_star = np.zeros(self.numfiles)
-                    for ff in range(self.numfiles):
-                        popt, pcov, model, init_obj_position, flux_opt, sigma_opt = \
-                            datacube.fitGaussian2D(
-                                wl_imgs[:, :, ff], ivar=utils.inverse(np.square(sig_imgs[:,:, ff])),
-                                gpm=np.logical_not(bpm_imgs[:, :, ff]), fwhm=fwhm/dspat, norm=False
-                            )
-                        gaussian_position = popt[1], popt[2]
-                        if show_qa and dd == numiter-1:
-                            datacube.whitelight_objfind_qa(
-                                wl_imgs[:, :, ff], utils.inverse(np.square(sig_imgs[:, :, ff])), 
-                                np.logical_not(bpm_imgs[:, :, ff]), model, gaussian_position, 
-                                init_obj_position, channel_prefix = f'Img_{ff}'
-                            )
-                        ra_pix_star[ff], dec_pix_star[ff] = gaussian_position
+        # Find the wavelength range where all frames overlap
+        min_wl, max_wl = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),  # The max blue wavelength
+                                                       np.min(self.mnmx_wv[:, :, 1]),  # The min red wavelength
+                                                       self.cubepar['whitelight_range'])  # The user-specified values (if any)
+        # Get the good white light pixels
+        slitid_img_gpm, wavediff = datacube.get_whitelight_pixels(self.all_wave, self.all_slitid, min_wl, max_wl)
+        # Iterate over white light image generation and spatial shifting
+        # TODO : Should we add this as a parameter the user can update?
+        numiter = 5
+        for dd in range(numiter):
+            log.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
+            # Generate the WCS
+            image_wcs, voxedge, reference_image = \
+                datacube.create_wcs(self.all_ra, self.all_dec, self.all_wave, slitid_img_gpm, self._dspat, wavediff,
+                                    ra_offsets=ra_offsets, dec_offsets=dec_offsets,
+                                    ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
+                                    dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
+                                    wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
+                                    reference=self.cubepar['reference_image'], collapse=True, equinox=2000.0,
+                                    specname=self.specname)
+            if voxedge[2].size != 2:
+                raise PypeItError("Spectral range for WCS is incorrect for white light image")
 
-                    ra_shifts = (ra_pix_star - ra_pix_star[ref_idx]) * self._dspat / cosdec
-                    dec_shifts = (dec_pix_star - dec_pix_star[ref_idx]) * self._dspat
-                    ra_offsets =[ra_offsets[ff] + ra_shifts[ff] for ff in range(self.numfiles)]
-                    dec_offsets =[dec_offsets[ff] + dec_shifts[ff] for ff in range(self.numfiles)]
-                else:
-                    raise PypeItError(f"self.alignment_method method '{self.alignment_method}' is not supported.")
+            wl_imgs, sig_imgs, bpm_imgs = datacube.generate_image_subpixel(
+                image_wcs, voxedge, self.all_sci, self.all_ivar, self.all_wave,
+                slitid_img_gpm, self.all_wghts, self.all_wcs,
+                self.all_tilts, self.all_slits, self.all_align, self.all_dar,
+                ra_offsets, dec_offsets, spec_subpixel=self.spec_subpixel,
+                spat_subpixel=self.spat_subpixel, slice_subpixel=self.slice_subpixel)
+            if reference_image is None:
+                # ref_idx will be the index of the cube with the highest S/N
+                ref_idx = np.argmax(self.weights)
+                reference_image = wl_imgs[:, :, ref_idx].copy()
+                log.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
+            else:
+                log.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
+            # Calculate the image offsets relative to the reference image
+            if self.alignment_method == 'phase':
                 for ff in range(self.numfiles):
-                    log.info(
-                        f"Spatial shift of cube #{ff + 1}:\n"
-                        f"RA, DEC (arcsec) = {ra_offsets[ff]*3600.0:+0.3f} E, "
-                        f"{dec_offsets[ff]*3600.0:+0.3f} N"
-                    )
+                    # Calculate the shift
+                        ra_shift, dec_shift = calculate_image_phase(
+                            reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
+                        # Convert pixel shift to degrees shift
+                        ra_shift *= self._dspat/cosdec
+                        dec_shift *= self._dspat
+                        log.info(
+                            f"Spatial shift of cube #{ff+1}:\n"
+                            f"RA, DEC (arcsec) = {ra_shift*3600.0:+0.3f} E, "
+                            f"{dec_shift*3600.0:+0.3f} N"
+                        )
+                        # Store the shift in the RA and DEC offsets in degrees
+                        ra_offsets[ff] += ra_shift
+                        dec_offsets[ff] += dec_shift
+            elif self.alignment_method == 'fit':
+                ra_pix_star = np.zeros(self.numfiles)
+                dec_pix_star = np.zeros(self.numfiles)
+                for ff in range(self.numfiles):
+                    popt, pcov, model, init_obj_position, flux_opt, sigma_opt = \
+                        datacube.fitGaussian2D(
+                            wl_imgs[:, :, ff], ivar=utils.inverse(np.square(sig_imgs[:,:, ff])),
+                            gpm=np.logical_not(bpm_imgs[:, :, ff]), fwhm=fwhm/dspat, norm=False
+                        )
+                    gaussian_position = popt[1], popt[2]
+                    if show_qa and dd == numiter-1:
+                        datacube.whitelight_objfind_qa(
+                            wl_imgs[:, :, ff], utils.inverse(np.square(sig_imgs[:, :, ff])),
+                            np.logical_not(bpm_imgs[:, :, ff]), model, gaussian_position,
+                            init_obj_position, channel_prefix = f'Img_{ff}'
+                        )
+                    ra_pix_star[ff], dec_pix_star[ff] = gaussian_position
+
+                ra_shifts = (ra_pix_star - ra_pix_star[ref_idx]) * self._dspat / cosdec
+                dec_shifts = (dec_pix_star - dec_pix_star[ref_idx]) * self._dspat
+                ra_offsets =[ra_offsets[ff] + ra_shifts[ff] for ff in range(self.numfiles)]
+                dec_offsets =[dec_offsets[ff] + dec_shifts[ff] for ff in range(self.numfiles)]
+            else:
+                raise PypeItError(f"self.alignment_method method '{self.alignment_method}' is not supported.")
+
+            for ff in range(self.numfiles):
+                log.info(
+                    f"Spatial shift of cube #{ff + 1}:\n"
+                    f"RA, DEC (arcsec) = {ra_offsets[ff]*3600.0:+0.3f} E, "
+                    f"{dec_offsets[ff]*3600.0:+0.3f} N"
+                )
 
         return ra_offsets, dec_offsets
 
