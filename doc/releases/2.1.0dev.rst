@@ -11,6 +11,8 @@ Documentation Updates
 - Updated the documentation about the use of the mask design file for Gemini/GMOS.
   See the :ref:`gemini_gmos` documentation for details.
 - Updated the Setup GUI tutorial to reflect the new look of the GUI.
+- Modified the ``update_docs`` script to allow the docs to be built without
+  access to ``$PYPEIT_DEV/RAW_DATA``.
 
 Dependency Changes
 ------------------
@@ -46,6 +48,7 @@ Instrument-specific Updates
 
 Script Changes
 --------------
+
 - Removed -G/--gui option from pypeit_obslog.
 
 Testing
@@ -53,7 +56,6 @@ Testing
 
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
-
 
 Under-the-hood Improvements
 ---------------------------
