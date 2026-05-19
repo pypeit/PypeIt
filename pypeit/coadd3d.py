@@ -238,8 +238,8 @@ class DataCube(datamodel.DataContainer):
         
         # Check if the files exist, if so crash out
         file_suffix = (
-            Path(self.filename).name if parset['cube_extraction']['output_filename'] is None
-            else parset['cube_extraction']['output_filename']
+            Path(self.filename).name if parset['cube']['extraction']['output_filename'] is None
+            else parset['cube']['extraction']['output_filename']
         )
         spec1d_filename = _output_dir / f'spec1d_{file_suffix}'
         if spec1d_filename.suffix != '.fits':
@@ -259,8 +259,8 @@ class DataCube(datamodel.DataContainer):
         if out_whitelight.is_file() and not overwrite:
             raise PypeItError(f"{out_whitelight} exists!  Set overwrite=True to overwrite.")
 
-        if parset['cube_extraction']['manual'] is not None and len(parset['cube_extraction']['manual']) > 0:
-            manual_dict= ManualCubeExtractionObj.parse(parset['cube_extraction']['manual']).to_dict()
+        if parset['cube']['extraction']['manual'] is not None and len(parset['cube']['extraction']['manual']) > 0:
+            manual_dict= ManualCubeExtractionObj.parse(parset['cube']['extraction']['manual']).to_dict()
             manual_position = (manual_dict['spatx'][0], manual_dict['spaty'][0])
         else:
             manual_position = None
@@ -271,12 +271,12 @@ class DataCube(datamodel.DataContainer):
         sobjs, spec2d, wl_img, wl_ivar, wl_gpm = datacube.extract_point_source(
             self.wave, self.flux.T, self.ivar.T, self.bpm.T, self._wcs, exptime, 
             fluxed=self.fluxed, min_frac_use=parset['extraction']['min_frac_prof'],
-            whitelight_range=parset['cube_extraction']['whitelight_range'],
-            fwhm=parset['cube_extraction']['fwhm'],
-            skysub_resid=parset['cube_extraction']['skysub_resid'],
-            snr_thresh=parset['cube_extraction']['snr_thresh'], manual_position=manual_position,
-            boxcar_radius=parset['cube_extraction']['boxcar_radius'], 
-            opt_prof_method=parset['cube_extraction']['opt_prof_method'],
+            whitelight_range=parset['cube']['extraction']['whitelight_range'],
+            fwhm=parset['cube']['extraction']['fwhm'],
+            skysub_resid=parset['cube']['extraction']['skysub_resid'],
+            snr_thresh=parset['cube']['extraction']['snr_thresh'], manual_position=manual_position,
+            boxcar_radius=parset['cube']['extraction']['boxcar_radius'], 
+            opt_prof_method=parset['cube']['extraction']['opt_prof_method'],
             spectrograph=self.spectrograph, show_qa=debug
         )
 
@@ -1421,7 +1421,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             if False:
                 # Compute the extinction correction
                 log.info("Applying extinction correction")
-                atmext = self.spec.get_atmospheric_extinction(self.senspar['UVIS']['extinct_file'])
+                atmext = self.spectrograph.get_atmospheric_extinction(self.senspar['UVIS']['extinct_file'])
                 extcorr_sort = atmext.correction_factor(wave_sort, airmass=airmass)
 
             # Correct for sensitivity as a function of grating angle
@@ -1451,7 +1451,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 # Interpolate the sensitivity function onto the wavelength grid of the data
                 # TODO: Change the ['UVIS']['extinct_file'] here when the
                 # sensitivity function calculation is unified.
-                atmext = self.spec.get_atmospheric_extinction(self.senspar['UVIS']['extinct_file'])
+                atmext = self.spectrograph.get_atmospheric_extinction(self.senspar['UVIS']['extinct_file'])
                 sens_sort = flux_calib.get_sensfunc_factor(
                     wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime,
                     delta_wave=dwav_sort, atmext=atmext,
