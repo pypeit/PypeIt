@@ -58,7 +58,7 @@ Cosmic-ray cleanup for arc and tilt frames
 
 For Binospec arc and tilt calibrations on both detectors, PypeIt applies
 an instrument-specific cosmic-ray cleanup before the wavelength-tilt fit.
-The cleanup subtracts a row-local median (default 51-pixel window along
+The cleanup subtracts a row-local median (default 31-pixel window along
 the dispersion axis) and runs LA Cosmic on the residual.  This catches
 the body of extended cosmic-ray trails, which standard LA Cosmic's 3x3
 Laplacian structurally cannot see on raw arc images.  Without this
@@ -67,7 +67,7 @@ distorted wavelength images.
 
 The cleanup is tuned via the standard ``[calibrations][arcframe][process]``
 and ``[calibrations][tiltframe][process]`` blocks.  Defaults for Binospec
-are ``cr_median_width=51``, ``sigclip=10``, ``sigfrac=0.3``, ``objlim=0``,
+are ``cr_median_width=31``, ``sigclip=10``, ``sigfrac=0.3``, ``objlim=0``,
 ``lamaxiter=2``, ``grow=2.0``, ``rmcompact=False``.  These can be
 overridden in a user ``.pypeit`` file; setting ``cr_median_width=0``
 disables the cleanup.

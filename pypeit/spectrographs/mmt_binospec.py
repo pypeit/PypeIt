@@ -248,7 +248,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # median.
         for _frame in ('arcframe', 'tiltframe'):
             par['calibrations'][_frame]['process']['mask_cr'] = True
-            par['calibrations'][_frame]['process']['cr_median_width'] = 51
+            par['calibrations'][_frame]['process']['cr_median_width'] = 31
             par['calibrations'][_frame]['process']['sigclip'] = 10.0
             par['calibrations'][_frame]['process']['sigfrac'] = 0.3
             par['calibrations'][_frame]['process']['objlim'] = 0.0
