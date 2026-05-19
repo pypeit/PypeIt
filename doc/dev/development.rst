@@ -543,27 +543,42 @@ A typical PypeIt development workflow is as follows:
 
             ./pypeit_test all -i shane_kast_blue
 
- * Edit the relevant development log (e.g., ``doc/release/1.14.1dev.rst``) to
-   include your key developments (see :ref:`changelog`) and update the
-   `documentation`_.  You can compile the docs using the ``update_docs`` script
-   in the ``PypeIt`` directory (see below), which is just a simple convenience
-   script for executing ``make clean ; make html`` in the ``doc`` directory.
+ * Edit the relevant development log (e.g., ``doc/release/2.1.0dev.rst``) to
+   include your key developments (see :ref:`changelog`).
+ 
+ * Update the `documentation`_.  There is a convenience script to rebuild the
+   documentation: In the top-level directory of the repo, run
 
    .. code-block:: bash
 
         ./update_docs
 
-   *Any* warnings in the sphinx build of the docs *must* be fixed (i.e.,
-   "warnings" should be considered the same as "errors" in this context).  If
-   you're having difficulty getting the right sphinx/rst incantation, ping the
-   documentation channel in the `PypeIt Developers Slack
-   <https://pypeit.slack.com>`__.  Also note that, even if no warnings are
-   issued, it's useful to check that the documentation formats as you expect.
-   After building the docs, you can open the ``doc/_build/html/index.html`` file
-   to view and navigate through the documentation in its entirety.  Finally note
-   that building the docs requires access to the ``RAW_DATA`` directory in the
-   :ref:`dev-suite`; the data are used to build some of the automatically
-   generated content for the documentation.
+   Some documentation files are build in an automated way to keep them current
+   as the code changes.  To successfully run one of these scripts, 
+   ``$PYPEIT_DEV`` must be an environmental variable that points to the
+   :ref:`dev-suite` such that code can access the ``RAW_DATA`` directory.  If
+   the environmental variable is not defined or the ``RAW_DATA`` directory does
+   not exist, the documentation updating script will skip these automated
+   updates and issue a warning (in yellow).
+   
+   *Any* warnings from sphinx (in red or pink) *must* be fixed (i.e.,
+   "warnings" should be considered the same as "errors" in this context).  The
+   ``update_docs`` script will provide a summary at the end of its execution,
+   letting you know if the build was successful or not.  If you're having
+   difficulty getting the right sphinx/rst incantation, ping the documentation
+   channel in the `PypeIt Developers Slack <https://pypeit.slack.com>`__.  Also
+   note that, even if no warnings are issued, it's useful to check that the
+   documentation formats as you expect.  After building the docs, you can open
+   the ``doc/_build/html/index.html`` file to view and navigate through the
+   documentation in its entirety.
+
+   When debugging the docs, you might also find it useful to skip the scripts
+   that build some of automated files (those that do not require access to the
+   :ref:`dev-suite`).  You can do this by running
+
+   .. code-block:: bash
+
+        cd doc ; make htmlonly ; cd ../
 
  * Make sure all your edits are committed and pushed to your fork:
 
@@ -632,9 +647,7 @@ are as follows:
  * The docstrings for any changes to existing methods that were altered
    must have been modified so that they are up-to-date and accurate.
 
- * The documentation must be successfully recompiled, either using the
-   ``update_docs`` scripts or but running ``make clean ; make html`` in the
-   ``doc/`` directory.
+ * The documentation must be successfully recompiled.
 
  * Spurious commented code used for debugging or testing is fine, but
    please let us know if you want it to be kept by adding a relevant
@@ -688,8 +701,8 @@ follows:
 
         * Update the list of supported versions in the ``SECURITY.md`` file.
 
-        * Update the documentation by executing ``cd doc ; make clean ; make
-          html``, add any updated files, and correct all errors/warnings.
+        * Update the documentation by executing ``./update_docs``, add any
+          updated files, and correct all errors/warnings.
 
  * Once the ``release`` branch and the :ref:`dev-suite` ``main`` branch are
    updated, the dev-suite tests are re-run using these two branches.  These

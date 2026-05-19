@@ -10,12 +10,14 @@ Documentation Updates
 
 - Updated the documentation about the use of the mask design file for Gemini/GMOS.
   See the :ref:`gemini_gmos` documentation for details.
-
 - Updated the Setup GUI tutorial to reflect the new look of the GUI.
+- Modified the ``update_docs`` script to allow the docs to be built without
+  access to ``$PYPEIT_DEV/RAW_DATA``.
 
 Dependency Changes
 ------------------
 
+- Adds support for python 3.14
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
@@ -60,15 +62,13 @@ Instrument-specific Updates
 - Updated the MMT Binospec bad pixel mask to match the IDL pipeline, adding
   ~12,500 individual bad pixels, additional bad columns, and detector trap
   region masking from static calibration files.
-
 - Added a residual-CR path inside ``PypeItImage.build_crmask``: when
   ``mask_cr=True`` and ``cr_median_width > 1`` in a frame's process
   parameters, the image is filtered with a row-local median (along
   axis 1, ``size=(1, cr_median_width)``) and L.A.Cosmic is run on the
   residual.  This catches the bodies of long, narrow CR trails that
   the standard 3x3 Laplacian misses, and is well-suited to line-rich
-  frames such as arcs and tilts.  Masked pixels are filled with the
-  row-local median.  The core algorithm is exposed as
+  frames such as arcs and tilts.  The core algorithm is exposed as
   :func:`pypeit.core.procimg.lacosmic_spatial_median_residual` and is
   usable on any frame type via the standard
   ``[calibrations][...][process]`` or ``[scienceframe][process]`` blocks.
@@ -81,7 +81,6 @@ Instrument-specific Updates
   7067.138 (vacuum); cubic fit RMS = 0.04 Å.  Spliced at 6700 Å using
   :func:`~pypeit.core.wavecal.templates.build_template` with continuum
   subtraction on the new segment.
-
 - Implemented support for VLT/UVES data reduction.
 
 Script Changes
@@ -102,7 +101,6 @@ Testing
 
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
-
 
 Under-the-hood Improvements
 ---------------------------
