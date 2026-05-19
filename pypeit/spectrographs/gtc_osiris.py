@@ -60,21 +60,20 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
-        log.debug("Fix GAIN and RDNOISE for MAAT SIMS")
-        gain = 1.90# if hdu is None else self.get_headarr(hdu)[0]['GAIN']
-        ronoise = 4.3# if hdu is None else self.get_headarr(hdu)[0]['RDNOISE']
+        gain = 1.90 if hdu is None else self.get_headarr(hdu)[0]['GAIN']
+        ronoise = 4.3 if hdu is None else self.get_headarr(hdu)[0]['RDNOISE']
 
         # Detector 1
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 1,  # TODO :: This should be 0... I've adjusted it for the simulated MAAT data
+            dataext         = 0,
             specaxis        = 1,
             specflip        = True,
             spatflip        = False,
             platescale      = 0.125,  # arcsec per pixel
             darkcurr        = 5.0,  #e-/hr/pixel
-            saturation      = 1.0E20, # ADU     # TODO :: This should be 65535... I've adjusted it for the simulated MAAT data
+            saturation      = 65535, # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
             numamplifiers   = 1,
@@ -187,7 +186,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['CCD-SUM'])
+            binspatial, binspec = parse.parse_binning(headarr[0]['CCDSUM'])
             binning = parse.binning2string(binspec, binspatial)[::-1]
             return binning
         elif meta_key == 'pressure':
@@ -213,7 +212,6 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
                 return 20.0
         elif meta_key == 'parangle':
             try:
-                log.debug("Parallactic angle is not available for MAAT - DAR correction may be incorrect")
                 return headarr[0]['PARANG']  # Must be expressed in radians
             except KeyError:
                 log.debug("Parallactic angle is not available for MAAT - DAR correction may be incorrect")
@@ -221,9 +219,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         elif meta_key == 'gain':
-            log.debug("GAIN forced to be one for MAAT sims. UPDATE!!")
-            return 1.9
-            # return headarr[0]['GAIN']
+            return headarr[0]['GAIN']
         elif meta_key == 'slitwid':
             if self.name == "gtc_maat":
                 log.debug("HACK FOR MAAT SIMS --- NEED TO GET SLICER SCALE FROM HEADER, IDEALLY")
@@ -486,7 +482,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
-        function fits will be well behaved. For example, masking second order light. For instruments that don't
+        function fits will be well-behaved. For example, masking second order light. For instruments that don't
         require such tweaks it will just return the inputs, but for instruments that do this function is overloaded
         with a method that performs the tweaks.
 
@@ -501,7 +497,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         gpm_in: `numpy.ndarray`_
             Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
         meta_table: :obj:`dict`
-            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            Table containing metadata that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
         trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
@@ -560,7 +556,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         wave[second_order_region] = 0.0
         counts[second_order_region] = 0.0
         counts_ivar[second_order_region] = 0.0
-        # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
+        # By setting the wavelengths to zero, we guarantee that the sensitivity function will only be computed
         # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
         # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
         gpm[second_order_region] = False
@@ -691,6 +687,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
 
         # Get rotator position
+        # TODO :: This needs to be implemented
         log.warning("HACK FOR MAAT SIMS --- NEED TO FIGURE OUT RPOS and RREF FOR MAAT FROM HEADER INFO")
         if 'ROTPOSN' in hdr:
             rpos = hdr['ROTPOSN']
@@ -725,6 +722,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset
+        # TODO :: This needs to be implemented
         log.warning("HACK FOR MAAT SIMS --- Need to obtain offset from header?")
         off1 = 0.
         off2 = 0.
@@ -736,8 +734,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         # Create a new WCS object.
         log.info("Generating MAAT WCS")
         w = wcs.WCS(naxis=3)
-        log.warning("HACK FOR MAAT SIMS --- Need to obtain EQUINOX from header?")
-        w.wcs.equinox = 2000.0 #hdr['EQUINOX']
+        w.wcs.equinox = hdr['EQUINOX']
         w.wcs.name = 'MAAT'
         w.wcs.radesys = 'FK5'
         # Insert the coordinate frame
