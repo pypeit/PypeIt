@@ -4,6 +4,7 @@ Utility functions for PypeIt parameter sets
 
 .. include:: ../include/links.rst
 """
+import ast
 
 from configobj import ConfigObj
 from IPython import embed
@@ -59,17 +60,36 @@ def recursive_dict_evaluate(d):
             continue
 
         if isinstance(d[k], list) and any(['(' in e for e in d[k]]):
-            # NOTE: This enables syntax for constructing one or more tuples.
+            # NOTE: This enables syntax for constructing one or more tuples,
+            # including mixed lists of plain values and tuples (e.g.,
+            # "detnum = 1,(2,6)").
+            #
+            # First, try reconstructing the full expression and evaluating it
+            # with ast.literal_eval.  This correctly handles mixed cases like
+            # "1,(2,6)" that _eval_iter cannot parse.
+            reconstructed = ','.join(d[k])
             try:
-                d[k] = utils.eval_tuple(d[k])
-            except (PypeItError, SyntaxError) as e:
-                # The tuple evaluation failed.  Assume that this can be handled
-                # later in the code and leave the dictionary element unaltered.
-                # 
-                # SyntaxError is raised for entries that include a tuple for the
-                # mosaic and a series of locations in the mosaiced image, like
-                # add_slits, rm_slits, and manual.
-                pass
+                result = ast.literal_eval(reconstructed)
+            except (ValueError, SyntaxError):
+                # ast.literal_eval failed; fall back to the legacy eval_tuple
+                # approach.
+                try:
+                    d[k] = utils.eval_tuple(d[k])
+                except (PypeItError, SyntaxError):
+                    # The tuple evaluation also failed.  Assume that this can
+                    # be handled later in the code and leave the dictionary
+                    # element unaltered.
+                    #
+                    # SyntaxError is raised for entries that include a tuple
+                    # for the mosaic and a series of locations in the mosaiced
+                    # image, like add_slits, rm_slits, and manual.
+                    pass
+            else:
+                # Wrap plain tuple e.g. "(2,6)" → [(2,6)]; convert nested/mixed
+                # tuple e.g. "(1,5),(2,6)" or "1,(2,6)" to a list.
+                if isinstance(result, tuple):
+                    result = [result] if not any(isinstance(x, tuple) for x in result) else list(result)
+                d[k] = result
             continue
 
         if isinstance(d[k], list):

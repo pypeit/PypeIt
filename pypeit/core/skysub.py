@@ -1416,12 +1416,12 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                         slitids[other_orders], order_vec[other_orders],
                         order_snr[other_orders,ibright], 
                         fwhm_here[other_orders]):
-                        str_out += f'{slit_now:<8d}{order_now:<8d}{snr_now:>10.2f}{fwhm_now:>10.2f}'
+                        str_out += f'{slit_now:<8d}{order_now:<8d}{snr_now:>10.2f}{fwhm_now:>10.2f}\n'
                     log.info(
                         f'\nUsing {fwhm_str} for FWHM of object={uni_objid[iobj]} on slit/order: '
                         f'{iord}/{order}\n{dash_big}\n'
                         f'{"slit":<8s}{"order":<8s}{"SNR":>10s}{"FWHM":>10s}\n{dash_big}\n'
-                        f'{str_out[:-8]}{fwhm_str.upper()}'
+                        f'{str_out[:-8]}{fwhm_str.upper()}'  # TODO : This formatting seems to be incorrect. Why chop off 8 characters from the end?
                         f':{iord:<8d}{order:<8d}{order_snr[iord,ibright]:>10.2f}'
                         f'{fwhm_this_ord:>10.2f}\n{dash_big}'
                     )
