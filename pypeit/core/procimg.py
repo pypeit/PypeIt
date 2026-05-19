@@ -348,26 +348,22 @@ def lacosmic_spatial_median_residual(image, median_width, varframe=None, bpm=Non
             See :func:`lacosmic`.
 
     Returns:
-        :obj:`tuple`: Two-element tuple ``(crmask, median_image)``.
-        ``crmask`` is a boolean array flagging detected cosmic rays;
-        ``median_image`` is the row-local median filter result, useful
-        for replacing the flagged pixels.  If ``median_width <= 1`` the
-        returned mask is all False and ``median_image`` is a copy of
-        ``image``.
+        `numpy.ndarray`_: Boolean array flagging detected cosmic rays
+        (True where a CR was identified).  If ``median_width <= 1`` the
+        returned mask is all False.
     """
     if median_width is None or int(median_width) <= 1:
-        return np.zeros(image.shape, dtype=bool), image.copy()
+        return np.zeros(image.shape, dtype=bool)
     median_image = scipy.ndimage.median_filter(
         image, size=(1, int(median_width)), mode='nearest')
     if varframe is None:
         varframe = np.maximum(np.abs(image), 1.0)
-    crmask = lacosmic(
+    return lacosmic(
         image - median_image, varframe=varframe, bpm=bpm,
         sigclip=sigclip, sigfrac=sigfrac, objlim=objlim,
         remove_compact_obj=remove_compact_obj,
         maxiter=maxiter, grow=grow,
     )
-    return crmask, median_image
 
 
 def boxcar_fill(img, width, bpm=None, maxiter=None, fill_value=np.nan):

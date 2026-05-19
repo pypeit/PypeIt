@@ -345,10 +345,10 @@ class PypeItImage(datamodel.DataContainer):
         which subtracts a row-local median filter along axis 1 before
         running L.A.Cosmic on the residual.  This catches the bodies of
         extended CR trails (and is well-suited to line-rich frames such
-        as arcs and tilts).  In the residual path the masked pixels are
-        also replaced in :attr:`image` with the row-local median, since
-        the median is a natural fill estimate that the algorithm has
-        already computed.
+        as arcs and tilts).  Both paths only set the CR bit in
+        :attr:`fullmask`; :attr:`image` is left unmodified, so downstream
+        consumers must respect the CR flag (e.g., via
+        ``select_flag(flag=['BPM', 'CR'])``) to skip the affected pixels.
 
         The boolean cosmic-ray mask is saved to :attr:`crmask` via
         :meth:`update_mask_cr`.
@@ -398,10 +398,9 @@ class PypeItImage(datamodel.DataContainer):
         if self.is_multidetector:
             # If the object has multiple images, need to flag each image individually
             crmask = np.empty(self.shape, dtype=bool)
-            median_images = [None] * self.shape[0] if use_residual else None
             for i in range(self.shape[0]):
                 if use_residual:
-                    crmask[i], median_images[i] = procimg.lacosmic_spatial_median_residual(
+                    crmask[i] = procimg.lacosmic_spatial_median_residual(
                         use_img[i], median_width, varframe=var[i], bpm=bpm[i],
                         sigclip=par['sigclip'], sigfrac=par['sigfrac'], objlim=par['objlim'],
                         remove_compact_obj=par['rmcompact'],
@@ -414,20 +413,13 @@ class PypeItImage(datamodel.DataContainer):
                         remove_compact_obj=par['rmcompact'],
                         sigclip=par['sigclip'], sigfrac=par['sigfrac'],
                         objlim=par['objlim'])
-            if use_residual:
-                for i in range(self.shape[0]):
-                    mask_i = crmask[i]
-                    if np.any(mask_i):
-                        self.image[i][mask_i] = median_images[i][mask_i]
         else:
             if use_residual:
-                crmask, median_image = procimg.lacosmic_spatial_median_residual(
+                crmask = procimg.lacosmic_spatial_median_residual(
                     use_img, median_width, varframe=var, bpm=bpm,
                     sigclip=par['sigclip'], sigfrac=par['sigfrac'], objlim=par['objlim'],
                     remove_compact_obj=par['rmcompact'],
                     maxiter=par['lamaxiter'], grow=par['grow'])
-                if np.any(crmask):
-                    self.image[crmask] = median_image[crmask]
             else:
                 crmask = procimg.lacosmic(use_img, saturation=saturation, nonlinear=nonlinear,
                                           bpm=bpm, varframe=var, maxiter=par['lamaxiter'],
