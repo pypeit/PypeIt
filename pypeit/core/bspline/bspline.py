@@ -18,7 +18,7 @@ import numpy as np
 from pypeit.core import basis
 from pypeit import datamodel
 
-from pypeit.bspline.util import (
+from pypeit.core.bspline.util import (
     cholesky_band, cholesky_solve, solution_arrays, intrv, bspline_model
 )
 
