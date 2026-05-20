@@ -9676,6 +9676,305 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 
+.. _instr_par-vlt_uves_blue:
+
+VLT VLT_UVES_blue (``vlt_uves_blue``)
+-------------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = vlt_uves_blue
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 600,
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = echelle
+          echelle = True
+          ech_nspec_coeff = 6
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 4.0
+          reid_cont_sub = False
+          cc_shift_range = (-80.0, 80.0)
+          cc_thresh = 0.6
+          cc_local_thresh = 0.25
+          rms_thresh_frac_fwhm = 0.1
+          match_toler = 1.5
+          n_first = 3
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          max_nudge = 0.0
+          dlength_range = 0.25
+          length_range = 0.3
+          add_missed_orders = True
+          overlap = True
+      [[tilts]]
+          tracethresh = 15
+          spec_order = 5
+  [scienceframe]
+      exprng = 30, None,
+      [[process]]
+          overscan_method = median
+          mask_cr = True
+          use_biasimage = False
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 3, 3,
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          sky_sigrej = 4.0
+          global_sky_std = False
+      [[extraction]]
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+
+.. _instr_par-vlt_uves_red:
+
+VLT VLT_UVES_red (``vlt_uves_red``)
+-----------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = vlt_uves_red
+      detnum = (1, 2),
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 120,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 600,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = echelle
+          echelle = True
+          ech_nspec_coeff = 6
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 4.0
+          reid_cont_sub = False
+          cc_shift_range = (-80.0, 80.0)
+          cc_thresh = 0.6
+          cc_local_thresh = 0.25
+          rms_thresh_frac_fwhm = 0.1
+          match_toler = 1.5
+          n_first = 3
+          ech_separate_2d = True
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          max_nudge = 0.0
+          dlength_range = 0.25
+          length_range = 0.3
+          add_missed_orders = True
+          order_width_poly = 4
+          overlap = True
+          mask_off_detector = True
+      [[tilts]]
+          tracethresh = 15
+          spec_order = 5
+  [scienceframe]
+      exprng = 30, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 3, 3,
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          global_sky_std = False
+      [[extraction]]
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_10500_R120000.fits
+          pix_shift_bounds = (-40.0, 40.0)
+  [telluric]
+      resln_frac_bounds = (0.25, 1.25)
+      pix_shift_bounds = (-40.0, 40.0)
+
 .. _instr_par-vlt_xshooter_nir:
 
 VLT XShooter_NIR (``vlt_xshooter_nir``)

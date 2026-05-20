@@ -7,7 +7,6 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   pypeit.bspline
    pypeit.core
    pypeit.display
    pypeit.images
@@ -31,6 +30,7 @@ Submodules
    pypeit.coadd1d
    pypeit.coadd2d
    pypeit.coadd3d
+   pypeit.collate
    pypeit.datamodel
    pypeit.edgetrace
    pypeit.exposure
