@@ -2040,20 +2040,19 @@ class NIRSpecSlitCalibrations(Calibrations):
         # Check internals
         self._chk_set(['det', 'calib_ID', 'user_slits'])
         # Set the frame to use for the BPM
-        frame_file = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
+        cal_file = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
         # Build it
-        _img = self._build_calibimage(frame_file, 'WAVELENGTH', self.user_slits['slit_info'])
+        calImg = self._build_calibimage(cal_file, 'WAVELENGTH', self.user_slits['slit_info'])
 
-        self.msbpm = np.isnan(_img.image).astype(int)
+        flat_file = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
+        flatImg = self._build_calibimage(flat_file, 'SCI', self.user_slits['slit_info'])
+
+        _msbpm = (calImg.image == 0.) | (flatImg.image == 1.)
+        self.msbpm = _msbpm.astype(int)
         # Return
         return self.msbpm
 
     def get_slits(self, force: str = None):
-        """
-        Generate slit traces from the wavelength image / BPM.
-
-        Returns:
-            :class:`~pypeit.slittrace.SlitTraceSet`: The slit traces object.
         """
         # Check for existing data
         if not self._chk_objs(['msbpm']):
@@ -2062,6 +2061,11 @@ class NIRSpecSlitCalibrations(Calibrations):
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
 
+        Generate slit traces from the wavelength image / BPM.
+
+        Returns:
+            :class:`~pypeit.slittrace.SlitTraceSet`: The slit traces object.
+        """
         # Prep
         frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
         trace_files, cal_file, calib_key, setup, calib_id, detname \

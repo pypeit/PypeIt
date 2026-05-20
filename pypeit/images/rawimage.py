@@ -1640,13 +1640,11 @@ class NIRSpecRawImage(RawImage):
             raise PypeItError("Flat fielding desired but not generated/provided.")
 
         # Apply flat-field correction
-        # NOTE: Using flat.flatfield to effectively multiply image*img_scale is
-        # a bit overkill...
         total_flat = flatimages.pixelflat_norm
         self.img_scale = np.expand_dims(utils.inverse(total_flat), 0)
         self.image[0], flat_bpm = flat.flatfield(self.image[0], total_flat)
-        self.rn2img[0], _ = flat.flatfield(self.rn2img[0], total_flat)
-        self.poisson[0], _ = flat.flatfield(self.poisson[0], total_flat)
+        self.rn2img[0], _ = flat.flatfield(self.rn2img[0], np.square(total_flat))
+        self.poisson[0], _ = flat.flatfield(self.poisson[0], np.square(total_flat))
         self.steps[step] = True
         return flat_bpm
 
@@ -1656,27 +1654,19 @@ class NIRSpecRawImage(RawImage):
 
         Wraps :func:`~pypeit.core.procimg.base_variance` and
         :func:`~pypeit.core.procimg.variance_model`.  Unlike the base class,
-        dark current is not included (set to ``None``) because it is already
-        accounted for by the JWST pipeline.  Shot noise is taken from
+        dark current is not included.  Shot noise is taken from
         :attr:`poisson` (the ``VAR_POISSON`` FITS extension scaled to counts²)
         rather than being estimated from the image counts.
 
         Returns:
             `numpy.ndarray`_: The inverse variance of the processed image.
         """
-        # if self.dark is None and self.par['shot_noise']:
-        #     raise PypeItError('Dark image has not been created!  Run build_dark.')
-        # _dark = self.dark if self.par['shot_noise'] else None
+
         _dark = None
         _counts = self.poisson if self.par['shot_noise'] else None
-        # NOTE: self.dark is expected to be in *counts*.  This means that
-        # procimg.base_variance should be called with exptime=None.  If the
-        # exposure time is provided, the units of the dark current are expected
-        # to be in e-/hr!
-        self.base_var = procimg.base_variance(self.rn2img, darkcurr=_dark, #exptime=self.exptime,
-                                              proc_var=self.proc_var, count_scale=self.img_scale)
-        var = procimg.variance_model(self.base_var, counts=_counts, count_scale=self.img_scale,
-                                     noise_floor=self.par['noise_floor'])
+
+        self.base_var = procimg.base_variance(self.rn2img)
+        var = procimg.variance_model(self.base_var, counts=_counts, noise_floor=self.par['noise_floor'])
         return utils.inverse(var)
 
     def trim(self, force=False):
@@ -1709,8 +1699,7 @@ class NIRSpecRawImage(RawImage):
         return super().trim(force=force)
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None,
-                slits=None, dark=None,
-                mosaic=False, slit_slices=None, kludge_err=1, debug=False):
+                slits=None, dark=None, mosaic=False, slit_slices=None, kludge_err=1, debug=False):
         """
         Process JWST NIRSpec data into a :class:`~pypeit.images.pypeitimage.PypeItImage`.
 
@@ -1823,6 +1812,9 @@ class NIRSpecRawImage(RawImage):
         log.info(f'Performing basic image processing on {fname_txt}')
         # TODO: Checking for bit saturation should be done here.
 
+        #  - Convert from rate to counts
+        self.image *= self.exptime
+
         # #   - Convert from ADU to electron counts.
         # if self.par['apply_gain']:
         #     self.apply_gain()
@@ -1845,7 +1837,6 @@ class NIRSpecRawImage(RawImage):
         #     used again when modeling the noise during object extraction.
         self.rn2img = self.build_rn2img()
         self.poisson = self.build_poisson_img()
-        self.proc_var = np.zeros(self.rn2img.shape, dtype=float)
 
         # #   - Subtract the overscan.  Uncertainty from the overscan subtraction
         # #     is added to the variance.
@@ -1961,8 +1952,6 @@ class NIRSpecRawImage(RawImage):
                                               img_scale=_img_scale, detector=_det,
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.name,
-                                              units=None,
-                                              # units='e-',
                                               exptime=self.exptime,
                                               noise_floor=self.par['noise_floor'],
                                               shot_noise=self.par['shot_noise'],

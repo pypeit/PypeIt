@@ -434,8 +434,8 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
     # At instantiaton, the fullmask in self.sciImg is modified
     objFind = instantiate_objfind(sciImg, spectrograph, fitstbl,
                                   par, frames, det, caliBrate,
-                                  bkg_redux,
-                                  find_negative, show=show)
+                                  bkg_redux, find_negative,
+                                  show=show, slit_name=slit_name)
     # Do it
     initial_sky, sobjs_obj = objFind.run(std_trace=std_trace, 
                                          show_peaks=show)

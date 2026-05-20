@@ -529,7 +529,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                 raise PypeItError(f'Could not find file for detector nrs{detectors[i].det} in mosaic with detectors {det}.')
             _hdu = io.fits_open(file_list[indx[0]], ignore_missing_end=True, output_verify='ignore', ignore_blank=True)
             # Raw image
-            raw_img[i] = _hdu[keys[i]].data.astype(float)
+            _img = _hdu[keys[i]].data.astype(float)
+            nofinite = np.logical_not(np.isfinite(_img))
+            _img[nofinite] = 0.0
+            raw_img[i] = _img
             rawdatasec_img[i] = np.zeros_like(raw_img[i], dtype=int) + int(detectors[i].det)
             oscansec_img[i] = np.zeros_like(raw_img[i], dtype=int)
 
