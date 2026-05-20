@@ -593,7 +593,24 @@ class _ExtractGUI:
             self.hex_collection.set_clim(np.percentile(valid, 5),
                                           np.percentile(valid, 95))
         self.hex_collection.set_array(self.fiber_fluxes)
+        if self.extracted_wave is not None:
+            self._apply_spectrum_xlim()
         self.fig.canvas.draw()
+
+    def _apply_spectrum_xlim(self) -> None:
+        """Sync the spectrum axis to the current slider window."""
+        if self.extracted_wave is None:
+            return
+        lo, hi = self.current_wave_min, self.current_wave_max
+        self.ax_spectrum.set_xlim(lo, hi)
+        in_window = ((self.extracted_wave >= lo)
+                     & (self.extracted_wave <= hi))
+        flux = self.extracted_flux[in_window]
+        flux = flux[np.isfinite(flux)]
+        if flux.size:
+            fmin, fmax = float(flux.min()), float(flux.max())
+            pad = 0.05 * (fmax - fmin) if fmax > fmin else max(abs(fmax), 1.0)
+            self.ax_spectrum.set_ylim(fmin - pad, fmax + pad)
 
     def _selected_indices(self) -> np.ndarray:
         mask = self._get_fiber_mask()
@@ -639,6 +656,7 @@ class _ExtractGUI:
         self.ax_spectrum.set_ylabel('Flux')
         self.ax_spectrum.set_title(f'Extracted Spectrum ({idxs.size} fibers)')
         self.ax_spectrum.grid(True, alpha=0.3)
+        self._apply_spectrum_xlim()
         self.fig.canvas.draw()
 
     def _on_save(self, event) -> None:
