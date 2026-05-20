@@ -6,6 +6,7 @@ Module for guiding 1D Wavelength Calibration
 """
 import inspect
 import json
+from multiprocessing.context import assert_spawning
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -831,10 +832,17 @@ class BuildWaveCalib:
                                                   slit=self.slits.slitord_id[slit_idx],
                                                   out_dir=self.qa_path)
                 # Save the wavelength solution fits
-                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx],
-                                   self.slits.slitord_id[slit_idx], self.slits.slitord_txt,
-                                   outfile=outfile_fwhm)
+                # TODO :: REMOVE THIS BEFORE PR MERGE.
+                if True:
+                    fwhmFit = self.wv_calib.fwhm_map[slit_idx]
+                    slits_left = self.slits_left[:,slit_idx]
+                    slits_right = self.slits_right[:,slit_idx]
+                    thisidx = np.round(fwhmFit.xval).astype(int)
+                    slw = [np.median(slits_left[thisidx]), np.median(slits_right[thisidx]-slits_left[thisidx])]
 
+                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx],
+                                   self.slits.slitord_id[slit_idx], self.slits.slitord_txt, slw,
+                                   outfile=outfile_fwhm)
         # Return
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib

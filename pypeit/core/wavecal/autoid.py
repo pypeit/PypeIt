@@ -204,7 +204,7 @@ def arc_fit_qa(waveFit,
     return
 
 
-def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
+def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", slw=None, outfile=None, show_QA=False):
     """
     QA for spectral FWHM fitting
 
@@ -255,6 +255,7 @@ def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
         ax.scatter(fwhmFit.xval[this_fitmask], fwhmFit.yval[this_fitmask], s=50, facecolors=colors[uu], edgecolors='none')
         this_model = fwhmFit.eval(spec_vec, unq[uu]*np.ones(spec_vec.size))
         ax.plot(spec_vec, this_model, color=colors[uu])
+    np.save(outfile.replace('.png', '.npy'), np.transpose((fwhmFit.xval, fwhmFit.yval, slw[0] + slw[1]*fwhmFit.x2)))
     # Finalise the plot details
     mdiff = np.max(model)-np.min(model)
     ymin = np.min(model)-0.5*mdiff
@@ -277,7 +278,7 @@ def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
                                  orientation='vertical',
                                  cmap=cmap,
                                  norm=plt.Normalize(unq[0]-0.5*(unq[1]-unq[0]), unq[-1]+0.5*(unq[-1]-unq[-2])))
-        cbar_labels = [f"{uu:.3f}" for uu in unq]
+        cbar_labels = [f"{uu:.3f}" for uu in slw[0] + unq*slw[1]]
         cbar.set_ticks(unq)
         cbar.ax.set_yticklabels(cbar_labels, fontsize=10)
         cbar.solids.set_edgecolor('black')
