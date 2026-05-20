@@ -368,8 +368,11 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
         # Resize
-        # TODO: Should this be the bpm or *any* flag?
-        gpm = self.mstilt.select_flag(flag='BPM', invert=True) if self.mstilt is not None \
+        # Mask BPM and CR-flagged pixels: when residual CR rejection runs without
+        # filling, CR pixels still carry their original (contaminated) values, so
+        # they must be excluded from tilt centroiding.
+        gpm = self.mstilt.select_flag(flag=['BPM', 'CR'], invert=True) \
+                    if self.mstilt is not None \
                     else np.ones_like(self.slitmask_science, dtype=bool)
         self.shape_science = self.slitmask_science.shape
         self.shape_tilt = self.mstilt.image.shape

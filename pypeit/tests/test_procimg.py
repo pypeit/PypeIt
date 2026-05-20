@@ -155,9 +155,8 @@ def test_lacosmic_spatial_median_residual():
     xs = np.arange(20, 135)
     ys = np.rint(15 + 0.48 * xs).astype(int)
     image[ys, xs] += 1000.0
-    arc_line_pixels = image[[35, 85]].copy()
 
-    crmask, median_image = procimg.lacosmic_spatial_median_residual(
+    crmask = procimg.lacosmic_spatial_median_residual(
         image, median_width=51,
         sigclip=10.0, sigfrac=0.3, objlim=0.0,
         remove_compact_obj=False, maxiter=2, grow=2.0,
@@ -166,24 +165,19 @@ def test_lacosmic_spatial_median_residual():
     # Most of the diagonal trail must be flagged.
     assert crmask[ys, xs].mean() > 0.5, 'Diagonal CR trail not detected.'
 
-    cleaned = image.copy()
-    cleaned[crmask] = median_image[crmask]
-
-    # Trail pixels should drop back to the background after replacement.
-    assert np.nanmedian(cleaned[ys, xs]) < 50.0
-
-    # Arc-line rows preserved everywhere except where the trail crosses.
-    for row, original in zip([35, 85], arc_line_pixels):
-        unchanged = np.isclose(cleaned[row, :], original, atol=2.0)
-        assert unchanged.sum() >= original.size - 5
+    # The bulk of each bright arc row must remain unflagged -- the point of
+    # subtracting the row-local median is to leave arc lines intact.
+    for row in (35, 85):
+        unflagged_frac = float((~crmask[row]).mean())
+        assert unflagged_frac > 0.9, \
+            f'Arc row {row} over-flagged: only {unflagged_frac:.1%} unflagged'
 
 
 def test_lacosmic_spatial_median_residual_disabled():
-    """median_width <= 1 returns an empty mask and a copy of the image."""
+    """median_width <= 1 returns an empty mask."""
     rng = np.random.default_rng(0)
     image = rng.normal(size=(20, 30))
-    crmask, median_image = procimg.lacosmic_spatial_median_residual(image, median_width=1)
+    crmask = procimg.lacosmic_spatial_median_residual(image, median_width=1)
     assert not np.any(crmask)
-    assert np.array_equal(median_image, image)
-    assert median_image is not image
+    assert crmask.shape == image.shape
 

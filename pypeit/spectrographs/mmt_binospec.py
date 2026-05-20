@@ -244,8 +244,9 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # (pypeit.core.procimg.lacosmic_spatial_median_residual): a
         # row-local median is subtracted and LA Cosmic is run on the
         # residual, catching extended trails that the standard 3x3
-        # Laplacian misses.  Masked pixels are filled with the row-local
-        # median.
+        # Laplacian misses.  CR-flagged pixels are masked (CR bit set in
+        # fullmask); image values are unmodified, and downstream tilt and
+        # arc fitting honor the CR flag.
         for _frame in ('arcframe', 'tiltframe'):
             par['calibrations'][_frame]['process']['mask_cr'] = True
             par['calibrations'][_frame]['process']['cr_median_width'] = 31
