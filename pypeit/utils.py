@@ -1309,23 +1309,6 @@ def inverse(array):
     return (array > 0.0) / (np.abs(array) + (array == 0.0))
 
 
-# def calc_ivar(varframe):
-#     """
-# 
-#     Calculate the inverse variance based on the input array
-# 
-#     Wrapper to inverse()
-# 
-#     Args:
-#         varframe (`numpy.ndarray`_):  Variance image
-# 
-#     Returns:
-#         `numpy.ndarray`_:  Inverse variance image
-#     """
-#     # THIS WILL BE DEPRECATED!!
-#     return inverse(varframe)
-
-
 def robust_meanstd(array):
     """
     Determine a robust measure of the mean and dispersion of array
