@@ -1842,7 +1842,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             for ff in range(self.numfiles):
                 outfile = datacube.get_output_filename(
-                    self.scidir, "", self.cubepar['output_filename'], False, idx=ff+1
+                    self.scidir, self.spec2d[ff], self.cubepar['output_filename'], False, idx=ff+1
                 )
                 # Generate the datacube       
                 
