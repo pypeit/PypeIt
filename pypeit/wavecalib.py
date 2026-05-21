@@ -841,7 +841,7 @@ class BuildWaveCalib:
                     slw = [np.median(slits_left[thisidx]), np.median(slits_right[thisidx]-slits_left[thisidx])]
 
                 autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx],
-                                   self.slits.slitord_id[slit_idx], self.slits.slitord_txt, slw,
+                                   self.slits.slitord_id[slit_idx], self.slits.slitord_txt, slw, # TODO :: REMOVE slw before PR merge
                                    outfile=outfile_fwhm)
         # Return
         self.steps.append(inspect.stack()[0][3])
