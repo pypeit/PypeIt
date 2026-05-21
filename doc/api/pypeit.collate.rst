@@ -1,7 +1,7 @@
-pypeit.bitmask module
+pypeit.collate module
 =====================
 
-.. automodule:: pypeit.bitmask
+.. automodule:: pypeit.collate
    :members:
    :private-members:
    :show-inheritance:

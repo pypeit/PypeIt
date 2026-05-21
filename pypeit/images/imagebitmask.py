@@ -3,7 +3,7 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 from pypeit.images.bitmaskarray import BitMaskArray
 
 

@@ -1,7 +1,7 @@
-pypeit.move\_median.mmpy module
+pypeit.core.bspline.util module
 ===============================
 
-.. automodule:: pypeit.move_median.mmpy
+.. automodule:: pypeit.core.bspline.util
    :members:
    :private-members:
    :show-inheritance:

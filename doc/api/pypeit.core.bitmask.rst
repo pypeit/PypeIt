@@ -1,7 +1,7 @@
-pypeit.bspline.util module
+pypeit.core.bitmask module
 ==========================
 
-.. automodule:: pypeit.bspline.util
+.. automodule:: pypeit.core.bitmask
    :members:
    :private-members:
    :show-inheritance:
