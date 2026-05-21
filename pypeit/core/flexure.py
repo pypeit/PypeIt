@@ -1502,4 +1502,4 @@ def calculate_image_offset(im_ref, image, nfit=3):
     # Return the RA and DEC shift, in pixels
     xoff = 1 - (ccorr.shape[0] % 2)  # Need to add 1 for even shaped array
     yoff = 1 - (ccorr.shape[1] % 2)  # Need to add 1 for even shaped array
-    return xoff + popt[1] - ccorr.shape[0]//2, yoff+popt[2] - ccorr.shape[1]//2
+    return xoff + popt[1] - ccorr.shape[0]//2, yoff + popt[2] - ccorr.shape[1]//2

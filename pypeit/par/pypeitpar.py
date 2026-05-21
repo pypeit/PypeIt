@@ -1626,8 +1626,9 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
-                 sensfile=None, register=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
+    def __init__(self, slit_spec=None, weight_method=None, save_native=None, combine=None, output_filename=None,
+                 sensfile=None, alignment_method=None, method=None, extraction=None,
+                 reference_image=None, save_whitelight=None, whitelight_range=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
@@ -1647,6 +1648,11 @@ class CubePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+
+        # Extraction of the cube
+        defaults['extraction'] = CubeExtractionPar()
+        dtypes['extraction'] = [ ParSet, dict ]
+        descr['extraction'] = 'Parameters for cube spectral extraction algorithms'
 
         # Cube Parameters
         defaults['slit_spec'] = True
@@ -1677,13 +1683,10 @@ class CubePar(ParSet):
                         "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
 
 
-        defaults['align'] = False
-        dtypes['align'] = [bool]
-        descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
-                         'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
-                         'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, ' \
-                         'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) ' \
-                         'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
+        defaults['save_native'] = False
+        dtypes['save_native'] = [bool]
+        descr['save_native'] = ('If set to True, PypeIt will write spec3d datacube files for each of the '
+                                'input spec2d files.')
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -1703,20 +1706,24 @@ class CubePar(ParSet):
                             'The sensitivity function file will also be used to correct the relative scales ' \
                             'of the slits.'
 
-        defaults['register'] = 'phase'
-        dtypes['register'] = str
-        options['register'] = CubePar.valid_registration_methods()
-        descr['register'] = (
-            'Method used to register datacubes when coadding.  Must be either "phase" or "fit": '
-            'Setting ``register = phase`` will use a cross-correlation method to determine the '
-            'offsets, where the cross-correlation is always with respect to a reference image.  '
-            'The reference image can either be provided (see the "reference_image" parameter), '
-            'or it will be the whitelight image of the first datacube in the stack.  This method '
-            'uses the scikit-image package, if it is installed; otherwise it will use scipy.  '
-            'Setting ``register = fit`` requires that photutils to be installed.  For each '
+        defaults['alignment_method'] = 'phase'
+        dtypes['alignment_method'] = str
+        options['alignment_method'] = CubePar.valid_alignment_methods()
+        descr['alignment_method'] = (
+            'Whitelight images of all input frames will be generated and spatially aligned using either a '
+            'reference image (see ``reference_image``) or the whitelight '
+            'image of the first spec2d listed in the coadd3d file. This parameter allows you to set the '
+            'method used to spatially align the datacubes. The current allowed options include "none", "phase", '
+            '"fit", and "user". Setting ``alignment_method = phase`` (the default) will use a cross-correlation '
+            'method to determine the offsets, where the cross-correlation is always with respect to a reference '
+            'image. This method uses the scikit-image package, if it is installed; otherwise it will use scipy. '
+            'Setting ``alignment_method = fit`` requires that photutils is installed. For each '
             'datacube being combined, a 2D Gaussian is fit the brightest point-like object found '
-            'in each whitelight image and used to set the registration coordinate.'
-        )
+            'in each whitelight image and used to set the alignment coordinate. Setting ``alignment_method = user`` '
+            'allows the user to specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) '
+            'in the spec2d block of the coadd3d file. See the documentation for examples of this usage. Finally,'
+            'setting ``alignment_method = none`` will turn off the alignment, and use only the world coordinate '
+            'system specified in the input spec2d files.')
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
@@ -1890,9 +1897,11 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'register', 'reference_image', 'save_whitelight',
-                   'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
+        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'save_native', 'reference_image', 'save_whitelight',
+                   'extraction', 'method',
+                   'spec_subpixel', 'spat_subpixel', 'slice_subpixel',
+                   'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'alignment_method', 'combine',
                    'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar', 'weights_init_obj_pos', 'sn_smooth_npix']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -1902,6 +1911,10 @@ class CubePar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+
+        pk = 'extraction'
+        kwargs[pk] = CubeExtractionPar.from_dict(cfg[pk]) if pk in k else None
+
         return cls(**kwargs)
 
     def validate(self):
@@ -1920,11 +1933,11 @@ class CubePar(ParSet):
             raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
 
     @staticmethod
-    def valid_registration_methods():
+    def valid_alignment_methods():
         """
         Return the valid method identifiers for registration
         """
-        return ['phase', 'fit']
+        return ['none', 'user', 'phase', 'fit']
 
 
 
@@ -2070,6 +2083,18 @@ class CubeExtractionPar(ParSet):
         if self.data['opt_prof_method'] not in allowed_opt_prof_methods:
             raise ValueError("'opt_prof_method' must be one of:\n" + ", ".join(allowed_opt_prof_methods))
 
+        # Check that only spatx and spaty are provided for manual extraction
+        if self.data['manual'] is not None:
+            m_es = self.data['manual'].split(';')
+            for m_e in m_es:
+                parse = m_e.split(':')
+                if len(parse) != 2:
+                    raise ValueError("When providing manual extraction parameters, only spatx and spaty can be "
+                                     "provided, and the format must be spatx:spaty. You can also provide a semi-colon "
+                                     "separated list of values if you would like to extract more than one object "
+                                     "(e.g. spatx1:spaty1;spatx2:spaty2). If you wish to also provide "
+                                     "fwhm and boxcar_radius, the format is spatx:spaty:fwhm:boxcar_radius (NOTE: the "
+                                     "fwhm and boxcar_radius parameters are not currently supported).")
 
     @staticmethod
     def valid_opt_prof_methods():
@@ -4412,7 +4437,7 @@ class ReducePar(ParSet):
     """
 
     def __init__(self, findobj=None, skysub=None, extraction=None,
-                 cube=None, cube_extraction=None, trim_edge=None, slitmask=None):
+                 cube=None, trim_edge=None, slitmask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4448,10 +4473,6 @@ class ReducePar(ParSet):
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
         
-        defaults['cube_extraction'] = CubeExtractionPar()
-        dtypes['cube_extraction'] = [ ParSet, dict ]
-        descr['cube_extraction'] = 'Parameters for cube spectral extraction algorithms'
-
         defaults['trim_edge'] = [3, 3]
         dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky subtraction'
@@ -4469,7 +4490,7 @@ class ReducePar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'cube_extraction', 'trim_edge', 'slitmask']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge', 'slitmask']
         badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
@@ -4484,8 +4505,6 @@ class ReducePar(ParSet):
         kwargs[pk] = ExtractionPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'cube'
         kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
-        pk = 'cube_extraction'
-        kwargs[pk] = CubeExtractionPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'slitmask'
         kwargs[pk] = SlitMaskPar.from_dict(cfg[pk]) if pk in k else None
 

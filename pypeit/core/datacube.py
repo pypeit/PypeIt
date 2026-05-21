@@ -838,7 +838,7 @@ def make_good_skymask(slitimg, tilts):
     return gpm
 
 
-def get_output_filename(output_dir, fil, par_outfile, combine, idx=1):
+def get_output_filename(output_dir, fil, par_outfile, combine, native=False, idx=1):
     """
     Get the output filename of a datacube, given the input
 
@@ -852,6 +852,9 @@ def get_output_filename(output_dir, fil, par_outfile, combine, idx=1):
         The user-specified output filename (see cubepar['output_filename'])
     combine : bool
         Should the input frames be combined into a single datacube?
+    native : bool, optional
+        If the cube is saved at the native sampling of the spectrograph,
+        add 'native' to the filename to indicate this.
     idx : int, optional
         Index of filename to be saved. Required if combine=False.
 
@@ -860,15 +863,19 @@ def get_output_filename(output_dir, fil, par_outfile, combine, idx=1):
     str
         The output filename to use.
     """
+    # Perform a check on par_outfile
+    par_outfile = '' if par_outfile is None else par_outfile
+    # Prepare the native text
+    native_txt = '_native' if native else ''
     if combine:
         if par_outfile == '':
             par_outfile = 'datacube.fits'
         # Check if we needs to append an extension
         return par_outfile if '.fits' in par_outfile else f'{par_outfile}.fits'
     if par_outfile == '':
-        return fil.replace('spec2d_', 'spec3d_')
-    # Finally, if nothing else, use the output filename as a prefix, and a numerical suffic
-    return os.path.join(output_dir, os.path.splitext(par_outfile)[0] + f'_{idx:03}.fits')
+        return fil.replace('spec2d_', f'spec3d{native_txt}_')
+    # Finally, if nothing else, use the output filename as a prefix, and a numerical suffix
+    return os.path.join(output_dir, os.path.splitext(par_outfile)[0] + f'{native_txt}_{idx:03}.fits')
 
 
 def get_output_whitelight_filename(output_dir, outfile):
@@ -2345,8 +2352,8 @@ def subpixellate(
                     # Only print this if there are multiple subslices
                     log.info(f"Resampling subslice {ss+1}/{slice_subpixel}")
                 # Generate an RA/Dec image for this subslice
-                raimg, decimg, minmax = this_slits.get_radec_image(this_wcs, this_astrom_trans, this_tilts,
-                                                                   slit_compute=sl, slice_offset=slice_offs[ss])
+                raimg, decimg, delta_pix = this_slits.get_radec_image(this_wcs, this_astrom_trans, this_tilts,
+                                                                      slit_compute=sl, slice_offset=slice_offs[ss])
                 this_ra = raimg[this_onslit_gpm]
                 this_dec = decimg[this_onslit_gpm]
                 # Interpolate the RA/Dec over the subpixel spatial positions
