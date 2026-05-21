@@ -188,6 +188,14 @@ def define_additional_meta(nlamps=20):
                                       comment='Camera (e.g. N1.8/N3.75/N30 for LUCI)'),
                        'camera_pos':dict(dtype=str, comment='Camera position (e.g. LongRed, ShortBlue, '
                                                             'etc for Gemini GNIRS)'),
+                       'pid': dict(dtype=str, comment='Program ID number (for JWST instruments)'),
+                       'obsnum': dict(dtype=str, comment='Observation number (for JWST instruments)'),
+                       'visitnum': dict(dtype=str, comment='Visit number (for JWST instruments)'),
+                       'groupnum': dict(dtype=str, comment='Group number (for JWST instruments, it '
+                                                           'includes visit group, parallel sequence ID, '
+                                                           'and activity number)'),
+                       'expnum': dict(dtype=str, comment='Exposure number (for JWST instruments)'),
+
                        }
 
     for kk in range(nlamps):

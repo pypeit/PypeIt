@@ -7,6 +7,7 @@ import copy
 
 import numpy as np
 from astropy.io import fits
+from astropy.time import Time
 
 from pypeit import log
 from pypeit import PypeItError
@@ -294,6 +295,14 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
+        # Extras for pypeit file
+        self.meta['dateobs'] = dict(card=None, compound=True)
+        self.meta['pid'] = dict(ext=0, card='PROGRAM')
+        self.meta['obsnum'] = dict(ext=0, card='OBSERVTN')
+        self.meta['visitnum'] = dict(ext=0, card='VISIT')
+        self.meta['groupnum'] = dict(card=None, compound=True)
+        self.meta['expnum'] = dict(card=None, compound=True)
+
     def compound_meta(self, headarr, meta_key):
         """
         Methods to generate metadata requiring interpretation of the header
@@ -326,7 +335,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                 return 0
             return round(headarr[0].get('YOFFSET'), 3) if headarr[0].get('YOFFSET') is not None else 0.0
 
-        if meta_key == 'dithpat':
+        elif meta_key == 'dithpat':
             # the dither information is stored in all frame type, but we want it only for science frames
             if fname is not None and '_assign_wcs' not in fname:
                 return None
@@ -357,6 +366,12 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             else:
                 log.warning("Cannot determine idname from header. Setting to None.")
                 return None
+        elif meta_key == 'dateobs':
+            return Time(headarr[0].get('EXPMID'), format='mjd').isot if headarr[0].get('EXPMID') is not None else None
+        elif meta_key == 'groupnum':
+            return f"{headarr[0].get('VISITGRP')}{headarr[0].get('SEQ_ID')}{headarr[0].get('ACT_ID')}" if headarr[0].get('VISITGRP') is not None else None
+        elif meta_key == 'expnum':
+           return f"{int(headarr[0].get('EXPOSURE')):05d}" if headarr[0].get('EXPOSURE') is not None else None
         else:
             raise PypeItError("Not ready for this compound meta")
 
@@ -388,7 +403,8 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         pypeit_keys.remove('airmass')
         pypeit_keys.remove('binning')
-        return pypeit_keys + ['dithpat', 'dithpos', 'dithoff']
+        return pypeit_keys + ['pid', 'obsnum', 'visitnum', 'groupnum', 'expnum',
+            'dateobs', 'dithpat', 'dithpos', 'dithoff']
 
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):

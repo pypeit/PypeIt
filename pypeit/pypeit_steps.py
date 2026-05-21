@@ -511,7 +511,7 @@ def finalize_sky_det(spectrograph, fitstbl, par, frame,
 
     # Get the bkg_redux_global_sky
     bkg_redux_global_sky = None
-    if bkg_redux and bkg_redux_sciimg is not None:
+    if bkg_redux and bkg_redux_sciimg is not None and not par['reduce']['findobj']['skip_skysub']:
         skymask = objFind.create_skymask(all_specobjs_on_det) if skymask is None else skymask
         # DO NOT reinit_bpm, nor update_crmask
         bkg_redux_global_sky = objFind.global_skysub(skymask=skymask,
