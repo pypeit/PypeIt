@@ -69,6 +69,7 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
                            max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp,
                            niter_cont=niter_cont, nonlinear_counts=nonlinear_counts,
                            bpm=bpm, debug=debug_peaks)
+    # NOTE: "wgood" is a list of line indices, NOT a boolean array!
 
     # Good lines
     arcdet = tcent_tot[wgood]

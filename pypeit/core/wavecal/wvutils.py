@@ -317,38 +317,111 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
     return wave_grid, wave_grid_mid, dsamp
 
 
-def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
-                        fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
-                        cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
+def arc_lines_from_spec(
+    spec, sigdetect=10.0, fwhm=4.0, fit_frac_fwhm=1.25, cont_frac_fwhm=1.0, max_frac_fwhm=2.0,
+    cont_samp=30, niter_cont=3, nonlinear_counts=1e10, good_frac=None, fwhm_incr=None,
+    max_good_iter=None, debug=False
+):
     """
-    Simple wrapper to arc.detect_lines.
-    See that code for docs
+    Detect emission lines in an arc spectrum.
 
-    Args:
-        spec:
-        sigdetect:
-        fwhm:
-        fit_frac_fwhm:
-        cont_frac_fwhm:
-        max_frac_fwhm:
-        cont_samp:
-        niter_cont:
-        nonlinear_counts (float, optional):
-            Counts where the arc is presumed to go non-linear
-        debug:
+    This is primarily a wrapper for :func:`~pypeit.core.arc.detect_lines`.
 
-    Returns:
-        tuple: all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub.
-        See arc.detect_lines for details
+    Parameters
+    ----------
+    spec : :class:`numpy.ndarray`
+        1D arc-lamp spectrum
+    sigdetect : float, optional
+        Sigma threshold above fluctuations for arc-line detection.  Arcs are
+        continuum subtracted and the fluctuations are computed after continuum
+        subtraction.
+    fwhm : float, optional
+        Number of pixels per FWHM of the resolution element.
+    fit_frac_fwhm : float, optional
+        Number of pixels that are used in the fits for Gaussian arc line
+        centroiding expressed as a fraction of the fwhm parameter
+    cont_frac_fwhm : float, optional
+        Width used for masking peaks in the spectrum when the continuum is being
+        defined. Expressed as a fraction of the FWHM parameter.
+    max_frac_fwhm:  float, optional
+        Maximum width allowed for usable arc lines expressed relative to the
+        fwhm.
+    cont_samp: float, optional
+        The number of samples across the spectrum used for continuum
+        subtraction. Continuum subtraction is done via median filtering, with a
+        width of ngood/cont_samp, where ngood is the number of good pixels for
+        estimating the continuum (i.e. that don't have peaks).
+    niter_cont: int, optional
+        Number of iterations of peak finding, masking, and continuum fitting
+        used to define the continuum.
+    nonlinear_counts : float, optional
+        Value above which to mask saturated arc lines.
+    good_frac : float, optional
+        :func:`~pypeit.core.arc.detect_lines` returns all peaks detected and a
+        list of those considered to be good detections.  This argument allows
+        you to request the fraction of good detections be above a threshold.  If
+        the initial detection does not meet this threshold, the function will
+        iteratively increase the FWHM (by ``fwhm_incr``) until either this
+        threshold is met or the function hits a maximum number of iterations
+        (``max_good_iter``).  To perform these iterations, you *must* provide
+        ``good_frac``, ``fwhm_incr``, and ``max_good_iter``.
 
+
+    max_good_iter : int, optional
+        S
+
+
+
+    debug: bool, optional
+       Make plots showing results of peak finding and final arc lines that are
+       used.
+
+    Returns
+    -------
+    all_tcent : :class:`numpy.ndarray`
+        Pixel centriods of detected lines.
+    all_ecent : :class:`numpy.ndarray`
+        Errors in pixel centroids
+    cut_tcent : :class:`numpy.ndarray`
+        Centroids with detection thresholds above ``sigdetect``
+    icut : :class:`numpy.ndarray`
+        Vector of indices used to select ``cut_tcent`` from ``all_tcent``.
+    arc_cont_sub : :class:`numpy.ndarray`
+        Continuum-subtracted arc-lamp spectrum.
     """
+    iter_args = [arg is not None for arg in [good_frac, fwhm_incr, max_good_iter]]
+    if any(iter_args) and not all(iter_args):
+        log.warning(
+            'To perform FWHM adjustment iterations when detecting arc lines, the good_frac, '
+            'fwhm_incr, and max_good_iter arguments must *all* be defined.'
+        )
+    if good_frac is not None and not 0. < good_frac < 1.:
+        raise PypeItError('good_frac must be between 0 and 1')
 
     # Find peaks
     tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(
-        spec, sigdetect = sigdetect, fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm,
-        cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm,
-        cont_samp=cont_samp,niter_cont = niter_cont, nonlinear_counts = nonlinear_counts,
-        debug=debug)
+        spec, sigdetect=sigdetect, fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm,
+        cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp,
+        niter_cont=niter_cont, nonlinear_counts=nonlinear_counts, debug=debug
+    )
+
+    if all(iter_args) and len(w)/len(tampl) < good_frac:
+        # Iteratively increase the FWHM in an attempt to improve the line detection
+        for i in range(max_good_iter):
+            _fwhm = fwhm*fwhm_incr**(i+1)
+            tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(
+                spec, sigdetect=sigdetect, fwhm=_fwhm, fit_frac_fwhm=fit_frac_fwhm,
+                cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp,
+                niter_cont=niter_cont, nonlinear_counts=nonlinear_counts, debug=debug
+            )
+            if len(w)/len(tampl) > good_frac:
+                log.info(
+                    f'To acheive a {good_frac} fraction of good lines, increased FWHM to '
+                    f'{_fwhm:.1f} pixels.'
+                )
+                break
+
+    # NOTE: "w" is a list of line indices, NOT a boolean array!
     all_tcent = tcent[w]
     all_ecent = centerr[w]
     all_nsig = nsig[w]
@@ -499,10 +572,11 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, perc
 
 
     # Run line detection to get the locations and amplitudes of the lines
-    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect,
-                                                                                     input_thresh=input_thresh,
-                                                                                     fwhm=fwhm, cont_subtract=cont_sub,
-                                                                                     debug=debug)
+    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(
+        inspec1, sigdetect=sigdetect, input_thresh=input_thresh, fwhm=fwhm, cont_subtract=cont_sub,
+        debug=debug
+    )
+    # NOTE: "w1" is a list of line indices, NOT a boolean array!
 
     ampl = tampl1 if use_raw_arc else tampl1_cont
 
@@ -613,10 +687,11 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
-    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(corr_norm, sigdetect=3.0,
-                                                                                     fit_frac_fwhm=1.5, fwhm=5.0,
-                                                                                     cont_frac_fwhm=1.0, cont_samp=30, 
-                                                                                     nfind=1)
+    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(
+        corr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0, cont_frac_fwhm=1.0, cont_samp=30,
+        nfind=1
+    )
+    # NOTE: "ww" is a list of line indices, NOT a boolean array!
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
     if debug:
@@ -785,7 +860,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
             raise PypeItError('Unrecognized stretch_func')
         result = scipy.optimize.differential_evolution(
                 zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, 
-                bounds=bounds, disp=False, polish=True, seed=seed)
+                bounds=bounds, disp=False, polish=True, rng=seed) #seed=seed)
     except PypeItError:
         log.warning("Differential evolution failed.")
         return 0, None, None, None, None, None, None
