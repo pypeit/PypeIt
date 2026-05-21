@@ -652,8 +652,6 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         dec = self.compound_meta([hdr], 'dec')
 
         skypa = self.compound_meta([hdr], 'posang')
-        #rotoff = 180.0 if hdr['PYP_SPEC'] == 'keck_kcrm' else 0.0 
-        # JFH changed to line above after consulting with R. Cooke 2024-12-21
         rotoff = 0.0  # IFU-SKYPA offset (degrees)
         crota = np.radians(-(skypa + rotoff))
 
