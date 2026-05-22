@@ -122,7 +122,7 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        #self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, float])
+        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, (int, str), str, float])
 
         # Initialize internal attributes
         self.configs = None
@@ -144,10 +144,22 @@ class PypeItMetaData:
             columns (:obj:`list`):
                 List of column names
             types (:obj:`list`):
-                List of types
+                List of types. Each element can be a single type or a tuple/list
+                of types. When a tuple/list is provided, the column is cast to
+                the first type that succeeds; if all attempts fail the last type
+                in the sequence is used as the final fallback.
         """
-        for c,t in zip(columns, types):
-            if c in self.keys():
+        for c, t in zip(columns, types):
+            if c not in self.keys():
+                continue
+            if isinstance(t, (list, tuple)):
+                for _t in t:
+                    try:
+                        self.table[c] = self.table[c].astype(_t)
+                        break
+                    except (ValueError, TypeError):
+                        continue
+            else:
                 self.table[c] = self.table[c].astype(t)
 
     def _vet_instrument(self, meta_tbl):
