@@ -212,6 +212,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     initial_guess = (1, _init_obj_position[0], _init_obj_position[1], fwhm*fwhm2sigma, fwhm*fwhm2sigma, 0, 0)
     bounds = ([0,      _init_obj_position[0]-fwhm/3.0, _init_obj_position[1]-fwhm/3.0, fwhm/6.0, fwhm/6.0, -np.pi, -np.inf],
               [np.inf, _init_obj_position[0]+fwhm/3.0, _init_obj_position[1]+fwhm/3.0, fwhm    , fwhm    , np.pi , np.inf])
+    print(_init_obj_position[0], _init_obj_position[1])
     # Perform the fit
     # TODO :: May want to generate the image on a finer pixel scale first
     # TODO JFH: The 2D Gaussian fitting should be using the noise and the gpm. This should be
@@ -508,14 +509,14 @@ def extract_point_source(
     
     # Object location for extraction 
     if manual_position is not None:
-        xobj, yobj = manual_position  
+        yobj, xobj = manual_position
     else: 
-        xobj, yobj = gaussian_position
+        yobj, xobj = gaussian_position
     
     # Setup the coordinates of the mask
-    x = np.linspace(0, numxx - 1, numxx * subpixel)
     y = np.linspace(0, numyy - 1, numyy * subpixel)
-    xx, yy = np.meshgrid(x, y, indexing='ij')
+    x = np.linspace(0, numxx - 1, numxx * subpixel)
+    yy, xx = np.meshgrid(y, x, indexing='ij')
     
     # Set the radius of the extraction boxcar for the sky determination
     if boxcar_radius is None:
@@ -530,19 +531,19 @@ def extract_point_source(
     
     # Generate a mask
     log.info("Generating an object mask")
-    newshape = (numxx * subpixel, numyy * subpixel)
+    newshape = (numyy * subpixel, numxx * subpixel)
     mask = np.zeros(newshape)
     ww = np.where((np.sqrt((xx - xobj) ** 2 + (yy - yobj) ** 2) < wid))
     mask[ww] = 1
-    mask = utils.rebinND(mask, (numxx, numyy)).reshape(numxx, numyy, 1)
+    mask = utils.rebinND(mask, (numyy, numxx)).reshape(1, numyy, numxx)
 
     # Generate a sky mask
     log.info("Generating a sky mask")
-    newshape = (numxx * subpixel, numyy * subpixel)
+    newshape = (numyy * subpixel, numxx * subpixel)
     smask = np.zeros(newshape)
     ww = np.where((np.sqrt((xx - xobj) ** 2 + (yy - yobj) ** 2) < widsky))
     smask[ww] = 1
-    smask = utils.rebinND(smask, (numxx, numyy)).reshape(numxx, numyy, 1)
+    smask = utils.rebinND(smask, (numyy, numxx)).reshape(1, numyy, numxx)
     # Subtract off the object mask region, so that we just have an annulus around the object
     smask -= mask
 
@@ -551,12 +552,12 @@ def extract_point_source(
         # Subtract the residual sky from the datacube
         skymask = np.logical_not(bpmcube) * smask
         skycube = _flxcube * skymask
-        skyspec = skycube.sum(axis=(0,1))
-        nrmsky = skymask.sum(axis=(0,1))
+        skyspec = skycube.sum(axis=(1,2))
+        nrmsky = skymask.sum(axis=(1,2))
         skyspec *= utils.inverse(nrmsky)
-        _flxcube -= skyspec.reshape((1, 1, numwave))
+        _flxcube -= skyspec.reshape((numwave, 1, 1))
         # Now subtract the residual sky from the white light image
-        sky_val = np.sum(wl_img[:, :, np.newaxis] * smask) / np.sum(smask)
+        sky_val = np.sum(wl_img[np.newaxis, :, :] * smask) / np.sum(smask)
         wl_img -= sky_val
     else: 
         log.info("The residual sky will not be subtracted")
@@ -565,16 +566,16 @@ def extract_point_source(
     log.info("Extracting a boxcar spectrum of datacube")
     # Construct an image that contains the fraction of flux included in the
     # boxcar extraction at each wavelength interval
-    norm_flux = wl_img[:,:,np.newaxis] * mask
+    norm_flux = wl_img[np.newaxis,:,:] * mask
     norm_flux /= np.sum(norm_flux)
     # Extract boxcar
     cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
-    flxscl = (norm_flux * cntmask).sum(axis=(0,1))  # This accounts for the flux that is missing due to masked pixels
+    flxscl = (norm_flux * cntmask).sum(axis=(1,2))  # This accounts for the flux that is missing due to masked pixels
     scimask = _flxcube * cntmask
     varmask = _varcube * cntmask**2
     nrmcnt = utils.inverse(flxscl)
-    box_flux = scimask.sum(axis=(0,1)) * nrmcnt
-    box_var = varmask.sum(axis=(0,1)) * nrmcnt**2
+    box_flux = scimask.sum(axis=(1,2)) * nrmcnt
+    box_var = varmask.sum(axis=(1,2)) * nrmcnt**2
     box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
 
     # Store the BOXCAR extraction information
@@ -602,8 +603,8 @@ def extract_point_source(
     # can be applied.
 
     # Setup the coordinates
-    x = np.linspace(0, wl_img.shape[1] - 1, wl_img.shape[1])
-    y = np.linspace(0, wl_img.shape[0] - 1, wl_img.shape[0])
+    x = np.linspace(0, wl_img.shape[0] - 1, wl_img.shape[0])
+    y = np.linspace(0, wl_img.shape[1] - 1, wl_img.shape[1])
     xx, yy = np.meshgrid(x, y, indexing='ij')
 
     if opt_prof_method == 'user_gauss':
@@ -617,7 +618,7 @@ def extract_point_source(
         sigma_x, sigma_y = fwhm_pix*fwhm2sigma, fwhm_pix*fwhm2sigma
         theta, offset, = 0.0, 0.0
         optkern = gaussian2D(
-            (xx, yy), intflux, xobj, yobj, sigma_x, sigma_y, theta, offset).reshape(wl_img.shape)
+            (yy, xx), intflux, xobj, yobj, sigma_x, sigma_y, theta, offset).reshape(wl_img.shape)
         # Normalise the kernel
         optkern /= np.sum(optkern)
     elif opt_prof_method == 'fit_gauss':
@@ -644,7 +645,7 @@ def extract_point_source(
         optkern = apo_smooth_wl_img/np.sum(apo_smooth_wl_img)
 
 
-    optkern_masked = optkern * mask[:,:,0]
+    optkern_masked = optkern * mask[0,:,:]
     # Normalise the white light image
     optkern_masked /= np.sum(optkern_masked)
     asrt = np.argsort(optkern_masked, axis=None)
@@ -659,11 +660,11 @@ def extract_point_source(
     objprof = optkern_masked[np.unravel_index(objprof_idx, optkern.shape)]
 
     # Now slice the datacube and inverse variance cube into a 2D array
-    spat, spec = np.meshgrid(objprof_idx, np.arange(numwave), indexing='ij')
+    spec, spat = np.meshgrid(np.arange(numwave), objprof_idx, indexing='ij')
     spatspl = np.apply_along_axis(np.unravel_index, 1, spat, optkern.shape)
     # Now slice the datacube and corresponding cubes/vectors into a series of 2D arrays
     numspat = objprof_idx.size
-    flxslice = (spec, spatspl[:,1,:], spatspl[:,0,:])
+    flxslice = (spec, spatspl[:,0,:], spatspl[:,1,:])
     flxcube2d = _flxcube[flxslice]
     ivarcube2d = _ivarcube[flxslice]
     gpmcube2d = np.logical_not(bpmcube[flxslice])
@@ -689,7 +690,7 @@ def extract_point_source(
     if fluxed:
         sobj.OPT_FLAM = sobj.OPT_COUNTS
         sobj.OPT_FLAM_SIG = sobj.OPT_COUNTS_SIG
-        sobj.OPT_FLAM_IVAR = sobj.OPT_COUNTS_IVAR
+        sobj.OPT_FLAM_IVAR = sobj.OPT_COUNTS_IVARf
 
     # Make a specobjs object
     sobjs = specobjs.SpecObjs()
@@ -724,8 +725,8 @@ def extract_point_source(
     )
 
     if show_qa: 
-        #  Show object finding QA 
-        whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, model, gaussian_position, init_obj_position, 
+        #  Show object finding QA
+        whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, model, gaussian_position, init_obj_position,
                           manual_position=manual_position)
         # Show the extraction QA
         extract_chname = 'opt_prof_method:' + opt_prof_method
