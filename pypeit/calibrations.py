@@ -1885,6 +1885,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         pypeitImage = pypeitimage.PypeItImage(image,det_img=det_img,detector=_detector,
                                               PYP_SPEC=self.spectrograph.name,
                                               exptime=exptime,
+                                              bpm=self.msbpm.astype(bool) if self.msbpm is not None else None,
                                               filename=','.join(cal_files))
         pypeitImage.rawheadlist = self.spectrograph.get_headarr([hdu[_keys[0]]])
         pypeitImage.process_steps = steps
@@ -1937,6 +1938,8 @@ class NIRSpecSlitCalibrations(Calibrations):
             if self.par['wavelengths']['redo_slits'] is None:
                 self.wvcalib_state(cal_file)
                 return self.wv_calib
+
+        log.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
 
         wave_files = self.spectrograph.group_rawfiles(wave_files, self.det)[0]
         waveimg = self._build_calibimage(wave_files, 'WAVELENGTH', self.user_slits['slit_info'])
@@ -1999,6 +2002,7 @@ class NIRSpecSlitCalibrations(Calibrations):
             # self.slits.mask_wavetilts(self.wavetilts)
             return self.wavetilts
 
+        log.info(f'Preparing a {wavetilts.WaveTilts.calib_type} calibration frame.')
         # get gpm
         gpm = self.wv_calib.waveimg != 0
         wave_min = np.min(self.wv_calib.waveimg[gpm])
@@ -2039,12 +2043,15 @@ class NIRSpecSlitCalibrations(Calibrations):
         """
         # Check internals
         self._chk_set(['det', 'calib_ID', 'user_slits'])
+
+        log.info(f'Loading bad pixel mask image.')
+
         # Set the frame to use for the BPM
         cal_file = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
         # Build it
         calImg = self._build_calibimage(cal_file, 'WAVELENGTH', self.user_slits['slit_info'])
 
-        flat_file = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
+        flat_file = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('pixelflat', calib_ID=self.calib_ID), self.det)[0]
         flatImg = self._build_calibimage(flat_file, 'SCI', self.user_slits['slit_info'])
 
         _msbpm = (calImg.image == 0.) | (flatImg.image == 1.)
@@ -2082,15 +2089,21 @@ class NIRSpecSlitCalibrations(Calibrations):
             #     self.slits.user_mask(detname, self.user_slits)
             return self.slits
 
+        log.info(f'Preparing {edgetrace.EdgeTraceSet.calib_type} and {slittrace.SlitTraceSet.calib_type} calibration frames.')
+
         trace_files = self.spectrograph.group_rawfiles(trace_files, self.det)[0]
         _traceImage = self._build_calibimage(trace_files, 'SCI', self.user_slits['slit_info'])
-        _traceImage.update_mask('BPM', self.msbpm)
         traceImage = buildimage.TraceImage.from_pypeitimage(_traceImage)
         traceImage.set_paths(self.calib_dir, setup, calib_id, detname)
         traceImage.calib_key = calib_key
 
         edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
                                         qa_path=self.qa_path, auto=False)
+
+        log.info('-'*50)
+        log.info(f'{"Edge Tracing specific for JWST NIRSpec":^50}')
+        log.info('-'*50)
+
         edges._reinit_trace_data()
 
         # Get the slit mask
@@ -2140,22 +2153,18 @@ class NIRSpecSlitCalibrations(Calibrations):
             edges.edge_cen[:, i] = slit_mask
             edges.edge_fit[:, i] = slit
             edges.edge_msk[bad_for_slit, i] = edges.bitmask.turn_on(edges.edge_msk[bad_for_slit, i], 'NOEDGE')
-            edges.edge_msk[np.logical_not(pypeitFit.bool_gpm), i] = edges.bitmask.turn_on(edges.edge_msk[np.logical_not(pypeitFit.bool_gpm), i], 'MOMENTERROR')
             edges.edge_img = np.round(edges.edge_fit).astype(int)
 
         edges.fittype = f'{fitfunc} : order={fit_order}'
-
-        if self.show:
-            plt.title(f'Slit edges')
-            plt.imshow(traceImage.image, origin='lower', cmap='gray')
-            plt.plot(edges.edge_fit[:,edges.is_left],spec_vec, 'green')
-            plt.plot(edges.edge_fit[:,edges.is_right],spec_vec, 'magenta')
-            plt.show()
 
         # save edges to disk
         edges.set_paths(self.calib_dir, setup, calib_id, detname)
         edges.calib_key = calib_key
         edges.to_file()
+
+        # Show the result if requested
+        if self.show:
+            edges.show(in_ginga=True)
 
         # get spec_min and spec_max for the slit trace set
         specmin = np.asarray([-np.inf])
@@ -2216,6 +2225,8 @@ class NIRSpecSlitCalibrations(Calibrations):
             # # update slits
             # self.slits.mask_flats(self.flatimages)
             return self.flatimages
+
+        log.info(f'Preparing a {flatfield.FlatImages.calib_type} calibration frame.')
 
         pixel_files = self.spectrograph.group_rawfiles(pixel_files, self.det)[0]
         flatImg = self._build_calibimage(pixel_files, 'SCI', self.user_slits['slit_info'])
@@ -2295,6 +2306,8 @@ class NIRSpecSlitCalibrations(Calibrations):
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'user_slits'])
+
+        log.info(f'Loading slit slices info from JWST calibration files.')
 
         cal_files = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
 

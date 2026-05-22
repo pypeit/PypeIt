@@ -197,7 +197,9 @@ class RawImage:
         self.img_scale = None
         self.det_img = None
         self._bpm = None
+        # jwst specific attributes
         self.poisson = None
+        self.dq = None
 
         # All possible processing steps.  NOTE: These have to match the
         # method/function names.  Their order here matches there execution order
@@ -730,7 +732,7 @@ class RawImage:
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need base_var, image,
         # img_scale, noise_floor, and shot_noise.
-        _det, _image, _ivar, _datasec_img, _det_img, _rn2img, _base_var, _img_scale, _bpm \
+        _det, _image, _ivar, _datasec_img, _det_img, _rn2img, _base_var, _img_scale, _bpm, _ \
                 = self._squeeze()
         # NOTE: BPM MUST BE A BOOLEAN!
         pypeitImage = pypeitimage.PypeItImage(_image, ivar=_ivar, amp_img=_datasec_img,
@@ -797,9 +799,10 @@ class RawImage:
                    None if self.rn2img is None else self.rn2img[0], \
                    None if self.base_var is None else self.base_var[0], \
                    None if self.img_scale is None else self.img_scale[0], \
-                   None if self.bpm is None else self.bpm[0]
+                   None if self.bpm is None else self.bpm[0], \
+                   None if self.dq is None else self.dq[0]
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
-                self.base_var, self.img_scale, self.bpm
+                self.base_var, self.img_scale, self.bpm, self.dq
 
     def spatial_flexure_shift(self, slits, force=False, debug=False):
         """
@@ -953,6 +956,9 @@ class RawImage:
         if self.poisson is not None:
             self.poisson = np.array([self.spectrograph.orient_image(d, i)
                                         for d,i in zip(self.detector, self.poisson)])
+        if self.dq is not None:
+            self.dq = np.array([self.spectrograph.orient_image(d, i)
+                                for d,i in zip(self.detector, self.dq)])
         if self.proc_var is not None:
             self.proc_var = np.array([self.spectrograph.orient_image(d, i)
                                       for d,i in zip(self.detector, self.proc_var)])
@@ -1370,7 +1376,9 @@ class RawImage:
         if self.poisson is not None:
             self.poisson = np.array([procimg.trim_frame(p, d < 1)
                                      for p, d in zip(self.poisson, self.datasec_img)])
-
+        if self.dq is not None:
+            self.dq = np.array([procimg.trim_frame(dq, d < 1)
+                                for dq, d in zip(self.dq, self.datasec_img)])
         if self.proc_var is not None:
             self.proc_var = np.array([procimg.trim_frame(p, d < 1)
                                       for p, d in zip(self.proc_var, self.datasec_img)])
@@ -1457,6 +1465,9 @@ class RawImage:
         if self.poisson is not None:
             self.poisson = build_image_mosaic(self.poisson, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.poisson = np.expand_dims(self.poisson, 0)
+        if self.dq is not None:
+            self.dq = build_image_mosaic(self.dq.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
+            self.dq = np.expand_dims(self.dq, 0)
         if self.dark is not None:
             self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.dark = np.expand_dims(self.dark, 0)
@@ -1532,8 +1543,7 @@ class NIRSpecRawImage(RawImage):
         """
         if self._bpm is None:
             self._bpm = np.logical_not(np.isfinite(self.image))
-            # if self.nimg == 1:
-            #     self._bpm = np.expand_dims(self._bpm, 0)
+
         return self._bpm
 
     def build_rn2img(self, units='e-', digitization=False):
@@ -1596,6 +1606,24 @@ class NIRSpecRawImage(RawImage):
             poiss2[i] = var_poisson[i] * self.exptime**2
 
         return np.array(poiss2)
+
+    def build_dq(self):
+        """
+        Build the data quality image from the JWST pipeline output.
+
+        Reads the pre-computed ``DQ`` extension from the calibration FITS file.
+        The result is stored as :attr:`dq` and later used to build the bitmask.
+
+
+        Returns:
+            `numpy.ndarray`_: DQ flags image with shape ``(nimg, nspec, nspat)``.
+        """
+
+        _, dq, _, _, _, _ = self.spectrograph.get_rawimage(self.filename, self.det, keys='DQ')
+        if self.nimg == 1:
+            dq = np.expand_dims(dq, 0)
+
+        return np.array(dq, dtype=int)
 
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
@@ -1810,7 +1838,9 @@ class NIRSpecRawImage(RawImage):
         fname_txt = f'\n{"\n".join([Path(f).name for f in self.filename])}' if isinstance(self.filename, list) \
             else Path(self.filename).name
         log.info(f'Performing basic image processing on {fname_txt}')
-        # TODO: Checking for bit saturation should be done here.
+
+        # get dq flag image from jwst output. It used to update the PypeIt bitmask
+        self.dq = self.build_dq()
 
         #  - Convert from rate to counts
         self.image *= self.exptime
@@ -1853,33 +1883,36 @@ class NIRSpecRawImage(RawImage):
         if self.par['orient']:
             self.orient()
 
-        #   - Check the shape of the bpm
-        if self.bpm.shape != self.image.shape:
+        # set to zero the value of self.image where the bpm is true
+        self.image[self._bpm == 1.] = 0.0
 
-            # TODO: The logic of whether or not the BPM uses msbias to identify
-            # bad pixels is difficult to follow.  Where and how the bpm is
-            # created, and whether or not it uses msbias should be more clear.
-
-            # The BPM is the wrong shape.  Assume this is because the
-            # calibrations were taken with a different binning than the science
-            # data, and assume this is because a BPM was provided as an
-            # argument.  First erase the "protected" attribute, then access it
-            # again using the @property method, which will recreated it based on
-            # the expected shape for this frame.
-            bpm_shape = self.bpm.shape  # Save the current shape for the warning
-            self._bpm = None  # This erases the current bpm attribute
-            if self.bpm.shape != self.image.shape:  # This recreates it
-                # This should only happen because of a coding error, not a user error
-                raise PypeItError(f'CODING ERROR: From-scratch BPM has incorrect shape!')
-            # If the above was successful, the code can continue, but first warn
-            # the user that the code ignored the provided bpm.
-            fname_txt = ','.join([Path(f).name for f in self.filename]) if isinstance(self.filename, list) \
-                else Path(self.filename).name
-            log.warning(f'Bad-pixel mask has incorrect shape: found {bpm_shape}, expected '
-                        f'{self.image.shape}.  Assuming this is because different binning used for '
-                        'various frames.  Recreating BPM specifically for this/these frame(s) '
-                        f'({fname_txt}) and assuming the difference in the '
-                        'binning will be handled later in the code.')
+        # #   - Check the shape of the bpm
+        # if self.bpm.shape != self.image.shape:
+        #
+        #     # TODO: The logic of whether or not the BPM uses msbias to identify
+        #     # bad pixels is difficult to follow.  Where and how the bpm is
+        #     # created, and whether or not it uses msbias should be more clear.
+        #
+        #     # The BPM is the wrong shape.  Assume this is because the
+        #     # calibrations were taken with a different binning than the science
+        #     # data, and assume this is because a BPM was provided as an
+        #     # argument.  First erase the "protected" attribute, then access it
+        #     # again using the @property method, which will recreated it based on
+        #     # the expected shape for this frame.
+        #     bpm_shape = self.bpm.shape  # Save the current shape for the warning
+        #     self._bpm = None  # This erases the current bpm attribute
+        #     if self.bpm.shape != self.image.shape:  # This recreates it
+        #         # This should only happen because of a coding error, not a user error
+        #         raise PypeItError(f'CODING ERROR: From-scratch BPM has incorrect shape!')
+        #     # If the above was successful, the code can continue, but first warn
+        #     # the user that the code ignored the provided bpm.
+        #     fname_txt = ','.join([Path(f).name for f in self.filename]) if isinstance(self.filename, list) \
+        #         else Path(self.filename).name
+        #     log.warning(f'Bad-pixel mask has incorrect shape: found {bpm_shape}, expected '
+        #                 f'{self.image.shape}.  Assuming this is because different binning used for '
+        #                 'various frames.  Recreating BPM specifically for this/these frame(s) '
+        #                 f'({fname_txt}) and assuming the difference in the '
+        #                 'binning will be handled later in the code.')
 
         # #   - Subtract processed bias
         # if self.par['use_biasimage']:
@@ -1944,7 +1977,7 @@ class NIRSpecRawImage(RawImage):
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need base_var, image,
         # img_scale, noise_floor, and shot_noise.
-        _det, _image, _ivar, _datasec_img, _det_img, _rn2img, _base_var, _img_scale, _bpm \
+        _det, _image, _ivar, _datasec_img, _det_img, _rn2img, _base_var, _img_scale, _bpm, _dq \
             = self._squeeze()
         # NOTE: BPM MUST BE A BOOLEAN!
         pypeitImage = pypeitimage.PypeItImage(_image, ivar=_ivar, amp_img=_datasec_img,
@@ -1964,12 +1997,63 @@ class NIRSpecRawImage(RawImage):
 
         # Mask(s)
         if self.par['mask_cr']:
-            # TODO: CR rejection of the darks was failing for HIRES for some reason...
             pypeitImage.build_crmask(self.par)
 
+        # build mask
         pypeitImage.build_mask(saturation='default', mincounts='default')
+        # update it with the bits from jwst
+        bit = self.jwst_bitmask()
+        pypeitImage.update_mask('BPM', indx=(_dq&bit['DO_NOT_USE']).astype(bool))
+        pypeitImage.update_mask('BPM', indx=(_dq & bit['HOT']).astype(bool))
+        pypeitImage.update_mask('BPM', indx=(_dq & bit['DEAD']).astype(bool))
+        pypeitImage.update_mask('SATURATION', indx=(_dq&bit['SATURATED']).astype(bool))
+
         if flat_bpm is not None:
             pypeitImage.update_mask('BADSCALE', indx=flat_bpm)
 
         # Return
         return pypeitImage
+
+    @staticmethod
+    def jwst_bitmask():
+        """
+        Return the bitmask for JWST NIRSpec data.
+
+        Returns:
+            `dict`: The bitmask for JWST NIRSpec data.
+        """
+        return   {'GOOD': 0,
+                 'DO_NOT_USE': 1,
+                 'SATURATED': 2,
+                 'JUMP_DET': 4,
+                 'DROPOUT': 8,
+                 'OUTLIER': 16,
+                 'PERSISTENCE': 32,
+                 'AD_FLOOR': 64,
+                 'CHARGELOSS': 128,
+                 'UNRELIABLE_ERROR': 256,
+                 'NON_SCIENCE': 512,
+                 'DEAD': 1024,
+                 'HOT': 2048,
+                 'WARM': 4096,
+                 'LOW_QE': 8192,
+                 'RC': 16384,
+                 'TELEGRAPH': 32768,
+                 'NONLINEAR': 65536,
+                 'BAD_REF_PIXEL': 131072,
+                 'NO_FLAT_FIELD': 262144,
+                 'NO_GAIN_VALUE': 524288,
+                 'NO_LIN_CORR': 1048576,
+                 'NO_SAT_CHECK': 2097152,
+                 'UNRELIABLE_BIAS': 4194304,
+                 'UNRELIABLE_DARK': 8388608,
+                 'UNRELIABLE_SLOPE': 16777216,
+                 'UNRELIABLE_FLAT': 33554432,
+                 'OPEN': 67108864,
+                 'ADJ_OPEN': 134217728,
+                 'FLUX_ESTIMATED': 268435456,
+                 'MSA_FAILED_OPEN': 536870912,
+                 'OTHER_BAD_PIXEL': 1073741824,
+                 'REFERENCE_PIXEL': 2147483648}
+
+
