@@ -581,6 +581,9 @@ def reidentify(
     spec_arxiv_cont_sub = np.zeros_like(spec_arxiv)
     det_arxiv1 = {}
     for iarxiv in range(narxiv):
+        # NOTE: I've hard-coded the values for good_frac, fwhm_incr, and
+        # max_good_iter.  We may want to revisit this during testing and/or as
+        # we continue to develop.
         (
             tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_arxiv_cont_sub[:,iarxiv]
         ) = wvutils.arc_lines_from_spec(
