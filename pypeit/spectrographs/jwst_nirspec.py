@@ -775,7 +775,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                     # First occurrence wins for source metadata.
                     if slt_name not in slit_info:
                         src_name = hdu.header.get('SRCNAME', '')
-                        src_id = hdu.header.get('SRCID', -1)
+                        src_id = hdu.header.get('SOURCEID', -1)
                         src_alias = hdu.header.get('SRCALIAS', '')
                         slit_info[slt_name] = (src_name, src_id, src_alias)
 
