@@ -45,6 +45,15 @@ Instrument-specific Updates
   :func:`~pypeit.core.wavecal.templates.build_template` with continuum
   subtraction on the new segment.
 - Implemented support for VLT/UVES data reduction.
+- Added Palomar / NGPS (Next Generation Spectrograph) support.  Four
+  channels ``p200_ngps_{u,g,r,i}`` covering 3050--10400 Å at
+  R ~ 4000, fed by a 3-slice image slicer; raw frames carry all
+  four channels as image extensions in one multi-extension FITS.
+  Wavelength solution uses ``method='full_template'`` against the
+  shipped ``wvarxiv_p200_ngps_{u,g,r,i}_thar_central.fits``
+  binspec=1 ThAr archives; central-slice agreement with the
+  matlab-DRP reference is sub-Angstrom on every channel.  See
+  :ref:`p200_ngps_doc`.
 
 Script Changes
 --------------

@@ -55,6 +55,7 @@ instrument-specific details for running PypeIt.
    mmt_mmirs
    not_alfosc
    ntt_efosc2
+   p200_ngps
    shane_kast
    soar_goodman
    subaru_focas
