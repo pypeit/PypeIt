@@ -1575,7 +1575,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Calculate the image offsets relative to the reference image
             if self.alignment_method == 'phase':
-                embed()
                 for ff in range(self.numfiles):
                     # Calculate the shift
                         ra_shift, dec_shift = calculate_image_phase(
