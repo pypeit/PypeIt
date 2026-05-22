@@ -72,6 +72,10 @@ Under-the-hood Improvements
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
+- Moved code used to generate templates (pypeit/core/wavecal/templates.py and
+  pypeit/core/wavecal/spectrographs/*) to the dev-suite.  These were
+  development-only files, not suited for the released package.
+
 
 Bug Fixes
 ---------
