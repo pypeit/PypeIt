@@ -546,21 +546,20 @@ def reidentify(
 
     # TODO: KBW We should be using resampling instead of linear interpolation.
     # Stepping back, though, we shouldn't need to do this.  We can
-    # cross-correlation spectra with different lengths.  But, I agree with JFH,
+    # cross-correlate spectra with different lengths.  But, I agree with JFH,
     # that changing this would likely have a lot of follow-on effects.
     spec_arxiv = arc.resize_spec(spec_arxiv1, nspec)
     wave_soln_arxiv = arc.resize_spec(wave_soln_arxiv1, nspec)
-
     nspec_arxiv, narxiv = spec_arxiv.shape
+
+    xrng = np.arange(nspec)
+    if nspec_arxiv != nspec:
+        raise PypeItError('CODING ERROR: Resampling of arxiv spectra failed.')
 
     # Determine whether wavelengths correlate or anti-correlation with pixels
     # for patt_dicts. This is not used but just computed for compatibility
     this_soln = wave_soln_arxiv[:,0]
     sign = 1 if (this_soln[this_soln.size // 2] > this_soln[this_soln.size // 2 - 1]) else -1
-
-    xrng = np.arange(nspec)
-#    if nspec_arxiv != nspec:
-#        raise PypeItError('CODING ERROR: Resampling of arxiv spectra failed.')
 
     # Continuum subtract the arc spectrum and detect its arc lines
     tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
@@ -615,7 +614,6 @@ def reidentify(
     for iarxiv in range(narxiv):
         wvc_arxiv[iarxiv] = wave_soln_arxiv[nspec//2, iarxiv]
         igood = wave_soln_arxiv[:,iarxiv] > 1.0
-#        disp_arxiv[iarxiv] = np.median(wave_soln_arxiv[igood,iarxiv] - np.roll(wave_soln_arxiv[igood,iarxiv], 1))
         disp_arxiv[iarxiv] = np.median(np.diff(wave_soln_arxiv[igood,iarxiv]))
 
     # Cross-correlate with each arxiv spectrum to identify lines
@@ -1383,14 +1381,14 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
             mwv = temp_wv[i0:i0 + nspec]
 
         # Loop on snippets
-        log.warning(f'Looping over {nsnippet} wavelength snippets')
+        log.info(f'Looping over {nsnippet} wavelength snippets')
         nsub = obs_spec_i.size // nsnippet
         sv_det, sv_IDs = [], []
         for kk in range(nsnippet):
             # Construct
             j0 = nsub * kk
             j1 = min(nsub*(kk+1), obs_spec_i.size)
-            log.warning(
+            log.info(
                 f'Snippet iteration: {kk+1} of {nsnippet}; first pixel: {j0}, last pixel:{j1}'
             )
             tsnippet = obs_spec_i[j0:j1]

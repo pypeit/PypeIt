@@ -1468,7 +1468,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
                                    min_pkdist_frac_fwhm=min_pkdist_frac_fwhm, debug=show_peaks)
 
         # NOTE: "best" is a list of line indices, NOT a boolean array!
-        if len(_cen) == 0 or len(best) == 0: #not np.any(best):
+        if len(_cen) == 0 or len(best) == 0:
             log.warning(f'No good {l}s found!')
             continue
         log.info(f'Found {len(_cen[best])} good {l}(s) in the rectified, collapsed image')
