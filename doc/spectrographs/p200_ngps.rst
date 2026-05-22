@@ -61,16 +61,9 @@ Wavelength calibration
 ----------------------
 
 Each channel ships a single-slice ``full_template`` reidentify
-archive (``wvarxiv_p200_ngps_{u,g,r,i}_thar_central.fits``) built
-from a known-good NGPS WaveCalib on UT 20260501.  The archive is
-stored at binspec=1; ``full_template`` resizes it internally to the
-data binning at runtime.
-
-Validation against the source WaveCalib on the central slice of each
-channel (with U clipped to lambda >= 3400 Å, where the detector has
-any signal): max | wave_fork - wave_ref | of 0.27 / 0.11 / 0.27 /
-0.59 Å in u / g / r / i, with RMS 0.07 / 0.03 / 0.17 / 0.26 Å -- well
-under one binned pixel for every channel.
+archive (``wvarxiv_p200_ngps_{u,g,r,i}_thar_central.fits``).  The
+archive is stored at binspec=1; ``full_template`` resizes it
+internally to the data binning at runtime.
 
 Image slicer
 ------------

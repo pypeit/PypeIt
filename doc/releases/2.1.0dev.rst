@@ -51,9 +51,7 @@ Instrument-specific Updates
   four channels as image extensions in one multi-extension FITS.
   Wavelength solution uses ``method='full_template'`` against the
   shipped ``wvarxiv_p200_ngps_{u,g,r,i}_thar_central.fits``
-  binspec=1 ThAr archives; central-slice agreement with the
-  matlab-DRP reference is sub-Angstrom on every channel.  See
-  :ref:`p200_ngps_doc`.
+  binspec=1 ThAr archives.  See :ref:`p200_ngps_doc`.
 
 Script Changes
 --------------

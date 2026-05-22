@@ -87,12 +87,8 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
     _wave_lamps = ['ThAr']
     _arc_idnames = ('THAR',)
     #: PypeIt wavelength-solution method.  'full_template' uses the
-    #: single-slice central-slit archive (built from a known-good
-    #: NGPS_Pypeit WaveCalib) and a global cross-correlation shift to
-    #: anchor the per-slit polynomial fit.  Holds the central slice
-    #: (which drives the merged 1D output via ngps_pipeline.finalize)
-    #: to sub-0.3 A RMS / <0.6 A peak vs the source wave solution on
-    #: 20260501 -- no framework patches required.
+    #: single-slice central-slit ThAr archive and a global
+    #: cross-correlation shift to anchor the per-slit polynomial fit.
     _wavecal_method = 'full_template'
     #: Minimum unmasked spectral length of a slit edge as a fraction of
     #: the detector size.  PypeIt's default 0.6 is too aggressive for
@@ -105,78 +101,37 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
     #: optics, slit-edge sharpness and dome-flat illumination
     #: characteristics.  Empty by default; subclasses fill in.
     _flatfield_overrides = {}
-    #: Per-channel overrides for ``par['reduce']['skysub']``.  Each NGPS
-    #: channel has different sky-line density (i is bright with OH/H2O,
-    #: r is moderate, g and u have nearly no sky lines), so the optimal
-    #: bspline knot spacing and rejection threshold differ per channel.
-    #: Determined empirically via diagnostics/sweep_extraction.py with
-    #: SNR + 2D residual-quality metrics on UT 20260501 / iter.  Empty
-    #: by default; subclasses fill in.
+    #: Per-channel overrides for ``par['reduce']['skysub']``.
     #:
     #:   - ``bspline_spacing = 0.5`` (vs PypeIt default 0.6): tighter
-    #:     knot spacing along the spectral axis.  Validated by the
-    #:     i and r 18-/9-variant sweeps in
-    #:     ``experiments/aajunnc_{i,r}_iter/clean_sweep_table.md``.
+    #:     knot spacing along the spectral axis.
     #:   - ``no_local_sky = True``: skip the local-window sky re-fit
-    #:     so the spec2d's sky-subtracted image is continuous (no
-    #:     discontinuities at the local-window edges).
+    #:     so the spec2d's sky-subtracted image is continuous.
     _skysub_overrides = {
         'bspline_spacing': 0.5,
         'no_local_sky': True,
     }
-    #: Per-channel overrides for ``par['flexure']``.  Empty by default
-    #: (= ``spec_method='skip'``).  Channels with a rich enough sky-line
-    #: forest to make a paranal-template cross-correlation reliable
-    #: opt in to ``spec_method='boxcar'`` with the air-wavelength
-    #: template.  u and g leave the default skip because u has no
-    #: significant atmospheric emission below 4400 A and g has only
-    #: 5577 OI as a strong line, so cross-correlation is noise-driven
-    #: or single-line-locked respectively.
+    #: Per-channel overrides for ``par['flexure']``; default
+    #: ``spec_method='skip'``.
     _flexure_overrides = {}
     #: Per-channel overrides for ``par['sensfunc']``.  Top-level keys go
-    #: in ``par['sensfunc']``; nested ``UVIS`` / ``IR`` dicts go in
-    #: ``par['sensfunc']['UVIS']`` / ``['IR']``.
-    #:
-    #: ``polycorrect = False`` and ``resolution = 4000`` were chosen by
-    #: the 20260501 i-band sensfunc parameter sweep
-    #: (``diagnostics/sweep_sensfunc_i.md``); they drop the
-    #: telluric-corrected Fritz-match RMS from 17.3% to 11.5% on i, with
-    #: no regression on g/r/u.
+    #: in ``par['sensfunc']``; nested ``UVIS``/``IR`` dicts go in
+    #: ``par['sensfunc']['UVIS']``/``['IR']``.
     #:
     #: Why ``resolution = 4000`` is constant rather than slit-aware:
-    #: the bspline knot spacing in
-    #: :func:`pypeit.core.flux_calib.standard_zeropoint` is
-    #: ``bkspace ~ (lambda / R) * nresln``; this is a knot-density
-    #: target, NOT the physical spectrograph R despite the name.  Lower
-    #: R -> sparser knots -> bspline averages through telluric structure
-    #: in the std/CALSPEC ratio and biases the flux-cal in those
-    #: windows.  Empirically the i-band Fritz residual is monotonically
-    #: better as we go from R=3000 (PypeIt default) to 4000 then
-    #: saturates by 5000-6000.  All four NGPS channels' actual measured
-    #: R is in [3900, 4300] (project update slide 9, 26 Feb 2026), so
-    #: 4000 is a sensible single all-channel anchor.
     _sensfunc_overrides = dict(
         extr='OPT',
         UVIS=dict(polycorrect=False, resolution=4000),
     )
 
-    #: PypeIt's ``reidentify``/``full_template`` drops detected arc peaks
-    #: whose nearest catalog line is more than ``match_toler`` *pixels*
-    #: away.  0.3 binned pixels at NGPS' binspec=3 corresponds to a
-    #: ~0.5-0.6 A window across u/g/r/i -- tight enough that the
-    #: order-4 polynomial can't absorb mis-identifications, loose
-    #: enough that real edge lines stay anchored.  Selected by the
-    #: 60-point sweep (see ``n_first/n_final`` comment in
-    #: ``default_pypeit_par``).
+    #: PypeIt's ``full_template`` drops detected arc peaks whose
+    #: nearest catalog line is more than ``match_toler`` *pixels* away.
+    #: 0.3 binned pixels at NGPS' binspec=3 corresponds to a
+    #: ~0.5-0.6 A window across u/g/r/i.
     _match_toler_pixels = 0.3
-    #: Per-channel detector gain (electrons / ADU).  PypeIt multiplies
-    #: this into the science ADU image at spec2d build time so the
-    #: sensfunc and downstream products are in electrons.  Values come
-    #: from the matlab DRP's ``slice_data.m``.  Each subclass sets this.
+    #: Per-channel detector gain (electrons / ADU); set by each subclass.
     _gain = 1.0
-    #: Per-channel readnoise (electrons).  Currently the same upstream
-    #: default for all four; revisit when proper per-channel
-    #: characterizations are available.
+    #: Per-channel readnoise (electrons).
     _ronoise = 8.5
     #: Per-channel arc-line detection SNR threshold for the wavecal.
     #: PypeIt's default is 5.0. We use 5.0 to keep only clean,
@@ -567,17 +522,8 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             specaxis=1,
             specflip=False,
             spatflip=False,
-            # ``platescale`` is in arcsec / *unbinned* pixel.  Each
-            # NGPS image-slicer slice spans ~50" on sky and projects
-            # onto ~134 binned-px (binspat=2) on the detector, giving
-            # 50/134 = 0.373"/binned-px = 0.187"/unbinned-px.  PypeIt
-            # uses this value to convert ``boxcar_radius`` (arcsec)
-            # to pixels for BOX extraction; with the correct value,
-            # the default ``boxcar_radius=1.5"`` lands at ±4 binned-px,
-            # matching the matlab DRP's 8-binned-px box.  An older
-            # incorrect 0.5"/unbinned was inherited from upstream and
-            # made ``boxcar_radius`` 2.7x too small in pixels, so any
-            # arcsec-based extraction tuning behaved unexpectedly.
+            # arcsec / *unbinned* pixel (= 50" slice / 134 binned-px,
+            # binspat=2 → 0.373"/binned-px = 0.187"/unbinned-px).
             platescale=0.187,
             darkcurr=0.0,
             saturation=self._saturation_adu,
@@ -665,11 +611,6 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         (``_use_overscan``, ``_bpm_usebias``, ``_wvarxiv``) are pulled
         from class attributes so subclasses only need to set those.
         """
-        # Install the per-slice rawflat exporter on first call
-        # (deferred from module-load to avoid the
-        # ``pypeit.flatfield`` circular import).
-        _install_ngps_rawflat_exporter()
-
         par = super().default_pypeit_par()
 
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
@@ -678,27 +619,12 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         # inter-slice gaps; 20 (PypeIt's default) finds all 6 edges
         # (left+right of each of the 3 image-slicer slices) reliably.
         par['calibrations']['slitedges']['edge_thresh'] = 20.
-        # Median-filter the trace image 3x before the Sobel gradient is
-        # computed.  Single-pixel hot columns and ~1-px cold/dim
-        # features (seen empirically on the G detector at spat~92 and
-        # spat~160 with 2x1 binning -- documented in
-        # ``diagnostics/g_slit0_dropout.md``) were chopping slit 0
-        # into <80-px sub-fragments that then failed the
-        # ``minimum_slit_length`` gate, causing pypeit to drop the
-        # leftmost slice entirely.  Smoothing 3 iterations washes
-        # those out while shifting edge centroids on clean (2x3) data
-        # by <0.15 binned px (verified on 20260501).  Used ONLY for
-        # slit-edge detection in EdgeTraceSet.initial_trace; the
-        # master Flat / wavecal / tilts / science extraction all see
-        # the unsmoothed image.
+        # Median-filter the trace image 3x before the Sobel gradient to
+        # wash out single-pixel hot/cold artefacts that occasionally
+        # chop a slice into sub-fragments failing the slit-length gate.
         par['calibrations']['slitedges']['filt_iter'] = 3
-        # Each of the 3 image-slicer slices is ~65 arcsec long along
-        # the spatial direction (~130 binned pixels at platescale
-        # 0.5 arcsec/binned-pix), so 30 arcsec is well under the real
-        # value.  Empirically, PypeIt's gradient edge detector also
-        # finds occasional 5-15-pixel-wide spurious slits sitting in
-        # the inter-slice gaps; a 30-arcsec minimum filters those out
-        # while always letting the 3 real slices through.
+        # Slicer slices are ~65" long; 30" filters spurious sub-slit
+        # detections from inter-slice gaps without dropping real ones.
         par['calibrations']['slitedges']['minimum_slit_length'] = 30
         par['calibrations']['slitedges']['min_edge_side_sep'] = 1.0
         par['calibrations']['slitedges']['fit_min_spec_length'] = cls._fit_min_spec_length
@@ -797,18 +723,7 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['maxnumber_sci'] = 1
         par['reduce']['findobj']['maxnumber_std'] = 1
 
-        # Match the matlab DRP's standard-star BOX width: matlab uses
-        # ±5 binned-px (= 11-px aperture, see
-        # NGPS_DRP/extract_2dbox_trace_fast.m line 79 with
-        # tracew=width_extract=5; called with ``(14, 5, ...)``).  At
-        # platescale 0.187"/unbinned-px = 0.374"/binned-px, ±5 binned-px
-        # corresponds to boxcar_radius = 5*0.374 = 1.87".  Pypeit only
-        # supports a single global ``boxcar_radius``; this matches the
-        # std side, while science extractions in matlab were chosen
-        # case-by-case (1.5"/4 binned-px for the 20260501 reduction).
-        # The width difference between std and sci in matlab introduces
-        # a small (~5-10%) flux-scale bias that pypeit-with-1.87 cannot
-        # exactly reproduce without per-frametype boxcar_radius support.
+        # ±5 binned-px BOX aperture = 1.87" at NGPS platescale.
         par['reduce']['extraction']['boxcar_radius'] = 1.87
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 5.0
@@ -876,17 +791,6 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             else:
                 par['sensfunc'][k] = v
 
-        # Extraction: pypeit defaults (use_user_fwhm=False, sn_gauss=4)
-        # so the central-slit profile is measured from data and OPT
-        # extraction uses the true wing shape.  The external
-        # ``ngps_pipeline.finalize`` post-processor (shipped
-        # alongside the NGPS_Pypeit ``reduce.py``, NOT inside the
-        # pypeit/ tree) currently uses ONLY the central slit per
-        # channel for the merged 1D, so side-slice profile-fit
-        # quality does not affect the delivered spectrum.  Combining
-        # all three slicer slices (matlab DRP behaviour) requires
-        # custom code outside pypeit_coadd_1dspec.
-
         par['calibrations']['wavelengths']['lamps'] = list(cls._wave_lamps)
         # Force pypeit to use every arc line it can detect, including
         # the weak ones near the spectral edges of each channel.
@@ -897,16 +801,8 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         # edges, which anchors the polynomial fit out to the data
         # range.
         par['calibrations']['wavelengths']['sigdetect'] = cls._sigdetect
-        # n_first=4, n_final=4: a quartic polynomial fit with no
-        # order escalation.  Selected by a 60-point (match_toler,
-        # n_first, n_final, method) sweep on 20260501 cals (see
-        # work/wavecal_sweep_results/summary_central_rms.csv) which
-        # measured central-slice Δλ vs the NGPS_Pypeit-reference
-        # WaveCalib: this combo gave the lowest u-band RMS
-        # (0.07 A) and the lowest r-band RMS (0.17 A), with g/i
-        # comparable to the other top combos (g=0.03, i=0.26 A).
-        # Sticking to a single quartic order avoids 5th-order over-
-        # fitting risk on slits with sparse anchor lines.
+        # Single quartic polynomial fit (no order escalation); 5th-order
+        # risks over-fitting slits with sparse anchor lines.
         par['calibrations']['wavelengths']['n_first'] = 4
         par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['method'] = cls._wavecal_method
@@ -952,49 +848,18 @@ class P200NGPSSpectrograph_r(P200NGPSSpectrograph):
     comment = 'r-Channel'
 
     _extname = 'R'
-    # Disable overscan correction across all NGPS channels.  PypeIt's
-    # default ``savgol(5,65)`` overscan introduces a row-dependent
-    # offset given how narrow the NGPS overscan strips are; the
-    # bias master alone (built without overscan) handles bias
-    # subtraction cleanly.
+    # Disable overscan correction: NGPS overscan strips are too narrow
+    # for the default ``savgol(5,65)``; bias master handles it cleanly.
     _use_overscan = False
     _bpm_usebias = True
     _wvarxiv = 'wvarxiv_p200_ngps_r_thar_central.fits'
-    _gain = 0.9   # e-/ADU, from NGPS_DRP/slice_data.m
+    _gain = 0.9   # e-/ADU
     _flatfield_overrides = dict(
-        # Empirically: dome-lamp signal stays above ~30% of peak between
-        # ~5850 and ~7800 A; outside that range the b-spline fit is
-        # unreliable and produces visible structure in pixelflat_norm
-        # at the spectral edges.  Force NORM=1 outside.
+        # Dome-lamp signal usable between ~5850 and ~7800 A on r;
+        # NORM=1 outside.
         pixelflat_min_wave=5850.0,
         pixelflat_max_wave=7800.0,
     )
-    # R-channel sky-sub historical notes (kept for future tuning when
-    # we revisit local vs no-local trade-offs; the NGPS-wide default
-    # set on the base class is currently ``no_local_sky=True`` because
-    # the GUI needs a discontinuity-free 2D for custom extractions):
-    #
-    #   bsp=0.5 + npoly=6 + no_local_sky=True was the validated combo.
-    #   npoly=6 is required (npoly=auto=3 is too rigid for R's
-    #   spat-direction sky illumination); the higher Legendre order
-    #   lets the global b-spline track the smooth ~20-count spat
-    #   variation visible in column-medians of off-object pixels.
-    #
-    #   no_local_sky=True: the local skysub re-fits in a window
-    #   around the object using bspline, which fights the global model
-    #   and reintroduces oscillations near the right slit edge
-    #   (spat 290-310 on the 20260501 aajunnc_o1 commissioning frame).
-    #
-    #   bsp=0.5 is the sweet spot: at bsp<=0.4 with npoly=6 the
-    #   bspline silently fails the 35-iter convergence budget and
-    #   falls back to no_poly (grep "Maximum iterations reached in
-    #   bspline_profile" in run_pypeit.log).  At bsp=0.5/n6 all 3
-    #   slits converge cleanly.
-    #
-    #   Validated by the 9-variant r-channel sweep in
-    #   ``experiments/aajunnc_r_iter/clean_sweep_table.md`` (best
-    #   clean MAD=26.05 vs 27.57 at pypeit defaults).
-    # Spectral flexure left at PypeIt's default ``spec_method='skip'``.
 
 
 class P200NGPSSpectrograph_i(P200NGPSSpectrograph):
@@ -1006,29 +871,16 @@ class P200NGPSSpectrograph_i(P200NGPSSpectrograph):
     comment = 'i-Channel'
 
     _extname = 'I'
-    # Disable overscan correction (see G subclass for details).
     _use_overscan = False
     _bpm_usebias = False
     _wvarxiv = 'wvarxiv_p200_ngps_i_thar_central.fits'
-    _gain = 0.86  # e-/ADU, from NGPS_DRP/slice_data.m
+    _gain = 0.86  # e-/ADU
     _flatfield_overrides = dict(
-        # I-band lamp signal is strong from ~7800 to ~10100 A; below
-        # 7800 it's a steep climb in throughput and above 10100 the
-        # lamp drops off rapidly.
+        # Dome-lamp signal usable between ~7800 and ~10100 A on i;
+        # NORM=1 outside.
         pixelflat_min_wave=7800.0,
         pixelflat_max_wave=10100.0,
     )
-    # I-channel sky-sub historical notes:
-    #   Same shape as R.  bsp=0.5 + npoly=6 minimises off-source 2D
-    #   MAD around the dense 8200-10000 A OH forest; npoly=auto (=3)
-    #   under-fits the spat-direction sky gradient and
-    #   no_local_sky=True prevents the local re-fit from
-    #   re-introducing OH-line residuals under the source trace.
-    #   Validated by the 18-variant i-channel sweep in
-    #   ``experiments/aajunnc_i_iter/clean_sweep_table.md`` (best
-    #   clean MAD=25.47 at bsp=0.5/n6 vs ~27 at pypeit defaults;
-    #   no_poly variants run at MAD~32, conclusively worse).
-    # Spectral flexure left at PypeIt's default ``spec_method='skip'``.
 
 
 class P200NGPSSpectrograph_g(P200NGPSSpectrograph):
@@ -1063,14 +915,6 @@ class P200NGPSSpectrograph_g(P200NGPSSpectrograph):
         slit_illum_finecorr=False,
         spec_samp_coarse=1.0,
     )
-    # G-channel sky-sub historical notes:
-    #   No per-channel deep sweep was run on G (the only test target
-    #   so far has very few sky lines in the G window), but the
-    #   bsp-only UGRI sweep in
-    #   ``diagnostics/sweep_skysub_all_channels.md`` showed G prefers
-    #   bsp<=0.6 (chi^2 around 4861/5577 climbs monotonically above
-    #   0.6), and the slit geometry is identical to R/I.
-
     def _canonicalize(self, raw):
         return np.fliplr(raw)
 
@@ -1124,12 +968,6 @@ class P200NGPSSpectrograph_u(P200NGPSSpectrograph):
         spec_samp_coarse=2.0,
         slit_illum_finecorr=False,
     )
-    # U-channel sky-sub historical notes:
-    #   No deep validation possible on U yet -- the test target is at
-    #   the noise floor in the 3300-4200 A range, so the bsp-only
-    #   UGRI sweep (``diagnostics/sweep_skysub_all_channels.md``)
-    #   couldn't separate bsp values at any chi^2 level.
-
     def _canonicalize(self, raw):
         return np.rot90(raw, k=-1)
 
@@ -1154,259 +992,3 @@ class P200NGPSSpectrograph_u(P200NGPSSpectrograph):
 
 
 
-# ---------------------------------------------------------------------
-# NGPS per-slice rawflat exporter
-# ---------------------------------------------------------------------
-# Hooks ``FlatField.run`` to dump, BEFORE PypeIt does any flat fitting:
-#   - the rawflat image
-#   - the wavelength image
-#   - the slit-id image (which slit each pixel belongs to)
-#   - one extension per slit with the cropped per-slit data
-# to a fits file in the Calibrations directory.  PypeIt's normal flat
-# processing then runs unchanged.  The export gives the user a clean
-# per-slice view of the raw flat data + slit shape, so they can
-# design a method to fix the bad-blue rows externally.
-#
-# Activated lazily from ``P200NGPSSpectrograph.default_pypeit_par``.
-
-#: Channels to export per-slice.  Restrict to the channels with
-#: known bad-blue regions (G, U).  R, I are skipped.
-_NGPS_EXPORT_CHANNELS = ('p200_ngps_g', 'p200_ngps_u')
-
-
-def _ngps_export_rawflat_per_slice(self):
-    """Save the rawflat / waveimg / slit info to a per-slice fits
-    file.  Called from the patched ``FlatField.run`` BEFORE PypeIt's
-    own flat fitting runs.
-    """
-    from pathlib import Path
-    rawflat = self.rawflatimg.image if self.rawflatimg is not None else None
-    waveimg = self.waveimg
-    slits   = self.slits
-    if rawflat is None or waveimg is None or slits is None:
-        return
-    if rawflat.shape != waveimg.shape:
-        return
-
-    # Output to the experiments/ directory at the NGPS_Pypeit project
-    # root so the user can iterate on the patch design separately
-    # from PypeIt's calibration outputs.
-    qa_path = getattr(self, 'qa_path', None)
-    if qa_path is None:
-        return
-    p = Path(qa_path).resolve()
-    out_dir = None
-    for parent in p.parents:
-        cand = parent / 'experiments'
-        if cand.is_dir():
-            out_dir = cand
-            break
-    if out_dir is None:
-        out_dir = Path(qa_path).parent.parent / 'experiments'
-        out_dir.mkdir(parents=True, exist_ok=True)
-    calib_key = getattr(self, 'calib_key', None) or 'export'
-    spec_name_short = (getattr(self.spectrograph, 'name', 'p200_ngps')
-                        .replace('p200_ngps_', ''))
-    out = out_dir / f'rawflat_export_{spec_name_short}_{calib_key}.fits'
-
-    spec_name = getattr(self.spectrograph, 'name', 'p200_ngps')
-    nspec, nspat = rawflat.shape
-
-    # Build the slit-id image: -1 off-slit, slit_spat_id on-slit.
-    slitid_img = np.full(rawflat.shape, -1, dtype=np.int32)
-    spat_ids = []
-    for slit_idx in range(slits.nslits):
-        if slits.mask[slit_idx] != 0:
-            continue
-        sid = int(slits.spat_id[slit_idx])
-        m = slits.slit_img(slitidx=slit_idx, initial=False) == slits.spat_id[slit_idx]
-        slitid_img[m] = sid
-        spat_ids.append(sid)
-
-    # Per-slit cropped HDUs
-    hdul = fits.HDUList([fits.PrimaryHDU()])
-    hdul[0].header['SPECTROG'] = spec_name
-    hdul[0].header['CALIBKEY'] = calib_key
-    hdul[0].header['NSPEC']    = nspec
-    hdul[0].header['NSPAT']    = nspat
-    hdul[0].header['NSLITS']   = len(spat_ids)
-    hdul[0].header['COMMENT']  = ('NGPS per-slice rawflat export, dumped before '
-                                  'PypeIt flat fitting.')
-
-    hdul.append(fits.ImageHDU(rawflat.astype(np.float32),
-                              name='RAWFLAT'))
-    hdul.append(fits.ImageHDU(waveimg.astype(np.float32),
-                              name='WAVEIMG'))
-    hdul.append(fits.ImageHDU(slitid_img, name='SLITID_IMG'))
-    hdul.append(fits.ImageHDU(np.asarray(spat_ids, dtype=np.int32),
-                              name='SPAT_ID'))
-
-    for sid in spat_ids:
-        on_slit = slitid_img == sid
-        if not on_slit.any():
-            continue
-        # Slit bbox: cols range, full row range (slit spans whole spec).
-        cols = np.where(on_slit.any(axis=0))[0]
-        col_lo, col_hi = int(cols.min()), int(cols.max())
-        sub_raw  = rawflat[:, col_lo:col_hi+1].astype(np.float32)
-        sub_wave = waveimg[:, col_lo:col_hi+1].astype(np.float32)
-        sub_mask = on_slit[:, col_lo:col_hi+1].astype(np.uint8)
-        # Replace off-slit pixels in the cropped raw with NaN so
-        # downstream code can tell which pixels are inside this slit.
-        sub_raw_masked = np.where(sub_mask, sub_raw, np.nan)
-        sub_wave_masked = np.where(sub_mask, sub_wave, 0.0)
-
-        hdr = fits.Header()
-        hdr['SPAT_ID'] = sid
-        hdr['COL_LO']  = col_lo
-        hdr['COL_HI']  = col_hi
-        hdr['NSPEC']   = nspec
-        hdr['NSPAT_S'] = col_hi - col_lo + 1
-        hdr['COMMENT'] = ('Per-slice rawflat: off-slit pixels are NaN '
-                          'in DATA and 0 in WAVE.')
-        hdul.append(fits.ImageHDU(sub_raw_masked,
-                                  name=f'SLIT_{sid:04d}_DATA',
-                                  header=hdr))
-        hdul.append(fits.ImageHDU(sub_wave_masked,
-                                  name=f'SLIT_{sid:04d}_WAVE',
-                                  header=hdr))
-        hdul.append(fits.ImageHDU(sub_mask,
-                                  name=f'SLIT_{sid:04d}_MASK',
-                                  header=hdr))
-
-    hdul.writeto(out, overwrite=True)
-    log.info(f'NGPS {spec_name}: per-slice rawflat exported to {out}')
-
-
-def _ngps_clean_flat_model(self, spec_name):
-    """Zero out PypeIt's PIXELFLAT_MODEL for (a) off-slit pixels and
-    (b) on-slit pixels outside the channel's
-    ``[pixelflat_min_wave, pixelflat_max_wave]`` band.
-
-    Doesn't affect science correction (which uses NORM x runtime
-    illum_flat, not MODEL directly).  Just makes
-    ``flat_diagnostic_<date>.png`` show clean panels in the bad-wave
-    regions instead of bspline-fit chaos.
-    """
-    bounds = _NGPS_ILLUMFLAT_WAVE_BOUNDS.get(spec_name)
-    if bounds is None:
-        return
-    wave_lo, wave_hi = bounds
-    waveimg = self.waveimg
-    slits   = self.slits
-    if waveimg is None or slits is None:
-        return
-    # Build on-slit mask (union of all slits).
-    on_slit = np.zeros_like(self.flat_model, dtype=bool)
-    for slit_idx in range(slits.nslits):
-        if slits.mask[slit_idx] != 0:
-            continue
-        slitimg = slits.slit_img(slitidx=slit_idx, initial=False)
-        on_slit |= (slitimg == slits.spat_id[slit_idx])
-    # Off-slit -> 0
-    self.flat_model[~on_slit] = 0.0
-    # On-slit but outside wave bounds -> 0
-    bad_blue = on_slit & (waveimg > 0) & (waveimg < wave_lo)
-    self.flat_model[bad_blue] = 0.0
-    if wave_hi is not None:
-        bad_red = on_slit & (waveimg > 0) & (waveimg > wave_hi)
-        self.flat_model[bad_red] = 0.0
-
-
-#: Per-channel wavelength bounds outside which the illum_flat is
-#: forced to 1.0 (no flat correction applied at science time).
-#: Matches the existing ``pixelflat_min_wave`` / ``pixelflat_max_wave``
-#: clip on PIXELFLAT_NORM.  G no longer needs this after disabling
-#: overscan -- PypeIt's spline now fits the rawflat correctly at the
-#: blue end.  U still benefits because its lamp truly dies below
-#: ~3400 A so the spline has nothing real to fit there.
-_NGPS_ILLUMFLAT_WAVE_BOUNDS = {
-    'p200_ngps_u': (3400.0, None),
-}
-
-
-def _install_ngps_rawflat_exporter():
-    """Monkey-patch ``FlatField.run`` to dump the rawflat + slit info
-    per slice BEFORE the normal flat fitting runs (used for the
-    user's MATLAB / external flat-design experiments).  PypeIt's
-    normal flat fitting runs unchanged.  Idempotent.
-
-    Also installs an override on ``FlatImages.fit2illumflat`` that
-    returns 1.0 for pixels whose wavelength is outside the
-    ``_NGPS_ILLUMFLAT_WAVE_BOUNDS`` band for the channel.  This
-    matches PypeIt's existing ``pixelflat_min_wave`` clip on
-    PIXELFLAT_NORM so the COMBINED ``total_flat`` is 1.0 in those
-    regions (no flat correction applied), instead of being divided
-    by an unreliable bspline-extrapolated illum_flat.
-    """
-    from pypeit.flatfield import FlatField, FlatImages
-    if getattr(FlatField.run, '_ngps_exporter_installed', False):
-        return
-    _orig_run = FlatField.run
-
-    def _patched_run(self, *args, **kwargs):
-        spec_name = getattr(self.spectrograph, 'name', None)
-        is_ngps = spec_name in _NGPS_EXPORT_CHANNELS
-        if (is_ngps
-                and self.rawflatimg is not None
-                and self.slits is not None
-                and self.waveimg is not None
-                and not self.spat_illum_only):
-            try:
-                _ngps_export_rawflat_per_slice(self)
-            except Exception as exc:
-                log.warning(f'NGPS rawflat export raised '
-                            f'{type(exc).__name__}: {exc}; continuing.')
-        result = _orig_run(self, *args, **kwargs)
-        # Post-fit clean-up of the saved Flat HDUs so the diagnostic
-        # plots (panel 3 = MODEL/row_med, panel 4 = RAW/MODEL) don't
-        # show bad-pixel chaos in the bad-wave regions.  Sets MODEL=0
-        # off-slit and outside [pixelflat_min_wave, pixelflat_max_wave];
-        # those pixels are then masked out by the diagnostic's
-        # (model>0) and (|raw/model - 1| < 0.5) filters.  Science
-        # correction is unaffected (it uses NORM x runtime_illumflat,
-        # not MODEL directly).
-        if (is_ngps and result is not None
-                and self.flat_model is not None
-                and self.slits is not None
-                and self.waveimg is not None
-                and not self.spat_illum_only):
-            try:
-                _ngps_clean_flat_model(self, spec_name)
-            except Exception as exc:
-                log.warning(f'NGPS flat-model cleanup raised '
-                            f'{type(exc).__name__}: {exc}; continuing.')
-            try:
-                if getattr(result, 'pixelflat_model', None) is not None:
-                    result.pixelflat_model = self.flat_model
-            except Exception:
-                pass
-        return result
-
-    _patched_run._ngps_exporter_installed = True
-    FlatField.run = _patched_run
-
-    # fit2illumflat override: return 1.0 outside the wavelength bounds
-    # so the bad-blue / bad-red regions get no flat correction (rather
-    # than being multiplied by PypeIt's wonky bspline-extrapolated
-    # illumflat).
-    if not getattr(FlatImages.fit2illumflat, '_ngps_waveclip_patched', False):
-        _orig_fit2 = FlatImages.fit2illumflat
-        def _patched_fit2(self, slits, *args, **kwargs):
-            img = _orig_fit2(self, slits, *args, **kwargs)
-            spec_name = getattr(self, 'PYP_SPEC', None)
-            bounds = _NGPS_ILLUMFLAT_WAVE_BOUNDS.get(spec_name)
-            if bounds is None:
-                return img
-            wave_lo, wave_hi = bounds
-            waveimg = getattr(self, 'pixelflat_waveimg', None)
-            if waveimg is None or waveimg.shape != img.shape:
-                return img
-            out = img.copy()
-            bad = (waveimg > 0) & (waveimg < wave_lo)
-            if wave_hi is not None:
-                bad |= (waveimg > 0) & (waveimg > wave_hi)
-            out[bad] = 1.0
-            return out
-        _patched_fit2._ngps_waveclip_patched = True
-        FlatImages.fit2illumflat = _patched_fit2
