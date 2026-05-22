@@ -72,6 +72,11 @@ Under-the-hood Improvements
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
+- Resolved issue with the wavelength calibration code not detecting lines in the
+  ``'keck_deimos_830G.fits'`` template when the FWHM of the lines observed in
+  the data are significantly narrower than the template.  A loop has been added
+  that iteratively increments the FWHM until the number of good template lines
+  reaches some minimum fraction of all lines detected in the template spectrum.
 
 Bug Fixes
 ---------
