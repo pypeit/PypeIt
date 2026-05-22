@@ -902,9 +902,14 @@ def get_model_standard(spectral_type, V_mag):
             return KuruczModelStandard(V_mag, spectral_type)
 
 
-def get_standard_spectrum(archives, spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None,archives='default'):
-#def get_standard_spectrum(spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None,
-#                          archives=None):
+
+def get_standard_spectrum(archives, spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None):
+
+# archives is now the first, positional argument, since it can take on the name of the standard star directory,
+# if it is given as a parameter, "star_arxiv" in the sensfunc input file. If "star_arxiv" is not in the sensfunc input 
+# file, then the selection of the standard star flux table defaults to the original behavior where the first result in
+# the ordered search of archives=['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'lbtmods'] is used.
+ 
     """
     Return a standard spectrum.
 

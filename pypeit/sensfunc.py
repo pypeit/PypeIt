@@ -282,12 +282,12 @@ class SensFunc(datamodel.DataContainer):
         # Convert to decimal deg, as needed
         star_ra, star_dec = meta.convert_radec(star_ra, star_dec)
 
-        # If the user provided a star_arxiv, use that instead of the ordered array of archives
+        # If the user provided a star_arxiv in their sensfun input file, use that instead of the ordered array of archives
         star_dir = 'default' if self.par['star_arxiv'] is None else self.par['star_arxiv']
 
-        # Read in standard star dictionary
-        self.std_spec = standard.get_standard_spectrum(
-            star_dir, spectral_type=self.par['star_type'], V_mag=self.par['star_mag'], ra=star_ra,
+        # Read in standard star dictionary - star_dir is now the first, positional argument 
+        self.std_spec = standard.get_standard_spectrum(star_dir,
+            spectral_type=self.par['star_type'], V_mag=self.par['star_mag'], ra=star_ra,
             dec=star_dec
         )
         # check if this is the right standard star for the observation, i.e., if there is overlap in the wavelength
