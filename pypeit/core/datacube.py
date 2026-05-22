@@ -2025,11 +2025,11 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
     else:
         # Prepare the array of white light images to be stored
         numframes = len(_sciImg)
-        numra = bins[0].size - 1
+        numra = bins[2].size - 1
         numdec = bins[1].size - 1
-        all_wl_imgs = np.zeros((numra, numdec, numframes))
-        all_sig_imgs = np.zeros((numra, numdec, numframes))
-        all_bpm_imgs = np.zeros((numra, numdec, numframes), dtype=bool)
+        all_wl_imgs = np.zeros((numdec, numra, numframes))
+        all_sig_imgs = np.zeros((numdec, numra, numframes))
+        all_bpm_imgs = np.zeros((numdec, numra, numframes), dtype=bool)
         # Loop through all frames and generate white light images
         for fr in range(numframes):
             log.info(f"Creating image {fr + 1}/{numframes}")
