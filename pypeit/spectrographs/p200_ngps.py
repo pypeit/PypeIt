@@ -350,28 +350,45 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             mask[i] = any(std in norm for std in self._standard_targets)
         return mask
 
-    # True on U and G so their arcs/flats are restricted to the long
-    # getcalib_ug frames (image extensions == {G, U}).  R/I use the
-    # short 4-channel arcs/flats, so this stays False.
-    _require_ug_only_cals = False
-    _ug_only_cache: dict = {}
+    _extname_cache: dict = {}
 
     @classmethod
-    def _is_ug_only_cal(cls, path) -> bool:
-        """True iff this FITS's image extensions are exactly {G, U}."""
-        cached = cls._ug_only_cache.get(str(path))
-        if cached is not None:
-            return cached
-        from astropy.io import fits as _fits
-        try:
-            with _fits.open(path, memmap=True) as h:
-                extnames = {str(hdu.header.get('EXTNAME', '')).strip().upper()
-                            for hdu in h[1:]}
-        except Exception:
-            extnames = set()
-        result = extnames == {'G', 'U'}
-        cls._ug_only_cache[str(path)] = result
-        return result
+    def _file_extnames(cls, path) -> frozenset[str]:
+        """Cached EXTNAME set of the image HDUs in this raw FITS."""
+        key = str(path)
+        cached = cls._extname_cache.get(key)
+        if cached is None:
+            from astropy.io import fits as _fits
+            try:
+                with _fits.open(path, memmap=True) as h:
+                    cached = frozenset(
+                        str(hdu.header.get('EXTNAME', '')).strip().upper()
+                        for hdu in h[1:])
+            except Exception:
+                cached = frozenset()
+            cls._extname_cache[key] = cached
+        return cached
+
+    # True on u and g subclasses: their arcs and dome flats must come
+    # from the long ``getcalib_ug`` exposures (image extensions exactly
+    # {G, U}, with R and I detectors off) -- the short 4-channel cal
+    # frames have ~zero flux at u/g wavelengths.
+    _require_ug_only_cals = False
+
+    @classmethod
+    def find_raw_files(cls, root, extension=None):
+        """Same as base class, but only returns FITS files that carry
+        this channel's image extension (``_extname``).  An NGPS raw
+        directory contains a mix of long ``getcalib_ug`` exposures
+        (only G+U image HDUs) and short 4-channel exposures
+        (G+I+R+U), and only one subset is meaningful for any given
+        per-channel spectrograph.  Filtering here means pypeit never
+        attempts to read this channel's BINSPEC/BINSPAT from a file
+        where that extension doesn't exist."""
+        files = super().find_raw_files(root, extension=extension)
+        if not cls._extname:
+            return files
+        return [p for p in files if cls._extname.upper() in cls._file_extnames(p)]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -386,15 +403,17 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
+        # Type by IMGTYPE first.
         if ftype in ['science', 'standard']:
             sci = fitstbl['idname'] == 'SCI'
             std_target = self._standard_target_mask(fitstbl)
-            return good_exp & sci & (std_target if ftype == 'standard' else ~std_target)
-        if ftype == 'bias':
-            return good_exp & (fitstbl['idname'] == 'BIAS')
-        if ftype in ['pinhole', 'dark']:
+            mask = good_exp & sci & (std_target if ftype == 'standard'
+                                                   else ~std_target)
+        elif ftype == 'bias':
+            mask = good_exp & (fitstbl['idname'] == 'BIAS')
+        elif ftype in ['pinhole', 'dark']:
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype in ['arc', 'tilt']:
+        elif ftype in ['arc', 'tilt']:
             mask = good_exp & np.isin(fitstbl['idname'], self._arc_idnames)
         elif ftype in ['pixelflat', 'trace', 'illumflat']:
             mask = ((good_exp & (fitstbl['idname'] == 'DOMEFLAT'))
@@ -403,14 +422,19 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
             return np.zeros(len(fitstbl), dtype=bool)
 
-        if self._require_ug_only_cals:
+        # On u/g, restrict arc/flat frames to the long ``getcalib_ug``
+        # exposures (image extensions exactly {G, U}); the short
+        # 4-channel cal frames have ~zero flux at u/g wavelengths.
+        if (self._require_ug_only_cals
+                and ftype in ('arc', 'tilt', 'pixelflat',
+                              'trace', 'illumflat')):
             import os as _os
             for i in range(len(fitstbl)):
                 if not mask[i]:
                     continue
                 fpath = _os.path.join(str(fitstbl['directory'][i]),
                                        str(fitstbl['filename'][i]))
-                if not self._is_ug_only_cal(fpath):
+                if self._file_extnames(fpath) != frozenset({'G', 'U'}):
                     mask[i] = False
         return mask
 
@@ -474,27 +498,13 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             return 0
 
         if meta_key == 'binning':
-            # Raw NGPS frames carry BINSPAT/BINSPEC on the per-channel
-            # image extension (resolved by EXTNAME).  Pypeit-written
-            # products (spec1d, sens) drop those extensions but write
-            # the canonical ``BINNING`` string in the primary header.
-            # Try the per-channel extension first (raw); if absent,
-            # fall back to the primary BINNING card (pypeit products);
-            # only return the '0,0' sentinel if both fail, signalling
-            # a frame the configuration code should drop.
+            # Read BINSPEC/BINSPAT from this channel's image extension.
+            # ``find_raw_files`` already filtered out any file that
+            # doesn't carry this channel's image extension, so we know
+            # ``_extname_index`` will return a valid index here.
             idx = self._extname_index(headarr)
-            if idx is not None:
-                try:
-                    binspat = int(headarr[idx]['BINSPAT'])
-                    binspec = int(headarr[idx]['BINSPEC'])
-                    return parse.binning2string(binspec, binspat)
-                except (KeyError, IndexError, TypeError, ValueError):
-                    pass
-            if ph is not None:
-                v = ph.get('BINNING')
-                if v is not None and str(v).strip() not in ('', '0,0'):
-                    return str(v).strip()
-            return '0,0'
+            return parse.binning2string(int(headarr[idx]['BINSPEC']),
+                                        int(headarr[idx]['BINSPAT']))
 
         if meta_key == 'target':
             for k in ('TARGET', 'NAME'):
@@ -984,17 +994,7 @@ class P200NGPSSpectrograph_r(P200NGPSSpectrograph):
     #   Validated by the 9-variant r-channel sweep in
     #   ``experiments/aajunnc_r_iter/clean_sweep_table.md`` (best
     #   clean MAD=26.05 vs 27.57 at pypeit defaults).
-    # R has many strong OI/OH sky lines (5577, 6300, 6363, 7340, 7794),
-    # so spec-flexure cross-correlation against the air-wavelength
-    # paranal template is reliable.  spec_maxshift=2 px guards against
-    # any spuriously large measurement; if exceeded, the
-    # excessive_shift='use_median' default falls back to the median of
-    # other slits' shifts.
-    _flexure_overrides = dict(
-        spec_method='boxcar',
-        spectrum='paranal_sky_air.fits',
-        spec_maxshift=2,
-    )
+    # Spectral flexure left at PypeIt's default ``spec_method='skip'``.
 
 
 class P200NGPSSpectrograph_i(P200NGPSSpectrograph):
@@ -1028,16 +1028,7 @@ class P200NGPSSpectrograph_i(P200NGPSSpectrograph):
     #   ``experiments/aajunnc_i_iter/clean_sweep_table.md`` (best
     #   clean MAD=25.47 at bsp=0.5/n6 vs ~27 at pypeit defaults;
     #   no_poly variants run at MAD~32, conclusively worse).
-    # I has the densest sky-line forest (OH bands across 8200-10000 A
-    # plus the H2O 9300 envelope).  Cross-correlation against the air
-    # paranal template is reliable; on UT 20260501 the central-slit
-    # trace contamination at sky lines drops 3.8sigma -> 1.1sigma when
-    # this is enabled.
-    _flexure_overrides = dict(
-        spec_method='boxcar',
-        spectrum='paranal_sky_air.fits',
-        spec_maxshift=2,
-    )
+    # Spectral flexure left at PypeIt's default ``spec_method='skip'``.
 
 
 class P200NGPSSpectrograph_g(P200NGPSSpectrograph):
@@ -1052,6 +1043,7 @@ class P200NGPSSpectrograph_g(P200NGPSSpectrograph):
     comment = 'g-Channel'
 
     _extname = 'G'
+    _require_ug_only_cals = True
     # Disable overscan correction for G.  PypeIt's default ``savgol(5,65)``
     # introduces a smooth row-dependent offset (~-540 ADU at the blue end,
     # decreasing to ~-22 ADU at the red end) -- visible as the discontinuity
@@ -1078,7 +1070,6 @@ class P200NGPSSpectrograph_g(P200NGPSSpectrograph):
     #   ``diagnostics/sweep_skysub_all_channels.md`` showed G prefers
     #   bsp<=0.6 (chi^2 around 4861/5577 climbs monotonically above
     #   0.6), and the slit geometry is identical to R/I.
-    _require_ug_only_cals = True
 
     def _canonicalize(self, raw):
         return np.fliplr(raw)
@@ -1114,6 +1105,7 @@ class P200NGPSSpectrograph_u(P200NGPSSpectrograph):
     comment = 'u-Channel (raw image rotated 90 deg)'
 
     _extname = 'U'
+    _require_ug_only_cals = True
     _use_overscan = False
     # U dome-flat illumination drops off toward the blue end, so slit
     # edge traces don't span 60% of the spectral length.
@@ -1137,7 +1129,6 @@ class P200NGPSSpectrograph_u(P200NGPSSpectrograph):
     #   the noise floor in the 3300-4200 A range, so the bsp-only
     #   UGRI sweep (``diagnostics/sweep_skysub_all_channels.md``)
     #   couldn't separate bsp values at any chi^2 level.
-    _require_ug_only_cals = True
 
     def _canonicalize(self, raw):
         return np.rot90(raw, k=-1)
