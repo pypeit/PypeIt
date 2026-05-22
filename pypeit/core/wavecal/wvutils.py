@@ -365,13 +365,13 @@ def arc_lines_from_spec(
         threshold is met or the function hits a maximum number of iterations
         (``max_good_iter``).  To perform these iterations, you *must* provide
         ``good_frac``, ``fwhm_incr``, and ``max_good_iter``.
-
-
+    fwhm_incr : float, optional
+        Multiplicative factor applied to ``fwhm`` during iterations meant to
+        improve the fraction of good line detections.  Should be greater than 1,
+        but is not limited to be so.  See description of ``good_frac``.
     max_good_iter : int, optional
-        S
-
-
-
+        Maximum number of iterations meant to improve the fraction of good line
+        detections.  See description of ``good_frac``.
     debug: bool, optional
        Make plots showing results of peak finding and final arc lines that are
        used.
@@ -859,8 +859,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         else:
             raise PypeItError('Unrecognized stretch_func')
         result = scipy.optimize.differential_evolution(
-                zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, 
-                bounds=bounds, disp=False, polish=True, rng=seed) #seed=seed)
+            zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False,
+            polish=True, rng=seed
+        )
     except PypeItError:
         log.warning("Differential evolution failed.")
         return 0, None, None, None, None, None, None

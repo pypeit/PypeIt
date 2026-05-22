@@ -387,7 +387,7 @@ def resize_slits2arc(shape_arc, shape_orig, trace_orig):
     return trace
 
 
-# TODO: Change this.
+# TODO: This should use resampling, not linear interpolation.
 def resize_spec(spec_from, nspec_to):
     """
     Resize the input spectrum (usually an arc spectrum)
