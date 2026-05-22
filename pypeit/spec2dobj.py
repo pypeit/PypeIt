@@ -718,7 +718,7 @@ class AllSpec2DObj:
         # Finish
         hdulist = fits.HDUList(hdus)
         hdulist.writeto(_outfile, overwrite=overwrite)
-        log.info(f'Wrote: {_outfile}')
+        log.info(f'Wrote 2D spectra to {_outfile}')
 
     def __repr__(self):
         # Generate sets string

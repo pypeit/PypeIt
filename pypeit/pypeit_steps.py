@@ -188,7 +188,8 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str=N
     # currently for NIRSpec, the slit name is used directly as the user_slits
     user_slits = slittrace.merge_user_slit(par['rdx']['slitspatnum'], par['rdx']['maskIDs']) \
         if slitname is None else {'method': 'slitname', 'slit_info': slitname}
-    log.info(f'Building/loading calibrations for detector {det}')
+    add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+    log.info(f'Building/loading calibrations for detector {det}{add_to_lstr} ')
     caliBrate = calibrations.Calibrations.get_instance(
         fitstbl, par['calibrations'], spectrograph,
         calibrations_path, calib_ID, grp_frames[0], det,
@@ -282,7 +283,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
 
     # Grab some meta-data needed for the reduction from the fitstbl
     objtype, setup, obstime, basename, binning \
-            = get_sci_metadata(spectrograph, fitstbl, frames[0], det)
+            = get_sci_metadata(spectrograph, fitstbl, frames[0], det, slit_name=slitname)
 
     # Grab the calibrations
     caliBrate = load_calibrations_for_frame(
@@ -421,13 +422,12 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
                                         std_outfile)
     else:
         std_trace = None
-    log.info("Object finding begins for {} on det={}".format(basename, det))
 
     # Grab the calibrations
     caliBrate = load_calibrations_for_frame(
             spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path, slitname=slit_name)
 
-    log.info(f'Reducing detector {det}')
+    log.info("Object finding begins for {} on det={}".format(basename, det))
 
     # Instantiate Reduce object
     # Required for pypeline specific object
@@ -444,7 +444,7 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
 
 def finalize_sky_det(spectrograph, fitstbl, par, frame,
                      det, objFind, initial_sky, all_specobjs_objfind,
-                     bkg_redux_sciimg=None, bkg_redux=False, show=False):
+                     bkg_redux_sciimg=None, bkg_redux=False, show=False, slit_name=None):
     """
     Finalize sky subtraction for a specific detector.
 
@@ -475,6 +475,8 @@ def finalize_sky_det(spectrograph, fitstbl, par, frame,
             Indicates whether background reduction is being performed. Default is False.
         show (:obj:`bool`, optional):
             Show the QA during processing. Default is False.
+        slit_name (:obj:`str`, optional):
+            Slit name for per-slit output file naming (NIRSpec).
 
     Returns:
         tuple: A tuple containing:
@@ -486,7 +488,7 @@ def finalize_sky_det(spectrograph, fitstbl, par, frame,
     """
 
     objtype, setup, obstime, basename, binning \
-            = get_sci_metadata(spectrograph, fitstbl, frame, det)
+            = get_sci_metadata(spectrograph, fitstbl, frame, det, slit_name=slit_name)
     detname = spectrograph.get_det_name(det)
 
     # Get objects on this detector
@@ -547,6 +549,10 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
             The calibration group ID
         calibrations_path (:obj:`str`):
             Path to the calibration files
+        slitname (:obj:`str`, optional):
+            NIRSpec slit name.  When provided, this slit name is used as
+            ``user_slits`` for the calibration.  Default is None
+            (standard pipeline).
 
     Returns:
         :class:`~pypeit.calibrations.Calibrations`:
@@ -555,6 +561,9 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
     Raises:
         PypeItError: If the calibrations for the specified detector are unsuccessful.
     """
+
+    add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+    log.info(f'Loading calibrations for detector {det}{add_to_lstr} ')
 
     # Instantiate Calibrations class
     # currently for NIRSpec, the slit name is used directly as the user_slits

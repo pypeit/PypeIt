@@ -124,7 +124,8 @@ def process_exposure(spectrograph, fitstbl, par, frames:list,
 
     # Loop on the detectors
     for det in detectors:
-        log.info(f'Reducing detector {det}')
+        add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+        log.info(f'Image processing detector {det}{add_to_lstr}')
 
         # Process
         sciImg, bkg_redux_sciimg = pypeit_steps.process_one_det(
@@ -211,6 +212,8 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
     # find objects + initial sky subtraction
     # Loop on the detectors
     for det in detectors:
+        add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+        log.info(f'Object finding on detector {det}{add_to_lstr}')
         # Grab the science image
         sciImg = sciImg_dict[det]
 
@@ -245,6 +248,8 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
     # #####################################
     # final sky subtraction
     for i,det in enumerate(detectors):
+        add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+        log.info(f'Final sky subtraction on detector {det}{add_to_lstr}')
         # Load some useful objects
         this_objfind = all_objfinds[i]
         bkg_redux_sciimg = bkg_redux_sciimg_dict[det]
@@ -255,7 +260,7 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
         final_global_sky, bkg_redux_global_sky, this_objfind = \
             pypeit_steps.finalize_sky_det(spectrograph, fitstbl, par, frames[0],
                      det, this_objfind, initial_sky, all_specobjs_objfind,
-                     bkg_redux_sciimg=bkg_redux_sciimg, bkg_redux=bkg_redux, show=show)
+                     bkg_redux_sciimg=bkg_redux_sciimg, bkg_redux=bkg_redux, show=show, slit_name=slitname)
 
         # store the final skies
         final_sky_dict[det] = final_global_sky
@@ -332,6 +337,8 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
 
     # Extract
     for i,det in enumerate(detectors):
+        add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+        log.info(f'Extracting objects on detector {det}{add_to_lstr}')
         detname = sciImg_dict[det].detector.name
 
         # TODO: pass back the background frame, pass in background
@@ -464,7 +471,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     # #####################################
     # Calibrations
     for det in detectors:
-        log.info(f'Calibrating detector {det}')
+        log.info(f'Calibrating detector {det}{add_to_lstr}')
         # run/load calibration
         caliBrate = pypeit_steps.calib_one(
             spectrograph, fitstbl, _par, det, calib_ID, calibrations_path,
@@ -566,6 +573,9 @@ def save_exposure(spectrograph, fitstbl, par,
     # Need raw file header information
     rawfile = fitstbl.frame_paths(frame)
     head2d = fits.getheader(rawfile, ext=spectrograph.primary_hdrext)
+
+    add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+    log.info(f'Saving reduced data for target {fitstbl["target"][frame]}{add_to_lstr} to disk')
 
 
     # NOTE: There are some gymnastics here to keep from altering

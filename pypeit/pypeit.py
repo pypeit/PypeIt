@@ -197,12 +197,15 @@ class PypeIt:
         """
         self.tstart = time.perf_counter()
 
+        log.info('Starting calibration only reduction')
+
         # Frame indices
         for calib_ID in self.fitstbl.calib_groups:
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(calib_ID)
             if not any(in_grp):
                 continue
+            log.info(f'Working on calibration group {calib_ID}')
             # Find the detectors to reduce
             detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'] if self.par['rdx']['slitspatnum'] is None
                                               else self.par['rdx']['slitspatnum'])
@@ -214,6 +217,8 @@ class PypeIt:
 
                 caliBrate = pypeit_steps.calib_one(self.spectrograph, self.fitstbl, self.par,
                                        self.det, calib_ID, self.calibrations_path)
+
+            log.info(f'Finished calibration group {calib_ID}')
 
 
         # Finish
@@ -234,20 +239,33 @@ class PypeIt:
         # ############################################################################
         # Standard Star(s) Loop
         # ############################################################################
+        if np.any(self.fitstbl.find_frames('standard')):
+            log.info('Starting standard star reduction')
         # Iterate over each calibration group and reduce the standards
         for calib_ID in self.fitstbl.calib_groups:
+            # check first if there is any standard stars frame in this group
+            if not np.any(self.fitstbl.find_frames('standard', calib_ID)):
+                continue
+            log.info(f'Working on calibration group {calib_ID}')
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
                            calib_ID, self.calibrations_path,
                            reduce_standard=True, overwrite=self.overwrite,
                            show=self.show,
                            run_state=self.run_state,
                            reuse_calibs=self.reuse_calibs)
+            log.info(f'Finished calibration group {calib_ID}')
 
         # ############################################################################
         # Science Frame(s) Loop
         # ############################################################################
+        if np.any(self.fitstbl.find_frames('science')):
+            log.info('Starting science frame reduction')
         # Iterate over each calibration group again and reduce the science frames
         for calib_ID in self.fitstbl.calib_groups:
+            # check first if there is any science frames frame in this group
+            if not np.any(self.fitstbl.find_frames('science', calib_ID)):
+                continue
+            log.info(f'Working on calibration group {calib_ID}')
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
                                         calib_ID, self.calibrations_path,
                                         reduce_standard=False, overwrite=self.overwrite,
@@ -305,7 +323,10 @@ class NIRSpecSlitPypeIt(PypeIt):
         """
         self.tstart = time.perf_counter()
 
+        log.info('Starting calibration only reduction')
+
         for calib_ID in self.fitstbl.calib_groups:
+            log.info(f'Working on calibration group {calib_ID}')
             gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(
                 self.fitstbl, calib_ID, self.par)
             if gd_slits_sources is None:
@@ -321,6 +342,7 @@ class NIRSpecSlitPypeIt(PypeIt):
                     slitname=islit, reuse_calibs=self.reuse_calibs,
                     qa_path=self.qa_path, show=self.show,
                     run_state=self.run_state)
+            log.info(f'Finished calibration group {calib_ID}')
 
         # Finish
         self.print_end_time()
@@ -344,10 +366,13 @@ class NIRSpecSlitPypeIt(PypeIt):
         # ################################################################
         # Standard Star(s) Loop
         # ################################################################
+        if np.any(self.fitstbl.find_frames('standard')):
+            log.info('Starting standard star reduction')
         for calib_ID in self.fitstbl.calib_groups:
             # check first if there is any standard stars frame in this group
             if not np.any(self.fitstbl.find_frames('standard', calib_ID)):
                 continue
+            log.info(f'Working on calibration group {calib_ID}')
             # get ids of the slits that we want to reduce, could be all (but still the reduction will be separated per slit),
             # or user input slits passed through the parameter self.par['rdx']['maskIDs']
             gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par)
@@ -364,14 +389,18 @@ class NIRSpecSlitPypeIt(PypeIt):
                     slitname=islit, detnum=slit_det_map[islit],
                     reduce_standard=True, overwrite=self.overwrite,
                     show=self.show, run_state=self.run_state, reuse_calibs=self.reuse_calibs)
+            log.info(f'Finished calibration group {calib_ID}')
 
         # ################################################################
         # Science Frame(s) Loop
         # ################################################################
+        if np.any(self.fitstbl.find_frames('science')):
+            log.info('Starting science frame reduction')
         for calib_ID in self.fitstbl.calib_groups:
             # check first if there is any science frames frame in this group
             if not np.any(self.fitstbl.find_frames('science', calib_ID)):
                 continue
+            log.info(f'Working on calibration group {calib_ID}')
             # get ids of the slits that we want to reduce, could be all (but still the reduction will be separated per slit),
             # or user input slits passed through the parameter self.par['rdx']['maskIDs']
             gd_slits_sources, slit_det_map = self.spectrograph.get_nirspec_slits(self.fitstbl, calib_ID, self.par)
