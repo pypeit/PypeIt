@@ -904,6 +904,7 @@ def main(flg):
         pass
     # Keck KCRM
     if flg & (2**36):
+        # RM1
         dirc = template_path / 'KCWI' / 'RM1'
         infiles = [dirc / 'keck_kcrm_rm1_lcen6230.fits',dirc / 'keck_kcrm_rm1_lcen7010.fits']
         outroot = 'keck_kcrm_RM1.fits'
@@ -914,7 +915,17 @@ def main(flg):
         lcut = [6910.0]
         build_template(infiles, slits, lcut, binspec, outroot, scalespec=True, scalevals=scalevals,
                        binning=binning, reid_files=True, shift_wave=True, chk=True)
-
+        # RH3
+        dirc = template_path / 'KCWI' / 'RH3'
+        infiles = [dirc / 'keck_kcrm_rh3_lcen8550.fits',dirc / 'keck_kcrm_rh3_lcen9010_coadd.fits']
+        outroot = 'keck_kcrm_RH3.fits'
+        slits = [0, 0]
+        binspec = 1 # Desired binning
+        binning = [2, 2] # Spectral binning of each infile
+        scalevals = [1.0, 11.0] # Scale the second spectrum to match the first
+        lcut = [8920.0]
+        build_template(infiles, slits, lcut, binspec, outroot, scalespec=True, scalevals=scalevals,
+                       binning=binning, reid_files=True, shift_wave=True, chk=True)
 
 # Command line execution
 if __name__ == '__main__':
