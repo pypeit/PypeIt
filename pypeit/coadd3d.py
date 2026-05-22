@@ -1556,7 +1556,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                     wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
                                     reference=self.cubepar['reference_image'], collapse=True, equinox=2000.0,
                                     specname=self.specname)
-            if voxedge[2].size != 2:
+            if voxedge[0].size != 2:
                 raise PypeItError("Spectral range for WCS is incorrect for white light image")
 
             wl_imgs, sig_imgs, bpm_imgs = datacube.generate_image_subpixel(
@@ -1575,6 +1575,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Calculate the image offsets relative to the reference image
             if self.alignment_method == 'phase':
+                embed()
                 for ff in range(self.numfiles):
                     # Calculate the shift
                         ra_shift, dec_shift = calculate_image_phase(
@@ -1770,7 +1771,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         # If we are combining frames, check that alignment has been requested. 
         # If not, then print out a warning. 
-        if self.combine and not self.align:
+        if self.combine and not self.align and self.numfiles!=1:
             log.warning(
                 "Combining frames without aligning them.  Make sure that you know what you are "
                 "doing!  Even if your frames are taken at the same position, alignment is still "
