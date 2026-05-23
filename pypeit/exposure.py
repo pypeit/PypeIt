@@ -451,21 +451,13 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         bg_lstr = '\nUsing background from frames:\n' + bg_lstr
         log.info(bg_lstr)
 
-    # TODO: move these to the NIRSpec spectrograph class
-    # Make a working copy of par so we can modify it for NIRSpec bkg_redux
-    _par = par
-    if slitname is not None and bkg_redux:
-        _par = copy.deepcopy(par)
-        _par['reduce']['findobj']['skip_skysub'] = True
-        _par['reduce']['extraction']['skip_optimal'] = True
-
     # Find the detectors to reduce
     if detnum is not None:
         detectors = spectrograph.select_detectors(subset=detnum)
     else:
         detectors = spectrograph.select_detectors(
-            subset=_par['rdx']['detnum'] if _par['rdx']['slitspatnum'] is None
-            else _par['rdx']['slitspatnum'])
+            subset=par['rdx']['detnum'] if par['rdx']['slitspatnum'] is None
+            else par['rdx']['slitspatnum'])
     log.info(f'Detectors to work on: {detectors}')
 
     # #####################################
@@ -474,7 +466,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         log.info(f'Calibrating detector {det}{add_to_lstr}')
         # run/load calibration
         caliBrate = pypeit_steps.calib_one(
-            spectrograph, fitstbl, _par, det, calib_ID, calibrations_path,
+            spectrograph, fitstbl, par, det, calib_ID, calibrations_path,
             slitname=slitname, show=show, run_state=run_state, reuse_calibs=reuse_calibs)
         if not caliBrate.success:
             log.warning(
@@ -492,7 +484,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     # #####################################
     # Process or load processed frames
     sciImg_dict, bkg_redux_sciimg_dict = process_exposure(
-            spectrograph, fitstbl, _par, frames, calib_ID,
+            spectrograph, fitstbl, par, frames, calib_ID,
                 detectors, calibrations_path,
                 bg_frames=bg_frames, slitname=slitname)
 
@@ -502,7 +494,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         findobj_on_exposure(sciImg_dict, bkg_redux_sciimg_dict,
                             spectrograph,
                             fitstbl,
-                            _par, frames, detectors,
+                            par, frames, detectors,
                             calib_ID, calibrations_path,
                             std_outfile=std_outfile,
                             bkg_redux=bkg_redux,
@@ -514,7 +506,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     # Extract
     all_spec2d, all_specobjs_extract = extract_exposure(
         sciImg_dict, spectrograph, fitstbl,
-        _par, frames, detectors, calib_ID,
+        par, frames, detectors, calib_ID,
         calibrations_path, all_specobjs_find,
         final_sky_dict, bkg_redux_final_sky_dict,
         calib_slits, bkg_redux=bkg_redux,

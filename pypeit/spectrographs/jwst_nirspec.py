@@ -34,7 +34,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     url = 'https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph'
     pypeline = 'NIRSpecSlit'
     #supported = True
-    allowed_extensions = ['rate.fits','rate.fits.gz' , 'uncal.fits.gz', 'uncal.fits', '.fits', '.fits.gz']
+    allowed_extensions = ['_assign_wcs.fits', '_interpolatedflat.fits', '_interpolatedflat_fs.fits',
+                          '_cal.fits', 'uncal.fits', 'msa.fits']
+    # allowed_extensions = ['rate.fits','rate.fits.gz' , 'uncal.fits.gz', 'uncal.fits', '.fits', '.fits.gz']
 
     def rawfile_basename(self, filename, targname=None, slitname=None):
         """
@@ -60,7 +62,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         _filename = filename.split('.fits')[0]
 
-        for tag in ['_assign_wcs', '_nrs1', '_nrs2']:
+        for tag in ['_assign_wcs', '_interpolatedflat', '_interpolatedflat_fs', '_cal', '_nrs1', '_nrs2']:
             _filename = _filename.replace(tag, '')
 
         if targname is not None:
@@ -228,8 +230,19 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                         use_specillum=False, apply_gain=False, trim=True)
         par.reset_all_processimages_par(**turn_off)
 
+        # this is just so the code does not complain if this is not set. This
+        # parameter is not really used for NIRSpec. detnum is determined by where
+        # the slit that is being reduced is located.
+        par['rdx']['detnum'] = [(1,2)]
+
         # Reduce
         par['reduce']['trim_edge'] = [0,0]
+
+        # bkg redux
+        # Since NIRSpec observations are generally A-B, we want to set the
+        # parameters below, but if not, these parameters need to be changed.
+        par['reduce']['findobj']['skip_skysub'] = True
+        par['reduce']['extraction']['skip_optimal'] = True
 
         # Object finding
         par['reduce']['findobj']['find_trim_edge'] = [0,0]
@@ -390,6 +403,92 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return ['dispname', 'filter1', 'decker', 'target']
+
+    def get_comb_group(self, fitstbl):
+        """
+        Automatically assign combination groups by grouping files that share the
+        same ``rawfile_basename``.
+
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``calib`` columns in the provided
+        table.
+
+        Specifically, for JWST NIRSpec each physical exposure produces two raw
+        files — one per detector (``_nrs1`` / ``_nrs2``).  The
+        :func:`rawfile_basename` method strips those suffixes so that both files
+        share the same basename.  This method exploits that property to:
+
+        1. Assign the same ``calib`` value to every file that shares a
+           ``rawfile_basename`` (i.e., NRS1 and NRS2 of the same exposure are
+           placed in the same calibration group).  A sequential integer counter
+           (1-based, maximum 64) is used so that
+           different exposures get different ``calib`` values.  Frames whose
+           ``frametype`` is ``'None'`` are excluded from this assignment and
+           their ``calib`` value is left at the default ``'0'``.  If the number
+           of distinct basenames with a valid frametype exceeds 64, a warning is
+           issued and the counter is capped at 64, meaning that different exposures
+           may end up in the same calib group.
+
+        2. Assign the same ``comb_id`` to science frames that share a
+           ``rawfile_basename``, and — independently — to standard frames that
+           share a ``rawfile_basename``.  This ensures both detector files of
+           the same science (or standard) exposure are combined together.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for all the frames.
+
+        Returns:
+            `astropy.table.Table`_: modified fitstbl.
+        """
+        # Compute rawfile_basename for every row (no targname/slitname so that
+        # _nrs1 and _nrs2 files from the same exposure map to the same value).
+        basenames = np.array([self.rawfile_basename(f) for f in fitstbl['filename']])
+        unique_basenames = np.unique(basenames)
+
+        # Flag rows whose frametype is 'None' (i.e. unclassified frames).
+        # Their calib value is left at '0' and they are excluded from the
+        # counter-based grouping below.
+        has_frametype = np.array([ft != 'None' for ft in fitstbl['frametype']])
+
+        # 1. Files with the same rawfile_basename get the same calib value.
+        #    Frames with frametype 'None' are skipped (their calib stays '0').
+        #    The calib counter is 1-based and is capped at 64.
+        if 'calib' in fitstbl.keys():
+            calib_counter = 1
+            for basename in unique_basenames:
+                same_basename = (basenames == basename) & has_frametype
+                if not np.any(same_basename):
+                    continue
+                fitstbl['calib'][same_basename] = str(calib_counter)
+                if calib_counter > 64:
+                    log.warning(f'Number of unique calib groups exceeded the maximum of 64. '
+                                f'Therefore the calib group counter was capped at 64. '
+                                f'Consider splitting your dataset into smaller subsets.')
+                    calib_counter = 64
+                else:
+                    calib_counter += 1
+
+        # 2. Science frames and standard frames are handled separately.
+        #    Within each frame type, files with the same rawfile_basename are
+        #    assigned the same comb_id (the minimum value already set for that
+        #    group, which keeps the IDs globally unique across groups).
+        for frame_type in ['science', 'standard']:
+            same_ftype = np.array([frame_type in _tab for _tab in fitstbl['frametype']])
+            if not np.any(same_ftype):
+                continue
+            for basename in unique_basenames:
+                in_group = same_ftype & (basenames == basename)
+                if not np.any(in_group):
+                    continue
+                # Use the smallest existing comb_id in the group as the
+                # representative value for all files sharing this basename.
+                rep_comb_id = np.min(fitstbl['comb_id'][in_group])
+                fitstbl['comb_id'][in_group] = rep_comb_id
+
+
+        return fitstbl
 
     def pypeit_file_keys(self):
         """
