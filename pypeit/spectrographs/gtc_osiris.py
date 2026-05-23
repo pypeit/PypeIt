@@ -610,13 +610,21 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
-        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+
+        # TODO :: These probably need to be turned on to get good corrections.
+        # par['calibrations']['flatfield']['slit_illum_finecorr'] = True
+        # par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
+        # par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
+        # par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 10  # Sufficiently small value so less structure in relative weights
+
         # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
         par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
 
         # Decrease the wave tilts order, given the shorter slits of the IFU
-        par['calibrations']['tilts']['spat_order'] = 1
+        par['calibrations']['tilts']['spat_order'] = 2
         par['calibrations']['tilts']['spec_order'] = 1
+        par['calibrations']['wavelengths']['fwhm_spec_order'] = 2
+        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
 
         # Tweak the slit edges using the gradient method for SlicerIFU
         par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.

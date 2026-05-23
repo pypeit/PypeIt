@@ -237,8 +237,7 @@ def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", slw=None, outfile=None, show_
     # Determine the unique spatial positions where the spectral FWHM was measured
     unq = np.unique(fwhmFit.x2)
     colors = plt.cm.Spectral(unq)
-    # TODO : I have made loads of changes to this file, and they should all be removed before merging.
-    spec_vec = np.linspace(0, fwhmFit.xval.max(), unq.shape[0]+1)/fwhmFit.xval.max()
+    spec_vec = np.linspace(0, fwhmFit.xval.max(), 10)
     # Begin
     plt.close('all')
     # Show the fit
@@ -249,22 +248,19 @@ def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", slw=None, outfile=None, show_
     # Plot the model fits with the same colors
     for uu in range(unq.size):
         # The mask to use for this spatial location
-        xplot = slw[0] + fwhmFit.x2*slw[1]
-        this_fitmask = (fwhmFit.gpm == 1) & (fwhmFit.xval/fwhmFit.xval.max() >= spec_vec[uu]) & (fwhmFit.xval/fwhmFit.xval.max() <= spec_vec[uu+1])
-        this_rejmask = (fwhmFit.gpm == 0) & (fwhmFit.xval/fwhmFit.xval.max() >= spec_vec[uu]) & (fwhmFit.xval/fwhmFit.xval.max() <= spec_vec[uu+1])
+        this_fitmask = (fwhmFit.gpm == 1) & (fwhmFit.x2 == unq[uu])
+        this_rejmask = (fwhmFit.gpm == 0) & (fwhmFit.x2 == unq[uu])
         # Plot the data
-        ax.scatter(xplot[this_rejmask], fwhmFit.yval[this_rejmask], s=50, facecolors='none', edgecolors=colors[uu])
-        ax.scatter(xplot[this_fitmask], fwhmFit.yval[this_fitmask], s=50, facecolors=colors[uu], edgecolors='none')
-        this_model = fwhmFit.eval(fwhmFit.xval.max()*unq[uu]*np.ones(xplot.size), fwhmFit.x2)
-        ax.plot(xplot, this_model, color=colors[uu])
-    # TODO : remove the following line before merging.
-    np.save(outfile.replace('.png', '.npy'), np.transpose((fwhmFit.xval, fwhmFit.yval, slw[0] + slw[1]*fwhmFit.x2)))
+        ax.scatter(fwhmFit.xval[this_rejmask], fwhmFit.yval[this_rejmask], s=50, facecolors='none', edgecolors=colors[uu])
+        ax.scatter(fwhmFit.xval[this_fitmask], fwhmFit.yval[this_fitmask], s=50, facecolors=colors[uu], edgecolors='none')
+        this_model = fwhmFit.eval(spec_vec, unq[uu]*np.ones(spec_vec.size))
+        ax.plot(spec_vec, this_model, color=colors[uu])
     # Finalise the plot details
     mdiff = np.max(model)-np.min(model)
     ymin = np.min(model)-0.5*mdiff
     ymax = np.max(model)+0.5*mdiff
     ax.set_ylim((ymin, ymax))
-    ax.set_xlabel('Spatial coordinate (pixels)', fontsize=12)
+    ax.set_xlabel('Spectral coordinate (pixels)', fontsize=12)
     ax.set_ylabel('Spectral FWHM (pixels)', fontsize=12)
     titletxt = f'Spectral FWHM residual map for {slit_txt} {spat_id}\n' \
                f'spat_order, spec_order = {spat_order}, {spec_order}\n' \
@@ -281,12 +277,11 @@ def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", slw=None, outfile=None, show_
                                  orientation='vertical',
                                  cmap=cmap,
                                  norm=plt.Normalize(unq[0]-0.5*(unq[1]-unq[0]), unq[-1]+0.5*(unq[-1]-unq[-2])))
-        # TODO : remove the changes to the following line before merging.
-        cbar_labels = [f"{uu:.3f}" for uu in slw[0] + unq*slw[1]]
+        cbar_labels = [f"{uu:.3f}" for uu in unq]
         cbar.set_ticks(unq)
         cbar.ax.set_yticklabels(cbar_labels, fontsize=10)
         cbar.solids.set_edgecolor('black')
-        cbar.set_label(label='Fraction along the slit in the spectral direction', weight='bold', fontsize=12)
+        cbar.set_label(label='Fraction along the slit in the spatial direction', weight='bold', fontsize=12)
 
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     if outfile is not None:
