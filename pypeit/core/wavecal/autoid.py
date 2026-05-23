@@ -204,7 +204,7 @@ def arc_fit_qa(waveFit,
     return
 
 
-def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", slw=None, outfile=None, show_QA=False):
+def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
     """
     QA for spectral FWHM fitting
 
