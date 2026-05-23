@@ -1513,8 +1513,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         # ext 1 = IFUTRACES_A (side A, det 1), ext 2 = IFUTRACES_B (side B, det 2)
         ext = 1 if det == 1 else 2
         with fits.open(ref_file) as hdu:
-            data = hdu[ext].data.copy()
-        return data
+            return hdu[ext].data.copy()
 
     def load_sky_layout(self) -> tuple[np.ndarray, np.ndarray]:
         """

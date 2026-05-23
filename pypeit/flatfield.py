@@ -2012,9 +2012,33 @@ class FiberFlatField(FlatField):
                 trace_spat = np.full(nspec, center_pix)
                 box_r = half_spacings[j]
 
-                wave, flux, flux_ivar = extract_boxcar(
+                box_result = extract_boxcar(
                     box_r, trace_spat, rawflat, ivar, gpm,
-                    waveimg, skyimg)[:3]
+                    waveimg, skyimg)
+                wave = box_result[0]
+                flux = box_result[1]
+                flux_ivar = box_result[2]
+                npix = box_result[10]
+
+                # moment1d sums img*mask over the full aperture without
+                # dividing by the good-pixel count, so a half-masked box
+                # returns half the true flux.  Rescale by box_width/npix
+                # to recover an unbiased flat estimate.  When too many
+                # pixels are masked the rescale amplifies noise, so
+                # require at least 1/3 of the aperture to be unmasked;
+                # otherwise mark the bin NaN so downstream code (via the
+                # NaN propagation in _apply_flat_correction) treats those
+                # wavelengths as bad rather than including a heavily
+                # biased flat value in the science extraction.
+                box_width = 2.0 * box_r
+                min_good = box_width / 3.0
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    scale = np.where(npix > 0, box_width / np.maximum(npix, 1.0), 1.0)
+                heavy = npix < min_good
+                flux = flux * scale
+                flux_ivar = flux_ivar / np.maximum(scale, 1.0) ** 2
+                flux[heavy] = np.nan
+                flux_ivar[heavy] = 0.0
 
                 all_fiber_spectra.append(flux)
                 all_fiber_waves.append(wave)
@@ -2059,9 +2083,14 @@ class FiberFlatField(FlatField):
         log.info(f"Global flat normalization coefficient: {global_norm:.1f}")
 
         normflat = fiber_spectra_arr / global_norm
-        # Bad pixel cleanup: replace non-finite or negative with 1.0
+        # Preserve the BPM signature in the saved FiberFlat: wavelength bins
+        # whose boxcar sums collapsed to <= 0 (all/most contributing detector
+        # pixels were masked) are marked NaN rather than refilled with 1.0,
+        # so bad detector rows remain visible as NaN columns in the output.
+        # Downstream consumers (find_objects._apply_flat_correction) treat
+        # NaN/<=0 entries as "no correction" (divide by 1.0).
         bad = ~np.isfinite(normflat) | (normflat <= 0)
-        normflat[bad] = 1.0
+        normflat[bad] = np.nan
 
         # Build a common wavelength grid (median across fibers)
         normflat_wave = np.median(fiber_waves_arr, axis=0)

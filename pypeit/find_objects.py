@@ -1590,10 +1590,44 @@ class FiberFindObjects(SlicerIFUFindObjects):
                 continue
             flat_idx = flat_idx[0]
 
-            # Interpolate normflat to this fiber's wavelength grid
-            nf = np.interp(sobj.BOX_WAVE, normflat_wave,
-                           normflat[flat_idx], left=1.0, right=1.0)
-            nf[nf <= 0] = 1.0
+            # Build a smooth per-fiber flat correction.  Bad NORMFLAT bins
+            # (NaN or non-positive) would propagate NaN through np.interp and,
+            # if patched to 1.0, create a multiplicative cliff against the
+            # local flat value -- injecting a wavelength-locked spike into the
+            # reconstructed 2D SKYMODEL.  Fill the bad bins by linear
+            # interpolation across the index axis so flat_corr stays smooth,
+            # and separately mask only the BOX_WAVE entries that land within
+            # half a sample of an original bad bin.
+            flat_row = normflat[flat_idx]
+            bad_in_normflat = ~np.isfinite(flat_row) | (flat_row <= 0)
+            if bad_in_normflat.any() and not bad_in_normflat.all():
+                clean_row = flat_row.copy()
+                idx_all = np.arange(len(flat_row))
+                clean_row[bad_in_normflat] = np.interp(
+                    idx_all[bad_in_normflat],
+                    idx_all[~bad_in_normflat],
+                    flat_row[~bad_in_normflat])
+            else:
+                clean_row = flat_row
+            nf = np.interp(sobj.BOX_WAVE, normflat_wave, clean_row,
+                           left=1.0, right=1.0)
+
+            flat_bad = np.zeros_like(sobj.BOX_WAVE, dtype=bool)
+            if bad_in_normflat.any():
+                half_step = 0.5 * np.median(np.diff(normflat_wave))
+                for bw in normflat_wave[bad_in_normflat]:
+                    flat_bad |= np.abs(sobj.BOX_WAVE - bw) < half_step
+            # Safety net for any residual non-positive values (e.g. extrapolation
+            # past either end of normflat_wave).
+            nf_bad = (nf <= 0) | ~np.isfinite(nf)
+            flat_bad |= nf_bad
+            nf[nf_bad] = 1.0
+            box_mask = getattr(sobj, 'BOX_MASK', None)
+            if box_mask is not None:
+                sobj.BOX_MASK = box_mask & ~flat_bad
+            box_ivar = getattr(sobj, 'BOX_COUNTS_IVAR', None)
+            if box_ivar is not None:
+                sobj.BOX_COUNTS_IVAR = np.where(flat_bad, 0.0, box_ivar)
 
             # Look up fiber_illumination scalar
             illum = 1.0

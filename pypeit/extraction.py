@@ -1221,7 +1221,15 @@ class FiberExtract(Extract):
 
                 vals = flatimg[row, cols]
                 good = np.isfinite(vals) & (vals > 0)
-                if not np.any(good):
+                # Fall back to a uniform aperture profile when the flat is too
+                # noisy or absent in the aperture: BPM-masked rows have no good
+                # pixels, and regions of low spectrograph throughput have flat
+                # values scattered around zero where a profile built from only
+                # the positive outliers concentrates the sky on 1-2 pixels and
+                # produces huge spurious spikes.
+                if good.sum() < max(3, len(cols) // 2):
+                    prof[row, cols] = 1.0 / len(cols)
+                    has_valid = True
                     continue
 
                 prof[row, cols[good]] = vals[good]
