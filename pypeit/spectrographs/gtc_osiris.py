@@ -295,15 +295,19 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
+        # if ftype in ['pixelflat', 'trace', 'illumflat', 'arc', 'tilt']:
+        #     embed()
+        #     assert False
+
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & (np.logical_not(np.char.startswith(np.char.lower(fitstbl['target']), 'arclamp'))) & \
-                   (np.char.lower(fitstbl['target']) != 'spectralflat') & \
+            return good_exp & (np.logical_not(np.char.startswith(np.char.lower(fitstbl['target']), 'maat_arc'))) & \
+                   (np.char.lower(fitstbl['target']) != 'maat_flat') & \
                    (np.char.lower(fitstbl['target']) != 'bias')
         if ftype in ['arc', 'tilt']:
-            return good_exp & (np.char.startswith(np.char.lower(fitstbl['target']), 'arclamp'))
+            return good_exp & (np.char.startswith(np.char.lower(fitstbl['target']), 'maat_arc'))
         if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (np.char.lower(fitstbl['target']) == 'spectralflat')
+            return good_exp & (np.char.lower(fitstbl['target']) == 'maat_flat')
         if ftype == 'bias':
             return good_exp & (np.char.lower(fitstbl['target']) == 'bias')
 
