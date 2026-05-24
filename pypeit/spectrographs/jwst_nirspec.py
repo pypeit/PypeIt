@@ -236,16 +236,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par['rdx']['detnum'] = [(1,2)]
 
         # Reduce
-        par['reduce']['trim_edge'] = [0,0]
-
-        # bkg redux
-        # Since NIRSpec observations are generally A-B, we want to set the
-        # parameters below, but if not, these parameters need to be changed.
-        par['reduce']['findobj']['skip_skysub'] = True
-        par['reduce']['extraction']['skip_optimal'] = True
+        par['reduce']['trim_edge'] = [1,1]
 
         # Object finding
-        par['reduce']['findobj']['find_trim_edge'] = [0,0]
+        par['reduce']['findobj']['find_trim_edge'] = [1,1]
         par['reduce']['findobj']['maxnumber_sci'] = 2
         par['reduce']['findobj']['snr_thresh'] = 10.0
         par['reduce']['findobj']['trace_npoly'] = 5
