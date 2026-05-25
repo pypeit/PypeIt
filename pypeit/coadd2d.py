@@ -2405,21 +2405,22 @@ class EchelleCoAdd2D(CoAdd2D):
         """
         return 'log10' if self.par['coadd2d']['wave_method'] is None else self.par['coadd2d']['wave_method']
 
-    class NIRSpecSlitCoAdd2D(MultiSlitCoAdd2D):
-        """
-        Child of CoAdd2D for NIRSpec Slit reductions. For documentation see CoAdd2D parent class above.
 
-        NIRSpec Slit can coadd with:
-            - input offsets or if offsets is None, it will find the brightest trace and compute them
-            - specified weights, or if weights is None and auto_weights=True, it will compute weights using the brightest object
-        """
+class NIRSpecSlitCoAdd2D(MultiSlitCoAdd2D):
+    """
+    Child of CoAdd2D for NIRSpec Slit reductions. For documentation see CoAdd2D parent class above.
 
-        def __init__(self, spec2d_files, spectrograph, par, det=1,
-                     only_slits=None, exclude_slits=None, sn_smooth_npix=None,
-                     bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False,
-                     debug=False):
-            super().__init__(spec2d_files, spectrograph, det=det,
-                             only_slits=only_slits, exclude_slits=exclude_slits,
-                             sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
-                             show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
-                             debug=debug)
+    NIRSpec Slit can coadd with:
+        - input offsets or if offsets is None, it will find the brightest trace and compute them
+        - specified weights, or if weights is None and auto_weights=True, it will compute weights using the brightest object
+    """
+
+    def __init__(self, spec2d_files, spectrograph, par, det=1,
+                 only_slits=None, exclude_slits=None, sn_smooth_npix=None,
+                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False,
+                 debug=False):
+        super().__init__(spec2d_files, spectrograph, det=det,
+                         only_slits=only_slits, exclude_slits=exclude_slits,
+                         sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
+                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
+                         debug=debug)
