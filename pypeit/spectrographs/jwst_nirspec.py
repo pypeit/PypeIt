@@ -605,7 +605,6 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Exposure time (used by RawImage)
         exptime = self.get_meta_value(headarr, 'exptime')
 
-
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
 

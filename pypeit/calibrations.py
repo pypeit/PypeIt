@@ -1839,9 +1839,12 @@ class NIRSpecSlitCalibrations(Calibrations):
                 keyword) used to identify the correct ``EXTVER``.
 
         Returns:
-            :class:`~pypeit.images.pypeitimage.PypeItImage`:
+            :class:`~pypeit.images.pypeitimage.PypeItImage` or ``None``:
                 The calibration image for the requested slit, trimmed
-                and oriented to the PypeIt ``(nspec, nspat)`` frame.
+                and oriented to the PypeIt ``(nspec, nspat)`` frame, or
+                ``None`` if the requested ``(extname, extver)``
+                combination is not present in any of the calibration
+                files.
         """
 
         steps = []
@@ -1857,6 +1860,12 @@ class NIRSpecSlitCalibrations(Calibrations):
                 if len(_extver) == 0:
                     raise PypeItError(f'User slit {slit_info} not found in cal file {file}')
                 extver.append(_extver[0])
+                # Check that the requested (extname, extver) combination exists
+                # before attempting to read it.  Optional extensions (e.g.
+                # BARSHADOW) may be absent for some observing modes.
+                if not any(h.name == extname and h.ver == extver[-1] for h in ff):
+                    log.warning(f'Extension ({extname}, ver={extver[-1]}) not found in {file}.')
+                    return None
         _keys = [(extname, _ver) for _ver in extver]
         # get image data, header, and exptime for this slit
         _detector, image, hdu, exptime, _, _ = self.spectrograph.get_rawimage(cal_files, self.det, keys=_keys)
@@ -2230,6 +2239,8 @@ class NIRSpecSlitCalibrations(Calibrations):
 
         pixel_files = self.spectrograph.group_rawfiles(pixel_files, self.det)[0]
         flatImg = self._build_calibimage(pixel_files, 'SCI', self.user_slits['slit_info'])
+        if flatImg is None or flatImg.image is None or flatImg.shape == (0, 0):
+            raise PypeItError(f'No flat-field image found for slit {self.user_slits["slit_info"]} in {self.calib_ID}')
 
         # get pathloss and barshadow frames info
         cal_files = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
@@ -2239,15 +2250,22 @@ class NIRSpecSlitCalibrations(Calibrations):
         else:
              pathloss_img = self._build_calibimage(cal_files, 'PATHLOSS_PS', self.user_slits['slit_info'])
 
+
         barshadow_img = self._build_calibimage(cal_files, 'BARSHADOW', self.user_slits['slit_info'])
 
         # check that the pathloss and barshadow images actually exist
-        if pathloss_img.image is None or pathloss_img.shape == (0, 0):
-            log.warning(f'No pathloss image found for slit {self.user_slits["slit_info"]}, setting to 1.0')
-            pathloss_img.image = np.ones_like(flatImg.image)
-        if barshadow_img.image is None or barshadow_img.shape == (0, 0):
-            log.warning(f'No barshadow image found for slit {self.user_slits["slit_info"]}, setting to 1.0')
-            barshadow_img.image = np.ones_like(flatImg.image)
+        if pathloss_img is None or pathloss_img.image is None or pathloss_img.shape == (0, 0):
+            if pathloss_img is not None:
+                log.warning(f'No pathloss image found for slit {self.user_slits["slit_info"]}, setting to 1.0')
+            pathloss_data = np.ones_like(flatImg.image)
+        else:
+            pathloss_data = pathloss_img.image
+        if barshadow_img is None or barshadow_img.image is None or barshadow_img.shape == (0, 0):
+            if barshadow_img is not None:
+                log.warning(f'No barshadow image found for slit {self.user_slits["slit_info"]}, setting to 1.0')
+            barshadow_data = np.ones_like(flatImg.image)
+        else:
+            barshadow_data = barshadow_img.image
 
         conversion_megajanskys = calImg.rawheadlist[0].get('PHOTMJSR')  # Flux density (MJy/steradian) producing 1 cps
 
@@ -2257,7 +2275,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         flat_data /= conversion_megajanskys
 
         # combine the flat images
-        combined_flat_data = calImg.exptime * flat_data * pathloss_img.image * barshadow_img.image
+        combined_flat_data = calImg.exptime * flat_data * pathloss_data * barshadow_data
         combined_flat_data[np.isnan(combined_flat_data)] = 1.0
 
         self.flatimages = flatfield.FlatImages(
