@@ -481,9 +481,16 @@ class SlitTraceSet(calibframe.CalibFrame):
         slitlen = right - left
         return np.median(slitlen, axis=1) if median else slitlen
 
-    def get_radec_image(self, wcs, alignSplines, tilts, slit_compute=None, slice_offset=None, initial=False, flexure=None):
-        """Generate an RA and DEC image for every pixel in the frame
-        NOTE: This function is currently only used for SlicerIFU reductions.
+    def get_radec_image(
+            self, wcs, alignSplines, tilts, slit_compute=None, slice_offset=None, initial=False,
+            flexure=None, verbose=False
+        ):
+        """
+        Generate an RA and DEC image for every pixel in the frame
+
+        .. note::
+        
+            This function is currently only used for SlicerIFU reductions.
 
         Parameters
         ----------
@@ -508,6 +515,8 @@ class SlitTraceSet(calibframe.CalibFrame):
             Select the initial slit edges?
         flexure : float, optional
             If provided, offset each slit by this amount.
+        verbose : bool, optional
+            If True, print out additional information.
 
         Returns
         -------
@@ -517,9 +526,9 @@ class SlitTraceSet(calibframe.CalibFrame):
         decimg : `numpy.ndarray`_
             Image with the DEC coordinates of each pixel in degrees.  Shape is
             (nspec, nspat).
-        minmax : `numpy.ndarray`_
+        delta_pix : `numpy.ndarray`_
             The minimum and maximum difference (in pixels) between the WCS
-            reference (usually the centre of the slit) and the edges of the
+            reference (usually the center of the slit) and the edges of the
             slits. Shape is (nslits, 2).
         """
         # Check the input
@@ -533,16 +542,19 @@ class SlitTraceSet(calibframe.CalibFrame):
 
         # Prepare the print out
         substring = '' if slice_offset is None else f' with slice_offset={slice_offset:.3f}'
-        log.info("Generating an RA/DEC image"+substring)
+        if verbose: 
+            log.info("Generating an RA/DEC image"+substring)
         # Check the input
         if slice_offset is None:
             slice_offset = 0.0
         if slice_offset < -0.5 or slice_offset > 0.5:
-            raise PypeItError(f"Slice offset must be between -0.5 and 0.5. slice_offset={slice_offset}")
+            raise PypeItError(
+                f"Slice offset must be between -0.5 and 0.5. slice_offset={slice_offset}"
+            )
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
-        minmax = np.zeros((self.nslits, 2))
+        delta_pix = np.zeros((self.nslits, 2))
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
         for slit_idx, spatid in enumerate(self.spat_id):
@@ -551,19 +563,23 @@ class SlitTraceSet(calibframe.CalibFrame):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             if self.mask[slit_idx] != 0:
-                raise PypeItError(f'Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot '
-                           'generate RA/DEC image.')
+                raise PypeItError(
+                    f'Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot '
+                    'generate RA/DEC image.'
+                )
             # Retrieve the pixel offset from the central trace
             evalpos = alignSplines.transform(slit_idx, onslit_init[1], onslit_init[0])
-            minmax[slit_idx, 0] = np.min(evalpos)
-            minmax[slit_idx, 1] = np.max(evalpos)
+            delta_pix[slit_idx, 0] = np.min(evalpos)
+            delta_pix[slit_idx, 1] = np.max(evalpos)
             # Calculate the WCS from the pixel positions
             slitID = np.ones(evalpos.size) * slit_idx + slice_offset
-            world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
+            world_ra, world_dec, _ = wcs.wcs_pix2world(
+                slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0
+            )
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
-        return raimg, decimg, minmax
+        return raimg, decimg, delta_pix
 
     def select_edges(self, initial=False, flexure=None):
         """
@@ -1727,6 +1743,3 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
                                                             slitmask_par['missing_objs_boxcar_rad']/platescale[i])
 
     return sobjs
-
-
-

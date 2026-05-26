@@ -1856,7 +1856,6 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         detected.
     """
 
-    debug_all = False
     if debug_all:
         show_peaks = True
         show_fits = True

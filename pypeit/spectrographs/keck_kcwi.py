@@ -726,12 +726,13 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         Args:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
-            are :math:`(x,y,\lambda)`.
+            are :math:`(\lambda,y,x)`.
         """
+        # TODO :: Before merging note that this needs to be updated for all IFU spectrographs.
         xbins = np.arange(1 + 24) - 0.5
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
-        return xbins, ybins, spec_bins
+        return spec_bins, ybins, xbins
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -1278,6 +1279,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                         dataext         = 0,
                         specaxis        = 0,
                         specflip        = specflip,
+                        #spatflip        = False,  # JFH changed to False after consulting with R. Cooke on 2024-12-21
                         spatflip        = True,  # Due to the extra mirror, the slices are flipped relative to KCWI
                         platescale      = 0.145728,  # arcsec/pixel TODO :: Need to double check this
                         darkcurr        = None,  # e-/pixel/hour  TODO :: Need to check this.

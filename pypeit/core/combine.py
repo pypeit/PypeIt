@@ -101,6 +101,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
 
     shape = img_list_error_check(sci_list, var_list)
 
+
     nimgs = shape[0]
     img_shape = shape[1:]
     #nspec = shape[1]
@@ -123,6 +124,9 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         if sigma_clip_stack is None:
             raise PypeItError('You must specify sigma_clip_stack; sigma-clipping is based on this array '
                        'and propagated to the arrays to be stacked.')
+        elif not isinstance(sigma_clip_stack, np.ndarray):
+            raise PypeItError('sigma_clip_stack must be a numpy array')
+
         if sigrej is None:
             # NOTE: If these are changed, make sure to update the doc-string!
             if nimgs == 3:
@@ -162,7 +166,6 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         var_list_out.append(np.sum(var_stack * weights_mask_stack**2, axis=0) * inv_w_sum**2)
     # Was it masked everywhere?
     gpm = np.any(mask_stack, axis=0)
-
     return sci_list_out, var_list_out, gpm, nused
 
 
@@ -230,6 +233,8 @@ def broadcast_weights(weights, shape):
                   image
                 - (nimgs, nspec, nspat) -- weights already have the
                   shape of the image stack and are simply returned
+                - (nimgs, nspec, nspat1, nspat2) -- for use with cubes. weights
+                  already have the shape of the cube stack and are simply returned
         shape (tuple):
             Shape of the image stacks for weighted coadding. This is either (nimgs, nspec) for 1d extracted spectra or
             (nimgs, nspec, nspat) for 2d spectrum images
@@ -258,7 +263,7 @@ def broadcast_weights(weights, shape):
             weights_stack = weights
         elif len(shape) == 3:
             weights_stack = np.einsum('ij,k->ijk', weights, np.ones(shape[2]))
-    elif weights.ndim == 3:
+    elif weights.ndim in [3, 4]:
         # Full image stack of weights
         if weights.shape != shape:
             raise PypeItError('The shape of weights does not match the shape of the image stack')

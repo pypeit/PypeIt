@@ -969,7 +969,7 @@ class AlignPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, snr_thresh=None):
+    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, snr_thresh=None, grow_slit_edge=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1005,6 +1005,15 @@ class AlignPar(ParSet):
                               'then only use the N most significant detections, where N is the number ' \
                               'of elements specified in the "locations" keyword argument'
 
+        defaults['grow_slit_edge'] = 0.0  
+        dtypes['grow_slit_edge'] = [int, float]
+        descr['grow_slit_edge'] = 'Grow the slit edges by this number of pixels when searching ' \
+                                  'for alignnment traces. This parameter should typically be invoked ' \
+                                  'when alignment fails because an alignment trace is falling off the edge of the ' \
+                                  'slit. Both the left and right edges will be expanded by this number of pixels for ' \
+                                  'the purpose of alignment trace finding.'
+        
+
         # Instantiate the parameter set
         super(AlignPar, self).__init__(list(pars.keys()),
                                             values=list(pars.values()),
@@ -1017,7 +1026,7 @@ class AlignPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'snr_thresh']
+        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'snr_thresh', 'grow_slit_edge']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1606,6 +1615,8 @@ class Coadd2DPar(ParSet):
             self['manual'] = ';'.join(parse.fix_config_par_image_location(self['manual']))
 
 
+# TODO: This needs to be broken up into parameters that are relevant to the
+# basic reduction and those needed for afterburn scripts like coadding.
 class CubePar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
@@ -1615,12 +1626,13 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
-                 sensfile=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
+    def __init__(self, slit_spec=None, weight_method=None, save_native=None, combine=None, output_filename=None,
+                 sensfile=None, alignment_method=None, method=None, extraction=None,
+                 reference_image=None, save_whitelight=None, whitelight_range=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
-                 correct_dar=None):
+                 correct_dar=None, weights_init_obj_pos=None, sn_smooth_npix=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1636,6 +1648,11 @@ class CubePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+
+        # Extraction of the cube
+        defaults['extraction'] = CubeExtractionPar()
+        dtypes['extraction'] = [ ParSet, dict ]
+        descr['extraction'] = 'Parameters for cube spectral extraction algorithms'
 
         # Cube Parameters
         defaults['slit_spec'] = True
@@ -1666,13 +1683,10 @@ class CubePar(ParSet):
                         "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
 
 
-        defaults['align'] = False
-        dtypes['align'] = [bool]
-        descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
-                         'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
-                         'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, ' \
-                         'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) ' \
-                         'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
+        defaults['save_native'] = False
+        dtypes['save_native'] = [bool]
+        descr['save_native'] = ('If set to True, PypeIt will write spec3d datacube files for each of the '
+                                'input spec2d files.')
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -1691,6 +1705,25 @@ class CubePar(ParSet):
         descr['sensfile'] = 'Filename of a sensitivity function to use to flux calibrate your datacube. ' \
                             'The sensitivity function file will also be used to correct the relative scales ' \
                             'of the slits.'
+
+        defaults['alignment_method'] = 'phase'
+        dtypes['alignment_method'] = str
+        options['alignment_method'] = CubePar.valid_alignment_methods()
+        descr['alignment_method'] = (
+            'Whitelight images of all input frames will be generated and spatially aligned using either a '
+            'reference image (see ``reference_image``) or the whitelight '
+            'image of the first spec2d listed in the coadd3d file. This parameter allows you to set the '
+            'method used to spatially align the datacubes. The current allowed options include "none", "phase", '
+            '"fit", and "user". Setting ``alignment_method = phase`` (the default) will use a cross-correlation '
+            'method to determine the offsets, where the cross-correlation is always with respect to a reference '
+            'image. This method uses the scikit-image package, if it is installed; otherwise it will use scipy. '
+            'Setting ``alignment_method = fit`` requires that photutils is installed. For each '
+            'datacube being combined, a 2D Gaussian is fit the brightest point-like object found '
+            'in each whitelight image and used to set the alignment coordinate. Setting ``alignment_method = user`` '
+            'allows the user to specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) '
+            'in the spec2d block of the coadd3d file. See the documentation for examples of this usage. Finally,'
+            'setting ``alignment_method = none`` will turn off the alignment, and use only the world coordinate '
+            'system specified in the input spec2d files.')
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
@@ -1828,6 +1861,28 @@ class CubePar(ParSet):
                                 'exposure time; the sky model will be scaled to the science frame based on the ' \
                                 'relative exposure time.'
 
+        # manual extraction
+        defaults['weights_init_obj_pos'] = None
+        dtypes['weights_init_obj_pos'] = str
+        descr['weights_init_obj_pos'] = (
+            'The initial guess for the object position in the image for computing the optimal '
+            'weighting.  If set, this value will be input into '
+            ':func:`~pypeit.core.datacube.fitGaussian2D` as the initial guess for the object '
+            'position.  The 2D Gaussian fit will then be performed with the position constrained '
+            'to be within +/- fwhm/3 in x and y.  If not set, the position will be determined by '
+            'running DAOStarFinder on the image.  Formatting follows the manual extraction '
+            'parameters convention, i.e. spatx:spaty where spatx,specy are spatial x and y '
+            'position in the datacube.'
+        )
+
+        defaults['sn_smooth_npix'] = None
+        dtypes['sn_smooth_npix'] = [int, float]
+        descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
+                                  'and weight spectra. If set to None (default), the code will determine the effective ' \
+                                  'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
+                                  'this neff.'                                
+
+
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
                                       values=list(pars.values()),
@@ -1842,10 +1897,12 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'reference_image', 'save_whitelight',
-                   'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
-                   'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar']
+        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'save_native', 'reference_image', 'save_whitelight',
+                   'extraction', 'method',
+                   'spec_subpixel', 'spat_subpixel', 'slice_subpixel',
+                   'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'alignment_method', 'combine',
+                   'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar', 'weights_init_obj_pos', 'sn_smooth_npix']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1854,6 +1911,10 @@ class CubePar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+
+        pk = 'extraction'
+        kwargs[pk] = CubeExtractionPar.from_dict(cfg[pk]) if pk in k else None
+
         return cls(**kwargs)
 
     def validate(self):
@@ -1870,6 +1931,177 @@ class CubePar(ParSet):
         allowed_weight_methods = Coadd1DPar.valid_weight_methods()
         if self.data['weight_method'] not in allowed_weight_methods:
             raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
+
+    @staticmethod
+    def valid_alignment_methods():
+        """
+        Return the valid method identifiers for registration
+        """
+        return ['none', 'user', 'phase', 'fit']
+
+
+
+
+class CubeExtractionPar(ParSet):
+    """
+    The parameter set used to hold arguments for functionality relevant to
+    extracting 1D spectra from IFU datacubes.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`parameters`.
+    """
+
+    def __init__(self, output_filename=None, whitelight_range=None, fwhm=None, 
+                 snr_thresh=None,  manual=None, boxcar_radius=None, opt_prof_method=None,
+                 skysub_resid=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['output_filename'] = None
+        dtypes['output_filename'] = str
+        descr['output_filename'] = 'basename for output files, i.e. outputs will be written to ' \
+                                   'spec1d_basename.fits and spec2d_basename.fits. Default is None, which ' \
+                                   'means that the basename will be taken from the input file.'
+
+        defaults['whitelight_range'] = [None, None]
+        dtypes['whitelight_range'] = list
+        descr['whitelight_range'] = 'A two element list specifying the wavelength range over which to generate the ' \
+                                    'white light image. The first (second) element is the minimum (maximum) ' \
+                                    'wavelength to use. If either of these elements are None, PypeIt will ' \
+                                    'automatically use a wavelength range that ensures all spaxels have the ' \
+                                    'same wavelength coverage.' 
+
+                              
+        
+        # Object finding parameters 
+        defaults['fwhm'] = 1.5
+        dtypes['fwhm'] = [int, float]
+        descr['fwhm'] = 'FWHM of the PSF in arcseconds. Used to determine the degree of smoothing of the ' \
+                        'whitelight image, the kernel size for the initial object finding, and the bounds of ' \
+                        'the parameters for the 2D Gaussian fit. Note that if the opt_prof_method is set to ' \
+                        '\'user_gauss\', this parameter will also be used as the FWHM of the 2D (symmetric) ' \
+                        'Gaussian spatial profile for optimal extraction. Default is 1.5 arcseconds.'        
+        
+        defaults['snr_thresh'] = 5.0
+        dtypes['snr_thresh'] = [int, float]
+        descr['snr_thresh'] = 'The signal-to-noise ratio threshold to use when determining the initial ' \
+                              'object position in the whitelight image with DAOStarFinder' \
+                              ' (this is the nsigma parameter in :func:`~pypeit.core.datacube.fitGaussian2D`)'
+
+        # manual extraction
+        defaults['manual'] = None
+        dtypes['manual'] = str
+        descr['manual'] = (
+            'Manual extraction parameters for pypeit_extract_datacube. The format is '
+            '``spatx:spaty:fwhm:boxcar_radius``, and multiple manual extractions must be '
+            'separated by a semi-colon.  Only the first two entries, defining the spatial x and '
+            'y *pixel* positions in the datacube, are required; the FWHM and boxcar radius are '
+            'optional and provided in arcseconds.  Note that you cannot provide boxcar_radius '
+            'without also providing fwhm; if you wish to only provide boxcar_radius, set '
+            'fwhm=-1.  Currently only the use of spatx:spaty is supported, and only single '
+            'objects can be extracted at a time, so the semi-colon separation does not apply.' 
+        )
+
+        defaults['boxcar_radius'] = None
+        dtypes['boxcar_radius'] = [int, float]
+        descr['boxcar_radius'] = (
+            'Radius of the circular boxcar (in arcseconds) to use for the extraction.  By '
+            'default, the radius will be set to 4 times the sigma of the 2D Gaussian fit to '
+            'the whitelight image.'
+        )
+
+        #Extraction parameters 
+        defaults['opt_prof_method'] = 'fit_gauss'
+        options['opt_prof_method'] = CubeExtractionPar.valid_opt_prof_methods()
+        dtypes['opt_prof_method'] = str
+        descr['opt_prof_method'] = (
+            'The method to be used to determine the object spatial profile for optimal '
+            'extraction. Options are ``\'fit_gauss\'`` (default), ``\'user_gauss\'``, or '
+            '``\'whitelight\'``: ``\'fit_gauss\'`` uses the (possibly asymmetric) 2D Gaussian '
+            'fit to the whitelight image, which was used to determine the object position.  This '
+            'creates a model using :func:`~pypeit.core.datacube.fitGaussian2D` but the offset is '
+            'set to zero.  ``\'user_gauss\'`` uses a 2D symmetric Gaussian profile. The FWHM of '
+            'the Gaussian is determined by the fwhm parameter, which was also used for '
+            'the object finding.  Note that this assumes the spatial pixel (spaxel) sampling is '
+            'the same in both x and y.  ``\'whitelight\'`` uses the whitelight image to determine '
+            'a non-parametric spatial profile. The whitelight image is smoothed with a Gaussian '
+            'kernel of width 0.5*sigma, where sigma is the standard deviation (fwhm/2.35) '
+            'corresponding to the fwhm parameter.'
+        )
+
+
+        defaults['skysub_resid'] = True
+        dtypes['skysub_resid'] = bool
+        descr['skysub_resid'] = ('If True, the residual sky in the cube will be subtracted before extraction. '
+                                 'The residual sky in the whitelight image will also be subtracted.')
+
+        # Instantiate the parameter set
+        super(CubeExtractionPar, self).__init__(list(pars.keys()),
+                                      values=list(pars.values()),
+                                      defaults=list(defaults.values()),
+                                      options=list(options.values()),
+                                      dtypes=list(dtypes.values()),
+                                      descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = np.array([*cfg.keys()])
+
+        # Basic keywords
+        parkeys = ['output_filename', 'whitelight_range', 'fwhm', 
+                'snr_thresh', 'manual', 'boxcar_radius', 'opt_prof_method', 'skysub_resid']        
+
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for CubePar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        # Check the skysub options
+        if len(self.data['whitelight_range']) != 2:
+            raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
+
+        allowed_opt_prof_methods = CubeExtractionPar.valid_opt_prof_methods()
+        if self.data['opt_prof_method'] not in allowed_opt_prof_methods:
+            raise ValueError("'opt_prof_method' must be one of:\n" + ", ".join(allowed_opt_prof_methods))
+
+        # Check that only spatx and spaty are provided for manual extraction
+        if self.data['manual'] is not None:
+            m_es = self.data['manual'].split(';')
+            for m_e in m_es:
+                parse = m_e.split(':')
+                if len(parse) != 2:
+                    raise ValueError("When providing manual extraction parameters, only spatx and spaty can be "
+                                     "provided, and the format must be spatx:spaty. You can also provide a semi-colon "
+                                     "separated list of values if you would like to extract more than one object "
+                                     "(e.g. spatx1:spaty1;spatx2:spaty2). If you wish to also provide "
+                                     "fwhm and boxcar_radius, the format is spatx:spaty:fwhm:boxcar_radius (NOTE: the "
+                                     "fwhm and boxcar_radius parameters are not currently supported).")
+
+    @staticmethod
+    def valid_opt_prof_methods():
+        """ Return the valid options for the weighting of spectra. """
+        return ['user_gauss', 'fit_gauss', 'whitelight']
+
+
 
 
 class FluxCalibratePar(ParSet):
@@ -3382,7 +3614,8 @@ class EdgeTracePar(ParSet):
                                    'the text should be a comma separated list of pixel ranges (in the x direction) ' \
                                    'to be excluded and the detector number. For example, the following string ' \
                                    '1:0:20,1:300:400  would select two regions in det=1 between pixels 0 and 20 ' \
-                                   'and between 300 and 400.'
+                                   'and between 300 and 400. If only a single range is provided, do not forget the commas, i.e. ' \
+                                   '1:0:20, is the correct format.'
 
         defaults['follow_span'] = 20
         dtypes['follow_span'] = int
@@ -4239,7 +4472,7 @@ class ReducePar(ParSet):
         defaults['cube'] = CubePar()
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
-
+        
         defaults['trim_edge'] = [3, 3]
         dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky subtraction'

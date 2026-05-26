@@ -190,7 +190,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                 'are strongly encouraged to re-reduce your data using this (or, better yet, '
                 'the most recent) version of PypeIt.  ' + addendum
             )
-            if check_version:
+            if chk_version:
                 raise PypeItError(message)
             else:
                 log.warning(message)

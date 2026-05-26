@@ -519,6 +519,7 @@ def extract_boxcar(
     )
 
 
+
 def extract_hist_spectrum(waveimg, frame, gpm=None, bins=1000):
     """
     Generate a quick spectrum using the nearest grid point (histogram) algorithm.

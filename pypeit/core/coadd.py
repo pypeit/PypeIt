@@ -829,8 +829,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
               dealing with highly variable spectra (e.g. emission lines) and
               require a precision better than ~1 per cent.
 
-            - ``'ivar'``: Use inverse variance weighting. This is not well
-              tested and should probably be deprecated.
+            - ``'ivar'``: Use inverse variance weighting. 
 
     verbose : bool, optional
         Verbosity of print out.
@@ -2179,6 +2178,10 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         wave_grid_input=wave_grid_input,
         dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
+    # TODO There should be a step here rebinning the spectra to a common wavelength grid before computing the S/N weights. The point is that
+    # if one is combining spectra with different wavelength sampling, the S/N ratio per pixel will be different. What one actually wants 
+    # to compute here for the weights is the S/N ratio for each spectrum at the same pixel sampling. 
+
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(_fluxes, _ivars, gpms, sn_smooth_npix=sn_smooth_npix, weight_method=weight_method, verbose=verbose)
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
@@ -2198,7 +2201,8 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
 
 def multi_combspec(waves, fluxes, ivars, gpms, sn_smooth_npix=None,
                    wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
-                   wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
+                   wave_grid_max=None, wave_grid_input=None,
+                   ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                    weight_method='auto', maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                    maxrej=None,
@@ -2340,7 +2344,7 @@ def multi_combspec(waves, fluxes, ivars, gpms, sn_smooth_npix=None,
     wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
         waves, fluxes,ivars, gpms, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
         spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
-        maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
+        maxiter_scale=maxiter_scale, wave_grid_input=wave_grid_input, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
         weight_method=weight_method, maxiter_reject=maxiter_reject, sn_clip=sn_clip, lower=lower, upper=upper,
         maxrej=maxrej,  qafile=qafile, title='multi_combspec', debug=debug, debug_scale=debug_scale, show_scale=show_scale,
@@ -3412,7 +3416,6 @@ def rebin2d(
         # could have been sampled
         nsmp_rebin_stack[img, :, :], spec_edges, spat_edges = np.histogram2d(spec_rebin_this, spat_rebin_this,
                                                                bins=[spec_bins, spat_bins], density=False)
-
         finmask = thismask & inmask
         spec_rebin = waveimg[finmask]
         spat_rebin = spatimg[finmask]
