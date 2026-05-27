@@ -274,36 +274,46 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         self.meta['lampstat04'] = dict(ext=0, card='LAMPTHAR')
 
     def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to construct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
         return ['binning']
 
     def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        This list is used by
+        :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that
+            should be propagated in output files.
+        """
         return ['GRATING', 'ANGLE', 'APERTURE']
 
     def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print
+            to the :ref:`pypeit_file`.
+        """
         return super().pypeit_file_keys()
-
-    _standard_targets = (
-        'feige34', 'feige110',
-        'bd+28', 'bd+284211', 'bd+28d4211',
-        'bd+25', 'bd+33',
-        'g191b2b', 'g191-b2b',
-        'hz44',
-    )
-
-    def _standard_target_mask(self, fitstbl):
-        """Return True for recognized spectrophotometric standard targets."""
-        if 'target' not in fitstbl.keys():
-            return np.zeros(len(fitstbl), dtype=bool)
-
-        mask = np.zeros(len(fitstbl), dtype=bool)
-        for i, target in enumerate(fitstbl['target']):
-            if target is None:
-                continue
-            norm = str(target).strip().lower().replace(' ', '')
-            if not norm or norm in ('none', '--'):
-                continue
-            mask[i] = any(std in norm for std in self._standard_targets)
-        return mask
 
     _extname_cache: dict = {}
 
@@ -350,20 +360,16 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         Frame-typing rule, shared by all four channels.  IMGTYPE values
         in the raw header drive the baseline classification: ``SCI`` is
         science / standard, ``BIAS`` is bias, ``DOMEFLAT`` and ``CONT``
-        are flats, and channel-specific arc IMGTYPE values define the
-        arc/tilt frames.  Science and standard frames are separated by
-        known standard-star target names; otherwise short science frames
-        like the 60 s NGC 2440 validation exposure get mis-typed as
-        standards.
+        are flats, and the channel-specific arc IMGTYPE values define
+        the arc/tilt frames.  Discrimination between science and
+        standard is left to PypeIt's downstream coordinate-matching
+        against the archived flux-standard registry.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
         # Type by IMGTYPE first.
         if ftype in ['science', 'standard']:
-            sci = fitstbl['idname'] == 'SCI'
-            std_target = self._standard_target_mask(fitstbl)
-            mask = good_exp & sci & (std_target if ftype == 'standard'
-                                                   else ~std_target)
+            mask = good_exp & (fitstbl['idname'] == 'SCI')
         elif ftype == 'bias':
             mask = good_exp & (fitstbl['idname'] == 'BIAS')
         elif ftype in ['pinhole', 'dark']:

@@ -50,12 +50,11 @@ Calibration association
 
 Frames are typed by the raw ``IMGTYPE`` header keyword
 (``BIAS``/``DOMEFLAT``/``CONT``/``THAR``/``SCI``).  Standard-star
-frames have ``IMGTYPE = SCI`` and are separated from science by
-target-name matching against a list of common HST/CALSPEC standards
-(Feige 34, BD+28 4211, G191-B2B, ...).  Configurations are grouped by
-spectral+spatial binning, which is read from the per-channel image
-extension (``BINSPEC``/``BINSPAT`` cards) rather than from the
-primary header.
+discrimination from science is left to PypeIt's stock
+coordinate-based matching against the archived flux-standard
+registry.  Configurations are grouped by spectral+spatial binning,
+which is read from the per-channel image extension
+(``BINSPEC``/``BINSPAT`` cards) rather than from the primary header.
 
 Wavelength calibration
 ----------------------
