@@ -1245,11 +1245,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Load the header
             hdr0 = spec2DObj.head0
             self.all_header.append(hdr0)
-            self.ifu_ra = np.append(self.ifu_ra, self.spectrograph.compound_meta([hdr0], 'ra'))
-            self.ifu_dec = np.append(self.ifu_dec, self.spectrograph.compound_meta([hdr0], 'dec'))
+            self.ifu_ra = np.append(self.ifu_ra, self.spectrograph.get_meta_value(hdr0, 'ra'))
+            self.ifu_dec = np.append(self.ifu_dec, self.spectrograph.get_meta_value(hdr0, 'dec'))
 
             # Get the exposure time
-            exptime = self.spectrograph.compound_meta([hdr0], 'exptime')
+            exptime = self.spectrograph.get_meta_value(hdr0, 'exptime')
 
             # Initialise the slit edges
             log.info("Constructing slit image")
@@ -1799,7 +1799,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # combine the cubes.  Furthermore, since the images are aligned, we should be using the full cube to
         # compute the whitelight image since we do that anyway below. So basically the weight computation
         # should be moved just before the final combined datacube generation below. Specifically, we should be:
-        # 1. Performing an intiial sigma clipping of the cubes.
+        # 1. Performing an initial sigma clipping of the cubes.
         # 2. Computing an initial preliminary stacked cube.
         # 3. Generate a whitelight image from the preliminary stacked cube.
         # 4. Perform object finding on this stacked cube.
