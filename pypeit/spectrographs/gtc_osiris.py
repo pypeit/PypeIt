@@ -295,19 +295,15 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        # if ftype in ['pixelflat', 'trace', 'illumflat', 'arc', 'tilt']:
-        #     embed()
-        #     assert False
-
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & (np.logical_not(np.char.startswith(np.char.lower(fitstbl['target']), 'maat_arc'))) & \
-                   (np.char.lower(fitstbl['target']) != 'maat_flat') & \
+            return good_exp & (np.logical_not(np.char.startswith(np.char.lower(fitstbl['target']), 'arclamp'))) & \
+                   (np.char.lower(fitstbl['target']) != 'spectralflat') & \
                    (np.char.lower(fitstbl['target']) != 'bias')
         if ftype in ['arc', 'tilt']:
-            return good_exp & (np.char.startswith(np.char.lower(fitstbl['target']), 'maat_arc'))
+            return good_exp & (np.char.startswith(np.char.lower(fitstbl['target']), 'arclamp'))
         if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (np.char.lower(fitstbl['target']) == 'maat_flat')
+            return good_exp & (np.char.lower(fitstbl['target']) == 'spectralflat')
         if ftype == 'bias':
             return good_exp & (np.char.lower(fitstbl['target']) == 'bias')
 
@@ -622,7 +618,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
 
         # Decrease the wave tilts order, given the shorter slits of the IFU
         par['calibrations']['tilts']['spat_order'] = 2
-        par['calibrations']['tilts']['spec_order'] = 1
+        par['calibrations']['tilts']['spec_order'] = 2
         par['calibrations']['wavelengths']['fwhm_spec_order'] = 2
         par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
 
@@ -641,8 +637,8 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         par['reduce']['skysub']['no_poly'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = False
-        par['reduce']['findobj']['skip_skysub'] = True
-        par['reduce']['findobj']['skip_final_global'] = True
+        # par['reduce']['findobj']['skip_skysub'] = True
+        # par['reduce']['findobj']['skip_final_global'] = True
 
         # Don't correct flexure by default, but you should use slitcen,
         # because this is a slit-based IFU where no objects are extracted.
@@ -653,6 +649,44 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
 
         return par
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
+        """
+        # if ftype in ['pixelflat', 'trace', 'illumflat', 'arc', 'tilt']:
+        #     embed()
+        #     assert False
+
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype in ['science', 'standard']:
+            return good_exp & (np.logical_not(np.char.startswith(np.char.lower(fitstbl['target']), 'maat_arc'))) & \
+                   (np.char.lower(fitstbl['target']) != 'maat_flat') & \
+                   (np.char.lower(fitstbl['target']) != 'bias')
+        if ftype in ['arc', 'tilt']:
+            return good_exp & (np.char.startswith(np.char.lower(fitstbl['target']), 'maat_arc'))
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
+            return good_exp & (np.char.lower(fitstbl['target']) == 'maat_flat')
+        if ftype == 'bias':
+            return good_exp & (np.char.lower(fitstbl['target']) == 'bias')
+
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
 
     def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
         """
