@@ -1,33 +1,42 @@
-import sys
-import re
-import pandas as pd
-import subprocess
-from pathlib import Path
-from qtpy import QtWidgets
 import logging
+import re
+import subprocess
+import sys
 from logging.handlers import QueueListener
 from multiprocessing import Process, Queue
+from pathlib import Path
+
+import pandas as pd
 
 # from contextlib import redirect_stdout
-
 from PyQt6.QtCore import pyqtSignal
-from qtpy.QtCore import QTimer, QSize, Qt, QMargins, QObject, QDir, QFileSystemWatcher, QUrl
-from qtpy.QtGui import QIcon, QColor, QPainter, QFileSystemModel, QDesktopServices
+from qtpy import QtWidgets
+from qtpy.QtCore import (
+    QDir,
+    QFileSystemWatcher,
+    QMargins,
+    QObject,
+    QSize,
+    Qt,
+    QTimer,
+    QUrl,
+)
+from qtpy.QtGui import QColor, QDesktopServices, QFileSystemModel, QIcon, QPainter
 from qtpy.QtWidgets import (
-    QApplication,
-    QWidget,
-    QHBoxLayout,
-    QVBoxLayout,
-    QPushButton,
-    QGridLayout,
-    QLabel,
-    QTabWidget,
     QAbstractItemView,
+    QApplication,
     QFileDialog,
-    QTextEdit,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
     QTreeView,
+    QVBoxLayout,
+    QWidget,
 )
 
 import pypeit
@@ -280,7 +289,7 @@ class FileDisplayWidget(QWidget):
             return
 
         # Open the file with the default system application
-        QDesktopServices.openUrl(QUrl.fromLocalFile(file_path)) 
+        QDesktopServices.openUrl(QUrl.fromLocalFile(file_path))
 
 
 class DashboardWidget(FilledBackgroundWidget):
@@ -302,7 +311,7 @@ class DashboardWidget(FilledBackgroundWidget):
         # -------------- main layout -------------
         layout.addWidget(self.meta_status_widget)
         tab_widget = QTabWidget()
-        tab_widget.addTab(self.status_widget,"Status")
+        tab_widget.addTab(self.status_widget, "Status")
         tab_widget.addTab(self.qa_widget, "QA")  # Quality analysis
         tab_widget.addTab(self.calibration_widget, "Calibrations")
         tab_widget.addTab(self.science_widget, "Science")
@@ -392,7 +401,7 @@ class MainWindow(QWidget):
         check = check_pypeit_status(self.setup_file_path)  # returns a pandas dataframe
         self.dashboard_widget.status_widget.setDataFrame(
             check
-        )  # updates the status_widget 
+        )  # updates the status_widget
 
     def import_setup_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -423,7 +432,7 @@ class MainWindow(QWidget):
         new_dirs = current_dirs - self.known_dirs
         self.known_dirs = current_dirs  # update snapshot
 
-        for new_dir in new_dirs: # shouldn't run if there are no new dirs
+        for new_dir in new_dirs:  # shouldn't run if there are no new dirs
             if new_dir.name.endswith("QA"):
                 self.dashboard_widget.qa_widget.set_directory(new_dir)
             elif new_dir.name.endswith("Science"):
@@ -468,9 +477,7 @@ def main():
 
     # Setup application/window icon
     iconPath = Path(__file__).parent.parent / "setup_gui/images/window_icon.png"
-    if not iconPath.exists():
-        num = 1
-    else:
+    if iconPath.exists():
         app.setWindowIcon(QIcon(str(iconPath)))
 
     defaultFont = app.font()
