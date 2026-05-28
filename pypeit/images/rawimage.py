@@ -23,6 +23,7 @@ from pypeit.core import flexure
 from pypeit.core import scattlight
 from pypeit.core import qa
 from pypeit.core.mosaic import build_image_mosaic
+from pypeit.core.mosaic import build_image_mosaic_transform
 from pypeit.images import pypeitimage
 from pypeit import utils
 from pypeit.display import display
@@ -1528,24 +1529,6 @@ class NIRSpecRawImage(RawImage):
             extension, scaled by the square of the exposure time.
     """
 
-    # @property
-    # def bpm(self):
-    #     """
-    #     Generate and return the bad pixel mask for this image.
-    #
-    #     .. warning::
-    #
-    #         BPMs are for processed (e.g. trimmed, rotated) images only!
-    #
-    #     Returns:
-    #         `numpy.ndarray`_:  Bad pixel mask with a bad pixel = 1
-    #
-    #     """
-    #     if self._bpm is None:
-    #         self._bpm = np.logical_not(np.isfinite(self.image))
-    #
-    #     return self._bpm
-
     def build_rn2img(self, units='e-', digitization=False):
         """
         Build the readnoise variance image from the JWST pipeline output.
@@ -1565,8 +1548,11 @@ class NIRSpecRawImage(RawImage):
                 Ignored; present for interface compatibility with the base class.
 
         Returns:
-            `numpy.ndarray`_: Readnoise variance image with shape
-            ``(nimg, nspec, nspat)``.
+            `numpy.ndarray`_: Readnoise variance image.  Shape is
+            ``(nimg, nspec, nspat)`` when all detectors have the same pixel
+            dimensions; a 1-D object array of length ``nimg`` whose elements
+            are 2-D arrays when the detectors differ in size (e.g. a mosaic
+            reduction where NRS1 and NRS2 have different slit extents).
         """
 
         # NOTE: We don't use the tabulated self.ronoise, but the already available ronoise image from jwst output
@@ -1600,8 +1586,11 @@ class NIRSpecRawImage(RawImage):
         derived from the image counts.
 
         Returns:
-            `numpy.ndarray`_: Poisson-noise variance image with shape
-            ``(nimg, nspec, nspat)``.
+            `numpy.ndarray`_: Poisson-noise variance image.  Shape is
+            ``(nimg, nspec, nspat)`` when all detectors have the same pixel
+            dimensions; a 1-D object array of length ``nimg`` whose elements
+            are 2-D arrays when the detectors differ in size (e.g. a mosaic
+            reduction where NRS1 and NRS2 have different slit extents).
         """
 
         _, var_poisson,_, _, _, _ = self.spectrograph.get_rawimage(self.filename, self.det, keys='VAR_POISSON')
@@ -1631,7 +1620,10 @@ class NIRSpecRawImage(RawImage):
 
 
         Returns:
-            `numpy.ndarray`_: DQ flags image with shape ``(nimg, nspec, nspat)``.
+            `numpy.ndarray`_: DQ flags image.  Shape is
+            ``(nimg, nspec, nspat)`` when all detectors have the same pixel
+            dimensions; a 1-D object array of length ``nimg`` whose elements
+            are integer 2-D arrays when the detectors differ in size.
         """
 
         _, dq, _, _, _, _ = self.spectrograph.get_rawimage(self.filename, self.det, keys='DQ')
@@ -1721,8 +1713,7 @@ class NIRSpecRawImage(RawImage):
 
     def trim(self, force=False):
         """
-        Trim image attributes to include only the science data, padding to a
-        uniform shape when NRS1 and NRS2 slit cutouts differ in size.
+        Trim image attributes to include only the science data.
 
         Instead of delegating to the base-class :func:`~RawImage.trim` (which
         calls ``np.array([procimg.trim_frame(...)])`` and fails when per-detector
@@ -1731,10 +1722,8 @@ class NIRSpecRawImage(RawImage):
         1. Marks the slit bounding box in :attr:`datasec_img` for each
            detector using the ``slit_slices`` stored by :func:`process`.
         2. Calls :func:`~pypeit.core.procimg.trim_frame` on each detector
-           image independently.
-        3. Zero-pads trimmed arrays to ``(max_nspec, max_nspat)`` when the two
-           detectors produce slit cutouts of different pixel sizes, so that all
-           downstream arrays are a uniform 3-D float array.
+           image independently, leaving the trimmed results as a list of
+           2-D arrays (one per detector) rather than a single stacked array.
 
         Applies to :attr:`image`, :attr:`rn2img` (if it exists),
         :attr:`poisson` (if it exists), :attr:`dq` (if it exists),
@@ -1757,95 +1746,223 @@ class NIRSpecRawImage(RawImage):
         # Mark slit bounding boxes in datasec_img per detector so that
         # trim_frame removes everything outside the slit region.
         for i in range(self.nimg):
-            spat_start, spat_end, spec_start, spec_end = (
-                self.slit_slices[i] if i < len(self.slit_slices) else self.slit_slices[0]
-            )
+            spat_start, spat_end, spec_start, spec_end =  self.slit_slices[i] if i < len(self.slit_slices) else self.slit_slices[0]
             self.datasec_img[i] = np.zeros_like(self.datasec_img[i], dtype=int)
             self.datasec_img[i][spec_start:spec_end, spat_start:spat_end] = self.detector[i].det
 
-        # Snapshot pre-trim datasec masks (used as the keep/remove mask below)
-        _datasec_pre = [self.datasec_img[i].copy() for i in range(self.nimg)]
-
         self.image = [procimg.trim_frame(i, d < 1) for i, d in zip(self.image, self.datasec_img)]
-        self.image = np.array(self.image) if len(set([i.shape for i in self.image])) == 1 else self._padding_img(self.image)
 
         if self.rn2img is not None:
             self.rn2img = [procimg.trim_frame(r, d < 1) for r, d in zip(self.rn2img, self.datasec_img)]
-            self.rn2img = np.array(self.rn2img) if len(set([r.shape for r in self.rn2img])) == 1 else self._padding_img(self.rn2img)
         if self.poisson is not None:
             self.poisson = [procimg.trim_frame(p, d < 1) for p, d in zip(self.poisson, self.datasec_img)]
-            self.poisson = np.array(self.poisson) if len(set([p.shape for p in self.poisson])) == 1 else self._padding_img(self.poisson)
         if self.dq is not None:
             self.dq = [procimg.trim_frame(dq, d < 1) for dq, d in zip(self.dq, self.datasec_img)]
-            self.dq = np.array(self.dq) if len(set([dq.shape for dq in self.dq])) == 1 else self._padding_img(self.dq)
         if self.proc_var is not None:
             self.proc_var = [procimg.trim_frame(p, d < 1) for p, d in zip(self.proc_var, self.datasec_img)]
-            self.proc_var = np.array(self.proc_var) if len(set([p.shape for p in self.proc_var])) == 1 else self._padding_img(self.proc_var)
-        # NOTE: datasec_img must be trimmed last because _datasec_pre holds the un-trimmed masks used for all other arrays above.
-        self.datasec_img = [procimg.trim_frame(d, d < 1) for d in _datasec_pre]
-        self.datasec_img = np.array(self.datasec_img) if len(set([d.shape for d in self.datasec_img])) == 1 else self._padding_img(self.datasec_img)
-
+        # NOTE: This must be done last because the untrimmed image is used for
+        # deciding what to trim!
+        self.datasec_img = [procimg.trim_frame(d, d < 1) for d in self.datasec_img]
 
         self.steps[step] = True
 
-    @staticmethod
-    def _padding_img(img_list):
+    def orient(self, force=False):
+        """
+        Orient image attributes such that they follow the ``PypeIt`` convention
+        with spectra running blue (down) to red (up) and with orders decreasing
+        from high (left) to low (right).
 
-        shapes = [t.shape for t in img_list]
-        max_r = max(s[0] for s in shapes)
-        max_c = max(s[1] for s in shapes)
-        out = np.zeros((len(img_list), max_r, max_c), dtype=img_list[0].dtype)
-        for j, t in enumerate(img_list):
-            out[j, :t.shape[0], :t.shape[1]] = t
-        return out
+        Applies in-place to :attr:`image`, :attr:`rn2img` (if set),
+        :attr:`poisson` (if set), :attr:`dq` (if set),
+        :attr:`proc_var` (if set), and :attr:`datasec_img`.
+
+        .. note::
+
+            This overrides the base-class implementation because, after
+            :func:`trim`, each image attribute is stored as a Python *list*
+            of per-detector 2-D arrays rather than a stacked NumPy array.
+            The base-class orient operates on stacked arrays and would fail
+            here.
+
+        Args:
+            force (:obj:`bool`, optional):
+                Force the image to be re-oriented, even if the step log
+                (:attr:`steps`) indicates that it already has been.
+        """
+        step = inspect.stack()[0][3]
+        # Check if already oriented
+        if self.steps[step] and not force:
+            log.warning('Image was already oriented.')
+            return
+        # Orient the image to have blue/red run bottom to top
+        self.image = [self.spectrograph.orient_image(d, i)
+                               for d, i in zip(self.detector, self.image)]
+        if self.rn2img is not None:
+            self.rn2img = [self.spectrograph.orient_image(d, i)
+                                    for d, i in zip(self.detector, self.rn2img)]
+        if self.poisson is not None:
+            self.poisson = [self.spectrograph.orient_image(d, i)
+                                     for d, i in zip(self.detector, self.poisson)]
+        if self.dq is not None:
+            self.dq = [self.spectrograph.orient_image(d, i)
+                                for d, i in zip(self.detector, self.dq)]
+        if self.proc_var is not None:
+            self.proc_var = [self.spectrograph.orient_image(d, i)
+                                      for d, i in zip(self.detector, self.proc_var)]
+        self.datasec_img = [self.spectrograph.orient_image(d, i)
+                                     for d, i in zip(self.detector, self.datasec_img)]
+        self.steps[step] = True
 
     def build_mosaic(self):
         """
-        Resample per-detector NIRSpec images into a single mosaic, then crop
-        the zero-padded borders introduced by :func:`trim`.
+        Resample per-detector NIRSpec images into a single mosaic.
 
-        This is a thin wrapper around the base-class
-        :func:`~RawImage.build_mosaic`.  Because :func:`trim` pads both
-        detector images to ``(max_nspec, max_nspat)`` and
-        :meth:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpec.get_mosaic_par`
-        is updated in :func:`process` with the correct oriented-frame
-        transforms, the base-class method runs unchanged.  However,
-        :func:`~pypeit.core.mosaic.prepare_mosaic` sizes the mosaic canvas
-        using the *corners* of the padded images, so the result is larger than
-        the valid data region by the amount of zero-padding.  This method
-        crops those excess rows/columns back off.
+        This is a NIRSpec-specific override of the base-class
+        :func:`~RawImage.build_mosaic`.  Unlike the base class, which relies
+        on pre-computed mosaic transforms stored in :attr:`mosaic`, this
+        method derives the mosaic geometry directly from the slit bounding
+        boxes in :attr:`slit_slices`, so that per-detector images of
+        potentially different sizes (after :func:`trim` and :func:`orient`)
+        are placed correctly in the mosaic canvas.
 
-        :attr:`slit_slices` must have been set by :func:`process` before this
-        method is called.
+        After :func:`trim` and :func:`orient`, each detector image is stored
+        as a 2-D array in a Python list.  This method:
+
+        1. Computes the mosaic canvas shape, shifts, and
+           :func:`~pypeit.core.mosaic.build_image_mosaic_transform` transforms
+           from the slit geometry (spectral sizes per detector, spatial offset
+           between detectors derived from ``slit_slices``, and the fixed
+           ``xgap`` detector parameter).
+        2. Updates :attr:`mosaic` *in place* with the computed shape, shifts,
+           and transforms.
+        3. Calls :func:`~pypeit.core.mosaic.build_image_mosaic` for
+           :attr:`image`, :attr:`datasec_img`, :attr:`det_img`, and all
+           available variance/flag arrays (:attr:`rn2img`, :attr:`poisson`,
+           :attr:`dq`, :attr:`dark`, :attr:`dark_var`, :attr:`proc_var`,
+           :attr:`base_var`).
+        4. Wraps each mosaiced 2-D result in a leading axis so that all arrays
+           have shape ``(1, nspec_mosaic, nspat_mosaic)``, setting
+           :attr:`nimg` to ``1`` and clearing the per-detector internals
+           (:attr:`ronoise`, :attr:`rawimage`, :attr:`rawdatasec_img`,
+           :attr:`oscansec_img`) that are no longer valid after mosaicing.
+
+        :attr:`slit_slices` must have been populated by :func:`process`
+        (and the images trimmed and oriented) before this method is called.
 
         Raises:
             :class:`~pypeit.exceptions.PypeItError`:
-                If ``slit_slices`` is ``None`` or contains fewer entries than
+                If the images have not yet been trimmed and oriented, or if
+                :attr:`slit_slices` is ``None`` / contains fewer entries than
                 the number of detectors.
         """
-        if self.slit_slices is None or len(self.slit_slices) < self.nimg:
-            raise PypeItError('slit_slices must be set on NIRSpecRawImage before calling build_mosaic.')
 
-        # Capture valid-extent geometry before super() resets self.nimg to 1
+        if self.nimg == 1:
+            # NOTE: This also catches cases where the mosaicing has already been
+            # performed.
+            log.warning('There is only one image, so there is nothing to mosaic!')
+            return
+
+        # Check that the mosaicing is allowed
+        if not self.steps['trim'] or not self.steps['orient']:
+            raise PypeItError('Images must be trimmed and PypeIt-oriented before mosaicing.')
+
+        if self.slit_slices is None or len(self.slit_slices) < self.nimg:
+            raise PypeItError('slit_slices must be set and have the same number '
+                              'of entries as the number of images to mosaic.')
+
+        # get info about the slit slices
         ss = self.slit_slices
-        nimg_pre = self.nimg
-        nspec_det = [ss[i][1] - ss[i][0] for i in range(nimg_pre)]
-        nspat_det = [ss[i][3] - ss[i][2] for i in range(nimg_pre)]
         spat_offset = ss[1][2] - ss[0][2]
         detector_gap = int(self.mosaic.detectors[0]['xgap'])
-        spat_lo = [0, spat_offset] if spat_offset >= 0 else [abs(spat_offset), 0]
-        valid_spec = nspec_det[0] + detector_gap + nspec_det[1]
-        valid_spat = max(spat_lo[i] + nspat_det[i] for i in range(nimg_pre))
 
-        # Run the standard mosaic logic (trim+orient already done; tforms correct)
-        super().build_mosaic()
+        # update mosaic transformation now that we have more info
+        rotation = [0., 0.]
+        shape = (self.image[0].shape[0] + self.image[1].shape[0] + detector_gap,
+                 np.max([self.image[0].shape[1], self.image[1].shape[1]]) + np.abs(spat_offset))
+        if spat_offset >= 0:
+            # Detector nrs2 starts at a larger spatial value than detector nrs1
+            shift = [(float(spat_offset), 0.), (0, float(self.image[0].shape[0] + detector_gap))]
+        else:
+            # Detector nrs1 starts at larger spatial value than detector nrs2
+            shift = [(0., 0.), (float(np.abs(spat_offset)), float(self.image[0].shape[0] + detector_gap))]
 
-        # Crop zero-padded borders from all mosaic arrays (shape is now (1, mosaic_spec, mosaic_spat))
-        for attr in ('image', '_bpm', 'datasec_img', 'det_img',
-                     'rn2img', 'poisson', 'dq', 'dark', 'dark_var', 'proc_var', 'base_var'):
-            arr = getattr(self, attr)
-            if arr is not None:
-                setattr(self, attr, arr[:, :valid_spec, :valid_spat])
+        msc_sft = [None]*self.nimg
+        msc_rot = [None]*self.nimg
+        msc_tfm = [None]*self.nimg
+        for i in range(self.nimg):
+            msc_sft[i] = shift[i]
+            msc_rot[i] = rotation[i]
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], (1,1))
+
+        # update
+        if self.mosaic is not None:
+            self.mosaic.shape = shape
+            self.mosaic.shift = np.array(msc_sft)
+            self.mosaic.tform = np.array(msc_tfm)
+
+
+        # Create images that will track which detector contributes to each pixel
+        # in the mosaic.  These images are created here first *before*
+        # `self.image` is mosaiced below. NOTE: This assumes there is no overlap
+        # in the detector mosaic (which should be true).
+        self.det_img = [np.full(img.shape, d.det, dtype=int) for img,d in zip(self.image, self.detector)]
+
+        # Transform the image data to the mosaic frame.  This call determines
+        # the shape of the mosaic image and adjusts the relative transforms to
+        # the absolute mosaic frame.
+        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform,
+                                                               mosaic_shape=self.mosaic.shape,
+                                                               order=self.mosaic.msc_ord)
+        # Maintain dimensionality
+        self.image = np.expand_dims(self.image, 0)
+
+        # For the remaining transforms, we can use the first call to skip over
+        # the need to determine the output mosaic shape and the adjusted
+        # transforms.
+
+        # Get the pixels associated with each amplifier
+        self.datasec_img = build_image_mosaic([_datasec_img.astype(int) for _datasec_img in self.datasec_img], _tforms,
+                                              mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
+        self.datasec_img = np.expand_dims(np.round(self.datasec_img).astype(int), 0)
+
+        # Get the pixels associated with each detector
+        self.det_img = build_image_mosaic([_det_img.astype(float) for _det_img in self.det_img], _tforms,
+                                          mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
+        self.det_img = np.expand_dims(np.round(self.det_img).astype(int), 0)
+
+        # Transform all the variance arrays, as necessary
+        if self.rn2img is not None:
+            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
+            self.rn2img = np.expand_dims(self.rn2img, 0)
+        if self.poisson is not None:
+            self.poisson = build_image_mosaic(self.poisson, _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
+            self.poisson = np.expand_dims(self.poisson, 0)
+        if self.dq is not None:
+            self.dq = build_image_mosaic([_dq.astype(float) for _dq in self.dq], _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
+            self.dq = np.expand_dims(np.round(self.dq).astype(int), 0)
+        if self.dark is not None:
+            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
+            self.dark = np.expand_dims(self.dark, 0)
+        if self.dark_var is not None:
+            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
+            self.dark_var = np.expand_dims(self.dark_var, 0)
+        if self.proc_var is not None:
+            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
+            self.proc_var = np.expand_dims(self.proc_var, 0)
+        if self.base_var is not None:
+            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
+            self.base_var = np.expand_dims(self.base_var, 0)
+
+        # TODO: Mosaicing means that many of the internals are no longer
+        # valid/useful.  Specifically, I set ronoise, rawimage, rawdatsec_img,
+        # and oscansec_img to None, which will force the code to barf if some of
+        # the methods that use these are called after the mosaicing.
+        self.ronoise = None
+        self.rawimage = None
+        self.rawdatasec_img = None
+        self.oscansec_img = None
+        self.nimg = 1
+        self.steps[inspect.stack()[0][3]] = True
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None,
                 slits=None, dark=None, mosaic=False, slit_slices=None, kludge_err=1, debug=False):
@@ -1929,13 +2046,6 @@ class NIRSpecRawImage(RawImage):
 
         self.slit_slices = slit_slices
 
-        # Recompute the mosaic transforms now that slit geometry is known.
-        # The placeholder transforms stored at construction time are replaced
-        # with correct oriented-frame transforms derived from slit_slices.
-        if slit_slices is not None and self.nimg > 1:
-            self.mosaic = self.spectrograph.get_mosaic_par(
-                tuple(d.det for d in self.detector), slit_slices=slit_slices)
-
         # Set input to attributes
         self.par = par
 
@@ -1965,36 +2075,13 @@ class NIRSpecRawImage(RawImage):
         # get dq flag image from jwst output. It used to update the PypeIt bitmask
         self.dq = self.build_dq()
 
-        #  - Convert from rate to counts
+        #  - Convert from rates to counts
         self.image *= self.exptime
 
-        # #   - Convert from ADU to electron counts.
-        # if self.par['apply_gain']:
-        #     self.apply_gain()
-        #
-        # # Apply additive corrections.  The order matters and is fixed.
-        # #
-        # #   - Subtract any fixed pattern defined for the instrument.  NOTE: This
-        # #     step *must* be done before subtract_overscan
-        # if self.par['use_pattern']:
-        #     self.subtract_pattern()
 
-        # #   - Estimate the readnoise using the overscan regions.  NOTE: This
-        # #     needs to be done *after* any pattern subtraction.
-        # if self.par['empirical_rn'] or not np.all(self.ronoise > 0):
-        #     self.estimate_readnoise()
-
-        #   - Initialize the variance images.  Starts with the shape and
-        #     orientation of the raw image.  Note that the readnoise variance
-        #     and "process" variance images are kept separate because they are
-        #     used again when modeling the noise during object extraction.
+        #   - Initialize the variance images.
         self.rn2img = self.build_rn2img()
         self.poisson = self.build_poisson_img()
-
-        # #   - Subtract the overscan.  Uncertainty from the overscan subtraction
-        # #     is added to the variance.
-        # if self.par['use_overscan']:
-        #     self.subtract_overscan()
 
         #   - Trim to the data region.  This trims the image, rn2img, proc_var,
         #     var, and datasec_img.
@@ -2006,87 +2093,19 @@ class NIRSpecRawImage(RawImage):
         if self.par['orient']:
             self.orient()
 
-        # #   - Check the shape of the bpm
-        # if self.bpm.shape != self.image.shape:
-        #
-        #     # TODO: The logic of whether or not the BPM uses msbias to identify
-        #     # bad pixels is difficult to follow.  Where and how the bpm is
-        #     # created, and whether or not it uses msbias should be more clear.
-        #
-        #     # The BPM is the wrong shape.  Assume this is because the
-        #     # calibrations were taken with a different binning than the science
-        #     # data, and assume this is because a BPM was provided as an
-        #     # argument.  First erase the "protected" attribute, then access it
-        #     # again using the @property method, which will recreated it based on
-        #     # the expected shape for this frame.
-        #     bpm_shape = self.bpm.shape  # Save the current shape for the warning
-        #     self._bpm = None  # This erases the current bpm attribute
-        #     if self.bpm.shape != self.image.shape:  # This recreates it
-        #         # This should only happen because of a coding error, not a user error
-        #         raise PypeItError(f'CODING ERROR: From-scratch BPM has incorrect shape!')
-        #     # If the above was successful, the code can continue, but first warn
-        #     # the user that the code ignored the provided bpm.
-        #     fname_txt = ','.join([Path(f).name for f in self.filename]) if isinstance(self.filename, list) \
-        #         else Path(self.filename).name
-        #     log.warning(f'Bad-pixel mask has incorrect shape: found {bpm_shape}, expected '
-        #                 f'{self.image.shape}.  Assuming this is because different binning used for '
-        #                 'various frames.  Recreating BPM specifically for this/these frame(s) '
-        #                 f'({fname_txt}) and assuming the difference in the '
-        #                 'binning will be handled later in the code.')
-
-        # #   - Subtract processed bias
-        # if self.par['use_biasimage']:
-        #     # Bias frame.  Shape and orientation must match *processed* image,.
-        #     # Uncertainty from the bias subtraction is added to the variance.
-        #     self.subtract_bias(bias)
-        #
-        # # TODO: Checking for count (well-depth) saturation should be done here.
-        #
-        # #   - Perform a non-linearity correction.  This is done before the
-        # #     flat-field and dark correction because the flat-field modifies
-        # #     the counts.
-        # if self.par['correct_nonlinear'] is not None:
-        #     self.correct_nonlinear()
-
-        # #   - Create the dark current image(s).  The dark-current image *always*
-        # #     includes the tabulated dark current and the call below ensures
-        # #     that this is *always* subtracted from the image being processed,
-        # #     regardless of whether or not use_darkimage is true.  If a dark
-        # #     frame is provided and subtracted, its shape and orientation must
-        # #     match the *processed* image, and the units *must* be in
-        # #     electrons/counts.
-        # self.build_dark(dark_image=dark if self.par['use_darkimage'] else None,
-        #                 expscale=self.par['dark_expscale'])
-        #
-        # #   - Subtract dark current.  This simply subtracts the dark current
-        # #     from the image being processed.  If available, uncertainty from
-        # #     the dark subtraction is added to the processing variance.
-        # self.subtract_dark()
-
         # Create the mosaic images.  This *must* come after trimming and
         # orienting and before determining the spatial flexure shift and
         # applying any flat-fielding.
         if self.nimg > 1 and mosaic:
             self.build_mosaic()
 
+        # - Load the bpm if provided (this is done here because bpm is already mosaiced)
         if bpm is not None:
             self._bpm = bpm
             if self._bpm.ndim == 2:
                 self._bpm = np.expand_dims(self._bpm, 0)
         # set to zero the value of self.image where the bpm is true
         self.image[self.bpm == 1.] = 0.0
-
-        # # Calculate flexure, if slits are provided and the correction is
-        # # requested.  NOTE: This step must come after trim, orient (just like
-        # # bias and dark subtraction) and before field flattening.  Also the
-        # # function checks that the slits exist if running the spatial flexure
-        # # correction, so no need to do it again here.
-        # self.spat_flexure_shift = self.spatial_flexure_shift(slits, debug=debug) \
-        #     if self.par['spat_flexure_correct'] else None
-        #
-        # #   - Subtract scattered light... this needs to be done before flatfielding.
-        # if self.par['subtract_scattlight']:
-        #     self.subtract_scattlight(scattlight, slits)
 
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
@@ -2095,11 +2114,6 @@ class NIRSpecRawImage(RawImage):
 
         # Calculate the inverse variance
         self.ivar = self.build_ivar()
-
-        # #   - Subtract continuum level
-        # if self.par['subtract_continuum']:
-        #     # Calculate a simple smooth continuum image, and subtract this from the frame
-        #     self.subtract_continuum()
 
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need base_var, image,

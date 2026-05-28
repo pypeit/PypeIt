@@ -35,6 +35,7 @@ from pypeit.core import parse
 from pypeit.core import scattlight as core_scattlight
 from pypeit.core import fitting
 from pypeit.core.mosaic import build_image_mosaic
+from pypeit.core.mosaic import build_image_mosaic_transform
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import utils
@@ -1823,9 +1824,20 @@ class NIRSpecSlitCalibrations(Calibrations):
         This helper is used by :func:`get_bpm`, :func:`get_wv_calib`,
         :func:`get_slits`, and :func:`get_flats` to load per-slit image
         data (e.g. ``'SCI'``, ``'WAVELENGTH'``, ``'PATHLOSS_PS'``, …)
-        from the JWST pipeline output.  For mosaic reductions (two
-        detectors), the images are combined into a mosaic before
-        orientation.
+        from the JWST pipeline output.  The processing steps are:
+
+        1. Each per-detector image is oriented to the PypeIt
+           ``(nspec, nspat)`` frame via
+           :func:`~pypeit.spectrographs.Spectrograph.orient_image`.
+        2. For mosaic reductions (NRS1 + NRS2), the mosaic geometry
+           is computed from :attr:`~NIRSpecSlitCalibrations.slit_slices`
+           and the images are assembled into a single mosaic canvas using
+           :func:`~pypeit.core.mosaic.build_image_mosaic`.
+
+        If the requested ``(extname, extver)`` HDU combination is absent
+        from a calibration file (e.g. ``BARSHADOW`` for some observing
+        modes), the method logs a warning and returns ``None`` rather than
+        raising an error, allowing callers to substitute a default value.
 
         Args:
             cal_files (:obj:`str` or :obj:`list` of :obj:`str`):
@@ -1837,17 +1849,22 @@ class NIRSpecSlitCalibrations(Calibrations):
             slit_info (:obj:`str`):
                 JWST slit name (the value of the ``SLTNAME`` header
                 keyword) used to identify the correct ``EXTVER``.
-        cval (:obj:`float`, optional):
-            If a mosaic is generated, this is the value to use for the empty pixels in the mosaic.
-            If not a mosaic is generated, this is ignored. Default is 0.0.
+            cval (:obj:`float`, optional):
+                Fill value used for empty (unmapped) pixels when assembling
+                the two-detector mosaic.  Ignored for single-detector
+                reductions.  Should be set to ``0.0`` for additive quantities
+                (fluxes, variance images) and to ``1.0`` for multiplicative
+                correction arrays (flat, pathloss, barshadow), so that
+                unmapped pixels do not bias downstream calibration steps.
+                Default is ``0.0``.
 
         Returns:
             :class:`~pypeit.images.pypeitimage.PypeItImage` or ``None``:
-                The calibration image for the requested slit, trimmed
-                and oriented to the PypeIt ``(nspec, nspat)`` frame, or
-                ``None`` if the requested ``(extname, extver)``
-                combination is not present in any of the calibration
-                files.
+                The calibration image for the requested slit, oriented to
+                the PypeIt ``(nspec, nspat)`` frame (and mosaiced when
+                processing two detectors), or ``None`` if the requested
+                ``(extname, extver)`` combination is not present in any of
+                the calibration files.
         """
 
         steps = []
@@ -1873,55 +1890,59 @@ class NIRSpecSlitCalibrations(Calibrations):
         # get image data, header, and exptime for this slit
         _detector, image, hdu, exptime, _, _ = self.spectrograph.get_rawimage(cal_files, self.det, keys=_keys)
         nimg = 1 if image.ndim == 2 else image.shape[0]
+        _mosaic = None if nimg == 1 else _detector
+        _detectors = _detector if nimg == 1 else _mosaic.detectors
+
+        # orient image
+        image = [self.spectrograph.orient_image(d, i) for d, i in zip(_detectors, image)] if nimg > 1 else \
+                self.spectrograph.orient_image(_detector, image)
+        steps.append('orient')
 
         det_img = None
+
         if nimg > 1:
-            # NIRSpec mosaic: orient each detector image individually first
-            # (consistent with the trim→orient→mosaic order in RawImage.process),
-            # then pad to a uniform shape, mosaic with correct oriented-frame
-            # transforms, and finally crop the zero-padded borders.
-            detectors = _detector.detectors  # per-detector DetectorContainer objects
-            oriented = []
-            det_oriented = []
-            for i in range(nimg):
-                img_i = self.spectrograph.orient_image(detectors[i], image[i])
-                oriented.append(img_i)
-                det_oriented.append(np.full(img_i.shape, float(detectors[i].det)))
-
-            # Pad to uniform shape
-            shapes = [img.shape for img in oriented]
-            max_r = max(s[0] for s in shapes)
-            max_c = max(s[1] for s in shapes)
-            image_pad = np.zeros((nimg, max_r, max_c))
-            det_pad = np.zeros((nimg, max_r, max_c))
-            for i in range(nimg):
-                image_pad[i, :oriented[i].shape[0], :oriented[i].shape[1]] = oriented[i]
-                det_pad[i, :det_oriented[i].shape[0], :det_oriented[i].shape[1]] = det_oriented[i]
-
-            # Get correct oriented-frame transforms from slit_slices
-            _msc_par = self.spectrograph.get_mosaic_par(self.det, slit_slices=self.slit_slices)
-            image_msc, _, _, _tforms = build_image_mosaic(image_pad, _msc_par.tform, cval=cval)
-            det_img = build_image_mosaic(det_pad, _tforms, mosaic_shape=image_msc.shape)[0]
-
-            # Crop zero-padded borders back to the valid data extent
+            # make mosaic
+            # get info about the slit slices
             ss = self.slit_slices
-            nspec_det = [ss[i][1] - ss[i][0] for i in range(nimg)]
-            nspat_det = [ss[i][3] - ss[i][2] for i in range(nimg)]
             spat_offset = ss[1][2] - ss[0][2]
-            detector_gap = int(self.spectrograph.get_detector_par(1).xgap)
-            spat_lo = [0, spat_offset] if spat_offset >= 0 else [abs(spat_offset), 0]
-            valid_spec = nspec_det[0] + detector_gap + nspec_det[1]
-            valid_spat = max(spat_lo[i] + nspat_det[i] for i in range(nimg))
-            image = image_msc[:valid_spec, :valid_spat]
-            det_img = np.round(det_img[:valid_spec, :valid_spat]).astype(int)
+            detector_gap = int(_detectors[0]['xgap'])
 
-            steps.append('orient')
+            # update mosaic transformation now that we have more info
+            rotation = [0., 0.]
+            shape = (image[0].shape[0] + image[1].shape[0] + detector_gap,
+                     np.max([image[0].shape[1], image[1].shape[1]]) + np.abs(spat_offset))
+            if spat_offset >= 0:
+                # Detector nrs2 starts at a larger spatial value than detector nrs1
+                shift = [(float(spat_offset), 0.), (0, float(image[0].shape[0] + detector_gap))]
+            else:
+                # Detector nrs1 starts at larger spatial value than detector nrs2
+                shift = [(0., 0.), (float(np.abs(spat_offset)), float(image[0].shape[0] + detector_gap))]
+
+            msc_sft = [None] * nimg
+            msc_rot = [None] * nimg
+            msc_tfm = [None] * nimg
+            for i in range(nimg):
+                msc_sft[i] = shift[i]
+                msc_rot[i] = rotation[i]
+                msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], (1, 1))
+
+            # update
+            if _mosaic is not None:
+                _mosaic.shape = shape
+                _mosaic.shift = np.array(msc_sft)
+                _mosaic.tform = np.array(msc_tfm)
+
+            # Create images that will track which detector contributes to each pixel in the mosaic.
+            det_img = [np.full(img.shape, d.det, dtype=int) for img, d in zip(image, _detectors)]
+
+            # Transform the image data to the mosaic frame.
+            image, _, _img_npix, _tforms = build_image_mosaic(image, _mosaic.tform,
+                                                              mosaic_shape=_mosaic.shape, order=_mosaic.msc_ord, cval=cval)
+            det_img = build_image_mosaic([_det_img.astype(float) for _det_img in det_img], _tforms,
+                                         mosaic_shape=_mosaic.shape, order=_mosaic.msc_ord)[0]
+            det_img = np.round(det_img).astype(int)
+
             steps.append('build_mosaic')
-        else:
-            # Single detector: orient normally
-            image = self.spectrograph.orient_image(_detector, image)
-            steps.append('orient')
-
 
         pypeitImage = pypeitimage.PypeItImage(image,det_img=det_img,detector=_detector,
                                               PYP_SPEC=self.spectrograph.name,
@@ -1955,8 +1976,8 @@ class NIRSpecSlitCalibrations(Calibrations):
         """
 
         # Check for existing data
-        if not self._chk_objs(['msbpm']):
-            raise PypeItError('msbpm must be loaded before getting wv_calib')
+        if not self._chk_objs(['slit_slices', 'msbpm']):
+            raise PypeItError('slit_slices and msbpm must be loaded before getting wv_calib')
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
@@ -2022,8 +2043,8 @@ class NIRSpecSlitCalibrations(Calibrations):
                 wavelength image for the current slit.
         """
         # Check for existing data
-        if not self._chk_objs(['wv_calib', 'slits']):
-            raise PypeItError('wv_calib and slits must be loaded before getting the tilts')
+        if not self._chk_objs(['slit_slices', 'wv_calib', 'slits']):
+            raise PypeItError('slit_slices, wv_calib and slits must be loaded before getting the tilts')
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par',  'user_slits'])
@@ -2082,6 +2103,11 @@ class NIRSpecSlitCalibrations(Calibrations):
             `numpy.ndarray`_: The bad pixel mask, which should match the shape
             and orientation of a *trimmed* and PypeIt-oriented science image!
         """
+
+        # Check for existing data
+        if not self._chk_objs(['slit_slices']):
+            raise PypeItError('slit_slices must be loaded before getting the msbpm')
+
         # Check internals
         self._chk_set(['det', 'calib_ID', 'user_slits'])
 
@@ -2102,18 +2128,35 @@ class NIRSpecSlitCalibrations(Calibrations):
 
     def get_slits(self, force: str = None):
         """
-        # Check for existing data
-        if not self._chk_objs(['msbpm']):
-            raise PypeItError('msbpm must be loaded before getting the slits')
+        Generate slit traces for the JWST NIRSpec slit being reduced.
 
-        # Check internals
-        self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
+        Slit edges are found by detecting the left (0→1) and right (1→0)
+        transitions in the BPM-derived slit mask, fitting each edge with a
+        low-order Legendre polynomial, and storing the result in an
+        :class:`~pypeit.edgetrace.EdgeTraceSet` /
+        :class:`~pypeit.slittrace.SlitTraceSet` pair.
 
-        Generate slit traces from the wavelength image / BPM.
+        Prerequisites (checked internally):
+            * ``slit_slices`` must already have been populated (see
+              :func:`get_slit_slices`).
+            * ``msbpm`` must already have been set (see :func:`get_bpm`).
+
+        Args:
+            force (:obj:`str`, optional):
+                If set, force regeneration even if a cached calibration
+                already exists on disk.  Uses the same ``force`` semantics
+                as the base-class :func:`~Calibrations.get_slits`.
 
         Returns:
             :class:`~pypeit.slittrace.SlitTraceSet`: The slit traces object.
         """
+        # Check for existing data
+        if not self._chk_objs(['slit_slices', 'msbpm']):
+            raise PypeItError('slit_slices and msbpm must be loaded before getting the slits')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
+
         # Prep
         frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
         trace_files, cal_file, calib_key, setup, calib_id, detname \
@@ -2138,8 +2181,7 @@ class NIRSpecSlitCalibrations(Calibrations):
         traceImage.set_paths(self.calib_dir, setup, calib_id, detname)
         traceImage.calib_key = calib_key
 
-        edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
-                                        qa_path=self.qa_path, auto=False)
+        edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'], qa_path=self.qa_path, auto=False)
 
         log.info('-'*50)
         log.info(f'{"Edge Tracing specific for JWST NIRSpec":^50}')
@@ -2152,8 +2194,6 @@ class NIRSpecSlitCalibrations(Calibrations):
         med_slit_width = np.median(slit_width[slit_width > 0])
         nspec, nspat = thismask.shape
         spec_vec = np.arange(nspec, dtype=float)
-        spat_vec = np.arange(nspat, dtype=float)
-        # spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
         # Initialize arrays
         edges.edge_fit = np.zeros((nspec, 2), dtype=float)
         edges.edge_cen = np.zeros((nspec, 2), dtype=float)
@@ -2206,41 +2246,6 @@ class NIRSpecSlitCalibrations(Calibrations):
         edges.edge_img = np.round(edges.edge_fit).astype(int)
         edges.fittype = f'{fitfunc} : order={fit_order}'
 
-
-
-
-        # for i,side in enumerate(['left', 'right']):
-        #     dummy_spat_img = spat_img.copy()
-        #     bad_value = +np.inf if side == 'left' else -np.inf
-        #     dummy_spat_img[np.logical_not(thismask)] = bad_value
-        #     slit_mask = (np.min(dummy_spat_img, axis=1) if side == 'left'
-        #                  else np.max(dummy_spat_img, axis=1))
-        #     good_for_slit = ((slit_width > 0.5 * med_slit_width)
-        #                      & (slit_mask != bad_value))
-        #     bad_for_slit = np.logical_not(good_for_slit)
-        #
-        #     pypeitFit = fitting.robust_fit(
-        #         spec_vec[good_for_slit], slit_mask[good_for_slit], fit_order,
-        #         function=fitfunc, maxiter=25, lower=3.0, upper=3.0,
-        #         maxrej=1, sticky=True, verbose=False,
-        #         minx=0.0, maxx=float(nspec - 1))
-        #     slit = pypeitFit.eval(spec_vec)
-        #
-        #     if self.show:
-        #         plt.title(f'{side} slit trace')
-        #         plt.plot(spec_vec[good_for_slit], slit_mask[good_for_slit], 'k.')
-        #         plt.plot(spec_vec[bad_for_slit], slit_mask[bad_for_slit], 'r.')
-        #         plt.plot(spec_vec, slit, 'b')
-        #         plt.show()
-        #
-        #     edges.traceid[i] = -1 if side == 'left' else 1
-        #     edges.edge_cen[:, i] = slit_mask
-        #     edges.edge_fit[:, i] = slit
-        #     edges.edge_msk[bad_for_slit, i] = edges.bitmask.turn_on(edges.edge_msk[bad_for_slit, i], 'NOEDGE')
-        # edges.edge_img = np.round(edges.edge_fit).astype(int)
-        #
-        # edges.fittype = f'{fitfunc} : order={fit_order}'
-
         # save edges to disk
         edges.set_paths(self.calib_dir, setup, calib_id, detname)
         edges.calib_key = calib_key
@@ -2288,8 +2293,8 @@ class NIRSpecSlitCalibrations(Calibrations):
         """
 
         # Check for existing data
-        if not self._chk_objs(['msbpm', 'slits', 'wv_calib']):
-            raise PypeItError('msbpm, slits, and wv_calib must be loaded before getting the flats')
+        if not self._chk_objs(['slit_slices', 'msbpm', 'slits', 'wv_calib']):
+            raise PypeItError('slit_slices, msbpm, slits, and wv_calib must be loaded before getting the flats')
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
@@ -2344,7 +2349,6 @@ class NIRSpecSlitCalibrations(Calibrations):
 
         # conversion from DN/s to MJy/sr (or to MJy, for  point sources)
         conversion_megajanskys = calImg.rawheadlist[0].get('PHOTMJSR')
-
         # apply conversion factor to the pixels that are not masked, i.e., flatImg.image !=1.
         flat_data = flatImg.image.copy()
         flat_data[flat_data != 1] /= conversion_megajanskys

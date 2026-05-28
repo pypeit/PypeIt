@@ -36,7 +36,6 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     #supported = True
     allowed_extensions = ['_assign_wcs.fits', '_interpolatedflat.fits', '_interpolatedflat_fs.fits',
                           '_cal.fits', 'uncal.fits', 'msa.fits']
-    # allowed_extensions = ['rate.fits','rate.fits.gz' , 'uncal.fits.gz', 'uncal.fits', '.fits', '.fits.gz']
 
     def rawfile_basename(self, filename, targname=None, slitname=None):
         """
@@ -44,8 +43,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         files by the function :func:`~pypeit.metadata.construct_basename`.
         This can be spectrograph-dependent if specific changes need to be made.
 
-        Here we strip ``_assign_wcs``, ``_nrs1``, and ``_nrs2`` suffixes that
-        are typical of JWST NIRSpec data products.
+        Here we strip ``_assign_wcs``, ``_interpolatedflat``,
+        ``_interpolatedflat_fs``, ``_cal``, ``_nrs1``, and ``_nrs2`` suffixes
+        that are typical of JWST NIRSpec data products, so that NRS1 and NRS2
+        files from the same exposure map to the same basename.
 
         Args:
             filename (:obj:`str`):
@@ -127,22 +128,25 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         detector_dicts = [detector_dict1, detector_dict2]
         return detector_container.DetectorContainer(**detector_dicts[det-1])
 
-    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0, slit_slices=None):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
         """
-        Return the parameters needed to construct detector mosaics.
+        Return a placeholder :class:`~pypeit.images.mosaic.Mosaic` object for
+        the NRS1+NRS2 detector pair.
 
-        The parameters expect the images to be trimmed and oriented to follow
-        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
-        lists, the length of the list is the same as the number of detectors in
-        the mosaic, and they are ordered by the detector number.
+        Because the correct mosaic geometry depends on the per-slit bounding
+        boxes (available only after reading the data), this method returns a
+        :class:`~pypeit.images.mosaic.Mosaic` with **placeholder** shifts and
+        transforms computed from a fixed ``(2048, 2048)`` detector shape.
+        The placeholder is sufficient to bootstrap the ``RawImage`` and
+        calibration pipelines; the actual geometry is overwritten in-place
+        once the slit extents are known:
 
-        When ``slit_slices`` is provided the mosaic geometry is computed from
-        the per-slit bounding boxes and the fixed ``xgap`` detector parameter,
-        producing correct transforms for the **oriented** frame
-        ``(nspec, nspat)``.  When ``slit_slices`` is ``None`` a placeholder
-        geometry is returned with a warning — this is only used at
-        construction time (before slit information is available) and is
-        overwritten later in :func:`~pypeit.images.rawimage.NIRSpecRawImage.process`.
+        * :func:`~pypeit.images.rawimage.NIRSpecRawImage.build_mosaic`
+          recomputes the transforms from :attr:`~pypeit.images.rawimage.NIRSpecRawImage.slit_slices`
+          before calling :func:`~pypeit.core.mosaic.build_image_mosaic`.
+        * :func:`~pypeit.calibrations.NIRSpecSlitCalibrations._build_calibimage`
+          likewise derives the geometry from ``self.slit_slices`` for each
+          calibration image.
 
         Args:
             mosaic (:obj:`tuple`):
@@ -153,20 +157,15 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                 The open fits file with the raw image of interest.  If not
                 provided, frame-dependent detector parameters are set to a
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
-                assumed to be `1,1`, which will cause faults if applied to
+                assumed to be ``1,1``, which will cause faults if applied to
                 binned images!
             msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
-            slit_slices (:obj:`list`, optional):
-                List of ``(spat_start, spat_end, spec_start, spec_end)``
-                tuples (0-indexed, exclusive end) giving the bounding box of the
-                slit in the full detector pixel frame, one entry per detector.
-                When provided the mosaic geometry is computed from these values
-                rather than from placeholders.
 
         Returns:
-            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
-            detector parameters.
+            :class:`~pypeit.images.mosaic.Mosaic`: Placeholder mosaic object
+            whose ``shape``, ``shift``, and ``tform`` attributes will be
+            overwritten with the true geometry at processing time.
         """
 
         # Validate the entered (list of) detector(s)
@@ -178,38 +177,14 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Get the detectors
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
 
-        # The binning must be the same for all images in the mosaic
-        binning = tuple(int(b) for b in detectors[0].binning.split(','))
+        expected_shape = (2048, 2048)
+        shift = [(0.0, 0.0), (0, 2048.)]
+        rotation = np.array([0., 0.])
 
-        if slit_slices is not None:
-            # Compute proper mosaic geometry from slit_slices.
-            # After orient() (specaxis=1 → transpose):
-            #   axis 0 = spectral  (was FITS-x / spat_start:spat_end in slit_slices)
-            #   axis 1 = spatial   (was FITS-y / spec_start:spec_end in slit_slices)
-            nspec_det = [slit_slices[i][1] - slit_slices[i][0] for i in range(nimg)]
-            nspat_det = [slit_slices[i][3] - slit_slices[i][2] for i in range(nimg)]
-            # Spatial offset between NRS2 and NRS1 (spec_start diff → col offset after orient)
-            spat_offset = slit_slices[1][2] - slit_slices[0][2]
-            detector_gap = int(self.get_detector_par(1).xgap)
-            # Padded per-detector shape (uniform input shape for build_image_mosaic)
-            shape = (max(nspec_det), max(nspat_det))
-            # Shifts in oriented frame: (x=spatial col, y=spectral row), unbinned pixels
-            if spat_offset >= 0:
-                shift = [(0., 0.),
-                         (float(spat_offset), float(nspec_det[0] + detector_gap))]
-            else:
-                shift = [(float(abs(spat_offset)), 0.),
-                         (0., float(nspec_det[0] + detector_gap))]
-            rotation = [0., 0.]
-            # Transforms are in the oriented frame; binning = (binspec, binspat) = (ny, nx)
-            use_binning = binning
-        else:
-            expected_shape = (1031, 25)
-            shift = [(0.0, 0.0), (0, 605)]
-            rotation = [0., 0.]
-            shape = tuple(n // b for n, b in zip(expected_shape, binning))
-            # Placeholder uses raw-frame convention (reversed binning)
-            use_binning = tuple(reversed(binning))
+        # The binning and process image shape must be the same for all images in
+        # the mosaic
+        binning = tuple(int(b) for b in detectors[0].binning.split(','))
+        shape = tuple(n // b for n, b in zip(expected_shape, binning))
 
         msc_sft = [None]*nimg
         msc_rot = [None]*nimg
@@ -217,30 +192,13 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         for i, d in enumerate([det-1 for det in mosaic]):
             msc_sft[i] = shift[d]
             msc_rot[i] = rotation[d]
-            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], use_binning)
+            # binning is here in the PypeIt convention of (binspec, binspat), but the mosaic tranformations
+            # occur in the raw data frame, which has spatial in y and spectral in x
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
 
-        return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-                      np.array(msc_tfm), msc_ord)
 
-    # def validate_det(self, det):
-    #     """
-    #     Validate the detector specification and return the number of images
-    #     and a standardized detector tuple.
-    #
-    #     Args:
-    #         det (:obj:`int`, :obj:`tuple`):
-    #             Detector number or tuple of detector numbers.
-    #
-    #     Returns:
-    #         :obj:`tuple`: Number of images and the validated detector
-    #         specification.
-    #     """
-    #     if isinstance(det, (int, np.integer)):
-    #         return 1, (det,)
-    #     elif isinstance(det, (tuple, list)):
-    #         return len(det), tuple(det)
-    #     else:
-    #         raise PypeItError(f'Invalid detector specification: {det}')
+        # For now, use placeholder values; the mosaic is updated later using slit_slices-based spatial offsets.
+        return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot), np.array(msc_tfm), msc_ord)
 
     @classmethod
     def default_pypeit_par(cls):
