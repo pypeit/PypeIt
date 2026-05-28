@@ -1751,18 +1751,30 @@ class NIRSpecRawImage(RawImage):
             self.datasec_img[i][spec_start:spec_end, spat_start:spat_end] = self.detector[i].det
 
         self.image = [procimg.trim_frame(i, d < 1) for i, d in zip(self.image, self.datasec_img)]
+        if self.nimg == 1:
+            self.image = np.expand_dims(self.image[0], 0)
 
         if self.rn2img is not None:
             self.rn2img = [procimg.trim_frame(r, d < 1) for r, d in zip(self.rn2img, self.datasec_img)]
+            if self.nimg == 1:
+                self.rn2img = np.expand_dims(self.rn2img[0], 0)
         if self.poisson is not None:
             self.poisson = [procimg.trim_frame(p, d < 1) for p, d in zip(self.poisson, self.datasec_img)]
+            if self.nimg == 1:
+                self.poisson = np.expand_dims(self.poisson[0], 0)
         if self.dq is not None:
             self.dq = [procimg.trim_frame(dq, d < 1) for dq, d in zip(self.dq, self.datasec_img)]
+            if self.nimg == 1:
+                self.dq = np.expand_dims(self.dq[0], 0)
         if self.proc_var is not None:
             self.proc_var = [procimg.trim_frame(p, d < 1) for p, d in zip(self.proc_var, self.datasec_img)]
+            if self.nimg == 1:
+                self.proc_var = np.expand_dims(self.proc_var[0], 0)
         # NOTE: This must be done last because the untrimmed image is used for
         # deciding what to trim!
         self.datasec_img = [procimg.trim_frame(d, d < 1) for d in self.datasec_img]
+        if self.nimg == 1:
+            self.datasec_img = np.expand_dims(self.datasec_img[0], 0)
 
         self.steps[step] = True
 
@@ -1794,23 +1806,27 @@ class NIRSpecRawImage(RawImage):
         if self.steps[step] and not force:
             log.warning('Image was already oriented.')
             return
-        # Orient the image to have blue/red run bottom to top
-        self.image = [self.spectrograph.orient_image(d, i)
-                               for d, i in zip(self.detector, self.image)]
-        if self.rn2img is not None:
-            self.rn2img = [self.spectrograph.orient_image(d, i)
-                                    for d, i in zip(self.detector, self.rn2img)]
-        if self.poisson is not None:
-            self.poisson = [self.spectrograph.orient_image(d, i)
-                                     for d, i in zip(self.detector, self.poisson)]
-        if self.dq is not None:
-            self.dq = [self.spectrograph.orient_image(d, i)
-                                for d, i in zip(self.detector, self.dq)]
-        if self.proc_var is not None:
-            self.proc_var = [self.spectrograph.orient_image(d, i)
-                                      for d, i in zip(self.detector, self.proc_var)]
-        self.datasec_img = [self.spectrograph.orient_image(d, i)
-                                     for d, i in zip(self.detector, self.datasec_img)]
+
+        if self.nimg == 1:
+            super().orient(force=force)
+        else:
+            # Orient the image to have blue/red run bottom to top
+            self.image = [self.spectrograph.orient_image(d, i)
+                                   for d, i in zip(self.detector, self.image)]
+            if self.rn2img is not None:
+                self.rn2img = [self.spectrograph.orient_image(d, i)
+                                        for d, i in zip(self.detector, self.rn2img)]
+            if self.poisson is not None:
+                self.poisson = [self.spectrograph.orient_image(d, i)
+                                         for d, i in zip(self.detector, self.poisson)]
+            if self.dq is not None:
+                self.dq = [self.spectrograph.orient_image(d, i)
+                                    for d, i in zip(self.detector, self.dq)]
+            if self.proc_var is not None:
+                self.proc_var = [self.spectrograph.orient_image(d, i)
+                                          for d, i in zip(self.detector, self.proc_var)]
+            self.datasec_img = [self.spectrograph.orient_image(d, i)
+                                         for d, i in zip(self.detector, self.datasec_img)]
         self.steps[step] = True
 
     def build_mosaic(self):
