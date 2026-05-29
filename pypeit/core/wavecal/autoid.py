@@ -671,7 +671,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                 if pdiff[bstpx] < match_toler:
                     # Using the arxiv arc wavelength solution, search for the nearest line in the line list
                     bstwv = np.abs(wvdata - wvval_arxiv[bstpx])
-                    # This is a good wavelength match if it is within match_toler disperion elements
+                    # This is a good wavelength match if it is within match_toler dispersion elements
                     if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv[iarxiv]:
                         line_indx = np.append(line_indx, np.argmin(bstwv))  # index in the line list array wvdata of this match
                         det_indx = np.append(det_indx, iline)             # index of this line in the detected line array detections
@@ -1071,7 +1071,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
     x_percentile : float, optional
         Passed to reidentify to reduce the dynamic range of arc line amplitudes
     template_dict : dict, optional
-        Dict containing tempmlate items, largely for development
+        Dict containing template items, largely for development
     nonlinear_counts : float, optional
         For arc line detection: Arc lines above this saturation threshold
         are not used in wavelength solution fits because they cannot be
@@ -1100,6 +1100,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         if par['reid_arxiv'] is None:
             raise PypeItError('WavelengthSolutionPar parameter `reid_arxiv` not '
                        'specified for "full_template" method.')
+        wvstr = "the entire wavelength range" if par['wvrng_arxiv'] is None else f"wavelength range {par['wvrng_arxiv']} Angstroms"
+        log.info(f"Loading template from {par['reid_arxiv']} for detector {det} and {wvstr}")
         temp_wv_og, temp_spec_og, temp_bin, order, lines_pix, lines_wav, lines_fit_ord = \
             waveio.load_template(par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
@@ -1700,7 +1702,7 @@ class ArchiveReid:
         # List of bad slits
         self.bad_slits = []
 
-        # Pull paramaters out of the parset
+        # Pull parameters out of the parset
         # TODO: Why are we doing this?
         # Parameters for arc line detction
         self.nonlinear_counts = nonlinear_counts # self.par['nonlinear_counts']
@@ -1983,6 +1985,11 @@ class HolyGrail:
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
         self._thar = False
         if 'ThAr' in self._lamps and len(self._lamps) == 1:
+            raise NotImplementedError(
+                'Our algorithm for automatic wavelength calibration of ThAr arc lamps is '
+                'currently too unstable.  For the time-being, we have disabled use of the '
+                'holy-grail algorithm in this case.'
+            )
             self._thar = True
             # Set up the grids to be used for pattern matching
             self.set_grids(ngridw=5000, ngridd=1000)
@@ -2200,7 +2207,7 @@ class HolyGrail:
         """
 
         # Load the linelist KD Tree
-        lsttree, lindex = waveio.load_tree(polygon=polygon, numsearch=lstsrch)
+        lsttree, lindex = kdtree_generator.load_tree(polygon=polygon, numsearch=lstsrch)
 
         # Set the search error to be 5 pixels
         err = pixtol / self._npix

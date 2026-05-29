@@ -6,21 +6,18 @@ Coadding module.
 
 """
 
-import os
 import sys
 import copy
 import string
 
 from IPython import embed
 
-import numpy as np
-import scipy
-
-import matplotlib.pyplot as plt
-from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
-
 from astropy import stats
 from astropy import convolution
+import matplotlib.pyplot as plt
+from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
+import numpy as np
+import scipy
 
 from pypeit import log
 from pypeit import PypeItError
@@ -2199,7 +2196,7 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
 
     return wave_grid_mid, wave_stack, flux_stack, ivar_stack, gpm_stack
 
-def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
+def multi_combspec(waves, fluxes, ivars, gpms, sn_smooth_npix=None,
                    wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
                    wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
@@ -2213,17 +2210,17 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     Parameters
     ----------
     waves : list
-        List of `numpy.ndarray`_ wavelength arrays with shape (nspec_i,) with
+        List of `numpy.ndarray`_ arrays with shape (nspec_i,) with
         the wavelength arrays of the spectra to be coadded.
     fluxes : list
-        List of `numpy.ndarray`_ wavelength arrays with shape (nspec_i,) with
+        List of `numpy.ndarray`_ arrays with shape (nspec_i,) with
         the flux arrays of the spectra to be coadded.
     ivars : list
-        List of `numpy.ndarray`_ wavelength arrays with shape (nspec_i,) with
+        List of `numpy.ndarray`_ arrays with shape (nspec_i,) with
         the ivar arrays of the spectra to be coadded.
-    masks : list
-        List of `numpy.ndarray`_ wavelength arrays with shape (nspec_i,) with
-        the mask arrays of the spectra to be coadded.
+    gpms : list
+        List of `numpy.ndarray`_ arrays with shape (nspec_i,) with
+        the GPM arrays of the spectra to be coadded (True=good).
     sn_smooth_npix : int, optional
         Number of pixels to median filter by when computing S/N used to decide
         how to scale and weight spectra. If set to None, the code will determine
@@ -2319,7 +2316,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         core.wavecal.wvutils.py for more.
     wave_stack : `numpy.ndarray`_, (ngrid,)
         Wavelength grid for stacked spectrum. As discussed above, this is the
-        weighted average of the wavelengths of each spectrum that contriuted to
+        weighted average of the wavelengths of each spectrum that contributed to
         a bin in the input wave_grid wavelength grid. It thus has ngrid
         elements, whereas wave_grid has ngrid+1 elements to specify the ngrid
         total number of bins. Note that wave_stack is NOT simply the wave_grid
@@ -2341,7 +2338,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         log.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
     wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
-        waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
+        waves, fluxes,ivars, gpms, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
         spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
@@ -3156,7 +3153,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     var_list = [[utils.inverse(sciivar) for sciivar in sciivar_stack]]
 
 
-    sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
+    sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack, obj_list_rebin \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
                       inmask_stack, sci_list, var_list)
     # Now compute the final stack with sigma clipping
@@ -3241,69 +3238,154 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
 
 
-def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
-            thismask_stack, inmask_stack, sci_list, var_list):
+def rebin2d(
+    spec_bins: np.ndarray,
+    spat_bins: np.ndarray,
+    waveimg_stack: np.ndarray,
+    spatimg_stack: np.ndarray,
+    thismask_stack: np.ndarray,
+    inmask_stack: np.ndarray,
+    sci_list: list[list[np.ndarray]],
+    var_list: list[list[np.ndarray]],
+    obj_list: list[list[tuple[float, float] | None]] | None = None,
+) -> tuple[
+    list[np.ndarray],
+    list[np.ndarray],
+    np.ndarray,
+    np.ndarray,
+    list[np.ndarray],
+]:
     """
-    Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
-    "recitifies" images using np.histogram2d which is extremely fast and effectively performs
-    nearest grid point interpolation.
+    Rebin a set of images onto a common spectral-spatial grid and propagate
+    variances onto that same grid.
+
+    This routine rectifies each input image onto the output grid defined by
+    ``spec_bins`` and ``spat_bins`` using :func:`numpy.histogram2d`.  The
+    coordinate fields ``waveimg_stack`` and ``spatimg_stack`` provide, for each
+    detector pixel, the spectral and spatial coordinates used to determine the
+    destination rebinned pixel.  Because the rebinning is performed with
+    histogram binning, it is effectively a nearest-grid-point scheme in the
+    output coordinate system.
+
+    For each exposure, the routine computes both the geometric sampling of the
+    output grid and the actual occupation number after masking.  Science images
+    are rebinned as averages within each populated output pixel, and variance
+    images are rebinned with the corresponding :math:`1/N^2` normalization
+    needed for correct error propagation, where :math:`N` is the number of
+    unmasked input pixels contributing to the output pixel.
+
+    Optionally, object locations in the input images can also be mapped to
+    their corresponding fractional coordinates in the rebinned images using
+    :func:`_map_pixel_rebin`.
 
     Parameters
     ----------
-    spec_bins : `numpy.ndarray`_, float, shape = (nspec_rebin)
-        Spectral bins to rebin to.
-
-    spat_bins : `numpy.ndarray`_, float ndarray, shape = (nspat_rebin)
-        Spatial bins to rebin to.
-    waveimg_stack : `numpy.ndarray`_, float , shape = (nimgs, nspec, nspat)
-        Stack of nimgs wavelength images with shape = (nspec, nspat) each
-    spatimg_stack : `numpy.ndarray`_, float, shape = (nimgs, nspec, nspat)
-        Stack of nimgs spatial position images with shape = (nspec, nspat) each
-    thismask_stack : `numpy.ndarray`_, bool, shape = (nimgs, nspec, nspat)
-        Stack of nimgs images with shape = (nspec, nspat) indicating the
-        locatons on the pixels on an image that are on the slit in question.
-    inmask_stack : `numpy.ndarray`_, bool ndarray, shape = (nimgs, nspec, nspat)
-        Stack of nimgs images with shape = (nspec, nspat) indicating which
-        pixels on an image are masked.  True = Good, False = Bad
-    sci_list : list
-        Nested list of images, i.e. list of lists of images, where
-        sci_list[i][j] is a shape = (nspec, nspat) where the shape can be
-        different for each image. The ith index is the image type, i.e. sciimg,
-        skysub, tilts, waveimg, the jth index is the exposure or image number,
-        i.e. nimgs. These images are to be rebinned onto the commong grid.
-    var_list : list
-        Nested list of variance images, i.e. list of lists of images. The format
-        is the same as for sci_list, but note that sci_list and var_list can
-        have different lengths. Since this routine performs a NGP rebinning, it
-        effectively comptues the average of a science image landing on a pixel.
-        This means that the science is weighted by the 1/norm_rebin_stack, and
-        hence variances must be weighted by that factor squared, which his why
-        they must be input here as a separate list.
+    spec_bins : :obj:`~numpy.ndarray`
+        One-dimensional array of spectral bin edges for the output grid.
+        The number of rebinned spectral pixels is ``spec_bins.size - 1``.
+    spat_bins : :obj:`~numpy.ndarray`
+        One-dimensional array of spatial bin edges for the output grid.
+        The number of rebinned spatial pixels is ``spat_bins.size - 1``.
+    waveimg_stack : :obj:`~numpy.ndarray`
+        Stack of wavelength-coordinate images with shape
+        ``(nimgs, nspec, nspat)``.  Each image gives the spectral coordinate
+        associated with every detector pixel.
+    spatimg_stack : :obj:`~numpy.ndarray`
+        Stack of spatial-coordinate images with shape
+        ``(nimgs, nspec, nspat)``.  Each image gives the spatial coordinate
+        associated with every detector pixel.
+    thismask_stack : :obj:`~numpy.ndarray`
+        Boolean stack with shape ``(nimgs, nspec, nspat)`` indicating which
+        detector pixels lie on the slit or otherwise belong to the geometric
+        rebinning domain for each image.
+    inmask_stack : :obj:`~numpy.ndarray`
+        Boolean stack with shape ``(nimgs, nspec, nspat)`` indicating which
+        detector pixels are valid for science rebinning.  True values are good
+        pixels and False values are masked pixels.
+    sci_list : list[list[numpy.ndarray]]
+        Nested list of science-like images to rebin.  The outer list indexes
+        image type, and the inner list indexes exposure number.  That is,
+        ``sci_list[k][img]`` is the ``img``-th exposure for the ``k``-th image
+        type.  Each element must be a two-dimensional array aligned with the
+        corresponding coordinate and mask images.
+    var_list : list[list[numpy.ndarray]]
+        Nested list of variance images to rebin, with the same structure as
+        ``sci_list``.  These are rebinned separately from the science images so
+        that the correct variance normalization can be applied after averaging
+        the contributing input pixels within each rebinned output pixel.
+    obj_list : list[list[tuple[float, float] | None]] or None, optional
+        Nested list of object coordinates to map into the rebinned image.  The
+        outer list indexes object set or object type, and the inner list
+        indexes exposure number.  Each coordinate must be provided in
+        ``(SPAT, SPEC)`` order, and individual entries may be None.  If None,
+        no object-coordinate mapping is performed.
 
     Returns
     -------
-    sci_list_out: list
-        The list of ndarray rebinned images with new shape (nimgs, nspec_rebin,
-        nspat_rebin)
-    var_list_out : list
-        The list of ndarray rebinned variance images with correct error
-        propagation with shape (nimgs, nspec_rebin, nspat_rebin).
-    norm_rebin_stack : int ndarray, shape (nimgs, nspec_rebin, nspat_rebin)
-        An image stack indicating the integer occupation number of a given
-        pixel. In other words, this number would be zero for empty bins, one for
-        bins that were populated by a single pixel, etc. This image takes the
-        input inmask_stack into account. The output mask for each image can be
-        formed via outmask_rebin_stack = (norm_rebin_stack > 0).
-    nsmp_rebin_stack : int ndarray, shape (nimgs, nspec_rebin, nspat_rebin)
-        An image stack indicating the integer occupation number of a given pixel
-        taking only the thismask_stack into account, but taking the inmask_stack
-        into account. This image is mainly constructed for bookeeping purposes,
-        as it represents the number of times each pixel in the rebin image was
-        populated taking only the "geometry" of the rebinning into account (i.e.
-        the thismask_stack), but not the masking (inmask_stack).
+    sci_list_out : list[numpy.ndarray]
+        Rebinned science-like image stacks.  Each entry in the list has shape
+        ``(nimgs, nspec_rebin, nspat_rebin)``, where
+        ``nspec_rebin = spec_bins.size - 1`` and
+        ``nspat_rebin = spat_bins.size - 1``.
+    var_list_out : list[numpy.ndarray]
+        Rebinned variance-image stacks with the same shapes and list structure
+        as ``sci_list_out``.  The values include the proper normalization for
+        propagated variance after averaging.
+    norm_rebin_stack : :obj:`~numpy.ndarray`
+        Integer array with shape ``(nimgs, nspec_rebin, nspat_rebin)``
+        containing the number of unmasked input pixels contributing to each
+        output pixel.  Pixels with zero occupancy are empty output pixels.
+        The corresponding output mask can be formed as
+        ``norm_rebin_stack > 0``.
+    nsmp_rebin_stack : :obj:`~numpy.ndarray`
+        Integer array with shape ``(nimgs, nspec_rebin, nspat_rebin)``
+        containing the number of input pixels geometrically sampling each
+        output pixel based only on ``thismask_stack``.  This is primarily a
+        bookkeeping quantity that records the available sampling independent of
+        the science mask.
+    obj_list_out : list[numpy.ndarray]
+        Rebinned object-coordinate arrays.  Each list entry has shape
+        ``(nimgs, 2)``, with coordinates in ``(SPAT, SPEC)`` order.  If
+        ``obj_list`` is None, this list is empty.
+
+    Notes
+    -----
+    The rebinning of the science images is computed as the average of all
+    contributing, unmasked input pixels in each output bin.  If
+    :math:`S_j` are the input science values contributing to a given output
+    pixel and :math:`N` is the number of contributors, then the rebinned
+    science value is
+
+    .. math::
+
+        \\bar{S} = \\frac{1}{N} \\sum_{j=1}^{N} S_j.
+
+    If :math:`V_j` are the corresponding input variances, the rebinned variance
+    of the average is
+
+    .. math::
+
+        V_{\\bar{S}} = \\frac{1}{N^2} \\sum_{j=1}^{N} V_j.
+
+    This is why the variance images are rebinned separately from the science
+    images and normalized by ``norm_img**2``.
+
+    The image stacks in ``sci_list`` and ``var_list`` are assumed to be aligned
+    with the coordinate and mask stacks.  In particular, for each exposure
+    ``img``, the arrays ``waveimg_stack[img]``, ``spatimg_stack[img]``,
+    ``thismask_stack[img]``, ``inmask_stack[img]``, and every
+    ``sci_list[k][img]`` and ``var_list[k][img]`` must refer to the same input
+    image geometry.
+
+    See Also
+    --------
+    numpy.histogram2d
+        Used for the coordinate-based rebinning.
+    _map_pixel_rebin
+        Used to map object coordinates into the rebinned image.
     """
 
-    # allocate the output mages
+    # Allocate the output images
     nimgs = len(sci_list[0])
     nspec_rebin = spec_bins.size - 1
     nspat_rebin = spat_bins.size - 1
@@ -3316,6 +3398,10 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
     var_list_out = []
     for jj in range(len(var_list)):
         var_list_out.append(np.zeros(shape_out))
+    obj_list_out = []
+    if obj_list is not None:
+        for kk in range(len(obj_list)):
+            obj_list_out.append(np.zeros((nimgs, 2)))
 
     for img, (waveimg, spatimg, thismask, inmask) in enumerate(zip(waveimg_stack, spatimg_stack, thismask_stack, inmask_stack)):
 
@@ -3347,7 +3433,331 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
                                                                bins=[spec_bins, spat_bins], density=False,
                                                                weights=var[img][finmask])
             var_list_out[indx][img, :, :] = (norm_img > 0.0)*weigh_var/(norm_img + (norm_img == 0.0))**2
+        
+        # If passed in, rebin the user_obj_ids
+        if obj_list is not None:
+            for indx, obj_coord in enumerate(obj_list):
+                rebin_coords = _map_pixel_rebin(obj_coord[img], spatimg, waveimg, spat_bins, spec_bins)
+                obj_list_out[indx][img, :] = rebin_coords
 
-    return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
+    return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int), obj_list_out
 
 
+def _map_pixel_rebin(
+        obj_coord: tuple[float, float] | None,
+        spatimg: np.ndarray,
+        waveimg: np.ndarray,
+        spat_bins: np.ndarray,
+        spec_bins: np.ndarray,
+    ) -> tuple[float, float] | None:
+    r"""
+    Map a fractional pixel coordinate from an input image to its fractional
+    coordinate in a rebinned image.
+
+    This routine interprets ``obj_coord`` as a continuous location in the
+    original image, with coordinates provided in ``[SPAT, SPEC]`` order,
+    `i.e.`, ``[column, row]``.  The mapping is performed in two steps:
+
+    #. Interpolate the continuous coordinate fields ``waveimg`` and
+       ``spatimg`` at the requested input location to determine the spectral
+       and spatial world-coordinate values associated with that point.
+
+    #. Determine where those interpolated coordinate values fall within the
+       rebinned output grid defined by the bin-edge arrays ``spec_bins`` and
+       ``spat_bins``, including the fractional position within the enclosing
+       output pixel.
+
+    The returned value is therefore a continuous coordinate in the rebinned
+    image, again in ``[SPAT, SPEC]`` order.  Integer values correspond to
+    output pixel edges, and non-integer values encode the fractional position
+    within the output pixel.
+
+    .. note::
+
+        This function is more general than just coadd rebinning.  It maps a
+        continuous input-image coordinate through any pair of monotonic
+        coordinate fields onto any output grid described by bin edges.
+
+    Parameters
+    ----------
+    obj_coord : :obj:`tuple`
+        The input image coordinate in ``[SPAT, SPEC]`` order, i.e.
+        ``[column, row]``.  Fractional coordinates are allowed.  If None,
+        the function returns None.
+    spatimg : :obj:`~numpy.ndarray`
+        Two-dimensional spatial-coordinate image.  For each input pixel,
+        this array provides the spatial coordinate associated with that pixel.
+    waveimg : :obj:`~numpy.ndarray`
+        Two-dimensional spectral-coordinate image.  For each input pixel,
+        this array provides the spectral coordinate associated with that pixel.
+    spat_bins : :obj:`~numpy.ndarray`
+        Monotonically increasing bin-edge array defining the rebinned output
+        grid in the spatial direction.
+    spec_bins : :obj:`~numpy.ndarray`
+        Monotonically increasing bin-edge array defining the rebinned output
+        grid in the spectral direction.
+
+    Returns
+    -------
+    :obj:`tuple`, None
+        The fractional rebinned coordinate in ``[SPAT, SPEC]`` order, or None
+        if the input coordinate lies outside the input image or if its mapped
+        coordinate lies outside the rebinned output grid.
+
+        If the returned coordinate is ``(x_out, y_out)``, then:
+
+        - ``floor(x_out)`` is the spatial output-bin index,
+        - ``floor(y_out)`` is the spectral output-bin index,
+        - the fractional parts give the location within those output bins.
+
+    Raises
+    ------
+    TypeError
+        Raised if ``obj_coord`` is not a tuple.
+    ValueError
+        Raised if ``obj_coord`` is not a 2-tuple, if ``spatimg`` and
+        ``waveimg`` do not have the same shape, or if the output bin edges are
+        not strictly increasing.
+
+    Notes
+    -----
+    **1. Continuous interpretation of the coordinate fields**
+
+    The arrays ``waveimg`` and ``spatimg`` are treated as sampled coordinate
+    fields over the detector.  For an integer pixel index :math:`(i,j)`,
+    the associated coordinate pair is
+
+    .. math::
+
+        \bigl( \mathrm{spatimg}[i,j],\ \mathrm{waveimg}[i,j] \bigr).
+
+    For a fractional detector position :math:`(i,j)`, this routine estimates
+    the corresponding coordinate pair by interpolating those fields locally.
+
+    **2. Bilinear interpolation**
+
+    Suppose the requested input position lies in the image cell whose
+    upper-left integer anchor is :math:`(i_0, j_0)`, such that
+
+    .. math::
+
+        i_0 = \lfloor i \rfloor,
+        \qquad
+        j_0 = \lfloor j \rfloor,
+
+    and define the fractional offsets within that cell as
+
+    .. math::
+
+        f_i = i - i_0,
+        \qquad
+        f_j = j - j_0,
+
+    where :math:`0 \le f_i < 1` and :math:`0 \le f_j < 1`.
+
+    The bilinear interpolation weights are then
+
+    .. math::
+
+        w_i =
+        \begin{bmatrix}
+        1 - f_i \\\\
+        f_i
+        \end{bmatrix},
+        \qquad
+        w_j =
+        \begin{bmatrix}
+        1 - f_j \\\\
+        f_j
+        \end{bmatrix}.
+
+    If :math:`P` is the :math:`2\times 2` patch of one of the coordinate
+    fields over that cell, then the interpolated value is
+
+    .. math::
+
+        v(i,j) = w_i^{\mathsf T} \, P \, w_j.
+
+    In explicit form, for patch values
+    :math:`P_{00}, P_{01}, P_{10}, P_{11}`,
+
+    .. math::
+
+        v(i,j) =
+        (1-f_i)(1-f_j) P_{00}
+        + (1-f_i)f_j P_{01}
+        + f_i(1-f_j) P_{10}
+        + f_if_j P_{11}.
+
+    This interpolation is applied independently to ``waveimg`` and
+    ``spatimg`` to obtain :math:`\mathrm{spec\_val}` and
+    :math:`\mathrm{spat\_val}`.
+
+    **3. Why bilinear interpolation is a natural and efficient choice here**
+
+    Bilinear interpolation is the natural choice because the inputs
+    ``waveimg`` and ``spatimg`` are themselves sampled on the detector pixel
+    grid, while ``obj_coord`` is allowed to be fractional.  The function
+    therefore needs a continuous approximation to these coordinate fields.
+
+    Bilinear interpolation is appropriate here because it:
+
+    - uses only the local :math:`2\times 2` neighborhood surrounding the
+      query point,
+    - is continuous across pixel boundaries,
+    - is exact for any coordinate field that varies linearly in either image
+      axis over the local cell,
+    - is inexpensive to evaluate,
+    - is more faithful than rounding to the nearest detector pixel, which
+      would discard the fractional part of the input coordinate.
+
+    In other words, the detector-to-coordinate mapping encoded by
+    ``waveimg`` and ``spatimg`` is generally not a single global affine
+    transform; it is a sampled, spatially varying mapping.  Bilinear
+    interpolation respects that local variation while remaining simple and
+    fast.
+
+    **4. Edge handling**
+
+    Bilinear interpolation requires a full :math:`2\times 2` stencil.
+    Therefore, when the query point lies on the last detector row or column,
+    this routine falls back to nearest-neighbor sampling of the coordinate
+    fields.  This preserves a sensible mapping at the array boundary without
+    requiring extrapolation beyond the image.
+
+    **5. Mapping onto the rebinned grid**
+
+    Once the interpolated coordinate values
+    :math:`\mathrm{spec\_val}` and :math:`\mathrm{spat\_val}` are known,
+    the function determines the enclosing rebinned output bins by locating the
+    indices :math:`i_{\rm spec}` and :math:`i_{\rm spat}` such that
+
+    .. math::
+
+        \mathrm{spec\_bins}[i_{\rm spec}]
+        \le
+        \mathrm{spec\_val}
+        <
+        \mathrm{spec\_bins}[i_{\rm spec}+1],
+
+    .. math::
+
+        \mathrm{spat\_bins}[i_{\rm spat}]
+        \le
+        \mathrm{spat\_val}
+        <
+        \mathrm{spat\_bins}[i_{\rm spat}+1],
+
+    with the final bin treated according to the usual NumPy histogram
+    convention.
+
+    The fractional position within those bins is then
+
+    .. math::
+
+        f_{\rm spec} =
+        \frac{
+            \mathrm{spec\_val} - \mathrm{spec\_bins}[i_{\rm spec}]
+        }{
+            \mathrm{spec\_bins}[i_{\rm spec}+1]
+            - \mathrm{spec\_bins}[i_{\rm spec}]
+        },
+
+    .. math::
+
+        f_{\rm spat} =
+        \frac{
+            \mathrm{spat\_val} - \mathrm{spat\_bins}[i_{\rm spat}]
+        }{
+            \mathrm{spat\_bins}[i_{\rm spat}+1]
+            - \mathrm{spat\_bins}[i_{\rm spat}]
+        }.
+
+    The returned fractional rebinned coordinate is therefore
+
+    .. math::
+
+        x_{\rm out} = i_{\rm spat} + f_{\rm spat},
+        \qquad
+        y_{\rm out} = i_{\rm spec} + f_{\rm spec}.
+
+    This convention is edge-based: integer values correspond to output pixel
+    edges, not output pixel centers.
+
+    Examples
+    --------
+    If ``obj_coord = (j, i)`` falls exactly at the center of an output pixel,
+    the returned coordinate will have fractional part near 0.5 in that
+    dimension.
+
+    If the mapped coordinate lies outside the ranges spanned by
+    ``spat_bins`` or ``spec_bins``, the function returns None.
+
+    See Also
+    --------
+    :func:`numpy.searchsorted`
+        Used to locate the enclosing rebinned output bins.
+    :func:`numpy.histogram2d`
+        Uses the same bin-edge convention that this function emulates when
+        determining the enclosing output bin.
+    """
+    if obj_coord is None:
+        return None
+    if not isinstance(obj_coord, tuple):
+        raise TypeError(f"Input `obj_coord` must be tuple, not {type(obj_coord)}")
+    if (input_len := len(obj_coord)) != 2:
+        raise ValueError(f"Input `obj_coord` must be a 2-tuple, not length {input_len}")
+
+    # obj_coord is [SPAT, SPEC] = [col, row]
+    j, i = obj_coord
+
+    nspec, nspat = waveimg.shape
+    if spatimg.shape != (nspec, nspat):
+        raise ValueError("`spatimg` and `waveimg` must have the same shape")
+
+    # Outside the input image entirely
+    if not (0.0 <= i <= nspec - 1 and 0.0 <= j <= nspat - 1):
+        return None
+
+    # Detector-grid coordinates for interpn: axis 0 = rows (SPEC), axis 1 = cols (SPAT)
+    points = (np.arange(nspec, dtype=float), np.arange(nspat, dtype=float))
+    xi = np.array([[i, j]], dtype=float)
+
+    if i < nspec - 1 and j < nspat - 1:
+        # Use bilinear interpolation when a full 2x2 stencil exists
+        method = 'linear'
+    else:
+        # Otherwise, use nearest-neighbor at the array edge
+        method = 'nearest'
+
+    spec_val = float(scipy.interpolate.interpn(points, waveimg, xi, method=method,
+                             bounds_error=False, fill_value=np.nan)[0])
+    spat_val = float(scipy.interpolate.interpn(points, spatimg, xi, method=method,
+                             bounds_error=False, fill_value=np.nan)[0])
+
+    # Error-checking
+    if not np.isfinite(spec_val) or not np.isfinite(spat_val):
+        return None
+
+    # Locate enclosing output bins
+    ispec = np.searchsorted(spec_bins, spec_val, side='right') - 1
+    ispat = np.searchsorted(spat_bins, spat_val, side='right') - 1
+
+    # Check if the rebinned value is off the image
+    if not (0 <= ispec < spec_bins.size - 1 and 0 <= ispat < spat_bins.size - 1):
+        return None
+
+    # Fractional position within the output bin
+    dspec = spec_bins[ispec + 1] - spec_bins[ispec]
+    dspat = spat_bins[ispat + 1] - spat_bins[ispat]
+
+    # Error checking
+    if dspec <= 0.0 or dspat <= 0.0:
+        raise ValueError("Bin edges must be strictly increasing")
+
+    # Fractional pixel within the output bin
+    fspec = (spec_val - spec_bins[ispec]) / dspec
+    fspat = (spat_val - spat_bins[ispat]) / dspat
+
+    # Return the fractional location
+    return ispat + fspat, ispec + fspec

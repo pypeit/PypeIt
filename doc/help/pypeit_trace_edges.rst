@@ -59,9 +59,9 @@
                             p200_ngps_r, p200_tspec, shane_kast_blue,
                             shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
                             soar_goodman_red, subaru_focas, tng_dolores, vlt_fors2,
-                            vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
-                            vlt_xshooter_vis, wht_isis_blue, wht_isis_red (default:
-                            None)
+                            vlt_sinfoni, vlt_uves_blue, vlt_uves_red,
+                            vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
+                            wht_isis_blue, wht_isis_red (default: None)
       -b, --binning BINNING
                             Image binning in spectral and spatial directions. Only
                             used if providing files directly; default is 1,1.

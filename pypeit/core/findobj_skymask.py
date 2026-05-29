@@ -305,7 +305,7 @@ def ech_findobj_ineach_order(
         specobj_dict = {'SLITID': 999, 'ECH_ORDERINDX': 999,
                         'DET': det, 'OBJTYPE': 'unknown', 'PYPELINE': 'Echelle'}
 
-    allmask = slitmask > -1
+    allmask = slitmask != -1
     if inmask is None:
         inmask = allmask
 
@@ -742,7 +742,7 @@ def ech_cutobj_on_snr(
         :class:`~pypeit.specobjs.SpecObjs`: The final set of objects
     """
 
-    allmask = slitmask > -1
+    allmask = slitmask != -1
     if inmask is None:
         inmask = allmask
     # Prep
@@ -929,7 +929,7 @@ def ech_pca_traces(
     spec_vec = np.arange(nspec)
     specmid = nspec // 2
 
-    allmask = slitmask > -1
+    allmask = slitmask != -1
     if inmask is None:
         inmask = allmask
 
@@ -1263,7 +1263,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
     # Perform some input checking
     norders = slit_left.shape[1]
     # TODO JFH Relaxing this strict requirement on the slitmask image for the time being
-    #gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
+    #gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)  # Unique sorts
     #if gdslit_spat.size != norders:
     #raise PypeItError('Number of slitidsin slitmask and the number of left/right slits must be the same.')
 
@@ -2134,7 +2134,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm, \
             hand_extract_boxcar = [hand_extract_dict[key] for key in [
                 'spec', 'spat', 'detname', 'fwhm', 'boxcar_rad']]
-        log.info(f'Checking if the hand apertures at {hand_extract_spec} are in the slit')
+        log.info(f'Checking if the hand apertures at {hand_extract_spat} are in the slit')
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
                                                   np.rint(hand_extract_spat).astype(int)]))

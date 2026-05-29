@@ -289,7 +289,7 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
     """
     log.info(f"Performing relative spectral sensitivity correction (reference slit = {slit_illum_ref_idx})")
     # Generate the mask
-    _thismask = thismask if (thismask is not None) else (slitmask > 0)
+    _thismask = thismask if (thismask is not None) else (slitmask != -1)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     # Extract the list of  spatial IDs from the slitmask
     slitmask_spatid = np.unique(slitmask)
@@ -428,7 +428,7 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     _fit_wghts = modelimg * np.sqrt(rawivar)
 
     # Generate the mask
-    _thismask = thismask if (thismask is not None) else (slitmask > 0)
+    _thismask = thismask if (thismask is not None) else (slitmask != -1)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     # Extract the list of  spatial IDs from the slitmask
     slitmask_spatid = np.unique(slitmask)

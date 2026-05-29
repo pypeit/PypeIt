@@ -472,6 +472,7 @@ Class Instantiation: :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
 Key                       Type                       Options                                                                       Default           Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ========================  =========================  ============================================================================  ================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 ``bad_orders_maxfrac``    float                      ..                                                                            0.25              For echelle spectrographs (i.e., ``echelle=True``), this is the maximum fraction of orders (per detector) with failed 1D fit, for PypeIt to attempt a refit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``boxcar_radius``         int                        ..                                                                            3                 Boxcar radius when extracting the arc spectrum                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
 ``cc_local_thresh``       float                      ..                                                                            0.7               Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  between an input spectrum and the shifted and stretched archive spectrum above which a line must be to be considered a good line for reidentification. The local cross-correlation is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of good reidentifications.                                                                                                                                                                                                                                                                                                                                 
 ``cc_offset_minmax``      float                      ..                                                                            1.0               Fraction of the total spectral pixels used to determine the range of pixel shifts allowed when cross-correlating the input arc spectrum with the archive spectrum. Restricting this can be crucial if there are few reference lines and the cross correlation can get confused. This parameter is only used if ``cc_shift_range`` is None.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ``cc_percent_ceil``       float                      ..                                                                            50.0              Determines the percentile at which to cap lines used in cross correlation, to prevent large lines from dominating. If 100, all lines are allowed at their maximum heights. May produce spurious peaks in xcorr                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
@@ -503,6 +504,7 @@ Key                       Type                       Options                    
 ``qa_log``                bool                       ..                                                                            True              Governs whether the wavelength solution arc line QA plots will have log or linear scalingIf True, the scaling will be log, if False linear                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ``redo_slits``            int, list                  ..                                                                            ..                Redo the input slit(s) [multislit] or order(s) [echelle]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``reference``             str                        ``arc``, ``sky``, ``pixel``                                                   ``arc``           Perform wavelength calibration with an arc, sky frame.  Use 'pixel' for no wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``reference_slit``        int                        ..                                                                            ..                Primarily for multi-object or IFU data where all slits cover a very similar wavelength range. If the wavelength calibration does not work for some slits, you can attempt to repeat the wavelength calibration for all slits using the slit that has the best wavelength calibration. An excellent choice for a ``reference_slit`` is one that has: (1) the correct wavelength solution; (2) the greatest wavelength overlap with all slits; (3) the most lines correctly identified; and (4) the lowest RMS. in that order of priority. This parameter is the spatial ID of the slit to use as a reference for this process.                                                                                                                                                                                
 ``refframe``              str                        ``observed``, ``heliocentric``, ``barycentric``                               ``heliocentric``  Frame of reference for the wavelength calibration.  Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 ``reid_arxiv``            str                        ..                                                                            ..                Name of the archival wavelength solution file that will be used for the wavelength reidentification.  Only used if ``method`` is 'reidentify' or 'full_template'.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
 ``reid_cont_sub``         bool                       ..                                                                            True              If True, continuum subtract the arc and arxiv spectrum before the wavelength reidentification.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
@@ -570,21 +572,21 @@ Coadd2DPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.Coadd2DPar`
 
-====================  =========  =======  ========  ==========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                   Type       Options  Default   Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
-====================  =========  =======  ========  ==========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``exclude_slits``     str, list  ..       ..        Exclude one or more slits from the coaddition. Example syntax -- DET01:175,DET02:205 or MSC02:2234. This and ``only_slits`` are mutually exclusive. If both are provided, ``only_slits`` takes precedence.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-``manual``            str, list  ..       ..        Manual extraction parameters for eac aperture to extract.  For a single detector, use det:spat:spec:fwhm:boxcar_radius.  For a mosiac, use ``(det1,det2,...):spat:spec:fwhm:boxcar_radius``, where ``(det1,det2,...)`` is the list of detectors in the mosaic.  Multiple manual extraction apertures are separated by semicolons; e.g., ``(1,2,3):22.4:608.1:3.; (1,2,3):82.4:608.1:3.``.  Note ``spat,spec`` are in the pixel coordinates of the pseudo-image generated by COADD2D; ``fwhm`` is in pixels, and ``boxcar_radius`` is optional and **in pixels (not arcsec!)**.                                                                                                                                                                                                            
-``offsets``           str, list  ..       ``auto``  Offsets for the images being combined (spat pixels). Options are: ``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. Use ``maskdef_offsets`` to use the offsets computed during the slitmask design matching (currently available for these :ref:`slitmask_info_instruments` only). If equal to ``header``, the dither offsets recorded in the header, when available, will be used. If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object with the highest S/N, or using a list of object ids selected by the user (see ``user_obj_ids``). If a list of offsets is provided, PypeIt will use it.                                                                                                                                         
-``only_slits``        str, list  ..       ..        Restrict coaddition to one or more of slits. Example syntax -- DET01:175,DET02:205 or MSC02:2234. This and ``exclude_slits`` are mutually exclusive. If both are provided, ``only_slits`` takes precedence.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
-``spat_samp_fact``    float      ..       1.0       Make the spatial sampling finer (``spat_samp_fact`` lessthan 1.0) or coarser (``spat_samp_fact`` greather than 1.0) bythis sampling factor. This basically multiples the 'native'spatial pixel size by ``spat_samp_fact``, i.e. the units of``spat_samp_fact`` are pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-``spat_toler``        int        ..       5         This parameter provides the desired tolerance in spatial pixel used to identify slits in different exposures                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
-``spec_samp_fact``    float      ..       1.0       Make the wavelength grid sampling finer (``spec_samp_fact`` less than 1.0)or coarser (``spec_samp_fact`` greater than 1.0) by this sampling factor.This  multiples the 'native' spectral pixel size by ``spec_samp_fact``,i.e. the units of ``spec_samp_fact`` are pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-``use_slits4wvgrid``  bool       ..       False     If True, use the slits to set the trace down the center                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-``user_obj_ids``      list       ..       ..        List of unique object identifiers that the user wants to use to compute the weights and/or the offsets for coadding images. For longslit/multislit spectroscopy, provide the ``SPAT_PIXPOS_ID`` of the object in each of the exposures. For echelle spectroscopy, provide the ``ECH_FRACPOS_ID`` of the object in each exposure. These unique object identifiers can be found in the spec1d*.txt files for each exposure. See :doc:`out_spec1D` for more info about ``SPAT_PIXPOS_ID`` and ``ECH_FRACPOS_ID``. This parameter must always be a list of the same length as the number of exposures being coadded. If this parameter is not ``None``, it will be used to compute the offsets only if ``offsets = auto``, and it will used to compute the weights only if ``weights = auto``.
-``wave_method``       str        ..       ..        Argument to :func:`~pypeit.core.wavecal.wvutils.get_wave_grid` method, which determines how the 2d coadd wavelength grid is constructed. The default is None, which will use a linear gridfor longslit/multislit coadds and a log10 grid for echelle coadds. Currently supported options with 2d coadding are:* 'iref' -- Use one of the exposures (the first) as the reference for the wavelength grid * 'velocity' -- Grid is uniform in velocity* 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity.* 'linear' -- Grid is uniform in wavelength                                                                                                                                                                                                                 
-``weights``           str, list  ..       ``auto``  Mode for the weights used to coadd images. Options are: ``auto``, ``uniform``, or a list of weights. If a list of weights is provided, PypeIt will use it.if ``uniform`` is used, uniform weights will be applied.If ``auto`` is used, PypeIt will try to compute the weights using a reference object with the highest S/N, or using a list of object ids selected by the user indicating a reference object in each exposure (see ``user_obj_ids``). If the reference object is not found, the code will use uniform weights.                                                                                                                                                                                                                                                           
-====================  =========  =======  ========  ==========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+====================  =========  =======  ========  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                   Type       Options  Default   Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+====================  =========  =======  ========  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``exclude_slits``     str, list  ..       ..        Exclude one or more slits from the coaddition. Example syntax -- DET01:175,DET02:205 or MSC02:2234. This and ``only_slits`` are mutually exclusive. If both are provided, ``only_slits`` takes precedence.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+``manual``            str, list  ..       ..        Manual extraction parameters for eac aperture to extract.  For a single detector, use det:spat:spec:fwhm:boxcar_radius.  For a mosiac, use ``(det1,det2,...):spat:spec:fwhm:boxcar_radius``, where ``(det1,det2,...)`` is the list of detectors in the mosaic.  Multiple manual extraction apertures are separated by semicolons; e.g., ``(1,2,3):22.4:608.1:3.; (1,2,3):82.4:608.1:3.``.  Note ``spat,spec`` are in the pixel coordinates of the pseudo-image generated by COADD2D; ``fwhm`` is in pixels, and ``boxcar_radius`` is optional and **in pixels (not arcsec!)**.                                                                                                                                                                                                                       
+``offsets``           str, list  ..       ``auto``  Offsets for the images being combined (spat pixels). Options are: ``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. Use ``maskdef_offsets`` to use the offsets computed during the slitmask design matching (currently available for these :ref:`slitmask_info_instruments` only). If equal to ``header``, the dither offsets recorded in the header, when available, will be used. If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object with the highest S/N, or using a list of object ids selected by the user (see ``user_obj_ids``). If a list of offsets is provided, PypeIt will use it.                                                                                                                                                    
+``only_slits``        str, list  ..       ..        Restrict coaddition to one or more of slits. Example syntax -- DET01:175,DET02:205 or MSC02:2234. This and ``exclude_slits`` are mutually exclusive. If both are provided, ``only_slits`` takes precedence.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+``spat_samp_fact``    float      ..       1.0       Make the spatial sampling finer (``spat_samp_fact`` lessthan 1.0) or coarser (``spat_samp_fact`` greather than 1.0) bythis sampling factor. This basically multiples the 'native'spatial pixel size by ``spat_samp_fact``, i.e. the units of``spat_samp_fact`` are pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+``spat_toler``        int        ..       5         This parameter provides the desired tolerance in spatial pixel used to identify slits in different exposures                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``spec_samp_fact``    float      ..       1.0       Make the wavelength grid sampling finer (``spec_samp_fact`` less than 1.0)or coarser (``spec_samp_fact`` greater than 1.0) by this sampling factor.This  multiples the 'native' spectral pixel size by ``spec_samp_fact``,i.e. the units of ``spec_samp_fact`` are pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+``use_slits4wvgrid``  bool       ..       False     If True, use the slits to set the trace down the center                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``user_obj_ids``      list       ..       ..        List of unique object identifiers (integers) that the user wants to use to compute the weights and/or the offsets for coadding images. For longslit/multislit spectroscopy, provide the ``SPAT_PIXPOS_ID`` of the object in each of the exposures. For echelle spectroscopy, provide the ``ECH_FRACPOS_ID`` of the object in each exposure. These unique object identifiers can be found in the spec1d*.txt files for each exposure. See :doc:`out_spec1D` for more info about ``SPAT_PIXPOS_ID`` and ``ECH_FRACPOS_ID``. This parameter must always be a list of the same length as the number of exposures being coadded. If this parameter is not ``None``, it will be used to compute the offsets only if ``offsets = auto``, and it will used to compute the weights only if ``weights = auto``.
+``wave_method``       str        ..       ..        Argument to :func:`~pypeit.core.wavecal.wvutils.get_wave_grid` method, which determines how the 2d coadd wavelength grid is constructed. The default is None, which will use a linear gridfor longslit/multislit coadds and a log10 grid for echelle coadds. Currently supported options with 2d coadding are:* 'iref' -- Use one of the exposures (the first) as the reference for the wavelength grid * 'velocity' -- Grid is uniform in velocity* 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity.* 'linear' -- Grid is uniform in wavelength                                                                                                                                                                                                                            
+``weights``           str, list  ..       ``auto``  Mode for the weights used to coadd images. Options are: ``auto``, ``uniform``, or a list of weights. If a list of weights is provided, PypeIt will use it.if ``uniform`` is used, uniform weights will be applied.If ``auto`` is used, PypeIt will try to compute the weights using a reference object with the highest S/N, or using a list of object ids selected by the user indicating a reference object in each exposure (see ``user_obj_ids``). If the reference object is not found, the code will use uniform weights.                                                                                                                                                                                                                                                                      
+====================  =========  =======  ========  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -1265,7 +1267,6 @@ Alterations to the default parameters are:
       [[flatfield]]
           spat_samp = 0.7
           tweak_slits = False
-          slit_trim = 0
           slit_illum_finecorr = False
       [[wavelengths]]
           method = reidentify
@@ -1299,6 +1300,7 @@ Alterations to the default parameters are:
       [[skysub]]
           global_sky_std = False
           mask_by_boxcar = True
+          no_local_sky = True
       [[extraction]]
           boxcar_radius = 1.728
 
@@ -9673,6 +9675,305 @@ Alterations to the default parameters are:
       polyorder = 7
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+
+.. _instr_par-vlt_uves_blue:
+
+VLT VLT_UVES_blue (``vlt_uves_blue``)
+-------------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = vlt_uves_blue
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 600,
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = echelle
+          echelle = True
+          ech_nspec_coeff = 6
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 4.0
+          reid_cont_sub = False
+          cc_shift_range = (-80.0, 80.0)
+          cc_thresh = 0.6
+          cc_local_thresh = 0.25
+          rms_thresh_frac_fwhm = 0.1
+          match_toler = 1.5
+          n_first = 3
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          max_nudge = 0.0
+          dlength_range = 0.25
+          length_range = 0.3
+          add_missed_orders = True
+          overlap = True
+      [[tilts]]
+          tracethresh = 15
+          spec_order = 5
+  [scienceframe]
+      exprng = 30, None,
+      [[process]]
+          overscan_method = median
+          mask_cr = True
+          use_biasimage = False
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 3, 3,
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          sky_sigrej = 4.0
+          global_sky_std = False
+      [[extraction]]
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+
+.. _instr_par-vlt_uves_red:
+
+VLT VLT_UVES_red (``vlt_uves_red``)
+-----------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = vlt_uves_red
+      detnum = (1, 2),
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 120,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          exprng = None, 120,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 600,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = echelle
+          echelle = True
+          ech_nspec_coeff = 6
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 4.0
+          reid_cont_sub = False
+          cc_shift_range = (-80.0, 80.0)
+          cc_thresh = 0.6
+          cc_local_thresh = 0.25
+          rms_thresh_frac_fwhm = 0.1
+          match_toler = 1.5
+          n_first = 3
+          ech_separate_2d = True
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          max_nudge = 0.0
+          dlength_range = 0.25
+          length_range = 0.3
+          add_missed_orders = True
+          order_width_poly = 4
+          overlap = True
+          mask_off_detector = True
+      [[tilts]]
+          tracethresh = 15
+          spec_order = 5
+  [scienceframe]
+      exprng = 30, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 3, 3,
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          global_sky_std = False
+      [[extraction]]
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_10500_R120000.fits
+          pix_shift_bounds = (-40.0, 40.0)
+  [telluric]
+      resln_frac_bounds = (0.25, 1.25)
+      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-vlt_xshooter_nir:
 
