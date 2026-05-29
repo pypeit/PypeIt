@@ -94,8 +94,8 @@ produces both spec2d and spec1d output files.
 
 Key IFU parameters set by default:
 
-- Joint sky fitting across all fibers using dedicated sky fibers
-  (``joint_fit = True``)
+- Joint sky fitting using both the dedicated sky fibers and the science
+  fibers (``joint_fit_use_sci = True``); see `Tuning the joint sky fit`_
 - Grating-dependent B-spline spacing for sky subtraction:
   1.05 Angstrom (270 gpm), 0.5 Angstrom (600 gpm), 0.35 Angstrom
   (1000 gpm)
@@ -135,31 +135,99 @@ extractions are performed.  The spec1d files can be inspected with
    fiber, which can be time-consuming (~360 fibers per detector).
    A typical reduction with both detectors takes several hours.
 
-Fiber illumination correction
-+++++++++++++++++++++++++++++
+Fiber throughput correction and sky subtraction
+++++++++++++++++++++++++++++++++++++++++++++++++
 
-IFU fiber throughput corrections are applied to extracted 1D spectra,
-not baked into the pixel flat.  During sky subtraction PypeIt:
+Fiber-to-fiber throughput is corrected with a single scalar per fiber
+rather than a wavelength-dependent flat division.  The wavelength-dependent
+spectral response (lamp × system) is *not* removed here; it is left for
+flux calibration downstream.  The reduction proceeds as follows:
 
-1. Loads the ``FiberFlatImages`` calibration and divides each fiber
-   spectrum by the globally normalized, wavelength-dependent fiber flat.
+1. The ``FiberFlatImages`` calibration is loaded and each fiber's flat
+   spectrum is collapsed to a single ``fiber_throughput`` scalar — the
+   median over the central wavelength region, divided by the typical
+   science-fiber median so science fibers sit near unity and sky fibers
+   scale up by their larger on-sky footprint.  The full extracted flat
+   spectra (``normflat``) are retained for diagnostics only.
 
-2. Applies the static ``fiber_illumination.fits`` vector from the
-   Binospec IFU calibration set as an additional per-fiber throughput
-   divisor.
+2. When the spectrograph supplies a static ``fiber_illumination.fits``
+   vector (Binospec does), it is multiplied into the per-fiber scalar as
+   a refinement of the flat-derived throughput.  The side-B (``DET02``)
+   vector is mirrored before the fiber-ID lookup, because the IDL
+   calibration vector is stored in the extracted side-B fiber-axis order
+   whereas PypeIt's DET02 reference profile is in detector order.
 
-3. Mirrors the side-B (``DET02``) static illumination vector before the
-   fiber-ID lookup, because the IDL calibration vector is stored in the
-   extracted side-B fiber-axis order whereas PypeIt's DET02 reference
-   profile is in detector order.
+3. The combined scalar is attached to each fiber's ``SpecObj`` so that
+   the sky-model fit and the post-extraction correction apply the same
+   value.
 
-The sky model is then fit to the flat-corrected dedicated sky fibers and
-subtracted from all fibers in 1D.  The spec2d ``SKYMODEL`` image is a
-diagnostic reconstruction of that 1D model in detector-pixel units,
-using flat-derived spatial profiles when available.
+Sky subtraction uses a single 2D B-spline rather than a per-fiber 1D
+model.  Every fiber is boxcar pre-extracted from the un-subtracted image,
+the aperture sums are divided by each fiber's throughput scalar onto a
+common surface, and one B-spline in ``(wavelength, normalized spatial
+position)`` is fit — by default jointly over the sky *and* science fibers
+(see `Tuning the joint sky fit`_).  Each fiber's predicted sky spectrum is
+scaled back to detector counts and distributed across the fiber aperture
+using the empirical spatial profile from the flat, producing a genuine
+per-pixel 2D ``SKYMODEL``.  Standard extraction then runs on
+``sciimg - skymodel``, after which the per-fiber throughput scalar is
+divided out of the extracted ``BOX`` and ``OPT`` spectra.
 
-The IDL pipeline also has optional sky-line wavelength and line-spread
-function matching steps.  These are not currently applied by PypeIt.
+To suppress dipole residuals on bright OH lines, the B-spline fit is run
+in two passes: after the first pass each fiber's wavelength solution is
+shifted by the small offset that best matches the joint model, and the
+fit is repeated.
+
+The IDL pipeline additionally matches the (typically wider) science-fiber
+line-spread function by broadening the sky model per fiber.  This LSF
+matching step is not currently applied by PypeIt.
+
+Tuning the joint sky fit
+++++++++++++++++++++++++
+
+The Binospec IFU sky model is a single 2D B-spline.  By default it is fit
+jointly to the dedicated sky fibers *and* all science fibers, relying on
+the standard iterative sigma rejection to down-weight pixels that contain
+real source flux.  Pulling the science fibers into the fit gives it many
+more samples per wavelength and generally produces a smoother, better
+constrained sky model.  Two parameters in the ``[reduce][skysub]`` block
+control which fibers contribute:
+
+``joint_fit_use_sci`` (:obj:`bool`, default ``True``)
+   When ``True``, the global sky B-spline is fit jointly to the dedicated
+   sky fibers and the science fibers.  When ``False``, only the dedicated
+   sky fibers (those whose ``MASKDEF_OBJNAME`` starts with ``SKY``) are
+   used — the legacy behaviour.  Set this to ``False`` when most science
+   fibers carry significant source flux (e.g. a target that fills much of
+   the field), so that source light cannot leak into the sky model.
+
+``sci_exclude_radius`` (:obj:`float`, default ``0.0``, in arcsec)
+   When greater than zero *and* ``joint_fit_use_sci = True``, any science
+   fiber whose on-sky position lies within this radius of the IFU
+   geometric center is dropped from the fit.  This is the middle ground
+   between the two ``joint_fit_use_sci`` extremes: keep the bulk of the
+   science fibers in the joint fit, but exclude the central fibers that a
+   bright, extended target would dominate.  The default of ``0.0`` keeps
+   all science fibers.
+
+To disable the joint fit and use only the dedicated sky fibers, add the
+following to your ``.pypeit`` file:
+
+.. code-block:: ini
+
+    [reduce]
+        [[skysub]]
+            joint_fit_use_sci = False
+
+To keep the joint fit but exclude science fibers within 3 arcsec of the
+field center (e.g. for a bright extended target):
+
+.. code-block:: ini
+
+    [reduce]
+        [[skysub]]
+            joint_fit_use_sci = True
+            sci_exclude_radius = 3.0
 
 Producing datacubes
 +++++++++++++++++++
@@ -195,10 +263,11 @@ The script then:
 .. note::
 
    Fiber-to-fiber throughput correction is handled entirely by the
-   pipeline (extracted fiber flat + static fiber illumination during
-   sky subtraction).  No additional illumination correction is needed
-   before building datacubes.  Spectral response (flux calibration)
-   from standard star observations is not yet implemented.
+   pipeline (the per-fiber throughput scalar, optionally refined by the
+   static fiber illumination vector, divided out of the extracted
+   spectra).  No additional illumination correction is needed before
+   building datacubes.  Spectral response (flux calibration) from
+   standard star observations is not yet implemented.
 
 Basic usage
 ^^^^^^^^^^^

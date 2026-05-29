@@ -365,8 +365,9 @@ IFU
      - PypeIt
      - IDL Pipeline
    * - Strategy
-     - All fibers are extracted, throughput-corrected, fit with a
-       sky-fiber B-spline model, and subtracted in 1D
+     - All fibers extracted and throughput-corrected; a single 2D
+       B-spline (joint over sky and science fibers by default) builds a
+       per-pixel sky model subtracted before extraction
      - Dedicated sky fibers with ``resistant_mean`` or B-spline
    * - Sky fibers
      - 40 per side, identified by fiber name (``SKY*``)
@@ -375,7 +376,7 @@ IFU
      - Grating-dependent (1.05/0.50/0.35 Angstrom)
      - Grating-dependent (same values)
    * - Sky line correction
-     - Not currently applied
+     - Per-fiber wavelength refinement (2-pass); LSF/PSF kernel not applied
      - PSF difference kernel applied (``sigdiff > 0.2`` px)
    * - Flexure
      - Spectral flexure disabled (active flexure control)
@@ -390,24 +391,29 @@ In PypeIt, the IFU sky subtraction is handled by
 sky fitting framework from :class:`~pypeit.find_objects.SlicerIFUFindObjects`.
 The sky subtraction flow is:
 
-1. One spectrum is created for each identified fiber.  Flat-derived
-   empirical profiles are used for the sky-subtraction extraction when
-   the processed flat is available; otherwise PypeIt falls back to
-   boxcar extraction.
-2. Extracted spectra are divided by the globally normalized
-   ``FiberFlatImages`` spectrum for that fiber.
+1. One spectrum is created for each identified fiber, and each fiber is
+   boxcar pre-extracted from the un-subtracted image to provide the
+   aperture sums and wavelengths that feed the sky fit.
+2. Each fiber's extracted flat spectrum is collapsed to a single
+   ``fiber_throughput`` scalar (not a wavelength-dependent division), and
+   the aperture sums are divided by it onto a common surface.
 3. For Binospec IFU, the static ``fiber_illumination.fits`` vector is
-   applied as an additional per-fiber throughput divisor.  The DET02
-   vector is mirrored before the fiber-ID lookup to account for the
-   side-B detector/extraction-axis flip.
-4. A B-spline sky model is fit to the throughput-corrected dedicated
-   sky fibers using wavelength plus a low-order spatial coordinate.
-5. The sky model is evaluated and subtracted from all fibers in 1D.
+   multiplied into the per-fiber scalar.  The DET02 vector is mirrored
+   before the fiber-ID lookup to account for the side-B
+   detector/extraction-axis flip.
+4. A single 2D B-spline (wavelength plus a low-order spatial coordinate)
+   is fit to the throughput-normalized fibers — by default jointly over
+   both the dedicated sky fibers and the science fibers.  The fit is run
+   in two passes with a per-fiber wavelength refinement in between.
+5. Each fiber's predicted sky is scaled back to detector counts and
+   distributed across its aperture using the empirical flat profile,
+   forming a per-pixel 2D ``SKYMODEL`` that is subtracted from ``SCIIMG``
+   before extraction.
 
-The spec2d ``SKYMODEL`` frame is a diagnostic reconstruction from the
-1D fiber sky spectra, in the same detector-pixel units as ``SCIIMG``.
-When flat-derived profiles are available, the diagnostic model uses
-those profiles to reproduce the spatial illumination of each fiber.
+The ``SKYMODEL`` frame is therefore the actual model used for
+subtraction, in the same detector-pixel units as ``SCIIMG`` — not a
+post-hoc reconstruction.  The wavelength-dependent spectral response is
+left for flux calibration rather than removed by the flat.
 
 
 Extraction
