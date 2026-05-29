@@ -248,10 +248,12 @@ class SpecObj(datamodel.DataContainer):
                  'ech_frac_was_fit',
                  # spectrograph
                 'spectrograph',
-                # Fiber pypeline flat correction factor (set by
-                # FiberFindObjects._apply_flat_correction, used by
-                # FiberExtract to correct OPT_COUNTS)
-                'flat_corr',
+                # Fiber pypeline per-fiber throughput scalar
+                'fiber_throughput',
+                # Fiber pypeline per-fiber wavelength refinement (Angstrom)
+                # applied to OPT_WAVE/BOX_WAVE after extraction so the
+                # extracted spectrum is self-consistent with the sky model.
+                'wave_refine_shift_AA',
                 ]
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',

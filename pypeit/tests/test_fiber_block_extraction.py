@@ -5,7 +5,6 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit.extraction import FiberExtract
 from pypeit.find_objects import FiberFindObjects
 from pypeit.slittrace import SlitTraceSet
 from pypeit.spectrographs.mmt_binospec import MMTBINOSPECIFUSpectrograph
@@ -88,6 +87,8 @@ def test_ifu_config_specific_keeps_standard_tilts():
 
     assert par['calibrations']['tilts']['spat_order'] == 3
     assert par['calibrations']['tilts']['spec_order'] == 5
+    assert par['calibrations']['tilts']['maxdev2d'] == 0.5
+    assert par['calibrations']['wavelengths']['n_final'] == 5
     assert par['reduce']['skysub']['bspline_spacing'] == 1.05
 
 
@@ -101,126 +102,53 @@ def test_det02_static_illumination_is_mirror_mapped():
     np.testing.assert_allclose(spec.load_fiber_illumination(2), raw[1][::-1])
 
 
-def test_reconstruct_fiber_skymodel_is_per_pixel():
-    """Diagnostic SKYMODEL should be in SCIIMG-like per-pixel units."""
-    nspec, nspat = 3, 6
-    left = np.zeros((nspec, 1))
-    right = np.full((nspec, 1), 5.0)
-    slits = SlitTraceSet(left, right, 'Fiber', nspat=nspat,
-                         PYP_SPEC='mmt_binospec_ifu')
-
-    findobj = FiberFindObjects.__new__(FiberFindObjects)
-    findobj.sciImg = SimpleNamespace(image=np.zeros((nspec, nspat)))
-    findobj.slits = slits
-    findobj.spat_flexure_shift = None
-
-    sobj = SimpleNamespace(
-        BOX_COUNTS_SKY=np.full(nspec, 12.0),
-        flat_corr=np.array([1.0, 2.0, 1.0]),
-        TRACE_SPAT=np.full(nspec, 2.0),
-        BOX_R_PIX=1.0,
-        SLITID=slits.spat_id[0])
-
-    sky_2d = findobj._reconstruct_fiber_skymodel([sobj])
-
-    np.testing.assert_allclose(sky_2d[0, 1:4], 4.0)
-    np.testing.assert_allclose(sky_2d[1, 1:4], 8.0)
-    np.testing.assert_allclose(sky_2d[2, 1:4], 4.0)
-    assert np.all(sky_2d[:, [0, 4, 5]] == 0.0)
-
-
-def test_apply_flat_correction_does_not_double_apply_static_illumination():
-    """Extracted normflat should be the default fiber throughput correction."""
-    findobj = FiberFindObjects.__new__(FiberFindObjects)
-    findobj.sciImg = SimpleNamespace(detector=SimpleNamespace(det=1))
-    findobj.spectrograph = SimpleNamespace(
-        use_static_fiber_illumination=False,
-        load_fiber_illumination=lambda _det: (_ for _ in ()).throw(
-            AssertionError('static illumination should not be loaded')))
-
-    sobj = SimpleNamespace(
-        BOX_COUNTS=np.array([10.0, 20.0]),
-        BOX_WAVE=np.array([5000.0, 5001.0]),
-        BOX_COUNTS_IVAR=np.ones(2),
-        MASKDEF_ID=42)
+def test_attach_fiber_throughput_maps_by_id():
+    """``fiber_throughput`` should be looked up by MASKDEF_ID."""
+    sobjs = [
+        SimpleNamespace(MASKDEF_ID=42),
+        SimpleNamespace(MASKDEF_ID=99),
+        SimpleNamespace(MASKDEF_ID=None),
+    ]
     fiber_flatimages = SimpleNamespace(
-        normflat=np.array([[0.5, 0.5]]),
-        normflat_wave=np.array([5000.0, 5001.0]),
-        fiber_ids=np.array([42]))
+        fiber_ids=np.array([42, 99]),
+        fiber_throughput=np.array([1.05, 1.35]))
+    spectrograph = SimpleNamespace()  # no load_fiber_illumination
 
-    findobj._apply_flat_correction([sobj], fiber_flatimages)
+    FiberFindObjects._attach_fiber_throughput(
+        sobjs, fiber_flatimages, spectrograph, det=1)
 
-    np.testing.assert_allclose(sobj.BOX_COUNTS, [20.0, 40.0])
-    np.testing.assert_allclose(sobj.BOX_COUNTS_IVAR, [0.25, 0.25])
-    np.testing.assert_allclose(sobj.flat_corr, [0.5, 0.5])
+    assert sobjs[0].fiber_throughput == 1.05
+    assert sobjs[1].fiber_throughput == 1.35
+    assert sobjs[2].fiber_throughput == 1.0
 
 
-def test_apply_flat_correction_can_apply_static_illumination():
-    """Static illumination should multiply the normalized flat divisor."""
-    findobj = FiberFindObjects.__new__(FiberFindObjects)
-    findobj.sciImg = SimpleNamespace(detector=SimpleNamespace(det=1))
-    findobj.spectrograph = SimpleNamespace(
-        use_static_fiber_illumination=True,
-        load_fiber_illumination=lambda _det: np.array([0.8]),
-        load_fiber_ref_profile=lambda _det: {'FIB_ID': np.array([42])})
+def test_attach_fiber_throughput_falls_back_to_unity():
+    """Missing flat / throughput should yield unity scalars."""
+    sobjs = [SimpleNamespace(MASKDEF_ID=42)]
+    spectrograph = SimpleNamespace()
+    FiberFindObjects._attach_fiber_throughput(
+        sobjs, None, spectrograph, det=1)
+    assert sobjs[0].fiber_throughput == 1.0
 
-    sobj = SimpleNamespace(
-        BOX_COUNTS=np.array([10.0, 20.0]),
-        BOX_WAVE=np.array([5000.0, 5001.0]),
-        BOX_COUNTS_IVAR=np.ones(2),
-        MASKDEF_ID=42)
+
+def test_attach_fiber_throughput_multiplies_in_static_illumination():
+    """Static fiber_illumination should multiply the flat-derived scalar."""
+    sobjs = [
+        SimpleNamespace(MASKDEF_ID=42),
+        SimpleNamespace(MASKDEF_ID=99),
+    ]
     fiber_flatimages = SimpleNamespace(
-        normflat=np.array([[0.5, 0.5]]),
-        normflat_wave=np.array([5000.0, 5001.0]),
-        fiber_ids=np.array([42]))
+        fiber_ids=np.array([42, 99]),
+        fiber_throughput=np.array([1.0, 1.30]))
+    spectrograph = SimpleNamespace(
+        load_fiber_illumination=lambda _det: np.array([0.95, 1.05]),
+        load_fiber_ref_profile=lambda _det: {'FIB_ID': np.array([42, 99])})
 
-    findobj._apply_flat_correction([sobj], fiber_flatimages)
+    FiberFindObjects._attach_fiber_throughput(
+        sobjs, fiber_flatimages, spectrograph, det=1)
 
-    np.testing.assert_allclose(sobj.BOX_COUNTS, [25.0, 50.0])
-    np.testing.assert_allclose(sobj.BOX_COUNTS_IVAR, [0.16, 0.16])
-    np.testing.assert_allclose(sobj.flat_corr, [0.4, 0.4])
-
-
-def test_profile_extraction_can_drive_box_sky_fit():
-    """Profile-fit spectra should be usable as the 1D sky-fit input."""
-    sobj = SimpleNamespace(
-        OPT_WAVE=np.array([5000.0, 5001.0]),
-        OPT_COUNTS=np.array([11.0, 12.0]),
-        OPT_COUNTS_IVAR=np.array([0.5, 0.25]),
-        OPT_COUNTS_SIG=np.array([1.4, 2.0]),
-        OPT_COUNTS_NIVAR=np.array([0.4, 0.2]),
-        OPT_MASK=np.array([True, False]),
-        OPT_FWHM=np.array([3.0, 3.1]),
-        OPT_FLAT=np.array([100.0, 101.0]),
-        OPT_COUNTS_SKY=np.array([1.0, 1.5]),
-        OPT_COUNTS_SIG_DET=np.array([0.1, 0.2]))
-
-    FiberFindObjects._copy_optimal_to_boxcar(sobj)
-
-    np.testing.assert_allclose(sobj.BOX_WAVE, sobj.OPT_WAVE)
-    np.testing.assert_allclose(sobj.BOX_COUNTS, sobj.OPT_COUNTS)
-    np.testing.assert_allclose(sobj.BOX_COUNTS_SKY, sobj.OPT_COUNTS_SKY)
-    assert np.array_equal(sobj.BOX_MASK, sobj.OPT_MASK)
-    assert sobj.BOX_COUNTS is not sobj.OPT_COUNTS
-
-
-def test_profiled_fiber_skymodel_uses_spatial_profile():
-    """Profiled SKYMODEL should distribute 1D sky using flat profiles."""
-    profile = np.zeros((2, 5))
-    profile[0, 1:4] = [0.2, 0.6, 0.2]
-    profile[1, 1:4] = [0.1, 0.8, 0.1]
-    sobj = SimpleNamespace(
-        SLITID=101,
-        OBJID=7,
-        BOX_COUNTS_SKY=np.array([10.0, 10.0]),
-        flat_corr=np.array([1.0, 2.0]))
-
-    skymodel = FiberExtract._reconstruct_profiled_fiber_skymodel(
-        [sobj], {(101, 7): profile})
-
-    np.testing.assert_allclose(skymodel[0, 1:4], [2.0, 6.0, 2.0])
-    np.testing.assert_allclose(skymodel[1, 1:4], [2.0, 16.0, 2.0])
-    assert np.all(skymodel[:, [0, 4]] == 0.0)
+    np.testing.assert_allclose(sobjs[0].fiber_throughput, 1.0 * 0.95)
+    np.testing.assert_allclose(sobjs[1].fiber_throughput, 1.30 * 1.05)
 
 
 def test_identify_fibers_in_block():

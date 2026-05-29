@@ -215,7 +215,7 @@ class FlatImages(calibframe.CalibFrame):
                     # Assume this is because the type failed
                     type_passed = False
                 else:
-                    version_passed &= np.all([d[key][i].version == bspline.bspline.version 
+                    version_passed &= np.all([d[key][i].version == bspline.bspline.version
                                               for i in range(nspat)])
                     parsed_hdus += ext_bspl
             # Parse the finecorr fits
@@ -485,11 +485,12 @@ class FiberFlatImages(datamodel.DataContainer):
     Container for processed flat-field calibrations specific to fiber-fed
     spectrographs.
 
-    Stores the globally-normalized extracted flat field spectra following the
-    IDL Binospec pipeline approach (Chilingarian et al. 2025, Section 6):
-    all extracted fiber flat spectra are divided by a single global
-    normalization coefficient, preserving the full spectral shape and
-    fiber-to-fiber throughput variation.
+    Stores per-fiber throughput scalars derived from the extracted flat
+    spectra.  ``fiber_throughput`` is normalized so that the science fibers
+    average to ~1; sky fibers (which typically subtend a larger area on sky)
+    end up above unity by their geometric ratio.  The extracted flat spectra
+    themselves (``normflat`` / ``normflat_wave``) are retained for diagnostic
+    use only.
 
     All of the items in the datamodel can be None.
 
@@ -499,22 +500,27 @@ class FiberFlatImages(datamodel.DataContainer):
 
     """
 
-    version = '2.0.0'
+    version = '2.1.0'
 
     hdu_prefix = None
 
     datamodel = {
         'PYP_SPEC': dict(otype=str,
                          descr='PypeIt spectrograph name'),
+        'fiber_throughput': dict(otype=np.ndarray, atype=np.floating,
+                                 descr='Per-fiber throughput scalar, shape '
+                                       '(nfibers,).  Normalized so that the '
+                                       'science fibers average to ~1.'),
         'normflat': dict(otype=np.ndarray, atype=np.floating,
-                         descr='Globally-normalized extracted flat spectra, '
-                               'shape (nfibers, nwave). Retains full spectral '
-                               'shape and fiber-to-fiber throughput variation.'),
+                         descr='Extracted flat spectra, shape (nfibers, nwave). '
+                               'Stored for diagnostics; not used to correct '
+                               'science extractions.'),
         'normflat_wave': dict(otype=np.ndarray, atype=np.floating,
                               descr='Wavelength array for normflat, shape (nwave,)'),
         'global_norm': dict(otype=float,
-                            descr='Global normalization coefficient (max of '
-                                  'central region)'),
+                            descr='Normalization coefficient applied to the '
+                                  'stored normflat (median of science-fiber '
+                                  'medians over the central wavelength region)'),
         'fiber_ids': dict(otype=np.ndarray, atype=np.integer,
                           descr='Fiber ID numbers'),
         'fiber_types': dict(otype=np.ndarray, atype=str,
@@ -524,7 +530,8 @@ class FiberFlatImages(datamodel.DataContainer):
     internals = ['calib_key', 'calib_dir']
 
     def __init__(self, normflat=None, normflat_wave=None, global_norm=None,
-                 fiber_ids=None, fiber_types=None, PYP_SPEC=None):
+                 fiber_ids=None, fiber_types=None, fiber_throughput=None,
+                 PYP_SPEC=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k, values[k]) for k in args[1:]])
@@ -1111,7 +1118,7 @@ class FlatField:
                 # for this (original) slit.
                 npercol = np.fmax(np.floor(np.sum(onslit_init)/nspec),1.0)
                 npoly  = np.clip(7, 1, int(np.ceil(npercol/10.)))
-            
+
             # TODO: Always calculate the optimized `npoly` and warn the
             #  user if npoly is provided but higher than the nominal
             #  calculation?
@@ -2026,10 +2033,8 @@ class FiberFlatField(FlatField):
                 # to recover an unbiased flat estimate.  When too many
                 # pixels are masked the rescale amplifies noise, so
                 # require at least 1/3 of the aperture to be unmasked;
-                # otherwise mark the bin NaN so downstream code (via the
-                # NaN propagation in _apply_flat_correction) treats those
-                # wavelengths as bad rather than including a heavily
-                # biased flat value in the science extraction.
+                # otherwise mark the bin NaN so the per-fiber median (used
+                # to derive ``fiber_throughput``) skips it.
                 box_width = 2.0 * box_r
                 min_good = box_width / 3.0
                 with np.errstate(divide='ignore', invalid='ignore'):
@@ -2068,41 +2073,46 @@ class FiberFlatField(FlatField):
         fiber_types = np.array(all_fiber_types)
 
         # ------------------------------------------------------------------
-        # Step 4: global normalization (IDL pipeline approach)
+        # Step 4: per-fiber scalar throughput
         # ------------------------------------------------------------------
-        # Normalize all extracted flat spectra by a single scalar: the max
-        # of the central wavelength region.  This preserves the full
-        # spectral shape AND fiber-to-fiber throughput variation.
-        # After scattered light subtraction, sky fibers will have ~3x
-        # higher normflat values than science fibers.
+        # Collapse each fiber's flat spectrum to a single scalar -- the
+        # median over the central wavelength region -- and divide by the
+        # typical science-fiber median so the scalar equals ~1 for a
+        # science fiber and scales sky fibers to match (Binospec IFU is one
+        # example where sky and science fibers have different throughput).
+        # This is the only correction applied to science extractions;
+        # spectral flattening is performed downstream by flux calibration.
         nwave = fiber_spectra_arr.shape[1]
         central_slice = slice(nwave // 10, 9 * nwave // 10)
-        global_norm = float(np.nanmax(fiber_spectra_arr[:, central_slice]))
-        if global_norm <= 0:
-            global_norm = float(np.nanmax(fiber_spectra_arr))
-        log.info(f"Global flat normalization coefficient: {global_norm:.1f}")
+        fiber_medians = np.nanmedian(fiber_spectra_arr[:, central_slice], axis=1)
 
+        sky_mask = np.array([t.lower() == 'sky' for t in fiber_types])
+        sci_mask = ~sky_mask & np.isfinite(fiber_medians) & (fiber_medians > 0)
+        if np.any(sci_mask):
+            sci_typical = float(np.nanmedian(fiber_medians[sci_mask]))
+        else:
+            sci_typical = float(np.nanmedian(fiber_medians[fiber_medians > 0]))
+        if not np.isfinite(sci_typical) or sci_typical <= 0:
+            log.warning("Could not derive a science-fiber median; "
+                        "throughput scalars will be set to unity.")
+            sci_typical = 1.0
+
+        fiber_throughput = fiber_medians / sci_typical
+        bad_thru = ~np.isfinite(fiber_throughput) | (fiber_throughput <= 0)
+        fiber_throughput[bad_thru] = 1.0
+
+        # Store the raw extracted flat spectra (divided by sci_typical so the
+        # values are dimensionless and roughly O(1)) for diagnostic use only.
+        global_norm = sci_typical
         normflat = fiber_spectra_arr / global_norm
-        # Preserve the BPM signature in the saved FiberFlat: wavelength bins
-        # whose boxcar sums collapsed to <= 0 (all/most contributing detector
-        # pixels were masked) are marked NaN rather than refilled with 1.0,
-        # so bad detector rows remain visible as NaN columns in the output.
-        # Downstream consumers (find_objects._apply_flat_correction) treat
-        # NaN/<=0 entries as "no correction" (divide by 1.0).
         bad = ~np.isfinite(normflat) | (normflat <= 0)
         normflat[bad] = np.nan
-
-        # Build a common wavelength grid (median across fibers)
         normflat_wave = np.median(fiber_waves_arr, axis=0)
 
-        # Log sky vs science normflat levels as diagnostic
-        sky_mask = np.array([t.lower() == 'sky' for t in fiber_types])
-        if np.any(sky_mask):
-            sky_med = np.nanmedian(normflat[sky_mask])
-            sci_med = np.nanmedian(normflat[~sky_mask])
-            log.info(f"Normflat median: sky={sky_med:.4f}, "
-                     f"science={sci_med:.4f}, "
-                     f"ratio={sky_med/sci_med:.3f}")
+        log.info(f"Per-fiber throughput: science median="
+                 f"{np.nanmedian(fiber_throughput[~sky_mask]):.3f}, "
+                 f"sky median={np.nanmedian(fiber_throughput[sky_mask]):.3f}, "
+                 f"sci_typical={sci_typical:.1f}")
 
         # ------------------------------------------------------------------
         # Step 5: assemble and return output containers
@@ -2119,6 +2129,7 @@ class FiberFlatField(FlatField):
             global_norm=global_norm,
             fiber_ids=fiber_ids,
             fiber_types=fiber_types,
+            fiber_throughput=fiber_throughput,
             PYP_SPEC=self.spectrograph.name)
 
         return flat_images, fiber_flatimages

@@ -1127,10 +1127,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
     """
     name = 'mmt_binospec_ifu'
     pypeline = 'Fiber'
-    # Apply the static fiber_illumination vector as an additional throughput
-    # divisor, matching how the IDL pipeline combines it with the flat-field
-    # image.  The alternate sign made both detectors' sky residuals worse.
-    use_static_fiber_illumination = True
     supported = True
 
     # IFU fiber geometry constants
@@ -1377,6 +1373,8 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         # and mechanical placement of the fiber heads.
         par['calibrations']['tilts']['spat_order'] = 3
         par['calibrations']['tilts']['spec_order'] = 5
+        par['calibrations']['tilts']['maxdev2d'] = 0.5
+        par['calibrations']['wavelengths']['n_final'] = 5
 
         return par
 

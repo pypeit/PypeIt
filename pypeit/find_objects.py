@@ -444,7 +444,7 @@ class FindObjects:
                                        std_trace=std_trace,
                                        show_peaks=show_peaks, show_fits=show_fits,
                                        show_trace=show_trace, save_objfindQA=save_objfindQA,
-                                       manual_extract_dict=manual_extract_dict, 
+                                       manual_extract_dict=manual_extract_dict,
                                        neg=False, debug=debug)
 
         # Find negative objects
@@ -502,7 +502,7 @@ class FindObjects:
 
     def global_skysub(self, skymask=None, bkg_redux_sciimg=None,
                       update_crmask=True,
-                      previous_sky=None, show_fit=False, show=False, 
+                      previous_sky=None, show_fit=False, show=False,
                       show_objs=False, objs_not_masked=False,
                       reinit_bpm:bool=True):
         """
@@ -533,7 +533,7 @@ class FindObjects:
                 by the skymask. This is typically the case for the first pass sky-subtraction
                 before object finding, since a skymask has not yet been created.
             reinit_bpm (:obj:`bool`, optional):
-                If True (default), the bpm is reinitialized to the initial bpm 
+                If True (default), the bpm is reinitialized to the initial bpm
                 Should be False on the final run in case there was a failure
                 upstream and no sources were found in the slit/order
 
@@ -930,7 +930,7 @@ class EchelleFindObjects(FindObjects):
         inmask = self.sciImg.select_flag(invert=True)
         # Find objects
         # TODO: Not sure how this fairs if self.det is a tuple...
-        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 
+        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name,
                         'ECH_ORDERINDX': 999,
                         'OBJTYPE': self.objtype,
                         'PYPELINE': self.pypeline}
@@ -949,9 +949,9 @@ class EchelleFindObjects(FindObjects):
             self.slits.spat_id[reduce_gpm], self.order_vec[reduce_gpm],
             np.vstack((self.slits.specmin, self.slits.specmax))[:, reduce_gpm],
             det=self.det,
-            inmask=inmask, 
+            inmask=inmask,
             ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-            manual_extract_dict=manual_extract_dict, 
+            manual_extract_dict=manual_extract_dict,
             plate_scale=plate_scale[reduce_gpm],
             std_trace=std_trace,
             specobj_dict=specobj_dict,
@@ -1343,20 +1343,26 @@ class FiberFindObjects(SlicerIFUFindObjects):
 
     def run(self, std_trace=None, show_peaks=False, show_skysub_fit=False):
         """
-        Primary code flow for fiber object finding with 1D sky subtraction.
+        Primary code flow for fiber object finding and 2D sky model build.
 
-        For fiber spectrographs, each fiber IS the object -- no peak-detection
-        is needed.  Sky subtraction follows the IDL Binospec pipeline:
+        For fiber spectrographs each fiber IS the object -- no peak detection
+        is needed.  We boxcar-pre-extract every fiber, fit one cross-detector
+        2D bspline to the throughput-normalized sky-fiber sums, predict a 1D
+        sky spectrum per fiber, and stamp it into a 2D ``SKYMODEL`` weighted
+        by the empirical flat profile.  Standard ``FiberExtract`` then runs
+        on ``sciimg - skymodel``.
 
         1. Build wavelength image (if not already available).
-        2. Load ``FiberFlatImages`` calibration products.
+        2. Load ``FiberFlatImages`` for the per-fiber throughput scalars.
         3. Create one ``SpecObj`` per fiber via ``find_objects_pypeline``.
-        4. Boxcar-extract every fiber from the un-subtracted 2D image.
-        5. Divide by normalized fiber flat correction.
-        6. Fit a 2D B-spline sky model (wavelength + spatial polynomial)
-           to the dedicated sky fibers.
-        7. Subtract the sky model from all fibers in 1D.
-        8. Reconstruct a diagnostic 2D sky image.
+        4. Attach a per-fiber throughput scalar to each ``SpecObj``.
+        5. Boxcar pre-extract every fiber from the un-subtracted image so
+           the sky-model fit has aperture-summed counts and a wavelength
+           solution to evaluate against.
+        6. Fit a 2D bspline (wave + Legendre in normalized spatial position)
+           to the throughput-normalized sky-fiber spectra, project per-fiber
+           predictions, and distribute via the empirical flat profile to
+           build the per-pixel 2D ``SKYMODEL``.
 
         Parameters
         ----------
@@ -1370,14 +1376,10 @@ class FiberFindObjects(SlicerIFUFindObjects):
         Returns
         -------
         initial_sky : `numpy.ndarray`_
-            Reconstructed 2D sky model (diagnostic; actual subtraction is 1D).
+            Per-pixel sky model in detector counts.
         sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
-            List of objects found (one per fiber), with sky-subtracted
-            ``BOX_COUNTS`` and ``BOX_COUNTS_SKY`` populated.
+            List of objects found (one per fiber).
         """
-        from pypeit.core import extract
-
-        # 1. Build wavelength image if needed
         if self.waveimg is None:
             if self.wv_calib is None:
                 raise PypeItError("Wavelength calibration required for "
@@ -1385,10 +1387,8 @@ class FiberFindObjects(SlicerIFUFindObjects):
             self.waveimg = self.wv_calib.build_waveimg(
                 self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
-        # 2. Load fiber flat products
         fiber_flatimages = self._load_fiber_flatimages()
 
-        # 3. Create SpecObjs for all fibers (reuse find_objects_pypeline)
         self.reduce_bpm = self.reduce_bpm_init.copy()
         sobjs_obj, self.nobj = self.find_objects(
             self.sciImg.image, self.sciImg.ivar,
@@ -1398,104 +1398,384 @@ class FiberFindObjects(SlicerIFUFindObjects):
         if len(sobjs_obj) == 0:
             return np.zeros_like(self.sciImg.image), sobjs_obj
 
-        # 4. Extract all fibers from the un-subtracted image.  Prefer a
-        # flat-profile extraction for the sky-subtraction input, matching the
-        # IDL IFU pipeline more closely than plain boxcar sums.
+        # Snap each trace to its actual fiber peak in the flat.  For Binospec
+        # IFU, the bulk-shifted reference positions can still be off by 2-3 px
+        # in individual blocks; without this refinement the end-fiber aperture
+        # can miss its real peak and leave a large per-pixel residual at the
+        # block edge.
+        self._refine_fiber_traces(sobjs_obj)
+
+        # Attach throughput scalar to each SpecObj so the sky-model build
+        # and FiberExtract see one consistent per-fiber correction.
+        self._attach_fiber_throughput(
+            sobjs_obj, fiber_flatimages, self.spectrograph,
+            self.sciImg.detector.det)
+
+        # Boxcar pre-extract every fiber so we have BOX_WAVE + BOX_COUNTS
+        # for the 2D sky bspline.  FiberExtract overwrites these from
+        # ``sciimg - skymodel`` later.
+        self._preextract_fibers(sobjs_obj)
+
+        initial_sky = self._fiber_global_skysub(sobjs_obj)
+        return initial_sky, sobjs_obj
+
+    def _preextract_fibers(self, sobjs):
+        """
+        Boxcar-extract every fiber from the un-subtracted image.
+
+        Populates ``BOX_WAVE``, ``BOX_COUNTS``, ``BOX_COUNTS_IVAR`` and
+        ``BOX_MASK`` on each fiber SpecObj using a zero sky input, so the
+        sky-model fit operates on aperture-summed sky counts in detector
+        units.  These BOX_* fields are subsequently overwritten by
+        :class:`~pypeit.extraction.FiberExtract` on ``sciimg - skymodel``.
+
+        Fast path: single :func:`~pypeit.core.moment.moment1d` call per
+        boxcar quantity with the per-fiber traces stacked into a
+        ``(nspec, nfib)`` column array, replacing 360 round trips through
+        :func:`~pypeit.core.extract.extract_boxcar`.  Bit-identical to the
+        legacy per-fiber loop, ~30x faster.  Requires uniform
+        ``BOX_R_PIX`` across fibers and that no aperture crosses into a
+        different slit; either guard failure trips a fallback to the
+        legacy loop.
+        """
+        if len(sobjs) == 0:
+            return
+
+        radii = np.array([float(s.BOX_R_PIX) for s in sobjs])
+        if not np.allclose(radii, radii[0]):
+            log.warning("Non-uniform BOX_R_PIX detected; "
+                        "falling back to per-fiber boxcar pre-extract")
+            self._preextract_fibers_loop(sobjs)
+            return
+
+        if not self._fiber_apertures_within_slit(sobjs):
+            log.warning("A fiber aperture crosses a slit boundary; "
+                        "falling back to per-fiber boxcar pre-extract")
+            self._preextract_fibers_loop(sobjs)
+            return
+
+        from pypeit.core.moment import moment1d
+
+        gpm = self.sciImg.select_flag(invert=True)
+        trace_2d = np.column_stack(
+            [s.TRACE_SPAT.astype(float) for s in sobjs])
+        box_width = 2.0 * float(radii[0])
+
+        # Pre-mask images so moment1d zeroes masked pixels uniformly.
+        # Pseudo-slit edges aren't hard apertures (they sit on the outermost
+        # fiber, so the aperture extends into unassigned pixels in
+        # inter-block gaps), and the runtime check above confirmed that
+        # no aperture extends into pixels of a *different* slit -- so the
+        # global gpm alone is equivalent to the per-fiber
+        # ``gpm & ~other_slit`` mask the loop fallback uses.
+        image_m = self.sciImg.image * gpm
+        var_img = 1.0 / (self.sciImg.ivar + (self.sciImg.ivar == 0.0))
+        var_m = var_img * gpm
+        wave_m = self.waveimg * gpm
+        wave_pos = (wave_m > 0.0).astype(float)
+
+        flux = moment1d(image_m, trace_2d, box_width)[0]
+        box_denom = moment1d(wave_pos, trace_2d, box_width)[0]
+        wave_num = moment1d(wave_m, trace_2d, box_width)[0]
+        var_box = moment1d(var_m, trace_2d, box_width)[0]
+        pixtot = moment1d(np.ones_like(self.sciImg.image),
+                          trace_2d, box_width)[0]
+        pixmsk = moment1d(((self.sciImg.ivar == 0.0)
+                           | ~gpm).astype(float),
+                          trace_2d, box_width)[0]
+
+        fwhmimg = None
+        if self.wv_calib is not None:
+            fwhmimg = self.wv_calib.build_fwhmimg(
+                self.tilts, self.slits, initial=True,
+                spat_flexure=self.spat_flexure_shift)
+        fwhm_box = None
+
+        wave_box = wave_num / (box_denom + (box_denom == 0.0))
+        ivar_box = 1.0 / (var_box + (var_box == 0.0))
+        # Compute the box mask on the *pre-replacement* wave_box so bad
+        # rows (where wave_box would be zero) are correctly flagged.
+        box_gpm = ((pixmsk != pixtot)
+                   & np.isfinite(wave_box)
+                   & (wave_box > 0))
+
+        bad = ~np.isfinite(wave_box) | (wave_box <= 0)
+        if bad.any():
+            wave_pos_um = (self.waveimg > 0.0).astype(float)
+            denom_um = moment1d(wave_pos_um, trace_2d, box_width)[0]
+            wave_um = moment1d(self.waveimg, trace_2d, box_width)[0]
+            wave_um_fixed = wave_um / (denom_um + (denom_um == 0.0))
+            wave_box = np.where(bad, wave_um_fixed, wave_box)
+
+        if fwhmimg is not None:
+            from pypeit import utils as putils
+            fwhm_m = fwhmimg * gpm
+            fwhm_sum = moment1d(fwhm_m, trace_2d, box_width)[0]
+            n_good = pixtot - pixmsk
+            fwhm_box = fwhm_sum * putils.inverse(n_good)
+            for j in range(fwhm_box.shape[1]):
+                fwhm_box[:, j] *= np.gradient(wave_box[:, j])
+
+        # Match legacy extract_boxcar return semantics: zero out flux
+        # and ivar at masked rows so low-throughput rows don't carry
+        # spurious finite values into downstream fits.
+        box_gpm_f = box_gpm.astype(float)
+        flux = flux * box_gpm_f
+        ivar_box = ivar_box * box_gpm_f
+
+        for i, sobj in enumerate(sobjs):
+            sobj.BOX_WAVE = wave_box[:, i].copy()
+            sobj.BOX_COUNTS = flux[:, i].copy()
+            sobj.BOX_COUNTS_IVAR = ivar_box[:, i].copy()
+            sobj.BOX_MASK = box_gpm[:, i].copy()
+            if fwhm_box is not None:
+                sobj.BOX_FWHM = fwhm_box[:, i].copy()
+
+    def _preextract_fibers_loop(self, sobjs):
+        """
+        Per-fiber fallback for :meth:`_preextract_fibers`.
+
+        Preserves the original per-fiber ``gpm & ~other_slit`` mask and
+        handles non-uniform ``BOX_R_PIX``.  Used when the vectorized fast
+        path's preconditions fail.
+        """
+        from pypeit.core import extract as core_extract
+
         gpm = self.sciImg.select_flag(invert=True)
         slitmask = self.slits.slit_img(initial=True)
         zero_sky = np.zeros_like(self.sciImg.image)
-        flatimg = self._load_flatimg()
-        empirical_profiles = None
-        if flatimg is not None:
-            from pypeit.extraction import FiberExtract
-            empirical_profiles = FiberExtract._build_empirical_profiles(
-                flatimg, slitmask, sobjs_obj, *self.sciImg.image.shape)
-            if empirical_profiles is not None:
-                log.info("Using flat-profile extraction for fiber sky subtraction")
 
-        for sobj in sobjs_obj:
-            thismask = slitmask == sobj.SLITID
-            inmask = gpm & thismask
-            prof_key = (sobj.SLITID, sobj.OBJID)
-            if empirical_profiles is not None and prof_key in empirical_profiles:
-                sobj.extract_optimal(
-                    self.sciImg.image, self.sciImg.ivar, inmask,
-                    self.waveimg, zero_sky, thismask,
-                    empirical_profiles[prof_key],
-                    flatimg=flatimg,
-                    base_var=self.sciImg.base_var,
-                    count_scale=self.sciImg.img_scale,
-                    noise_floor=self.sciImg.noise_floor)
-                self._copy_optimal_to_boxcar(sobj)
+        fwhmimg = None
+        if self.wv_calib is not None:
+            fwhmimg = self.wv_calib.build_fwhmimg(
+                self.tilts, self.slits, initial=True,
+                spat_flexure=self.spat_flexure_shift)
+
+        for sobj in sobjs:
+            other_slit = (slitmask != sobj.SLITID) & (slitmask != -1)
+            inmask = gpm & ~other_slit
+            try:
+                wave, flux, flux_ivar, _, _, box_gpm, fwhm, _, _, _, _ = \
+                    core_extract.extract_boxcar(
+                        sobj.BOX_R_PIX, sobj.TRACE_SPAT,
+                        self.sciImg.image, self.sciImg.ivar,
+                        inmask, self.waveimg, zero_sky,
+                        fwhmimg=fwhmimg)
+            except Exception as e:
+                log.warning(f"Pre-extract failed for fiber "
+                            f"{getattr(sobj, 'MASKDEF_ID', '?')}: {e}")
                 continue
-
-            # Fallback: extract_boxcar expects imgminsky; pass raw image with skyimg=0
-            wave, flux, flux_ivar, flux_sig, flux_nivar, box_gpm, \
-                fwhm, flat_spec, sky, base, npix = extract.extract_boxcar(
-                    sobj.BOX_R_PIX, sobj.TRACE_SPAT,
-                    self.sciImg.image, self.sciImg.ivar,
-                    inmask, self.waveimg, zero_sky)
             sobj.BOX_WAVE = wave
             sobj.BOX_COUNTS = flux
             sobj.BOX_COUNTS_IVAR = flux_ivar
-            sobj.BOX_COUNTS_SKY = sky
             sobj.BOX_MASK = box_gpm
+            if fwhm is not None:
+                sobj.BOX_FWHM = fwhm
 
-        # 5. Equalize and subtract sky in 1D
-        initial_sky = self._fiber_skysub(sobjs_obj, fiber_flatimages)
-
-        return initial_sky, sobjs_obj
-
-    def _load_flatimg(self):
+    def _fiber_apertures_within_slit(self, sobjs):
         """
-        Load the processed flat image used to build empirical fiber profiles.
+        Check that every fiber's boxcar aperture stays in own slit / gap.
 
-        Returns
-        -------
-        flatimg : `numpy.ndarray`_ or None
-            Processed flat image in detector-pixel space, or ``None`` if no
-            matching flat calibration is available.
+        Returns ``True`` when, for every fiber and every spectral row, the
+        integer aperture columns are either inside the fiber's own slit
+        or in an unassigned pixel (``slitmask == -1``, i.e. inter-block
+        gap).  If even one fiber crosses into a different slit, the
+        vectorized boxcar's "global mask only" assumption breaks and the
+        caller should fall back to the per-fiber loop.  For Binospec IFU
+        with ~70 px inter-block gaps and ~4 px apertures this is always
+        true; the check is the cheap guard that keeps the fast path safe
+        for future fiber spectrographs.
         """
-        from pypeit.flatfield import FlatImages
+        nspec, nspat = self.sciImg.image.shape
+        slitmask = self.slits.slit_img(initial=True)
+        rows_full = np.arange(nspec)[:, None]
+        for sobj in sobjs:
+            trace = np.asarray(sobj.TRACE_SPAT, dtype=float)
+            box_r = float(sobj.BOX_R_PIX)
+            half = int(np.ceil(box_r))
+            offsets = np.arange(-half, half + 1)
+            cols_2d = (np.rint(trace).astype(int)[:, None]
+                       + offsets[None, :])
+            cols_clipped = np.clip(cols_2d, 0, nspat - 1)
+            rows_2d = np.broadcast_to(rows_full, cols_2d.shape)
+            in_aper = np.abs(cols_2d - trace[:, None]) <= box_r
+            slit_at = slitmask[rows_2d, cols_clipped]
+            if (in_aper
+                    & (slit_at != sobj.SLITID)
+                    & (slit_at != -1)).any():
+                return False
+        return True
 
-        calib_dir = getattr(self.slits, 'calib_dir', None)
-        if calib_dir is None:
-            log.warning("No calibration directory available; "
-                        "using boxcar fiber extraction for sky subtraction")
-            return None
+    def _refine_fiber_traces(self, sobjs, search_radius=4.0):
+        """
+        Snap each fiber's trace to the nearest peak in the flat field.
 
-        files = sorted(Path(calib_dir).glob(f'Flat_*{self.detname}*.fits'))
-        if not files:
-            log.warning(f"No FlatImages found for {self.detname}; "
-                        "using boxcar fiber extraction for sky subtraction")
-            return None
+        The static reference-profile fiber positions, even after the bulk
+        cross-correlation shift, can be off by 2-3 px
+        due to optical distortion or mechanical effects that a single global shift
+        can't capture.  Left uncorrected, apertures can miss their real peaks and leave large
+        per-pixel sky-subtraction residuals.
 
-        log.info(f"Loading FlatImages from {files[0].name} for fiber profiles")
-        flat_images = FlatImages.from_file(files[0])
-        flat_raw = flat_images.pixelflat_raw
-        if flat_raw is None:
-            return None
+        For each fiber:
 
-        if flat_images.pixelflat_norm is None:
-            return flat_raw.copy()
+        * detect peaks in the flat-field spatial profile within its block-slit
+        * pick the peak nearest the current ``SPAT_PIXPOS``
+        * sub-pixel-refine that peak with a parabolic fit on the three
+          flat samples around it
+        * update ``TRACE_SPAT``, ``SPAT_PIXPOS``, and ``SPAT_PIXPOS_ID``
 
-        flatimg, _ = flat.flatfield(flat_raw, flat_images.pixelflat_norm)
-        return flatimg
+        Fibers whose nearest detected peak lies more than
+        ``search_radius`` px away (dead fibers, masked regions, or
+        anything pathological) are left at their bulk-shifted positions.
+
+        Parameters
+        ----------
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            One SpecObj per fiber.
+        search_radius : :obj:`float`, optional
+            Maximum allowed shift in spatial pixels.  Defaults to 4.0 --
+            comfortably larger than the worst per-block offsets observed
+            (~3 px on DET02), but small enough to avoid snapping onto a
+            neighbouring fiber's peak (inter-fiber spacing ~6.6 px).
+        """
+        from scipy.signal import find_peaks
+
+        if len(sobjs) == 0:
+            return
+
+        flatimg = self._load_flatimg()
+        if flatimg is None:
+            log.warning("No flat image for trace refinement; "
+                        "using bulk-shifted reference positions")
+            return
+
+        nspec, nspat = flatimg.shape
+        # Build a stable spatial profile by collapsing the central half of
+        # the spectral axis; sky lines and CRs in the science image would
+        # be a problem here but the flat is smooth in spectral.
+        central = flatimg[nspec // 4:3 * nspec // 4, :]
+        flat_strip = np.nanmedian(central, axis=0)
+
+        # Group fibers by slit so peak detection only sees one block at a
+        # time -- distance / height thresholds calibrate to the local
+        # block's fibers without being confused by neighbours.
+        by_slit = {}
+        for sobj in sobjs:
+            by_slit.setdefault(sobj.SLITID, []).append(sobj)
+
+        n_refined = n_skipped = 0
+        for slitid, fibers in by_slit.items():
+            positions = np.array([s.SPAT_PIXPOS for s in fibers])
+            box_r = float(fibers[0].BOX_R_PIX)
+            lo = int(max(0, positions.min() - 2 * box_r - search_radius))
+            hi = int(min(nspat, positions.max() + 2 * box_r + search_radius + 1))
+            if hi - lo < 5:
+                continue
+
+            local_strip = flat_strip[lo:hi]
+            finite_local = local_strip[np.isfinite(local_strip)]
+            if finite_local.size == 0 or np.nanmax(local_strip) <= 0:
+                continue
+
+            # Minimum peak separation: 1.5 * box_r ~= 1.5 * half-spacing
+            # is comfortably less than the inter-fiber spacing, so no two
+            # real fiber peaks merge but spurious noise bumps are
+            # rejected.  Height threshold 10% of the brightest peak.
+            min_dist = max(2, int(box_r * 1.5))
+            height = 0.1 * float(np.nanmax(local_strip))
+            peaks_local, _ = find_peaks(local_strip, distance=min_dist,
+                                        height=height)
+            if peaks_local.size == 0:
+                continue
+            peaks = peaks_local + lo
+
+            for sobj in fibers:
+                ref_pos = float(sobj.SPAT_PIXPOS)
+                dists = np.abs(peaks - ref_pos)
+                k = int(np.argmin(dists))
+                if dists[k] > search_radius:
+                    n_skipped += 1
+                    continue
+
+                # Parabolic sub-pixel fit on the three flat samples around
+                # the peak: y(x) = y1 - 0.5*(y2-y0)*dx + 0.5*(y0-2y1+y2)*dx^2
+                # peak at dx = (y0 - y2) / (2 * (y0 - 2y1 + y2)).
+                p_int = int(peaks[k])
+                p_loc = p_int - lo
+                if 0 < p_loc < len(local_strip) - 1:
+                    y0 = float(local_strip[p_loc - 1])
+                    y1 = float(local_strip[p_loc])
+                    y2 = float(local_strip[p_loc + 1])
+                    denom = y0 - 2.0 * y1 + y2
+                    if denom < 0 and np.isfinite(denom):
+                        sub_offset = 0.5 * (y0 - y2) / denom
+                        # Reject runaway parabolic fits (e.g. when one of
+                        # the flanking pixels is masked-fill).
+                        if abs(sub_offset) <= 1.0:
+                            new_center = float(p_int) + sub_offset
+                        else:
+                            new_center = float(p_int)
+                    else:
+                        new_center = float(p_int)
+                else:
+                    new_center = float(p_int)
+
+                if abs(new_center - ref_pos) > search_radius:
+                    n_skipped += 1
+                    continue
+
+                sobj.TRACE_SPAT = np.full(nspec, new_center, dtype=float)
+                sobj.SPAT_PIXPOS = new_center
+                sobj.SPAT_PIXPOS_ID = int(np.rint(new_center))
+                n_refined += 1
+
+        log.info(f"Trace refinement: snapped {n_refined}/{len(sobjs)} "
+                 f"fibers to flat peaks ({n_skipped} skipped, "
+                 f"search radius {search_radius} px)")
 
     @staticmethod
-    def _copy_optimal_to_boxcar(sobj):
-        """Use profile-fit extraction as the 1D spectrum for sky fitting."""
-        sobj.BOX_WAVE = sobj.OPT_WAVE.copy()
-        sobj.BOX_COUNTS = sobj.OPT_COUNTS.copy()
-        sobj.BOX_COUNTS_IVAR = sobj.OPT_COUNTS_IVAR.copy()
-        sobj.BOX_COUNTS_SIG = sobj.OPT_COUNTS_SIG.copy()
-        sobj.BOX_COUNTS_NIVAR = sobj.OPT_COUNTS_NIVAR.copy()
-        sobj.BOX_MASK = sobj.OPT_MASK.copy()
-        sobj.BOX_FWHM = sobj.OPT_FWHM.copy() if sobj.OPT_FWHM is not None else None
-        sobj.BOX_FLAT = sobj.OPT_FLAT.copy() if sobj.OPT_FLAT is not None else None
-        sobj.BOX_COUNTS_SKY = sobj.OPT_COUNTS_SKY.copy()
-        sobj.BOX_COUNTS_SIG_DET = sobj.OPT_COUNTS_SIG_DET.copy() \
-            if sobj.OPT_COUNTS_SIG_DET is not None else None
+    def _attach_fiber_throughput(sobjs, fiber_flatimages, spectrograph, det):
+        """
+        Combine flat-derived and static per-fiber throughput.
+
+        The flat field contributes the geometric/transmission ratio; the static
+        ``fiber_illumination.fits`` vector (when the spectrograph supplies
+        one) is a refinement that captures per-fiber variations the lamp
+        cannot due to illumination effects.  Both are multiplied together and stashed on each SpecObj as
+        a single scalar so the sky-model build and the post-extraction
+        division apply the same value.
+        """
+        flat_lookup = {}
+        if fiber_flatimages is not None \
+                and getattr(fiber_flatimages, 'fiber_throughput', None) is not None:
+            flat_lookup = {int(fid): float(t) for fid, t in
+                           zip(fiber_flatimages.fiber_ids,
+                               fiber_flatimages.fiber_throughput)}
+
+        illum_lookup = {}
+        if hasattr(spectrograph, 'load_fiber_illumination'):
+            try:
+                f_illum = spectrograph.load_fiber_illumination(det)
+                ref = spectrograph.load_fiber_ref_profile(det)
+                ref_ids = ref['FIB_ID']
+                for i, fid in enumerate(ref_ids):
+                    if i >= len(f_illum):
+                        continue
+                    val = float(f_illum[i])
+                    if np.isfinite(val) and val > 0.1:
+                        illum_lookup[int(fid)] = val
+            except Exception as e:
+                log.warning(f"Could not load fiber_illumination: {e}; "
+                            f"using flat-only throughput")
+
+        for sobj in sobjs:
+            fid = sobj.MASKDEF_ID
+            if fid is None or fid < 0:
+                sobj.fiber_throughput = 1.0
+                continue
+            fid_int = int(fid)
+            sobj.fiber_throughput = (flat_lookup.get(fid_int, 1.0)
+                                     * illum_lookup.get(fid_int, 1.0))
 
     def _load_fiber_flatimages(self):
         """
@@ -1530,324 +1810,749 @@ class FiberFindObjects(SlicerIFUFindObjects):
                      "proceeding without equalization")
         return None
 
-    def _apply_flat_correction(self, sobjs, fiber_flatimages):
+    def _fiber_global_skysub(self, sobjs):
         """
-        Apply normalized flat and fiber illumination correction to extracted
-        spectra.
+        Fit one 2D bspline to throughput-normalized fiber spectra, predict
+        per-fiber sky, and stamp it into a per-pixel 2D ``SKYMODEL``.
 
-        Follows the IDL Binospec pipeline approach (Chilingarian et al. 2025):
+        We use the boxcar-extracted ``BOX_COUNTS`` (aperture sums per row),
+        divide by each fiber's scalar throughput so all fibers share a
+        common surface, and fit a single 2D bspline in
+        ``(wavelength, normalized spat_pos)`` with a Legendre polynomial
+        along the spatial axis (``npoly=2``).  Each fiber's predicted 1D
+        sky spectrum is then evaluated, re-scaled by its throughput to
+        recover detector counts, and the per-row sum is distributed across
+        the fiber's aperture using the empirical spatial profile derived
+        from the flat field.
 
-        1. Divide by the globally-normalized flat (per-fiber, per-wavelength) —
-           removes lamp × system spectral response and fiber throughput variation.
-        2. Optionally multiply the flat divisor by a static
-           ``fiber_illumination`` scalar for spectrographs that explicitly
-           request the additional throughput correction.
+        The fit runs as **two passes** with per-fiber wavelength refinement
+        in between.  The per-block wavelength solution carries ~0.2 px
+        (1 sigma) of per-fiber offset that the joint bspline can't resolve
+        and that shows up as dipole residuals on bright OH lines.  After
+        the first-pass fit, each fiber's ``BOX_WAVE`` is shifted to the
+        Delta-lambda that minimises chi2 against the bspline model on the
+        line wings (see :meth:`_refine_fiber_wavelengths`), then the joint
+        fit is re-run.
+
+        By default the fit is joint over dedicated sky fibers and all
+        science fibers, relying on the iterative sigma rejection in
+        :func:`~pypeit.core.fitting.iterfit` (asymmetric, tighter on the
+        upper side) to down-weight pixels that contain real source flux.
+        Two ``[reduce][skysub]`` parameters control which fibers
+        contribute:
+
+        * ``joint_fit_use_sci`` (default ``True``) -- when ``False``,
+          only fibers whose ``MASKDEF_OBJNAME`` starts with ``SKY`` are
+          used (legacy behaviour).
+        * ``sci_exclude_radius`` (default ``0.0`` arcsec) -- when ``> 0``
+          and the joint fit is enabled, any science fiber whose on-sky
+          position lies within this radius of the IFU geometric centre is
+          dropped from the fit.  Useful when a bright extended source
+          fills the central science fibers.
 
         Parameters
         ----------
         sobjs : :class:`~pypeit.specobjs.SpecObjs`
-            Spectral objects with populated ``BOX_COUNTS``, ``BOX_WAVE``,
-            ``BOX_COUNTS_IVAR``.
-        fiber_flatimages : :class:`~pypeit.flatfield.FiberFlatImages` or None
-            Fiber flat calibration products.
-        """
-        if fiber_flatimages is None or fiber_flatimages.normflat is None:
-            log.warning("No fiber flat available; skipping flat correction")
-            return
-
-        normflat = fiber_flatimages.normflat
-        normflat_wave = fiber_flatimages.normflat_wave
-        flat_fiber_ids = fiber_flatimages.fiber_ids
-
-        # The extracted normflat already preserves fiber-to-fiber throughput
-        # variation.  A static illumination vector is therefore an optional
-        # extra factor, not part of the default correction.
-        det = self.sciImg.detector.det
-        use_static_illum = getattr(self.spectrograph, 'use_static_fiber_illumination',
-                                  False)
-        f_illum = None
-        ref_ids = None
-        if use_static_illum:
-            try:
-                f_illum = self.spectrograph.load_fiber_illumination(det)
-                ref = self.spectrograph.load_fiber_ref_profile(det)
-                ref_ids = ref['FIB_ID']
-            except Exception as e:
-                log.warning(f"Could not load fiber_illumination: {e}; "
-                            f"using unity illumination")
-
-        n_corrected = 0
-        for sobj in sobjs:
-            if sobj.BOX_COUNTS is None or sobj.BOX_WAVE is None:
-                continue
-            fid = sobj.MASKDEF_ID
-            if fid is None or fid < 0:
-                continue
-
-            # Look up this fiber in the normflat
-            flat_idx = np.where(flat_fiber_ids == fid)[0]
-            if len(flat_idx) == 0:
-                continue
-            flat_idx = flat_idx[0]
-
-            # Build a smooth per-fiber flat correction.  Bad NORMFLAT bins
-            # (NaN or non-positive) would propagate NaN through np.interp and,
-            # if patched to 1.0, create a multiplicative cliff against the
-            # local flat value -- injecting a wavelength-locked spike into the
-            # reconstructed 2D SKYMODEL.  Fill the bad bins by linear
-            # interpolation across the index axis so flat_corr stays smooth,
-            # and separately mask only the BOX_WAVE entries that land within
-            # half a sample of an original bad bin.
-            flat_row = normflat[flat_idx]
-            bad_in_normflat = ~np.isfinite(flat_row) | (flat_row <= 0)
-            if bad_in_normflat.any() and not bad_in_normflat.all():
-                clean_row = flat_row.copy()
-                idx_all = np.arange(len(flat_row))
-                clean_row[bad_in_normflat] = np.interp(
-                    idx_all[bad_in_normflat],
-                    idx_all[~bad_in_normflat],
-                    flat_row[~bad_in_normflat])
-            else:
-                clean_row = flat_row
-            nf = np.interp(sobj.BOX_WAVE, normflat_wave, clean_row,
-                           left=1.0, right=1.0)
-
-            flat_bad = np.zeros_like(sobj.BOX_WAVE, dtype=bool)
-            if bad_in_normflat.any():
-                half_step = 0.5 * np.median(np.diff(normflat_wave))
-                for bw in normflat_wave[bad_in_normflat]:
-                    flat_bad |= np.abs(sobj.BOX_WAVE - bw) < half_step
-            # Safety net for any residual non-positive values (e.g. extrapolation
-            # past either end of normflat_wave).
-            nf_bad = (nf <= 0) | ~np.isfinite(nf)
-            flat_bad |= nf_bad
-            nf[nf_bad] = 1.0
-            box_mask = getattr(sobj, 'BOX_MASK', None)
-            if box_mask is not None:
-                sobj.BOX_MASK = box_mask & ~flat_bad
-            box_ivar = getattr(sobj, 'BOX_COUNTS_IVAR', None)
-            if box_ivar is not None:
-                sobj.BOX_COUNTS_IVAR = np.where(flat_bad, 0.0, box_ivar)
-
-            # Look up fiber_illumination scalar
-            illum = 1.0
-            if f_illum is not None and ref_ids is not None:
-                ref_idx = np.where(ref_ids == fid)[0]
-                if len(ref_idx) > 0 and ref_idx[0] < len(f_illum):
-                    illum = float(f_illum[ref_idx[0]])
-                    if illum < 0.1 or not np.isfinite(illum):
-                        illum = 1.0
-
-            # Apply: divide by normflat and, when requested, the static fiber
-            # illumination vector.
-            total_corr = nf * illum
-            sobj.BOX_COUNTS = sobj.BOX_COUNTS / total_corr
-            sobj.BOX_COUNTS_IVAR = sobj.BOX_COUNTS_IVAR * total_corr**2
-            # Store correction factor for re-use in optimal extraction
-            sobj.flat_corr = total_corr.copy()
-            n_corrected += 1
-
-        log.info(f"Applied flat + illumination correction to "
-                 f"{n_corrected}/{len(sobjs)} fibers")
-
-    def _fiber_skysub(self, sobjs, fiber_flatimages):
-        """
-        Perform 1D sky subtraction following the IDL Binospec pipeline.
-
-        1. Apply normalized flat + fiber illumination correction.
-        2. Fit a 2D B-spline to sky fibers (wavelength + spatial Legendre
-           polynomial along the pseudo-slit).
-        3. Subtract the sky model from all fibers.
-
-        Parameters
-        ----------
-        sobjs : :class:`~pypeit.specobjs.SpecObjs`
-            Spectral objects with populated ``BOX_COUNTS``, ``BOX_WAVE``,
-            ``BOX_COUNTS_IVAR``.
-        fiber_flatimages : :class:`~pypeit.flatfield.FiberFlatImages` or None
-            Fiber flat calibration products.
+            One SpecObj per fiber with ``BOX_WAVE``, ``BOX_COUNTS``,
+            ``BOX_COUNTS_IVAR``, ``fiber_throughput`` and ``SPAT_PIXPOS``
+            populated.  ``BOX_COUNTS_SKY`` is set on each SpecObj as a
+            side effect; ``BOX_WAVE`` is updated in place with the
+            per-fiber wavelength refinement.
 
         Returns
         -------
-        sky_2d : `numpy.ndarray`_
-            Reconstructed 2D sky image for diagnostics. Shape matches
-            ``self.sciImg.image``.
+        sky_model : `numpy.ndarray`_
+            Sky model in detector counts, shape ``self.sciImg.image.shape``.
+        """
+        from pypeit.extraction import FiberExtract
+
+        nspec, nspat = self.sciImg.image.shape
+        sky_model = np.zeros_like(self.sciImg.image)
+
+        skysub_par = self.par['reduce']['skysub']
+        # SkySubPar gained joint_fit_use_sci / sci_exclude_radius in this
+        # change.  Guard against being driven by an older ParSet that
+        # doesn't carry these keys.
+        try:
+            use_sci = bool(skysub_par['joint_fit_use_sci'])
+        except KeyError:
+            use_sci = True
+        try:
+            excl_r = float(skysub_par['sci_exclude_radius'] or 0.0)
+        except KeyError:
+            excl_r = 0.0
+
+        sci_xy = self._get_sci_fiber_xy(sobjs) \
+            if (use_sci and excl_r > 0) else {}
+
+        bsp = skysub_par['bspline_spacing']
+        if bsp is None:
+            bsp = 1.2
+
+        # First-pass fit on the as-extracted BOX_WAVE so we have a reference
+        # bspline model to cross-correlate each fiber against.
+        fit1 = self._fit_fiber_sky_bspline(
+            sobjs, use_sci, excl_r, sci_xy, bsp, label='first pass')
+        if fit1 is None:
+            return sky_model
+        sset1, wave_min, wave_max, _ = fit1
+
+        # Per-fiber wavelength refinement: ~0.2 px (1 sigma) of per-block
+        # solution scatter shows up as dipole residuals on sharp OH lines.
+        # Snap each fiber's BOX_WAVE to the Delta-lambda that minimises
+        # chi2 against sset1 on the line wings.
+        self._refine_fiber_wavelengths(sobjs, sset1, wave_min, wave_max)
+
+        # Second-pass fit with refined wavelengths.  Falls back to sset1
+        # if the re-fit fails for any reason.
+        fit2 = self._fit_fiber_sky_bspline(
+            sobjs, use_sci, excl_r, sci_xy, bsp, label='second pass')
+        if fit2 is not None:
+            sset, wave_min, wave_max, _ = fit2
+        else:
+            log.warning("Second-pass fiber sky bspline failed; "
+                        "predicting with first-pass model")
+            sset = sset1
+
+        # Predict per-fiber 1D sky spectrum in detector counts (aperture sums
+        # per row) and stash it on each SpecObj.
+        for sobj in sobjs:
+            if sobj.BOX_WAVE is None:
+                continue
+            thru = float(getattr(sobj, 'fiber_throughput', 1.0) or 1.0)
+            if not np.isfinite(thru) or thru <= 0:
+                thru = 1.0
+            in_range = ((sobj.BOX_WAVE >= wave_min)
+                        & (sobj.BOX_WAVE <= wave_max))
+            sky_spec = np.zeros_like(sobj.BOX_WAVE, dtype=float)
+            if np.any(in_range):
+                x2_arr = np.full(int(np.sum(in_range)),
+                                 float(sobj.SPAT_PIXPOS) / nspat)
+                vals, _ = sset.value(sobj.BOX_WAVE[in_range], x2=x2_arr)
+                sky_spec[in_range] = vals * thru
+            sobj.BOX_COUNTS_SKY = sky_spec
+
+        # Per-fiber LSF broadening (IDL-style).  Binospec IFU sky fibers have a larger
+        # output aperture and a measurably broader spectral LSF than
+        # science fibers (~0.10 px sigma gap from the arc-line FWHM on
+        # Binospec).  The joint bspline pools all fibers and dominantly
+        # sees the sci LSF (sci fibers outnumber sky 8:1), so subtracting
+        # the un-broadened model leaves negative cores at the broader
+        # (sky) fibers.  Mitigate by Gaussian-broadening each fiber's
+        # predicted 1D sky to match its own arc-line LSF before stamping.
+        # Reference sigma is the sci-fiber median; broadening sigma is
+        # ``sqrt(sig_fiber^2 - sig_ref^2)`` and only applied above a
+        # 0.2 px threshold.  Models the IDL pipeline
+        # ``bino_sub_sky_ms.pro`` per-row broadening step.
+        fiber_sig = self._measure_fiber_lsf(sobjs, sset, wave_min, wave_max)
+        if fiber_sig:
+            self._broaden_sky_per_fiber(sobjs, fiber_sig)
+
+        # Distribute each fiber's per-row sky total across its aperture using
+        # the empirical flat profile (unit sum per row).  Profiles are built
+        # per-fiber inside the loop and discarded immediately afterwards;
+        # caching a dense (nspec, nspat) profile per fiber would cost ~134 MB
+        # per fiber on a 4k detector.  Falls back to a uniform aperture stamp
+        # if the flat image isn't available or no fiber profile succeeds.
+        flatimg = self._load_flatimg()
+        if flatimg is None:
+            log.warning("No flat image for empirical profiles; using uniform "
+                        "per-aperture sky stamps")
+            return self._stamp_skymodel_uniform(sobjs)
+
+        slitmask = self.slits.slit_img(initial=True)
+        n_stamped = 0
+        for sobj in sobjs:
+            sky_spec = sobj.BOX_COUNTS_SKY
+            if sky_spec is None:
+                continue
+            prof = FiberExtract._build_empirical_profile(
+                flatimg, slitmask, sobj, nspec, nspat)
+            if prof is None:
+                continue
+            good = np.isfinite(sky_spec)
+            if not np.any(good):
+                del prof
+                continue
+            sky_model[good, :] += prof[good, :] * sky_spec[good, None]
+            n_stamped += 1
+            del prof
+
+        if n_stamped == 0:
+            log.warning("No empirical flat profiles built; using uniform "
+                        "per-aperture sky stamps")
+            return self._stamp_skymodel_uniform(sobjs)
+
+        log.info(f"Stamped 2D sky model from empirical profiles for "
+                 f"{n_stamped}/{len(sobjs)} fibers")
+        return sky_model
+
+    def _fit_fiber_sky_bspline(self, sobjs, use_sci, excl_r, sci_xy, bsp,
+                                label=''):
+        """
+        Collect throughput-normalised fiber spectra and fit one 2D bspline.
+
+        Used by :meth:`_fiber_global_skysub` for both the first-pass fit on
+        as-extracted ``BOX_WAVE`` and the second-pass fit on per-fiber
+        refined wavelengths.
+
+        Returns
+        -------
+        result : tuple or None
+            ``(sset, wave_min, wave_max, outmask)`` on success, or ``None``
+            if there are no good fiber inputs or ``iterfit`` raises.
         """
         from pypeit.core.fitting import iterfit
 
         nspec, nspat = self.sciImg.image.shape
-
-        # Step 1: apply flat field + fiber illumination correction
-        self._apply_flat_correction(sobjs, fiber_flatimages)
-
-        # Step 2: identify sky fibers
-        sky_indices = []
-        for i, sobj in enumerate(sobjs):
-            name = sobj.MASKDEF_OBJNAME
-            if name is not None and str(name).upper().startswith('SKY'):
-                sky_indices.append(i)
-
-        log.info(f"Building sky model from {len(sky_indices)} sky fibers")
-
-        if len(sky_indices) == 0:
-            log.warning("No sky fibers found; returning zero sky model")
-            return np.zeros((nspec, nspat))
-
-        # Use the full wavelength range of the data.  The flat correction
-        # is applied everywhere — even where the flat has low signal, a
-        # noisy correction is better than none.  The Poisson ivar will
-        # naturally downweight low-S/N regions in the B-spline fit.
-        wave_lo, wave_hi = 0.0, np.inf
-
-        # Step 3: build super-sampled sky spectrum with spatial coordinate
-        # Get detector gain and read noise for Poisson weights
-        gain = float(np.mean(self.sciImg.detector['gain']))
-        rdnoise = float(np.mean(self.sciImg.detector['ronoise']))
-
         all_wave, all_flux, all_ivar, all_x2 = [], [], [], []
-        for idx in sky_indices:
-            sobj = sobjs[idx]
+        n_sky_fibers = n_sci_fibers = n_excluded = 0
+        for sobj in sobjs:
+            name = sobj.MASKDEF_OBJNAME
+            is_sky = name is not None and str(name).upper().startswith('SKY')
+            if not is_sky:
+                if not use_sci:
+                    continue
+                if excl_r > 0 and sci_xy:
+                    xy = sci_xy.get(int(sobj.MASKDEF_ID)) \
+                        if sobj.MASKDEF_ID is not None else None
+                    if xy is not None and float(np.hypot(*xy)) < excl_r:
+                        n_excluded += 1
+                        continue
             if sobj.BOX_COUNTS is None or sobj.BOX_WAVE is None:
                 continue
+            thru = float(getattr(sobj, 'fiber_throughput', 1.0) or 1.0)
+            if not np.isfinite(thru) or thru <= 0:
+                thru = 1.0
             good = ((sobj.BOX_WAVE > 0)
                     & np.isfinite(sobj.BOX_COUNTS)
-                    & (sobj.BOX_WAVE >= wave_lo)
-                    & (sobj.BOX_WAVE <= wave_hi))
+                    & np.isfinite(sobj.BOX_COUNTS_IVAR)
+                    & (sobj.BOX_COUNTS_IVAR > 0))
             if sobj.BOX_MASK is not None:
                 good &= sobj.BOX_MASK
             if not np.any(good):
                 continue
-
-            # Poisson inverse-variance weights (IDL formula)
-            raw_counts = np.abs(sobj.BOX_COUNTS[good])
-            poisson_ivar = gain**2 / (gain * raw_counts + rdnoise**2)
-
-            # Spatial coordinate: normalized pixel position [0, 1]
-            spat_pos = sobj.SPAT_PIXPOS / nspat
-
+            n = int(np.sum(good))
             all_wave.append(sobj.BOX_WAVE[good])
-            all_flux.append(sobj.BOX_COUNTS[good])
-            all_ivar.append(poisson_ivar)
-            all_x2.append(np.full(np.sum(good), spat_pos))
+            all_flux.append(sobj.BOX_COUNTS[good] / thru)
+            all_ivar.append(sobj.BOX_COUNTS_IVAR[good] * thru**2)
+            all_x2.append(np.full(n, float(sobj.SPAT_PIXPOS) / nspat))
+            if is_sky:
+                n_sky_fibers += 1
+            else:
+                n_sci_fibers += 1
 
-        if len(all_wave) == 0:
-            log.warning("No valid sky fiber data; returning zero sky model")
-            return np.zeros((nspec, nspat))
+        if not all_wave:
+            log.warning("No fiber data for sky fit; returning zero sky model")
+            return None
 
         all_wave = np.concatenate(all_wave)
         all_flux = np.concatenate(all_flux)
         all_ivar = np.concatenate(all_ivar)
         all_x2 = np.concatenate(all_x2)
-
-        # Sort by wavelength (required by bspline)
         srt = np.argsort(all_wave)
         all_wave = all_wave[srt]
         all_flux = all_flux[srt]
         all_ivar = all_ivar[srt]
         all_x2 = all_x2[srt]
 
-        # Step 4: fit 2D B-spline (wavelength + spatial Legendre polynomial)
-        bsp = self.par['reduce']['skysub']['bspline_spacing']
-        if bsp is None:
-            bsp = 1.2
+        # When science fibers participate the spatial axis is densely
+        # sampled, so use a higher-order Legendre polynomial (cubic) to
+        # let the bspline capture the smooth spatial throughput variation
+        # the static fiber_illumination scalar misses.  Sky-only mode keeps
+        # npoly=2 (matches the IDL Binospec IFU pipeline).
+        # Symmetric sigma rejection on the joint fit: the previously
+        # asymmetric (upper=3, lower=5) rejection was found to bias the
+        # bspline model upward at bright OH-line cores, leaving negative
+        # residuals (model > data) for both sky and sci fibers.  Source
+        # flux still gets rejected at upper=3.
+        if n_sci_fibers > 0:
+            npoly = 4
+            upper, lower = 3.0, 3.0
+        else:
+            npoly = 2
+            upper, lower = 3.0, 3.0
 
-        # npoly=2: constant + linear Legendre terms along pseudo-slit
-        # (matches IDL pipeline skydegy=2 for IFU mode)
-        npoly = 2
-
-        log.info(f"B-spline sky fit: {len(all_wave)} pixels, "
-                 f"bkspace={bsp}, npoly={npoly}")
-
+        tag = f" ({label})" if label else ''
+        log.info(
+            f"Fiber sky bspline{tag}: {len(all_wave)} pts from "
+            f"{n_sky_fibers} sky + {n_sci_fibers} sci fibers "
+            f"(excluded {n_excluded} sci within r<{excl_r}\"), "
+            f"bsp={bsp}, npoly={npoly}, sigrej=({lower},{upper})")
         try:
             sset, outmask = iterfit(
-                all_wave, all_flux, invvar=all_ivar,
-                x2=all_x2,
-                upper=3, lower=3, maxiter=10,
-                nord=4,
+                all_wave, all_flux, invvar=all_ivar, x2=all_x2,
+                upper=upper, lower=lower, maxiter=10, nord=4,
                 kwargs_bspline={'bkspace': bsp, 'npoly': npoly})
         except Exception as e:
-            log.warning(f"Sky B-spline fit failed: {e}")
-            return np.zeros((nspec, nspat))
+            log.warning(f"Fiber sky bspline fit{tag} failed: {e}")
+            return None
 
-        n_rej = np.sum(~outmask)
-        log.info(f"Sky model: {n_rej}/{len(outmask)} pixels rejected "
-                 f"({100*n_rej/len(outmask):.1f}%)")
+        n_rej = int(np.sum(~outmask))
+        log.info(f"Fiber sky bspline{tag}: {n_rej}/{len(outmask)} pixels "
+                 f"rejected ({100 * n_rej / max(len(outmask), 1):.1f}%)")
+        return sset, float(all_wave[0]), float(all_wave[-1]), outmask
 
-        # Wavelength range of the fit data (for clipping extrapolation)
-        wave_min = all_wave[0]
-        wave_max = all_wave[-1]
+    def _measure_fiber_lsf(self, sobjs, sset, wave_min, wave_max, n_lines=5):
+        """
+        Per-fiber spectral LSF sigma (in pixels) from the arc-line FWHM.
 
-        # Step 5: subtract sky from ALL fibers
+        Uses ``sobj.BOX_FWHM`` (wavecal-derived spectral FWHM in Angstroms,
+        already populated along each fiber's trace).  For each fiber,
+        samples ``BOX_FWHM`` at the brightest sky lines in the joint
+        bspline model and converts FWHM_AA -> sigma_pix via the local
+        dispersion ``median(diff(BOX_WAVE))``.
+
+        Per-fiber empirical estimators (2nd-moment / Gaussian fit on
+        ``BOX_COUNTS``) were tried first and discarded -- they are
+        biased high by OH-line wings/blending and have 40-50% within-type
+        scatter, swamping the real ~10% per-type LSF gap.  ``BOX_FWHM``
+        is per-block-slit (wavecal granularity), which collapses this to
+        a per-type measurement -- adequate because the sky/sci LSF gap
+        comes from the fiber aperture size , which is uniform within a fiber type.
+
+        Returns
+        -------
+        fiber_sig : dict
+            ``id(sobj) -> sigma_pix`` for fibers with a usable value.
+        """
+        from scipy.signal import find_peaks
+
+        n_wave_search = 4000
+        grid_w = np.linspace(wave_min + 5.0, wave_max - 5.0, n_wave_search)
+        try:
+            mdl, _ = sset.value(grid_w, x2=np.full_like(grid_w, 0.5))
+        except Exception as e:
+            log.warning(f"Could not evaluate bspline for LSF line search: {e}")
+            return {}
+        finite = np.isfinite(mdl)
+        if not finite.any():
+            return {}
+        base = float(np.nanmedian(mdl[finite]))
+        noise = 1.4826 * float(np.nanmedian(np.abs(mdl[finite] - base)))
+        if not np.isfinite(noise) or noise <= 0:
+            return {}
+        peaks, _ = find_peaks(mdl, height=base + 25.0 * noise, distance=20)
+        if peaks.size == 0:
+            log.warning("No bright lines found in bspline model for LSF "
+                        "measurement; skipping per-fiber sky broadening")
+            return {}
+        order = np.argsort(mdl[peaks])[::-1]
+        line_waves = grid_w[peaks[order][:n_lines]]
+
+        fiber_sig = {}
         for sobj in sobjs:
-            if sobj.BOX_WAVE is None or sobj.BOX_COUNTS is None:
+            fwhm = getattr(sobj, 'BOX_FWHM', None)
+            wave = sobj.BOX_WAVE
+            if fwhm is None or wave is None:
                 continue
-            # Only evaluate sky model within the B-spline fit range
-            in_range = ((sobj.BOX_WAVE >= wave_min)
-                        & (sobj.BOX_WAVE <= wave_max))
-            sky_spec = np.zeros_like(sobj.BOX_COUNTS)
-            if np.any(in_range):
-                spat_pos = sobj.SPAT_PIXPOS / nspat
-                x2_fiber = np.full(np.sum(in_range), spat_pos)
-                sky_spec[in_range], _ = sset.value(
-                    sobj.BOX_WAVE[in_range], x2=x2_fiber)
+            mask = sobj.BOX_MASK if sobj.BOX_MASK is not None \
+                else np.ones_like(wave, dtype=bool)
+            good = (mask & np.isfinite(wave) & np.isfinite(fwhm)
+                    & (wave > 0) & (fwhm > 0))
+            if good.sum() < 100:
+                continue
+            wave_g, fwhm_g = wave[good], fwhm[good]
+            srt = np.argsort(wave_g)
+            wave_g, fwhm_g = wave_g[srt], fwhm_g[srt]
+            dlam = float(np.median(np.diff(wave_g)))
+            if not np.isfinite(dlam) or dlam <= 0:
+                continue
+            w_lo, w_hi = float(wave_g[0]), float(wave_g[-1])
+            sigs = []
+            for lw in line_waves:
+                if lw < w_lo or lw > w_hi:
+                    continue
+                fwhm_aa = float(np.interp(lw, wave_g, fwhm_g))
+                sig_px = (fwhm_aa / 2.355) / dlam
+                if 0.3 <= sig_px <= 3.0:
+                    sigs.append(sig_px)
+            if sigs:
+                fiber_sig[id(sobj)] = float(np.median(sigs))
+        return fiber_sig
 
-            sobj.BOX_COUNTS_SKY = sky_spec.copy()
-            sobj.BOX_COUNTS = sobj.BOX_COUNTS - sky_spec
+    def _broaden_sky_per_fiber(self, sobjs, fiber_sig, threshold_pix=0.2):
+        """
+        Gaussian-convolve each fiber's predicted 1D sky to its observed LSF.
 
-        return self._reconstruct_fiber_skymodel(sobjs)
+        Reference sigma is the median over **science** fibers (the dominant
+        population in the joint bspline fit, so the model sits closest to
+        their LSF).  Each fiber whose own sigma exceeds the reference is
+        broadened by ``sqrt(sig_fiber^2 - sig_ref^2)`` in row-index space
+        (one row = one spectral pixel), only applied above ``threshold_pix``
+        (default 0.2 px, matches the IDL pipeline).
+        ``scipy.ndimage.gaussian_filter1d`` is flux-preserving so per-fiber
+        total sky counts are conserved.
+        """
+        from scipy.ndimage import gaussian_filter1d
 
-    def _reconstruct_fiber_skymodel(self, sobjs):
-        """Reconstruct a per-pixel sky image from 1D fiber sky spectra.
+        sci_sigs = []
+        for sobj in sobjs:
+            sig = fiber_sig.get(id(sobj))
+            if sig is None:
+                continue
+            name = sobj.MASKDEF_OBJNAME
+            if name is None or not str(name).upper().startswith('SKY'):
+                sci_sigs.append(sig)
+        if sci_sigs:
+            sig_ref = float(np.median(sci_sigs))
+            ref_src = f"median of {len(sci_sigs)} sci fibers"
+        else:
+            sig_ref = float(np.min(list(fiber_sig.values())))
+            ref_src = f"min of {len(fiber_sig)} fibers (no sci available)"
 
-        ``BOX_COUNTS_SKY`` is an extracted 1D sky spectrum in flat-corrected
-        fiber-flux units.  The spec2d ``SKYMODEL`` image should instead be in
-        the same per-pixel units as ``SCIIMG`` for diagnostics, so distribute
-        each fiber's sky flux over its extraction aperture and undo the 1D flat
-        correction when available.
+        n_broad = 0
+        deltas = []
+        for sobj in sobjs:
+            sig = fiber_sig.get(id(sobj))
+            if sig is None or sobj.BOX_COUNTS_SKY is None:
+                continue
+            diff_sq = sig ** 2 - sig_ref ** 2
+            if diff_sq <= 0:
+                deltas.append(0.0)
+                continue
+            sig_broad = float(np.sqrt(diff_sq))
+            deltas.append(sig_broad)
+            if sig_broad < threshold_pix:
+                continue
+            sobj.BOX_COUNTS_SKY = gaussian_filter1d(
+                sobj.BOX_COUNTS_SKY, sigma=sig_broad, mode='nearest')
+            n_broad += 1
+        arr = np.asarray(deltas)
+        if arr.size:
+            log.info(
+                f"Per-fiber LSF broadening: ref_sig={sig_ref:.3f} px "
+                f"({ref_src}); broadened {n_broad}/{arr.size} fibers "
+                f"(threshold {threshold_pix} px); delta_sig "
+                f"median={float(np.median(arr)):.3f} px "
+                f"max={float(arr.max()):.3f} px")
+
+    def _refine_fiber_wavelengths(self, sobjs, sset, wave_min, wave_max,
+                                  search_pix=1.5, probe_pix=0.05,
+                                  relinearize_pix=0.3,
+                                  min_npts=100):
+        """
+        Per-fiber wavelength refinement against the first-pass bspline.
+
+        For spectrographs with many fibers, performing a full wavelength
+        calibration for each fiber is very time-consuming. As an optimization,
+        fibers that are closely spaced are grouped into "blocks" and share
+        a common wavelength solution derived from the arc lines. Tilt-fitting
+        is used to capture the intra-block variation, but the per-block solution still
+        leaves ~0.2 px (1 sigma) of
+        per-fiber offset within a block.  Pooling fibers with mismatched
+        wavelengths smears the bspline at sharp OH lines and shows up as
+        a dipole residual on each fiber's bright lines.
+
+        For each fiber, locally linearize the bspline in pixel-shift
+        ``Delta-p`` via a one-sided finite difference of width
+        ``probe_pix``: ``dbase/dp = (base(lambda + probe*dlam) - base) /
+        probe``.  Minimizing the weighted chi2
+
+            chi2(Delta-p) = sum_i w_i^2 (r_i - Delta-p * dbase/dp_i)^2
+
+        in closed form gives
+
+            Delta-p = sum w_i^2 dbase/dp_i r_i / sum w_i^2 (dbase/dp_i)^2,
+
+        where ``w_i^2 = (dbase/dp_i)^2 * ivar_i`` -- the same
+        gradient-weighted norm the legacy grid scan used (continuum rows
+        contribute nothing; line wings dominate; source flux on sci fibers
+        averages out because dbase/dp swaps sign across each line peak).
+        If the first-pass shift exceeds ``relinearize_pix`` the
+        linearization is repeated centered on the new estimate; one Newton
+        step is enough for the largest shifts seen in practice (<= 0.7 px
+        with knot spacing ~0.8 px).  The whole solve costs 2--4 bspline
+        evaluations per fiber instead of the 60+ required by a grid scan.
 
         Parameters
         ----------
         sobjs : :class:`~pypeit.specobjs.SpecObjs`
-            Fiber objects with populated ``BOX_COUNTS_SKY``.
+            Fiber SpecObjs from the first pass; ``BOX_WAVE`` is updated in
+            place.
+        sset : :class:`~pypeit.bspline.bspline.bspline`
+            First-pass bspline.
+        wave_min, wave_max : float
+            Valid wavelength range for the bspline.
+        search_pix : float, optional
+            Maximum allowed ``|Delta-p|``; the solve is clipped to this.
+        probe_pix : float, optional
+            Pixel offset used for the finite-difference derivative.
+        relinearize_pix : float, optional
+            If ``|Delta-p|`` from the first solve exceeds this, re-linearize
+            around the new estimate and re-solve.
+        min_npts : int, optional
+            Skip fibers with fewer good rows than this.
+        """
+        shifts = []
+        n_skip_box = n_skip_npts = n_skip_dlam = n_skip_signal = 0
+        for sobj in sobjs:
+            if sobj.BOX_WAVE is None or sobj.BOX_COUNTS is None:
+                n_skip_box += 1
+                continue
+            thru = float(getattr(sobj, 'fiber_throughput', 1.0) or 1.0)
+            if not np.isfinite(thru) or thru <= 0:
+                thru = 1.0
+            good = ((sobj.BOX_WAVE > wave_min)
+                    & (sobj.BOX_WAVE < wave_max)
+                    & np.isfinite(sobj.BOX_COUNTS)
+                    & np.isfinite(sobj.BOX_COUNTS_IVAR)
+                    & (sobj.BOX_COUNTS_IVAR > 0))
+            if sobj.BOX_MASK is not None:
+                good &= sobj.BOX_MASK
+            if int(np.sum(good)) < min_npts:
+                n_skip_npts += 1
+                continue
+
+            wave = sobj.BOX_WAVE[good].astype(float)
+            data = sobj.BOX_COUNTS[good].astype(float) / thru
+            ivar = sobj.BOX_COUNTS_IVAR[good].astype(float) * thru**2
+            x2 = np.full(int(good.sum()),
+                         float(sobj.SPAT_PIXPOS) /
+                         self.sciImg.image.shape[1])
+
+            dlam = float(np.median(np.diff(np.sort(wave))))
+            if not np.isfinite(dlam) or dlam <= 0:
+                n_skip_dlam += 1
+                continue
+
+            delta = self._solve_fiber_shift(
+                sset, wave, data, ivar, x2, dlam, probe_pix, center=0.0)
+            if delta is None:
+                n_skip_signal += 1
+                continue
+
+            # The linearization is around delta=0; if the first-pass
+            # estimate moves the center far enough that local curvature
+            # matters, re-linearize there and add the Newton correction.
+            if abs(delta) > relinearize_pix:
+                delta2 = self._solve_fiber_shift(
+                    sset, wave, data, ivar, x2, dlam, probe_pix,
+                    center=delta)
+                if delta2 is not None:
+                    delta = delta + delta2
+
+            delta = float(np.clip(delta, -search_pix, search_pix))
+            shift_AA = delta * dlam
+            sobj.BOX_WAVE = sobj.BOX_WAVE + shift_AA
+            # Cache the shift so FiberExtract can re-apply it after
+            # extract_boxcar/extract_optimal overwrite BOX_WAVE/OPT_WAVE
+            # from the global wavelength image -- the extracted spectrum
+            # then shares the same per-fiber wavelength solution that the
+            # joint sky model was built against.
+            sobj.wave_refine_shift_AA = shift_AA
+            shifts.append(delta)
+
+        skipped = (f"skipped: box={n_skip_box} npts={n_skip_npts} "
+                   f"dlam={n_skip_dlam} signal={n_skip_signal}")
+        if shifts:
+            arr = np.array(shifts)
+            log.info(
+                f"Fiber wavelength refinement: N={arr.size} refined / "
+                f"{len(sobjs)} total ({skipped}); "
+                f"median={np.median(arr):+.3f}px "
+                f"mean={np.mean(arr):+.3f}px "
+                f"std={np.std(arr):.3f}px "
+                f"range=({arr.min():+.3f}, {arr.max():+.3f})px")
+        else:
+            log.warning(f"Fiber wavelength refinement: no fibers refined "
+                        f"({skipped})")
+
+    @staticmethod
+    def _solve_fiber_shift(sset, wave, data, ivar, x2, dlam, probe_pix,
+                           center):
+        """
+        Closed-form WLS solve for the per-fiber Delta-pixel shift.
+
+        Linearizes the bspline around ``center`` (in pixel units) via a
+        one-sided finite-difference derivative of width ``probe_pix``, then
+        returns the Delta-p that minimizes
+        ``sum w_i^2 (r_i - Delta-p * dbase/dp_i)^2`` with weights
+        ``w_i^2 = (dbase/dp_i)^2 * ivar_i``.  Returns ``None`` if the model
+        has no gradient on this fiber (e.g. continuum-only after masking)
+        or the system is otherwise ill-conditioned.
+
+        Parameters
+        ----------
+        sset : :class:`~pypeit.bspline.bspline.bspline`
+            The reference (joint) bspline being refined against.
+        wave : :class:`numpy.ndarray`
+            Per-row wavelength of the fiber's boxcar spectrum (good rows
+            only).
+        data : :class:`numpy.ndarray`
+            Throughput-corrected per-row counts.
+        ivar : :class:`numpy.ndarray`
+            Throughput-corrected per-row inverse variance.
+        x2 : :class:`numpy.ndarray`
+            Normalized spatial coordinate fed to ``sset.value`` for the
+            Legendre dependence.
+        dlam : float
+            Local wavelength dispersion (A / pixel).
+        probe_pix : float
+            Finite-difference step (in pixels) used to estimate
+            ``dbase/dp``.
+        center : float
+            Pixel offset (relative to the input ``wave``) at which to
+            linearize.
 
         Returns
         -------
-        sky_2d : `numpy.ndarray`_
-            Per-pixel diagnostic sky model matching ``self.sciImg.image``.
+        float or None
+            The closed-form Delta-p that adds to ``center`` to give the
+            estimated shift, or ``None`` if the solve was degenerate.
+        """
+        base, _ = sset.value(wave + center * dlam, x2=x2)
+        base_plus, _ = sset.value(
+            wave + (center + probe_pix) * dlam, x2=x2)
+        dbase = (base_plus - base) / probe_pix
+        # weight^2 = (dbase/dp)^2 * ivar; matches the legacy
+        # grad*sqrt(ivar) weighting (the 1/dlam^2 conversion factor cancels
+        # in numer/denom so we drop it).
+        w2 = (dbase ** 2) * np.where(ivar > 0, ivar, 0.0)
+        denom = float(np.sum(w2 * dbase ** 2))
+        if not np.isfinite(denom) or denom <= 0:
+            return None
+        numer = float(np.sum(w2 * dbase * (data - base)))
+        delta = numer / denom
+        return float(delta) if np.isfinite(delta) else None
+
+    def _stamp_skymodel_uniform(self, sobjs):
+        """
+        Build a 2D SKYMODEL by stamping per-row sky totals uniformly.
+
+        Fallback when an empirical flat profile is unavailable.  For each
+        fiber, every pixel in the row's aperture gets ``sky_spec[row] /
+        n_aperture_pixels``; the per-row sum still equals ``sky_spec[row]``
+        so boxcar extraction recovers the correct sky.
         """
         nspec, nspat = self.sciImg.image.shape
-        sky_sum = np.zeros((nspec, nspat), dtype=float)
-        sky_wgt = np.zeros((nspec, nspat), dtype=float)
+        sky_model = np.zeros_like(self.sciImg.image)
+        slitmask = self.slits.slit_img(
+            pad=0, flexure=self.spat_flexure_shift)
         spat_pix = np.arange(nspat)
-        slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
-
         for sobj in sobjs:
             sky_spec = sobj.BOX_COUNTS_SKY
-            if sky_spec is None or sobj.TRACE_SPAT is None or sobj.BOX_R_PIX is None:
+            if sky_spec is None or sobj.TRACE_SPAT is None \
+                    or sobj.BOX_R_PIX is None:
                 continue
-
-            if getattr(sobj, 'flat_corr', None) is not None \
-                    and np.shape(sobj.flat_corr) == np.shape(sky_spec):
-                sky_spec = sky_spec * sobj.flat_corr
-
-            rows = np.where(np.isfinite(sky_spec) & np.isfinite(sobj.TRACE_SPAT))[0]
+            rows = np.where(np.isfinite(sky_spec)
+                            & np.isfinite(sobj.TRACE_SPAT))[0]
             for row in rows:
-                in_aperture = (slitmask[row, :] == sobj.SLITID) \
-                    & (np.abs(spat_pix - sobj.TRACE_SPAT[row]) <= sobj.BOX_R_PIX)
+                # Allow aperture into unassigned pixels (inter-block gap),
+                # never into a different slit.  Matches the relaxed
+                # aperture used in extraction.
+                other_slit = ((slitmask[row, :] != sobj.SLITID)
+                              & (slitmask[row, :] != -1))
+                in_aperture = ((np.abs(spat_pix - sobj.TRACE_SPAT[row])
+                                <= sobj.BOX_R_PIX)
+                               & ~other_slit)
                 cols = np.where(in_aperture)[0]
                 if cols.size == 0:
                     continue
-
-                pix_sky = sky_spec[row] / cols.size
+                pix_sky = float(sky_spec[row]) / cols.size
                 if not np.isfinite(pix_sky):
                     continue
-                sky_sum[row, cols] += pix_sky
-                sky_wgt[row, cols] += 1.0
+                sky_model[row, cols] = pix_sky
+        return sky_model
 
-        sky_2d = np.zeros((nspec, nspat), dtype=float)
-        covered = sky_wgt > 0.0
-        sky_2d[covered] = sky_sum[covered] / sky_wgt[covered]
-        return sky_2d
+    def _get_sci_fiber_xy(self, sobjs):
+        """
+        Look up on-sky (x, y) in arcsec for each science fiber.
+
+        Used by :meth:`_fiber_global_skysub` to optionally exclude science
+        fibers within a configured radius of an IFU geometric center from
+        the joint sky fit.
+
+        Relies on the spectrograph exposing ``load_sky_layout()`` (returning
+        ``targetx, targety`` arrays in arcsec) and
+        ``get_science_fiber_layout_indices(det, fiber_ids, fiber_types)``.
+        Spectrographs that do not implement these get an empty mapping and
+        no exclusion is applied.
+
+        Parameters
+        ----------
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            Fiber SpecObjs with ``MASKDEF_ID`` and ``MASKDEF_OBJNAME`` set.
+
+        Returns
+        -------
+        :obj:`dict`
+            Mapping ``MASKDEF_ID -> (x_arcsec, y_arcsec)`` for science
+            fibers that resolve to a layout entry.  Empty if the lookup is
+            not supported.
+        """
+        spec = self.spectrograph
+        if not (hasattr(spec, 'load_sky_layout')
+                and hasattr(spec, 'get_science_fiber_layout_indices')):
+            return {}
+
+        try:
+            targetx, targety = spec.load_sky_layout()
+        except Exception as e:
+            log.warning(f"Could not load IFU sky layout for "
+                        f"sci_exclude_radius: {e}")
+            return {}
+
+        det = self.sciImg.detector.det
+        fiber_ids = np.array(
+            [int(s.MASKDEF_ID) if s.MASKDEF_ID is not None else -1
+             for s in sobjs], dtype=int)
+        fiber_types = np.array(
+            ['SKY' if (s.MASKDEF_OBJNAME is not None
+                       and str(s.MASKDEF_OBJNAME).upper().startswith('SKY'))
+             else 'SCI' for s in sobjs])
+
+        try:
+            layout_idx = spec.get_science_fiber_layout_indices(
+                det, fiber_ids, fiber_types)
+        except Exception as e:
+            log.warning(f"Could not map fibers to layout indices for "
+                        f"sci_exclude_radius: {e}")
+            return {}
+
+        xy = {}
+        for sobj, lidx in zip(sobjs, layout_idx):
+            if lidx is None or lidx < 0:
+                continue
+            if sobj.MASKDEF_ID is None:
+                continue
+            xy[int(sobj.MASKDEF_ID)] = (float(targetx[lidx]),
+                                        float(targety[lidx]))
+        return xy
+
+    def _load_flatimg(self):
+        """
+        Load the processed flat image used to build empirical fiber profiles.
+
+        Returns
+        -------
+        flatimg : `numpy.ndarray`_ or None
+            Processed flat image in detector-pixel space, or ``None`` if no
+            matching flat calibration is available.
+        """
+        from pypeit.flatfield import FlatImages
+
+        calib_dir = getattr(self.slits, 'calib_dir', None)
+        if calib_dir is None:
+            return None
+
+        files = sorted(Path(calib_dir).glob(f'Flat_*{self.detname}*.fits'))
+        if not files:
+            log.warning(f"No FlatImages found for {self.detname}; "
+                        "using uniform per-aperture sky stamps")
+            return None
+
+        log.info(f"Loading FlatImages from {files[0].name} for fiber profiles")
+        flat_images = FlatImages.from_file(files[0])
+        flat_raw = flat_images.pixelflat_raw
+        if flat_raw is None:
+            return None
+
+        if flat_images.pixelflat_norm is None:
+            return flat_raw.copy()
+
+        flatimg, _ = flat.flatfield(flat_raw, flat_images.pixelflat_norm)
+        return flatimg
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               manual_extract_dict=None,
@@ -1856,7 +2561,7 @@ class FiberFindObjects(SlicerIFUFindObjects):
         """
         Create one SpecObj per fiber within each block-slit.
 
-        For each block-slit, uses fiber positions from the spectrograph's
+        For each pseudo-slit, uses fiber positions from the spectrograph's
         reference profile to create SpecObjs at known fiber locations.
         FWHM and BOX_R_PIX are set from inter-fiber spacing so adjacent
         boxcar apertures touch but don't overlap.

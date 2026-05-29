@@ -371,11 +371,11 @@ class ProcessImagesPar(ParSet):
         defaults['spat_flexure_correct'] = False
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
-        
+
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
         descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
-        
+
         defaults['spat_flexure_sigdetect'] = 5.
         dtypes['spat_flexure_sigdetect'] = [int, float]
         descr['spat_flexure_sigdetect'] = 'Sigma threshold above fluctuations in the '  \
@@ -3592,7 +3592,7 @@ class EdgeTracePar(ParSet):
         descr['niter_gaussian'] = 'The number of iterations of ' \
                                   ':func:`~pypeit.core.trace.fit_trace` to use when using ' \
                                   'Gaussian weighting.'
-        
+
         defaults['min_edge_side_sep'] = 5.0
         dtypes['min_edge_side_sep'] = [int, float]
         descr['min_edge_side_sep'] = 'Minimum separation between same-side edges (e.g., the ' \
@@ -4513,7 +4513,8 @@ class SkySubPar(ParSet):
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
                  user_regions=None, joint_fit=None, mask_by_boxcar=None,
-                 no_local_sky=None, max_mask_frac=None, local_maskwidth=None):
+                 no_local_sky=None, max_mask_frac=None, local_maskwidth=None,
+                 joint_fit_use_sci=None, sci_exclude_radius=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4585,6 +4586,22 @@ class SkySubPar(ParSet):
         dtypes['local_maskwidth'] = float
         descr['local_maskwidth'] = 'Initial width of the region in units of FWHM that will be used for local sky subtraction'
 
+        defaults['joint_fit_use_sci'] = True
+        dtypes['joint_fit_use_sci'] = bool
+        descr['joint_fit_use_sci'] = 'Fiber pypeline only. When True, the global sky bspline is fit ' \
+                                     'jointly to dedicated sky fibers and science fibers, using the ' \
+                                     'standard iterative sigma rejection to down-weight pixels that ' \
+                                     'contain real source flux. When False, only fibers whose ' \
+                                     'MASKDEF_OBJNAME starts with "SKY" are used.'
+
+        defaults['sci_exclude_radius'] = 0.0
+        dtypes['sci_exclude_radius'] = [int, float]
+        descr['sci_exclude_radius'] = 'Fiber pypeline only. When > 0 and joint_fit_use_sci is True, ' \
+                                      'exclude from the joint sky fit any science fiber whose on-sky ' \
+                                      'position lies within this radius (in arcsec) of the instrument ' \
+                                      'geometric center. Use this when a bright extended object fills ' \
+                                      'the central science fibers.'
+
 
         # Instantiate the parameter set
         super(SkySubPar, self).__init__(list(pars.keys()),
@@ -4602,7 +4619,8 @@ class SkySubPar(ParSet):
         # Basic keywords
         parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly',
                    'user_regions', 'joint_fit', 'mask_by_boxcar',
-                   'no_local_sky', 'max_mask_frac', 'local_maskwidth']
+                   'no_local_sky', 'max_mask_frac', 'local_maskwidth',
+                   'joint_fit_use_sci', 'sci_exclude_radius']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
