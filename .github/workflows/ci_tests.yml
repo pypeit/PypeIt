@@ -1,10 +1,13 @@
 name: CI Tests
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
     - release
     - develop
+
   pull_request:
     types: [labeled]
 
