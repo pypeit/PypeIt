@@ -158,6 +158,20 @@ class Show2DSpec(scriptbase.ScriptBase):
         show_channels = [0,1,2,3] if args.channels is None \
                             else [int(item) for item in args.channels.split(',')]
 
+        # Detect spectrographs for which the object-trace and slit-edge
+        # overlays should be suppressed.  The MMT Binospec IFU produces >700
+        # fiber traces per exposure; overplotting them all makes the ginga
+        # display unusably slow (and uninformative), so they are skipped
+        # automatically.
+        try:
+            pyp_spec = fits.getval(args.file, 'PYP_SPEC', 0)
+        except (KeyError, OSError):
+            pyp_spec = None
+        show_overlays = pyp_spec != 'mmt_binospec_ifu'
+        if not show_overlays:
+            log.info('Detected MMT Binospec IFU spec2d; skipping object-trace '
+                     'and slit-edge overlays for performance (>700 fibers).')
+
         # Need to update clear throughout in case only some channels are being displayed
         _clear = args.clear
 
@@ -331,10 +345,11 @@ class Show2DSpec(scriptbase.ScriptBase):
             viewer, ch_sci = display.show_image(sciimg, chname=chname_sci, waveimg=waveimg, 
                                                 clear=_clear, cuts=(cut_min, cut_max))
             _clear=False
-            if sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_sci)
-            display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_sci)
+                display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_sci)
 
         # SKYSUB
@@ -349,10 +364,11 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                    waveimg=waveimg, clear=_clear, cuts=(cut_min, cut_max),
                                                    wcs_match=True)
             _clear = False
-            if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_skysub)
-            display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if not args.removetrace and sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_skysub)
+                display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_skysub)
 
         # TODO Place holder for putting in sensfunc
@@ -383,10 +399,11 @@ class Show2DSpec(scriptbase.ScriptBase):
             viewer, ch_sky_resids = display.show_image(image, chname_skyresids, waveimg=waveimg,
                                                        clear=_clear, cuts=(-5.0, 5.0))
             _clear = False
-            if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_sky_resids)
-            display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if not args.removetrace and sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_sky_resids)
+                display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_skyresids)
 
         # RESIDS
@@ -397,10 +414,11 @@ class Show2DSpec(scriptbase.ScriptBase):
             viewer, ch_resids = display.show_image(image, chname=chname_resids, waveimg=waveimg,
                                                    clear=_clear, cuts=(-5.0, 5.0), wcs_match=True)
             _clear = False
-            if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_resids)
-            display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if not args.removetrace and sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_resids)
+                display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_resids)
 
 
