@@ -320,6 +320,21 @@ def lacosmic_spatial_median_residual(image, median_width, varframe=None, bpm=Non
     per-row median, so slowly-varying structure along axis 1 is
     preserved in the residual.
 
+    This method works best for frames with small tilts, where the lines are
+    nearly horizontal and the row-local median can effectively capture the
+    line signal.  For frames with large tilts, the row-local median will
+    struggle to capture the line signal, and the residual image will be
+    dominated by line residuals rather than CR features, leading to many
+    false positives.  In that case, set ``median_width`` to :math:`\leq 1`
+    to disable the residual path and fall back to the standard L.A.Cosmic
+    approach.
+
+    Where this method is applicable, sensible ``median_width`` values are
+    typically in the range 21--51 pixels: large enough to span individual
+    emission lines (so the row-local median captures the line rather than
+    fighting it), but small enough that long, smooth CR features still stand
+    out against the row-local background.
+
     Args:
         image (`numpy.ndarray`_):
             2D image to process.
