@@ -421,7 +421,8 @@ class _ExtractGUI:
         import matplotlib.pyplot as plt
         from matplotlib.collections import PatchCollection
         from matplotlib.patches import Circle, RegularPolygon, Rectangle
-        from matplotlib.widgets import Button, RadioButtons, RangeSlider
+        from matplotlib.widgets import (Button, CheckButtons, RadioButtons,
+                                        RangeSlider)
 
         self._plt = plt
         self._PatchCollection = PatchCollection
@@ -429,6 +430,7 @@ class _ExtractGUI:
         self._Rectangle = Rectangle
         self._Circle = Circle
         self._Button = Button
+        self._CheckButtons = CheckButtons
         self._RadioButtons = RadioButtons
         self._RangeSlider = RangeSlider
 
@@ -462,6 +464,7 @@ class _ExtractGUI:
 
         # Selection state
         self.y_scale = 'linear'
+        self.mask_sky = False
         self.selection_shape = 'rectangle'
         self.selection_start = None
         self.selection_patch = None
@@ -519,6 +522,12 @@ class _ExtractGUI:
             self._plt.axes([0.77, 0.13, 0.08, 0.08]),
             ('Linear', 'Log'))
         self.yscale_radio.on_clicked(self._on_yscale_change)
+
+        # Sky-line masking toggle for the extracted-spectrum panel
+        self.skymask_check = self._CheckButtons(
+            self._plt.axes([0.86, 0.13, 0.12, 0.08]),
+            ['Mask Sky Lines'], [self.mask_sky])
+        self.skymask_check.on_clicked(self._on_skymask_change)
 
         # Wavelength range slider
         self.wave_slider = self._RangeSlider(
@@ -612,6 +621,8 @@ class _ExtractGUI:
         self.ax_spectrum.set_xlim(lo, hi)
         in_window = ((self.extracted_wave >= lo)
                      & (self.extracted_wave <= hi))
+        if self.mask_sky:
+            in_window &= ~_sky_line_mask(self.extracted_wave)
         flux = self.extracted_flux[in_window]
         flux = flux[np.isfinite(flux)]
         if self.y_scale == 'log':
@@ -658,11 +669,13 @@ class _ExtractGUI:
         self.fig.canvas.draw()
 
     def _draw_spectrum(self) -> None:
-        """Redraw the extracted spectrum honoring the current y-axis scale.
+        """Redraw the extracted spectrum honoring the current display toggles.
 
         On a log scale, non-positive flux values (e.g. sky-subtraction
         residuals) are masked so they neither appear in the trace nor
-        distort the axis limits.
+        distort the axis limits.  When sky-line masking is enabled, pixels
+        within ``_SKY_LINE_MASK_HALFWIDTH`` of a line in
+        ``_SKY_LINE_WAVELENGTHS`` are likewise masked.
         """
         if self.extracted_wave is None:
             return
@@ -692,6 +705,14 @@ class _ExtractGUI:
             lower = np.where(bad, np.nan, np.maximum(lower, 1e-300))
             upper = np.where(bad, np.nan, upper)
 
+        if self.mask_sky:
+            # Blank out sky-line regions so residuals there don't clutter
+            # the displayed trace.  The saved spectrum is unaffected.
+            sky = _sky_line_mask(wave)
+            plot_flux = np.where(sky, np.nan, plot_flux)
+            lower = np.where(sky, np.nan, lower)
+            upper = np.where(sky, np.nan, upper)
+
         self.ax_spectrum.clear()
         self.ax_spectrum.set_yscale(self.y_scale)
         self.ax_spectrum.plot(wave, plot_flux, lw=0.8)
@@ -710,6 +731,12 @@ class _ExtractGUI:
         else:
             self._draw_spectrum()
         self.fig.canvas.draw()
+
+    def _on_skymask_change(self, label: str) -> None:
+        self.mask_sky = bool(self.skymask_check.get_status()[0])
+        if self.extracted_wave is not None:
+            self._draw_spectrum()
+            self.fig.canvas.draw()
 
     def _on_save(self, event) -> None:
         from pypeit import log
