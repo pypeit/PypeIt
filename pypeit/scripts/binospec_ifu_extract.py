@@ -461,6 +461,7 @@ class _ExtractGUI:
             self.waves, self.fluxes, self.wave_min, self.wave_max)
 
         # Selection state
+        self.y_scale = 'linear'
         self.selection_shape = 'rectangle'
         self.selection_start = None
         self.selection_patch = None
@@ -512,6 +513,12 @@ class _ExtractGUI:
             self._plt.axes([0.68, 0.22, 0.08, 0.10]),
             ('Rectangle', 'Circle', 'Click Fibers'))
         self.radio.on_clicked(self._on_shape_change)
+
+        # Y-axis scale radio for the extracted-spectrum panel
+        self.yscale_radio = self._RadioButtons(
+            self._plt.axes([0.77, 0.13, 0.08, 0.08]),
+            ('Linear', 'Log'))
+        self.yscale_radio.on_clicked(self._on_yscale_change)
 
         # Wavelength range slider
         self.wave_slider = self._RangeSlider(
@@ -607,7 +614,14 @@ class _ExtractGUI:
                      & (self.extracted_wave <= hi))
         flux = self.extracted_flux[in_window]
         flux = flux[np.isfinite(flux)]
-        if flux.size:
+        if self.y_scale == 'log':
+            # Log axis cannot represent non-positive flux; ignore it when
+            # setting the limits (it is also masked from the plotted data).
+            flux = flux[flux > 0]
+            if flux.size:
+                fmin, fmax = float(flux.min()), float(flux.max())
+                self.ax_spectrum.set_ylim(fmin / 1.5, fmax * 1.5)
+        elif flux.size:
             fmin, fmax = float(flux.min()), float(flux.max())
             pad = 0.05 * (fmax - fmin) if fmax > fmin else max(abs(fmax), 1.0)
             self.ax_spectrum.set_ylim(fmin - pad, fmax + pad)
@@ -640,23 +654,61 @@ class _ExtractGUI:
         self.fiber_mask = np.zeros(self.nspec, dtype=bool)
         self.fiber_mask[idxs] = True
 
-        self.ax_spectrum.clear()
-        self.ax_spectrum.plot(wave, flux, lw=0.8)
+        self._draw_spectrum()
+        self.fig.canvas.draw()
+
+    def _draw_spectrum(self) -> None:
+        """Redraw the extracted spectrum honoring the current y-axis scale.
+
+        On a log scale, non-positive flux values (e.g. sky-subtraction
+        residuals) are masked so they neither appear in the trace nor
+        distort the axis limits.
+        """
+        if self.extracted_wave is None:
+            return
+        wave = self.extracted_wave
+        flux = self.extracted_flux
+        ivar = self.extracted_ivar
+
         # Clamp tiny-ivar pixels so the envelope doesn't blow up the y-axis.
         sigma_raw = np.where(ivar > 0,
-                              1.0 / np.sqrt(np.maximum(ivar, 1e-300)),
-                              np.nan)
+                             1.0 / np.sqrt(np.maximum(ivar, 1e-300)),
+                             np.nan)
         med_sig = float(np.nanmedian(sigma_raw)) if np.any(ivar > 0) else 0.0
         sigma = np.where(np.isfinite(sigma_raw)
                           & (sigma_raw < 10.0 * med_sig),
                           sigma_raw, 0.0)
-        self.ax_spectrum.fill_between(wave, flux - sigma, flux + sigma,
-                                       alpha=0.3)
+
+        plot_flux = flux
+        lower = flux - sigma
+        upper = flux + sigma
+        if self.y_scale == 'log':
+            # Mask non-positive flux: a log axis cannot represent it.  The
+            # lower error envelope is clamped to a small positive value so
+            # matplotlib does not drop the band where flux > 0 but
+            # flux - sigma <= 0.
+            bad = ~(flux > 0)
+            plot_flux = np.where(bad, np.nan, flux)
+            lower = np.where(bad, np.nan, np.maximum(lower, 1e-300))
+            upper = np.where(bad, np.nan, upper)
+
+        self.ax_spectrum.clear()
+        self.ax_spectrum.set_yscale(self.y_scale)
+        self.ax_spectrum.plot(wave, plot_flux, lw=0.8)
+        self.ax_spectrum.fill_between(wave, lower, upper, alpha=0.3)
         self.ax_spectrum.set_xlabel('Wavelength (Å)')
         self.ax_spectrum.set_ylabel('Flux')
-        self.ax_spectrum.set_title(f'Extracted Spectrum ({idxs.size} fibers)')
+        n_fib = int(self.fiber_mask.sum()) if self.fiber_mask is not None else 0
+        self.ax_spectrum.set_title(f'Extracted Spectrum ({n_fib} fibers)')
         self.ax_spectrum.grid(True, alpha=0.3)
         self._apply_spectrum_xlim()
+
+    def _on_yscale_change(self, label: str) -> None:
+        self.y_scale = label.lower()
+        if self.extracted_wave is None:
+            self.ax_spectrum.set_yscale(self.y_scale)
+        else:
+            self._draw_spectrum()
         self.fig.canvas.draw()
 
     def _on_save(self, event) -> None:
@@ -697,6 +749,7 @@ class _ExtractGUI:
 
         # Clear spectrum panel and extracted data.
         self.ax_spectrum.clear()
+        self.ax_spectrum.set_yscale(self.y_scale)
         self.ax_spectrum.set_xlabel('Wavelength (Å)')
         self.ax_spectrum.set_ylabel('Flux')
         self.ax_spectrum.set_title('Extracted Spectrum')
