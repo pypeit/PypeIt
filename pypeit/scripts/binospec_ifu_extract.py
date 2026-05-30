@@ -717,10 +717,35 @@ class _ExtractGUI:
         if self.extracted_wave is None:
             log.info("Nothing to save -- run Extract Spectrum first")
             return
+        outfile = self._default_save_path()
         _write_onespec(self.extracted_wave, self.extracted_flux,
                        self.extracted_ivar, self.raw_hdr, self.pyp_spec,
-                       self.outfile)
-        log.info(f"Wrote {self.outfile}")
+                       outfile)
+        log.info(f"Wrote {outfile}")
+
+    def _default_save_path(self) -> str:
+        """Return a non-clobbering default output path.
+
+        Starts from ``self.outfile`` (``..._<base>.fits``) and inserts a
+        two-digit counter before the extension (``..._<base>_00.fits``),
+        incrementing the counter until a path that does not already exist on
+        disk is found.
+
+        Returns
+        -------
+        str
+            The first ``..._<NN>.fits`` path (NN starting at ``00``) that does
+            not yet exist.
+        """
+        import os
+
+        root, ext = os.path.splitext(self.outfile)
+        n = 0
+        while True:
+            candidate = f"{root}_{n:02d}{ext}"
+            if not os.path.exists(candidate):
+                return candidate
+            n += 1
 
     def _on_reset(self, event) -> None:
         self.selected_region = None
