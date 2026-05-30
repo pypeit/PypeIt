@@ -212,7 +212,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     initial_guess = (1, _init_obj_position[0], _init_obj_position[1], fwhm*fwhm2sigma, fwhm*fwhm2sigma, 0, 0)
     bounds = ([0,      _init_obj_position[0]-fwhm/3.0, _init_obj_position[1]-fwhm/3.0, fwhm/6.0, fwhm/6.0, -np.pi, -np.inf],
               [np.inf, _init_obj_position[0]+fwhm/3.0, _init_obj_position[1]+fwhm/3.0, fwhm    , fwhm    , np.pi , np.inf])
-    print(_init_obj_position[0], _init_obj_position[1])
+
     # Perform the fit
     # TODO :: May want to generate the image on a finer pixel scale first
     # TODO JFH: The 2D Gaussian fitting should be using the noise and the gpm. This should be
@@ -557,7 +557,7 @@ def extract_point_source(
         skyspec *= utils.inverse(nrmsky)
         _flxcube -= skyspec.reshape((numwave, 1, 1))
         # Now subtract the residual sky from the white light image
-        sky_val = np.sum(wl_img[np.newaxis, :, :] * smask) / np.sum(smask)
+        sky_val = np.sum(wl_img[None, :, :] * smask) / np.sum(smask)
         wl_img -= sky_val
     else: 
         log.info("The residual sky will not be subtracted")
@@ -566,7 +566,7 @@ def extract_point_source(
     log.info("Extracting a boxcar spectrum of datacube")
     # Construct an image that contains the fraction of flux included in the
     # boxcar extraction at each wavelength interval
-    norm_flux = wl_img[np.newaxis,:,:] * mask
+    norm_flux = wl_img[None,:,:] * mask
     norm_flux /= np.sum(norm_flux)
     # Extract boxcar
     cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
