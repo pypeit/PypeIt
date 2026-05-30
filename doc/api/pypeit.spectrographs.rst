@@ -49,6 +49,7 @@ Submodules
    pypeit.spectrographs.util
    pypeit.spectrographs.vlt_fors
    pypeit.spectrographs.vlt_sinfoni
+   pypeit.spectrographs.vlt_uves
    pypeit.spectrographs.vlt_xshooter
    pypeit.spectrographs.wht_isis
 
@@ -58,5 +59,5 @@ Module contents
 .. automodule:: pypeit.spectrographs
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

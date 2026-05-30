@@ -16,5 +16,5 @@ Module contents
 .. automodule:: pypeit.bspline
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

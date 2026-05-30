@@ -1,9 +1,10 @@
 .. code-block:: console
 
     $ pypeit_obslog -h
-    usage: pypeit_obslog [-h] [-r ROOT] [-k] [-c COLUMNS] [-b] [-t BAD_TYPES] [-g]
-                         [-i] [-s SORT] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
-                         [-f FILE] [-G]
+    usage: pypeit_obslog [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                         [--log_level LOG_LEVEL] [-r ROOT] [-k] [-c COLUMNS] [-b]
+                         [-t BAD_TYPES] [-g] [-i] [-s SORT] [-e EXTENSION]
+                         [-d OUTPUT_PATH] [-o] [-f FILE]
                          spec
     
     Construct an observing log for a set of files from the provided spectrograph
@@ -31,11 +32,24 @@
                             p200_ngps_r, p200_tspec, shane_kast_blue,
                             shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
                             soar_goodman_red, subaru_focas, tng_dolores, vlt_fors2,
-                            vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
-                            vlt_xshooter_vis, wht_isis_blue, wht_isis_red
+                            vlt_sinfoni, vlt_uves_blue, vlt_uves_red,
+                            vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
+                            wht_isis_blue, wht_isis_red
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: None)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
       -r, --root ROOT       Root to search for data files. You can provide the top-
                             level directory (e.g., /data/Kast) or the search string
                             up through the wildcard (.e.g, /data/Kast/b). Use the
@@ -98,5 +112,4 @@
                             always written in ascii format using
                             format=ascii.fixed_with for the call to
                             Astropy.table.Table.write . (default: None)
-      -G, --gui             View the obs log in a GUI (default: False)
     

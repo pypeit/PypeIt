@@ -1,7 +1,8 @@
 .. code-block:: console
 
     $ pypeit_ql -h
-    usage: pypeit_ql [-h] [--raw_files RAW_FILES [RAW_FILES ...]]
+    usage: pypeit_ql [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                     [--log_level LOG_LEVEL] [--raw_files RAW_FILES [RAW_FILES ...]]
                      [--raw_path RAW_PATH] [--sci_files SCI_FILES [SCI_FILES ...]]
                      [--redux_path REDUX_PATH] [--parent_calib_dir PARENT_CALIB_DIR]
                      [--setup_calib_dir SETUP_CALIB_DIR] [--clear_science]
@@ -39,11 +40,24 @@
                             p200_ngps_r, p200_tspec, shane_kast_blue,
                             shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
                             soar_goodman_red, subaru_focas, tng_dolores, vlt_fors2,
-                            vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
-                            vlt_xshooter_vis, wht_isis_blue, wht_isis_red
+                            vlt_sinfoni, vlt_uves_blue, vlt_uves_red,
+                            vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
+                            wht_isis_blue, wht_isis_red
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: None)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
       --raw_files RAW_FILES [RAW_FILES ...]
                             Either a PypeIt-formatted input file with the list of
                             raw images to process and the relevant path, or a space-

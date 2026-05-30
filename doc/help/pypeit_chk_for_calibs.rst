@@ -1,8 +1,9 @@
 .. code-block:: console
 
     $ pypeit_chk_for_calibs -h
-    usage: pypeit_chk_for_calibs [-h] [-s SPECTROGRAPH] [-e EXTENSION]
-                                 [--save_setups]
+    usage: pypeit_chk_for_calibs [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                                 [--log_level LOG_LEVEL] [-s SPECTROGRAPH]
+                                 [-e EXTENSION] [--save_setups]
                                  root
     
     Script to check for calibrations
@@ -12,6 +13,18 @@
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: None)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
       -s, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: aat_uhrf, apf_levy,
                             bok_bc, gemini_flamingos1, gemini_flamingos2,
@@ -34,9 +47,9 @@
                             p200_ngps_r, p200_tspec, shane_kast_blue,
                             shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
                             soar_goodman_red, subaru_focas, tng_dolores, vlt_fors2,
-                            vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
-                            vlt_xshooter_vis, wht_isis_blue, wht_isis_red (default:
-                            None)
+                            vlt_sinfoni, vlt_uves_blue, vlt_uves_red,
+                            vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
+                            wht_isis_blue, wht_isis_red (default: None)
       -e, --extension EXTENSION
                             File extension to use. Must include the period (e.g.,
                             ".fits") and it must be one of the allowed extensions
