@@ -898,9 +898,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 same shape as `img`. If None, all pixels are assumed
                 to be valid.
         """
-        msgs.info('-'*50)
-        msgs.info(f'{"Initialize Edge Tracing":^50}')
-        msgs.info('-'*50)
+        log.info('-'*50)
+        log.info(f'{"Initialize Edge Tracing":^50}')
+        log.info('-'*50)
 
         if self.traceid is not None:
             # Clear all pre-existing trace data
