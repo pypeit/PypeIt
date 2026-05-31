@@ -98,6 +98,7 @@ Additional Reading
 
 Here are additional docs relevant to reducing SOAR/TripleSpec data:
 
+- :doc:`../tutorials/soar_triplespec_howto` -- a full worked example reduction.
 - :doc:`../calibrations/wave_calib`
 - :doc:`../calibrations/flat`
 - :doc:`../A-B_differencing`
