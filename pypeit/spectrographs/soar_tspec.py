@@ -166,7 +166,15 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'reidentify'
 
         # Reidentification parameters
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_triplespec.fits'
+        # Native SOAR/TripleSpec arxiv (all 5 orders, 7->3, ~8000-24700 A).  It was
+        # bootstrapped from the P200 TripleSpec arxiv: with that arxiv the reddest
+        # order (order 3, K band) cross-correlated at cc ~= 0.66 -- just below the
+        # default cc_thresh -- so a one-off run with cc_thresh=0.60 was used to
+        # solve all 5 orders, and the resulting per-order OH-sky spectra + solutions
+        # were compiled into this arxiv (see pypeit/data/arc_lines/reid_arxiv).
+        # With the native arxiv every order self-reidentifies at high cc, so the
+        # default cc_thresh is fine and no override is needed.
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_triplespec.fits'
 #        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
