@@ -1,3 +1,5 @@
+.. _soar_triplespec:
+
 ***************
 SOAR TripleSpec
 ***************

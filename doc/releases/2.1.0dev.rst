@@ -13,6 +13,8 @@ Documentation Updates
 - Updated the Setup GUI tutorial to reflect the new look of the GUI.
 - Modified the ``update_docs`` script to allow the docs to be built without
   access to ``$PYPEIT_DEV/RAW_DATA``.
+- Added a :ref:`spectrograph page <soar_triplespec>` and a worked-example
+  :ref:`tutorial <soar_triplespec_howto>` for SOAR/TripleSpec.
 
 Dependency Changes
 ------------------
@@ -45,6 +47,11 @@ Instrument-specific Updates
   :func:`~pypeit.core.wavecal.templates.build_template` with continuum
   subtraction on the new segment.
 - Implemented support for VLT/UVES data reduction.
+- Added support for the SOAR/TripleSpec near-IR echelle spectrograph
+  (``soar_tspec``), reduced via the Echelle pipeline over all five orders
+  (orders 7--3, ~0.8--2.47 microns).  Wavelength calibration uses OH sky lines
+  from the science frames and a new native ``soar_triplespec.fits`` reid
+  archive.
 
 Script Changes
 --------------
