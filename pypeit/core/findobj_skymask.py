@@ -232,8 +232,9 @@ def ech_findobj_ineach_order(
             predict the traces. If None, the minimum and maximum values will be
             determined automatically from ``slitmask``.
         plate_scale_ord (`numpy.ndarray`_):
-            An array with shape (norders,) providing the plate 
-            scale of each order in arcsec/pix, 
+            An array with shape (norders,) providing the plate scale of each
+            order in arcsec/pix.  This is typically provided by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.order_platescale`.
         det (:obj:`str`, optional):
             The name of the detector containing the object.  Only used if
             ``specobj_dict`` is None.
@@ -260,8 +261,8 @@ def ech_findobj_ineach_order(
             user (see ``fwhm``) rather than determine the spatial FWHM from the
             smashed spatial profile via the automated algorithm.
         maxshift (:obj:`float`, optional):
-            Maximum shift allowed between the input and recalculated
-            centroid (see :func:`~pypeit.core.trace.fit_trace`).
+            Maximum shift [in pixels] allowed between the input and recalculated
+            trace centroid (see :func:`~pypeit.core.trace.fit_trace`).
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -337,7 +338,8 @@ def ech_findobj_ineach_order(
                 slit_left[:,iord], slit_righ[:,iord], 
                 spec_min_max=spec_min_max[:,iord],
                 inmask=inmask_iord,std_trace=std_in, 
-                ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev, maxshift=maxshift,
+                ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
+                maxshift=maxshift,
                 numiterfit=numiterfit, hand_extract_dict=hand_extract_dict,
                 nperslit=nperorder, extract_maskwidth=extract_maskwidth,
                 snr_thresh=snr_thresh, trim_edg=trim_edg, 
@@ -379,8 +381,9 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
             Vector identifying the Echelle orders for each pair of order edges
             found.
         plate_scale_ord (`numpy.ndarray`_):
-            An array with shape (norders,) providing the plate 
-            scale of each order in arcsec/pix, 
+            An array with shape (norders,) providing the plate scale of each
+            order in arcsec/pix.  This is typically provided by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.order_platescale`.
         fof_link (:obj:`float`, optional):
             Friends-of-friends linking length in arcseconds used to link
             together traces across orders. The routine links together at
@@ -498,8 +501,9 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             objects.  If the orders are not known, this can be 
             ``np.arange(norders)`` (but this is *not* recommended).
         plate_scale_ord (`numpy.ndarray`_):
-            An array with shape (norders,) providing the plate
-            scale of each order in arcsec/pix.
+            An array with shape (norders,) providing the plate scale of each
+            order in arcsec/pix.  This is typically provided by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.order_platescale`.
         obj_id (`numpy.ndarray`_):
             Object IDs of the objects linked together.
         std_trace (`astropy.table.Table`_, optional):
@@ -726,8 +730,9 @@ def ech_cutobj_on_snr(
         order_vec (`numpy.ndarray`_):
             :obj:`int` array of good orders 
         plate_scale_ord (`numpy.ndarray`_):
-            An array with shape (norders,) providing the plate 
-            scale of each order in arcsec/pix, 
+            An array with shape (norders,) providing the plate scale of each
+            order in arcsec/pix.  This is typically provided by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.order_platescale`.
         max_snr (:obj:`float`, optional):
             For an object to be included in the output object, it must have a
             max S/N ratio above this value.
@@ -1206,8 +1211,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
             user (see ``fwhm``) rather than determine the spatial FWHM from the
             smashed spatial profile via the automated algorithm.
         maxshift (:obj:`float`, optional):
-            Maximum shift allowed between the input and recalculated
-            centroid (see :func:`~pypeit.core.trace.fit_trace`).
+            Maximum shift [in pixels] allowed between the input and recalculated
+            trace centroid (see :func:`~pypeit.core.trace.fit_trace`).
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -1792,8 +1797,8 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             Box_car extraction radius *in pixels* to assign to each detected
             object and to be used later for boxcar extraction. 
         maxshift (:obj:`float`, optional):
-            Maximum shift allowed between the input and recalculated
-            centroid (see :func:`~pypeit.core.trace.fit_trace`).
+            Maximum shift [in pixels] allowed between the input and recalculated
+            trace centroid (see :func:`~pypeit.core.trace.fit_trace`).
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
