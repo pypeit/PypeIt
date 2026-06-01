@@ -1036,6 +1036,47 @@ def occurrences(inarr):
     return cnt[idx]
 
 
+def occurrences_sorted(inarr):
+    """ Calculate the sub-pixellation weights for a 2D array.
+
+    This function calculates the number of occurrences of each unique value in the 2D input array along one axis.
+
+    Parameters
+    ----------
+    inarr : ndarray
+        Input array. Must be 2D. The first axis is expected to be a large number of indices, N,
+        and the second axis is expected to be of length M, where M is the number of unique values in each row.
+        The function calculates the number of occurrences of each unique value along the first axis for each row.
+
+    Returns
+    -------
+    ndarray
+        Array of sub-pixellation weights.
+    """
+    n_rows, n_cols = inarr.shape
+
+    # Sort each row and find where values change
+    sorted_idx = np.argsort(inarr, axis=1, kind='stable')
+    sorted_vals = np.take_along_axis(inarr, sorted_idx, axis=1)
+
+    # Detect boundaries between different values within each row
+    boundaries = np.ones((n_rows, n_cols), dtype=bool)
+    boundaries[:, 1:] = sorted_vals[:, 1:] != sorted_vals[:, :-1]
+
+    # Use cumsum trick to count occurrences
+    counts = np.diff(np.where(boundaries.ravel())[0],
+                     append=n_rows * n_cols)
+
+    # Build output in sorted order, then unsort
+    result_sorted = np.repeat(counts, counts)  # each element gets its group's count
+
+    # Unsort back to original order
+    unsort_idx = np.argsort(sorted_idx, axis=1)
+    return np.take_along_axis(
+        result_sorted.reshape(n_rows, n_cols), unsort_idx, axis=1
+    ).ravel()
+
+
 def pyplot_rcparams():
     """
     params for pretty matplotlib plots

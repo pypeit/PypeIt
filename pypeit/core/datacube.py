@@ -5,6 +5,7 @@ Module containing routines used by 3D datacubes.
 """
 
 import os
+# import line_profiler
 
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
@@ -2164,7 +2165,7 @@ def generate_cube_subpixel(
     return flxcube, sigcube, bpmcube, normcube, wave
 
 
-
+# @line_profiler.profile
 def subpixellate(
     output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
     astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=5, spat_subpixel=5,
@@ -2385,7 +2386,7 @@ def subpixellate(
                 # Convert to a unique index
                 vox_index = np.dot(vox_index, np.array([1, outshape[0], outshape[0]*outshape[1]]))
                 # Calculate the number of repeated indices for each subpixel - this is the subpixel weights
-                subpix_wght = np.apply_along_axis(utils.occurrences, 1, vox_index).flatten()
+                subpix_wght = utils.occurrences_sorted(vox_index)
             # Reshape the voxel coordinates
             vox_coord = vox_coord.reshape(numpix * num_all_subpixels, 3)
             # Use the "fast histogram" algorithm, that assumes regular bin spacing
