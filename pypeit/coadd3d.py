@@ -1845,9 +1845,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     self.scidir, self.spec2d[ff], self.cubepar['output_filename'], False, idx=ff+1
                 )
                 # Generate the datacube       
-                
-                # TODO Put in a self.native flag to allow for the datacube to be generated in the native resolution
-                # of the data as it is currently being done in the load method?    
                 flxcube, sigcube, bpmcube, normcube, wave = \
                     datacube.generate_cube_subpixel(cube_wcs, vox_edges,
                                                     self.all_sci[ff], self.all_ivar[ff], self.all_wave[ff],
