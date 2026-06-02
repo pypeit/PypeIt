@@ -5,7 +5,7 @@ Module containing routines used by 3D datacubes.
 """
 
 import os
-# import line_profiler
+import line_profiler
 
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
@@ -2165,7 +2165,7 @@ def generate_cube_subpixel(
     return flxcube, sigcube, bpmcube, normcube, wave
 
 
-# @line_profiler.profile
+@line_profiler.profile
 def subpixellate(
     output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
     astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=5, spat_subpixel=5,
@@ -2287,6 +2287,8 @@ def subpixellate(
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     binrng = np.array([[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]])
+    voxscale = outshape / (binrng[:, 1] - binrng[:, 0])  # shape (3,)
+    voxoffset = binrng[:, 0] * voxscale  # shape (3,)
     flxcube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
     # Divide each pixel into subpixels
     spec_offs = np.arange(0.5/spec_subpixel, 1, 1/spec_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
@@ -2311,6 +2313,13 @@ def subpixellate(
         this_sci = _sciImg[fr][this_onslit_gpm]
         this_var = utils.inverse(_ivarImg[fr][this_onslit_gpm])
         this_wav = _waveImg[fr][this_onslit_gpm]
+        slshape = (this_slits.nspec, this_slits.nspat, slice_subpixel)
+        raimg_slc, decimg_slc = np.zeros(slshape, dtype=float), np.zeros(slshape, dtype=float)
+        for ss in range(slice_subpixel):
+            # Generate an RA/Dec image for this subslice
+            raimg_slc[:, :, ss], decimg_slc[:, :, ss], _ = this_slits.get_radec_image(
+                this_wcs, this_astrom_trans, this_tilts, slice_offset=slice_offs[ss]
+            )
         # Loop through all slits
         for sl, spatid in enumerate(this_slits.spat_id):
             if verbose:
@@ -2350,11 +2359,9 @@ def subpixellate(
                 if verbose and slice_subpixel > 1: 
                     # Only print this if there are multiple subslices
                     log.info(f"Resampling subslice {ss+1}/{slice_subpixel}")
-                # Generate an RA/Dec image for this subslice
-                raimg, decimg, delta_pix = this_slits.get_radec_image(this_wcs, this_astrom_trans, this_tilts,
-                                                                      slit_compute=sl, slice_offset=slice_offs[ss])
-                this_ra = raimg[this_onslit_gpm]
-                this_dec = decimg[this_onslit_gpm]
+                # Select the RA/Dec image for this subslice
+                this_ra = raimg_slc[:,:,ss][this_onslit_gpm]
+                this_dec = decimg_slc[:,:,ss][this_onslit_gpm]
                 # Interpolate the RA/Dec over the subpixel spatial positions
                 tmp_ra = this_ra[this_sl]
                 tmp_dec = this_dec[this_sl]
@@ -2381,8 +2388,9 @@ def subpixellate(
             else:
                 if verbose: 
                     log.info("Preparing subpixel weights")
-                vox_index = np.floor(outshape * (vox_coord - binrng[:,0].reshape((1, 1, 3))) /
-                                                (binrng[:,1] - binrng[:,0]).reshape((1, 1, 3))).astype(int)
+                vox_index = np.floor(vox_coord * voxscale - voxoffset).astype(int)
+                # vox_index = np.floor(outshape * (vox_coord - binrng[:,0].reshape((1, 1, 3))) /
+                #                                 (binrng[:,1] - binrng[:,0]).reshape((1, 1, 3))).astype(int)
                 # Convert to a unique index
                 vox_index = np.dot(vox_index, np.array([1, outshape[0], outshape[0]*outshape[1]]))
                 # Calculate the number of repeated indices for each subpixel - this is the subpixel weights
