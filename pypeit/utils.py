@@ -1522,6 +1522,30 @@ def linear_interpolate(x1, y1, x2, y2, x):
     return y1 if np.isclose(x1,x2) else y1 + (x-x1)*(y2-y1)/(x2-x1)
 
 
+def linear_interpolate_extrapolate(x, xp, fp):
+    """ Perform a linear interpolation on a set of points, but allow for extrapolation at the boundaries.
+
+    Parameters
+    ----------
+    x : `numpy.ndarray`_
+        Points to evaluate the linear interpolation at
+    xp : `numpy.ndarray`_
+        The x-coordinates of the data points, must be increasing
+    fp : `numpy.ndarray`_
+        The y-coordinates of the data points, must be increasing
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The interpolated/extrapolated values at the points in x
+    """
+    idx = np.searchsorted(xp, x, side='right').clip(1, len(xp) - 1)
+    x0, x1 = xp[idx - 1], xp[idx]
+    f0, f1 = fp[idx - 1], fp[idx]
+    slope = (f1 - f0) / (x1 - x0)
+    return f0 + slope * (x - x0)  # naturally extrapolates at boundaries
+
+
 def replace_bad(frame, bpm):
     """ Find all bad pixels, and replace the bad pixels with the nearest good pixel
 

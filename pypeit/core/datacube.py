@@ -2365,11 +2365,9 @@ def subpixellate(
                 # Interpolate the RA/Dec over the subpixel spatial positions
                 tmp_ra = this_ra[this_sl]
                 tmp_dec = this_dec[this_sl]
-                ra_spl = interp1d(spatpos[ssrt], tmp_ra[ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
-                dec_spl = interp1d(spatpos[ssrt], tmp_dec[ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
                 # Evaluate the RA/Dec at the subpixel spatial positions
-                this_ra_int = ra_spl(spatpos_subpix)
-                this_dec_int = dec_spl(spatpos_subpix)
+                this_ra_int = utils.linear_interpolate_extrapolate(spatpos_subpix, spatpos[ssrt], tmp_ra[ssrt])
+                this_dec_int = utils.linear_interpolate_extrapolate(spatpos_subpix, spatpos[ssrt], tmp_dec[ssrt])
                 # Now apply the DAR correction and any user-supplied offsets
                 this_ra_int += ra_corr + _ra_offset[fr]
                 this_dec_int += dec_corr + _dec_offset[fr]
