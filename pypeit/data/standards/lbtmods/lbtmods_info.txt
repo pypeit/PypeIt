@@ -1,27 +1,26 @@
 # This directory contains the 10-A bin flux tables for the original set of 
 # MODS spectrophotometric standards, which was quickly separated into 
-# Primary and Secondary priority, and the Secondary stars were soon 
+# Primary and Secondary standards, and the Secondary standards were soon 
 # removed because their spectra had features or gaps which inhibited
 # fits to the dichroic wiggles in the sensitivity function in dual grating mode.
-# The Primary list was further whittled down.
+# The Primary list has since been further whittled down.
 #
-# pypeit_sensfunc selects the tabulated flux table by coordinate matching 
+# pypeit_sensfunc selects the flux table by coordinate matching 
 # within catalogs searched in this order: 
 # ['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'lbtmods']
 #
-# Calspec spectra should be used in favor of the 10-A flux tables in lbtmods, 
-# except for Feige66, Feige67, HZ44 and BD+33 2642, whose calspec
-# spectra stop at 9200 angstroms and therefore do not cover the full MODS 
-# spectral range (3200-10500 angstroms).
-#
-# Hiltner 600 is also in the esofil and noao archives, but for MODS data reduction, use
-# the table in lbtmods.
+# The higher resolution calspec spectra should be used in favor of the 10-A flux 
+# tables in lbtmods, except for red channel spectra of Feige66, Feige67, HZ44 and 
+# BD+33 2642, where the calspec spectra stop at 9200 angstroms and do not cover the 
+# full MODS spectral range (3200-10500 angstroms). 
 #
 # GD140 (3200-10200A), Hiltner600 (3200-10200A), PG0823+546 (3200-10200) 
-# and Wolf1346 (3400-8370A) are in the noao archives also, but for MODS data reduction of Wolf 1346
-# use the table in lbtmods. For the others, either noao or lbtmods.
+# and Wolf1346 (3400-8370A) are in the noao archives also with spectral ranges
+# as indicated in parenthesis. The noao tables are binned at 50-Angstroms, and
+# for Wolf1346, the spectral range does not extend far enough to the blue or to the red.
 #
-# Use lbtmods for Feige66, Feige67, HZ44, BD+33 2642 and Hiltner 600.
+# Hiltner 600 is also in the esofil archives, but again only at 50-A bin resolution 
+# instead of 10-A for the lbtmods table. 
 #
 # 
 ## 
