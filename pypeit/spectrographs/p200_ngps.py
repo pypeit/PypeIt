@@ -26,6 +26,11 @@ header in the native readout frame and reoriented alongside the image.
 The U channel ships malformed ``DATASEC`` cards, so it falls back to the
 full native frame.
 
+For operational use at the telescope (whole-night ingestion, per-channel
+setup/reduction orchestration, and real-time quicklook products), see
+the separately maintained wrapper around these classes:
+https://github.com/cfremling/ngps_pipeline
+
 .. include:: ../include/links.rst
 """
 from pathlib import Path

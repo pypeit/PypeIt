@@ -27,6 +27,17 @@ PypeIt supports each of the four NGPS channels as its own spectrograph:
 All four channels share one raw multi-extension FITS file per
 exposure, with one image extension per channel keyed by ``EXTNAME``.
 
+Operational quicklook pipeline
+==============================
+
+The spectrograph classes documented here are the PypeIt-side foundation
+for NGPS reductions.  For *operational* use at the telescope — automatic
+ingestion of a full night of raw frames, per-channel
+``pypeit_setup``/``run_pypeit`` orchestration, and real-time quicklook
+products across all four u/g/r/i channels — see the separately
+maintained wrapper, `ngps_pipeline
+<https://github.com/cfremling/ngps_pipeline>`__.
+
 NGPS Reductions
 ===============
 
@@ -39,8 +50,10 @@ Each NGPS exposure is a single multi-extension FITS:
 - 4 image extensions: ``EXTNAME = U, G, R, I`` (note: storage order
   in the file is G/I/R/U, not U/G/R/I; PypeIt resolves channels by
   ``EXTNAME``, never by HDU index).
-- The U channel is rotated 90 deg with respect to the others; PypeIt's
-  ``get_rawimage`` handles this transparently.
+- The U channel is read out rotated 90 deg with respect to the others;
+  this is captured by its ``specaxis``/``specflip`` detector parameters,
+  so PypeIt's stock ``orient_image`` presents a uniform layout
+  downstream.
 
 Each per-channel spectrograph (``p200_ngps_u`` etc.) reads only its
 own image extension; the other three are ignored.
