@@ -8,23 +8,28 @@ channels were read out (e.g. U+G dome flats) drop the unused
 extensions entirely. Per-channel subclasses below resolve their image
 extension by scanning ``EXTNAME``, never by hardcoded HDU index.
 
-Per-channel orientation conventions (same as the NGPS MATLAB DRP's
-``slice_data.m``):
+Per-channel CCD readout orientation is expressed through PypeIt's stock
+``specaxis``/``specflip``/``spatflip`` detector parameters, so the raw
+image is reoriented by
+:meth:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`
+exactly as for every other spectrograph (and the
+:ref:`instr_par-detectors` table reports the true orientation):
 
-* R, I: native orientation (dispersion along NAXIS1).
-* G:    flipped left-right (``np.fliplr``) so that wavelengths increase with
-        column number, matching R/I.
-* U:    rotated 90 degrees clockwise (``np.rot90(k=-1)``) so that
-        dispersion runs along NAXIS1, matching R/I.
+* R, I: dispersion along NAXIS1 -> ``specaxis=1``.
+* G:    dispersion along NAXIS1 but flipped left-right relative to R/I
+        -> ``specaxis=1, specflip=True``.
+* U:    dispersion along NAXIS2 (read out rotated 90 deg) and flipped
+        -> ``specaxis=0, specflip=True``.
 
-The transforms are applied inside :meth:`get_rawimage` so that the rest
-of the PypeIt pipeline only ever sees data in the canonical
-"dispersion-along-axis-1, spatial-along-axis-0" orientation, with
-hardcoded ``DATASEC``/``OSCANSEC`` regions describing the post-transform
-image.
+``DATASEC``/``OSCANSEC`` are read from each frame's own image-extension
+header in the native readout frame and reoriented alongside the image.
+The U channel ships malformed ``DATASEC`` cards, so it falls back to the
+full native frame.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 
 from astropy.io import fits
@@ -45,15 +50,12 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
     Common base for P200/NGPS per-channel subclasses.
 
     Each per-channel subclass sets ``_extname`` to the EXTNAME of its
-    image extension in the raw FITS file ('U', 'G', 'R', or 'I') and
-    optionally overrides ``_canonicalize`` to apply a per-channel
-    geometric transform (no-op for R/I, ``fliplr`` for G, ``rot90(-1)``
-    for U).
-
-    All subclasses present their data to PypeIt with dispersion along
-    array axis 1 (i.e. ``specaxis=1``) regardless of native CCD
-    orientation, so that downstream reduction (slit edge tracing,
-    wavelength calibration, sky subtraction) sees a uniform layout.
+    image extension in the raw FITS file ('U', 'G', 'R', or 'I') and,
+    where its CCD readout orientation differs from R/I, sets
+    ``_specaxis``/``_specflip`` so that PypeIt's stock
+    :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`
+    reorients the raw frame the same way for every channel (dispersion
+    along the spectral axis, slices in a uniform spatial order).
     """
     ndet = 1
     telescope = telescopes.P200TelescopePar()
@@ -61,14 +63,22 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
     # -- Per-channel overrides -----------------------------------------
     #: EXTNAME of this channel in the raw FITS HDU list.
     _extname = None
+    #: Native CCD readout orientation, applied by PypeIt's stock
+    #: :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`.
+    #: R/I read out dispersion-along-NAXIS1 (``specaxis=1``); G is the
+    #: same but left-right flipped (``specflip=True``); U reads out
+    #: dispersion-along-NAXIS2 (``specaxis=0``) and flipped.  Subclasses
+    #: override these as needed.
+    _specaxis = 1
+    _specflip = False
+    _spatflip = False
     #: Whether to use the bias overscan region in raw images.
     _use_overscan = True
     #: Hardcoded fallback ``DATASEC`` (FITS-style ``[NAXIS1, NAXIS2]``)
     #: used only when the per-frame extension header has no usable
     #: ``DATASEC`` card (e.g. the U channel ships malformed
     #: ``[-1:1097,...]``).  When ``None``, the per-frame raw header
-    #: values are used and adjusted for the canonical-orientation
-    #: transform applied in :meth:`_canonicalize`.
+    #: ``DATASEC`` card is used as-is (native readout frame).
     _datasec_fallback = None
     #: Hardcoded fallback ``OSCANSEC`` (bias) for the same case.
     _oscansec_fallback = None
@@ -169,45 +179,27 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
                 return i
         return None
 
-    def _canonicalize(self, raw):
-        """
-        Apply the per-channel geometric transform that puts the raw
-        image into the canonical "dispersion along axis 1" orientation.
-        Default: identity (R, I).  G overrides with ``np.fliplr``; U
-        overrides with ``np.rot90(k=-1)``.
-        """
-        return raw
-
-    def _canonicalize_section(self, sec_str, ext_hdr):
-        """
-        Adjust a FITS section string ``[NAXIS1_lo:NAXIS1_hi, NAXIS2_lo:NAXIS2_hi]``
-        from the *raw* extension header into the canonical post-transform
-        coordinate system (matches what :meth:`_canonicalize` produces).
-
-        Default: identity (R, I).  G and U override.
-        """
-        return sec_str
-
     def _datasec_string(self, ext_hdr):
-        """Resolve the canonical-orientation DATASEC for this extension.
+        """Resolve the native-frame ``DATASEC`` for this extension.
 
-        Default (R/I/G): try the per-frame raw DATASEC card via
-        ``_canonicalize_section`` (this picks up the binning-correct
-        section the instrument writes out); fall back to
-        ``_datasec_fallback`` if the raw section is missing or
-        malformed.  Subclasses (e.g. U, where every raw DATASEC is
-        malformed) can override this method to bypass the parse check.
+        Default (R/I/G): use the per-frame raw ``DATASEC`` card (this
+        picks up the binning-correct section the instrument writes out);
+        fall back to :attr:`_datasec_fallback` if the raw section is
+        missing or malformed.  ``orient_image`` reorients the resulting
+        pixel map alongside the image, so the section is given in the
+        native readout frame.  Subclasses (e.g. U, where every raw
+        ``DATASEC`` is malformed) can override this method.
         """
         raw = ext_hdr.get('DATASEC')
         if self._parse_section(raw) is not None:
-            return self._canonicalize_section(raw, ext_hdr)
+            return raw
         return self._datasec_fallback
 
     def _oscansec_string(self, ext_hdr):
         """Same as :meth:`_datasec_string` but for OSCANSEC/BIASSEC."""
         raw = ext_hdr.get('BIASSEC')
         if self._parse_section(raw) is not None:
-            return self._canonicalize_section(raw, ext_hdr)
+            return raw
         return self._oscansec_fallback
 
     @staticmethod
@@ -251,12 +243,10 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         self.meta['binning'] = dict(card=None, compound=True)
 
         self.meta['mjd'] = dict(ext=0, card='MJD')
-        # ``SHUTTIME`` is the actual shutter-open time in seconds; the
-        # primary-header ``EXPTIME`` is in *milliseconds* for some
-        # frames (it's the requested integration time written by the
-        # detector controller).  Use SHUTTIME when present, otherwise
-        # fall back to EXPTIME with an automatic ms-to-s conversion
-        # if the value looks like ms (>1e4).  Implemented in
+        # Exposure-time units are fixed: ``SHUTTIME`` (the measured
+        # shutter-open time) is always seconds, ``EXPTIME`` (the
+        # requested time) is always milliseconds.  Prefer SHUTTIME and
+        # fall back to EXPTIME/1000 when it is absent.  See
         # :meth:`compound_meta`.
         self.meta['exptime'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=0, card='AIRMASS',
@@ -323,9 +313,8 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         key = str(path)
         cached = cls._extname_cache.get(key)
         if cached is None:
-            from astropy.io import fits as _fits
             try:
-                with _fits.open(path, memmap=True) as h:
+                with fits.open(path, memmap=True) as h:
                     cached = frozenset(
                         str(hdu.header.get('EXTNAME', '')).strip().upper()
                         for hdu in h[1:])
@@ -389,12 +378,10 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         if (self._require_ug_only_cals
                 and ftype in ('arc', 'tilt', 'pixelflat',
                               'trace', 'illumflat')):
-            import os as _os
             for i in range(len(fitstbl)):
                 if not mask[i]:
                     continue
-                fpath = _os.path.join(str(fitstbl['directory'][i]),
-                                       str(fitstbl['filename'][i]))
+                fpath = Path(fitstbl['directory'][i]) / fitstbl['filename'][i]
                 if self._file_extnames(fpath) != frozenset({'G', 'U'}):
                     mask[i] = False
         return mask
@@ -435,10 +422,9 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             return None
 
         if meta_key == 'exptime':
-            # Prefer SHUTTIME (seconds); fall back to EXPTIME with an
-            # ms-to-s conversion if the value is large enough that it
-            # can't be a plausible visible-band exposure in seconds
-            # (ZTF/SN spectra are 60-3600 s; values >= 10000 are ms).
+            # Fixed units (no value-based guessing): SHUTTIME is in
+            # seconds, EXPTIME is in milliseconds.  Prefer SHUTTIME;
+            # fall back to EXPTIME/1000 only when SHUTTIME is absent.
             if ph is not None:
                 shut = ph.get('SHUTTIME')
                 if shut is not None:
@@ -449,8 +435,7 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
                 ex = ph.get('EXPTIME')
                 if ex is not None:
                     try:
-                        v = float(ex)
-                        return v / 1000.0 if v >= 10000 else v
+                        return float(ex) / 1000.0
                     except (TypeError, ValueError):
                         pass
             return None
@@ -491,12 +476,12 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         the per-channel extension in this file (looked up by
         ``EXTNAME``), and ``DATASEC``/``OSCANSEC`` are read from the
         per-frame raw extension header (so they match the actual
-        on-chip binning for this exposure).  Per-channel subclasses
-        can override :meth:`_canonicalize_section` to translate those
-        raw-orientation sections into the canonical post-transform
-        frame; if the raw section is malformed (e.g. U ships
-        ``[-1:1097,...]``), :attr:`_datasec_fallback` /
-        :attr:`_oscansec_fallback` are used instead.
+        on-chip binning for this exposure).  The sections are given in
+        the native readout frame and reoriented alongside the image by
+        :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`.
+        If the raw section is malformed (e.g. U ships ``[-1:1097,...]``),
+        :attr:`_datasec_fallback` / :attr:`_oscansec_fallback` are used
+        instead.
         """
         if hdu is None:
             binning = '1,1'
@@ -525,9 +510,9 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             binning=binning,
             det=1,
             dataext=dataext,
-            specaxis=1,
-            specflip=False,
-            spatflip=False,
+            specaxis=self._specaxis,
+            specflip=self._specflip,
+            spatflip=self._spatflip,
             # arcsec / *unbinned* pixel (= 50" slice / 134 binned-px,
             # binspat=2 → 0.373"/binned-px = 0.187"/unbinned-px).
             platescale=0.187,
@@ -545,14 +530,18 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Read a raw NGPS image, find the channel by ``EXTNAME``, apply
-        the per-channel canonical transform (no-op for R/I, ``fliplr``
-        for G, ``rot90(-1)`` for U), and return the raw image plus the
-        DATASEC/OSCANSEC pixel maps in the post-transform orientation.
+        Read a raw NGPS image, find the channel by ``EXTNAME``, and
+        return the native-frame image plus the DATASEC/OSCANSEC pixel
+        maps.  The geometric reorientation into the PypeIt frame is left
+        to the stock
+        :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`
+        via the channel's ``specaxis``/``specflip``/``spatflip``.
 
         This is a custom drop-in replacement for the base class
         :meth:`pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage`
-        method.  The ``DATASEC``/``OSCANSEC`` strings carried by the
+        method, needed only because the channel is located by
+        ``EXTNAME`` (not a fixed HDU index).  The ``DATASEC``/``OSCANSEC``
+        strings carried by the
         :class:`~pypeit.images.detector_container.DetectorContainer`
         already include the on-chip binning, so we set the per-amplifier
         section binning to ``None`` when converting the strings to
@@ -572,7 +561,7 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
                 f"available EXTNAMEs: {extnames}"
             )
 
-        # Read & canonicalize
+        # Read the native-frame image (orient_image handles geometry).
         raw_img = hdu[idx].data.astype(float)
         if raw_img.ndim != 2:
             raw_img = np.squeeze(raw_img)
@@ -580,9 +569,8 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
                 raise PypeItError(
                     f"Raw image extension {idx} of {raw_file} is not 2D."
                 )
-        raw_img = self._canonicalize(raw_img)
 
-        # Detector container (with hardcoded post-transform DATASEC/OSCANSEC)
+        # Detector container (with native-frame DATASEC/OSCANSEC)
         detector = self.get_detector_par(det=1, hdu=hdu)
 
         # Header metadata
@@ -890,9 +878,8 @@ class P200NGPSSpectrograph_i(P200NGPSSpectrograph):
 
 
 class P200NGPSSpectrograph_g(P200NGPSSpectrograph):
-    """P200/NGPS g-channel.  Raw image is left-right flipped relative
-    to R/I, so :meth:`_canonicalize` applies ``np.fliplr``.  After the
-    flip, the bias overscan moves from the left edge to the right edge.
+    """P200/NGPS g-channel.  Read out dispersion-along-NAXIS1 like R/I
+    but left-right flipped, i.e. ``specaxis=1, specflip=True``.
     """
     name = 'p200_ngps_g'
     camera = 'NGPS_g'
@@ -901,6 +888,7 @@ class P200NGPSSpectrograph_g(P200NGPSSpectrograph):
     comment = 'g-Channel'
 
     _extname = 'G'
+    _specflip = True
     _require_ug_only_cals = True
     # Disable overscan correction for G.  PypeIt's default ``savgol(5,65)``
     # introduces a smooth row-dependent offset (~-540 ADU at the blue end,
@@ -921,48 +909,33 @@ class P200NGPSSpectrograph_g(P200NGPSSpectrograph):
         slit_illum_finecorr=False,
         spec_samp_coarse=1.0,
     )
-    def _canonicalize(self, raw):
-        return np.fliplr(raw)
-
-    def _canonicalize_section(self, sec_str, ext_hdr):
-        """G applies ``np.fliplr`` to the raw image, so the FITS
-        ``DATASEC`` ``[x_lo:x_hi, y_lo:y_hi]`` (in raw NAXIS1 / NAXIS2
-        coords) reflects to ``[(NAXIS1-x_hi+1):(NAXIS1-x_lo+1), y_lo:y_hi]``
-        in the canonical post-flip frame."""
-        parsed = self._parse_section(sec_str)
-        if parsed is None:
-            return sec_str
-        x_lo, x_hi, y_lo, y_hi = parsed
-        naxis1 = ext_hdr.get('NAXIS1') or (x_hi + 1)
-        new_lo = naxis1 - x_hi + 1
-        new_hi = naxis1 - x_lo + 1
-        return f'[{new_lo}:{new_hi},{y_lo}:{y_hi}]'
 
 
 class P200NGPSSpectrograph_u(P200NGPSSpectrograph):
-    """P200/NGPS u-channel.  Raw image has the dispersion axis along
-    NAXIS2 (rotated 90 deg relative to the other channels), so
-    :meth:`_canonicalize` applies ``np.rot90(k=-1)``.  The raw FITS
-    header ships malformed ``DATASEC``/``BIASSEC`` cards (e.g.
-    ``[-1:1097,1:4302]``), so we hardcode the post-rotation regions
-    and leave ``_use_overscan=False`` since the bias strip is only
-    2 pixels wide.
+    """P200/NGPS u-channel.  Read out with the dispersion axis along
+    NAXIS2 (rotated 90 deg relative to the other channels) and flipped,
+    i.e. ``specaxis=0, specflip=True``.  The raw FITS header ships
+    malformed ``DATASEC``/``BIASSEC`` cards (e.g. ``[-1:1097,1:4302]``),
+    so we use the full native frame as the data section and leave
+    ``_use_overscan=False`` since the bias strip is only 2 pixels wide.
     """
     name = 'p200_ngps_u'
     camera = 'NGPS_u'
     header_name = 'NGPS_u'
     supported = True
-    comment = 'u-Channel (raw image rotated 90 deg)'
+    comment = 'u-Channel (read out rotated 90 deg)'
 
     _extname = 'U'
+    _specaxis = 0
+    _specflip = True
     _require_ug_only_cals = True
     _use_overscan = False
     # U dome-flat illumination drops off toward the blue end, so slit
     # edge traces don't span 60% of the spectral length.
     _fit_min_spec_length = 0.2
-    # Post-rot90(-1) shape is (1099, 4302).  Use the full image as the
-    # data section; bias is unused (master bias handles it).
-    _datasec_fallback = '[1:4302,1:1099]'
+    # Use the full native image as the data section; bias is unused
+    # (master bias handles it).
+    _datasec_fallback = None
     _oscansec_fallback = None
     _bpm_usebias = False
     _wvarxiv = 'wvarxiv_p200_ngps_u_thar_central.fits'
@@ -974,20 +947,15 @@ class P200NGPSSpectrograph_u(P200NGPSSpectrograph):
         spec_samp_coarse=2.0,
         slit_illum_finecorr=False,
     )
-    def _canonicalize(self, raw):
-        return np.rot90(raw, k=-1)
-
     def _datasec_string(self, ext_hdr):
         """U's raw DATASEC is malformed at every binning (negative low
-        bounds), so we ignore it and return the entire post-rot90(-1)
-        image based on NAXIS1 / NAXIS2 of the raw extension.  After
-        ``np.rot90(k=-1)``, post-transform NAXIS1 = raw NAXIS2 (now
-        spectral) and NAXIS2 = raw NAXIS1 (now spatial)."""
+        bounds), so we ignore it and use the entire native image
+        (``[1:NAXIS1,1:NAXIS2]``); ``orient_image`` reorients it."""
         n1 = ext_hdr.get('NAXIS1')
         n2 = ext_hdr.get('NAXIS2')
         if not n1 or not n2:
             return self._datasec_fallback
-        return f'[1:{n2},1:{n1}]'
+        return f'[1:{n1},1:{n2}]'
 
     def _oscansec_string(self, ext_hdr):
         """No usable overscan strip for U (the bias region is only

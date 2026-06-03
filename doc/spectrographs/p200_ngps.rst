@@ -10,7 +10,7 @@ Palomar / NGPS
 Overview
 ========
 
-The Palomar Next Generation Spectrograph (NGPS) is the four-channel
+The Next Generation Palomar Spectrograph (NGPS) is the four-channel
 optical spectrograph mounted at the Cassegrain focus of the Hale 200-inch
 telescope at Palomar Observatory.  NGPS replaces the long-serving Double
 Spectrograph (DBSP) and delivers a single-shot 3050--10400 Å spectrum
