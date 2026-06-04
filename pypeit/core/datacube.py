@@ -1225,8 +1225,8 @@ def align_user_offsets(ifu_ra, ifu_dec, ra_offset, dec_offset):
     out_dec_offsets = [0.0 for _ in range(numfiles)]
     for ff in range(numfiles):
         # Apply the shift
-        out_ra_offsets[ff] = ref_shift_ra[ff] + ra_offset[ff]
-        out_dec_offsets[ff] = ref_shift_dec[ff] + dec_offset[ff]
+        out_ra_offsets[ff] = ref_shift_ra[ff] - ra_offset[ff]
+        out_dec_offsets[ff] = ref_shift_dec[ff] - dec_offset[ff]
         log.info(
             f"Spatial shift of cube #{ff + 1}:\nRA, DEC (arcsec) = {ra_offset[ff]*3600.0:+0.3f} "
             f"E, {dec_offset[ff]*3600.0:+0.3f} N"
@@ -1394,14 +1394,14 @@ def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_offsets=None, dec_offs
         # Get the RA, Dec, and wavelength of the pixels on the slit
         if ra_min is None or ra_max is None:
             this_ra = _raImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_ra)+_ra_offsets[fr], np.max(this_ra)+_ra_offsets[fr]
+            tmp_min, tmp_max = np.min(this_ra)-_ra_offsets[fr], np.max(this_ra)-_ra_offsets[fr]
             if fr == 0 or tmp_min < _ra_min:
                 _ra_min = tmp_min
             if fr == 0 or tmp_max > _ra_max:
                 _ra_max = tmp_max
         if dec_min is None or dec_max is None:
             this_dec = _decImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_dec)+_dec_offsets[fr], np.max(this_dec)+_dec_offsets[fr]
+            tmp_min, tmp_max = np.min(this_dec)-_dec_offsets[fr], np.max(this_dec)-_dec_offsets[fr]
             if fr == 0 or tmp_min < _dec_min:
                 _dec_min = tmp_min
             if fr == 0 or tmp_max > _dec_max:
@@ -2369,13 +2369,8 @@ def subpixellate(
                 this_ra_int = utils.linear_interpolate_extrapolate(spatpos_subpix, spatpos[ssrt], tmp_ra[ssrt])
                 this_dec_int = utils.linear_interpolate_extrapolate(spatpos_subpix, spatpos[ssrt], tmp_dec[ssrt])
                 # Now apply the DAR correction and any user-supplied offsets
-                this_ra_int += ra_corr + _ra_offset[fr]
-                this_dec_int += dec_corr + _dec_offset[fr]
-                # TODO: Below was a hack to fix bug for KCRM. I suspected the
-                # WCS was being set incorrectly, which was true, and this hack
-                # fixed it. Old code is the line above.  See
-                # https://github.com/pypeit/PypeIt/issues/2116
-                #this_dec_int += dec_corr - _dec_offset[fr]
+                this_ra_int += ra_corr - _ra_offset[fr]
+                this_dec_int += dec_corr - _dec_offset[fr]
                 # Convert world coordinates to voxel coordinates, then histogram
                 sslo = ss * num_subpixels
                 sshi = (ss + 1) * num_subpixels

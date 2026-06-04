@@ -1577,7 +1577,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             if self.alignment_method == 'phase':
                 for ff in range(self.numfiles):
                     # Calculate the shift
-                        ra_shift, dec_shift = calculate_image_phase(
+                        dec_shift, ra_shift = calculate_image_phase(
                             reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
                         # Convert pixel shift to degrees shift
                         ra_shift *= self._dspat/cosdec
@@ -1588,8 +1588,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             f"{dec_shift*3600.0:+0.3f} N"
                         )
                         # Store the shift in the RA and DEC offsets in degrees
-                        ra_offsets[ff] += ra_shift
-                        dec_offsets[ff] += dec_shift
+                        ra_offsets[ff] -= ra_shift
+                        dec_offsets[ff] -= dec_shift
             elif self.alignment_method == 'fit':
                 ra_pix_star = np.zeros(self.numfiles)
                 dec_pix_star = np.zeros(self.numfiles)
@@ -1610,8 +1610,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
                 ra_shifts = (ra_pix_star - ra_pix_star[ref_idx]) * self._dspat / cosdec
                 dec_shifts = (dec_pix_star - dec_pix_star[ref_idx]) * self._dspat
-                ra_offsets =[ra_offsets[ff] + ra_shifts[ff] for ff in range(self.numfiles)]
-                dec_offsets =[dec_offsets[ff] + dec_shifts[ff] for ff in range(self.numfiles)]
+                ra_offsets = [ra_offsets[ff] - ra_shifts[ff] for ff in range(self.numfiles)]
+                dec_offsets = [dec_offsets[ff] - dec_shifts[ff] for ff in range(self.numfiles)]
             else:
                 raise PypeItError(f"self.alignment_method method '{self.alignment_method}' is not supported.")
 
