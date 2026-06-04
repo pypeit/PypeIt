@@ -149,15 +149,6 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     sigma = fwhm*fwhm2sigma
     # Normalise if requested
     wlscl = np.max(image) if norm else 1.0
-    if ivar is None: 
-        mean, median, std = sigma_clipped_stats(image[_gpm], sigma=3.0)
-        if std > 0:
-            _ivar = np.full_like(image, 1.0/std**2)
-        else:
-            log.warning('Could not measure standard deviation from image.  Assuming 1.')
-            _ivar = np.ones_like(image)
-    else: 
-        _ivar = ivar
 
     ## Find the objects
     ximg = np.tile(np.arange(image.shape[1]), (image.shape[0], 1))
@@ -165,6 +156,16 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     edgemask = (ximg < mask_edge) | (ximg >= image.shape[1] - mask_edge) | \
                 (yimg < mask_edge) | (yimg >= image.shape[0] - mask_edge)
     totmask = edgemask | np.logical_not(_gpm)
+
+    if ivar is None:
+        mean, median, std = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
+        if std > 0:
+            _ivar = np.full_like(image, 1.0/std**2)
+        else:
+            log.warning('Could not measure standard deviation from image.  Assuming 1.')
+            _ivar = np.ones_like(image)
+    else:
+        _ivar = ivar
 
     if init_obj_position is None: 
         if DAOStarFinder is None:
@@ -188,7 +189,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
 
         # Create a border mask to exclude junk at the edges
         daofind = DAOStarFinder(
-            fwhm=fwhm, threshold=nsigma, sharpness_range=(None, 2.0),
+            fwhm=fwhm, threshold=nsigma, sharpness_range=(0.2, 2.0),
             exclude_border=False, n_brightest=1)
         # switched exclude_border to False since we use the edgemask now
         sources = daofind((objfind_image - median_objfind)*np.sqrt(ivar_objfind), mask=totmask)
@@ -199,6 +200,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
                     sources[col].info.format = '%.2f'  # for consistent table output
             sources.pprint(max_width=76)
         if sources is None:
+            embed()
             display.show_image((objfind_image*np.logical_not(totmask)*np.sqrt(ivar_objfind)),
                             chname='S/N objfind_image', cuts=(-2.0, 5.0))
             raise PypeItError(
@@ -206,7 +208,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
                 f"nsigma = {nsigma:.1f} or adjust the DAOStarFinder parameters."
             )
 
-        _init_obj_position = sources['ycentroid'][0], sources['xcentroid'][0]
+        _init_obj_position = sources['y_centroid'][0], sources['x_centroid'][0]
     else:
         _init_obj_position = init_obj_position
         
@@ -2022,7 +2024,7 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
                                  _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
                                  spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
                                  skip_subpix_weights=True, correct_dar=correct_dar)
-        return img[:, :, 0], sigimg[:, :, 0], bpmimg[:, :, 0]
+        return img[0, :, :], sigimg[0, :, :], bpmimg[0, :, :]
     else:
         # Prepare the array of white light images to be stored
         numframes = len(_sciImg)
