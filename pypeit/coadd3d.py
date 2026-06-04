@@ -1608,10 +1608,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             np.logical_not(bpm_imgs[:, :, ff]), model, gaussian_position,
                             init_obj_position, channel_prefix = f'Img_{ff}'
                         )
-                    ra_pix_star[ff], dec_pix_star[ff] = gaussian_position
+                    dec_pix_star[ff], ra_pix_star[ff] = gaussian_position
 
-                ra_shifts = (ra_pix_star - ra_pix_star[ref_idx]) * self._dspat / cosdec
-                dec_shifts = (dec_pix_star - dec_pix_star[ref_idx]) * self._dspat
+                ra_shifts = (ra_pix_star[ref_idx] - ra_pix_star) * self._dspat / cosdec
+                dec_shifts = (dec_pix_star[ref_idx] - dec_pix_star) * self._dspat
                 ra_offsets = [ra_offsets[ff] - ra_shifts[ff] for ff in range(self.numfiles)]
                 dec_offsets = [dec_offsets[ff] - dec_shifts[ff] for ff in range(self.numfiles)]
             else:

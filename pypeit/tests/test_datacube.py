@@ -15,7 +15,8 @@ from pypeit.core import datacube
 from pypeit.core.flexure import calculate_image_phase
 
 
-def make_point_source_image(ra, dec, dspat, wcs, n_pix=100):
+def make_point_source_image(ra, dec, dspat, wcs,
+                            n_pix=100, fwhm_arcsec=None):
     """
     Create a 100x100 pixel image of a point source modelled as a 2D Gaussian.
 
@@ -32,6 +33,8 @@ def make_point_source_image(ra, dec, dspat, wcs, n_pix=100):
         Only the spatial axes are used.
     n_pix : int, optional
         Number of pixels along each axis of the output image. Default is 100.
+    fwhm_arcsec : float, optional
+        The FWHM of the PSF in arcseconds. Default is None.
 
     Returns
     -------
@@ -43,10 +46,10 @@ def make_point_source_image(ra, dec, dspat, wcs, n_pix=100):
         Sub-pixel y (row) position of the source in the image.
     """
     # Default PSF FWHM: 6 pixels
-    fwhm_arcsec = 6 * dspat
+    _fwhm_arcsec = 6 * dspat if fwhm_arcsec is None else fwhm_arcsec
 
     # Convert FWHM to sigma in pixels
-    fwhm_pix = fwhm_arcsec / dspat
+    fwhm_pix = _fwhm_arcsec / dspat
     sigma_pix = fwhm_pix / (2.0 * np.sqrt(2.0 * np.log(2.0)))
 
     # Get the source position in output image pixel coords
@@ -68,6 +71,7 @@ def test_align():
     numiter = 5  # This is the same number of iterations used in the coadd3d run_align() method
     ref_idx = 0
     _dspat = 0.2*u.arcsec  # Spatial pixel scale
+    fwhm = 4*_dspat
     ra1, dec1 = 130.0*u.deg, 35.0*u.deg  # Pick two random numbers
     cosdec = np.cos(dec1.to(u.radian).value)
     offs_ra, offs_dec = 1.0*u.arcsec, -1.5*u.arcsec
@@ -95,8 +99,10 @@ def test_align():
     ra_offsets, dec_offsets = np.zeros(2) * u.deg, np.zeros(2) * u.deg
     for ii in range(numiter):
         # Generate two images wih the current RA, Dec and offsets
-        img1 = make_point_source_image(ra1-ra_offsets[0], dec1-dec_offsets[0], _dspat.value, wcs, n_pix=n_pix)
-        img2 = make_point_source_image(ra2-ra_offsets[1], dec2-dec_offsets[1], _dspat.value, wcs, n_pix=n_pix)
+        img1 = make_point_source_image(ra1-ra_offsets[0], dec1-dec_offsets[0], _dspat.value, wcs,
+                                       fwhm_arcsec=fwhm.value, n_pix=n_pix)
+        img2 = make_point_source_image(ra2-ra_offsets[1], dec2-dec_offsets[1], _dspat.value, wcs,
+                                       fwhm_arcsec=fwhm.value, n_pix=n_pix)
         wl_imgs = [img1, img2]
         # Select the reference image (i.e. the one that doesn't shift)
         ref_img = wl_imgs[ref_idx].copy()
@@ -125,8 +131,10 @@ def test_align():
     ra_offsets, dec_offsets = np.zeros(2) * u.deg, np.zeros(2) * u.deg
     for ii in range(numiter):
         # Generate two images wih the current RA, Dec and offsets
-        img1 = make_point_source_image(ra1-ra_offsets[0], dec1-dec_offsets[0], _dspat.value, wcs, n_pix=n_pix)
-        img2 = make_point_source_image(ra2-ra_offsets[1], dec2-dec_offsets[1], _dspat.value, wcs, n_pix=n_pix)
+        img1 = make_point_source_image(ra1-ra_offsets[0], dec1-dec_offsets[0], _dspat.value, wcs,
+                                       fwhm_arcsec=fwhm.value, n_pix=n_pix)
+        img2 = make_point_source_image(ra2-ra_offsets[1], dec2-dec_offsets[1], _dspat.value, wcs,
+                                       fwhm_arcsec=fwhm.value, n_pix=n_pix)
         wl_imgs = [img1, img2]
         # Select the reference image (i.e. the one that doesn't shift)
         ref_img = wl_imgs[ref_idx].copy()
@@ -155,26 +163,27 @@ def test_align():
     ra_offsets, dec_offsets = np.zeros(2) * u.deg, np.zeros(2) * u.deg
     for ii in range(numiter):
         # Generate two images wih the current RA, Dec and offsets
-        img1 = make_point_source_image(ra1-ra_offsets[0], dec1-dec_offsets[0], _dspat.value, wcs, n_pix=n_pix)
-        img2 = make_point_source_image(ra2-ra_offsets[1], dec2-dec_offsets[1], _dspat.value, wcs, n_pix=n_pix)
+        img1 = make_point_source_image(ra1-ra_offsets[0], dec1-dec_offsets[0], _dspat.value, wcs,
+                                       fwhm_arcsec=fwhm.value, n_pix=n_pix)
+        img2 = make_point_source_image(ra2-ra_offsets[1], dec2-dec_offsets[1], _dspat.value, wcs,
+                                       fwhm_arcsec=fwhm.value, n_pix=n_pix)
         wl_imgs = [img1, img2]
         numfiles = len(wl_imgs)
         # Compute the offsets between all images
         ra_pix_star = np.zeros(len(wl_imgs))
         dec_pix_star = np.zeros(len(wl_imgs))
         for ff in range(numfiles):
-            print(ii, ra_offsets[ff].to(u.arcsec)*cosdec, dec_offsets[ff].to(u.arcsec))
             popt, pcov, model, init_obj_position, flux_opt, sigma_opt = \
                 datacube.fitGaussian2D(
-                    wl_imgs[:, :, ff],
-                    #ivar=utils.inverse(np.square(sig_imgs[:, :, ff])),
-                    #gpm=np.logical_not(bpm_imgs[:, :, ff]),
-                    fwhm=fwhm / dspat, norm=False
+                    wl_imgs[ff],
+                    # ivar=utils.inverse(np.square(sig_imgs[ff])),
+                    # gpm=np.logical_not(bpm_imgs[ff]),
+                    fwhm=fwhm.value/_dspat.value, norm=False
                 )
             gaussian_position = popt[1], popt[2]
-            ra_pix_star[ff], dec_pix_star[ff] = gaussian_position
-        ra_shifts = (ra_pix_star - ra_pix_star[ref_idx]) * _dspat / cosdec
-        dec_shifts = (dec_pix_star - dec_pix_star[ref_idx]) * _dspat
+            dec_pix_star[ff], ra_pix_star[ff] = gaussian_position
+        ra_shifts = (ra_pix_star[ref_idx] - ra_pix_star) * _dspat / cosdec
+        dec_shifts = (dec_pix_star[ref_idx] - dec_pix_star) * _dspat
         ra_offsets = [ra_offsets[ff] - ra_shifts[ff] for ff in range(numfiles)]
         dec_offsets = [dec_offsets[ff] - dec_shifts[ff] for ff in range(numfiles)]
 

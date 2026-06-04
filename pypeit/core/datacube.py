@@ -97,7 +97,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         The inverse variance of the image. Optional. If not passed, the standard deviation computed
         from the image will be used to compute the inverse variance. Default is None.
     gpm : `numpy.ndarray`_, optional
-        A good pixel mask. Pixels that are True are good. Default is None,
+        A good pixel mask. Pixels that are True are good. Default is None.
     init_obj_position : tuple, optional
         The initial guess for the object position in the image with format
         (x, y). If set, the 2D Gaussian fit will be performed with the position constrainted
@@ -150,7 +150,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     # Normalise if requested
     wlscl = np.max(image) if norm else 1.0
     if ivar is None: 
-        mean, median, std = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
+        mean, median, std = sigma_clipped_stats(image[_gpm], sigma=3.0)
         if std > 0:
             _ivar = np.full_like(image, 1.0/std**2)
         else:
