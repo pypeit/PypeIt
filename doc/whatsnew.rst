@@ -9,6 +9,10 @@ What's New in PypeIt
 
 ----
 
+.. include:: releases/2.0.1.rst
+
+----
+
 .. include:: releases/2.0.0.rst
 
 ----

@@ -12,8 +12,6 @@ class ChkAlignments(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        from pypeit.spectrographs import available_spectrographs
-
         parser = super().get_parser(description='Display Alignment image and the trace data',
                                     width=width)
 

@@ -11,7 +11,7 @@ import numpy as np
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.par.util import eval_tuple
+from pypeit.utils import eval_tuple
 
 
 def load_sections(string, fmt_iraf=True):
