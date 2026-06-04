@@ -662,7 +662,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Calculate the CD Matrix
         cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
         cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
-        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degrees per column
         cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
         # Get reference pixels (set these to the middle of the FOV)
         crpix1 = 24/2   # i.e. 24 slices/2
