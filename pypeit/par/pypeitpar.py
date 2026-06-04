@@ -1714,9 +1714,11 @@ class CubePar(ParSet):
             'reference image (see ``reference_image``) or the whitelight '
             'image of the first spec2d listed in the coadd3d file. This parameter allows you to set the '
             'method used to spatially align the datacubes. The current allowed options include "none", "phase", '
-            '"fit", and "user". Setting ``alignment_method = phase`` (the default) will use a cross-correlation '
-            'method to determine the offsets, where the cross-correlation is always with respect to a reference '
-            'image. This method uses the scikit-image package, if it is installed; otherwise it will use scipy. '
+            '"cc", "fit", and "user". Setting ``alignment_method = phase`` (the default) will use a phase '
+            'cross-correlation method to determine the offsets, where the cross-correlation is always with '
+            'respect to a reference image. To use an ordinary cross-correlation, set ``alignment_method = cc``. '
+            'To use the phase cross-correlation, you need to install the scikit-image package; otherwise the '
+            'the standard scipy cross-correlation method (i.e. ``alignment_method = cc``) will be used. '
             'Setting ``alignment_method = fit`` requires that photutils is installed. For each '
             'datacube being combined, a 2D Gaussian is fit the brightest point-like object found '
             'in each whitelight image and used to set the alignment coordinate. Setting ``alignment_method = user`` '
@@ -1937,7 +1939,7 @@ class CubePar(ParSet):
         """
         Return the valid method identifiers for registration
         """
-        return ['none', 'user', 'phase', 'fit']
+        return ['none', 'user', 'phase', 'cc', 'fit']
 
 
 

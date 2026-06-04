@@ -104,7 +104,38 @@ def test_align():
         for ff in range(len(wl_imgs)):
             print(ii, ra_offsets[ff].to(u.arcsec)*cosdec, dec_offsets[ff].to(u.arcsec))
             dec_shift, ra_shift = calculate_image_phase(
-                ref_img.copy(), wl_imgs[ff], maskval=0.0)
+                ref_img.copy(), wl_imgs[ff], maskval=0.0
+            )
+            # Convert pixel shift to degrees shift
+            ra_shift *= _dspat.to(u.deg)/cosdec
+            dec_shift *= _dspat.to(u.deg)
+            # Update the offsets for the next iteration
+            ra_offsets[ff] -= ra_shift.to(u.deg)
+            dec_offsets[ff] -= dec_shift.to(u.deg)
+
+    # Check that the offsets agree to within 1/3 of a pixel
+    atol = _dspat.to(u.arcsec).value/3
+    assert np.isclose(ra_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
+    assert np.isclose(dec_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
+    assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol)
+    assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol)
+
+    # Loop through iterations to find the offsets using the CC method
+    # Set up the offsets arrays that will be computed by the spatial alignment methods
+    ra_offsets, dec_offsets = np.zeros(2) * u.deg, np.zeros(2) * u.deg
+    for ii in range(numiter):
+        # Generate two images wih the current RA, Dec and offsets
+        img1 = make_point_source_image(ra1-ra_offsets[0], dec1-dec_offsets[0], _dspat.value, wcs, n_pix=n_pix)
+        img2 = make_point_source_image(ra2-ra_offsets[1], dec2-dec_offsets[1], _dspat.value, wcs, n_pix=n_pix)
+        wl_imgs = [img1, img2]
+        # Select the reference image (i.e. the one that doesn't shift)
+        ref_img = wl_imgs[ref_idx].copy()
+        # Compute the offsets between all images
+        for ff in range(len(wl_imgs)):
+            print(ii, ra_offsets[ff].to(u.arcsec)*cosdec, dec_offsets[ff].to(u.arcsec))
+            dec_shift, ra_shift = calculate_image_phase(
+                ref_img.copy(), wl_imgs[ff], maskval=0.0, force_cc=True
+            )
             # Convert pixel shift to degrees shift
             ra_shift *= _dspat.to(u.deg)/cosdec
             dec_shift *= _dspat.to(u.deg)

@@ -1574,22 +1574,24 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 log.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
             # Calculate the image offsets relative to the reference image
-            if self.alignment_method == 'phase':
+            if self.alignment_method in ['phase', 'cc']:
+                force_cc = True if self.alignment_method == 'cc' else False
                 for ff in range(self.numfiles):
                     # Calculate the shift
-                        dec_shift, ra_shift = calculate_image_phase(
-                            reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
-                        # Convert pixel shift to degrees shift
-                        ra_shift *= self._dspat/cosdec
-                        dec_shift *= self._dspat
-                        log.info(
-                            f"Spatial shift of cube #{ff+1}:\n"
-                            f"RA, DEC (arcsec) = {ra_shift*3600.0:+0.3f} E, "
-                            f"{dec_shift*3600.0:+0.3f} N"
-                        )
-                        # Store the shift in the RA and DEC offsets in degrees
-                        ra_offsets[ff] -= ra_shift
-                        dec_offsets[ff] -= dec_shift
+                    dec_shift, ra_shift = calculate_image_phase(
+                        reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0, force_cc=force_cc
+                    )
+                    # Convert pixel shift to degrees shift
+                    ra_shift *= self._dspat/cosdec
+                    dec_shift *= self._dspat
+                    log.info(
+                        f"Spatial shift of cube #{ff+1}:\n"
+                        f"RA, DEC (arcsec) = {ra_shift*3600.0:+0.3f} E, "
+                        f"{dec_shift*3600.0:+0.3f} N"
+                    )
+                    # Store the shift in the RA and DEC offsets in degrees
+                    ra_offsets[ff] -= ra_shift
+                    dec_offsets[ff] -= dec_shift
             elif self.alignment_method == 'fit':
                 ra_pix_star = np.zeros(self.numfiles)
                 dec_pix_star = np.zeros(self.numfiles)
