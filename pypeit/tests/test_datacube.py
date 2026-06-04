@@ -81,7 +81,7 @@ def test_align():
     n_pix = 100
     wcs = WCS(naxis=2)
     wcs.wcs.crpix = [n_pix//2, n_pix//2]
-    wcs.wcs.cdelt = [_dspat.to(u.deg).value, _dspat.to(u.deg).value]
+    wcs.wcs.cdelt = [-_dspat.to(u.deg).value, _dspat.to(u.deg).value]
     wcs.wcs.crval = [ra1.to(u.deg).value, dec1.to(u.deg).value]  # RA, Dec in degrees
     wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN']
 
@@ -108,12 +108,11 @@ def test_align():
         ref_img = wl_imgs[ref_idx].copy()
         # Compute the offsets between all images
         for ff in range(len(wl_imgs)):
-            print(ii, ra_offsets[ff].to(u.arcsec)*cosdec, dec_offsets[ff].to(u.arcsec))
             dec_shift, ra_shift = calculate_image_phase(
                 ref_img.copy(), wl_imgs[ff], maskval=0.0
             )
             # Convert pixel shift to degrees shift
-            ra_shift *= _dspat.to(u.deg)/cosdec
+            ra_shift *= -_dspat.to(u.deg)/cosdec
             dec_shift *= _dspat.to(u.deg)
             # Update the offsets for the next iteration
             ra_offsets[ff] -= ra_shift.to(u.deg)
@@ -140,12 +139,11 @@ def test_align():
         ref_img = wl_imgs[ref_idx].copy()
         # Compute the offsets between all images
         for ff in range(len(wl_imgs)):
-            print(ii, ra_offsets[ff].to(u.arcsec)*cosdec, dec_offsets[ff].to(u.arcsec))
             dec_shift, ra_shift = calculate_image_phase(
                 ref_img.copy(), wl_imgs[ff], maskval=0.0, force_cc=True
             )
             # Convert pixel shift to degrees shift
-            ra_shift *= _dspat.to(u.deg)/cosdec
+            ra_shift *= -_dspat.to(u.deg)/cosdec
             dec_shift *= _dspat.to(u.deg)
             # Update the offsets for the next iteration
             ra_offsets[ff] -= ra_shift.to(u.deg)
@@ -182,7 +180,7 @@ def test_align():
                 )
             gaussian_position = popt[1], popt[2]
             dec_pix_star[ff], ra_pix_star[ff] = gaussian_position
-        ra_shifts = (ra_pix_star[ref_idx] - ra_pix_star) * _dspat / cosdec
+        ra_shifts = -(ra_pix_star[ref_idx] - ra_pix_star) * _dspat / cosdec
         dec_shifts = (dec_pix_star[ref_idx] - dec_pix_star) * _dspat
         ra_offsets = [ra_offsets[ff] - ra_shifts[ff] for ff in range(numfiles)]
         dec_offsets = [dec_offsets[ff] - dec_shifts[ff] for ff in range(numfiles)]

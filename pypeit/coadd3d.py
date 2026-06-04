@@ -1582,13 +1582,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                         reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0, force_cc=force_cc
                     )
                     # Convert pixel shift to degrees shift
-                    ra_shift *= self._dspat/cosdec
+                    ra_shift *= -self._dspat/cosdec
                     dec_shift *= self._dspat
-                    log.info(
-                        f"Spatial shift of cube #{ff+1}:\n"
-                        f"RA, DEC (arcsec) = {ra_shift*3600.0:+0.3f} E, "
-                        f"{dec_shift*3600.0:+0.3f} N"
-                    )
                     # Store the shift in the RA and DEC offsets in degrees
                     ra_offsets[ff] -= ra_shift
                     dec_offsets[ff] -= dec_shift
@@ -1610,7 +1605,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                         )
                     dec_pix_star[ff], ra_pix_star[ff] = gaussian_position
 
-                ra_shifts = (ra_pix_star[ref_idx] - ra_pix_star) * self._dspat / cosdec
+                ra_shifts = -(ra_pix_star[ref_idx] - ra_pix_star) * self._dspat / cosdec
                 dec_shifts = (dec_pix_star[ref_idx] - dec_pix_star) * self._dspat
                 ra_offsets = [ra_offsets[ff] - ra_shifts[ff] for ff in range(self.numfiles)]
                 dec_offsets = [dec_offsets[ff] - dec_shifts[ff] for ff in range(self.numfiles)]
@@ -1619,7 +1614,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             for ff in range(self.numfiles):
                 log.info(
-                    f"Spatial shift of cube #{ff + 1}:\n"
+                    f"Total spatial offset of cube #{ff + 1}:\n"
                     f"RA, DEC (arcsec) = {ra_offsets[ff]*3600.0:+0.3f} E, "
                     f"{dec_offsets[ff]*3600.0:+0.3f} N"
                 )
