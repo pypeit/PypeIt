@@ -188,8 +188,8 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
 
         # Create a border mask to exclude junk at the edges
         daofind = DAOStarFinder(
-            fwhm=fwhm, threshold=nsigma, sharphi=2.0, 
-            exclude_border=False, brightest=1)
+            fwhm=fwhm, threshold=nsigma, sharpness_range=(None, 2.0),
+            exclude_border=False, n_brightest=1)
         # switched exclude_border to False since we use the edgemask now
         sources = daofind((objfind_image - median_objfind)*np.sqrt(ivar_objfind), mask=totmask)
         if verbose: 
