@@ -672,19 +672,17 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
         if 'IFU' in porg:
-            # if ifunum == 1:  # Large slicer
-            #     off1 = 1.0
-            #     off2 = 4.0
-            # elif ifunum == 2:  # Medium slicer
-            #     off1 = 1.0
-            #     off2 = 5.0
-            # elif ifunum == 3:  # Small slicer
-            #     off1 = 0.05
-            #     off2 = 5.6
-            # else:
-            #     log.warning("Unknown IFU number: {0:d}".format(ifunum))
-            off1 = 0.
-            off2 = 0.
+            if ifunum == 1:  # Large slicer
+                off1 = 1.0
+                off2 = 4.0
+            elif ifunum == 2:  # Medium slicer
+                off1 = 1.0
+                off2 = 5.0
+            elif ifunum == 3:  # Small slicer
+                off1 = 0.05
+                off2 = 5.6
+            else:
+                log.warning("Unknown IFU number: {0:d}".format(ifunum))
             off1 /= binspec
             off2 /= binspat
             crpix1 += off1
