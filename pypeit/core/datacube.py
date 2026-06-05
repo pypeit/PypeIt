@@ -5,7 +5,7 @@ Module containing routines used by 3D datacubes.
 """
 
 import os
-import line_profiler
+# import line_profiler
 
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
@@ -2167,7 +2167,7 @@ def generate_cube_subpixel(
     return flxcube, sigcube, bpmcube, normcube, wave
 
 
-@line_profiler.profile
+# @line_profiler.profile
 def subpixellate(
     output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
     astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=5, spat_subpixel=5,
