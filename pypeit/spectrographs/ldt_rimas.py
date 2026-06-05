@@ -250,7 +250,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         par["calibrations"]["tilts"]["spec_order"] = 4
 
         # 1D wavelength solution
-        par["calibrations"]["wavelengths"]["lamps"] = ["Hg_RIMAS", "HGI_lines"]
+        par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]#["Hg_RIMAS", "HGI_lines"]
         par["calibrations"]["wavelengths"]["rms_thresh_frac_fwhm"] = 0.15
         par["calibrations"]["wavelengths"]["sigdetect"] = 5
         par["calibrations"]["wavelengths"]["fwhm"] = 4.0
@@ -968,7 +968,6 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
 
         # Adjust parameters based on DeVeny grating used
         grating = self.get_meta_value(scifile, "dispname")
-
         if grating == "Vph30":
             par["calibrations"]["slitedges"]["edge_thresh"] = 2.0  # Default: 20.0
             par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.05
@@ -1003,11 +1002,12 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             par["reduce"]["findobj"]["find_fwhm"] = 7
             par["reduce"]["findobj"]["snr_thresh"] = 10
 
-            par["calibrations"]["wavelengths"]["lamps"] = ["HgI_DeVeny", "ArI_DeVeny"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+            par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
 
         else:
             pass
 
+        print(par["calibrations"]["wavelengths"]["lamps"])
         # Adjust parameters based on CCD binning
         binspec, binspat = parse.parse_binning(self.get_meta_value(scifile, "binning"))
         par["reduce"]["findobj"][
