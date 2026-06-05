@@ -67,7 +67,7 @@ def make_point_source_image(ra, dec, dspat, wcs,
 
     return image
 
-def test_align():
+def test_align_phase():
     numiter = 5  # This is the same number of iterations used in the coadd3d run_align() method
     ref_idx = 0
     _dspat = 0.2*u.arcsec  # Spatial pixel scale
@@ -125,6 +125,34 @@ def test_align():
     assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol)
     assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol)
 
+
+def test_align_cc():
+    numiter = 5  # This is the same number of iterations used in the coadd3d run_align() method
+    ref_idx = 0
+    _dspat = 0.2 * u.arcsec  # Spatial pixel scale
+    fwhm = 4 * _dspat
+    ra1, dec1 = 130.0 * u.deg, 35.0 * u.deg  # Pick two random numbers
+    cosdec = np.cos(dec1.to(u.radian).value)
+    offs_ra, offs_dec = 1.0 * u.arcsec, -1.5 * u.arcsec
+    # Compute second coordinates using pre-defined offset
+    ra2, dec2 = ra1 + offs_ra, dec1 + offs_dec
+    # Build a simple TAN-projected WCS
+    n_pix = 100
+    wcs = WCS(naxis=2)
+    wcs.wcs.crpix = [n_pix // 2, n_pix // 2]
+    wcs.wcs.cdelt = [-_dspat.to(u.deg).value, _dspat.to(u.deg).value]
+    wcs.wcs.crval = [ra1.to(u.deg).value, dec1.to(u.deg).value]  # RA, Dec in degrees
+    wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+
+    # Define two coordinates
+    coord1 = SkyCoord(ra=ra1, dec=dec1, frame='icrs')
+    coord2 = SkyCoord(ra=ra2, dec=dec2, frame='icrs')
+
+    # Calculate and check the separation
+    dra, ddec = coord1.spherical_offsets_to(coord2)
+    assert np.isclose(dra.to(u.arcsec).value, offs_ra.to(u.arcsec).value * cosdec, atol=0.001)
+    assert np.isclose(ddec.to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=0.001)
+
     # Loop through iterations to find the offsets using the CC method
     # Set up the offsets arrays that will be computed by the spatial alignment methods
     ra_offsets, dec_offsets = np.zeros(2) * u.deg, np.zeros(2) * u.deg
@@ -155,6 +183,33 @@ def test_align():
     assert np.isclose(dec_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
     assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol)
     assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol)
+
+def test_align_fit():
+    numiter = 5  # This is the same number of iterations used in the coadd3d run_align() method
+    ref_idx = 0
+    _dspat = 0.2 * u.arcsec  # Spatial pixel scale
+    fwhm = 4 * _dspat
+    ra1, dec1 = 130.0 * u.deg, 35.0 * u.deg  # Pick two random numbers
+    cosdec = np.cos(dec1.to(u.radian).value)
+    offs_ra, offs_dec = 1.0 * u.arcsec, -1.5 * u.arcsec
+    # Compute second coordinates using pre-defined offset
+    ra2, dec2 = ra1 + offs_ra, dec1 + offs_dec
+    # Build a simple TAN-projected WCS
+    n_pix = 100
+    wcs = WCS(naxis=2)
+    wcs.wcs.crpix = [n_pix // 2, n_pix // 2]
+    wcs.wcs.cdelt = [-_dspat.to(u.deg).value, _dspat.to(u.deg).value]
+    wcs.wcs.crval = [ra1.to(u.deg).value, dec1.to(u.deg).value]  # RA, Dec in degrees
+    wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+
+    # Define two coordinates
+    coord1 = SkyCoord(ra=ra1, dec=dec1, frame='icrs')
+    coord2 = SkyCoord(ra=ra2, dec=dec2, frame='icrs')
+
+    # Calculate and check the separation
+    dra, ddec = coord1.spherical_offsets_to(coord2)
+    assert np.isclose(dra.to(u.arcsec).value, offs_ra.to(u.arcsec).value * cosdec, atol=0.001)
+    assert np.isclose(ddec.to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=0.001)
 
     # Loop through iterations to find the offsets using the FIT method
     # Set up the offsets arrays that will be computed by the spatial alignment methods

@@ -170,7 +170,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     if init_obj_position is None: 
         if DAOStarFinder is None:
             raise PypeItError(
-                'Requires optional photutils dependency to proceed.  Try to reinstall pypeit '
+                'Requires optional photutils (>=3.0.0) dependency to proceed.  Try to reinstall pypeit '
                 'including the datacube dependencies; e.g., pip install "pypeit[datacube]".'
             )
         if median_filter:
@@ -200,7 +200,6 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
                     sources[col].info.format = '%.2f'  # for consistent table output
             sources.pprint(max_width=76)
         if sources is None:
-            embed()
             display.show_image((objfind_image*np.logical_not(totmask)*np.sqrt(ivar_objfind)),
                             chname='S/N objfind_image', cuts=(-2.0, 5.0))
             raise PypeItError(
@@ -1396,21 +1395,24 @@ def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_offsets=None, dec_offs
         # Get the RA, Dec, and wavelength of the pixels on the slit
         if ra_min is None or ra_max is None:
             this_ra = _raImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_ra)-_ra_offsets[fr], np.max(this_ra)-_ra_offsets[fr]
+            tmp_min = np.min(this_ra) - _ra_offsets[fr]
+            tmp_max = np.max(this_ra) - _ra_offsets[fr]
             if fr == 0 or tmp_min < _ra_min:
                 _ra_min = tmp_min
             if fr == 0 or tmp_max > _ra_max:
                 _ra_max = tmp_max
         if dec_min is None or dec_max is None:
             this_dec = _decImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_dec)-_dec_offsets[fr], np.max(this_dec)-_dec_offsets[fr]
+            tmp_min = np.min(this_dec) - _dec_offsets[fr]
+            tmp_max = np.max(this_dec) - _dec_offsets[fr]
             if fr == 0 or tmp_min < _dec_min:
                 _dec_min = tmp_min
             if fr == 0 or tmp_max > _dec_max:
                 _dec_max = tmp_max
         if wave_min is None or wave_max is None:
             this_wave = _waveImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_wave), np.max(this_wave)
+            tmp_min = np.min(this_wave)
+            tmp_max = np.max(this_wave)
             if fr == 0 or tmp_min < _wave_min:
                 _wave_min = tmp_min
             if fr == 0 or tmp_max > _wave_max:
@@ -2166,7 +2168,8 @@ def generate_cube_subpixel(
 
     return flxcube, sigcube, bpmcube, normcube, wave
 
-
+# DEVELOPER NOTES: RJC is working towards making subpixellate a faster routine, and sometimes uses this decorator
+# find out the bottlenecks and how to speed things up. Please leave this decorator in for the time-being, uncommented.
 # @line_profiler.profile
 def subpixellate(
     output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
@@ -2316,7 +2319,8 @@ def subpixellate(
         this_var = utils.inverse(_ivarImg[fr][this_onslit_gpm])
         this_wav = _waveImg[fr][this_onslit_gpm]
         slshape = (this_slits.nspec, this_slits.nspat, slice_subpixel)
-        raimg_slc, decimg_slc = np.zeros(slshape, dtype=float), np.zeros(slshape, dtype=float)
+        raimg_slc = np.zeros(slshape, dtype=float)
+        decimg_slc = np.zeros(slshape, dtype=float)
         for ss in range(slice_subpixel):
             # Generate an RA/Dec image for this subslice
             raimg_slc[:, :, ss], decimg_slc[:, :, ss], _ = this_slits.get_radec_image(
@@ -2384,8 +2388,6 @@ def subpixellate(
                 if verbose: 
                     log.info("Preparing subpixel weights")
                 vox_index = np.floor(vox_coord * voxscale - voxoffset).astype(int)
-                # vox_index = np.floor(outshape * (vox_coord - binrng[:,0].reshape((1, 1, 3))) /
-                #                                 (binrng[:,1] - binrng[:,0]).reshape((1, 1, 3))).astype(int)
                 # Convert to a unique index
                 vox_index = np.dot(vox_index, np.array([1, outshape[0], outshape[0]*outshape[1]]))
                 # Calculate the number of repeated indices for each subpixel - this is the subpixel weights
