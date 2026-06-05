@@ -40,6 +40,19 @@ class bspline(datamodel.DataContainer):
     written as header keywords.  Any datamodel elements that are None are *not*
     included in the output.
 
+    .. warning::
+
+        When using the ``x2`` argument for 2D fits, ``x2`` must be
+        statistically independent of ``x``.  If ``x2`` is a smooth,
+        monotonic function of ``x`` (e.g., both are uniformly spaced arrays
+        over the same range), the polynomial basis columns ``B_j(x) *
+        P_k(x2)`` become nearly linearly dependent within each B-spline
+        span, making the normal equations ill-conditioned and causing the
+        Cholesky decomposition to fail with NaN.  In practice this means
+        that, for a given range of ``x`` values, there must be a spread of
+        ``x2`` values — the typical use case is a spectral coordinate for
+        ``x`` and a spatial or slit-position coordinate for ``x2``.
+
     Parameters
     ----------
     x : `numpy.ndarray`_, optional

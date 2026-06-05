@@ -140,3 +140,94 @@ def test_1d_value_out_of_range_mask():
     assert mask[n_out:].all(), (
         'In-range points should have mask=True'
     )
+
+
+# ---------------------------------------------------------------------------
+# 2D synthetic-data tests (x2 functionality)
+# ---------------------------------------------------------------------------
+
+def test_2d_exact_polynomial():
+    """
+    With npoly=2 (Legendre) the 2D model spans functions of the form
+    h0(x) + h1(x)*x2norm, where x2norm = 2*x2 - 1 (with the default
+    xmin=0, xmax=1).  When h0 and h1 are both representable by cubic
+    B-splines the fit must be exact.
+
+    x2 must be independent of x so that the P_0 and P_1 columns of the
+    design matrix are linearly independent within each B-spline span.
+    """
+    n = 500
+    rng = np.random.default_rng(seed=99)
+    x = np.linspace(0., 10., n)
+    x2 = rng.uniform(0., 1., n)                 # independent of x
+    x2norm = 2.*x2 - 1.                         # default xmin=0, xmax=1
+
+    h0 = x**3 - 2.*x**2 + 3.*x - 1.
+    h1 = x**2 - x + 1.
+    ytrue = h0 + h1 * x2norm
+    invvar = np.ones(n, dtype=float)
+
+    sset = bspline.bspline(x, nord=4, bkspace=1.0, npoly=2)
+    err, yfit = sset.fit(x, ytrue, invvar, x2=x2)
+
+    assert err == 0, f'fit returned error code {err}'
+    assert np.allclose(yfit, ytrue, atol=1e-10), (
+        f'2D polynomial not fit to machine precision: '
+        f'max residual = {np.max(np.abs(yfit - ytrue)):.2e}'
+    )
+
+
+def test_2d_smooth_function():
+    """
+    Fit a smooth function with both x and x2 dependence.  The model has
+    the form h0(x) + h1(x)*x2norm; with bkspace=0.5 the approximation
+    error in each B-spline coefficient function is O(h^4), giving
+    residuals below 2e-3.
+
+    x2 must be independent of x so that the normal equations are
+    non-degenerate.
+    """
+    n = 1000
+    rng = np.random.default_rng(seed=99)
+    x = np.linspace(0., 10., n)
+    x2 = rng.uniform(0., 1., n)                 # independent of x
+    x2norm = 2.*x2 - 1.
+
+    ytrue = np.sin(2.*np.pi*x / 5.) + 0.5*np.cos(2.*np.pi*x / 3.) * x2norm
+    invvar = np.ones(n, dtype=float)
+
+    sset = bspline.bspline(x, nord=4, bkspace=0.5, npoly=2)
+    err, yfit = sset.fit(x, ytrue, invvar, x2=x2)
+
+    assert err == 0, f'fit returned error code {err}'
+    assert np.allclose(yfit, ytrue, atol=2e-3), (
+        f'2D smooth-function residuals too large: '
+        f'max = {np.max(np.abs(yfit - ytrue)):.2e}'
+    )
+
+
+def test_2d_value_matches_fit():
+    """
+    After a 2D fit, calling ``value(x, x2=x2)`` at the training points
+    must return the same model as the ``yfit`` returned by ``fit()``.
+    All in-range points must have ``mask=True``.
+    """
+    n = 500
+    rng = np.random.default_rng(seed=99)
+    x = np.linspace(0., 10., n)
+    x2 = rng.uniform(0., 1., n)                 # independent of x
+    x2norm = 2.*x2 - 1.
+
+    ytrue = np.sin(2.*np.pi*x / 5.) + 0.3*np.cos(x) * x2norm
+    invvar = np.ones(n, dtype=float)
+
+    sset = bspline.bspline(x, nord=4, bkspace=1.0, npoly=2)
+    err, yfit = sset.fit(x, ytrue, invvar, x2=x2)
+    assert err == 0
+
+    yval, mask = sset.value(x, x2=x2)
+
+    assert mask.all(), 'mask should be True everywhere within the fit domain'
+    assert np.array_equal(yval, yfit), (
+        'value() with x2 at training points disagrees with fit() output'
+    )
