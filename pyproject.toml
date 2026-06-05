@@ -55,8 +55,8 @@ dependencies = [
 scikit-image = [
     "scikit-image>=0.23",
 ]
-photutils = [
-    "photutils>=2.0",
+datacube = [
+    "photutils>=3.0",
 ]
 specutils = [
     "specutils>=2.0",
