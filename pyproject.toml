@@ -52,10 +52,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-scikit-image = [
-    "scikit-image>=0.23",
-]
 datacube = [
+    "scikit-image>=0.23",
     "photutils>=3.0",
 ]
 specutils = [
