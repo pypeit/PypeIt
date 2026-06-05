@@ -13,6 +13,7 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
@@ -212,7 +213,7 @@ class VLTUVESSpectrograph(spectrograph.Spectrograph):
                 cwlen = 'None'
             return cwlen
         else:
-            log.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -625,7 +626,7 @@ class VLTUVESRedSpectrograph(VLTUVESSpectrograph):
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
         # Binning *must* be consistent for all detectors
         if any(d.binning != detectors[0].binning for d in detectors[1:]):
-            log.error('Binning is somehow inconsistent between detectors in the mosaic!')
+            raise PypeItError('Binning is somehow inconsistent between detectors in the mosaic!')
 
         # Collect the offsets and rotations for *all unbinned* detectors in the
         # full instrument, ordered by the number of the detector.  Detector
