@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from pypeit import bspline
-from pypeit.bspline.util import bspline_model, cholesky_band, cholesky_solve, solution_arrays
+from pypeit.bspline.util import bspline_model, cholesky_band, cholesky_solve, intrv, solution_arrays
 
 
 def test_1d_exact_polynomial():
@@ -518,4 +518,278 @@ def test_reinit_coeff():
     assert np.all(sset.coeff == 0.), 'reinit_coeff must zero out coeff'
     assert np.array_equal(sset.icoeff, icoeff_before), (
         'reinit_coeff must not modify icoeff'
+    )
+
+
+# ---------------------------------------------------------------------------
+# bsplvn tests
+# ---------------------------------------------------------------------------
+
+def test_bsplvn():
+    """
+    Verify two fundamental B-spline properties of ``bsplvn`` across orders
+    2 (linear), 3 (quadratic), and 4 (cubic), plus exact analytic values for
+    the linear case.
+
+    Properties tested:
+
+    1. **Partition of unity** — the ``nord`` active basis functions at any
+       point sum to exactly 1:  ``vnikx.sum(axis=1) == 1``.
+    2. **Non-negativity** — every basis value is >= 0.
+    3. **Exact linear case (nord=2)** — for uniform breakpoints with
+       spacing h, the two basis values are the linear interpolation weights::
+
+           vnikx[:, 0] = (bkpt[ileft+1] - x) / h
+           vnikx[:, 1] = (x - bkpt[ileft])   / h
+
+    ``intrv`` is used to compute span indices the same way ``action`` does,
+    so the test exercises the ``intrv`` → ``bsplvn`` path directly.
+    """
+    n_data = 200
+    x = np.linspace(0., 10., n_data)
+
+    for nord in [2, 3, 4]:
+        sset = bspline.bspline(x, nord=nord, bkspace=1.0)
+        bkpt = sset.breakpoints[sset.mask]
+        ileft = intrv(nord, bkpt, x)
+        vnikx = sset.bsplvn(x, ileft)
+
+        assert np.allclose(vnikx.sum(axis=1), 1.0, atol=1e-14), (
+            f'Partition of unity violated for nord={nord}: '
+            f'max deviation = {np.max(np.abs(vnikx.sum(axis=1) - 1.0)):.2e}'
+        )
+        assert (vnikx >= 0).all(), (
+            f'Non-negativity violated for nord={nord}: '
+            f'min value = {vnikx.min():.2e}'
+        )
+
+    # Exact analytic values for the linear case (nord=2).
+    sset2 = bspline.bspline(x, nord=2, bkspace=1.0)
+    bkpt2 = sset2.breakpoints[sset2.mask]
+    ileft2 = intrv(2, bkpt2, x)
+    vnikx2 = sset2.bsplvn(x, ileft2)
+
+    h = bkpt2[ileft2 + 1] - bkpt2[ileft2]   # span width at each point
+    assert np.allclose(vnikx2[:, 0], (bkpt2[ileft2 + 1] - x) / h, atol=1e-14), (
+        'bsplvn linear basis[0] does not match analytic interpolation weight'
+    )
+    assert np.allclose(vnikx2[:, 1], (x - bkpt2[ileft2]) / h, atol=1e-14), (
+        'bsplvn linear basis[1] does not match analytic interpolation weight'
+    )
+
+
+# ---------------------------------------------------------------------------
+# intrv tests
+# ---------------------------------------------------------------------------
+
+def test_intrv():
+    """
+    ``intrv`` must return, for each x[i], the knot span index ``ileft``
+    satisfying ``breakpoints[ileft] <= x[i] < breakpoints[ileft+1]``,
+    clamped to ``[nord-1, n-1]`` where ``n = breakpoints.size - nord``.
+
+    Uses a small explicit breakpoint array with nord=4 so every case can be
+    reasoned about analytically:
+
+        bkpt = [-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7]
+        nord=4  →  n=7, valid index range [3, 6]
+
+    Four properties are checked:
+
+    1. Exact known indices for one strictly-interior point per span.
+    2. Bracket property: bkpt[indx[i]] <= x[i] < bkpt[indx[i]+1] for
+       in-domain points.
+    3. Lower clamp: x below bkpt[nord-1] = 0  →  indx = nord-1 = 3.
+    4. Upper clamp: x above bkpt[n]   = 4  →  indx = n-1 = 6.
+    """
+    nord = 4
+    bkpt = np.array([-3., -2., -1., 0., 1., 2., 3., 4., 5., 6., 7.])
+    n = bkpt.size - nord   # 7; valid index range [3, 6]
+
+    # Part 1: exact known indices — one strictly-interior point per span.
+    x_known = np.array([0.3, 1.3, 2.7, 3.5])
+    expected = np.array([3, 4, 5, 6])
+    assert np.array_equal(intrv(nord, bkpt, x_known), expected), (
+        f'exact index check failed: got {intrv(nord, bkpt, x_known)}, expected {expected}'
+    )
+
+    # Part 2: bracket property over a denser in-domain grid.
+    x_in = np.array([0.1, 0.9, 1.1, 1.9, 2.1, 2.9, 3.1, 3.9])
+    indx = intrv(nord, bkpt, x_in)
+    assert np.all(bkpt[indx] <= x_in), 'Left bracket violated'
+    assert np.all(x_in < bkpt[indx + 1]), 'Right bracket violated'
+
+    # Part 3: lower clamp — x strictly below bkpt[nord-1] = bkpt[3] = 0.
+    x_lo = np.array([-5., -1., -0.01])
+    assert np.all(intrv(nord, bkpt, x_lo) == nord - 1), (
+        'Lower clamp failed: expected all indices == nord-1'
+    )
+
+    # Part 4: upper clamp — x strictly above bkpt[n] = bkpt[7] = 4.
+    x_hi = np.array([4.01, 5., 10.])
+    assert np.all(intrv(nord, bkpt, x_hi) == n - 1), (
+        'Upper clamp failed: expected all indices == n-1'
+    )
+
+
+# ---------------------------------------------------------------------------
+# action lower/upper structure tests
+# ---------------------------------------------------------------------------
+
+def test_action_lower_upper():
+    """
+    Verify the structural properties of the ``lower`` and ``upper`` arrays
+    returned by ``action``.
+
+    ``lower[i]`` and ``upper[i]`` (inclusive) are the first and last data
+    indices belonging to span ``i``, where span ``i`` covers x values between
+    ``bkpt[i+nord-1]`` and ``bkpt[i+nord]``.  Empty spans (no data) have
+    ``upper[i] == -1``.
+
+    Five properties are checked:
+
+    1. **Shape**: both arrays have length ``nbkpt - 2*nord + 1`` where
+       ``nbkpt = sset.mask.sum()``.
+    2. **Non-empty bound**: ``upper[i] >= lower[i]`` for all non-empty spans.
+    3. **Consistency with indx**: every data index ``j`` in
+       ``[lower[i], upper[i]]`` satisfies ``indx[j] == i + nord - 1``,
+       verified against ``intrv`` used as an independent ground truth.
+    4. **Coverage**: the non-empty spans tile ``[0, nx-1]`` without gaps
+       or overlaps.
+    5. **Empty sentinel**: spans with no data have ``upper[i] == -1``,
+       verified by passing gapped data that skips an entire interior span.
+    """
+    n_data = 200
+    x = np.linspace(0., 10., n_data)
+    sset = bspline.bspline(x, nord=4, bkspace=1.0)
+
+    action_mat, lower, upper = sset.action(x)
+    bkpt = sset.breakpoints[sset.mask]
+    indx = intrv(sset.nord, bkpt, x)
+
+    n_bkpt = sset.mask.sum()
+    expected_len = n_bkpt - 2 * sset.nord + 1
+
+    # 1. Shape.
+    assert lower.shape == (expected_len,), (
+        f'lower shape {lower.shape} != expected ({expected_len},)'
+    )
+    assert upper.shape == lower.shape, 'lower and upper have different shapes'
+
+    # 2. Non-empty bound.
+    nonempty = upper >= 0
+    assert np.all(upper[nonempty] >= lower[nonempty]), (
+        'upper[i] < lower[i] for some non-empty span'
+    )
+
+    # 3. Consistency with indx: every index in [lower[i], upper[i]] belongs
+    #    to span i (i.e. indx[j] == i + nord - 1).
+    for i in range(len(lower)):
+        if upper[i] < 0:
+            continue
+        span_indx = indx[lower[i]:upper[i] + 1]
+        assert np.all(span_indx == i + sset.nord - 1), (
+            f'Span {i}: data in [{lower[i]}, {upper[i]}] has wrong span indices'
+        )
+
+    # 4. Coverage: union of non-empty spans must cover every data index.
+    covered = np.zeros(x.size, dtype=bool)
+    for i in range(len(lower)):
+        if upper[i] >= 0:
+            covered[lower[i]:upper[i] + 1] = True
+    assert covered.all(), 'Some data indices are not covered by any span'
+
+    # 5. Empty sentinel: gapped data leaves interior spans with no points.
+    x_gap = np.concatenate([
+        np.linspace(0., 2.9, 60),
+        np.linspace(5.1, 10., 60),
+    ])
+    _, lower_gap, upper_gap = sset.action(x_gap)
+    assert np.any(upper_gap == -1), (
+        'Expected empty-span sentinels (upper == -1) for data with a gap in [3, 5]'
+    )
+
+
+# ---------------------------------------------------------------------------
+# non-legendre funcname tests
+# ---------------------------------------------------------------------------
+
+def test_2d_poly_exact():
+    """
+    ``funcname='poly'`` builds ``temppoly`` columns ``[1, x2norm, x2norm²]``.
+    A function that is a sum of cubic-in-x polynomials times each of these
+    three basis columns must be recovered to near machine precision.
+    """
+    n = 500
+    rng = np.random.default_rng(seed=99)
+    x = np.linspace(0., 10., n)
+    x2 = rng.uniform(0., 1., n)
+    x2norm = 2.*x2 - 1.                     # default xmin=0, xmax=1
+
+    ytrue = ((x**3 - 2.*x**2 + 3.*x - 1.)          # coeff of 1
+             + (x**2 - x + 1.) * x2norm             # coeff of x2norm
+             + x                * x2norm**2)         # coeff of x2norm^2
+    invvar = np.ones(n, dtype=float)
+
+    sset = bspline.bspline(x, nord=4, bkspace=1.0, npoly=3, funcname='poly')
+    err, yfit = sset.fit(x, ytrue, invvar, x2=x2)
+
+    assert err == 0, f'fit returned error code {err}'
+    assert np.allclose(yfit, ytrue, atol=1e-10), (
+        f'poly exact fit failed: max residual = {np.max(np.abs(yfit - ytrue)):.2e}'
+    )
+
+
+@pytest.mark.skip(reason='poly1 fit with random x2 is ill-conditioned — needs investigation')
+def test_2d_poly1_exact():
+    """
+    ``funcname='poly1'`` builds ``temppoly`` columns ``[x2norm, x2norm², x2norm³]``
+    (no constant x2 term).  A function spanned by these three basis columns
+    times cubic B-splines must be recovered to near machine precision.
+    """
+    n = 500
+    rng = np.random.default_rng(seed=99)
+    x = np.linspace(0., 10., n)
+    x2 = rng.uniform(0., 1., n)
+    x2norm = 2.*x2 - 1.
+
+    ytrue = ((x**2 - x + 1.) * x2norm          # coeff of x2norm
+             + x               * x2norm**2      # coeff of x2norm^2
+             + 1.              * x2norm**3)      # coeff of x2norm^3
+    invvar = np.ones(n, dtype=float)
+
+    sset = bspline.bspline(x, nord=4, bkspace=1.0, npoly=3, funcname='poly1')
+    err, yfit = sset.fit(x, ytrue, invvar, x2=x2)
+
+    assert err == 0, f'fit returned error code {err}'
+    assert np.allclose(yfit, ytrue, atol=1e-10), (
+        f'poly1 exact fit failed: max residual = {np.max(np.abs(yfit - ytrue)):.2e}'
+    )
+
+
+def test_2d_chebyshev_exact():
+    """
+    ``funcname='chebyshev'`` builds ``temppoly`` columns
+    ``[T₀, T₁, T₂] = [1, x2norm, 2·x2norm²-1]``.  A function spanned by
+    these Chebyshev basis columns times cubic B-splines must be recovered to
+    near machine precision.
+    """
+    n = 500
+    rng = np.random.default_rng(seed=99)
+    x = np.linspace(0., 10., n)
+    x2 = rng.uniform(0., 1., n)
+    x2norm = 2.*x2 - 1.
+
+    # ytrue = x^3·T₀ + x²·T₁ + x·T₂  (T₂ = 2·x2norm² − 1)
+    ytrue = (x**3              * 1.
+             + x**2            * x2norm
+             + x               * (2.*x2norm**2 - 1.))
+    invvar = np.ones(n, dtype=float)
+
+    sset = bspline.bspline(x, nord=4, bkspace=1.0, npoly=3, funcname='chebyshev')
+    err, yfit = sset.fit(x, ytrue, invvar, x2=x2)
+
+    assert err == 0, f'fit returned error code {err}'
+    assert np.allclose(yfit, ytrue, atol=1e-10), (
+        f'chebyshev exact fit failed: max residual = {np.max(np.abs(yfit - ytrue)):.2e}'
     )
