@@ -1174,6 +1174,10 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
                 sset.xmax = xmax
                 if 'funcname' in kwargs_bspline:
                     sset.funcname = kwargs_bspline['funcname']
+                    if kwargs_bspline['funcname'] == 'poly1':
+                        log.warning("bspline funcname='poly1' produces a basis with no constant "
+                                    "x2 term and may be ill-conditioned.  Consider using "
+                                    "'legendre' instead.")
     xwork = xdata[xsort]
     ywork = ydata[xsort]
     invwork = invvar[xsort]
@@ -1360,8 +1364,9 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
         raise PypeItError('No valid data points in bspline_profile!.')
 
     # Init bspline class
-    sset = bspline.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
-                   funcname='Bspline longslit special', **kwargs_bspline)
+    sset = bspline.bspline(
+        xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt, **kwargs_bspline
+    )
     if maskwork.sum() < sset.nord:
         if not quiet:
             log.warning('Number of good data points fewer than nord.')

@@ -17,6 +17,7 @@ import numpy as np
 
 from pypeit.core import basis
 from pypeit import datamodel
+from pypeit import log
 
 from pypeit.bspline.util import (
     cholesky_band, cholesky_solve, solution_arrays, intrv, bspline_model
@@ -152,6 +153,9 @@ class bspline(datamodel.DataContainer):
             self.coeff = np.zeros((nc,), dtype=float)
             self.icoeff = np.zeros((nc,), dtype=float)
         self.funcname = funcname
+        if funcname == 'poly1':
+            log.warning("bspline funcname='poly1' produces a basis with no constant x2 term "
+                        "and may be ill-conditioned.  Consider using 'legendre' instead.")
 
     @staticmethod
     def _fill_bkpt(bkpt, nord, bkspread):
