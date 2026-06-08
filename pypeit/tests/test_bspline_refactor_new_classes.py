@@ -14,7 +14,7 @@ import warnings
 import numpy as np
 import pytest
 
-from pypeit.bspline.refactor import BSpline, BSpline2D, _uniq
+from pypeit.bspline.refactor import BSpline, BSpline2D
 from pypeit.bspline.bspline import bspline
 
 

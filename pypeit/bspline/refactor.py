@@ -41,38 +41,6 @@ from pypeit.core import basis
 
 
 # ---------------------------------------------------------------------------
-# Module-level helper
-# ---------------------------------------------------------------------------
-
-def _uniq(x):
-    """
-    Return the indices of the *last* occurrence of each unique value in a sorted
-    array.
-
-    Replicates the IDL ``UNIQ()`` behaviour used internally for building the
-    design-matrix span boundaries.
-
-    Parameters
-    ----------
-    x : :class:`numpy.ndarray`
-        A sorted array (ascending).  Must be non-empty.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-        Indices of the last occurrence of each unique value.
-
-    Raises
-    ------
-    ValueError
-        If ``x`` is empty.
-    """
-    if len(x) == 0:
-        raise ValueError('No unique elements in an empty array.')
-    return np.flatnonzero(np.concatenate(([True], x[1:] != x[:-1], [True])))[1:] - 1
-
-
-# ---------------------------------------------------------------------------
 # BSpline — 1D weighted least-squares B-spline
 # ---------------------------------------------------------------------------
 
@@ -309,6 +277,39 @@ class BSpline:
         return indx
 
     # ------------------------------------------------------------------
+    # Static helper — unique run-end indices
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _uniq(x):
+        """Return the index of the last occurrence of each unique value
+        in a sorted array.
+
+        Replicates the IDL ``UNIQ()`` behaviour used internally for
+        building the design-matrix span boundaries.
+
+        Parameters
+        ----------
+        x : :class:`numpy.ndarray`
+            A sorted array (ascending).  Must be non-empty.
+
+        Returns
+        -------
+        :class:`numpy.ndarray`
+            Indices of the last occurrence of each unique value.
+
+        Raises
+        ------
+        ValueError
+            If ``x`` is empty.
+        """
+        if len(x) == 0:
+            raise ValueError('No unique elements in an empty array.')
+        return np.flatnonzero(
+            np.concatenate(([True], x[1:] != x[:-1], [True]))
+        )[1:] - 1
+
+    # ------------------------------------------------------------------
     # Private algorithmic methods
     # ------------------------------------------------------------------
 
@@ -400,10 +401,10 @@ class BSpline:
         indx = BSpline._find_spans(x, self.breakpoints[self.mask], self.nord)
         A = self._bspline_basis(x, indx)
 
-        aa = _uniq(indx)
+        aa = self._uniq(indx)
         upper[indx[aa] - self.nord + 1] = aa
         rindx = indx[::-1]
-        bb = _uniq(rindx)
+        bb = self._uniq(rindx)
         lower[rindx[bb] - self.nord + 1] = nx - bb - 1
 
         return A, lower, upper
@@ -616,7 +617,7 @@ class BSpline:
             warnings.warn('Fewer good break points than order of b-spline. Returning...')
             return -2
 
-        hmm = bad_cols[_uniq(bad_cols // self.npoly)] // self.npoly
+        hmm = bad_cols[self._uniq(bad_cols // self.npoly)] // self.npoly
 
         n = nbkpt - self.nord
         if np.any(hmm >= n):
@@ -975,10 +976,10 @@ class BSpline2D(BSpline):
         indx = BSpline._find_spans(x, self.breakpoints[self.mask], self.nord)
         B = self._bspline_basis(x, indx)  # (N, nord)
 
-        aa = _uniq(indx)
+        aa = self._uniq(indx)
         upper[indx[aa] - self.nord + 1] = aa
         rindx = indx[::-1]
-        bb = _uniq(rindx)
+        bb = self._uniq(rindx)
         lower[rindx[bb] - self.nord + 1] = nx - bb - 1
 
         x2norm = self._normalize_x2(x2)
