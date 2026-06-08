@@ -1626,8 +1626,8 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, weight_method=None, save_native=None, combine=None, output_filename=None,
-                 sensfile=None, alignment_method=None, method=None, extraction=None,
+    def __init__(self, slit_spec=None, weight_method=None, save_native=None, save_separate=None, combine=None,
+                 output_filename=None, sensfile=None, alignment_method=None, method=None, extraction=None,
                  reference_image=None, save_whitelight=None, whitelight_range=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
@@ -1686,7 +1686,12 @@ class CubePar(ParSet):
         defaults['save_native'] = False
         dtypes['save_native'] = [bool]
         descr['save_native'] = ('If set to True, PypeIt will write spec3d datacube files for each of the '
-                                'input spec2d files.')
+                                'input spec2d files, at the native sampling of the instrument.')
+
+        defaults['save_separate'] = False
+        dtypes['save_separate'] = [bool]
+        descr['save_separate'] = ('If set to True, PypeIt will write spec3d datacube files for each of the '
+                                  'input spec2d files, at the final (combined) sampling of the instrument.')
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -1899,8 +1904,8 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'save_native', 'reference_image', 'save_whitelight',
-                   'extraction', 'method',
+        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'save_native', 'save_separate', 'save_whitelight',
+                   'reference_image', 'extraction', 'method',
                    'spec_subpixel', 'spat_subpixel', 'slice_subpixel',
                    'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'alignment_method', 'combine',
