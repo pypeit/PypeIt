@@ -28,22 +28,6 @@ from pypeit.core.wave import airtovac
 
 from IPython import embed
 
-def load_thar_spec():
-    """
-    Load the archived ThAr spectrum from the PypeIt data directory.
-
-    The spectrum read is *always*
-    ``pypeit/data/arc_lines/thar_spec_MM201006.fits``.
-
-    Returns:
-        `astropy.io.fits.HDUList`_: ThAr Spectrum FITS HDU list
-    """
-    try:
-        return fits.open(dataPaths.arclines.get_file_path('thar_spec_MM201006.fits'))
-    except OSError as e:
-        log.error(f"Failed to load ThAr spectrum: {e}")
-        raise
-
 def blackbody(wavelength, T_BB=250., debug=False):
     """ Given wavelength [in microns] and Temperature in Kelvin
     it returns the black body emission.
@@ -252,6 +236,21 @@ def h2o_lines():
 
     return h2o_wv, h2o_rad
 
+def load_thar_spec():
+    """
+    Load the archived ThAr spectrum from the PypeIt data directory.
+
+    The spectrum read is *always*
+    ``pypeit/data/arc_lines/thar_spec_MM201006.fits``.
+
+    Returns:
+        `astropy.io.fits.HDUList`_: ThAr Spectrum FITS HDU list
+    """
+    try:
+        return fits.open(dataPaths.arclines.get_file_path('thar_spec_MM201006.fits'))
+    except OSError as e:
+        log.error(f"Failed to load ThAr spectrum: {e}")
+        raise
 
 def thar_lines():
     """ Reads in the H2O atmospheric spectrum"
