@@ -100,7 +100,6 @@ class BSpline:
         everyn=None
     ):
         self.nord = nord
-        self.npoly = 1  # Always 1 for the base class
 
         if x is None and fullbkpt is None:
             # Empty instance (e.g. for copy / deserialization)
@@ -313,6 +312,44 @@ class BSpline:
     # Private algorithmic methods
     # ------------------------------------------------------------------
 
+    def _poly_scale(self, n):
+        """Convert a knot-span count to a total unknown count.
+
+        For the 1D case this is the identity.  :class:`BSpline2D`
+        overrides this to return ``n * self.npoly``.
+
+        Parameters
+        ----------
+        n : int
+            Number of active knot spans (or a span index).
+
+        Returns
+        -------
+        int
+            ``n`` (base class).
+        """
+        return n
+
+    def _dedup_bad_cols(self, bad_cols):
+        """Map bad Cholesky column indices to unique knot-span indices.
+
+        For the 1D case (``npoly = 1``) column indices and span indices
+        are identical.  :class:`BSpline2D` overrides this to fold
+        multiple columns that belong to the same span via integer
+        division by ``self.npoly``.
+
+        Parameters
+        ----------
+        bad_cols : :class:`numpy.ndarray`
+            Bad column indices returned by :meth:`_solve_banded`.
+
+        Returns
+        -------
+        :class:`numpy.ndarray`
+            Unique span indices corresponding to the bad columns.
+        """
+        return bad_cols[self._uniq(bad_cols)]
+
     def _bspline_basis(self, x, ileft):
         r"""
         Evaluate B-spline basis functions via the de Boor triangular recursion.
@@ -451,7 +488,7 @@ class BSpline:
         goodbk = self.mask[self.nord:]
         nn = goodbk.sum()
         bw = A.shape[1]
-        nfull = nn * self.npoly
+        nfull = self._poly_scale(nn)
 
         sqrt_w = np.sqrt(w)
         a2 = A * sqrt_w[:, np.newaxis]  # whitened design matrix
@@ -469,7 +506,7 @@ class BSpline:
             if upper[k] < lower[k]:
                 continue
             sl = slice(lower[k], upper[k] + 1)
-            itop = k * self.npoly
+            itop = self._poly_scale(k)
             ibottom = min(itop, nfull) + bw - 1
             work = a2[sl, :].T @ a2[sl, :]          # (bw, bw) Gram block
             alpha.T.flat[bo + itop * bw] += work.flat[bi]
@@ -617,7 +654,7 @@ class BSpline:
             warnings.warn('Fewer good break points than order of b-spline. Returning...')
             return -2
 
-        hmm = bad_cols[self._uniq(bad_cols // self.npoly)] // self.npoly
+        hmm = self._dedup_bad_cols(bad_cols)
 
         n = nbkpt - self.nord
         if np.any(hmm >= n):
@@ -684,7 +721,7 @@ class BSpline:
         if nn < self.nord:
             return -2, np.zeros(ydata.shape, dtype=float)
 
-        nfull = nn * self.npoly
+        nfull = self._poly_scale(nn)
         mininf = 1.0e-10 * invvar.sum() / nfull
 
         # Build / retrieve cached design matrix
@@ -770,7 +807,6 @@ class BSpline:
         """
         new = BSpline.__new__(BSpline)
         new.nord = self.nord
-        new.npoly = self.npoly
         new.breakpoints = np.copy(self.breakpoints)
         new.mask = np.copy(self.mask)
         new.coeff = np.copy(self.coeff)
@@ -858,6 +894,41 @@ class BSpline2D(BSpline):
     # ------------------------------------------------------------------
     # Private methods — 2D-specific
     # ------------------------------------------------------------------
+
+    def _poly_scale(self, n):
+        """Convert a knot-span count to a total unknown count.
+
+        Overrides the base-class identity with ``n * self.npoly``.
+
+        Parameters
+        ----------
+        n : int
+            Number of active knot spans (or a span index).
+
+        Returns
+        -------
+        int
+            ``n * self.npoly``.
+        """
+        return n * self.npoly
+
+    def _dedup_bad_cols(self, bad_cols):
+        """Map bad Cholesky column indices to unique knot-span indices.
+
+        Overrides the base-class implementation to account for the
+        ``npoly`` polynomial terms packed into each knot span.
+
+        Parameters
+        ----------
+        bad_cols : :class:`numpy.ndarray`
+            Bad column indices returned by :meth:`_solve_banded`.
+
+        Returns
+        -------
+        :class:`numpy.ndarray`
+            Unique span indices corresponding to the bad columns.
+        """
+        return bad_cols[self._uniq(bad_cols // self.npoly)] // self.npoly
 
     def _normalize_x2(self, x2):
         """
@@ -1106,7 +1177,7 @@ class BSpline2D(BSpline):
         if nn < self.nord:
             return -2, np.zeros(ydata.shape, dtype=float)
 
-        nfull = nn * self.npoly
+        nfull = self._poly_scale(nn)
         mininf = 1.0e-10 * invvar.sum() / nfull
 
         # Design matrix depends on both x and x2; invalidate cache if shapes change
