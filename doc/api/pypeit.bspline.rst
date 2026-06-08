@@ -8,6 +8,7 @@ Submodules
    :maxdepth: 4
 
    pypeit.bspline.bspline
+   pypeit.bspline.refactor
    pypeit.bspline.util
 
 Module contents
