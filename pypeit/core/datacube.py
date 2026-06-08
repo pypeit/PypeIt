@@ -692,7 +692,7 @@ def extract_point_source(
     if fluxed:
         sobj.OPT_FLAM = sobj.OPT_COUNTS
         sobj.OPT_FLAM_SIG = sobj.OPT_COUNTS_SIG
-        sobj.OPT_FLAM_IVAR = sobj.OPT_COUNTS_IVARf
+        sobj.OPT_FLAM_IVAR = sobj.OPT_COUNTS_IVAR
 
     # Make a specobjs object
     sobjs = specobjs.SpecObjs()
