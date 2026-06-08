@@ -92,8 +92,9 @@ class BSpline:
 
         \min_c \sum_i w_i (y_i - \hat{y}_i)^2
 
-    where :math:`w_i = \mathrm{invvar}_i` and :math:`B_k` are B-spline basis
-    functions of order ``nord``.
+    where :math:`w_i = \varepsilon^{-2}_i`, :math:`\varepsilon_i` are the
+    1-sigma uncertainties, and :math:`B_k` are B-spline basis functions of order
+    ``nord``.
 
     The normal equations :math:`(A^\top W A) c = A^\top W y` are assembled in
     banded storage and solved via LAPACK's banded Cholesky routines
