@@ -226,7 +226,7 @@ def test_assemble_normal_equations_alpha_shape():
     alpha, beta = spl._assemble_normal_equations(A, y, w, lower, upper)
     bw = A.shape[1]
     nn = spl.mask[spl.nord:].sum()
-    nfull = nn * spl.npoly
+    nfull = spl._poly_scale(nn)
     assert alpha.shape == (bw, nfull + bw)
     assert beta.shape == (nfull + bw,)
 
@@ -240,7 +240,7 @@ def test_assemble_normal_equations_diagonal_positive():
     A, lower, upper = spl._build_design_matrix(x)
     alpha, beta = spl._assemble_normal_equations(A, y, w, lower, upper)
     nn = spl.mask[spl.nord:].sum()
-    nfull = nn * spl.npoly
+    nfull = spl._poly_scale(nn)
     assert np.all(alpha[0, :nfull] > 0)
 
 
