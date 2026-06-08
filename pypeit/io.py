@@ -957,17 +957,3 @@ def load_telluric_grid(filename: str):
                    "#atmospheric-model-grids")
 
     return fits_open(file_with_path)
-
-
-def load_thar_spec():
-    """
-    Load the archived ThAr spectrum from the PypeIt data directory.
-
-    The spectrum read is *always*
-    ``pypeit/data/arc_lines/thar_spec_MM201006.fits``.
-
-    Returns:
-        `astropy.io.fits.HDUList`_: ThAr Spectrum FITS HDU list
-    """
-    return fits_open(dataPaths.arclines.get_file_path('thar_spec_MM201006.fits'))
-

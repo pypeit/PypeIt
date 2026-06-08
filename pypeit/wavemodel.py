@@ -22,11 +22,27 @@ from astropy import units
 from pypeit import log
 from pypeit import dataPaths
 from pypeit.core import arc
-from pypeit import utils
+from pypeit import utils # for plotting utils.pyplot_rcparams() and utils.pyplot_rcparams_default()
 from pypeit.core.wave import airtovac
-from pypeit import io
+#from pypeit import io # for io.load_thar_spec()
 
 from IPython import embed
+
+def load_thar_spec():
+    """
+    Load the archived ThAr spectrum from the PypeIt data directory.
+
+    The spectrum read is *always*
+    ``pypeit/data/arc_lines/thar_spec_MM201006.fits``.
+
+    Returns:
+        `astropy.io.fits.HDUList`_: ThAr Spectrum FITS HDU list
+    """
+    try:
+        return fits.open(dataPaths.arclines.get_file_path('thar_spec_MM201006.fits'))
+    except OSError as e:
+        log.error(f"Failed to load ThAr spectrum: {e}")
+        raise
 
 def blackbody(wavelength, T_BB=250., debug=False):
     """ Given wavelength [in microns] and Temperature in Kelvin
@@ -59,8 +75,8 @@ def blackbody(wavelength, T_BB=250., debug=False):
     lam = wavelength / 1e4 # convert wave in cm.
     blackbody_pol = 2.*PLANCK*np.power(C_LIGHT,2) / np.power(lam,5)
     blackbody_exp = np.exp(PLANCK*C_LIGHT/(lam*K_BOLTZ*T_BB)) - 1.
-    blackbody = blackbody_pol / blackbody_exp
-    blackbody_counts = blackbody / (PLANCK * C_LIGHT / lam) * 1e-4 \
+    blackbody_flux = blackbody_pol / blackbody_exp
+    blackbody_counts = blackbody_flux / (PLANCK * C_LIGHT / lam) * 1e-4 \
                  * np.power(RADIAN_PER_ARCSEC, 2.)
 
     if debug:
@@ -79,7 +95,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
         plt.close()
         utils.pyplot_rcparams_default()
 
-    return blackbody, blackbody_counts
+    return blackbody_flux, blackbody_counts
 
 
 def addlines2spec(wavelength, wl_line, fl_line, resolution,
@@ -176,9 +192,9 @@ def transparency(wavelength, debug=False):
     """
 
     log.info("Reading in the atmospheric transmission model")
-    transparency = np.loadtxt(dataPaths.skisim.get_file_path('atm_transmission_secz1.5_1.6mm.dat'))
-    wave_mod = transparency[:,0]
-    tran_mod = transparency[:,1]
+    trans = np.loadtxt(dataPaths.skisim.get_file_path('atm_transmission_secz1.5_1.6mm.dat'))
+    wave_mod = trans[:,0]
+    tran_mod = trans[:,1]
 
     # Limit model between 0.8 and np.max(wavelength) microns
     filt_wave_mod = (wave_mod>0.8) & (wave_mod<np.max(wavelength))
@@ -249,8 +265,8 @@ def thar_lines():
         Flux of the ThAr lamp spectrum.
     """
     log.info("Reading in the ThAr spectrum")
-    thar = io.load_thar_spec()
-    
+    thar = load_thar_spec()
+
     # create pixel array
     thar_pix = np.arange(thar[0].header['CRPIX1'],len(thar[0].data[0,:])+1)
     # convert pixels to wavelength in Angstrom
@@ -336,8 +352,8 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
     y = np.power(10.,logy)
 
     log.info("Add in a blackbody for the atmosphere.")
-    bb, bb_counts = blackbody(wave, T_BB=T_BB, debug=debug)
-    bb_counts = bb_counts
+    _, bb_counts = blackbody(wave, T_BB=T_BB, debug=debug)
+
 
     log.info("Add in OH lines")
     oh_wv, oh_fx = oh_lines()
@@ -361,7 +377,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         mn_wv = np.mean(h2o_wv[filt_h2o_med])
         # Convolve to the instrument resolution. This is only
         # approximate.
-        smooth_fx, dwv, h2o_dwv = conv2res(h2o_wv, h2o_rad,
+        smooth_fx, _, _ = conv2res(h2o_wv, h2o_rad,
                                            resolution,
                                            central_wl = mn_wv,
                                            debug=debug)
@@ -483,7 +499,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
     mn_wv = np.mean(th_wv[filt_wl])
     # Convolve to the instrument resolution. This is only
     # approximate.
-    smooth_fx, dwv, thar_dwv = conv2res(th_wv, th_fx,
+    smooth_fx, _, _ = conv2res(th_wv, th_fx,
                                         resolution,
                                         central_wl = mn_wv,
                                         debug=debug)
@@ -637,7 +653,7 @@ def iraf_datareader(database_dir, id_file):
     lines_database = []
 
     # Open file for reading of text data.
-    with open (database_dir+id_file, 'rt') as id_file_iraf:
+    with open(database_dir+id_file, 'rt', encoding='utf-8') as id_file_iraf:
         for line in id_file_iraf:
             lines_database.append(line.split())
             feat_line = re.search(r'features\t(\d+)', line)
@@ -784,8 +800,8 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
         # the minimum fwhm of the spectrum
         fwhm = 1.1 * wl_fwhm / wl_bin[0]
         if fwhm < 1.:
-             log.warning("Lines are unresolved. Setting FWHM=2.pixels")
-             fwhm = 2.
+            log.warning("Lines are unresolved. Setting FWHM=2.pixels")
+            fwhm = 2.
 
     if line_name is None:
         log.warning("No line_name as been set. The file will contain XXX as ion")
@@ -796,7 +812,8 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
         file_root_name = 'OH_SKY'
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
-                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug, convert_air_to_vac=False)
+                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug,
+                    convert_air_to_vac=False)
 
 
 def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=True, thar_outfile=None,
@@ -859,8 +876,8 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
         # the minimum fwhm of the spectrum
         fwhm = 1.1 * wl_fwhm / wl_bin[0]
         if fwhm < 1.:
-             log.warning("Lines are unresolved. Setting FWHM=2.*pixels")
-             fwhm = 2.
+            log.warning("Lines are unresolved. Setting FWHM=2.*pixels")
+            fwhm = 2.
 
     if line_name is None:
         log.warning("No line_name as been set. The file will contain XXX as ion")
@@ -871,5 +888,5 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
         file_root_name = 'ThAr'
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
-                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug, convert_air_to_vac=convert_air_to_vac)
-
+                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug,
+                    convert_air_to_vac=convert_air_to_vac)
