@@ -89,6 +89,10 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     amplitude or integrated flux. Otherwise, make sure you scale the image by
     a known value prior to passing it into this function.
 
+    Image coordinates are quoted as (x, y), matching the coordinates read from
+    Ginga or DS9. In numpy indexing terms, x is the image column and y is the
+    image row.
+
     Parameters
     ----------
     image : `numpy.ndarray`_
@@ -100,9 +104,10 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         A good pixel mask. Pixels that are True are good. Default is None.
     init_obj_position : tuple, optional
         The initial guess for the object position in the image with format
-        (x, y). If set, the 2D Gaussian fit will be performed with the position constrainted
-        to be within plus or minus fwhm/3 in x and y. If not set, the position will be determined
-        by running DAOStarFinder on the image. Default is None.
+        (x, y), where x is the image column and y is the image row. If set, the
+        2D Gaussian fit will be performed with the position constrainted to be
+        within plus or minus fwhm/3 in x and y. If not set, the position will
+        be determined by running DAOStarFinder on the image. Default is None.
     fwhm : float, optional
         The FWHM of the image in pixels. This is used to estimate the initial
         guess for the Gaussian fit, the fit bounds, and the median filter kernel
@@ -128,17 +133,19 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     Returns
     -------
     popt : `numpy.ndarray`_
-       The optimum parameters of the Gaussian in the following order: Integrated
-       flux, x center, y center, sigma_x, sigma_y, theta, offset. See
-       :func:`~pypeit.core.datacube.gaussian2D` for a more detailed description
-       of the model.
+       The optimum parameters of the Gaussian in the following order:
+       integrated flux, x center, y center, sigma_x, sigma_y, theta, offset.
+       See :func:`~pypeit.core.datacube.gaussian2D` for a more detailed
+       description of the model.
     pcov : `numpy.ndarray`_
         Corresponding covariance matrix
     model : `numpy.ndarray`_
         The 2D Gaussian model evaluated at the input image pixel locations
     _init_obj_position : tuple
-        If the init_obj_position input parameter is None, this will be the initial guess for the object position in 
-        the image determined by running DAOStarFinder on the image, otherwise it will be the input value.
+        If the init_obj_position input parameter is None, this will be the
+        initial guess for the object position in (x, y) image coordinates,
+        determined by running DAOStarFinder on the image. Otherwise it will be
+        the input value.
     flux_opt : float
         The optimally extracted object flux of the brightest source in the image
     sigma_opt : float
@@ -193,12 +200,6 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
             exclude_border=False, n_brightest=1)
         # switched exclude_border to False since we use the edgemask now
         sources = daofind((objfind_image - median_objfind)*np.sqrt(ivar_objfind), mask=totmask)
-        if verbose: 
-            log.info('DAOStarFinder brightest source properties')
-            for col in sources.colnames:
-                if col not in ('id', 'npix'):
-                    sources[col].info.format = '%.2f'  # for consistent table output
-            sources.pprint(max_width=76)
         if sources is None:
             display.show_image((objfind_image*np.logical_not(totmask)*np.sqrt(ivar_objfind)),
                             chname='S/N objfind_image', cuts=(-2.0, 5.0))
@@ -206,8 +207,14 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
                 "No sources found in the image. Try lowering the significance threshold, "
                 f"nsigma = {nsigma:.1f} or adjust the DAOStarFinder parameters."
             )
+        if verbose:
+            log.info('DAOStarFinder brightest source properties')
+            for col in sources.colnames:
+                if col not in ('id', 'npix'):
+                    sources[col].info.format = '%.2f'  # for consistent table output
+            sources.pprint(max_width=76)
 
-        _init_obj_position = sources['y_centroid'][0], sources['x_centroid'][0]
+        _init_obj_position = sources['x_centroid'][0], sources['y_centroid'][0]
     else:
         _init_obj_position = init_obj_position
         
@@ -220,9 +227,9 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     # TODO JFH: The 2D Gaussian fitting should be using the noise and the gpm. This should be
     # implemented with scipy.optimize and a loss function instead of curve_fit
     # Setup the coordinates
-    x = np.linspace(0, image.shape[0] - 1, image.shape[0])
-    y = np.linspace(0, image.shape[1] - 1, image.shape[1])
-    xx, yy = np.meshgrid(x, y, indexing='ij')
+    x = np.linspace(0, image.shape[1] - 1, image.shape[1])
+    y = np.linspace(0, image.shape[0] - 1, image.shape[0])
+    xx, yy = np.meshgrid(x, y, indexing='xy')
     popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), image.ravel() / wlscl,
                                bounds=bounds, p0=initial_guess)
     _, xobj, yobj, sigma_x_gauss, sigma_y_gauss, theta_gauss, _ = popt
@@ -409,9 +416,10 @@ def extract_point_source(
         object position in the whitelight image with DAOStarFinder (this is the
         nsigma parameter in fitGaussian2D). Default is 5.0 
     manual_position : tuple, optional
-        Manual position of the object in the image, where (x, y) is the spatial
-        pixel position in the cube. Default is None, which means that the
-        position will be determined from the whitelight image.
+        Manual position of the object in user-facing cube spatial coordinates,
+        i.e. (x, y). Default is None, which means that the position will be
+        determined from the whitelight image. This follows the image viewer
+        convention: x is the image column and y is the image row.
     opt_prof_method : str, optional
 
         The method to be used to determine the object spatial profile for
@@ -503,7 +511,7 @@ def extract_point_source(
         wavemax=whitelight_range[1]
     )
     popt, pcov, model, init_obj_position, flux_opt, sigma_opt = fitGaussian2D(
-        wl_img, ivar=wl_ivar, gpm=wl_gpm, init_obj_position=manual_position, 
+        wl_img, ivar=wl_ivar, gpm=wl_gpm, init_obj_position=manual_position,
         fwhm=fwhm/dspat, nsigma=snr_thresh, norm=False, pixelscale=dspat
     )
     _, xpos_gauss, ypos_gauss, sigma_x_gauss, sigma_y_gauss, theta_gauss, _ = popt
@@ -511,9 +519,9 @@ def extract_point_source(
     
     # Object location for extraction 
     if manual_position is not None:
-        yobj, xobj = manual_position
+        xobj, yobj = manual_position
     else: 
-        yobj, xobj = gaussian_position
+        xobj, yobj = gaussian_position
     
     # Setup the coordinates of the mask
     y = np.linspace(0, numyy - 1, numyy * subpixel)
@@ -605,9 +613,9 @@ def extract_point_source(
     # can be applied.
 
     # Setup the coordinates
-    x = np.linspace(0, wl_img.shape[0] - 1, wl_img.shape[0])
-    y = np.linspace(0, wl_img.shape[1] - 1, wl_img.shape[1])
-    xx, yy = np.meshgrid(x, y, indexing='ij')
+    x = np.linspace(0, wl_img.shape[1] - 1, wl_img.shape[1])
+    y = np.linspace(0, wl_img.shape[0] - 1, wl_img.shape[0])
+    xx, yy = np.meshgrid(x, y, indexing='xy')
 
     if opt_prof_method == 'user_gauss':
         log.info("Optimal extraction with user_gauss method:")
@@ -620,7 +628,7 @@ def extract_point_source(
         sigma_x, sigma_y = fwhm_pix*fwhm2sigma, fwhm_pix*fwhm2sigma
         theta, offset, = 0.0, 0.0
         optkern = gaussian2D(
-            (yy, xx), intflux, xobj, yobj, sigma_x, sigma_y, theta, offset).reshape(wl_img.shape)
+            (xx, yy), intflux, xobj, yobj, sigma_x, sigma_y, theta, offset).reshape(wl_img.shape)
         # Normalise the kernel
         optkern /= np.sum(optkern)
     elif opt_prof_method == 'fit_gauss':
@@ -636,7 +644,7 @@ def extract_point_source(
         log.info(f"FWHM_y: {sigma_y_gauss*dspat/fwhm2sigma:.2f} arcsec")
         log.info("--------------------------------")        
     elif opt_prof_method == 'whitelight':
-        log.info("Optimal extraction with fit_gauss method: using whitelight image as a non-parametric spatial profile")
+        log.info("Optimal extraction with whitelight method: using whitelight image as a non-parametric spatial profile")
         sigma = fwhm/dspat*fwhm2sigma
         smoothed_wl_img = ndimage.gaussian_filter(wl_img, sigma=0.5*sigma, mode='constant', cval=0.0)
         # Create an apodization window using the coordinates and the specified center
@@ -743,6 +751,9 @@ def whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, gaussian_model, gaussian_posi
                           manual_position=None, channel_prefix=''):
     """
     Generate ginga QA for the white light image point source object finding. 
+
+    Image coordinates are quoted as (x, y), matching Ginga and DS9 readouts:
+    x is the image column and y is the image row.
     
     Parameters
     ----------
@@ -755,19 +766,18 @@ def whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, gaussian_model, gaussian_posi
     gaussian_model : `numpy.ndarray`_
         The 2D Gaussian model of the object from datacube.
     gaussian_position : tuple
-        The object position in the image determined from the Gaussian fit to the object. The first
-        element is x and the second element is y.
+        The object position in image (x, y) coordinates determined from the
+        Gaussian fit to the object.
     init_obj_position : tuple
-        The initial object position in the image determined from DAOStarFinder. The first element is x and 
-        the second element is y.
+        The initial object position in image (x, y) coordinates determined
+        from DAOStarFinder.
     manual_position : tuple, optional
-        The manual extraction object position in the image. 
-        The first element is x and the second element is y
+        The manual extraction object position in image (x, y) coordinates.
     channel_prefix : str, optional
         The prefix to use for the channel name in ginga. Default is ''.
     """
 
-    x_max, y_max = wl_img.shape
+    nrow, ncol = wl_img.shape
     mean, med, sigma = sigma_clipped_stats(wl_img[wl_gpm], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 5.0 * sigma
@@ -787,22 +797,22 @@ def whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, gaussian_model, gaussian_posi
     # TODO Add WCS
     ch_list = [ch_wl, ch_model, ch_snr]
     for ich, ch in enumerate(ch_list):
-        display.show_points(viewer, ch, [gaussian_position[0]], [gaussian_position[1]],
+        display.show_points(viewer, ch, [gaussian_position[1]], [gaussian_position[0]],
                             color='red', 
-                            legend='Gaussian           ; x={:.2f}, y={:.2f}'.format(gaussian_position[1],
-                                                                                     gaussian_position[0]),
-                            legend_spec=0.05*x_max, legend_spat=0.5*y_max)
-        display.show_points(viewer, ch, [init_obj_position[0]], [init_obj_position[1]],
+                            legend='Gaussian           ; x={:.2f}, y={:.2f}'.format(gaussian_position[0],
+                                                                                     gaussian_position[1]),
+                            legend_spec=0.05*nrow, legend_spat=0.5*ncol)
+        display.show_points(viewer, ch, [init_obj_position[1]], [init_obj_position[0]],
                             color='green', 
-                            legend='DAOStarFinder ; x={:.2f}, y={:.2f}'.format(init_obj_position[1],
-                                                                               init_obj_position[0]),
-                            legend_spec=0.10*x_max, legend_spat=0.5*y_max)
+                            legend='DAOStarFinder ; x={:.2f}, y={:.2f}'.format(init_obj_position[0],
+                                                                               init_obj_position[1]),
+                            legend_spec=0.10*nrow, legend_spat=0.5*ncol)
         if manual_position is not None:
-            display.show_points(viewer, ch, [manual_position[0]], [manual_position[1]],
+            display.show_points(viewer, ch, [manual_position[1]], [manual_position[0]],
                             color='orange', 
-                            legend='Manual              ; x={:.2f}, y={:.2f}'.format(manual_position[1],
-                                                                                     manual_position[0]),
-                            legend_spec=0.15*x_max, legend_spat=0.5*y_max)
+                            legend='Manual              ; x={:.2f}, y={:.2f}'.format(manual_position[0],
+                                                                                     manual_position[1]),
+                            legend_spec=0.15*nrow, legend_spat=0.5*ncol)
     
 
 
@@ -1682,10 +1692,13 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
     specname : str
         Name of the spectrograph
     init_obj_position : tuple, optional
-        The initial guess for the object position in the image with format (x, y). If set, this value will be input into 
-        `fitGaussian2D` as the initial guess for the object position. The 2D Gaussian fit will then be performed with the 
-        position constrained to be within plus or minus fwhm/3 in x and y. If not set, the position will be determined
-        by running DAOStarFinder on the image. Default is None.
+        The initial guess for the object position in image (x, y) coordinates,
+        where x is the image column and y is the image row as read from Ginga
+        or DS9. If set, this value will be input into `fitGaussian2D` as the
+        initial guess for the object position. The 2D Gaussian fit will then be
+        performed with the position constrained to be within plus or minus
+        fwhm/3 in x and y. If not set, the position will be determined by
+        running DAOStarFinder on the image. Default is None.
     show_qa : bool, optional
         If True, show QA plots in ginga. 
 
@@ -1823,10 +1836,14 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             kernel size for the initial object finding, and the bounds of the parameters for the 2D Gaussian fit. 
             Default is 1.5 arcseconds.
         init_obj_position : tuple, optional
-            The initial guess for the object position in the image with format (x, y). If set, this value will be input into 
-            `fitGaussian2D` as the initial guess for the object position. The 2D Gaussian fit will then be performed with the 
-            position constrainted to be within plus or minus fwhm/3 in x and y. If not set, the position will be determined
-            by running DAOStarFinder on the image. Default is None.
+            The initial guess for the object position in image (x, y)
+            coordinates, where x is the image column and y is the image row as
+            read from Ginga or DS9. If set, this value will be input into
+            `fitGaussian2D` as the initial guess for the object position. The
+            2D Gaussian fit will then be performed with the position
+            constrainted to be within plus or minus fwhm/3 in x and y. If not
+            set, the position will be determined by running DAOStarFinder on
+            the image. Default is None.
         show_qa : bool, optional
             If True, show the object detection QA plot in ginga. Default is False. 
 
@@ -1875,8 +1892,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
 
     # Make the bin edges to be at +/- 1 pixels around the maximum (i.e. summing 9 pixels total)
     numwav = int((_wave_max - _wave_min) / dwv)
-    xbins = np.array([gaussian_position[1]-1, gaussian_position[1]+2]) - 0.5
-    ybins = np.array([gaussian_position[0]-1, gaussian_position[0]+2]) - 0.5
+    xbins = np.array([gaussian_position[0]-1, gaussian_position[0]+2]) - 0.5
+    ybins = np.array([gaussian_position[1]-1, gaussian_position[1]+2]) - 0.5
     spec_bins = np.arange(1 + numwav) - 0.5
     bins = (spec_bins, ybins, xbins)
 

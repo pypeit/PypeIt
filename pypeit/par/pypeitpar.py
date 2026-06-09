@@ -1878,8 +1878,8 @@ class CubePar(ParSet):
             'position.  The 2D Gaussian fit will then be performed with the position constrained '
             'to be within +/- fwhm/3 in x and y.  If not set, the position will be determined by '
             'running DAOStarFinder on the image.  Formatting follows the manual extraction '
-            'parameters convention, i.e. spatx:spaty where spatx,specy are spatial x and y '
-            'position in the datacube.'
+            'parameters convention, i.e. x:y.  The x,y values are the image coordinates read '
+            'from Ginga or DS9; x is the image column and y is the image row.'
         )
 
         defaults['sn_smooth_npix'] = None
@@ -2013,13 +2013,15 @@ class CubeExtractionPar(ParSet):
         dtypes['manual'] = str
         descr['manual'] = (
             'Manual extraction parameters for pypeit_extract_datacube. The format is '
-            '``spatx:spaty:fwhm:boxcar_radius``, and multiple manual extractions must be '
-            'separated by a semi-colon.  Only the first two entries, defining the spatial x and '
-            'y *pixel* positions in the datacube, are required; the FWHM and boxcar radius are '
-            'optional and provided in arcseconds.  Note that you cannot provide boxcar_radius '
-            'without also providing fwhm; if you wish to only provide boxcar_radius, set '
-            'fwhm=-1.  Currently only the use of spatx:spaty is supported, and only single '
-            'objects can be extracted at a time, so the semi-colon separation does not apply.' 
+            '``x:y:fwhm:boxcar_radius``, and multiple manual extractions must be separated by '
+            'a semi-colon.  Only the first two entries, defining the spatial x and y *pixel* '
+            'positions in the datacube, are required; the FWHM and boxcar radius are optional '
+            'and provided in arcseconds.  The x,y values are the image coordinates read from '
+            'Ginga or DS9; x is the image column and y is the image row.  Note that you cannot '
+            'provide boxcar_radius without also providing fwhm; if you wish to only provide '
+            'boxcar_radius, set fwhm=-1.  Currently only the use of x:y is supported, and only '
+            'single objects can be extracted at a time, so the semi-colon separation does not '
+            'apply.'
         )
 
         defaults['boxcar_radius'] = None
@@ -2090,17 +2092,17 @@ class CubeExtractionPar(ParSet):
         if self.data['opt_prof_method'] not in allowed_opt_prof_methods:
             raise ValueError("'opt_prof_method' must be one of:\n" + ", ".join(allowed_opt_prof_methods))
 
-        # Check that only spatx and spaty are provided for manual extraction
+        # Check that only x and y are provided for manual extraction
         if self.data['manual'] is not None:
             m_es = self.data['manual'].split(';')
             for m_e in m_es:
                 parse = m_e.split(':')
                 if len(parse) != 2:
-                    raise ValueError("When providing manual extraction parameters, only spatx and spaty can be "
-                                     "provided, and the format must be spatx:spaty. You can also provide a semi-colon "
+                    raise ValueError("When providing manual extraction parameters, only x and y can be "
+                                     "provided, and the format must be x:y. You can also provide a semi-colon "
                                      "separated list of values if you would like to extract more than one object "
-                                     "(e.g. spatx1:spaty1;spatx2:spaty2). If you wish to also provide "
-                                     "fwhm and boxcar_radius, the format is spatx:spaty:fwhm:boxcar_radius (NOTE: the "
+                                     "(e.g. x1:y1;x2:y2). If you wish to also provide "
+                                     "fwhm and boxcar_radius, the format is x:y:fwhm:boxcar_radius (NOTE: the "
                                      "fwhm and boxcar_radius parameters are not currently supported).")
 
     @staticmethod

@@ -232,9 +232,9 @@ def test_align_fit():
                     # ivar=utils.inverse(np.square(sig_imgs[ff])),
                     # gpm=np.logical_not(bpm_imgs[ff]),
                     fwhm=fwhm.value/_dspat.value, norm=False
-                )
+            )
             gaussian_position = popt[1], popt[2]
-            dec_pix_star[ff], ra_pix_star[ff] = gaussian_position
+            ra_pix_star[ff], dec_pix_star[ff] = gaussian_position
         ra_shifts = -(ra_pix_star[ref_idx] - ra_pix_star) * _dspat / cosdec
         dec_shifts = (dec_pix_star[ref_idx] - dec_pix_star) * _dspat
         ra_offsets = [ra_offsets[ff] - ra_shifts[ff] for ff in range(numfiles)]

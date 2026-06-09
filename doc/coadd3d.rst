@@ -153,6 +153,10 @@ There are several recommended steps of the coadd3d process that can be run separ
     counts, but rather the residual level of the sky aperture. This is useful for checking the quality of
     the sky subtraction.
 
+    Manual datacube extraction positions are specified as ``x:y`` image coordinates, matching the values
+    read from Ginga or DS9 when viewing the white-light image. In numpy array terms, ``x`` is the image
+    column and ``y`` is the image row.
+
 #. Step 3 - Generate a sensitivity function from the 1D spectra. This is done by running the following
     command, assuming that the output 1D spectra from the previous step was called
     ``spec1d_StandardStarName.fits``. The ``pypeit_sensfunc`` script will produce an output file called
@@ -492,4 +496,3 @@ plot a wavelength slice of the cube:
     plt.xlabel('RA')
     plt.ylabel('Dec')
     plt.show()
-

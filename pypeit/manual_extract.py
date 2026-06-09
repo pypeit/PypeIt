@@ -183,9 +183,11 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
     Parameters
     ----------
     spatx : :class:`numpy.ndarray`
-        Array of spatial x positions to manually extract
+        Array of spatial x positions to manually extract.  These are image x
+        coordinates as read from Ginga or DS9.
     spaty : :class:`numpy.ndarray`
-        Array of spatial y positions to manually extract
+        Array of spatial y positions to manually extract.  These are image y
+        coordinates as read from Ginga or DS9.
     fwhm : :class:`numpy.ndarray`, optional
         Array of FWHM for manual extraction in arcseconds.  This must be aligned
         with spatx and spaty.
@@ -216,15 +218,16 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
         ----------
         inp : str
             String specifying the manual aperture.  The format is
-            ``spatx:spaty:fwhm:boxcar_radius``, and multiple manual extractions
-            must be separated by a semi-colon.  Only the first two entries,
-            defining the spatial x and y *spaxel* positions in the datacube, are
-            required; the FWHM and boxcar radius are optional and provided in
-            arcseconds.  Note that you cannot provide boxcar_radius without also
-            providing fwhm; if you wish to only provide boxcar_radius, set fwhm
-            = -1.  Currently only the use of spatx:spaty is supported, and only
-            single objects can be extracted at a time, so the semi-colon
-            separation does not apply.
+            ``x:y:fwhm:boxcar_radius``, and multiple manual extractions must be
+            separated by a semi-colon.  Only the first two entries, defining the
+            spatial x and y *spaxel* positions in the datacube, are required;
+            the FWHM and boxcar radius are optional and provided in arcseconds.
+            The x,y values are the image coordinates read from Ginga or DS9; x
+            is the image column and y is the image row.  Note that you cannot
+            provide boxcar_radius without also providing fwhm; if you wish to
+            only provide boxcar_radius, set fwhm = -1.  Currently only the use
+            of x:y is supported, and only single objects can be extracted at a
+            time, so the semi-colon separation does not apply.
 
         Returns
         -------
