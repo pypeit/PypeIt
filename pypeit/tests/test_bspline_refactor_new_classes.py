@@ -14,50 +14,50 @@ import warnings
 import numpy as np
 import pytest
 
-from pypeit.bspline.refactor import BSpline, BSpline2D
+from pypeit.bspline.refactor import BSpline, BSpline2D, BSplineBreakpoints
 from pypeit.bspline.bspline import bspline
 
 
 # ============================================================================
-# BSpline._build_breakpoints
+# BSplineBreakpoints.build
 # ============================================================================
 
 def test_build_breakpoints_fullbkpt_returned_sorted():
     rng = np.random.default_rng(0)
     pts = rng.uniform(0, 10, 20)
-    bkpt = BSpline._build_breakpoints(fullbkpt=pts, nord=4)
+    bkpt = BSplineBreakpoints(fullbkpt=pts).build(None, 4)
     assert np.all(np.diff(bkpt) >= 0)
 
 
 def test_build_breakpoints_fullbkpt_padded_when_short():
     pts = np.array([0.0, 1.0, 2.0, 3.0])  # length 4 < 2*nord=8
-    bkpt = BSpline._build_breakpoints(fullbkpt=pts, nord=4)
+    bkpt = BSplineBreakpoints(fullbkpt=pts).build(None, 4)
     assert bkpt.size >= 2 * 4
 
 
 def test_build_breakpoints_bkspace_strategy():
     x = np.linspace(0, 10, 200)
-    bkpt = BSpline._build_breakpoints(x=x, nord=4, bkspace=1.0)
+    bkpt = BSplineBreakpoints(bkspace=1.0).build(x, 4)
     assert bkpt.min() <= 0.0
     assert bkpt.max() >= 10.0
 
 
 def test_build_breakpoints_nbkpts_strategy():
     x = np.linspace(0, 5, 100)
-    bkpt = BSpline._build_breakpoints(x=x, nord=4, nbkpts=10)
+    bkpt = BSplineBreakpoints(nbkpts=10).build(x, 4)
     assert bkpt.size >= 2 * 4
 
 
 def test_build_breakpoints_everyn_strategy():
     x = np.linspace(0, 10, 300)
-    bkpt = BSpline._build_breakpoints(x=x, nord=4, everyn=20)
+    bkpt = BSplineBreakpoints(everyn=20).build(x, 4)
     assert bkpt.size > 2 * 4
 
 
 def test_build_breakpoints_bkpt_strategy():
     x = np.linspace(0, 10, 200)
     interior = np.array([2.0, 4.0, 6.0, 8.0])
-    bkpt = BSpline._build_breakpoints(x=x, nord=4, bkpt=interior)
+    bkpt = BSplineBreakpoints(bkpt=interior).build(x, 4)
     assert bkpt[0] <= 0.0
     assert bkpt[-1] >= 10.0
 
@@ -65,7 +65,7 @@ def test_build_breakpoints_bkpt_strategy():
 def test_build_breakpoints_phantom_knots_at_each_end():
     x = np.linspace(0, 10, 100)
     nord = 4
-    bkpt = BSpline._build_breakpoints(x=x, nord=nord, nbkpts=6)
+    bkpt = BSplineBreakpoints(nbkpts=6).build(x, nord)
     interior_min = bkpt[nord - 1]
     interior_max = bkpt[-(nord)]
     assert np.all(bkpt[:nord - 1] < interior_min)
@@ -74,13 +74,13 @@ def test_build_breakpoints_phantom_knots_at_each_end():
 
 def test_build_breakpoints_raises_without_x_or_fullbkpt():
     with pytest.raises(ValueError):
-        BSpline._build_breakpoints(nord=4, bkspace=1.0)
+        BSplineBreakpoints(bkspace=1.0).build(None, 4)
 
 
 def test_build_breakpoints_raises_without_strategy():
     x = np.linspace(0, 5, 50)
     with pytest.raises(ValueError):
-        BSpline._build_breakpoints(x=x, nord=4)
+        BSplineBreakpoints().build(x, 4)
 
 
 # ============================================================================
@@ -89,7 +89,7 @@ def test_build_breakpoints_raises_without_strategy():
 
 def test_find_spans_all_indices_in_range():
     x = np.linspace(0, 10, 100)
-    bkpt = BSpline._build_breakpoints(x=x, nord=4, nbkpts=8)
+    bkpt = BSplineBreakpoints(nbkpts=8).build(x, 4)
     nord = 4
     n = bkpt.size - nord
     indx = BSpline._find_spans(x, bkpt, nord)
@@ -99,7 +99,7 @@ def test_find_spans_all_indices_in_range():
 
 def test_find_spans_bracketing():
     x = np.linspace(0, 10, 100)
-    bkpt = BSpline._build_breakpoints(x=x, nord=4, nbkpts=8)
+    bkpt = BSplineBreakpoints(nbkpts=8).build(x, 4)
     nord = 4
     indx = BSpline._find_spans(x, bkpt, nord)
     for i, (xi, il) in enumerate(zip(x, indx)):
@@ -118,7 +118,7 @@ def test_find_spans_clamped_at_lower_edge():
 
 def test_find_spans_monotone_input_gives_monotone_output():
     x = np.linspace(0, 10, 100)
-    bkpt = BSpline._build_breakpoints(x=x, nord=4, nbkpts=8)
+    bkpt = BSplineBreakpoints(nbkpts=8).build(x, 4)
     nord = 4
     indx = BSpline._find_spans(x, bkpt, nord)
     assert np.all(np.diff(indx) >= 0)
@@ -130,7 +130,7 @@ def test_find_spans_monotone_input_gives_monotone_output():
 
 def test_bspline_basis_output_shape():
     x = np.sort(np.random.default_rng(7).uniform(0, 10, 50))
-    spl = BSpline(x=x, nord=4, nbkpts=8)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
     basis = spl._bspline_basis(x, indx)
     assert basis.shape == (x.size, spl.nord)
@@ -138,7 +138,7 @@ def test_bspline_basis_output_shape():
 
 def test_bspline_basis_c_order():
     x = np.sort(np.random.default_rng(8).uniform(0, 10, 50))
-    spl = BSpline(x=x, nord=4, nbkpts=8)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
     basis = spl._bspline_basis(x, indx)
     assert basis.flags['C_CONTIGUOUS']
@@ -146,7 +146,7 @@ def test_bspline_basis_c_order():
 
 def test_bspline_basis_partition_of_unity():
     x = np.sort(np.random.default_rng(9).uniform(0, 10, 50))
-    spl = BSpline(x=x, nord=4, nbkpts=8)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
     basis = spl._bspline_basis(x, indx)
     np.testing.assert_allclose(basis.sum(axis=1), 1.0, atol=1e-12)
@@ -154,7 +154,7 @@ def test_bspline_basis_partition_of_unity():
 
 def test_bspline_basis_non_negative():
     x = np.sort(np.random.default_rng(10).uniform(0, 10, 50))
-    spl = BSpline(x=x, nord=4, nbkpts=8)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
     basis = spl._bspline_basis(x, indx)
     assert np.all(basis >= -1e-14)
@@ -162,7 +162,7 @@ def test_bspline_basis_non_negative():
 
 def test_bspline_basis_linear_case():
     bkpt = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], dtype=float)
-    spl = BSpline(fullbkpt=bkpt, nord=2)
+    spl = BSpline(bkpts=bkpt, nord=2)
     x = np.array([1.5])
     indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], 2)
     basis = spl._bspline_basis(x, indx)
@@ -175,14 +175,14 @@ def test_bspline_basis_linear_case():
 
 def test_build_design_matrix_shape():
     x = np.sort(np.random.default_rng(42).uniform(0, 10, 100))
-    spl = BSpline(x=x, nord=4, nbkpts=10)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=10), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
     assert A.shape == (x.size, spl.nord)
 
 
 def test_build_design_matrix_lower_upper_lengths():
     x = np.sort(np.random.default_rng(43).uniform(0, 10, 100))
-    spl = BSpline(x=x, nord=4, nbkpts=10)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=10), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
     n = spl.mask.sum() - spl.nord
     assert lower.size == n - spl.nord + 1
@@ -191,7 +191,7 @@ def test_build_design_matrix_lower_upper_lengths():
 
 def test_build_design_matrix_full_data_coverage():
     x = np.sort(np.random.default_rng(44).uniform(0, 10, 100))
-    spl = BSpline(x=x, nord=4, nbkpts=10)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=10), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
     covered = np.zeros(x.size, dtype=bool)
     for k in range(lower.size):
@@ -202,7 +202,7 @@ def test_build_design_matrix_full_data_coverage():
 
 def test_build_design_matrix_consistent_with_find_spans():
     x = np.sort(np.random.default_rng(45).uniform(0, 10, 100))
-    spl = BSpline(x=x, nord=4, nbkpts=10)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=10), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
     indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
     for k in range(lower.size):
@@ -221,7 +221,7 @@ def test_assemble_normal_equations_alpha_shape():
     x = np.sort(rng.uniform(0, 5, 80))
     y = np.sin(x) + 0.1 * rng.standard_normal(80)
     w = np.ones(80)
-    spl = BSpline(x=x, nord=4, nbkpts=6)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=6), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
     alpha, beta = spl._assemble_normal_equations(A, y, w, lower, upper)
     bw = A.shape[1]
@@ -236,7 +236,7 @@ def test_assemble_normal_equations_diagonal_positive():
     x = np.sort(rng.uniform(0, 5, 80))
     y = np.sin(x) + 0.1 * rng.standard_normal(80)
     w = np.ones(80)
-    spl = BSpline(x=x, nord=4, nbkpts=6)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=6), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
     alpha, beta = spl._assemble_normal_equations(A, y, w, lower, upper)
     nn = spl.mask[spl.nord:].sum()
@@ -249,7 +249,7 @@ def test_assemble_normal_equations_solution_matches_lstsq():
     x = np.sort(rng.uniform(0, 5, 80))
     y = np.sin(x)
     invvar = np.ones(80)
-    spl = BSpline(x=x, nord=4, nbkpts=6)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=6), nord=4)
 
     # Banded solve via fit()
     err, yfit_banded = spl.fit(x, y, invvar)
@@ -338,7 +338,7 @@ def test_solve_banded_chol_diagonal_positive():
 def test_evaluate_model_matches_explicit_matmul():
     rng = np.random.default_rng(99)
     x = np.sort(rng.uniform(0, 5, 60))
-    spl = BSpline(x=x, nord=4, nbkpts=8)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
     spl.coeff[:] = rng.standard_normal(spl.coeff.size)
 
@@ -358,7 +358,7 @@ def test_evaluate_model_matches_explicit_matmul():
 
 def test_mask_breakpoints_masks_neighbourhood():
     x = np.sort(np.random.default_rng(5).uniform(0, 10, 200))
-    spl = BSpline(x=x, nord=4, nbkpts=20)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=20), nord=4)
     n_before = spl.mask.sum()
     result = spl._mask_breakpoints(np.array([8]))
     assert result == -1
@@ -367,7 +367,7 @@ def test_mask_breakpoints_masks_neighbourhood():
 
 def test_mask_breakpoints_invalidates_cache():
     x = np.sort(np.random.default_rng(6).uniform(0, 10, 200))
-    spl = BSpline(x=x, nord=4, nbkpts=20)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=20), nord=4)
     spl._cached_design = spl._build_design_matrix(x)
     spl._mask_breakpoints(np.array([8]))
     assert spl._cached_design is None
@@ -375,7 +375,7 @@ def test_mask_breakpoints_invalidates_cache():
 
 def test_mask_breakpoints_too_few_returns_minus2():
     x = np.linspace(0, 5, 30)
-    spl = BSpline(x=x, nord=4, nbkpts=3)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=3), nord=4)
     spl.mask[:] = False
     spl.mask[:2 * 4] = True  # leave only 2*nord active
     result = spl._mask_breakpoints(np.array([0]))
@@ -391,7 +391,7 @@ def test_fit_cubic_polynomial_recovery():
     x = np.sort(rng.uniform(0, 10, 300))
     y = 1.0 + 2.0*x - 0.5*x**2 + 0.1*x**3
     invvar = np.ones_like(x)
-    spl = BSpline(x=x, nord=4, nbkpts=20)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=20), nord=4)
     err, yfit = spl.fit(x, y, invvar)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-8)
@@ -402,7 +402,7 @@ def test_fit_smooth_function_residuals():
     x = np.sort(rng.uniform(0, 2 * np.pi, 500))
     y = np.sin(x)
     invvar = np.ones_like(x)
-    spl = BSpline(x=x, nord=4, nbkpts=30)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=30), nord=4)
     err, yfit = spl.fit(x, y, invvar)
     assert err == 0
     assert np.std(yfit - y) < 2e-3
@@ -413,7 +413,7 @@ def test_fit_returns_correct_length():
     x = np.sort(rng.uniform(0, 5, 100))
     y = rng.standard_normal(100)
     invvar = np.ones_like(x)
-    spl = BSpline(x=x, nord=4, nbkpts=10)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=10), nord=4)
     err, yfit = spl.fit(x, y, invvar)
     assert yfit.shape == x.shape
 
@@ -423,7 +423,7 @@ def test_fit_design_matrix_cached():
     x = np.sort(rng.uniform(0, 5, 100))
     y = np.sin(x)
     invvar = np.ones_like(x)
-    spl = BSpline(x=x, nord=4, nbkpts=8)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     spl.fit(x, y, invvar)
     cache_id = id(spl._cached_design)
     spl.fit(x, y * 0.9, invvar)
@@ -436,7 +436,7 @@ def test_fit_zero_invvar_points_ignored():
     y = np.sin(x)
     invvar = np.ones_like(x)
     invvar[::5] = 0.0
-    spl = BSpline(x=x, nord=4, nbkpts=8)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     err, yfit = spl.fit(x, y, invvar)
     assert err == 0
     assert np.isfinite(yfit).all()
@@ -451,7 +451,7 @@ def test_value_matches_fit_at_training_points():
     x = np.sort(rng.uniform(0, 10, 200))
     y = 2.0 + x - 0.3 * x**2
     invvar = np.ones_like(x)
-    spl = BSpline(x=x, nord=4, nbkpts=12)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=12), nord=4)
     err, yfit_fit = spl.fit(x, y, invvar)
     yfit_val, _ = spl.value(x)
     np.testing.assert_allclose(yfit_fit, yfit_val, atol=1e-12)
@@ -461,7 +461,7 @@ def test_value_out_of_range_masked():
     x = np.linspace(1, 9, 100)
     y = np.sin(x)
     invvar = np.ones_like(x)
-    spl = BSpline(x=x, nord=4, nbkpts=10)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=10), nord=4)
     spl.fit(x, y, invvar)
     x_eval = np.array([0.0, 5.0, 10.0])
     yfit, mask = spl.value(x_eval)
@@ -475,7 +475,7 @@ def test_value_unsorted_input():
     x = np.sort(rng.uniform(0, 5, 100))
     y = np.cos(x)
     invvar = np.ones_like(x)
-    spl = BSpline(x=x, nord=4, nbkpts=8)
+    spl = BSpline(x=x, bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     spl.fit(x, y, invvar)
     x_unsorted = rng.permutation(x)
     yfit, _ = spl.value(x_unsorted)
@@ -575,7 +575,8 @@ def test_bspline2d_build_design_matrix_shape():
     rng = np.random.default_rng(20)
     x = np.sort(rng.uniform(0, 10, 100))
     x2 = rng.uniform(0, 1, 100)
-    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='legendre', nord=4, nbkpts=8)
+    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='legendre',
+                    bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     A, lower, upper = spl._build_design_matrix(x, x2)
     assert A.shape == (x.size, spl.nord * spl.npoly)
 
@@ -586,7 +587,8 @@ def test_bspline2d_build_design_matrix_outer_product_structure():
     x = np.sort(rng.uniform(0, 5, N))
     x2 = rng.uniform(0, 1, N)
     npoly = 2
-    spl = BSpline2D(x=x, npoly=npoly, xmin=0.0, xmax=1.0, funcname='legendre', nord=4, nbkpts=6)
+    spl = BSpline2D(x=x, npoly=npoly, xmin=0.0, xmax=1.0, funcname='legendre',
+                    bkpts=BSplineBreakpoints(nbkpts=6), nord=4)
     A, lower, upper = spl._build_design_matrix(x, x2)
 
     indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
@@ -604,7 +606,8 @@ def test_bspline2d_build_design_matrix_x2_size_mismatch_raises():
     rng = np.random.default_rng(22)
     x = np.sort(rng.uniform(0, 10, 100))
     x2 = rng.uniform(0, 1, 100)
-    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='legendre', nord=4, nbkpts=8)
+    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='legendre',
+                    bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     with pytest.raises(ValueError):
         spl._build_design_matrix(x, x2[:-5])
 
@@ -613,7 +616,8 @@ def test_bspline2d_build_design_matrix_c_order():
     rng = np.random.default_rng(23)
     x = np.sort(rng.uniform(0, 10, 100))
     x2 = rng.uniform(0, 1, 100)
-    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='legendre', nord=4, nbkpts=8)
+    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='legendre',
+                    bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     A, lower, upper = spl._build_design_matrix(x, x2)
     assert A.flags['C_CONTIGUOUS']
 
@@ -631,7 +635,8 @@ def test_bspline2d_fit_exact_polynomial_legendre():
     x2norm = 2 * x2 - 1
     y = 1.0 + 0.5 * x + 0.3 * x2norm
     invvar = np.ones(N)
-    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, funcname='legendre', nord=4, nbkpts=20)
+    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, funcname='legendre',
+                    bkpts=BSplineBreakpoints(nbkpts=20), nord=4)
     err, yfit = spl.fit(x, y, invvar, x2)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
@@ -644,7 +649,8 @@ def test_bspline2d_fit_smooth_function():
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x) * (1 + 0.2 * x2)
     invvar = np.ones(N)
-    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='legendre', nord=4, nbkpts=30)
+    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='legendre',
+                    bkpts=BSplineBreakpoints(nbkpts=30), nord=4)
     err, yfit = spl.fit(x, y, invvar, x2)
     assert err == 0
     assert np.std(yfit - y) < 2e-2
@@ -657,7 +663,8 @@ def test_bspline2d_fit_exact_polynomial_chebyshev():
     x2 = rng.uniform(-1, 1, N)
     y = 2.0 + x2  # T0 + T1 in Chebyshev basis
     invvar = np.ones(N)
-    spl = BSpline2D(x=x, npoly=2, xmin=-1.0, xmax=1.0, funcname='chebyshev', nord=4, nbkpts=20)
+    spl = BSpline2D(x=x, npoly=2, xmin=-1.0, xmax=1.0, funcname='chebyshev',
+                    bkpts=BSplineBreakpoints(nbkpts=20), nord=4)
     err, yfit = spl.fit(x, y, invvar, x2)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
@@ -671,7 +678,8 @@ def test_bspline2d_fit_exact_polynomial_poly():
     x2norm = 2.0 * (x2 - 1.0) / 2.0 - 0.0   # xmin=0, xmax=2 → norm range [-1, 1]
     y = 1.0 + x2norm
     invvar = np.ones(N)
-    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=2.0, funcname='poly', nord=4, nbkpts=15)
+    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=2.0, funcname='poly',
+                    bkpts=BSplineBreakpoints(nbkpts=15), nord=4)
     err, yfit = spl.fit(x, y, invvar, x2)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
@@ -688,7 +696,8 @@ def test_bspline2d_value_matches_fit_at_training_points():
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x) + 0.1 * x2
     invvar = np.ones(N)
-    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, funcname='legendre', nord=4, nbkpts=12)
+    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, funcname='legendre',
+                    bkpts=BSplineBreakpoints(nbkpts=12), nord=4)
     err, yfit_fit = spl.fit(x, y, invvar, x2)
     yfit_val, _ = spl.value(x, x2)
     np.testing.assert_allclose(yfit_fit, yfit_val, atol=1e-12)
@@ -698,7 +707,8 @@ def test_bspline2d_value_x2_required():
     rng = np.random.default_rng(41)
     x = np.sort(rng.uniform(0, 5, 50))
     x2 = rng.uniform(0, 1, 50)
-    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, nord=4, nbkpts=8)
+    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0,
+                    bkpts=BSplineBreakpoints(nbkpts=8), nord=4)
     spl.fit(x, np.sin(x), np.ones(50), x2)
     with pytest.raises(TypeError):
         spl.value(x)  # missing required x2
@@ -719,7 +729,7 @@ def test_crosscheck_1d_fit_yfit_match():
     old = bspline(x=x, nord=nord, npoly=1, nbkpts=nbkpts)
     old_err, old_yfit = old.fit(x, y, invvar)
 
-    new = BSpline(fullbkpt=old.breakpoints.copy(), nord=nord)
+    new = BSpline(bkpts=old.breakpoints.copy(), nord=nord)
     new.mask[:] = old.mask
     new._cached_design = None
     new_err, new_yfit = new.fit(x, y, invvar)
@@ -737,7 +747,7 @@ def test_crosscheck_1d_coeff_match():
     old = bspline(x=x, nord=4, npoly=1, nbkpts=15)
     old.fit(x, y, invvar)
 
-    new = BSpline(fullbkpt=old.breakpoints.copy(), nord=4)
+    new = BSpline(bkpts=old.breakpoints.copy(), nord=4)
     new.mask[:] = old.mask
     new._cached_design = None
     new.fit(x, y, invvar)
@@ -761,7 +771,7 @@ def test_crosscheck_2d_fit_yfit_match():
     old.xmax = 1.0
     old_err, old_yfit = old.fit(x, y, invvar, x2=x2)
 
-    new = BSpline2D(fullbkpt=old.breakpoints.copy(), nord=nord, npoly=npoly,
+    new = BSpline2D(bkpts=old.breakpoints.copy(), nord=nord, npoly=npoly,
                     xmin=0.0, xmax=1.0, funcname='legendre')
     new.mask[:] = old.mask
     new._cached_design = None
@@ -785,7 +795,7 @@ def test_crosscheck_2d_coeff_transposed():
     old.xmax = 1.0
     old.fit(x, y, invvar, x2=x2)
 
-    new = BSpline2D(fullbkpt=old.breakpoints.copy(), nord=4, npoly=2,
+    new = BSpline2D(bkpts=old.breakpoints.copy(), nord=4, npoly=2,
                     xmin=0.0, xmax=1.0, funcname='legendre')
     new.mask[:] = old.mask
     new._cached_design = None
@@ -803,7 +813,7 @@ def test_crosscheck_1d_value_match():
     old = bspline(x=x, nord=4, npoly=1, nbkpts=12)
     old.fit(x, y, invvar)
 
-    new = BSpline(fullbkpt=old.breakpoints.copy(), nord=4)
+    new = BSpline(bkpts=old.breakpoints.copy(), nord=4)
     new.mask[:] = old.mask
     new._cached_design = None
     new.fit(x, y, invvar)
