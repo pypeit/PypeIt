@@ -11,6 +11,7 @@ All random-number generators use a fixed seed for reproducibility.
 
 import warnings
 
+from IPython import embed
 import numpy as np
 import pytest
 
@@ -72,6 +73,86 @@ def test_build_breakpoints_raises_without_x_or_fullbkpt():
     with pytest.raises(ValueError):
         Knots(spacing=1.0).build(None, 4)
 
+
+def test_build_breakpoints_spacing_too_large_fallback():
+    x = np.linspace(0, 5, 100)
+    kv = Knots(spacing=10.0, x=x, nord=4).breakpoints
+    assert kv is not None
+    assert kv.min() <= 0.0
+    assert kv.max() >= 5.0
+
+
+def test_build_breakpoints_stride_too_large_fallback():
+    x = np.linspace(0, 5, 50)
+    kv = Knots(stride=100, x=x, nord=4).breakpoints
+    assert kv is not None
+    assert kv.min() <= 0.0
+    assert kv.max() >= 5.0
+
+
+def test_build_breakpoints_interior_outside_range_fallback():
+    x = np.linspace(0, 5, 100)
+    interior = np.array([7.0, 8.0, 9.0])
+    kv = Knots(interior=interior, x=x, nord=4).breakpoints
+    assert kv is not None
+    assert kv.min() <= 0.0
+    assert kv.max() >= 5.0
+
+
+def test_build_breakpoints_no_strategy_raises_valueerror():
+    with pytest.raises(ValueError):
+        Knots(stride=None).build(np.linspace(0, 5, 50), 4)
+
+
+def test_knots_init_nord_without_x_warns():
+    with pytest.warns(UserWarning):
+        Knots(count=10, nord=4)
+
+
+# ============================================================================
+# Knots.copy
+# ============================================================================
+
+def test_knots_copy_strategy_params_preserved():
+    orig = Knots(count=10, spread=1.5, stride=None)
+    cp = orig.copy()
+    assert cp.count == orig.count
+    assert cp.spread == orig.spread
+    assert cp.stride == orig.stride
+    assert cp.spacing == orig.spacing
+
+
+def test_knots_copy_breakpoints_deep_copied():
+    orig = Knots(count=10, x=np.linspace(0, 5, 100), nord=4)
+    cp = orig.copy()
+    assert np.array_equal(cp.breakpoints, orig.breakpoints)
+    orig_val = orig.breakpoints[0]
+    cp._breakpoints[0] = 999.0
+    assert orig.breakpoints[0] == orig_val
+
+
+def test_knots_copy_unbuilt_returns_none_breakpoints():
+    orig = Knots(count=10)
+    cp = orig.copy()
+    assert cp.breakpoints is None
+
+
+# ============================================================================
+# BSpline.__init__ — knots type validation
+# ============================================================================
+
+def test_bspline_init_invalid_knots_type_raises():
+    with pytest.raises(TypeError):
+        BSpline(knots='not_a_valid_knots_type')
+
+
+# ============================================================================
+# BSpline._uniq
+# ============================================================================
+
+def test_uniq_empty_array_raises():
+    with pytest.raises(ValueError):
+        BSpline._uniq(np.array([]))
 
 
 # ============================================================================
@@ -322,6 +403,21 @@ def test_solve_banded_chol_diagonal_positive():
     assert np.all(chol[0, :n] > 0)
 
 
+def test_solve_banded_linalg_error_branch():
+    # [[1, 2], [2, 1]] is indefinite (det = -3); positive diagonal passes
+    # the pre-check but Cholesky decomposition raises LinAlgError.
+    bw, n = 2, 2
+    alpha = np.zeros((bw, n + bw))
+    alpha[0, :n] = [1.0, 1.0]  # positive diagonal
+    alpha[1, 0] = 2.0           # large off-diagonal -> not positive definite
+    beta = np.zeros(n + bw)
+    beta[:n] = [1.0, 1.0]
+    spl = BSpline.__new__(BSpline)
+    sol, chol, bad_cols = spl._solve_banded(alpha, beta, mininf=0.0)
+    assert sol is None
+    assert bad_cols[0] != -1
+
+
 # ============================================================================
 # BSpline._evaluate_model
 # ============================================================================
@@ -460,6 +556,20 @@ def test_fit_reset_knots_resets_mask():
     assert spl.mask.all()
 
 
+def test_fit_returns_minus1_on_degenerate_cholesky():
+    rng = np.random.default_rng(60)
+    # Data only in [0, 2]; knots span [0, 10] -> spans in [2, 10] are empty,
+    # leaving zero diagonal entries that trigger the degenerate pre-check.
+    x = np.sort(rng.uniform(0, 2, 100))
+    y = np.sin(x)
+    invvar = np.ones(100)
+    full_bkpt = np.linspace(0, 10, 40)
+    spl = BSpline(knots=Knots(full=full_bkpt), nord=4)
+    err, yfit = spl.fit(x, y, invvar)
+    assert err == -1
+    assert yfit.shape == x.shape
+
+
 # ============================================================================
 # BSpline.value
 # ============================================================================
@@ -499,6 +609,61 @@ def test_value_unsorted_input():
     yfit, _ = spl.value(x_unsorted)
     yfit_sorted, _ = spl.value(np.sort(x_unsorted))
     np.testing.assert_allclose(yfit[np.argsort(x_unsorted)], yfit_sorted, atol=1e-12)
+
+
+def test_value_gap_masking():
+    rng = np.random.default_rng(61)
+    x = np.sort(rng.uniform(0, 10, 300))
+    y = np.sin(x)
+    invvar = np.ones(300)
+    spl = BSpline(x=x, knots=Knots(count=25), nord=4)
+    spl.fit(x, y, invvar)
+    # Mask three interior breakpoints to create a gap in the knot vector.
+    # goodbk becomes [..., 9, 13, ...] so np.diff jumps by 4 > 2.
+    spl.mask[10:13] = False
+    spl._cached_design = None
+    bkpts = spl.breakpoints
+    x_gap = np.array([(bkpts[10] + bkpts[11]) / 2.0])
+    _, vmask = spl.value(x_gap)
+    assert not vmask[0]
+
+
+# ============================================================================
+# BSpline.copy
+# ============================================================================
+
+def test_bspline_copy_attributes():
+    rng = np.random.default_rng(62)
+    x = np.sort(rng.uniform(0, 5, 100))
+    spl = BSpline(x=x, knots=Knots(count=10), nord=4)
+    spl.fit(x, np.sin(x), np.ones(100))
+    cp = spl.copy()
+    assert cp.nord == spl.nord
+    np.testing.assert_array_equal(cp.breakpoints, spl.breakpoints)
+    np.testing.assert_array_equal(cp.mask, spl.mask)
+    np.testing.assert_array_equal(cp.coeff, spl.coeff)
+    np.testing.assert_array_equal(cp.icoeff, spl.icoeff)
+
+
+def test_bspline_copy_arrays_are_independent():
+    rng = np.random.default_rng(63)
+    x = np.sort(rng.uniform(0, 5, 100))
+    spl = BSpline(x=x, knots=Knots(count=10), nord=4)
+    spl.fit(x, np.sin(x), np.ones(100))
+    cp = spl.copy()
+    orig_val = cp.coeff[0]
+    spl.coeff[0] += 999.0
+    assert cp.coeff[0] == orig_val
+
+
+def test_bspline_copy_cache_is_cleared():
+    rng = np.random.default_rng(64)
+    x = np.sort(rng.uniform(0, 5, 100))
+    spl = BSpline(x=x, knots=Knots(count=10), nord=4)
+    spl.fit(x, np.sin(x), np.ones(100))
+    assert spl._cached_design is not None
+    cp = spl.copy()
+    assert cp._cached_design is None
 
 
 # ============================================================================
@@ -641,6 +806,34 @@ def test_bspline2d_build_design_matrix_c_order():
 
 
 # ============================================================================
+# BSpline2D._evaluate_model
+# ============================================================================
+
+def test_bspline2d_evaluate_model_matches_explicit_einsum():
+    rng = np.random.default_rng(65)
+    N = 80
+    x = np.sort(rng.uniform(0, 5, N))
+    x2 = rng.uniform(0, 1, N)
+    npoly = 3
+    nord = 4
+    spl = BSpline2D(x=x, npoly=npoly, xmin=0.0, xmax=1.0, knots=Knots(count=8), nord=nord)
+    A, lower, upper = spl._build_design_matrix(x, x2)
+    spl.coeff[:] = rng.standard_normal(spl.coeff.shape)
+    yfit = spl._evaluate_model(A, lower, upper)
+    # Verify one non-empty span manually using the same einsum
+    coeffbk = spl.mask[spl.nord:].nonzero()[0]
+    goodcoeff = spl.coeff[coeffbk, :]
+    k = next(k for k in range(lower.size) if lower[k] <= upper[k])
+    sl = slice(lower[k], upper[k] + 1)
+    expected = np.einsum(
+        'nij,ij->n',
+        A[sl, :].reshape(-1, nord, npoly),
+        goodcoeff[k:k + nord, :],
+    )
+    np.testing.assert_allclose(yfit[sl], expected, atol=1e-14)
+
+
+# ============================================================================
 # BSpline2D.fit
 # ============================================================================
 
@@ -735,6 +928,19 @@ def test_bspline2d_fit_reset_knots_resets_mask():
     assert spl.mask.all()
 
 
+def test_bspline2d_fit_returns_minus1_on_degenerate_cholesky():
+    rng = np.random.default_rng(66)
+    x = np.sort(rng.uniform(0, 2, 150))
+    x2 = rng.uniform(0, 1, 150)
+    y = np.sin(x)
+    invvar = np.ones(150)
+    full_bkpt = np.linspace(0, 10, 40)
+    spl = BSpline2D(knots=Knots(full=full_bkpt), npoly=2, xmin=0.0, xmax=1.0, nord=4)
+    err, yfit = spl.fit(x, y, invvar, x2)
+    assert err == -1
+    assert yfit.shape == x.shape
+
+
 # ============================================================================
 # BSpline2D.value
 # ============================================================================
@@ -762,6 +968,61 @@ def test_bspline2d_value_x2_required():
     spl.fit(x, np.sin(x), np.ones(50), x2)
     with pytest.raises(TypeError):
         spl.value(x)  # missing required x2
+
+
+def test_bspline2d_value_gap_masking():
+    rng = np.random.default_rng(67)
+    N = 300
+    x = np.sort(rng.uniform(0, 10, N))
+    x2 = rng.uniform(0, 1, N)
+    y = np.sin(x)
+    invvar = np.ones(N)
+    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=25), nord=4)
+    spl.fit(x, y, invvar, x2)
+    spl.mask[10:13] = False
+    spl._cached_design = None
+    bkpts = spl.breakpoints
+    x_gap = np.array([(bkpts[10] + bkpts[11]) / 2.0])
+    x2_gap = np.array([0.5])
+    _, vmask = spl.value(x_gap, x2_gap)
+    assert not vmask[0]
+
+
+# ============================================================================
+# BSpline2D.copy
+# ============================================================================
+
+def test_bspline2d_copy_attributes():
+    rng = np.random.default_rng(68)
+    N = 100
+    x = np.sort(rng.uniform(0, 5, N))
+    x2 = rng.uniform(0, 1, N)
+    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='chebyshev',
+                    knots=Knots(count=8), nord=4)
+    spl.fit(x, np.sin(x), np.ones(N), x2)
+    cp = spl.copy()
+    assert cp.npoly == spl.npoly
+    assert cp.xmin == spl.xmin
+    assert cp.xmax == spl.xmax
+    assert cp.funcname == spl.funcname
+    assert cp.nord == spl.nord
+    assert cp._cached_design is None
+    assert cp._cached_x2_shape is None
+    np.testing.assert_array_equal(cp.breakpoints, spl.breakpoints)
+    np.testing.assert_array_equal(cp.mask, spl.mask)
+
+
+def test_bspline2d_copy_coeff_independent():
+    rng = np.random.default_rng(69)
+    N = 100
+    x = np.sort(rng.uniform(0, 5, N))
+    x2 = rng.uniform(0, 1, N)
+    spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, knots=Knots(count=8), nord=4)
+    spl.fit(x, np.sin(x), np.ones(N), x2)
+    cp = spl.copy()
+    orig_val = cp.coeff[0, 0]
+    spl.coeff[0, 0] += 999.0
+    assert cp.coeff[0, 0] == orig_val
 
 
 # ============================================================================

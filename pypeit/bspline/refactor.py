@@ -63,7 +63,7 @@ class Knots:
         Interior knots supplied directly.  Any points outside the range of ``x``
         are omitted.
     spread : float, optional
-        Scale factor use for spacing the phantom knots placed at the beginning
+        Scale factor used for spacing the phantom knots placed at the beginning
         and end of the fitting range.
     spacing : float, optional
         Fixed spacing in the ``x`` coordinate value between interior knots.
@@ -86,12 +86,16 @@ class Knots:
         ``full`` are not provided), the object is instantiated as if ``nord``
         was not provided.
 
-    .. note::
-        
-        The difference between ``spacing`` and ``stride`` is that ``spacing``
-        requests a specific change in the ``x`` value, whereas ``stride`` simply
-        requests a spacing between number of ``x`` values, regardless of whether
-        or not ``x`` is a regular grid.
+    Notes
+    -----
+    The arguments ``spacing``, ``count``, and ``stride`` are mutually exclusive
+    and given priority in that order.  That is, if ``spacing`` is provided, the
+    other two are ignored, etc.
+
+    The difference between ``spacing`` and ``stride`` is that ``spacing``
+    requests a specific change in the ``x`` value, whereas ``stride`` simply
+    requests a spacing between number of ``x`` values, regardless of whether or
+    not ``x`` is a regular grid.
     """
 
     def __init__(
@@ -122,9 +126,10 @@ class Knots:
 
         Returns
         -------
-        :class:`numpy.ndarray` or None
-            Breakpoints array, or ``None`` if :meth:`build` has not yet
-            been called.
+        :class:`numpy.ndarray`
+            The 1D array of breakpoints; if they are unavailable
+            (i.e.,:meth:`build` has not yet been called successfully), None is
+            returned.
         """
         return self._breakpoints
 
@@ -160,7 +165,10 @@ class Knots:
             return
 
         if x is None:
-            raise ValueError('Must provide x to determine breakpoints.')
+            raise ValueError(
+                'A prebuilt full knot vector was not provided during instantiation.  The build '
+                'function requires the x argument.'
+            )
 
         sx = np.amin(x)
         ex = np.amax(x)
@@ -219,8 +227,9 @@ class Knots:
         """
         spacing = (knots[1] - knots[0]) * spread
         indx = np.arange(1, nord)
-        return np.concatenate([knots[0] - spacing * indx[::-1], knots,
-                                knots[-1] + spacing * indx])
+        return np.concatenate((
+            knots[0] - spacing * indx[::-1], knots, knots[-1] + spacing * indx
+        ))
 
     def copy(self):
         """
@@ -287,12 +296,13 @@ class BSpline:
         knot vector.
 
     knots : :class:`Knots`, :class:`numpy.ndarray`, optional
-        Breakpoint specification specified in one of the following ways:
+        Fit breakpoints, which are defined by this parameter in one of the
+        following ways:
 
-            - If ``None``, the default :class:`Knots` is created.  Note that if
-              ``x`` is provided, the code will attempt to construct the knots
-              during instantiation.  See :class:`Knots` for the default
-              construction parameters.
+            - If ``knots=None``, a default :class:`Knots` instance is created.
+              Note that if ``x`` is provided, the code will attempt to construct
+              the knots during instantiation.  See :class:`Knots` for the
+              default construction parameters.
 
             - If a :class:`numpy.ndarray` is provided, this is treated as the
               pre-built, fully padded knot vector and used to instantiate
@@ -349,6 +359,39 @@ class BSpline:
 
         self.reinit_coeff()
 
+    def reinit_coeff(self):
+        """
+        Reset coefficient arrays to zero.
+
+        Does *not* reset the breakpoints or mask.  Does *not* invalidate the
+        design matrix cache (breakpoints have not changed).
+        """
+        nc = self.breakpoints.size - self.nord
+        self.coeff = np.zeros(nc, dtype=float)
+        self.icoeff = np.zeros(nc, dtype=float)
+
+    def copy(self):
+        """
+        Return a deep copy of this instance.
+
+        The design matrix cache is *not* copied (the copy starts with a
+        cold cache).
+
+        Returns
+        -------
+        BSpline
+            A new instance with copies of all stored arrays.
+        """
+        new = BSpline.__new__(BSpline)
+        new.nord = self.nord
+        new.knots = self.knots.copy()
+        new.mask = np.copy(self.mask)
+        new.coeff = np.copy(self.coeff)
+        new.icoeff = np.copy(self.icoeff)
+        new._cached_design = None
+        new._cached_x_shape = None
+        return new
+
     # ------------------------------------------------------------------
     # Breakpoints property
     # ------------------------------------------------------------------
@@ -360,7 +403,7 @@ class BSpline:
 
         Returns
         -------
-        :class:`numpy.ndarray` or None
+        :class:`numpy.ndarray
             Delegates to :attr:`knots.breakpoints <Knots.breakpoints>`.
         """
         return self.knots.breakpoints
@@ -393,13 +436,14 @@ class BSpline:
             Span index for each element of ``x``.
         """
         n = breakpoints.size - nord
-        indx = np.zeros(x.size, dtype=int)
-        ileft = nord - 1
-        for i in range(x.size):
-            while x[i] > breakpoints[ileft + 1] and ileft < n - 1:
-                ileft += 1
-            indx[i] = ileft
-        return indx
+        return np.clip(np.searchsorted(breakpoints, x, side='right') - 1, nord - 1, n - 1)
+        # indx = np.zeros(x.size, dtype=int)
+        # ileft = nord - 1
+        # for i in range(x.size):
+        #     while x[i] > breakpoints[ileft + 1] and ileft < n - 1:
+        #         ileft += 1
+        #     indx[i] = ileft
+        # return indx
 
     # ------------------------------------------------------------------
     # Static helper — unique run-end indices
@@ -921,39 +965,6 @@ class BSpline:
 
         return yfit[np.argsort(xsort, kind='stable')], mask
 
-    def reinit_coeff(self):
-        """
-        Reset coefficient arrays to zero.
-
-        Does *not* reset the breakpoints or mask.  Does *not* invalidate the
-        design matrix cache (breakpoints have not changed).
-        """
-        nc = self.breakpoints.size - self.nord
-        self.coeff = np.zeros(nc, dtype=float)
-        self.icoeff = np.zeros(nc, dtype=float)
-
-    def copy(self):
-        """
-        Return a deep copy of this instance.
-
-        The design matrix cache is *not* copied (the copy starts with a
-        cold cache).
-
-        Returns
-        -------
-        BSpline
-            A new instance with copies of all stored arrays.
-        """
-        new = BSpline.__new__(BSpline)
-        new.nord = self.nord
-        new.knots = self.knots.copy()
-        new.mask = np.copy(self.mask)
-        new.coeff = np.copy(self.coeff)
-        new.icoeff = np.copy(self.icoeff)
-        new._cached_design = None
-        new._cached_x_shape = None
-        return new
-
 
 # ---------------------------------------------------------------------------
 # BSpline2D — B-spline with polynomial second-variable dependence
@@ -1034,6 +1045,38 @@ class BSpline2D(BSpline):
         """
         super()._init_result_storage()
         self._cached_x2_shape = None
+
+    def reinit_coeff(self):
+        """
+        Reset 2D coefficient arrays to zero.
+        """
+        nc = self.breakpoints.size - self.nord
+        self.coeff = np.zeros((nc, self.npoly), dtype=float)
+        self.icoeff = np.zeros((nc, self.npoly), dtype=float)
+
+    def copy(self):
+        """
+        Return a deep copy of this :class:`BSpline2D` instance.
+
+        Returns
+        -------
+        BSpline2D
+            A new instance with copies of all stored arrays.
+        """
+        new = BSpline2D.__new__(BSpline2D)
+        new.nord = self.nord
+        new.npoly = self.npoly
+        new.knots = self.knots.copy()
+        new.mask = np.copy(self.mask)
+        new.coeff = np.copy(self.coeff)
+        new.icoeff = np.copy(self.icoeff)
+        new.xmin = self.xmin
+        new.xmax = self.xmax
+        new.funcname = self.funcname
+        new._cached_design = None
+        new._cached_x_shape = None
+        new._cached_x2_shape = None
+        return new
 
     # ------------------------------------------------------------------
     # Private methods — 2D-specific
@@ -1392,35 +1435,3 @@ class BSpline2D(BSpline):
                      & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])] = False
 
         return yfit[np.argsort(xsort, kind='stable')], mask
-
-    def reinit_coeff(self):
-        """
-        Reset 2D coefficient arrays to zero.
-        """
-        nc = self.breakpoints.size - self.nord
-        self.coeff = np.zeros((nc, self.npoly), dtype=float)
-        self.icoeff = np.zeros((nc, self.npoly), dtype=float)
-
-    def copy(self):
-        """
-        Return a deep copy of this :class:`BSpline2D` instance.
-
-        Returns
-        -------
-        BSpline2D
-            A new instance with copies of all stored arrays.
-        """
-        new = BSpline2D.__new__(BSpline2D)
-        new.nord = self.nord
-        new.npoly = self.npoly
-        new.knots = self.knots.copy()
-        new.mask = np.copy(self.mask)
-        new.coeff = np.copy(self.coeff)
-        new.icoeff = np.copy(self.icoeff)
-        new.xmin = self.xmin
-        new.xmax = self.xmax
-        new.funcname = self.funcname
-        new._cached_design = None
-        new._cached_x_shape = None
-        new._cached_x2_shape = None
-        return new
