@@ -25,47 +25,43 @@ from pypeit.bspline.bspline import bspline
 def test_build_breakpoints_fullbkpt_returned_sorted():
     rng = np.random.default_rng(0)
     pts = rng.uniform(0, 10, 20)
-    bkpt = Knots(full=pts).build(None, 4)
-    assert np.all(np.diff(bkpt) >= 0)
+    assert np.all(np.diff(Knots(full=pts, nord=4).breakpoints) >= 0)
 
 
 def test_build_breakpoints_fullbkpt_padded_when_short():
     pts = np.array([0.0, 1.0, 2.0, 3.0])  # length 4 < 2*nord=8
-    bkpt = Knots(full=pts).build(None, 4)
-    assert bkpt.size >= 2 * 4
+    assert Knots(full=pts, nord=4).breakpoints.size >= 2 * 4
 
 
 def test_build_breakpoints_bkspace_strategy():
     x = np.linspace(0, 10, 200)
-    bkpt = Knots(spacing=1.0).build(x, 4)
-    assert bkpt.min() <= 0.0
-    assert bkpt.max() >= 10.0
+    kv = Knots(spacing=1.0, x=x, nord=4).breakpoints
+    assert kv.min() <= 0.0
+    assert kv.max() >= 10.0
 
 
 def test_build_breakpoints_nbkpts_strategy():
     x = np.linspace(0, 5, 100)
-    bkpt = Knots(count=10).build(x, 4)
-    assert bkpt.size >= 2 * 4
+    assert Knots(count=10, x=x, nord=4).breakpoints.size >= 2 * 4
 
 
 def test_build_breakpoints_everyn_strategy():
     x = np.linspace(0, 10, 300)
-    bkpt = Knots(stride=20).build(x, 4)
-    assert bkpt.size > 2 * 4
+    assert Knots(stride=20, x=x, nord=4).breakpoints.size > 2 * 4
 
 
 def test_build_breakpoints_bkpt_strategy():
     x = np.linspace(0, 10, 200)
     interior = np.array([2.0, 4.0, 6.0, 8.0])
-    bkpt = Knots(interior=interior).build(x, 4)
-    assert bkpt[0] <= 0.0
-    assert bkpt[-1] >= 10.0
+    kv = Knots(interior=interior, x=x, nord=4).breakpoints
+    assert kv[0] <= 0.0
+    assert kv[-1] >= 10.0
 
 
 def test_build_breakpoints_phantom_knots_at_each_end():
     x = np.linspace(0, 10, 100)
     nord = 4
-    kv = Knots(count=6).build(x, nord)
+    kv = Knots(count=6, x=x, nord=nord).breakpoints
     interior_min = kv[nord - 1]
     interior_max = kv[-(nord)]
     assert np.all(kv[:nord - 1] < interior_min)
@@ -77,11 +73,6 @@ def test_build_breakpoints_raises_without_x_or_fullbkpt():
         Knots(spacing=1.0).build(None, 4)
 
 
-def test_build_breakpoints_raises_without_strategy():
-    x = np.linspace(0, 5, 50)
-    with pytest.raises(ValueError):
-        Knots().build(x, 4)
-
 
 # ============================================================================
 # BSpline._find_spans
@@ -89,8 +80,8 @@ def test_build_breakpoints_raises_without_strategy():
 
 def test_find_spans_all_indices_in_range():
     x = np.linspace(0, 10, 100)
-    kv = Knots(count=8).build(x, 4)
     nord = 4
+    kv = Knots(count=8, x=x, nord=nord).breakpoints
     n = kv.size - nord
     indx = BSpline._find_spans(x, kv, nord)
     assert np.all(indx >= nord - 1)
@@ -99,8 +90,8 @@ def test_find_spans_all_indices_in_range():
 
 def test_find_spans_bracketing():
     x = np.linspace(0, 10, 100)
-    kv = Knots(count=8).build(x, 4)
     nord = 4
+    kv = Knots(count=8, x=x, nord=nord).breakpoints
     indx = BSpline._find_spans(x, kv, nord)
     for i, (xi, il) in enumerate(zip(x, indx)):
         assert kv[il] <= xi
@@ -118,8 +109,8 @@ def test_find_spans_clamped_at_lower_edge():
 
 def test_find_spans_monotone_input_gives_monotone_output():
     x = np.linspace(0, 10, 100)
-    kv = Knots(count=8).build(x, 4)
     nord = 4
+    kv = Knots(count=8, x=x, nord=nord).breakpoints
     indx = BSpline._find_spans(x, kv, nord)
     assert np.all(np.diff(indx) >= 0)
 
@@ -442,6 +433,33 @@ def test_fit_zero_invvar_points_ignored():
     assert np.isfinite(yfit).all()
 
 
+def test_fit_reset_knots_rebuilds_breakpoints():
+    rng = np.random.default_rng(50)
+    x1 = np.sort(rng.uniform(0, 5, 100))
+    invvar = np.ones(100)
+    spl = BSpline(x=x1, knots=Knots(count=10), nord=4)
+    spl.fit(x1, np.sin(x1), invvar)
+    bkpt_before = spl.breakpoints.copy()
+    x2 = np.sort(rng.uniform(0, 10, 100))
+    spl.fit(x2, np.sin(x2), invvar, reset_knots=True)
+    assert spl.breakpoints.min() <= x2.min()
+    assert spl.breakpoints.max() >= x2.max()
+    assert not np.array_equal(spl.breakpoints, bkpt_before)
+
+
+def test_fit_reset_knots_resets_mask():
+    rng = np.random.default_rng(51)
+    x = np.sort(rng.uniform(0, 5, 100))
+    y = np.sin(x)
+    invvar = np.ones(100)
+    spl = BSpline(x=x, knots=Knots(count=10), nord=4)
+    spl.fit(x, y, invvar)
+    spl.mask[5] = False
+    assert not spl.mask.all()
+    spl.fit(x, y, invvar, reset_knots=True)
+    assert spl.mask.all()
+
+
 # ============================================================================
 # BSpline.value
 # ============================================================================
@@ -683,6 +701,38 @@ def test_bspline2d_fit_exact_polynomial_poly():
     err, yfit = spl.fit(x, y, invvar, x2)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
+
+
+def test_bspline2d_fit_reset_knots_rebuilds_breakpoints():
+    rng = np.random.default_rng(52)
+    N = 200
+    invvar = np.ones(N)
+    x1 = np.sort(rng.uniform(0, 5, N))
+    x2_1 = rng.uniform(0, 1, N)
+    spl = BSpline2D(x=x1, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=10), nord=4)
+    spl.fit(x1, np.sin(x1), invvar, x2_1)
+    bkpt_before = spl.breakpoints.copy()
+    x3 = np.sort(rng.uniform(0, 10, N))
+    x2_2 = rng.uniform(0, 1, N)
+    spl.fit(x3, np.sin(x3), invvar, x2_2, reset_knots=True)
+    assert spl.breakpoints.min() <= x3.min()
+    assert spl.breakpoints.max() >= x3.max()
+    assert not np.array_equal(spl.breakpoints, bkpt_before)
+
+
+def test_bspline2d_fit_reset_knots_resets_mask():
+    rng = np.random.default_rng(53)
+    N = 200
+    invvar = np.ones(N)
+    x = np.sort(rng.uniform(0, 5, N))
+    x2 = rng.uniform(0, 1, N)
+    y = np.sin(x)
+    spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=10), nord=4)
+    spl.fit(x, y, invvar, x2)
+    spl.mask[5] = False
+    assert not spl.mask.all()
+    spl.fit(x, y, invvar, x2, reset_knots=True)
+    assert spl.mask.all()
 
 
 # ============================================================================
