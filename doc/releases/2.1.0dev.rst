@@ -75,6 +75,7 @@ Under-the-hood Improvements
   ``__all__`` and import all the relevant classes where needed.
 - Multiple improvements for datacube generation, including no transpose operations
   and faster cube generation.
+- Added weights as an optional parameter in ``weighted_combine()``.
 
 Bug Fixes
 ---------
