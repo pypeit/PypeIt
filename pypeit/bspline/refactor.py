@@ -417,9 +417,9 @@ class BSpline:
         """
         Find the B-spline interval index for each value in ``x``.
 
-        For each ``x[i]``, returns the index ``ileft`` such that
-        ``breakpoints[ileft] <= x[i] < breakpoints[ileft + 1]``, clamped to
-        ``[nord - 1, n - 1]`` where ``n = breakpoints.size - nord``.
+        For each ``x[i]``, returns the index ``j`` such that ``breakpoints[j] <=
+        x[i] < breakpoints[j + 1]``, clipped to ``[nord - 1, n - 1]`` where ``n
+        = breakpoints.size - nord``.
 
         Parameters
         ----------
@@ -556,10 +556,8 @@ class BSpline:
         j = 0
         vnikx[:, 0] = 1.0
         while j < self.nord - 1:
-            ipj = ileft + j + 1
-            deltap[:, j] = t[ipj] - x
-            imj = ileft - j
-            deltam[:, j] = x - t[imj]
+            deltap[:, j] = t[ileft + j + 1] - x
+            deltam[:, j] = x - t[ileft - j]
             vmprev = 0.0
             for l in range(j + 1):
                 vm = vnikx[:, l] / (deltap[:, l] + deltam[:, j - l])
@@ -835,11 +833,9 @@ class BSpline:
             return -2
         test = np.zeros(nbkpt, dtype=bool)
         for jj in range(-int(np.ceil(self.nord / 2)), int(self.nord / 2.)):
-            foo = np.where((hmm + jj) > 0, hmm + jj,
-                           np.zeros(hmm.shape, dtype=hmm.dtype))
+            foo = np.where((hmm + jj) > 0, hmm + jj, np.zeros(hmm.shape, dtype=hmm.dtype))
             inside = np.where(
-                (foo + self.nord) < n - 1,
-                foo + self.nord,
+                foo + self.nord < n - 1, foo + self.nord,
                 np.zeros(hmm.shape, dtype=hmm.dtype) + n - 1,
             )
             if len(inside) > 0:
@@ -918,13 +914,10 @@ class BSpline:
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
         if bad_cols[0] != -1:
-            yfit = self._evaluate_model(A, lower, upper)
-            return self._mask_breakpoints(bad_cols), yfit
+            return self._mask_breakpoints(bad_cols), self._evaluate_model(A, lower, upper)
 
-        goodbk_idx = goodbk.nonzero()[0]
-        self._update_coefficients(sol, chol, goodbk_idx)
-        yfit = self._evaluate_model(A, lower, upper)
-        return 0, yfit
+        self._update_coefficients(sol, chol, goodbk.nonzero()[0])
+        return 0, self._evaluate_model(A, lower, upper)
 
     def value(self, x):
         """
@@ -960,8 +953,10 @@ class BSpline:
         hmm = (np.diff(goodbk) > 2).nonzero()[0]
         if hmm.size > 0:
             for jj in range(hmm.size):
-                mask[(x >= self.breakpoints[goodbk[hmm[jj]]])
-                     & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])] = False
+                mask[
+                    (x >= self.breakpoints[goodbk[hmm[jj]]])
+                    & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])
+                ] = False
 
         return yfit[np.argsort(xsort, kind='stable')], mask
 
@@ -1162,23 +1157,24 @@ class BSpline2D(BSpline):
             If :attr:`funcname` is not one of the recognised types.
         """
         nx = x2norm.size
-        if self.funcname == 'poly':
-            P = np.ones((nx, self.npoly), dtype=float)
-            for i in range(1, self.npoly):
-                P[:, i] = P[:, i - 1] * x2norm
-        elif self.funcname == 'poly1':
-            P = np.tile(x2norm, self.npoly).reshape(nx, self.npoly)
-            for i in range(1, self.npoly):
-                P[:, i] = P[:, i - 1] * x2norm
-        elif self.funcname == 'chebyshev':
-            P = basis.fchebyshev(x2norm, self.npoly)
-        elif self.funcname == 'legendre':
-            P = basis.flegendre(x2norm, self.npoly)
-        else:
-            raise ValueError(
-                f"Unknown funcname '{self.funcname}'.  "
-                "Use 'legendre', 'chebyshev', 'poly', or 'poly1'."
-            )
+        match self.funcname:
+            case 'poly':
+                P = np.ones((nx, self.npoly), dtype=float)
+                for i in range(1, self.npoly):
+                    P[:, i] = P[:, i - 1] * x2norm
+            case 'poly1':
+                P = np.tile(x2norm, self.npoly).reshape(nx, self.npoly)
+                for i in range(1, self.npoly):
+                    P[:, i] = P[:, i - 1] * x2norm
+            case 'chebyshev':
+                P = basis.fchebyshev(x2norm, self.npoly)
+            case 'legendre':
+                P = basis.flegendre(x2norm, self.npoly)
+            case _:
+                raise ValueError(
+                    f"Unknown funcname '{self.funcname}'.  "
+                    "Use 'legendre', 'chebyshev', 'poly', or 'poly1'."
+                )
         return P
 
     def _build_design_matrix(self, x, x2):
@@ -1325,10 +1321,10 @@ class BSpline2D(BSpline):
         nn = len(goodbk_idx)
         nfull = nn * self.npoly
         # C-order reshape: sol[k*npoly + jj] -> coeff_block[k, jj]
-        self.coeff[goodbk_idx, :] = sol[:nfull].reshape(nn, self.npoly).astype(
-            self.coeff.dtype)
+        self.coeff[goodbk_idx, :] = sol[:nfull].reshape(nn, self.npoly).astype(self.coeff.dtype)
         self.icoeff[goodbk_idx, :] = chol[0, :nfull].reshape(nn, self.npoly).astype(
-            self.icoeff.dtype)
+            self.icoeff.dtype
+        )
 
     # ------------------------------------------------------------------
     # Public API — overrides with required x2
@@ -1378,9 +1374,11 @@ class BSpline2D(BSpline):
         mininf = 1.0e-10 * invvar.sum() / nfull
 
         # Design matrix depends on both x and x2; invalidate cache if shapes change
-        if (self._cached_design is None
-                or xdata.shape != self._cached_x_shape
-                or x2.shape != self._cached_x2_shape):
+        if (
+            self._cached_design is None
+            or xdata.shape != self._cached_x_shape
+            or x2.shape != self._cached_x2_shape
+        ):
             self._cached_design = self._build_design_matrix(xdata, x2)
             self._cached_x_shape = xdata.shape
             self._cached_x2_shape = x2.shape
@@ -1392,13 +1390,11 @@ class BSpline2D(BSpline):
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
         if bad_cols[0] != -1:
-            yfit = self._evaluate_model(A, lower, upper)
-            return self._mask_breakpoints(bad_cols), yfit
+            return self._mask_breakpoints(bad_cols), self._evaluate_model(A, lower, upper)
 
         goodbk_idx = goodbk.nonzero()[0]
         self._update_coefficients(sol, chol, goodbk_idx)
-        yfit = self._evaluate_model(A, lower, upper)
-        return 0, yfit
+        return 0, self._evaluate_model(A, lower, upper)
 
     def value(self, x, x2):
         """
@@ -1431,7 +1427,9 @@ class BSpline2D(BSpline):
         hmm = (np.diff(goodbk) > 2).nonzero()[0]
         if hmm.size > 0:
             for jj in range(hmm.size):
-                mask[(x >= self.breakpoints[goodbk[hmm[jj]]])
-                     & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])] = False
+                mask[
+                    (x >= self.breakpoints[goodbk[hmm[jj]]])
+                    & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])
+                ] = False
 
         return yfit[np.argsort(xsort, kind='stable')], mask
