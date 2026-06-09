@@ -254,6 +254,8 @@ def broadcast_weights(weights, shape):
             weights_stack = np.einsum('i,ij->ij', weights, np.ones(shape))
         elif len(shape) == 3:
             weights_stack = np.einsum('i,ijk->ijk', weights, np.ones(shape))
+        elif len(shape) == 4:
+            weights_stack = np.einsum('i,ijkm->ijkm', weights, np.ones(shape))
         else:
             raise PypeItError('Image shape is not supported')
     elif weights.ndim == 2:
