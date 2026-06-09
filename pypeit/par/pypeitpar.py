@@ -1879,7 +1879,8 @@ class CubePar(ParSet):
             'to be within +/- fwhm/3 in x and y.  If not set, the position will be determined by '
             'running DAOStarFinder on the image.  Formatting follows the manual extraction '
             'parameters convention, i.e. x:y.  The x,y values are the image coordinates read '
-            'from Ginga or DS9; x is the image column and y is the image row.'
+            'from Ginga or DS9.  In numpy terms, if the image has shape (ny, nx), a position '
+            '(x, y) refers to image[y, x].'
         )
 
         defaults['sn_smooth_npix'] = None
@@ -2017,8 +2018,9 @@ class CubeExtractionPar(ParSet):
             'a semi-colon.  Only the first two entries, defining the spatial x and y *pixel* '
             'positions in the datacube, are required; the FWHM and boxcar radius are optional '
             'and provided in arcseconds.  The x,y values are the image coordinates read from '
-            'Ginga or DS9; x is the image column and y is the image row.  Note that you cannot '
-            'provide boxcar_radius without also providing fwhm; if you wish to only provide '
+            'Ginga or DS9.  In numpy terms, if the image has shape (ny, nx), a position '
+            '(x, y) refers to image[y, x].  Note that you cannot provide boxcar_radius '
+            'without also providing fwhm; if you wish to only provide '
             'boxcar_radius, set fwhm=-1.  Currently only the use of x:y is supported, and only '
             'single objects can be extracted at a time, so the semi-colon separation does not '
             'apply.'

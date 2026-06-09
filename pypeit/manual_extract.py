@@ -184,10 +184,12 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
     ----------
     spatx : :class:`numpy.ndarray`
         Array of spatial x positions to manually extract.  These are image x
-        coordinates as read from Ginga or DS9.
+        coordinates as read from Ginga or DS9, corresponding to the second
+        numpy image axis.
     spaty : :class:`numpy.ndarray`
         Array of spatial y positions to manually extract.  These are image y
-        coordinates as read from Ginga or DS9.
+        coordinates as read from Ginga or DS9, corresponding to the first numpy
+        image axis.
     fwhm : :class:`numpy.ndarray`, optional
         Array of FWHM for manual extraction in arcseconds.  This must be aligned
         with spatx and spaty.
@@ -222,12 +224,13 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
             separated by a semi-colon.  Only the first two entries, defining the
             spatial x and y *spaxel* positions in the datacube, are required;
             the FWHM and boxcar radius are optional and provided in arcseconds.
-            The x,y values are the image coordinates read from Ginga or DS9; x
-            is the image column and y is the image row.  Note that you cannot
-            provide boxcar_radius without also providing fwhm; if you wish to
-            only provide boxcar_radius, set fwhm = -1.  Currently only the use
-            of x:y is supported, and only single objects can be extracted at a
-            time, so the semi-colon separation does not apply.
+            The x,y values are the image coordinates read from Ginga or DS9.
+            In numpy terms, if the image has shape (ny, nx), a position (x, y)
+            refers to image[y, x].  Note that you cannot provide boxcar_radius
+            without also providing fwhm; if you wish to only provide
+            boxcar_radius, set fwhm = -1.  Currently only the use of x:y is
+            supported, and only single objects can be extracted at a time, so
+            the semi-colon separation does not apply.
 
         Returns
         -------

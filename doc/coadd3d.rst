@@ -154,8 +154,9 @@ There are several recommended steps of the coadd3d process that can be run separ
     the sky subtraction.
 
     Manual datacube extraction positions are specified as ``x:y`` image coordinates, matching the values
-    read from Ginga or DS9 when viewing the white-light image. In numpy array terms, ``x`` is the image
-    column and ``y`` is the image row.
+    read from Ginga or DS9 when viewing the white-light image. In numpy terms, if the white-light image
+    has shape ``(ny, nx)``, a position ``(x, y)`` refers to ``image[y, x]``; ``x`` indexes the second
+    array axis and ``y`` indexes the first.
 
 #. Step 3 - Generate a sensitivity function from the 1D spectra. This is done by running the following
     command, assuming that the output 1D spectra from the previous step was called

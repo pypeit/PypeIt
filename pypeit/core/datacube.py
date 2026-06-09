@@ -90,8 +90,8 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     a known value prior to passing it into this function.
 
     Image coordinates are quoted as (x, y), matching the coordinates read from
-    Ginga or DS9. In numpy indexing terms, x is the image column and y is the
-    image row.
+    Ginga or DS9. In numpy terms, if the image has shape (ny, nx), a position
+    (x, y) refers to image[y, x].
 
     Parameters
     ----------
@@ -104,10 +104,12 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         A good pixel mask. Pixels that are True are good. Default is None.
     init_obj_position : tuple, optional
         The initial guess for the object position in the image with format
-        (x, y), where x is the image column and y is the image row. If set, the
-        2D Gaussian fit will be performed with the position constrainted to be
-        within plus or minus fwhm/3 in x and y. If not set, the position will
-        be determined by running DAOStarFinder on the image. Default is None.
+        (x, y), matching Ginga or DS9 image coordinates. In numpy terms, if
+        the image has shape (ny, nx), a position (x, y) refers to image[y, x].
+        If set, the 2D Gaussian fit will be performed with the position
+        constrainted to be within plus or minus fwhm/3 in x and y. If not set,
+        the position will be determined by running DAOStarFinder on the image.
+        Default is None.
     fwhm : float, optional
         The FWHM of the image in pixels. This is used to estimate the initial
         guess for the Gaussian fit, the fit bounds, and the median filter kernel
@@ -418,8 +420,9 @@ def extract_point_source(
     manual_position : tuple, optional
         Manual position of the object in user-facing cube spatial coordinates,
         i.e. (x, y). Default is None, which means that the position will be
-        determined from the whitelight image. This follows the image viewer
-        convention: x is the image column and y is the image row.
+        determined from the whitelight image. This follows the Ginga/DS9 image
+        viewer convention: if the image has shape (ny, nx), a position (x, y)
+        refers to image[y, x].
     opt_prof_method : str, optional
 
         The method to be used to determine the object spatial profile for
@@ -752,8 +755,9 @@ def whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, gaussian_model, gaussian_posi
     """
     Generate ginga QA for the white light image point source object finding. 
 
-    Image coordinates are quoted as (x, y), matching Ginga and DS9 readouts:
-    x is the image column and y is the image row.
+    Image coordinates are quoted as (x, y), matching Ginga and DS9 readouts.
+    In numpy terms, if the image has shape (ny, nx), a position (x, y) refers
+    to image[y, x].
     
     Parameters
     ----------
@@ -1693,12 +1697,13 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
         Name of the spectrograph
     init_obj_position : tuple, optional
         The initial guess for the object position in image (x, y) coordinates,
-        where x is the image column and y is the image row as read from Ginga
-        or DS9. If set, this value will be input into `fitGaussian2D` as the
-        initial guess for the object position. The 2D Gaussian fit will then be
-        performed with the position constrained to be within plus or minus
-        fwhm/3 in x and y. If not set, the position will be determined by
-        running DAOStarFinder on the image. Default is None.
+        matching Ginga or DS9 readouts. In numpy terms, if the image has shape
+        (ny, nx), a position (x, y) refers to image[y, x]. If set, this value
+        will be input into `fitGaussian2D` as the initial guess for the object
+        position. The 2D Gaussian fit will then be performed with the position
+        constrained to be within plus or minus fwhm/3 in x and y. If not set,
+        the position will be determined by running DAOStarFinder on the image.
+        Default is None.
     show_qa : bool, optional
         If True, show QA plots in ginga. 
 
@@ -1837,13 +1842,13 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             Default is 1.5 arcseconds.
         init_obj_position : tuple, optional
             The initial guess for the object position in image (x, y)
-            coordinates, where x is the image column and y is the image row as
-            read from Ginga or DS9. If set, this value will be input into
-            `fitGaussian2D` as the initial guess for the object position. The
-            2D Gaussian fit will then be performed with the position
-            constrainted to be within plus or minus fwhm/3 in x and y. If not
-            set, the position will be determined by running DAOStarFinder on
-            the image. Default is None.
+            coordinates, matching Ginga or DS9 readouts. In numpy terms, if the
+            image has shape (ny, nx), a position (x, y) refers to image[y, x].
+            If set, this value will be input into `fitGaussian2D` as the
+            initial guess for the object position. The 2D Gaussian fit will
+            then be performed with the position constrainted to be within plus
+            or minus fwhm/3 in x and y. If not set, the position will be
+            determined by running DAOStarFinder on the image. Default is None.
         show_qa : bool, optional
             If True, show the object detection QA plot in ginga. Default is False. 
 
