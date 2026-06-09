@@ -45,7 +45,8 @@ from pypeit.core import basis
 # ---------------------------------------------------------------------------
 
 class Knots:
-    """Encapsulates breakpoint construction strategy for a B-spline fit.
+    """
+    Encapsulates breakpoint construction strategy for a B-spline fit.
 
     Separates knot geometry from fitting state.  Construction parameters
     are stored on the instance; the knot vector is built lazily when
@@ -71,8 +72,9 @@ class Knots:
         ignored.
     """
 
-    def __init__(self, interior=None, spread=1.0, spacing=None, count=None,
-                 stride=None, full=None):
+    def __init__(
+        self, interior=None, spread=1.0, spacing=None, count=None, stride=None, full=None
+    ):
         self.interior = interior
         self.spread = spread
         self.spacing = spacing
@@ -83,7 +85,8 @@ class Knots:
 
     @property
     def breakpoints(self):
-        """Full padded knot vector.
+        """
+        Full padded knot vector.
 
         Returns
         -------
@@ -94,7 +97,8 @@ class Knots:
         return self._breakpoints
 
     def build(self, x, nord):
-        """Construct and store the breakpoint vector.
+        """
+        Construct and store the breakpoint vector.
 
         If :attr:`breakpoints` is already set this method returns
         immediately without rebuilding.
@@ -168,7 +172,8 @@ class Knots:
 
     @staticmethod
     def _pad(knots, nord, spread):
-        """Pad a knot vector with ``nord - 1`` phantom knots at each end.
+        """
+        Pad a knot vector with ``nord - 1`` phantom knots at each end.
 
         The phantom spacing is ``(knots[1] - knots[0]) * spread``.
 
@@ -193,7 +198,8 @@ class Knots:
                                 knots[-1] + spacing * indx])
 
     def copy(self):
-        """Return a copy of this instance.
+        """
+        Return a copy of this instance.
 
         Strategy parameters are copied by value.  The built breakpoints
         array is deep-copied via :func:`numpy.copy`.
@@ -308,7 +314,8 @@ class BSpline:
 
     @property
     def breakpoints(self):
-        """Full padded knot vector.
+        """
+        Full padded knot vector.
 
         Returns
         -------
@@ -359,7 +366,8 @@ class BSpline:
 
     @staticmethod
     def _uniq(x):
-        """Return the index of the last occurrence of each unique value
+        """
+        Return the index of the last occurrence of each unique value
         in a sorted array.
 
         Replicates the IDL ``UNIQ()`` behaviour used internally for
@@ -391,7 +399,8 @@ class BSpline:
     # ------------------------------------------------------------------
 
     def _poly_scale(self, n):
-        """Convert a knot-span count to a total unknown count.
+        """
+        Convert a knot-span count to a total unknown count.
 
         For the 1D case this is the identity.  :class:`BSpline2D`
         overrides this to return ``n * self.npoly``.
@@ -409,7 +418,8 @@ class BSpline:
         return n
 
     def _dedup_bad_cols(self, bad_cols):
-        """Map bad Cholesky column indices to unique knot-span indices.
+        """
+        Map bad Cholesky column indices to unique knot-span indices.
 
         For the 1D case (``npoly = 1``) column indices and span indices
         are identical.  :class:`BSpline2D` overrides this to fold
@@ -873,7 +883,8 @@ class BSpline:
         self.icoeff = np.zeros(nc, dtype=float)
 
     def copy(self):
-        """Return a deep copy of this instance.
+        """
+        Return a deep copy of this instance.
 
         The design matrix cache is *not* copied (the copy starts with a
         cold cache).
@@ -947,8 +958,9 @@ class BSpline2D(BSpline):
         B-spline order (default 4 = cubic).
     """
 
-    def __init__(self, x=None, npoly=1, xmin=0.0, xmax=1.0, funcname='legendre',
-                 knots=None, nord=4):
+    def __init__(
+        self, x=None, npoly=1, xmin=0.0, xmax=1.0, funcname='legendre', knots=None, nord=4
+    ):
         super().__init__(x=x, knots=knots, nord=nord)
 
         self.npoly = npoly
@@ -974,7 +986,8 @@ class BSpline2D(BSpline):
     # ------------------------------------------------------------------
 
     def _poly_scale(self, n):
-        """Convert a knot-span count to a total unknown count.
+        """
+        Convert a knot-span count to a total unknown count.
 
         Overrides the base-class identity with ``n * self.npoly``.
 
@@ -991,7 +1004,8 @@ class BSpline2D(BSpline):
         return n * self.npoly
 
     def _dedup_bad_cols(self, bad_cols):
-        """Map bad Cholesky column indices to unique knot-span indices.
+        """
+        Map bad Cholesky column indices to unique knot-span indices.
 
         Overrides the base-class implementation to account for the
         ``npoly`` polynomial terms packed into each knot span.
@@ -1224,7 +1238,8 @@ class BSpline2D(BSpline):
     # ------------------------------------------------------------------
 
     def fit(self, xdata, ydata, invvar, x2):
-        """Fit a weighted least-squares 2D B-spline.
+        """
+        Fit a weighted least-squares 2D B-spline.
 
         .. note::
 
@@ -1326,7 +1341,8 @@ class BSpline2D(BSpline):
         self.icoeff = np.zeros((nc, self.npoly), dtype=float)
 
     def copy(self):
-        """Return a deep copy of this :class:`BSpline2D` instance.
+        """
+        Return a deep copy of this :class:`BSpline2D` instance.
 
         Returns
         -------
