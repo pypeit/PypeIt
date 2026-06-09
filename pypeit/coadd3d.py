@@ -1686,7 +1686,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                         self.all_wcs[ff], flxcube, ivarcube, np.logical_not(bpmcube),
                         wave, self.scidir, outfile, whitelight_range=wl_wvrng, overwrite=self.overwrite)
 
-    def compute_weights(self, show_qa=False):
+    def compute_pixel_weights(self, show_qa=False):
         """
         Compute the relative weights to apply to pixels that are collected into the voxels of the output DataCubes
 
@@ -1749,7 +1749,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # 8. Write out the final combined cube.
         """
         # Compute the relative weights on the spectra
-        self.all_wghts = self.compute_weights(show_qa=self.debug)
+        self.all_wghts = self.compute_pixel_weights(show_qa=self.debug)
 
         # Generate the WCS, and the voxel edges
         cube_wcs, vox_edges, _ = \
@@ -1810,7 +1810,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     varcube_stack = np.zeros(stack_shape)
                     bpmcube_stack = np.zeros(stack_shape)
                     normcube_stack = np.zeros(stack_shape)
-                    # TODO Add proper weights
                     weightcube_stack = None#np.ones(stack_shape)
 
                 flxcube_stack[ff, :] = flxcube
