@@ -41,10 +41,10 @@ from pypeit.core import basis
 
 
 # ---------------------------------------------------------------------------
-# BSplineBreakpoints — knot-vector construction strategy
+# Knots — knot-vector construction strategy
 # ---------------------------------------------------------------------------
 
-class BSplineBreakpoints:
+class Knots:
     """Encapsulates breakpoint construction strategy for a B-spline fit.
 
     Separates knot geometry from fitting state.  Construction parameters
@@ -53,32 +53,32 @@ class BSplineBreakpoints:
 
     Parameters
     ----------
-    bkpt : :class:`numpy.ndarray`, optional
-        Interior breakpoints supplied directly.  Points outside the range
-        of ``x`` are omitted when :meth:`build` is called.
-    bkspread : float, optional
+    interior : :class:`numpy.ndarray`, optional
+        Interior knots supplied directly.  Points outside the range of
+        ``x`` are omitted when :meth:`build` is called.
+    spread : float, optional
         Scale factor for phantom-knot spacing (default 1.0).
-    bkspace : float, optional
-        Fixed spacing between interior breakpoints.
-    nbkpts : int, optional
-        Number of breakpoints spanning the range of ``x``.
-    everyn : int or float, optional
-        Place a breakpoint at every ``everyn``-th value of ``x``.
-    fullbkpt : :class:`numpy.ndarray`, optional
+    spacing : float, optional
+        Fixed spacing between interior knots.
+    count : int, optional
+        Number of interior knots spanning the range of ``x``.
+    stride : int or float, optional
+        Place a knot at every ``stride``-th value of ``x``.
+    full : :class:`numpy.ndarray`, optional
         Pre-built full padded knot vector.  Sorted and cast to float on
         input.  If its length is less than ``2 * nord`` it is padded by
-        :meth:`_fill_bkpt`.  When provided, all other strategy parameters
-        are ignored.
+        :meth:`_pad`.  When provided, all other strategy parameters are
+        ignored.
     """
 
-    def __init__(self, bkpt=None, bkspread=1.0, bkspace=None, nbkpts=None,
-                 everyn=None, fullbkpt=None):
-        self.bkpt = bkpt
-        self.bkspread = bkspread
-        self.bkspace = bkspace
-        self.nbkpts = nbkpts
-        self.everyn = everyn
-        self.fullbkpt = fullbkpt
+    def __init__(self, interior=None, spread=1.0, spacing=None, count=None,
+                 stride=None, full=None):
+        self.interior = interior
+        self.spread = spread
+        self.spacing = spacing
+        self.count = count
+        self.stride = stride
+        self.full = full
         self._breakpoints = None
 
     @property
@@ -103,7 +103,7 @@ class BSplineBreakpoints:
         ----------
         x : :class:`numpy.ndarray` or None
             Independent variable used to determine interior breakpoints.
-            Required unless :attr:`fullbkpt` was provided at construction.
+            Required unless :attr:`full` was provided at construction.
         nord : int
             B-spline order.
 
@@ -115,19 +115,17 @@ class BSplineBreakpoints:
         Raises
         ------
         ValueError
-            If ``x`` is ``None`` and no ``fullbkpt`` was supplied, or if
+            If ``x`` is ``None`` and no ``full`` was supplied, or if
             no breakpoint strategy is specified.
         """
         if self._breakpoints is not None:
             return self._breakpoints
 
-        if self.fullbkpt is not None:
-            _fullbkpt = np.sort(self.fullbkpt, kind='heapsort').astype(float)
-            if _fullbkpt.size < 2 * nord:
-                _fullbkpt = BSplineBreakpoints._fill_bkpt(
-                    _fullbkpt, nord, self.bkspread
-                )
-            self._breakpoints = _fullbkpt
+        if self.full is not None:
+            _full = np.sort(self.full, kind='heapsort').astype(float)
+            if _full.size < 2 * nord:
+                _full = Knots._pad(_full, nord, self.spread)
+            self._breakpoints = _full
             return self._breakpoints
 
         if x is None:
@@ -135,66 +133,64 @@ class BSplineBreakpoints:
 
         sx = np.amin(x)
         ex = np.amax(x)
-        if self.bkpt is None:
-            if self.bkspace is not None:
-                if self.bkspace >= ex - sx:
-                    _bkpt = np.array([sx, ex])
+        if self.interior is None:
+            if self.spacing is not None:
+                if self.spacing >= ex - sx:
+                    _interior = np.array([sx, ex])
                 else:
-                    _nbkpts = int((ex - sx) / self.bkspace) + 1
-                    _bkpt = np.linspace(sx, ex, _nbkpts)
-            elif self.nbkpts is not None:
-                _bkpt = np.linspace(sx, ex, max(self.nbkpts, 2))
-            elif self.everyn is not None:
-                if self.everyn < x.size:
-                    _nbkpts = max(x.size / self.everyn, 2.)
-                    indx = (x.size / _nbkpts) * np.arange(_nbkpts)
-                    _bkpt = np.interp(indx, np.arange(x.size, dtype=float), x)
+                    _count = int((ex - sx) / self.spacing) + 1
+                    _interior = np.linspace(sx, ex, _count)
+            elif self.count is not None:
+                _interior = np.linspace(sx, ex, max(self.count, 2))
+            elif self.stride is not None:
+                if self.stride < x.size:
+                    _count = max(x.size / self.stride, 2.)
+                    indx = (x.size / _count) * np.arange(_count)
+                    _interior = np.interp(indx, np.arange(x.size, dtype=float), x)
                 else:
-                    _bkpt = np.array([sx, ex])
+                    _interior = np.array([sx, ex])
             else:
                 raise ValueError('Insufficient information to set breakpoints.')
         else:
-            _bkpt = np.sort(self.bkpt, kind='heapsort')
-            w = (_bkpt >= sx) & (_bkpt <= ex)
-            _bkpt = np.array([sx, ex]) if np.sum(w) < 2 else _bkpt[w]
+            _interior = np.sort(self.interior, kind='heapsort')
+            w = (_interior >= sx) & (_interior <= ex)
+            _interior = np.array([sx, ex]) if np.sum(w) < 2 else _interior[w]
 
-        if _bkpt.size < 2:
-            _bkpt = np.array([sx, ex])
-        if _bkpt[0] > sx:
-            _bkpt[0] = sx
-        if _bkpt[-1] < ex:
-            _bkpt[-1] = ex
+        if _interior.size < 2:
+            _interior = np.array([sx, ex])
+        if _interior[0] > sx:
+            _interior[0] = sx
+        if _interior[-1] < ex:
+            _interior[-1] = ex
 
-        self._breakpoints = BSplineBreakpoints._fill_bkpt(
-            _bkpt, nord, self.bkspread
-        ).astype(float)
+        self._breakpoints = Knots._pad(_interior, nord, self.spread).astype(float)
         return self._breakpoints
 
     @staticmethod
-    def _fill_bkpt(bkpt, nord, bkspread):
-        """Pad a breakpoint vector with ``nord - 1`` phantom knots at each end.
+    def _pad(knots, nord, spread):
+        """Pad a knot vector with ``nord - 1`` phantom knots at each end.
 
-        The phantom spacing is ``(bkpt[1] - bkpt[0]) * bkspread``.
+        The phantom spacing is ``(knots[1] - knots[0]) * spread``.
 
         Parameters
         ----------
-        bkpt : :class:`numpy.ndarray`
-            Interior breakpoints (at least 2 elements).
+        knots : :class:`numpy.ndarray`
+            Interior knots (at least 2 elements).
         nord : int
             B-spline order.
-        bkspread : float
+        spread : float
             Scale factor for phantom-knot spacing.
 
         Returns
         -------
         :class:`numpy.ndarray`
             Full padded knot vector of length
-            ``len(bkpt) + 2 * (nord - 1)``.
+            ``len(knots) + 2 * (nord - 1)``.
         """
-        bkspace = (bkpt[1] - bkpt[0]) * bkspread
+        spacing = (knots[1] - knots[0]) * spread
         indx = np.arange(1, nord)
-        return np.concatenate([bkpt[0] - bkspace * indx[::-1], bkpt,
-                                bkpt[-1] + bkspace * indx])
+        return np.concatenate([knots[0] - spacing * indx[::-1], knots,
+                                knots[-1] + spacing * indx])
 
     def copy(self):
         """Return a copy of this instance.
@@ -204,17 +200,17 @@ class BSplineBreakpoints:
 
         Returns
         -------
-        BSplineBreakpoints
+        Knots
             A new instance with the same strategy parameters and a copy
             of the built breakpoints.
         """
-        new = BSplineBreakpoints.__new__(BSplineBreakpoints)
-        new.bkpt = self.bkpt
-        new.bkspread = self.bkspread
-        new.bkspace = self.bkspace
-        new.nbkpts = self.nbkpts
-        new.everyn = self.everyn
-        new.fullbkpt = self.fullbkpt
+        new = Knots.__new__(Knots)
+        new.interior = self.interior
+        new.spread = self.spread
+        new.spacing = self.spacing
+        new.count = self.count
+        new.stride = self.stride
+        new.full = self.full
         new._breakpoints = (
             np.copy(self._breakpoints) if self._breakpoints is not None else None
         )
@@ -256,39 +252,38 @@ class BSpline:
     ----------
     x : :class:`numpy.ndarray`, optional
         Independent variable used to set breakpoints.  Passed to
-        :meth:`BSplineBreakpoints.build` when ``bkpts`` does not already
-        hold a built knot vector.
-    bkpts : :class:`BSplineBreakpoints` or :class:`numpy.ndarray` or None
+        :meth:`Knots.build` when ``knots`` does not already hold a built
+        knot vector.
+    knots : :class:`Knots` or :class:`numpy.ndarray` or None
         Breakpoint specification.  One of:
 
-        * ``None`` — a default :class:`BSplineBreakpoints` is created;
-          ``x`` must be provided and a strategy must be encoded in the
-          object's construction parameters.
-        * :class:`BSplineBreakpoints` — used as-is; :meth:`build` is
-          called if the knot vector has not yet been built.
+        * ``None`` — a default :class:`Knots` is created; ``x`` must be
+          provided and a strategy must be encoded in the object's
+          construction parameters.
+        * :class:`Knots` — used as-is; :meth:`build` is called if the
+          knot vector has not yet been built.
         * :class:`numpy.ndarray` — treated as a pre-built full padded
-          knot vector; wrapped in :class:`BSplineBreakpoints`
-          automatically.
+          knot vector; wrapped in :class:`Knots` automatically.
     nord : int, optional
         B-spline order (default 4 = cubic).
     """
 
-    def __init__(self, x=None, bkpts=None, nord=4):
+    def __init__(self, x=None, knots=None, nord=4):
         self.nord = nord
 
-        if isinstance(bkpts, np.ndarray):
-            bkpts = BSplineBreakpoints(fullbkpt=bkpts)
-        elif bkpts is None:
-            bkpts = BSplineBreakpoints()
-        elif not isinstance(bkpts, BSplineBreakpoints):
+        if isinstance(knots, np.ndarray):
+            knots = Knots(full=knots)
+        elif knots is None:
+            knots = Knots()
+        elif not isinstance(knots, Knots):
             raise TypeError(
-                'bkpts must be None, a numpy.ndarray, or a BSplineBreakpoints '
-                f'instance; got {type(bkpts).__name__!r}'
+                'knots must be None, a numpy.ndarray, or a Knots '
+                f'instance; got {type(knots).__name__!r}'
             )
 
-        self.bkpts = bkpts
+        self.knots = knots
 
-        if x is None and bkpts._breakpoints is None and bkpts.fullbkpt is None:
+        if x is None and knots._breakpoints is None and knots.full is None:
             # Empty instance (e.g. for copy / deserialization)
             self.mask = None
             self.coeff = None
@@ -297,8 +292,8 @@ class BSpline:
             self._cached_x_shape = None
             return
 
-        if bkpts._breakpoints is None:
-            bkpts.build(x, nord)  # x may be None when fullbkpt is set
+        if knots._breakpoints is None:
+            knots.build(x, nord)  # x may be None when full is set
 
         nc = self.breakpoints.size - nord
         self.mask = np.ones(self.breakpoints.size, dtype=bool)
@@ -318,10 +313,9 @@ class BSpline:
         Returns
         -------
         :class:`numpy.ndarray` or None
-            Delegates to :attr:`bkpts.breakpoints
-            <BSplineBreakpoints.breakpoints>`.
+            Delegates to :attr:`knots.breakpoints <Knots.breakpoints>`.
         """
-        return self.bkpts.breakpoints
+        return self.knots.breakpoints
 
     # ------------------------------------------------------------------
     # Static helper — span index lookup
@@ -460,7 +454,7 @@ class BSpline:
             B-spline basis values in C order.  ``vnikx[i, k]`` is the ``k``-th
             active basis function evaluated at ``x[i]``.
         """
-        bkpt = self.breakpoints[self.mask]
+        t = self.breakpoints[self.mask]
         vnikx = np.zeros((x.size, self.nord), dtype=x.dtype)
         deltap = np.zeros((x.size, self.nord), dtype=x.dtype)
         deltam = np.zeros((x.size, self.nord), dtype=x.dtype)
@@ -468,9 +462,9 @@ class BSpline:
         vnikx[:, 0] = 1.0
         while j < self.nord - 1:
             ipj = ileft + j + 1
-            deltap[:, j] = bkpt[ipj] - x
+            deltap[:, j] = t[ipj] - x
             imj = ileft - j
-            deltam[:, j] = x - bkpt[imj]
+            deltam[:, j] = x - t[imj]
             vmprev = 0.0
             for l in range(j + 1):
                 vm = vnikx[:, l] / (deltap[:, l] + deltam[:, j - l])
@@ -891,7 +885,7 @@ class BSpline:
         """
         new = BSpline.__new__(BSpline)
         new.nord = self.nord
-        new.bkpts = self.bkpts.copy()
+        new.knots = self.knots.copy()
         new.mask = np.copy(self.mask)
         new.coeff = np.copy(self.coeff)
         new.icoeff = np.copy(self.icoeff)
@@ -947,15 +941,15 @@ class BSpline2D(BSpline):
         ``'chebyshev'``, ``'poly'`` (monomial:
         :math:`1, x_2, x_2^2, \ldots`), or ``'poly1'`` (monomial without
         constant term; ill-conditioned — use with caution).
-    bkpts : :class:`BSplineBreakpoints` or :class:`numpy.ndarray` or None
+    knots : :class:`Knots` or :class:`numpy.ndarray` or None
         Breakpoint specification forwarded to :class:`BSpline.__init__`.
     nord : int, optional
         B-spline order (default 4 = cubic).
     """
 
     def __init__(self, x=None, npoly=1, xmin=0.0, xmax=1.0, funcname='legendre',
-                 bkpts=None, nord=4):
-        super().__init__(x=x, bkpts=bkpts, nord=nord)
+                 knots=None, nord=4):
+        super().__init__(x=x, knots=knots, nord=nord)
 
         self.npoly = npoly
         self.xmin = xmin
@@ -1342,7 +1336,7 @@ class BSpline2D(BSpline):
         new = BSpline2D.__new__(BSpline2D)
         new.nord = self.nord
         new.npoly = self.npoly
-        new.bkpts = self.bkpts.copy()
+        new.knots = self.knots.copy()
         new.mask = np.copy(self.mask)
         new.coeff = np.copy(self.coeff)
         new.icoeff = np.copy(self.icoeff)
