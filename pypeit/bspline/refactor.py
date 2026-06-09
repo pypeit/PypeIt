@@ -46,34 +46,57 @@ from pypeit.core import basis
 
 class Knots:
     """
-    Encapsulates breakpoint construction strategy for a B-spline fit.
+    Construct and store breakpoints for B-spline fitting.
 
-    Separates knot geometry from fitting state.  Construction parameters
-    are stored on the instance; the knot vector is built lazily when
-    :meth:`build` is called and then cached in :attr:`breakpoints`.
+    The breakpoint knot vector is built lazily when :meth:`build` is called and
+    then cached in :attr:`breakpoints`.
+
+    When building the knots for any given fit, the parameters of this class are
+    with respect to to the independent coordinate (``x``) and the order
+    (``nord``).  Note that ``x`` and ``nord`` to not need to be provided at
+    instantiation; the breakpoints can be (re)constructed later using
+    :meth:`build`
 
     Parameters
     ----------
     interior : :class:`numpy.ndarray`, optional
-        Interior knots supplied directly.  Points outside the range of
-        ``x`` are omitted when :meth:`build` is called.
+        Interior knots supplied directly.  Any points outside the range of ``x``
+        are omitted.
     spread : float, optional
-        Scale factor for phantom-knot spacing (default 1.0).
+        Scale factor use for spacing the phantom knots placed at the beginning
+        and end of the fitting range.
     spacing : float, optional
-        Fixed spacing between interior knots.
+        Fixed spacing in the ``x`` coordinate value between interior knots.
     count : int, optional
         Number of interior knots spanning the range of ``x``.
     stride : int or float, optional
-        Place a knot at every ``stride``-th value of ``x``.
+        Place knots separated by this *number* of values in ``x``.
     full : :class:`numpy.ndarray`, optional
-        Pre-built full padded knot vector.  Sorted and cast to float on
-        input.  If its length is less than ``2 * nord`` it is padded by
-        :meth:`_pad`.  When provided, all other strategy parameters are
-        ignored.
+        Pre-built full padded knot vector.  Sorted and cast to float on input.
+        If its length is less than twice the order of the fit (``nord``), it is
+        padded by :meth:`_pad`.  When provided, all other strategy parameters
+        are ignored.
+    x : :class:`numpy.ndarray`, optional
+        Independent variable used to determine interior breakpoints.  Ignored if
+        :attr:`full` is not None, otherwise this must be provided and cannot be
+        None.
+    nord : int, optional
+        B-spline order.  If provided, the breakpoints are built immediately
+        using :meth:`build`.  If that method fails (e.g., because both ``x`` and
+        ``full`` are not provided), the object is instantiated as if ``nord``
+        was not provided.
+
+    .. note::
+        
+        The difference between ``spacing`` and ``stride`` is that ``spacing``
+        requests a specific change in the ``x`` value, whereas ``stride`` simply
+        requests a spacing between number of ``x`` values, regardless of whether
+        or not ``x`` is a regular grid.
     """
 
     def __init__(
-        self, interior=None, spread=1.0, spacing=None, count=None, stride=None, full=None
+        self, interior=None, spread=1.0, spacing=None, count=None, stride=4, full=None, x=None,
+        nord=None,
     ):
         self.interior = interior
         self.spread = spread
@@ -82,6 +105,15 @@ class Knots:
         self.stride = stride
         self.full = full
         self._breakpoints = None
+
+        if nord is not None:
+            try:
+                self.build(x, nord)
+            except ValueError as e:
+                warnings.warn(
+                    'Unable to build breakpoints at instantiation.  Error from build function: '
+                    f'{e}'
+                )
 
     @property
     def breakpoints(self):
@@ -100,37 +132,32 @@ class Knots:
         """
         Construct and store the breakpoint vector.
 
-        If :attr:`breakpoints` is already set this method returns
-        immediately without rebuilding.
+        .. important::
+
+            This *always* rebuilds the set of breakpoints.  If you want to
+            access a pre-existing set of breakpoints, use :attr:`breakpoints`.
 
         Parameters
         ----------
-        x : :class:`numpy.ndarray` or None
+        x : :class:`numpy.ndarray`
             Independent variable used to determine interior breakpoints.
-            Required unless :attr:`full` was provided at construction.
+            Ignored if :attr:`full` is not None, otherwise this must be provided
+            and cannot be None.
         nord : int
             B-spline order.
-
-        Returns
-        -------
-        :class:`numpy.ndarray`
-            Full padded knot vector (also stored as :attr:`breakpoints`).
 
         Raises
         ------
         ValueError
-            If ``x`` is ``None`` and no ``full`` was supplied, or if
-            no breakpoint strategy is specified.
+            If :attr:`full` and ``x`` ar both ``None``, the breakpoints cannot
+            be defined.
         """
-        if self._breakpoints is not None:
-            return self._breakpoints
-
         if self.full is not None:
             _full = np.sort(self.full, kind='heapsort').astype(float)
             if _full.size < 2 * nord:
                 _full = Knots._pad(_full, nord, self.spread)
             self._breakpoints = _full
-            return self._breakpoints
+            return
 
         if x is None:
             raise ValueError('Must provide x to determine breakpoints.')
@@ -168,7 +195,6 @@ class Knots:
             _interior[-1] = ex
 
         self._breakpoints = Knots._pad(_interior, nord, self.spread).astype(float)
-        return self._breakpoints
 
     @staticmethod
     def _pad(knots, nord, spread):
@@ -189,8 +215,7 @@ class Knots:
         Returns
         -------
         :class:`numpy.ndarray`
-            Full padded knot vector of length
-            ``len(knots) + 2 * (nord - 1)``.
+            Full padded knot vector of length ``len(knots) + 2 * (nord - 1)``.
         """
         spacing = (knots[1] - knots[0]) * spread
         indx = np.arange(1, nord)
@@ -260,16 +285,22 @@ class BSpline:
         Independent variable used to set breakpoints.  Passed to
         :meth:`Knots.build` when ``knots`` does not already hold a built
         knot vector.
-    knots : :class:`Knots` or :class:`numpy.ndarray` or None
-        Breakpoint specification.  One of:
 
-        * ``None`` — a default :class:`Knots` is created; ``x`` must be
-          provided and a strategy must be encoded in the object's
-          construction parameters.
-        * :class:`Knots` — used as-is; :meth:`build` is called if the
-          knot vector has not yet been built.
-        * :class:`numpy.ndarray` — treated as a pre-built full padded
-          knot vector; wrapped in :class:`Knots` automatically.
+    knots : :class:`Knots`, :class:`numpy.ndarray`, optional
+        Breakpoint specification specified in one of the following ways:
+
+            - If ``None``, the default :class:`Knots` is created.  Note that if
+              ``x`` is provided, the code will attempt to construct the knots
+              during instantiation.  See :class:`Knots` for the default
+              construction parameters.
+
+            - If a :class:`numpy.ndarray` is provided, this is treated as the
+              pre-built, fully padded knot vector and used to instantiate
+              :attr:`knots` as a :class:`Knots` instance (``knots`` is passed to
+              :class:`Knots` using its ``full`` argument).
+
+            - If the object is a :class:`Knots` instance, it is used as is.
+
     nord : int, optional
         B-spline order (default 4 = cubic).
     """
@@ -278,35 +309,45 @@ class BSpline:
         self.nord = nord
 
         if isinstance(knots, np.ndarray):
-            knots = Knots(full=knots)
+            self.knots = Knots(full=knots)
         elif knots is None:
-            knots = Knots()
-        elif not isinstance(knots, Knots):
+            self.knots = Knots() if x is None else Knots(x=x, nord=nord)
+        else:
+            self.knots = knots
+            
+        if not isinstance(self.knots, Knots):
             raise TypeError(
-                'knots must be None, a numpy.ndarray, or a Knots '
-                f'instance; got {type(knots).__name__!r}'
+                'The knots provided to BSpline must be None, a numpy.ndarray, or a Knots '
+                f'instance, not a {type(knots).__name__}.'
             )
 
-        self.knots = knots
+        if self.knots.breakpoints is None:
+            try:
+                self.knots.build(x, self.nord)
+            except ValueError:
+                # Assume the user will provide the information necessary to
+                # instantiate the breakpoints when calling the fit function.
+                pass
 
-        if x is None and knots._breakpoints is None and knots.full is None:
+        self._init_result_storage()
+
+    def _init_result_storage(self):
+        """
+        Initialize the arrays used to store the results of the fit
+        """
+        self._cached_design = None
+        self._cached_x_shape = None
+
+        if self.breakpoints is None:
             # Empty instance (e.g. for copy / deserialization)
             self.mask = None
             self.coeff = None
             self.icoeff = None
-            self._cached_design = None
-            self._cached_x_shape = None
             return
 
-        if knots._breakpoints is None:
-            knots.build(x, nord)  # x may be None when full is set
-
-        nc = self.breakpoints.size - nord
         self.mask = np.ones(self.breakpoints.size, dtype=bool)
-        self.coeff = np.zeros(nc, dtype=float)
-        self.icoeff = np.zeros(nc, dtype=float)
-        self._cached_design = None
-        self._cached_x_shape = None
+
+        self.reinit_coeff()
 
     # ------------------------------------------------------------------
     # Breakpoints property
@@ -772,7 +813,7 @@ class BSpline:
     # Public API
     # ------------------------------------------------------------------
 
-    def fit(self, xdata, ydata, invvar):
+    def fit(self, xdata, ydata, invvar, reset_knots=False):
         """
         Fit a weighted least-squares B-spline to ``(xdata, ydata)``.
 
@@ -794,6 +835,9 @@ class BSpline:
             Dependent variable.
         invvar : :class:`numpy.ndarray`
             Inverse variance of ``ydata``.  Zero entries are effectively masked.
+        reset_knots : bool, optional
+            Regardless of any existing breakpoints, reset the breakpoints using
+            :attr:`knots` and ``xdata``.
 
         Returns
         -------
@@ -804,6 +848,10 @@ class BSpline:
         yfit : :class:`numpy.ndarray`
             Fitted B-spline evaluated at ``xdata``.
         """
+        if reset_knots:
+            self.knots.build(xdata, self.nord)
+            self._init_result_storage()
+
         goodbk = self.mask[self.nord:]
         nn = goodbk.sum()
         if nn < self.nord:
@@ -812,7 +860,9 @@ class BSpline:
         nfull = self._poly_scale(nn)
         mininf = 1.0e-10 * invvar.sum() / nfull
 
-        # Build / retrieve cached design matrix
+        # Build / retrieve cached design matrix.  This if statement should
+        # always be true if reset_knots is true because of the call to
+        # _init_result_storage.
         if self._cached_design is None or xdata.shape != self._cached_x_shape:
             self._cached_design = self._build_design_matrix(xdata)
             self._cached_x_shape = xdata.shape
@@ -961,25 +1011,29 @@ class BSpline2D(BSpline):
     def __init__(
         self, x=None, npoly=1, xmin=0.0, xmax=1.0, funcname='legendre', knots=None, nord=4
     ):
-        super().__init__(x=x, knots=knots, nord=nord)
-
-        self.npoly = npoly
-        self.xmin = xmin
-        self.xmax = xmax
-        self.funcname = funcname
-        self._cached_x2_shape = None
-
         if funcname == 'poly1':
             warnings.warn(
                 "BSpline2D funcname='poly1' produces a basis with no constant x2 term "
                 "and may be ill-conditioned.  Consider using 'legendre' instead."
             )
 
-        # Override coeff / icoeff to 2D shape (nc, npoly)
-        if self.breakpoints is not None:
-            nc = self.breakpoints.size - nord
-            self.coeff = np.zeros((nc, npoly), dtype=float)
-            self.icoeff = np.zeros((nc, npoly), dtype=float)
+        # WARNING: self.npoly must be defined before running super().__init__()
+        # so that it can be used by the call to reinit_coeffs() during
+        # instantion of the base class.
+
+        self.npoly = npoly
+        self.xmin = xmin
+        self.xmax = xmax
+        self.funcname = funcname
+
+        super().__init__(x=x, knots=knots, nord=nord)
+
+    def _init_result_storage(self):
+        """
+        Initialize the arrays used to store the results of the fit
+        """
+        super()._init_result_storage()
+        self._cached_x2_shape = None
 
     # ------------------------------------------------------------------
     # Private methods — 2D-specific
@@ -1237,7 +1291,7 @@ class BSpline2D(BSpline):
     # Public API — overrides with required x2
     # ------------------------------------------------------------------
 
-    def fit(self, xdata, ydata, invvar, x2):
+    def fit(self, xdata, ydata, invvar, x2, reset_knots=False):
         """
         Fit a weighted least-squares 2D B-spline.
 
@@ -1257,6 +1311,9 @@ class BSpline2D(BSpline):
         x2 : :class:`numpy.ndarray`
             Second variable (required).  Must be statistically independent of
             ``xdata``; see class-level warning.
+        reset_knots : bool, optional
+            Regardless of any existing breakpoints, reset the breakpoints using
+            :attr:`knots` and ``xdata``.
 
         Returns
         -------
@@ -1265,6 +1322,10 @@ class BSpline2D(BSpline):
         yfit : :class:`numpy.ndarray`
             Fitted model at ``xdata``.
         """
+        if reset_knots:
+            self.knots.build(xdata, self.nord)
+            self._init_result_storage()
+
         goodbk = self.mask[self.nord:]
         nn = goodbk.sum()
         if nn < self.nord:
