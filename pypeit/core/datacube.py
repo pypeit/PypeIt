@@ -266,7 +266,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     var_denom = utils.inverse(ivar_denom)
     ivar_num = np.sum(_gpm*_ivar*optkern**2)
     ivar_opt = ivar_num * var_denom
-    flux_opt = np.sum(_gpm*_ivar*image_skysub*optkern) * var_denom
+    flux_opt = np.sum(_gpm*_ivar*image_skysub*optkern) * utils.inverse(ivar_num)
     tot_weight = np.sum(_gpm*_ivar*optkern)
     sigma_opt = np.sqrt(utils.inverse(ivar_opt))
     # Print out a report for the S/N of the optimally extracted object
