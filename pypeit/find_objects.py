@@ -254,7 +254,6 @@ class FindObjects:
             subtraction.  True = usable for sky subtraction, False = should be
             masked when sky subtracting.
         """
-        print("find_objects.py:  Creating sky mask!")
         # Instantiate the mask
         skymask = np.ones_like(self.sciImg.image, dtype=bool)
         if sobjs_obj.nobj == 0:
@@ -308,6 +307,7 @@ class FindObjects:
         #gpm = np.logical_not(bpm)
         #self.slits_left = slits_left[:, gpm]
         #self.slits_right = slits_right[:, gpm]
+
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
@@ -842,7 +842,6 @@ class MultiSlitFindObjects(FindObjects):
                                 objfindQA_filename=objfindQA_filename,
                                 debug_all=debug)
             # Record
-            print("Objects:", sobjs)
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
