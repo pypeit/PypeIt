@@ -669,6 +669,7 @@ class BSpline:
 
         return A, lower, upper
 
+    # TODO: Allow w to be optional
     def _assemble_normal_equations(self, A, y, w, lower, upper):
         r"""
         Assemble the banded normal equations :math:`A^\top W A\,c = A^\top W y`.
@@ -1415,6 +1416,88 @@ class BSpline2D(BSpline):
         )
 
     # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _resolve_basis(self, basis, npoly, xmin, xmax, x, x2):
+        """
+        Resolve the ``basis`` argument, update instance state, and return
+        the computed ``P`` matrix and a flag indicating whether the design
+        matrix must be recalculated.
+
+        Validates array-valued ``basis`` against ``x`` and ``x2``, issues the
+        ``'poly1'`` warning when appropriate, updates :attr:`npoly`,
+        :attr:`funcname`, :attr:`xmin`, and :attr:`xmax`, invalidates the
+        coefficient arrays when :attr:`npoly` changes, and always computes the
+        polynomial basis matrix ``P`` from the resolved ``basis`` and ``x2``.
+
+        Parameters
+        ----------
+        basis : str or :class:`numpy.ndarray`
+            Polynomial basis specification; see :meth:`fit` for details.
+        npoly : int
+            Number of polynomial terms; ignored when ``basis`` is an array.
+        xmin : float
+            Lower normalisation bound; ignored when ``basis`` is an array.
+        xmax : float
+            Upper normalisation bound; ignored when ``basis`` is an array.
+        x : :class:`numpy.ndarray`
+            Independent variable; used only to validate the row count of an
+            array-valued ``basis``.
+        x2 : :class:`numpy.ndarray`
+            Second variable.  Used to compute ``P`` when ``basis`` is a string,
+            and to validate the row count when ``basis`` is an array.
+
+        Returns
+        -------
+        P : :class:`numpy.ndarray`, shape (N, npoly)
+            Polynomial basis matrix.  Always a concrete array; never ``None``.
+        recalculate : bool
+            ``True`` when the design matrix must be rebuilt.  Always ``True``
+            for array-valued ``basis``.  For a string ``basis``, ``True`` when
+            the polynomial family name has changed, the cache is empty, or the
+            shapes of ``x`` or ``x2`` differ from the cached shapes.
+        """
+        if isinstance(basis, np.ndarray):
+            P = np.asarray(basis)
+            if P.ndim != 2:
+                raise ValueError('basis array must be 2-D with shape (N, npoly).')
+            if P.shape[0] != x.size:
+                raise ValueError(
+                    f'basis.shape[0] ({P.shape[0]}) != x.size ({x.size}).'
+                )
+            if P.shape[0] != x2.size:
+                raise ValueError(
+                    f'basis.shape[0] ({P.shape[0]}) != x2.size ({x2.size}).'
+                )
+            if P.shape[1] != self.npoly:
+                self.coeff = self.icoeff = None
+            self.npoly    = P.shape[1]
+            self.funcname = None
+            self.xmin     = None
+            self.xmax     = None
+            return P, True
+
+        if basis == 'poly1':
+            warnings.warn(
+                "basis='poly1' produces a polynomial with no constant term "
+                "and may be ill-conditioned.  Consider using 'legendre' instead."
+            )
+        recalculate = (
+            basis != self.funcname
+            or self._cached_design is None
+            or x.shape != self._cached_x_shape
+            or x2.shape != self._cached_x2_shape
+        )
+        if npoly != self.npoly:
+            self.coeff = self.icoeff = None   # force reallocation on npoly change
+        self.npoly    = npoly
+        self.funcname = basis
+        self.xmin     = xmin
+        self.xmax     = xmax
+        return self._poly_basis(self._normalize_x2(x2)), recalculate
+
+    # ------------------------------------------------------------------
     # Public API — overrides with required x2
     # ------------------------------------------------------------------
 
@@ -1467,72 +1550,21 @@ class BSpline2D(BSpline):
         yfit : :class:`numpy.ndarray`
             Fitted model at ``x``.
         """
-        # --- resolve basis ---
-        if isinstance(basis, np.ndarray):
-            P_prebuilt = np.asarray(basis)
-            if P_prebuilt.ndim != 2:
-                raise ValueError('basis array must be 2-D with shape (N, npoly).')
-            if P_prebuilt.shape[0] != x.size:
-                raise ValueError(
-                    f'basis.shape[0] ({P_prebuilt.shape[0]}) != x.size ({x.size}).'
-                )
-            if P_prebuilt.shape[0] != x2.size:
-                raise ValueError(
-                    f'basis.shape[0] ({P_prebuilt.shape[0]}) != x2.size ({x2.size}).'
-                )
-            _npoly    = P_prebuilt.shape[1]
-            _funcname = None
-            _xmin = _xmax = None
-        else:
-            if basis == 'poly1':
-                warnings.warn(
-                    "basis='poly1' produces a polynomial with no constant term "
-                    "and may be ill-conditioned.  Consider using 'legendre' instead."
-                )
-            P_prebuilt = None
-            _npoly    = npoly
-            _funcname = basis
-            _xmin, _xmax = xmin, xmax
-
-        # --- update instance state ---
-        if _npoly != self.npoly:
-            self.coeff = self.icoeff = None   # force reallocation on npoly change
-        old_funcname = self.funcname
-        self.npoly    = _npoly
-        self.funcname = _funcname
-        self.xmin     = _xmin
-        self.xmax     = _xmax
-
-        if ivar is None:
-            ivar = np.ones(y.size, dtype=float)
-
+        # Breakpoints must be established before _resolve_basis (which checks
+        # the design-matrix cache) and before reset_coeff (which reads
+        # breakpoints.size to allocate the coefficient arrays).
         if reset_knots or self.breakpoints is None:
             self.reset_knots(x, required=True)
 
-        if self.coeff is None or self.icoeff is None:
-            self.reset_coeff()
+        # Resolve the polynomial basis; updates self.npoly, funcname, xmin,
+        # and xmax.  Must follow reset_knots so the cache-empty state is
+        # visible when determining whether to recalculate the design matrix.
+        P, recalculate = self._resolve_basis(basis, npoly, xmin, xmax, x, x2)
 
-        goodbk = self.bkpt_gpm[self.nord:]
-        nn = goodbk.sum()
-        if nn < self.nord:
-            return -2, np.zeros(y.shape, dtype=float)
-
-        nfull = self._poly_scale(nn)
-        mininf = 1.0e-10 * ivar.sum() / nfull
-
-        # Rebuild design matrix when basis changes, shapes change, or cache is empty.
-        # Array basis always triggers a rebuild (content may change even if shape does not).
-        basis_changed = (P_prebuilt is not None) or (_funcname != old_funcname)
-        if (
-            self._cached_design is None
-            or x.shape   != self._cached_x_shape
-            or x2.shape  != self._cached_x2_shape
-            or basis_changed
-        ):
-            if P_prebuilt is not None:
-                self.P = P_prebuilt
-            else:
-                self.P = self._poly_basis(self._normalize_x2(x2))
+        # Build or retrieve the cached design matrix.  Must follow
+        # _resolve_basis, which set self.P and the recalculate flag.
+        if recalculate:
+            self.P = P
             self._cached_design   = self._build_design_matrix(x)
             self._cached_x_shape  = x.shape
             self._cached_x2_shape = x2.shape
@@ -1540,6 +1572,23 @@ class BSpline2D(BSpline):
         if A is None:
             return -2, np.zeros(y.shape, dtype=float)
 
+        # Count active breakpoints and exit early if too few to support a fit.
+        goodbk = self.bkpt_gpm[self.nord:]
+        nn = goodbk.sum()
+        if nn < self.nord:
+            return -2, np.zeros(y.shape, dtype=float)
+
+        # Allocate coefficient arrays when needed.  Must follow reset_knots
+        # (which nulls coeff on a knot reset) and _resolve_basis (which sets
+        # self.npoly, required by reset_coeff).
+        if self.coeff is None or self.icoeff is None:
+            self.reset_coeff()
+
+        # Assemble and solve the banded normal equations.
+        if ivar is None:
+            ivar = np.ones(y.size, dtype=float)
+        nfull = self._poly_scale(nn)
+        mininf = 1.0e-10 * ivar.sum() / nfull
         alpha, beta = self._assemble_normal_equations(A, y, ivar, lower, upper)
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
