@@ -61,6 +61,10 @@ def test_datacube_whitelight_range_datamodel(tmp_path):
     assert np.allclose(read_cube.whitelight_range, wl_range)
     assert np.allclose(read_cube.resolve_whitelight_range([None, None]), wl_range)
 
+    int_range_cube = make_test_datacube(whitelight_range=[5004, 5012])
+    assert np.issubdtype(int_range_cube.whitelight_range.dtype, np.floating)
+    assert np.allclose(int_range_cube.whitelight_range, wl_range)
+
     # Old cubes do not have the new datamodel field.  They should still load,
     # and extraction should fall back to the full saved cube wavelength range.
     old_cube = make_test_datacube(whitelight_range=None)

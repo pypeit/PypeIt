@@ -105,6 +105,8 @@ class DataCube(datamodel.DataContainer):
                  whitelight_range=None, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        if whitelight_range is not None:
+            values['whitelight_range'] = np.asarray(whitelight_range, dtype=float)
         _d = dict([(k, values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
