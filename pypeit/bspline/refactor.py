@@ -350,12 +350,12 @@ class BSpline:
 
         if self.breakpoints is None:
             # Empty instance (e.g. for copy / deserialization)
-            self.mask = None
+            self.bkpt_gpm = None
             self.coeff = None
             self.icoeff = None
             return
 
-        self.mask = np.ones(self.breakpoints.size, dtype=bool)
+        self.bkpt_gpm = np.ones(self.breakpoints.size, dtype=bool)
 
         self.reinit_coeff()
 
@@ -385,7 +385,7 @@ class BSpline:
         new = BSpline.__new__(BSpline)
         new.nord = self.nord
         new.knots = self.knots.copy()
-        new.mask = np.copy(self.mask)
+        new.bkpt_gpm = np.copy(self.bkpt_gpm)
         new.coeff = np.copy(self.coeff)
         new.icoeff = np.copy(self.icoeff)
         new._cached_design = None
@@ -549,7 +549,7 @@ class BSpline:
             B-spline basis values in C order.  ``vnikx[i, k]`` is the ``k``-th
             active basis function evaluated at ``x[i]``.
         """
-        t = self.breakpoints[self.mask]
+        t = self.breakpoints[self.bkpt_gpm]
         vnikx = np.zeros((x.size, self.nord), dtype=x.dtype)
         deltap = np.zeros((x.size, self.nord), dtype=x.dtype)
         deltam = np.zeros((x.size, self.nord), dtype=x.dtype)
@@ -596,7 +596,7 @@ class BSpline:
         UserWarning
             If the number of active breakpoints is less than ``2 * nord``.
         """
-        nbkpt = self.mask.sum()
+        nbkpt = self.bkpt_gpm.sum()
         if nbkpt < 2 * self.nord:
             warnings.warn(f'Order ({self.nord}) too low for {nbkpt} breakpoints.')
             return None, None, None
@@ -606,7 +606,7 @@ class BSpline:
         lower = np.zeros(n - self.nord + 1, dtype=int)
         upper = np.zeros(n - self.nord + 1, dtype=int) - 1
 
-        indx = BSpline._find_spans(x, self.breakpoints[self.mask], self.nord)
+        indx = BSpline._find_spans(x, self.breakpoints[self.bkpt_gpm], self.nord)
         A = self._bspline_basis(x, indx)
 
         aa = self._uniq(indx)
@@ -656,7 +656,7 @@ class BSpline:
         beta : :class:`numpy.ndarray`, shape (nfull + bw,)
             Right-hand side vector (padded by ``bw`` zeros).
         """
-        goodbk = self.mask[self.nord:]
+        goodbk = self.bkpt_gpm[self.nord:]
         nn = goodbk.sum()
         bw = A.shape[1]
         nfull = self._poly_scale(nn)
@@ -786,8 +786,8 @@ class BSpline:
         :class:`numpy.ndarray`, shape (N,)
             Fitted model values.
         """
-        n = self.mask.sum() - self.nord
-        coeffbk = self.mask[self.nord:].nonzero()[0]
+        n = self.bkpt_gpm.sum() - self.nord
+        coeffbk = self.bkpt_gpm[self.nord:].nonzero()[0]
         goodcoeff = self.coeff[coeffbk]  # (nn,)
 
         yfit = np.zeros(A.shape[0], dtype=float)
@@ -819,7 +819,7 @@ class BSpline:
         """
         if not isinstance(bad_cols, np.ndarray):
             bad_cols = np.array([bad_cols])
-        goodbkpt = np.where(self.mask)[0]
+        goodbkpt = np.where(self.bkpt_gpm)[0]
         nbkpt = len(goodbkpt)
         if nbkpt <= 2 * self.nord:
             warnings.warn('Fewer good break points than order of b-spline. Returning...')
@@ -842,8 +842,8 @@ class BSpline:
                 test[inside] = True
         if test.any():
             reality = goodbkpt[test]
-            if self.mask[reality].any():
-                self.mask[reality] = False
+            if self.bkpt_gpm[reality].any():
+                self.bkpt_gpm[reality] = False
                 self._cached_design = None  # Mask changed — invalidate design cache
                 return -1
             return -2
@@ -853,31 +853,31 @@ class BSpline:
     # Public API
     # ------------------------------------------------------------------
 
-    def fit(self, xdata, ydata, invvar, reset_knots=False):
+    def fit(self, x, y, ivar, reset_knots=False):
         """
-        Fit a weighted least-squares B-spline to ``(xdata, ydata)``.
+        Fit a weighted least-squares B-spline to ``(x, y)``.
 
-        The design matrix is cached: if ``xdata`` has the same shape as the
+        The design matrix is cached: if ``x`` has the same shape as the
         previous call *and* the breakpoint mask has not changed, the cached
         matrix is reused.  This makes repeated calls (e.g. sigma-clipping loops)
         efficient.
 
         .. note::
 
-            ``xdata`` must be **sorted in ascending order** before being passed
+            ``x`` must be **sorted in ascending order** before being passed
             to this method.
 
         Parameters
         ----------
-        xdata : :class:`numpy.ndarray`
+        x : :class:`numpy.ndarray`
             Independent variable (sorted ascending).
-        ydata : :class:`numpy.ndarray`
+        y : :class:`numpy.ndarray`
             Dependent variable.
-        invvar : :class:`numpy.ndarray`
-            Inverse variance of ``ydata``.  Zero entries are effectively masked.
+        ivar : :class:`numpy.ndarray`
+            Inverse variance of ``y``.  Zero entries are effectively masked.
         reset_knots : bool, optional
             Regardless of any existing breakpoints, reset the breakpoints using
-            :attr:`knots` and ``xdata``.
+            :attr:`knots` and ``x``.
 
         Returns
         -------
@@ -886,31 +886,31 @@ class BSpline:
             degenerate — caller should retry); and -2 on failure (too few active
             breakpoints).
         yfit : :class:`numpy.ndarray`
-            Fitted B-spline evaluated at ``xdata``.
+            Fitted B-spline evaluated at ``x``.
         """
         if reset_knots:
-            self.knots.build(xdata, self.nord)
+            self.knots.build(x, self.nord)
             self._init_result_storage()
 
-        goodbk = self.mask[self.nord:]
+        goodbk = self.bkpt_gpm[self.nord:]
         nn = goodbk.sum()
         if nn < self.nord:
-            return -2, np.zeros(ydata.shape, dtype=float)
+            return -2, np.zeros(y.shape, dtype=float)
 
         nfull = self._poly_scale(nn)
-        mininf = 1.0e-10 * invvar.sum() / nfull
+        mininf = 1.0e-10 * ivar.sum() / nfull
 
         # Build / retrieve cached design matrix.  This if statement should
         # always be true if reset_knots is true because of the call to
         # _init_result_storage.
-        if self._cached_design is None or xdata.shape != self._cached_x_shape:
-            self._cached_design = self._build_design_matrix(xdata)
-            self._cached_x_shape = xdata.shape
+        if self._cached_design is None or x.shape != self._cached_x_shape:
+            self._cached_design = self._build_design_matrix(x)
+            self._cached_x_shape = x.shape
         A, lower, upper = self._cached_design
         if A is None:
-            return -2, np.zeros(ydata.shape, dtype=float)
+            return -2, np.zeros(y.shape, dtype=float)
 
-        alpha, beta = self._assemble_normal_equations(A, ydata, invvar, lower, upper)
+        alpha, beta = self._assemble_normal_equations(A, y, ivar, lower, upper)
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
         if bad_cols[0] != -1:
@@ -943,11 +943,11 @@ class BSpline:
         xsort = x.argsort(kind='stable')
         A, lower, upper = self._build_design_matrix(x[xsort])
 
-        n = self.mask.sum() - self.nord
+        n = self.bkpt_gpm.sum() - self.nord
         yfit = self._evaluate_model(A, lower, upper)
 
         mask = np.ones(x.shape, dtype=bool)
-        goodbk = self.mask.nonzero()[0]
+        goodbk = self.bkpt_gpm.nonzero()[0]
         gb = self.breakpoints[goodbk]
         mask[(x < gb[self.nord - 1]) | (x > gb[n])] = False
         hmm = (np.diff(goodbk) > 2).nonzero()[0]
@@ -1062,7 +1062,7 @@ class BSpline2D(BSpline):
         new.nord = self.nord
         new.npoly = self.npoly
         new.knots = self.knots.copy()
-        new.mask = np.copy(self.mask)
+        new.bkpt_gpm = np.copy(self.bkpt_gpm)
         new.coeff = np.copy(self.coeff)
         new.icoeff = np.copy(self.icoeff)
         new.xmin = self.xmin
@@ -1219,7 +1219,7 @@ class BSpline2D(BSpline):
         if x2.size != x.size:
             raise ValueError('Dimensions of x and x2 do not match.')
 
-        nbkpt = self.mask.sum()
+        nbkpt = self.bkpt_gpm.sum()
         if nbkpt < 2 * self.nord:
             warnings.warn(f'Order ({self.nord}) too low for {nbkpt} breakpoints.')
             return None, None, None
@@ -1229,7 +1229,7 @@ class BSpline2D(BSpline):
         lower = np.zeros(n - self.nord + 1, dtype=int)
         upper = np.zeros(n - self.nord + 1, dtype=int) - 1
 
-        indx = BSpline._find_spans(x, self.breakpoints[self.mask], self.nord)
+        indx = BSpline._find_spans(x, self.breakpoints[self.bkpt_gpm], self.nord)
         B = self._bspline_basis(x, indx)  # (N, nord)
 
         aa = self._uniq(indx)
@@ -1284,8 +1284,8 @@ class BSpline2D(BSpline):
         :class:`numpy.ndarray`, shape (N,)
             Fitted model values.
         """
-        n = self.mask.sum() - self.nord
-        coeffbk = self.mask[self.nord:].nonzero()[0]
+        n = self.bkpt_gpm.sum() - self.nord
+        coeffbk = self.bkpt_gpm[self.nord:].nonzero()[0]
         goodcoeff = self.coeff[coeffbk, :]  # (nn, npoly)
 
         yfit = np.zeros(A.shape[0], dtype=float)
@@ -1330,63 +1330,63 @@ class BSpline2D(BSpline):
     # Public API — overrides with required x2
     # ------------------------------------------------------------------
 
-    def fit(self, xdata, ydata, invvar, x2, reset_knots=False):
+    def fit(self, x, y, ivar, x2, reset_knots=False):
         """
         Fit a weighted least-squares 2D B-spline.
 
         .. note::
 
-            Both ``xdata`` and ``x2`` must be **sorted in ascending order by the
+            Both ``x`` and ``x2`` must be **sorted in ascending order by the
             same permutation** before being passed to this method.
 
         Parameters
         ----------
-        xdata : :class:`numpy.ndarray`
+        x : :class:`numpy.ndarray`
             Independent variable (sorted ascending).
-        ydata : :class:`numpy.ndarray`
+        y : :class:`numpy.ndarray`
             Dependent variable.
-        invvar : :class:`numpy.ndarray`
-            Inverse variance of ``ydata``.
+        ivar : :class:`numpy.ndarray`
+            Inverse variance of ``y``.
         x2 : :class:`numpy.ndarray`
             Second variable (required).  Must be statistically independent of
-            ``xdata``; see class-level warning.
+            ``x``; see class-level warning.
         reset_knots : bool, optional
             Regardless of any existing breakpoints, reset the breakpoints using
-            :attr:`knots` and ``xdata``.
+            :attr:`knots` and ``x``.
 
         Returns
         -------
         err : int
             0 on success; -1 if breakpoints were masked; -2 on failure.
         yfit : :class:`numpy.ndarray`
-            Fitted model at ``xdata``.
+            Fitted model at ``x``.
         """
         if reset_knots:
-            self.knots.build(xdata, self.nord)
+            self.knots.build(x, self.nord)
             self._init_result_storage()
 
-        goodbk = self.mask[self.nord:]
+        goodbk = self.bkpt_gpm[self.nord:]
         nn = goodbk.sum()
         if nn < self.nord:
-            return -2, np.zeros(ydata.shape, dtype=float)
+            return -2, np.zeros(y.shape, dtype=float)
 
         nfull = self._poly_scale(nn)
-        mininf = 1.0e-10 * invvar.sum() / nfull
+        mininf = 1.0e-10 * ivar.sum() / nfull
 
         # Design matrix depends on both x and x2; invalidate cache if shapes change
         if (
             self._cached_design is None
-            or xdata.shape != self._cached_x_shape
+            or x.shape != self._cached_x_shape
             or x2.shape != self._cached_x2_shape
         ):
-            self._cached_design = self._build_design_matrix(xdata, x2)
-            self._cached_x_shape = xdata.shape
+            self._cached_design = self._build_design_matrix(x, x2)
+            self._cached_x_shape = x.shape
             self._cached_x2_shape = x2.shape
         A, lower, upper = self._cached_design
         if A is None:
-            return -2, np.zeros(ydata.shape, dtype=float)
+            return -2, np.zeros(y.shape, dtype=float)
 
-        alpha, beta = self._assemble_normal_equations(A, ydata, invvar, lower, upper)
+        alpha, beta = self._assemble_normal_equations(A, y, ivar, lower, upper)
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
         if bad_cols[0] != -1:
@@ -1417,11 +1417,11 @@ class BSpline2D(BSpline):
         xsort = x.argsort(kind='stable')
         A, lower, upper = self._build_design_matrix(x[xsort], x2[xsort])
 
-        n = self.mask.sum() - self.nord
+        n = self.bkpt_gpm.sum() - self.nord
         yfit = self._evaluate_model(A, lower, upper)
 
         mask = np.ones(x.shape, dtype=bool)
-        goodbk = self.mask.nonzero()[0]
+        goodbk = self.bkpt_gpm.nonzero()[0]
         gb = self.breakpoints[goodbk]
         mask[(x < gb[self.nord - 1]) | (x > gb[n])] = False
         hmm = (np.diff(goodbk) > 2).nonzero()[0]

@@ -203,7 +203,7 @@ def test_find_spans_monotone_input_gives_monotone_output():
 def test_bspline_basis_output_shape():
     x = np.sort(np.random.default_rng(7).uniform(0, 10, 50))
     spl = BSpline(x=x, knots=Knots(count=8), nord=4)
-    indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
+    indx = BSpline._find_spans(x, spl.breakpoints[spl.bkpt_gpm], spl.nord)
     basis = spl._bspline_basis(x, indx)
     assert basis.shape == (x.size, spl.nord)
 
@@ -211,7 +211,7 @@ def test_bspline_basis_output_shape():
 def test_bspline_basis_c_order():
     x = np.sort(np.random.default_rng(8).uniform(0, 10, 50))
     spl = BSpline(x=x, knots=Knots(count=8), nord=4)
-    indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
+    indx = BSpline._find_spans(x, spl.breakpoints[spl.bkpt_gpm], spl.nord)
     basis = spl._bspline_basis(x, indx)
     assert basis.flags['C_CONTIGUOUS']
 
@@ -219,7 +219,7 @@ def test_bspline_basis_c_order():
 def test_bspline_basis_partition_of_unity():
     x = np.sort(np.random.default_rng(9).uniform(0, 10, 50))
     spl = BSpline(x=x, knots=Knots(count=8), nord=4)
-    indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
+    indx = BSpline._find_spans(x, spl.breakpoints[spl.bkpt_gpm], spl.nord)
     basis = spl._bspline_basis(x, indx)
     np.testing.assert_allclose(basis.sum(axis=1), 1.0, atol=1e-12)
 
@@ -227,7 +227,7 @@ def test_bspline_basis_partition_of_unity():
 def test_bspline_basis_non_negative():
     x = np.sort(np.random.default_rng(10).uniform(0, 10, 50))
     spl = BSpline(x=x, knots=Knots(count=8), nord=4)
-    indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
+    indx = BSpline._find_spans(x, spl.breakpoints[spl.bkpt_gpm], spl.nord)
     basis = spl._bspline_basis(x, indx)
     assert np.all(basis >= -1e-14)
 
@@ -236,7 +236,7 @@ def test_bspline_basis_linear_case():
     kv = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], dtype=float)
     spl = BSpline(knots=kv, nord=2)
     x = np.array([1.5])
-    indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], 2)
+    indx = BSpline._find_spans(x, spl.breakpoints[spl.bkpt_gpm], 2)
     basis = spl._bspline_basis(x, indx)
     np.testing.assert_allclose(basis.sum(axis=1), 1.0, atol=1e-14)
 
@@ -256,7 +256,7 @@ def test_build_design_matrix_lower_upper_lengths():
     x = np.sort(np.random.default_rng(43).uniform(0, 10, 100))
     spl = BSpline(x=x, knots=Knots(count=10), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
-    n = spl.mask.sum() - spl.nord
+    n = spl.bkpt_gpm.sum() - spl.nord
     assert lower.size == n - spl.nord + 1
     assert upper.size == n - spl.nord + 1
 
@@ -276,7 +276,7 @@ def test_build_design_matrix_consistent_with_find_spans():
     x = np.sort(np.random.default_rng(45).uniform(0, 10, 100))
     spl = BSpline(x=x, knots=Knots(count=10), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
-    indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
+    indx = BSpline._find_spans(x, spl.breakpoints[spl.bkpt_gpm], spl.nord)
     for k in range(lower.size):
         mask_k = (indx == k + spl.nord - 1)
         if mask_k.any():
@@ -297,7 +297,7 @@ def test_assemble_normal_equations_alpha_shape():
     A, lower, upper = spl._build_design_matrix(x)
     alpha, beta = spl._assemble_normal_equations(A, y, w, lower, upper)
     bw = A.shape[1]
-    nn = spl.mask[spl.nord:].sum()
+    nn = spl.bkpt_gpm[spl.nord:].sum()
     nfull = spl._poly_scale(nn)
     assert alpha.shape == (bw, nfull + bw)
     assert beta.shape == (nfull + bw,)
@@ -311,7 +311,7 @@ def test_assemble_normal_equations_diagonal_positive():
     spl = BSpline(x=x, knots=Knots(count=6), nord=4)
     A, lower, upper = spl._build_design_matrix(x)
     alpha, beta = spl._assemble_normal_equations(A, y, w, lower, upper)
-    nn = spl.mask[spl.nord:].sum()
+    nn = spl.bkpt_gpm[spl.nord:].sum()
     nfull = spl._poly_scale(nn)
     assert np.all(alpha[0, :nfull] > 0)
 
@@ -330,7 +330,7 @@ def test_assemble_normal_equations_solution_matches_lstsq():
     # Build the full (N, nn) design matrix: A_full[i, k:k+nord] = A[i, :]
     # for rows i in span k, then solve with lstsq for reference.
     A, lower, upper = spl._build_design_matrix(x)
-    nn = spl.mask[spl.nord:].sum()
+    nn = spl.bkpt_gpm[spl.nord:].sum()
     A_full = np.zeros((x.size, nn))
     for k in range(lower.size):
         if lower[k] <= upper[k]:
@@ -432,7 +432,7 @@ def test_evaluate_model_matches_explicit_matmul():
     yfit = spl._evaluate_model(A, lower, upper)
 
     # Verify one non-empty span manually
-    coeffbk = spl.mask[spl.nord:].nonzero()[0]
+    coeffbk = spl.bkpt_gpm[spl.nord:].nonzero()[0]
     goodcoeff = spl.coeff[coeffbk]
     k = next(k for k in range(lower.size) if lower[k] <= upper[k])
     sl = slice(lower[k], upper[k] + 1)
@@ -446,10 +446,10 @@ def test_evaluate_model_matches_explicit_matmul():
 def test_mask_breakpoints_masks_neighbourhood():
     x = np.sort(np.random.default_rng(5).uniform(0, 10, 200))
     spl = BSpline(x=x, knots=Knots(count=20), nord=4)
-    n_before = spl.mask.sum()
+    n_before = spl.bkpt_gpm.sum()
     result = spl._mask_breakpoints(np.array([8]))
     assert result == -1
-    assert spl.mask.sum() < n_before
+    assert spl.bkpt_gpm.sum() < n_before
 
 
 def test_mask_breakpoints_invalidates_cache():
@@ -463,8 +463,8 @@ def test_mask_breakpoints_invalidates_cache():
 def test_mask_breakpoints_too_few_returns_minus2():
     x = np.linspace(0, 5, 30)
     spl = BSpline(x=x, knots=Knots(count=3), nord=4)
-    spl.mask[:] = False
-    spl.mask[:2 * 4] = True  # leave only 2*nord active
+    spl.bkpt_gpm[:] = False
+    spl.bkpt_gpm[:2 * 4] = True  # leave only 2*nord active
     result = spl._mask_breakpoints(np.array([0]))
     assert result == -2
 
@@ -550,10 +550,10 @@ def test_fit_reset_knots_resets_mask():
     invvar = np.ones(100)
     spl = BSpline(x=x, knots=Knots(count=10), nord=4)
     spl.fit(x, y, invvar)
-    spl.mask[5] = False
-    assert not spl.mask.all()
+    spl.bkpt_gpm[5] = False
+    assert not spl.bkpt_gpm.all()
     spl.fit(x, y, invvar, reset_knots=True)
-    assert spl.mask.all()
+    assert spl.bkpt_gpm.all()
 
 
 def test_fit_returns_minus1_on_degenerate_cholesky():
@@ -620,7 +620,7 @@ def test_value_gap_masking():
     spl.fit(x, y, invvar)
     # Mask three interior breakpoints to create a gap in the knot vector.
     # goodbk becomes [..., 9, 13, ...] so np.diff jumps by 4 > 2.
-    spl.mask[10:13] = False
+    spl.bkpt_gpm[10:13] = False
     spl._cached_design = None
     bkpts = spl.breakpoints
     x_gap = np.array([(bkpts[10] + bkpts[11]) / 2.0])
@@ -640,7 +640,7 @@ def test_bspline_copy_attributes():
     cp = spl.copy()
     assert cp.nord == spl.nord
     np.testing.assert_array_equal(cp.breakpoints, spl.breakpoints)
-    np.testing.assert_array_equal(cp.mask, spl.mask)
+    np.testing.assert_array_equal(cp.bkpt_gpm, spl.bkpt_gpm)
     np.testing.assert_array_equal(cp.coeff, spl.coeff)
     np.testing.assert_array_equal(cp.icoeff, spl.icoeff)
 
@@ -774,7 +774,7 @@ def test_bspline2d_build_design_matrix_outer_product_structure():
                     knots=Knots(count=6), nord=4)
     A, lower, upper = spl._build_design_matrix(x, x2)
 
-    indx = BSpline._find_spans(x, spl.breakpoints[spl.mask], spl.nord)
+    indx = BSpline._find_spans(x, spl.breakpoints[spl.bkpt_gpm], spl.nord)
     B = spl._bspline_basis(x, indx)
     P = spl._poly_basis(spl._normalize_x2(x2))
 
@@ -821,7 +821,7 @@ def test_bspline2d_evaluate_model_matches_explicit_einsum():
     spl.coeff[:] = rng.standard_normal(spl.coeff.shape)
     yfit = spl._evaluate_model(A, lower, upper)
     # Verify one non-empty span manually using the same einsum
-    coeffbk = spl.mask[spl.nord:].nonzero()[0]
+    coeffbk = spl.bkpt_gpm[spl.nord:].nonzero()[0]
     goodcoeff = spl.coeff[coeffbk, :]
     k = next(k for k in range(lower.size) if lower[k] <= upper[k])
     sl = slice(lower[k], upper[k] + 1)
@@ -922,10 +922,10 @@ def test_bspline2d_fit_reset_knots_resets_mask():
     y = np.sin(x)
     spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=10), nord=4)
     spl.fit(x, y, invvar, x2)
-    spl.mask[5] = False
-    assert not spl.mask.all()
+    spl.bkpt_gpm[5] = False
+    assert not spl.bkpt_gpm.all()
     spl.fit(x, y, invvar, x2, reset_knots=True)
-    assert spl.mask.all()
+    assert spl.bkpt_gpm.all()
 
 
 def test_bspline2d_fit_returns_minus1_on_degenerate_cholesky():
@@ -979,7 +979,7 @@ def test_bspline2d_value_gap_masking():
     invvar = np.ones(N)
     spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=25), nord=4)
     spl.fit(x, y, invvar, x2)
-    spl.mask[10:13] = False
+    spl.bkpt_gpm[10:13] = False
     spl._cached_design = None
     bkpts = spl.breakpoints
     x_gap = np.array([(bkpts[10] + bkpts[11]) / 2.0])
@@ -1009,7 +1009,7 @@ def test_bspline2d_copy_attributes():
     assert cp._cached_design is None
     assert cp._cached_x2_shape is None
     np.testing.assert_array_equal(cp.breakpoints, spl.breakpoints)
-    np.testing.assert_array_equal(cp.mask, spl.mask)
+    np.testing.assert_array_equal(cp.bkpt_gpm, spl.bkpt_gpm)
 
 
 def test_bspline2d_copy_coeff_independent():
@@ -1041,7 +1041,7 @@ def test_crosscheck_1d_fit_yfit_match():
     old_err, old_yfit = old.fit(x, y, invvar)
 
     new = BSpline(knots=old.breakpoints.copy(), nord=nord)
-    new.mask[:] = old.mask
+    new.bkpt_gpm[:] = old.mask
     new._cached_design = None
     new_err, new_yfit = new.fit(x, y, invvar)
 
@@ -1059,7 +1059,7 @@ def test_crosscheck_1d_coeff_match():
     old.fit(x, y, invvar)
 
     new = BSpline(knots=old.breakpoints.copy(), nord=4)
-    new.mask[:] = old.mask
+    new.bkpt_gpm[:] = old.mask
     new._cached_design = None
     new.fit(x, y, invvar)
 
@@ -1084,7 +1084,7 @@ def test_crosscheck_2d_fit_yfit_match():
 
     new = BSpline2D(knots=old.breakpoints.copy(), nord=nord, npoly=npoly,
                     xmin=0.0, xmax=1.0, funcname='legendre')
-    new.mask[:] = old.mask
+    new.bkpt_gpm[:] = old.mask
     new._cached_design = None
     new_err, new_yfit = new.fit(x, y, invvar, x2)
 
@@ -1108,7 +1108,7 @@ def test_crosscheck_2d_coeff_transposed():
 
     new = BSpline2D(knots=old.breakpoints.copy(), nord=4, npoly=2,
                     xmin=0.0, xmax=1.0, funcname='legendre')
-    new.mask[:] = old.mask
+    new.bkpt_gpm[:] = old.mask
     new._cached_design = None
     new.fit(x, y, invvar, x2)
 
@@ -1125,7 +1125,7 @@ def test_crosscheck_1d_value_match():
     old.fit(x, y, invvar)
 
     new = BSpline(knots=old.breakpoints.copy(), nord=4)
-    new.mask[:] = old.mask
+    new.bkpt_gpm[:] = old.mask
     new._cached_design = None
     new.fit(x, y, invvar)
 
