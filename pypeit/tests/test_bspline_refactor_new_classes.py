@@ -320,11 +320,10 @@ def test_assemble_normal_equations_solution_matches_lstsq():
     rng = np.random.default_rng(15)
     x = np.sort(rng.uniform(0, 5, 80))
     y = np.sin(x)
-    invvar = np.ones(80)
     spl = BSpline(x=x, knots=Knots(count=6), nord=4)
 
     # Banded solve via fit()
-    err, yfit_banded = spl.fit(x, y, invvar)
+    err, yfit_banded = spl.fit(x, y)
     assert err == 0
 
     # Build the full (N, nn) design matrix: A_full[i, k:k+nord] = A[i, :]
@@ -477,9 +476,8 @@ def test_fit_cubic_polynomial_recovery():
     rng = np.random.default_rng(0)
     x = np.sort(rng.uniform(0, 10, 300))
     y = 1.0 + 2.0*x - 0.5*x**2 + 0.1*x**3
-    invvar = np.ones_like(x)
     spl = BSpline(x=x, knots=Knots(count=20), nord=4)
-    err, yfit = spl.fit(x, y, invvar)
+    err, yfit = spl.fit(x, y)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-8)
 
@@ -488,9 +486,8 @@ def test_fit_smooth_function_residuals():
     rng = np.random.default_rng(1)
     x = np.sort(rng.uniform(0, 2 * np.pi, 500))
     y = np.sin(x)
-    invvar = np.ones_like(x)
     spl = BSpline(x=x, knots=Knots(count=30), nord=4)
-    err, yfit = spl.fit(x, y, invvar)
+    err, yfit = spl.fit(x, y)
     assert err == 0
     assert np.std(yfit - y) < 2e-3
 
@@ -499,9 +496,8 @@ def test_fit_returns_correct_length():
     rng = np.random.default_rng(2)
     x = np.sort(rng.uniform(0, 5, 100))
     y = rng.standard_normal(100)
-    invvar = np.ones_like(x)
     spl = BSpline(x=x, knots=Knots(count=10), nord=4)
-    err, yfit = spl.fit(x, y, invvar)
+    err, yfit = spl.fit(x, y)
     assert yfit.shape == x.shape
 
 
@@ -509,11 +505,10 @@ def test_fit_design_matrix_cached():
     rng = np.random.default_rng(3)
     x = np.sort(rng.uniform(0, 5, 100))
     y = np.sin(x)
-    invvar = np.ones_like(x)
     spl = BSpline(x=x, knots=Knots(count=8), nord=4)
-    spl.fit(x, y, invvar)
+    spl.fit(x, y)
     cache_id = id(spl._cached_design)
-    spl.fit(x, y * 0.9, invvar)
+    spl.fit(x, y * 0.9)
     assert id(spl._cached_design) == cache_id
 
 
@@ -521,10 +516,10 @@ def test_fit_zero_invvar_points_ignored():
     rng = np.random.default_rng(4)
     x = np.sort(rng.uniform(0, 5, 100))
     y = np.sin(x)
-    invvar = np.ones_like(x)
-    invvar[::5] = 0.0
+    ivar = np.ones_like(x)
+    ivar[::5] = 0.0
     spl = BSpline(x=x, knots=Knots(count=8), nord=4)
-    err, yfit = spl.fit(x, y, invvar)
+    err, yfit = spl.fit(x, y, ivar=ivar)
     assert err == 0
     assert np.isfinite(yfit).all()
 
@@ -532,12 +527,11 @@ def test_fit_zero_invvar_points_ignored():
 def test_fit_reset_knots_rebuilds_breakpoints():
     rng = np.random.default_rng(50)
     x1 = np.sort(rng.uniform(0, 5, 100))
-    invvar = np.ones(100)
     spl = BSpline(x=x1, knots=Knots(count=10), nord=4)
-    spl.fit(x1, np.sin(x1), invvar)
+    spl.fit(x1, np.sin(x1))
     bkpt_before = spl.breakpoints.copy()
     x2 = np.sort(rng.uniform(0, 10, 100))
-    spl.fit(x2, np.sin(x2), invvar, reset_knots=True)
+    spl.fit(x2, np.sin(x2), reset_knots=True)
     assert spl.breakpoints.min() <= x2.min()
     assert spl.breakpoints.max() >= x2.max()
     assert not np.array_equal(spl.breakpoints, bkpt_before)
@@ -547,12 +541,11 @@ def test_fit_reset_knots_resets_mask():
     rng = np.random.default_rng(51)
     x = np.sort(rng.uniform(0, 5, 100))
     y = np.sin(x)
-    invvar = np.ones(100)
     spl = BSpline(x=x, knots=Knots(count=10), nord=4)
-    spl.fit(x, y, invvar)
+    spl.fit(x, y)
     spl.bkpt_gpm[5] = False
     assert not spl.bkpt_gpm.all()
-    spl.fit(x, y, invvar, reset_knots=True)
+    spl.fit(x, y, reset_knots=True)
     assert spl.bkpt_gpm.all()
 
 
@@ -562,10 +555,9 @@ def test_fit_returns_minus1_on_degenerate_cholesky():
     # leaving zero diagonal entries that trigger the degenerate pre-check.
     x = np.sort(rng.uniform(0, 2, 100))
     y = np.sin(x)
-    invvar = np.ones(100)
     full_bkpt = np.linspace(0, 10, 40)
     spl = BSpline(knots=Knots(full=full_bkpt), nord=4)
-    err, yfit = spl.fit(x, y, invvar)
+    err, yfit = spl.fit(x, y)
     assert err == -1
     assert yfit.shape == x.shape
 
@@ -582,6 +574,21 @@ def test_fit_ivar_none_matches_unit_weights():
     np.testing.assert_array_equal(yfit_w, yfit_n)
 
 
+def test_fit_nonuniform_ivar_affects_result():
+    rng = np.random.default_rng(72)
+    N = 300
+    x = np.sort(rng.uniform(0.5, 5.0, N))
+    ivar = 1.0 / x**2  # noise amplitude proportional to x
+    y = np.sin(x) + rng.standard_normal(N) / np.sqrt(ivar)
+    spl_u = BSpline(x=x, knots=Knots(count=15), nord=4)
+    spl_n = BSpline(x=x, knots=Knots(count=15), nord=4)
+    err_u, yfit_u = spl_u.fit(x, y)
+    err_n, yfit_n = spl_n.fit(x, y, ivar=ivar)
+    assert err_u == 0 and err_n == 0
+    assert np.isfinite(yfit_n).all()
+    assert not np.allclose(yfit_u, yfit_n)
+
+
 # ============================================================================
 # BSpline.value
 # ============================================================================
@@ -590,9 +597,8 @@ def test_value_matches_fit_at_training_points():
     rng = np.random.default_rng(10)
     x = np.sort(rng.uniform(0, 10, 200))
     y = 2.0 + x - 0.3 * x**2
-    invvar = np.ones_like(x)
     spl = BSpline(x=x, knots=Knots(count=12), nord=4)
-    err, yfit_fit = spl.fit(x, y, invvar)
+    err, yfit_fit = spl.fit(x, y)
     yfit_val, _ = spl.value(x)
     np.testing.assert_allclose(yfit_fit, yfit_val, atol=1e-12)
 
@@ -600,9 +606,8 @@ def test_value_matches_fit_at_training_points():
 def test_value_out_of_range_masked():
     x = np.linspace(1, 9, 100)
     y = np.sin(x)
-    invvar = np.ones_like(x)
     spl = BSpline(x=x, knots=Knots(count=10), nord=4)
-    spl.fit(x, y, invvar)
+    spl.fit(x, y)
     x_eval = np.array([0.0, 5.0, 10.0])
     yfit, mask = spl.value(x_eval)
     assert not mask[0]
@@ -614,9 +619,8 @@ def test_value_unsorted_input():
     rng = np.random.default_rng(11)
     x = np.sort(rng.uniform(0, 5, 100))
     y = np.cos(x)
-    invvar = np.ones_like(x)
     spl = BSpline(x=x, knots=Knots(count=8), nord=4)
-    spl.fit(x, y, invvar)
+    spl.fit(x, y)
     x_unsorted = rng.permutation(x)
     yfit, _ = spl.value(x_unsorted)
     yfit_sorted, _ = spl.value(np.sort(x_unsorted))
@@ -627,9 +631,8 @@ def test_value_gap_masking():
     rng = np.random.default_rng(61)
     x = np.sort(rng.uniform(0, 10, 300))
     y = np.sin(x)
-    invvar = np.ones(300)
     spl = BSpline(x=x, knots=Knots(count=25), nord=4)
-    spl.fit(x, y, invvar)
+    spl.fit(x, y)
     # Mask three interior breakpoints to create a gap in the knot vector.
     # goodbk becomes [..., 9, 13, ...] so np.diff jumps by 4 > 2.
     spl.bkpt_gpm[10:13] = False
@@ -857,10 +860,9 @@ def test_bspline2d_fit_exact_polynomial_legendre():
     x2 = rng.uniform(0, 1, N)
     x2norm = 2 * x2 - 1
     y = 1.0 + 0.5 * x + 0.3 * x2norm
-    invvar = np.ones(N)
     spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, funcname='legendre',
                     knots=Knots(count=20), nord=4)
-    err, yfit = spl.fit(x, y, x2, ivar=invvar)
+    err, yfit = spl.fit(x, y, x2)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
 
@@ -871,10 +873,9 @@ def test_bspline2d_fit_smooth_function():
     x = np.sort(rng.uniform(0, 2 * np.pi, N))
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x) * (1 + 0.2 * x2)
-    invvar = np.ones(N)
     spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='legendre',
                     knots=Knots(count=30), nord=4)
-    err, yfit = spl.fit(x, y, x2, ivar=invvar)
+    err, yfit = spl.fit(x, y, x2)
     assert err == 0
     assert np.std(yfit - y) < 2e-2
 
@@ -885,10 +886,9 @@ def test_bspline2d_fit_exact_polynomial_chebyshev():
     x = np.sort(rng.uniform(0, 8, N))
     x2 = rng.uniform(-1, 1, N)
     y = 2.0 + x2  # T0 + T1 in Chebyshev basis
-    invvar = np.ones(N)
     spl = BSpline2D(x=x, npoly=2, xmin=-1.0, xmax=1.0, funcname='chebyshev',
                     knots=Knots(count=20), nord=4)
-    err, yfit = spl.fit(x, y, x2, ivar=invvar)
+    err, yfit = spl.fit(x, y, x2)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
 
@@ -900,10 +900,9 @@ def test_bspline2d_fit_exact_polynomial_poly():
     x2 = rng.uniform(0, 2, N)
     x2norm = 2.0 * (x2 - 1.0) / 2.0 - 0.0   # xmin=0, xmax=2 → norm range [-1, 1]
     y = 1.0 + x2norm
-    invvar = np.ones(N)
     spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=2.0, funcname='poly',
                     knots=Knots(count=15), nord=4)
-    err, yfit = spl.fit(x, y, x2, ivar=invvar)
+    err, yfit = spl.fit(x, y, x2)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
 
@@ -911,15 +910,14 @@ def test_bspline2d_fit_exact_polynomial_poly():
 def test_bspline2d_fit_reset_knots_rebuilds_breakpoints():
     rng = np.random.default_rng(52)
     N = 200
-    invvar = np.ones(N)
     x1 = np.sort(rng.uniform(0, 5, N))
     x2_1 = rng.uniform(0, 1, N)
     spl = BSpline2D(x=x1, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=10), nord=4)
-    spl.fit(x1, np.sin(x1), x2_1, ivar=invvar)
+    spl.fit(x1, np.sin(x1), x2_1)
     bkpt_before = spl.breakpoints.copy()
     x3 = np.sort(rng.uniform(0, 10, N))
     x2_2 = rng.uniform(0, 1, N)
-    spl.fit(x3, np.sin(x3), x2_2, ivar=invvar, reset_knots=True)
+    spl.fit(x3, np.sin(x3), x2_2, reset_knots=True)
     assert spl.breakpoints.min() <= x3.min()
     assert spl.breakpoints.max() >= x3.max()
     assert not np.array_equal(spl.breakpoints, bkpt_before)
@@ -928,15 +926,14 @@ def test_bspline2d_fit_reset_knots_rebuilds_breakpoints():
 def test_bspline2d_fit_reset_knots_resets_mask():
     rng = np.random.default_rng(53)
     N = 200
-    invvar = np.ones(N)
     x = np.sort(rng.uniform(0, 5, N))
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x)
     spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=10), nord=4)
-    spl.fit(x, y, x2, ivar=invvar)
+    spl.fit(x, y, x2)
     spl.bkpt_gpm[5] = False
     assert not spl.bkpt_gpm.all()
-    spl.fit(x, y, x2, ivar=invvar, reset_knots=True)
+    spl.fit(x, y, x2, reset_knots=True)
     assert spl.bkpt_gpm.all()
 
 
@@ -945,10 +942,9 @@ def test_bspline2d_fit_returns_minus1_on_degenerate_cholesky():
     x = np.sort(rng.uniform(0, 2, 150))
     x2 = rng.uniform(0, 1, 150)
     y = np.sin(x)
-    invvar = np.ones(150)
     full_bkpt = np.linspace(0, 10, 40)
     spl = BSpline2D(knots=Knots(full=full_bkpt), npoly=2, xmin=0.0, xmax=1.0, nord=4)
-    err, yfit = spl.fit(x, y, x2, ivar=invvar)
+    err, yfit = spl.fit(x, y, x2)
     assert err == -1
     assert yfit.shape == x.shape
 
@@ -967,6 +963,22 @@ def test_bspline2d_fit_ivar_none_matches_unit_weights():
     np.testing.assert_array_equal(yfit_w, yfit_n)
 
 
+def test_bspline2d_fit_nonuniform_ivar_affects_result():
+    rng = np.random.default_rng(73)
+    N = 400
+    x = np.sort(rng.uniform(0.5, 5.0, N))
+    x2 = rng.uniform(0, 1, N)
+    ivar = 1.0 / x**2  # noise amplitude proportional to x
+    y = np.sin(x) + 0.1 * x2 + rng.standard_normal(N) / np.sqrt(ivar)
+    spl_u = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=15), nord=4)
+    spl_n = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=15), nord=4)
+    err_u, yfit_u = spl_u.fit(x, y, x2)
+    err_n, yfit_n = spl_n.fit(x, y, x2, ivar=ivar)
+    assert err_u == 0 and err_n == 0
+    assert np.isfinite(yfit_n).all()
+    assert not np.allclose(yfit_u, yfit_n)
+
+
 # ============================================================================
 # BSpline2D.value
 # ============================================================================
@@ -977,10 +989,9 @@ def test_bspline2d_value_matches_fit_at_training_points():
     x = np.sort(rng.uniform(0, 5, N))
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x) + 0.1 * x2
-    invvar = np.ones(N)
     spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, funcname='legendre',
                     knots=Knots(count=12), nord=4)
-    err, yfit_fit = spl.fit(x, y, x2, ivar=invvar)
+    err, yfit_fit = spl.fit(x, y, x2)
     yfit_val, _ = spl.value(x, x2)
     np.testing.assert_allclose(yfit_fit, yfit_val, atol=1e-12)
 
@@ -1002,9 +1013,8 @@ def test_bspline2d_value_gap_masking():
     x = np.sort(rng.uniform(0, 10, N))
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x)
-    invvar = np.ones(N)
     spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0, knots=Knots(count=25), nord=4)
-    spl.fit(x, y, x2, ivar=invvar)
+    spl.fit(x, y, x2)
     spl.bkpt_gpm[10:13] = False
     spl._cached_design = None
     bkpts = spl.breakpoints
@@ -1069,7 +1079,7 @@ def test_crosscheck_1d_fit_yfit_match():
     new = BSpline(knots=old.breakpoints.copy(), nord=nord)
     new.bkpt_gpm[:] = old.mask
     new._cached_design = None
-    new_err, new_yfit = new.fit(x, y, invvar)
+    new_err, new_yfit = new.fit(x, y, ivar=invvar)
 
     assert old_err == 0 and new_err == 0
     np.testing.assert_allclose(new_yfit, old_yfit, rtol=1e-10)
@@ -1087,7 +1097,7 @@ def test_crosscheck_1d_coeff_match():
     new = BSpline(knots=old.breakpoints.copy(), nord=4)
     new.bkpt_gpm[:] = old.mask
     new._cached_design = None
-    new.fit(x, y, invvar)
+    new.fit(x, y, ivar=invvar)
 
     np.testing.assert_allclose(new.coeff, old.coeff, rtol=1e-10)
 
@@ -1153,7 +1163,7 @@ def test_crosscheck_1d_value_match():
     new = BSpline(knots=old.breakpoints.copy(), nord=4)
     new.bkpt_gpm[:] = old.mask
     new._cached_design = None
-    new.fit(x, y, invvar)
+    new.fit(x, y, ivar=invvar)
 
     x_eval = np.sort(rng.uniform(0, 10, 50))
     old_val, _ = old.value(x_eval)
