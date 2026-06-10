@@ -368,9 +368,13 @@ class BSpline:
             re-raises the exception.  If False, any failures are caught and
             quietly handled.
         """
-        # The coefficient ar
+        # Reset all of the coefficient and all caching attributes when the
+        # breakpoints are reset.
         self.coeff = None
         self.icoeff = None
+        self._cached_design = None
+        self._cached_x_shape = None
+
         try:
             self.knots.build(x, self.nord)
         except ValueError as e:
@@ -1057,26 +1061,46 @@ class BSpline2D(BSpline):
 
         super().__init__(x=x, knots=knots, nord=nord)
 
-        # WARNING: self.npoly must be defined before running super().__init__()
-        # so that it can be used by the call to reinit_coeffs() during
-        # instantion of the base class.
-
+        # Attributes specific to this 2D class
         self.npoly = npoly
         self.xmin = xmin
         self.xmax = xmax
         self.funcname = funcname
-
-
-    def _init_result_storage(self):
-        """
-        Initialize the arrays used to store the results of the fit
-        """
-        super()._init_result_storage()
         self._cached_x2_shape = None
+
+    def reset_knots(self, x, required=False):
+        """
+        Reset the breakpoints provided a set of independent coordinates.
+
+        This is essentially a wrapper for :meth:`Knots.build` with some
+        additional setup of the attributes of this class.
+
+        .. warning::
+
+            Regardless of the outcome of this function, the coefficent arrays
+            (:attr:`coeff` and :attr:`icoeff`) are reset to None.  Use
+            :meth:`reset_coeff` to reset them.
+
+        Parameters
+        ----------
+        x : :class:`numpy.ndarray`
+            Independent variable used to set breakpoints, which is passed
+            directly to :meth:`Knots.build`.
+        required : bool, optional
+            If True, this function must yield a viable set of breakpoints for
+            the code to continue; if :meth:`Knots.build` fails, this function
+            re-raises the exception.  If False, any failures are caught and
+            quietly handled.
+        """
+        self._cached_x2_shape = None
+        super().reset_knots(x, required=required)
 
     def reset_coeff(self):
         """
-        Reset 2D coefficient arrays to zero.
+        Reset coefficient arrays to zero.
+
+        Does *not* reset the breakpoints or mask.  Does *not* invalidate the
+        design matrix cache (breakpoints have not changed).
         """
         nc = self.breakpoints.size - self.nord
         self.coeff = np.zeros((nc, self.npoly), dtype=float)
