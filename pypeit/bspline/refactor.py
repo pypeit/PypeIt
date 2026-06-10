@@ -853,7 +853,7 @@ class BSpline:
     # Public API
     # ------------------------------------------------------------------
 
-    def fit(self, x, y, ivar, reset_knots=False):
+    def fit(self, x, y, ivar=None, reset_knots=False):
         """
         Fit a weighted least-squares B-spline to ``(x, y)``.
 
@@ -873,8 +873,9 @@ class BSpline:
             Independent variable (sorted ascending).
         y : :class:`numpy.ndarray`
             Dependent variable.
-        ivar : :class:`numpy.ndarray`
+        ivar : :class:`numpy.ndarray`, optional
             Inverse variance of ``y``.  Zero entries are effectively masked.
+            If not provided, uniform unit weights are used.
         reset_knots : bool, optional
             Regardless of any existing breakpoints, reset the breakpoints using
             :attr:`knots` and ``x``.
@@ -888,6 +889,9 @@ class BSpline:
         yfit : :class:`numpy.ndarray`
             Fitted B-spline evaluated at ``x``.
         """
+        if ivar is None:
+            ivar = np.ones(y.size, dtype=float)
+
         if reset_knots:
             self.knots.build(x, self.nord)
             self._init_result_storage()
@@ -1330,7 +1334,7 @@ class BSpline2D(BSpline):
     # Public API — overrides with required x2
     # ------------------------------------------------------------------
 
-    def fit(self, x, y, ivar, x2, reset_knots=False):
+    def fit(self, x, y, x2, ivar=None, reset_knots=False):
         """
         Fit a weighted least-squares 2D B-spline.
 
@@ -1345,11 +1349,12 @@ class BSpline2D(BSpline):
             Independent variable (sorted ascending).
         y : :class:`numpy.ndarray`
             Dependent variable.
-        ivar : :class:`numpy.ndarray`
-            Inverse variance of ``y``.
         x2 : :class:`numpy.ndarray`
             Second variable (required).  Must be statistically independent of
             ``x``; see class-level warning.
+        ivar : :class:`numpy.ndarray`, optional
+            Inverse variance of ``y``.  Zero entries are effectively masked.
+            If not provided, uniform unit weights are used.
         reset_knots : bool, optional
             Regardless of any existing breakpoints, reset the breakpoints using
             :attr:`knots` and ``x``.
@@ -1361,6 +1366,9 @@ class BSpline2D(BSpline):
         yfit : :class:`numpy.ndarray`
             Fitted model at ``x``.
         """
+        if ivar is None:
+            ivar = np.ones(y.size, dtype=float)
+
         if reset_knots:
             self.knots.build(x, self.nord)
             self._init_result_storage()
