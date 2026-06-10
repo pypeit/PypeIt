@@ -1047,7 +1047,7 @@ def test_bspline2d_copy_attributes():
     assert cp.funcname == spl.funcname
     assert cp.nord == spl.nord
     assert cp._cached_design is None
-    assert cp._cached_x2_shape is None
+    assert cp.x2 is spl.x2
     np.testing.assert_array_equal(cp.breakpoints, spl.breakpoints)
     np.testing.assert_array_equal(cp.bkpt_gpm, spl.bkpt_gpm)
 
@@ -1200,7 +1200,8 @@ def test_bspline2d_fit_array_basis_matches_string_basis():
 
 
 def test_bspline2d_value_array_basis_raises_when_basis_none():
-    """value() with no basis argument must raise when fit was done with an array basis."""
+    """value() with no basis argument must raise when fit was done with an array basis
+    and new evaluation points are requested."""
     rng = np.random.default_rng(81)
     N = 200
     x = np.sort(rng.uniform(0, 5, N))
@@ -1209,8 +1210,12 @@ def test_bspline2d_value_array_basis_raises_when_basis_none():
     P = np.column_stack([np.ones(N), x2])  # shape (N, 2)
     spl = BSpline2D(x=x, knots=Knots(count=10), nord=4)
     spl.fit(x, np.sin(x), x2, basis=P)
+    # The fast path fires for the training arrays; use new arrays to reach the
+    # funcname is None check.
+    x_new = np.sort(rng.uniform(0, 5, N))
+    x2_new = rng.uniform(0, 1, N)
     with pytest.raises(ValueError):
-        spl.value(x, x2)  # funcname is None → must raise
+        spl.value(x_new, x2_new)  # funcname is None → must raise
 
 
 def test_bspline2d_value_array_basis_with_explicit_basis():
@@ -1254,3 +1259,73 @@ def test_bspline2d_value_restores_training_P_after_call():
     spl.value(x_eval, x2_eval)
 
     np.testing.assert_array_equal(spl.P, P_before)
+
+
+# ============================================================================
+# BSpline.value / BSpline2D.value — interpolate keyword
+# ============================================================================
+
+def test_value_interpolate_equals_numpy_interp():
+    """interpolate=True at new x must equal np.interp(x, self.x, self.yfit)."""
+    rng = np.random.default_rng(90)
+    x = np.sort(rng.uniform(0, 10, 200))
+    y = np.sin(x)
+    spl = BSpline(x=x, knots=Knots(count=20), nord=4)
+    spl.fit(x, y)
+
+    x_eval = np.sort(rng.uniform(0.5, 9.5, 150))
+    yfit_interp, _ = spl.value(x_eval, interpolate=True)
+
+    np.testing.assert_array_equal(yfit_interp, np.interp(x_eval, spl.x, spl.yfit))
+
+
+def test_value_interpolate_gpm_matches_full():
+    """interpolate=True and interpolate=False must return identical gpm."""
+    rng = np.random.default_rng(91)
+    x = np.sort(rng.uniform(0, 10, 200))
+    y = np.sin(x)
+    spl = BSpline(x=x, knots=Knots(count=20), nord=4)
+    spl.fit(x, y)
+
+    x_eval = np.sort(rng.uniform(0, 10, 100))
+    _, gpm_full = spl.value(x_eval, interpolate=False)
+    _, gpm_interp = spl.value(x_eval, interpolate=True)
+
+    np.testing.assert_array_equal(gpm_full, gpm_interp)
+
+
+def test_value_interpolate_not_identical_to_full():
+    """interpolate=True approximates but does not reproduce full B-spline evaluation.
+
+    With a well-sampled training grid (N=500, h≈0.02) the max linear-interpolation
+    error is bounded above by 5e-3 (well below 1% of the signal amplitude), but
+    exceeds 1e-4 near knot locations where the piecewise-polynomial model has
+    non-negligible curvature.
+    """
+    rng = np.random.default_rng(92)
+    x = np.sort(rng.uniform(0, 10, 500))
+    y = np.sin(x)
+    spl = BSpline(x=x, knots=Knots(count=50), nord=4)
+    spl.fit(x, y)
+
+    x_eval = np.sort(rng.uniform(0.5, 9.5, 80))
+    yfit_full, gpm  = spl.value(x_eval, interpolate=False)
+    yfit_interp, _  = spl.value(x_eval, interpolate=True)
+
+    max_diff = np.max(np.abs(yfit_interp - yfit_full)[gpm])
+    assert max_diff > 1e-4   # not identical — linear interpolation error is nonzero
+    assert max_diff < 5e-3   # good approximation for a well-sampled model (h≈0.02)
+
+
+def test_value_interpolate_training_x_fast_path():
+    """When x is self.x the identity fast path fires before the interpolate check."""
+    rng = np.random.default_rng(93)
+    x = np.sort(rng.uniform(0, 5, 100))
+    y = np.cos(x)
+    spl = BSpline(x=x, knots=Knots(count=8), nord=4)
+    err, yfit_fit = spl.fit(x, y)
+
+    yfit_val, _ = spl.value(x, interpolate=True)
+    assert yfit_val is yfit_fit
+
+
