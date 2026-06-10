@@ -330,6 +330,12 @@ class BSpline:
     icoeff : :class:`numpy.ndarray` or None
         Fitted inverse-covariance diagonal of the coefficient vector,
         shape ``(nc,)``.  ``None`` until :meth:`fit` is called.
+    x : :class:`numpy.ndarray` or None
+        Reference to the ``x`` array from the most recent :meth:`fit`
+        call.  Not a copy.  ``None`` until :meth:`fit` is called.
+    yfit : :class:`numpy.ndarray` or None
+        Best-fit model evaluated at :attr:`x` from the most recent
+        :meth:`fit` call.  ``None`` until :meth:`fit` is called.
     breakpoints : :class:`numpy.ndarray` or None
         Full padded knot vector (read-only property).  Delegates to
         :attr:`knots.breakpoints <Knots.breakpoints>`.
@@ -356,6 +362,8 @@ class BSpline:
         self.bkpt_gpm = None
         self.coeff = None
         self.icoeff = None
+        self.x = None
+        self.yfit = None
         self._cached_design = None
         self._cached_x_shape = None
 
@@ -438,6 +446,8 @@ class BSpline:
         new.bkpt_gpm = np.copy(self.bkpt_gpm)
         new.coeff = np.copy(self.coeff)
         new.icoeff = np.copy(self.icoeff)
+        new.x = self.x
+        new.yfit = None if self.yfit is None else np.copy(self.yfit)
         new._cached_design = None
         new._cached_x_shape = None
         return new
@@ -656,6 +666,10 @@ class BSpline:
         lower = np.zeros(n - self.nord + 1, dtype=int)
         upper = np.zeros(n - self.nord + 1, dtype=int) - 1
 
+        # NOTE: _find_spans is used by both BSpline and BSpline2D, and there's
+        # no need for the latter to override this base class method.  However,
+        # just to somewhat future-proof the code, I specify type(self) here,
+        # instead of using `BSpline._find_spans`.
         indx = type(self)._find_spans(x, self.breakpoints[self.bkpt_gpm], self.nord)
         A = self._bspline_basis(x, indx)
 
@@ -948,6 +962,7 @@ class BSpline:
         # breakpoints.size to allocate the coefficient arrays).
         if reset_knots or self.breakpoints is None:
             self.reset_knots(x, required=True)
+        self.x = x
 
         # Build or retrieve the cached design matrix.  Must follow reset_knots
         # so the cache-empty state is visible when determining whether to rebuild.
@@ -956,13 +971,15 @@ class BSpline:
             self._cached_x_shape = x.shape
         A, lower, upper = self._cached_design
         if A is None:
-            return -2, np.zeros(y.shape, dtype=float)
+            self.yfit = np.zeros(y.shape, dtype=float)
+            return -2, self.yfit
 
         # Count active breakpoints and exit early if too few to support a fit.
         goodbk = self.bkpt_gpm[self.nord:]
         nn = goodbk.sum()
         if nn < self.nord:
-            return -2, np.zeros(y.shape, dtype=float)
+            self.yfit = np.zeros(y.shape, dtype=float)
+            return -2, self.yfit
 
         # Allocate coefficient arrays when needed.  Must follow reset_knots,
         # which nulls coeff on a knot reset.
@@ -975,12 +992,14 @@ class BSpline:
         mininf = 1.0e-10 * (y.size if ivar is None else ivar.sum()) / nfull
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
+        self.yfit = self._evaluate_model(A, lower, upper)
         if bad_cols[0] != -1:
-            return self._mask_breakpoints(bad_cols), self._evaluate_model(A, lower, upper)
+            return self._mask_breakpoints(bad_cols), self.yfit
 
         goodbk_idx = goodbk.nonzero()[0]
         self._update_coefficients(sol, chol, goodbk_idx)
-        return 0, self._evaluate_model(A, lower, upper)
+        self.yfit = self._evaluate_model(A, lower, upper)
+        return 0, self.yfit
 
     def value(self, x):
         """
@@ -1157,6 +1176,14 @@ class BSpline2D(BSpline):
         -------
         BSpline2D
             A new instance with copies of all stored arrays.
+
+        Notes
+        -----
+        :attr:`P` is deep-copied, so the copy's :attr:`P` is a distinct object
+        from both the original's :attr:`P` and any ``basis`` array previously
+        passed to :meth:`fit`.  The first :meth:`fit` call on the copy that
+        supplies an array ``basis`` will therefore always rebuild the design
+        matrix, regardless of whether that array was used with the original.
         """
         new = BSpline2D.__new__(BSpline2D)
         new.nord = self.nord
@@ -1165,6 +1192,8 @@ class BSpline2D(BSpline):
         new.bkpt_gpm = np.copy(self.bkpt_gpm)
         new.coeff = np.copy(self.coeff)
         new.icoeff = np.copy(self.icoeff)
+        new.x = self.x
+        new.yfit = None if self.yfit is None else np.copy(self.yfit)
         new.xmin = self.xmin
         new.xmax = self.xmax
         new.funcname = self.funcname
@@ -1569,6 +1598,7 @@ class BSpline2D(BSpline):
         # breakpoints.size to allocate the coefficient arrays).
         if reset_knots or self.breakpoints is None:
             self.reset_knots(x, required=True)
+        self.x = x
 
         # Resolve the polynomial basis; updates self.npoly, funcname, xmin,
         # and xmax.  Must follow reset_knots so the cache-empty state is
@@ -1584,13 +1614,15 @@ class BSpline2D(BSpline):
             self._cached_x2_shape = x2.shape
         A, lower, upper = self._cached_design
         if A is None:
-            return -2, np.zeros(y.shape, dtype=float)
+            self.yfit = np.zeros(y.shape, dtype=float)
+            return -2, self.yfit
 
         # Count active breakpoints and exit early if too few to support a fit.
         goodbk = self.bkpt_gpm[self.nord:]
         nn = goodbk.sum()
         if nn < self.nord:
-            return -2, np.zeros(y.shape, dtype=float)
+            self.yfit = np.zeros(y.shape, dtype=float)
+            return -2, self.yfit
 
         # Allocate coefficient arrays when needed.  Must follow reset_knots
         # (which nulls coeff on a knot reset) and _resolve_basis (which sets
@@ -1604,12 +1636,14 @@ class BSpline2D(BSpline):
         mininf = 1.0e-10 * (y.size if ivar is None else ivar.sum()) / nfull
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
+        self.yfit = self._evaluate_model(A, lower, upper)
         if bad_cols[0] != -1:
-            return self._mask_breakpoints(bad_cols), self._evaluate_model(A, lower, upper)
+            return self._mask_breakpoints(bad_cols), self.yfit
 
         goodbk_idx = goodbk.nonzero()[0]
         self._update_coefficients(sol, chol, goodbk_idx)
-        return 0, self._evaluate_model(A, lower, upper)
+        self.yfit = self._evaluate_model(A, lower, upper)
+        return 0, self.yfit
 
     def value(self, x, x2, basis=None):
         """
