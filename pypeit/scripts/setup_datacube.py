@@ -282,10 +282,12 @@ class SetupDataCube(scriptbase.ScriptBase):
         )
         parser.add_argument('pypeit_file', type=str, help='PypeIt reduction file.')
         parser.add_argument('target', type=str, help='Target name, e.g. J0750+6927.')
-        parser.add_argument(
-            'whitelight_range', type=str, help='White-light wavelength range, e.g. 9400,10000.'
-        )
         parser.add_argument('sensfile', type=str, help='Sensitivity function file.')
+        parser.add_argument(
+            '--whitelight_range', '--wl_range', dest='whitelight_range', type=str,
+            default='None,None',
+            help='White-light wavelength range, e.g. 9400,10000. Defaults to None,None.'
+        )
         parser.add_argument(
             '--manual', type=str, default=None,
             help='Manual extraction position in x:y coordinates. If provided, the extract file '
