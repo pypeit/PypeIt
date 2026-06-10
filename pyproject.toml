@@ -143,6 +143,7 @@ pypeit_reduce_by_step = "pypeit.scripts.reduce_by_step:ReducebyStep.entry_point"
 pypeit_sensfunc = "pypeit.scripts.sensfunc:SensFunc.entry_point"
 pypeit_setup = "pypeit.scripts.setup:Setup.entry_point"
 pypeit_setup_coadd2d = "pypeit.scripts.setup_coadd2d:SetupCoAdd2D.entry_point"
+pypeit_setup_datacube = "pypeit.scripts.setup_datacube:SetupDataCube.entry_point"
 pypeit_show_arxiv = "pypeit.scripts.show_arxiv:ShowArxiv.entry_point"
 pypeit_version = "pypeit.scripts.version:Version.entry_point"
 pypeit_show_wvcalib = "pypeit.scripts.show_wvcalib:ShowWvCalib.entry_point"
@@ -226,4 +227,3 @@ testpaths = [
             "pragma: py{ignore_python_version}",
             "def _ipython_key_completions_",
         ]
-
