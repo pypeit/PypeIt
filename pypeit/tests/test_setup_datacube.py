@@ -1,7 +1,9 @@
 from pathlib import Path
 
 from astropy.io import fits
+import pytest
 
+from pypeit import PypeItError
 from pypeit import inputfiles
 from pypeit.scripts import setup_datacube
 from pypeit.scripts.setup_datacube import SetupDataCube
@@ -103,3 +105,19 @@ def test_setup_datacube_write_and_append(tmp_path):
         inputfiles.PypeItFile.from_file(str(pypeit_file)), 'J0750p6927'
     )
     assert len(alias_rows) == 4
+
+
+def test_setup_datacube_manual_validation(tmp_path):
+    extract_file = tmp_path / 'J0750+6927.extract'
+
+    setup_datacube.write_extract_file(
+        extract_file, 'J0750+6927', 'None,None', manual='9.8:13.6'
+    )
+    extract_text = extract_file.read_text()
+    assert 'manual = 9.8:13.6' in extract_text
+    assert 'opt_prof_method = user_gauss' in extract_text
+
+    with pytest.raises(PypeItError, match='colon-separated x:y'):
+        setup_datacube.write_extract_file(
+            extract_file, 'J0750+6927', 'None,None', manual='9.8,13.6'
+        )

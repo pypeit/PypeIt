@@ -36,7 +36,8 @@
       --whitelight_range WHITELIGHT_RANGE, --wl_range WHITELIGHT_RANGE
                             White-light wavelength range, e.g. 9400,10000.
                             Defaults to None,None. (default: None,None)
-      --manual MANUAL       Manual extraction position in x:y coordinates. If
+      --manual MANUAL       Manual extraction position in colon-separated x:y
+                            coordinates, e.g. 10.0:14.0. Do not use commas. If
                             provided, the extract file uses
                             opt_prof_method=user_gauss. (default: None)
       --fwhm FWHM           Extraction FWHM in arcsec. (default: 1.1)

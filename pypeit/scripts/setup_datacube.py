@@ -251,11 +251,50 @@ def append_spec2d_files(coadd3d_file, spec2d_files):
     return new_names
 
 
+def validate_manual(manual):
+    """
+    Validate and normalize the manual datacube extraction position.
+
+    The PypeIt configuration parser treats comma-separated values as lists, but
+    the datacube extraction parser expects the manual position as one string in
+    x:y format.
+    """
+    if manual is None:
+        return None
+
+    _manual = manual.strip()
+    if ',' in _manual:
+        raise PypeItError(
+            'Manual datacube extraction positions must use colon-separated x:y '
+            f'syntax, not commas: {_manual}. For example, use --manual 10.0:14.0.'
+        )
+
+    positions = _manual.split(';')
+    for pos in positions:
+        fields = pos.split(':')
+        if len(fields) != 2:
+            raise PypeItError(
+                'Manual datacube extraction positions must be provided as x:y. '
+                f'Invalid value: {pos}.'
+            )
+        try:
+            float(fields[0])
+            float(fields[1])
+        except ValueError:
+            raise PypeItError(
+                'Manual datacube extraction positions must be numeric x:y values. '
+                f'Invalid value: {pos}.'
+            )
+
+    return _manual
+
+
 def write_extract_file(extract_file, target_stub, whitelight_range, manual=None, fwhm=1.1,
                        snr_thresh=4.0):
     """
     Write a .extract file for point-source datacube extraction.
     """
+    manual = validate_manual(manual)
     opt_prof_method = 'fit_gauss' if manual is None else 'user_gauss'
     lines = [
         '# User-defined execution parameters\n',
@@ -295,8 +334,9 @@ class SetupDataCube(scriptbase.ScriptBase):
         )
         parser.add_argument(
             '--manual', type=str, default=None,
-            help='Manual extraction position in x:y coordinates. If provided, the extract file '
-                 'uses opt_prof_method=user_gauss.'
+            help='Manual extraction position in colon-separated x:y coordinates, e.g. '
+                 '10.0:14.0. Do not use commas. If provided, the extract file uses '
+                 'opt_prof_method=user_gauss.'
         )
         parser.add_argument('--fwhm', type=float, default=1.1, help='Extraction FWHM in arcsec.')
         parser.add_argument(
