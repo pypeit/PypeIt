@@ -15,9 +15,9 @@ from pypeit import inputfiles
 from pypeit.scripts import scriptbase
 
 
-def sanitize_target_name(target):
+def target_match_key(target):
     """
-    Convert a target name into the compact source-directory form.
+    Normalize a target name for permissive matching.
 
     Parameters
     ----------
@@ -27,9 +27,9 @@ def sanitize_target_name(target):
     Returns
     -------
     :obj:`str`
-        Sanitized target name, e.g. ``J0750p6927``.
+        Normalized target name, e.g. ``J0750p6927``.
     """
-    return target.strip().replace(' ', '').replace('+', 'p').replace('-', 'm')
+    return str(target).strip().replace(' ', '').replace('+', 'p').replace('-', 'm')
 
 
 def target_matches(value, target):
@@ -38,7 +38,7 @@ def target_matches(value, target):
     """
     _value = str(value).strip()
     _target = str(target).strip()
-    return _value == _target or sanitize_target_name(_value) == sanitize_target_name(_target)
+    return _value == _target or target_match_key(_value) == target_match_key(_target)
 
 
 def validate_whitelight_range(value):
@@ -161,7 +161,7 @@ def existing_spec2d_files(pypeit_file, target, science_dir):
             missing.append(Path(str(raw_filename).strip()).stem)
             continue
         files.append(spec2d)
-    return files, missing
+    return files, missing, str(rows[0]['target']).strip()
 
 
 def write_coadd3d_file(
@@ -334,7 +334,9 @@ class SetupDataCube(scriptbase.ScriptBase):
         if not sci_dir.is_dir():
             raise PypeItError(f'Expected Science directory does not exist: {sci_dir}')
 
-        spec2d_files, missing = existing_spec2d_files(pypeit_file, args.target, sci_dir)
+        spec2d_files, missing, target_name = existing_spec2d_files(
+            pypeit_file, args.target, sci_dir
+        )
         for raw_stem in missing:
             log.warning(f'Expected spec2d product for {raw_stem} not found yet; skipping for now.')
         if len(spec2d_files) == 0:
@@ -342,7 +344,7 @@ class SetupDataCube(scriptbase.ScriptBase):
                 f'No reduced spec2d files found for target={args.target} in {sci_dir}.'
             )
 
-        target_stub = sanitize_target_name(args.target)
+        target_stub = target_name
         source_dir = pypeit_path.parent / 'sources' / target_stub
         source_dir.mkdir(parents=True, exist_ok=True)
 

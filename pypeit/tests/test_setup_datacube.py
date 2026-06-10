@@ -2,6 +2,8 @@ from pathlib import Path
 
 from astropy.io import fits
 
+from pypeit import inputfiles
+from pypeit.scripts import setup_datacube
 from pypeit.scripts.setup_datacube import SetupDataCube
 
 
@@ -54,13 +56,13 @@ def test_setup_datacube_write_and_append(tmp_path):
     ])
     SetupDataCube.main(args)
 
-    source_dir = tmp_path / 'sources' / 'J0750p6927'
-    coadd3d_file = source_dir / 'J0750p6927.coadd3d'
-    extract_file = source_dir / 'J0750p6927.extract'
+    source_dir = tmp_path / 'sources' / 'J0750+6927'
+    coadd3d_file = source_dir / 'J0750+6927.coadd3d'
+    extract_file = source_dir / 'J0750+6927.extract'
     coadd3d_text = coadd3d_file.read_text()
     extract_text = extract_file.read_text()
 
-    assert 'output_filename = J0750p6927' in coadd3d_text
+    assert 'output_filename = J0750+6927' in coadd3d_text
     assert 'whitelight_range = None,None' in coadd3d_text
     assert 'whitelight_range = None,None' in extract_text
     assert 'sensfile = ' + str(sensfile.absolute()) in coadd3d_text
@@ -93,3 +95,8 @@ def test_setup_datacube_write_and_append(tmp_path):
         str(pypeit_file), 'J0750+6927', str(sensfile), '--wl_range', '9400,10000'
     ])
     assert args.whitelight_range == '9400,10000'
+
+    alias_rows = setup_datacube.matching_science_rows(
+        inputfiles.PypeItFile.from_file(str(pypeit_file)), 'J0750p6927'
+    )
+    assert len(alias_rows) == 4
