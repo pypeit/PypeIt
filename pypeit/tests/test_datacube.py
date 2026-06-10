@@ -7,12 +7,75 @@ from IPython import embed
 
 import numpy as np
 
+from astropy.io import fits
 from astropy.wcs import WCS
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
 from pypeit.core import datacube
 from pypeit.core.flexure import calculate_image_phase
+from pypeit.coadd3d import DataCube
+
+
+def make_test_datacube(whitelight_range=None):
+    """
+    Construct a small DataCube object for datamodel tests.
+    """
+    wave = np.linspace(5000.0, 5018.0, 10)
+    flux = np.ones((wave.size, 4, 5), dtype=float)
+    sig = np.ones_like(flux)
+    bpm = np.zeros(flux.shape, dtype=np.uint8)
+    blaze_wave = np.array([wave[0], wave[-1]])
+    blaze_spec = np.ones(2, dtype=float)
+    return DataCube(
+        flux, sig, bpm, wave, 'keck_kcrm', blaze_wave, blaze_spec,
+        whitelight_range=whitelight_range, fluxed=False
+    )
+
+
+def make_test_cube_wcs():
+    """
+    Construct a simple 3D WCS for DataCube I/O tests.
+    """
+    wcs = WCS(naxis=3)
+    wcs.wcs.crpix = [1.0, 1.0, 1.0]
+    wcs.wcs.cdelt = [-1.0e-4, 1.0e-4, 2.0]
+    wcs.wcs.crval = [150.0, 2.0, 5000.0]
+    wcs.wcs.cunit = ['deg', 'deg', 'Angstrom']
+    wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
+    return wcs
+
+
+def test_datacube_whitelight_range_datamodel(tmp_path):
+    wl_range = np.array([5004.0, 5012.0])
+    cube = make_test_datacube(whitelight_range=wl_range)
+
+    assert np.allclose(cube.resolve_whitelight_range([None, None]), wl_range)
+    assert np.allclose(cube.resolve_whitelight_range([5006.0, None]), [5006.0, 5012.0])
+    assert np.allclose(cube.resolve_whitelight_range([None, 5010.0]), [5004.0, 5010.0])
+    assert np.allclose(cube.resolve_whitelight_range([5002.0, 5016.0]), [5002.0, 5016.0])
+
+    ofile = tmp_path / 'spec3d_test.fits'
+    cube.to_file(str(ofile), hdr=make_test_cube_wcs().to_header(), overwrite=True)
+    read_cube = DataCube.from_file(str(ofile))
+    assert np.allclose(read_cube.whitelight_range, wl_range)
+    assert np.allclose(read_cube.resolve_whitelight_range([None, None]), wl_range)
+
+    # Old cubes do not have the new datamodel field.  They should still load,
+    # and extraction should fall back to the full saved cube wavelength range.
+    old_cube = make_test_datacube(whitelight_range=None)
+    old_file = tmp_path / 'spec3d_old.fits'
+    old_cube.to_file(str(old_file), hdr=make_test_cube_wcs().to_header(), overwrite=True)
+    with fits.open(old_file, mode='update') as hdu:
+        for ext in hdu[1:]:
+            ext.header['DMODVER'] = '1.2.0'
+
+    read_old_cube = DataCube.from_file(str(old_file))
+    assert read_old_cube.whitelight_range is None
+    assert np.allclose(
+        read_old_cube.resolve_whitelight_range([None, None]),
+        [read_old_cube.wave.min(), read_old_cube.wave.max()]
+    )
 
 
 def make_point_source_image(ra, dec, dspat, wcs,

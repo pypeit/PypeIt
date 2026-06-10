@@ -15,7 +15,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from pypeit import log
-from pypeit import PypeItError
+from pypeit import PypeItError, PypeItDataModelError
 from pypeit import alignframe, datamodel, flatfield, io, sensfunc, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import datacube, extract, flux_calib, parse, combine 
@@ -45,10 +45,12 @@ class DataCube(datamodel.DataContainer):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
             The spectral blaze function
-        sensfunc (`numpy.ndarray`_, None):
-            Sensitivity function (nwave,). Only saved if the data are fluxed.
         PYP_SPEC (str):
             Name of the PypeIt Spectrograph
+        whitelight_range (`numpy.ndarray`_, None):
+            Default wavelength range to use for white-light images and extraction.
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function (nwave,). Only saved if the data are fluxed.
         fluxed (bool):
             If the cube has been flux calibrated, this will be set to "True"
 
@@ -67,7 +69,7 @@ class DataCube(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.2.0'
+    version = '1.3.0'
 
     datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating,
                               descr='Flux datacube in units of counts/s/Ang/arcsec^2 or '
@@ -79,8 +81,11 @@ class DataCube(datamodel.DataContainer):
                  'wave': dict(otype=np.ndarray, atype=np.floating,
                               descr='Wavelength of each slice in the spectral direction. '
                                     'The units are Angstroms.'),
+                 'whitelight_range': dict(
+                     otype=np.ndarray, atype=np.floating,
+                     descr='Default wavelength range used for white-light images and extraction.'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating,
-                                    descr='Wavelength array of the spectral blaze function'),
+                                     descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating,
                                     descr='The spectral blaze function'),
                  'sensfunc': dict(otype=np.ndarray, atype=np.floating,
@@ -96,8 +101,8 @@ class DataCube(datamodel.DataContainer):
                  '_wcs'
                 ]
 
-    def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
-                 fluxed=None):
+    def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec,
+                 whitelight_range=None, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k, values[k]) for k in args[1:]])
@@ -192,7 +197,16 @@ class DataCube(datamodel.DataContainer):
         """
         with io.fits_open(ifile) as hdu:
             # Read using the base class
-            self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
+            try:
+                self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
+            except PypeItDataModelError as exc:
+                if not chk_version or 'does not match version' not in str(exc):
+                    raise
+                log.warning(
+                    f'{ifile} was written with an older DataCube datamodel; attempting to '
+                    'read it without strict version checking.'
+                )
+                self = cls.from_hdu(hdu, chk_version=False, **kwargs)
             # Internals
             self.filename = ifile
             self.head0 = hdu[0].header
@@ -202,6 +216,45 @@ class DataCube(datamodel.DataContainer):
             self._ivar = None
             self._wcs = wcs.WCS(hdu[1].header)
         return self
+
+    def resolve_whitelight_range(self, whitelight_range):
+        """
+        Resolve the white-light wavelength range for extraction.
+
+        Any user-provided wavelength bound overrides the cube default.  Missing
+        bounds are filled from the white-light range stored in the datacube; if
+        that metadata is unavailable, the full cube wavelength range is used.
+        """
+        if whitelight_range is not None and len(whitelight_range) != 2:
+            raise PypeItError('whitelight_range must have exactly two elements.')
+
+        if whitelight_range is not None and all(w is not None for w in whitelight_range):
+            return whitelight_range
+
+        try:
+            default_range = np.asarray(self.whitelight_range, dtype=float)
+            if default_range.size != 2 or not np.all(np.isfinite(default_range)):
+                raise ValueError('stored whitelight_range is missing or invalid')
+            resolved_range = [float(default_range[0]), float(default_range[1])]
+            log.info(
+                f'Using datacube default white-light wavelength range: '
+                f'{resolved_range[0]:.2f} A - {resolved_range[1]:.2f} A'
+            )
+        except Exception as exc:
+            resolved_range = [float(np.min(self.wave)), float(np.max(self.wave))]
+            log.warning(
+                'Datacube does not define a usable default white-light wavelength range; '
+                f'using the full cube range instead. Original error: {exc}'
+            )
+
+        if whitelight_range is None:
+            return resolved_range
+
+        if whitelight_range[0] is not None:
+            resolved_range[0] = whitelight_range[0]
+        if whitelight_range[1] is not None:
+            resolved_range[1] = whitelight_range[1]
+        return resolved_range
 
     @property
     def ivar(self):
@@ -267,10 +320,13 @@ class DataCube(datamodel.DataContainer):
 
         # Datacube's are counts/second, so set the exposure time to 1
         exptime = 1.0
+        whitelight_range = self.resolve_whitelight_range(
+            parset['cube']['extraction']['whitelight_range']
+        )
         sobjs, spec2d, wl_img, wl_ivar, wl_gpm = datacube.extract_point_source(
             self.wave, self.flux, self.ivar, self.bpm, self._wcs, exptime,
             fluxed=self.fluxed, min_frac_use=parset['extraction']['min_frac_prof'],
-            whitelight_range=parset['cube']['extraction']['whitelight_range'],
+            whitelight_range=whitelight_range,
             fwhm=parset['cube']['extraction']['fwhm'],
             skysub_resid=parset['cube']['extraction']['skysub_resid'],
             snr_thresh=parset['cube']['extraction']['snr_thresh'], manual_position=manual_position,
@@ -1641,12 +1697,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             slitlength = int(np.round(np.median(self.all_slits[ff].get_slitlengths(median=True))))
             numwav = int((np.max(self.all_wave[ff]) - wave0) / self._specscale[ff])
             bins = self.spectrograph.get_datacube_bins(slitlength, self.all_deltapix[ff], numwav)
-            # Set the wavelength range of the white light image.
-            wl_wvrng = None
-            if self.cubepar['save_whitelight']:
-                wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[ff, :, 0]),
-                                                         np.min(self.mnmx_wv[ff, :, 1]),
-                                                         self.cubepar['whitelight_range'])
+            # Set the default wavelength range of the white light image and extraction.
+            wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[ff, :, 0]),
+                                                     np.min(self.mnmx_wv[ff, :, 1]),
+                                                     self.cubepar['whitelight_range'])
             # Make the datacube
             if self.method in ['subpixel', 'ngp']:
                 # Generate the datacube
@@ -1673,7 +1727,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 final_cube = DataCube(
                     flxcube, sigcube, bpmcube.astype(np.uint8),
                     wave, self.specname, self.blaze_wave, self.blaze_spec,
-                    sensfunc=None, fluxed=self.fluxcal
+                    whitelight_range=np.asarray(wl_wvrng), sensfunc=None, fluxed=self.fluxcal
                 )
                 final_cube.to_file(
                     str(self.scidir / outfile), primary_hdr=self.all_header[ff],
@@ -1761,11 +1815,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                 reference=self.cubepar['reference_image'], collapse=False, equinox=2000.0,
                                 specname=self.specname)
 
-        wl_wvrng = None
-        if self.cubepar['save_whitelight']:
-            wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),
-                                                     np.min(self.mnmx_wv[:, :, 1]),
-                                                     self.cubepar['whitelight_range'])
+        wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),
+                                                 np.min(self.mnmx_wv[:, :, 1]),
+                                                 self.cubepar['whitelight_range'])
 
         # Get the sensfunc
         sensfunc = None
@@ -1823,7 +1875,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 # Prepare the DataCube object
                 final_cube = DataCube(
                     flxcube, sigcube, bpmcube.astype(np.uint8), wave, self.specname,
-                    self.blaze_wave, self.blaze_spec, sensfunc=sensfunc, fluxed=self.fluxcal
+                    self.blaze_wave, self.blaze_spec, whitelight_range=np.asarray(wl_wvrng),
+                    sensfunc=sensfunc, fluxed=self.fluxcal
                 )
                 # Write the cube to file
                 final_cube.to_file(
@@ -1859,7 +1912,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             final_combined_cube = DataCube(
                 combined_cube, combined_sigma, combined_bpm.astype(np.uint8), wave,
                 self.specname, self.blaze_wave, self.blaze_spec, sensfunc=sensfunc,
-                fluxed=self.fluxcal
+                whitelight_range=np.asarray(wl_wvrng), fluxed=self.fluxcal
             )
             # Write out the cube to file
             final_combined_cube.to_file(
