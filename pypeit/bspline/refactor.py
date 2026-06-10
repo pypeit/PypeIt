@@ -942,26 +942,13 @@ class BSpline:
         yfit : :class:`numpy.ndarray`
             Fitted B-spline evaluated at ``x``.
         """
-        if ivar is None:
-            ivar = np.ones(y.size, dtype=float)
-
+        # Breakpoints must be established before reset_coeff (which reads
+        # breakpoints.size to allocate the coefficient arrays).
         if reset_knots or self.breakpoints is None:
             self.reset_knots(x, required=True)
 
-        if self.coeff is None or self.icoeff is None:
-            self.reset_coeff()
-
-        goodbk = self.bkpt_gpm[self.nord:]
-        nn = goodbk.sum()
-        if nn < self.nord:
-            return -2, np.zeros(y.shape, dtype=float)
-
-        nfull = self._poly_scale(nn)
-        mininf = 1.0e-10 * ivar.sum() / nfull
-
-        # Build / retrieve cached design matrix.  This if statement should
-        # always be true if reset_knots is true because of the call to
-        # _init_result_storage.
+        # Build or retrieve the cached design matrix.  Must follow reset_knots
+        # so the cache-empty state is visible when determining whether to rebuild.
         if self._cached_design is None or x.shape != self._cached_x_shape:
             self._cached_design = self._build_design_matrix(x)
             self._cached_x_shape = x.shape
@@ -969,13 +956,30 @@ class BSpline:
         if A is None:
             return -2, np.zeros(y.shape, dtype=float)
 
+        # Count active breakpoints and exit early if too few to support a fit.
+        goodbk = self.bkpt_gpm[self.nord:]
+        nn = goodbk.sum()
+        if nn < self.nord:
+            return -2, np.zeros(y.shape, dtype=float)
+
+        # Allocate coefficient arrays when needed.  Must follow reset_knots,
+        # which nulls coeff on a knot reset.
+        if self.coeff is None or self.icoeff is None:
+            self.reset_coeff()
+
+        # Assemble and solve the banded normal equations.
+        if ivar is None:
+            ivar = np.ones(y.size, dtype=float)
+        nfull = self._poly_scale(nn)
+        mininf = 1.0e-10 * ivar.sum() / nfull
         alpha, beta = self._assemble_normal_equations(A, y, ivar, lower, upper)
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
         if bad_cols[0] != -1:
             return self._mask_breakpoints(bad_cols), self._evaluate_model(A, lower, upper)
 
-        self._update_coefficients(sol, chol, goodbk.nonzero()[0])
+        goodbk_idx = goodbk.nonzero()[0]
+        self._update_coefficients(sol, chol, goodbk_idx)
         return 0, self._evaluate_model(A, lower, upper)
 
     def value(self, x):
