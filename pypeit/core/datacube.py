@@ -781,7 +781,7 @@ def whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, gaussian_model, gaussian_posi
         The prefix to use for the channel name in ginga. Default is ''.
     """
 
-    nrow, ncol = wl_img.shape
+    ny, nx = wl_img.shape
     mean, med, sigma = sigma_clipped_stats(wl_img[wl_gpm], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 5.0 * sigma
@@ -802,21 +802,21 @@ def whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, gaussian_model, gaussian_posi
     ch_list = [ch_wl, ch_model, ch_snr]
     for ich, ch in enumerate(ch_list):
         display.show_points(viewer, ch, [gaussian_position[1]], [gaussian_position[0]],
-                            color='red', 
+                            color='red',
                             legend='Gaussian           ; x={:.2f}, y={:.2f}'.format(gaussian_position[0],
                                                                                      gaussian_position[1]),
-                            legend_spec=0.05*nrow, legend_spat=0.5*ncol)
+                            legend_spec=0.05*ny, legend_spat=0.5*nx)
         display.show_points(viewer, ch, [init_obj_position[1]], [init_obj_position[0]],
-                            color='green', 
+                            color='green',
                             legend='DAOStarFinder ; x={:.2f}, y={:.2f}'.format(init_obj_position[0],
                                                                                init_obj_position[1]),
-                            legend_spec=0.10*nrow, legend_spat=0.5*ncol)
+                            legend_spec=0.10*ny, legend_spat=0.5*nx)
         if manual_position is not None:
             display.show_points(viewer, ch, [manual_position[1]], [manual_position[0]],
-                            color='orange', 
+                            color='orange',
                             legend='Manual              ; x={:.2f}, y={:.2f}'.format(manual_position[0],
                                                                                      manual_position[1]),
-                            legend_spec=0.15*nrow, legend_spat=0.5*ncol)
+                            legend_spec=0.15*ny, legend_spat=0.5*nx)
     
 
 
