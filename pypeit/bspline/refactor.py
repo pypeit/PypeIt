@@ -313,6 +313,28 @@ class BSpline:
 
     nord : int, optional
         B-spline order (default 4 = cubic).
+
+    Attributes
+    ----------
+    nord : int
+        B-spline order.
+    knots : :class:`Knots`
+        Breakpoint specification; holds the fully padded knot vector once
+        built.
+    bkpt_gpm : :class:`numpy.ndarray` of bool or None
+        Boolean mask of shape ``(n_breakpoints,)`` indicating which
+        breakpoints are active (``True``) or masked (``False``).
+        ``None`` until the knots are first built.
+    coeff : :class:`numpy.ndarray` or None
+        Fitted B-spline coefficients of shape ``(nc,)`` where
+        ``nc = breakpoints.size - nord``.  ``None`` until :meth:`fit` is
+        called.
+    icoeff : :class:`numpy.ndarray` or None
+        Fitted inverse-covariance diagonal of the coefficient vector,
+        shape ``(nc,)``.  ``None`` until :meth:`fit` is called.
+    breakpoints : :class:`numpy.ndarray` or None
+        Full padded knot vector (read-only property).  Delegates to
+        :attr:`knots.breakpoints <Knots.breakpoints>`.
     """
 
     def __init__(self, x=None, knots=None, nord=4):
@@ -1037,6 +1059,30 @@ class BSpline2D(BSpline):
         Breakpoint specification forwarded to :class:`BSpline.__init__`.
     nord : int, optional
         B-spline order (default 4 = cubic).
+
+    Attributes
+    ----------
+    The following are in addition to those defined by the base class
+    :class:`BSpline`.
+
+    npoly : int or None
+        Number of polynomial basis functions along the second variable.
+        ``None`` until :meth:`fit` is called.
+    xmin : float or None
+        Lower bound used to normalise ``x2`` to ``[-1, +1]``.  ``None``
+        when the fit was performed with a pre-built basis array.
+    xmax : float or None
+        Upper bound used to normalise ``x2`` to ``[-1, +1]``.  ``None``
+        when the fit was performed with a pre-built basis array.
+    funcname : str or None
+        Name of the polynomial family (``'legendre'``, ``'chebyshev'``,
+        ``'poly'``, or ``'poly1'``).  ``None`` when the fit was performed
+        with a pre-built basis array.
+    P : :class:`numpy.ndarray` or None
+        Polynomial basis matrix of shape ``(N, npoly)`` corresponding to
+        the current cached design matrix.  ``None`` until :meth:`fit` is
+        called; updated by :meth:`fit` on each cache miss and temporarily
+        by :meth:`value` (which restores the training ``P`` on return).
 
     Notes
     -----
