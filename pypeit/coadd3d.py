@@ -1393,8 +1393,34 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 self.mnmx_wv = np.zeros((len(self.spec2d), slits.nslits, 2))
             for slit_idx, slit_spat in enumerate(slits.spat_id):
                 onslit_init = (slitid_img == slit_spat)
-                self.mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
-                self.mnmx_wv[ff, slit_idx, 1] = np.max(waveimg[onslit_init])
+                if not np.any(onslit_init):
+                    flags = slits.bitmask.flagged_bits(slits.mask[slit_idx])
+                    flag_msg = ', '.join(flags) if len(flags) > 0 else 'None'
+                    raise PypeItError(
+                        'Cannot determine datacube wavelength range for '
+                        f'slit/order {slit_spat} in {fil} ({self.detname}). The slit has no '
+                        'pixels in the slit image generated from the spec2d slit mask. '
+                        f'Slit mask flags: {flag_msg}. This usually means the spec2d frame was '
+                        'produced with a bad or stale calibration for this slit. Rebuild the '
+                        'calibrations/spec2d frame, or exclude the bad slit before datacube '
+                        'construction.'
+                    )
+                wave_on_slit = waveimg[onslit_init]
+                nonzero_wave = wave_on_slit != 0.0
+                if not np.any(nonzero_wave):
+                    flags = slits.bitmask.flagged_bits(slits.mask[slit_idx])
+                    flag_msg = ', '.join(flags) if len(flags) > 0 else 'None'
+                    raise PypeItError(
+                        'Cannot determine datacube wavelength range for '
+                        f'slit/order {slit_spat} in {fil} ({self.detname}). The slit has pixels '
+                        'in the slit image, but none of those pixels have a non-zero wavelength. '
+                        f'Slit mask flags: {flag_msg}. This usually means the spec2d frame was '
+                        'produced with a bad or stale calibration for this slit. Rebuild the '
+                        'calibrations/spec2d frame, or exclude the bad slit before datacube '
+                        'construction.'
+                    )
+                self.mnmx_wv[ff, slit_idx, 0] = np.min(wave_on_slit[nonzero_wave])
+                self.mnmx_wv[ff, slit_idx, 1] = np.max(wave_on_slit[nonzero_wave])
 
             # Find the largest spatial scale of all images being combined
             # TODO: probably need to put this in the DetectorContainer
