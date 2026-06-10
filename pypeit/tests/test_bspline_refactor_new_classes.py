@@ -425,6 +425,7 @@ def test_evaluate_model_matches_explicit_matmul():
     rng = np.random.default_rng(99)
     x = np.sort(rng.uniform(0, 5, 60))
     spl = BSpline(x=x, knots=Knots(count=8), nord=4)
+    spl.reset_coeff()
     A, lower, upper = spl._build_design_matrix(x)
     spl.coeff[:] = rng.standard_normal(spl.coeff.size)
 
@@ -651,7 +652,7 @@ def test_bspline_copy_attributes():
     rng = np.random.default_rng(62)
     x = np.sort(rng.uniform(0, 5, 100))
     spl = BSpline(x=x, knots=Knots(count=10), nord=4)
-    spl.fit(x, np.sin(x), np.ones(100))
+    spl.fit(x, np.sin(x))
     cp = spl.copy()
     assert cp.nord == spl.nord
     np.testing.assert_array_equal(cp.breakpoints, spl.breakpoints)
@@ -664,7 +665,7 @@ def test_bspline_copy_arrays_are_independent():
     rng = np.random.default_rng(63)
     x = np.sort(rng.uniform(0, 5, 100))
     spl = BSpline(x=x, knots=Knots(count=10), nord=4)
-    spl.fit(x, np.sin(x), np.ones(100))
+    spl.fit(x, np.sin(x))
     cp = spl.copy()
     orig_val = cp.coeff[0]
     spl.coeff[0] += 999.0
@@ -675,7 +676,7 @@ def test_bspline_copy_cache_is_cleared():
     rng = np.random.default_rng(64)
     x = np.sort(rng.uniform(0, 5, 100))
     spl = BSpline(x=x, knots=Knots(count=10), nord=4)
-    spl.fit(x, np.sin(x), np.ones(100))
+    spl.fit(x, np.sin(x))
     assert spl._cached_design is not None
     cp = spl.copy()
     assert cp._cached_design is None
@@ -832,6 +833,7 @@ def test_bspline2d_evaluate_model_matches_explicit_einsum():
     npoly = 3
     nord = 4
     spl = BSpline2D(x=x, npoly=npoly, xmin=0.0, xmax=1.0, knots=Knots(count=8), nord=nord)
+    spl.reset_coeff()
     A, lower, upper = spl._build_design_matrix(x, x2)
     spl.coeff[:] = rng.standard_normal(spl.coeff.shape)
     yfit = spl._evaluate_model(A, lower, upper)
@@ -1002,7 +1004,7 @@ def test_bspline2d_value_x2_required():
     x2 = rng.uniform(0, 1, 50)
     spl = BSpline2D(x=x, npoly=2, xmin=0.0, xmax=1.0,
                     knots=Knots(count=8), nord=4)
-    spl.fit(x, np.sin(x), x2, ivar=np.ones(50))
+    spl.fit(x, np.sin(x), x2)
     with pytest.raises(TypeError):
         spl.value(x)  # missing required x2
 
@@ -1035,7 +1037,7 @@ def test_bspline2d_copy_attributes():
     x2 = rng.uniform(0, 1, N)
     spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, funcname='chebyshev',
                     knots=Knots(count=8), nord=4)
-    spl.fit(x, np.sin(x), x2, ivar=np.ones(N))
+    spl.fit(x, np.sin(x), x2)
     cp = spl.copy()
     assert cp.npoly == spl.npoly
     assert cp.xmin == spl.xmin
@@ -1054,7 +1056,7 @@ def test_bspline2d_copy_coeff_independent():
     x = np.sort(rng.uniform(0, 5, N))
     x2 = rng.uniform(0, 1, N)
     spl = BSpline2D(x=x, npoly=3, xmin=0.0, xmax=1.0, knots=Knots(count=8), nord=4)
-    spl.fit(x, np.sin(x), x2, ivar=np.ones(N))
+    spl.fit(x, np.sin(x), x2)
     cp = spl.copy()
     orig_val = cp.coeff[0, 0]
     spl.coeff[0, 0] += 999.0
