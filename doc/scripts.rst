@@ -416,6 +416,17 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_setup_coadd2d.rst
 
+pypeit_setup_datacube
+---------------------
+
+This is used to setup ``coadd3d`` and ``extract`` files for datacube construction and
+point-source extraction; see :doc:`coadd3d`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_setup_datacube.rst
+
 pypeit_coadd_2dspec
 -------------------
 
@@ -773,6 +784,5 @@ The following are developer-only scripts and can safely be ignored:
     - ``pypeit_lowrdx_skyspec``
     - ``pypeit_clean``
     - ``pypeit_cp_spec1d``
-
 
 
