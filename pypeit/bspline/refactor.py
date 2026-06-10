@@ -1457,13 +1457,23 @@ class BSpline2D(BSpline):
         P : :class:`numpy.ndarray`, shape (N, npoly)
             Polynomial basis matrix.  Always a concrete array; never ``None``.
         recalculate : bool
-            ``True`` when the design matrix must be rebuilt.  Always ``True``
-            for array-valued ``basis``.  For a string ``basis``, ``True`` when
-            the polynomial family name has changed, the cache is empty, or the
-            shapes of ``x`` or ``x2`` differ from the cached shapes.
+            ``True`` when the design matrix must be rebuilt.  For an
+            array-valued ``basis``, ``False`` when the caller passes the same
+            array object that was used to build the current cache and the cache
+            is still valid; ``True`` otherwise.  For a string ``basis``,
+            ``True`` when the polynomial family name has changed, the cache is
+            empty, or the shapes of ``x`` or ``x2`` differ from the cached
+            shapes.
         """
         if isinstance(basis, np.ndarray):
             P = np.asarray(basis)
+            # Fast path: same array object built the current cache and nothing
+            # else has changed — no state updates or design-matrix rebuild needed.
+            if (basis is self.P
+                    and self._cached_design is not None
+                    and x.shape == self._cached_x_shape
+                    and x2.shape == self._cached_x2_shape):
+                return P, False
             if P.ndim != 2:
                 raise ValueError('basis array must be 2-D with shape (N, npoly).')
             if P.shape[0] != x.size:
