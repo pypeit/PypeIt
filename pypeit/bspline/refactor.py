@@ -365,7 +365,6 @@ class BSpline:
         self.x = None
         self.yfit = None
         self._cached_design = None
-        self._cached_x_shape = None
 
         if self.knots.breakpoints is None:
             # NOTE: This will fail quietly if there is a problem constructing
@@ -401,11 +400,10 @@ class BSpline:
         self.coeff = None
         self.icoeff = None
         self._cached_design = None
-        self._cached_x_shape = None
 
         try:
             self.knots.build(x, self.nord)
-        except ValueError as e:
+        except ValueError:
             self.bkpt_gpm = None
             if required:
                 raise   # Re-raise the exception
@@ -449,7 +447,6 @@ class BSpline:
         new.x = self.x
         new.yfit = None if self.yfit is None else np.copy(self.yfit)
         new._cached_design = None
-        new._cached_x_shape = None
         return new
 
     # ------------------------------------------------------------------
@@ -962,13 +959,12 @@ class BSpline:
         # breakpoints.size to allocate the coefficient arrays).
         if reset_knots or self.breakpoints is None:
             self.reset_knots(x, required=True)
-        self.x = x
 
         # Build or retrieve the cached design matrix.  Must follow reset_knots
         # so the cache-empty state is visible when determining whether to rebuild.
-        if self._cached_design is None or x.shape != self._cached_x_shape:
+        if self._cached_design is None or x is not self.x:
             self._cached_design = self._build_design_matrix(x)
-            self._cached_x_shape = x.shape
+            self.x = x
         A, lower, upper = self._cached_design
         if A is None:
             self.yfit = np.zeros(y.shape, dtype=float)
@@ -1001,7 +997,41 @@ class BSpline:
         self.yfit = self._evaluate_model(A, lower, upper)
         return 0, self.yfit
 
-    def value(self, x):
+    def _fit_gpm(self, x):
+        """
+        Compute the good-pixel mask for evaluation points ``x``.
+
+        Returns ``True`` for points within the valid fitting range and
+        ``False`` for points outside the outermost active breakpoints or
+        within gaps created by masked breakpoints.
+
+        Parameters
+        ----------
+        x : :class:`numpy.ndarray`
+            Independent variable at the evaluation points.
+
+        Returns
+        -------
+        :class:`numpy.ndarray` of bool
+            Boolean mask with the same shape as ``x``.
+        """
+        n = self.bkpt_gpm.sum() - self.nord
+        goodbk = self.bkpt_gpm.nonzero()[0]
+        gb = self.breakpoints[goodbk]
+
+        gpm = np.ones(x.shape, dtype=bool)
+        gpm[(x < gb[self.nord - 1]) | (x > gb[n])] = False
+        hmm = (np.diff(goodbk) > 2).nonzero()[0]
+        if hmm.size > 0:
+            for jj in range(hmm.size):
+                gpm[
+                    (x >= self.breakpoints[goodbk[hmm[jj]]])
+                    & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])
+                ] = False
+
+        return gpm
+
+    def value(self, x, interpolate=False):
         """
         Evaluate the fitted B-spline at arbitrary ``x`` positions.
 
@@ -1012,6 +1042,11 @@ class BSpline:
         ----------
         x : :class:`numpy.ndarray`
             Independent variable at which to evaluate the fit.
+        interpolate : bool, optional
+            When ``True`` and ``x is not self.x``, linearly interpolate
+            :attr:`yfit` at ``x`` using :func:`numpy.interp` instead of
+            rebuilding the design matrix.  Faster for dense new grids but
+            less accurate than full B-spline evaluation.  Default ``False``.
 
         Returns
         -------
@@ -1022,25 +1057,18 @@ class BSpline:
             (between the outermost good breakpoints, excluding any gaps created
             by masked breakpoints).
         """
+        gpm = self._fit_gpm(x)
+
+        if x is self.x:
+            return self.yfit, gpm
+
+        if interpolate:
+            return np.interp(x, self.x, self.yfit), gpm
+
         xsort = x.argsort(kind='stable')
         A, lower, upper = self._build_design_matrix(x[xsort])
-
-        n = self.bkpt_gpm.sum() - self.nord
         yfit = self._evaluate_model(A, lower, upper)
-
-        mask = np.ones(x.shape, dtype=bool)
-        goodbk = self.bkpt_gpm.nonzero()[0]
-        gb = self.breakpoints[goodbk]
-        mask[(x < gb[self.nord - 1]) | (x > gb[n])] = False
-        hmm = (np.diff(goodbk) > 2).nonzero()[0]
-        if hmm.size > 0:
-            for jj in range(hmm.size):
-                mask[
-                    (x >= self.breakpoints[goodbk[hmm[jj]]])
-                    & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])
-                ] = False
-
-        return yfit[np.argsort(xsort, kind='stable')], mask
+        return yfit[np.argsort(xsort, kind='stable')], gpm
 
 
 # ---------------------------------------------------------------------------
@@ -1107,6 +1135,10 @@ class BSpline2D(BSpline):
         the current cached design matrix.  ``None`` until :meth:`fit` is
         called; updated by :meth:`fit` on each cache miss and temporarily
         by :meth:`value` (which restores the training ``P`` on return).
+    x2 : :class:`numpy.ndarray` or None
+        Reference to the ``x2`` array from the most recent :meth:`fit`
+        call that rebuilt the design matrix.  Not a copy.  ``None`` until
+        :meth:`fit` first builds the design matrix.
 
     Notes
     -----
@@ -1124,34 +1156,7 @@ class BSpline2D(BSpline):
         self.xmax = None
         self.funcname = None
         self.P = None
-        self._cached_x2_shape = None
-
-    def reset_knots(self, x, required=False):
-        """
-        Reset the breakpoints provided a set of independent coordinates.
-
-        This is essentially a wrapper for :meth:`Knots.build` with some
-        additional setup of the attributes of this class.
-
-        .. warning::
-
-            Regardless of the outcome of this function, the coefficent arrays
-            (:attr:`coeff` and :attr:`icoeff`) are reset to None.  Use
-            :meth:`reset_coeff` to reset them.
-
-        Parameters
-        ----------
-        x : :class:`numpy.ndarray`
-            Independent variable used to set breakpoints, which is passed
-            directly to :meth:`Knots.build`.
-        required : bool, optional
-            If True, this function must yield a viable set of breakpoints for
-            the code to continue; if :meth:`Knots.build` fails, this function
-            re-raises the exception.  If False, any failures are caught and
-            quietly handled.
-        """
-        self._cached_x2_shape = None
-        super().reset_knots(x, required=required)
+        self.x2 = None
 
     def reset_coeff(self):
         """
@@ -1193,14 +1198,13 @@ class BSpline2D(BSpline):
         new.coeff = np.copy(self.coeff)
         new.icoeff = np.copy(self.icoeff)
         new.x = self.x
+        new.x2 = self.x2
         new.yfit = None if self.yfit is None else np.copy(self.yfit)
         new.xmin = self.xmin
         new.xmax = self.xmax
         new.funcname = self.funcname
         new.P = None if self.P is None else np.copy(self.P)
         new._cached_design = None
-        new._cached_x_shape = None
-        new._cached_x2_shape = None
         return new
 
     # ------------------------------------------------------------------
@@ -1500,8 +1504,8 @@ class BSpline2D(BSpline):
             # else has changed — no state updates or design-matrix rebuild needed.
             if (basis is self.P
                     and self._cached_design is not None
-                    and x.shape == self._cached_x_shape
-                    and x2.shape == self._cached_x2_shape):
+                    and x is self.x
+                    and x2 is self.x2):
                 return P, False
             if P.ndim != 2:
                 raise ValueError('basis array must be 2-D with shape (N, npoly).')
@@ -1529,8 +1533,8 @@ class BSpline2D(BSpline):
         recalculate = (
             basis != self.funcname
             or self._cached_design is None
-            or x.shape != self._cached_x_shape
-            or x2.shape != self._cached_x2_shape
+            or x is not self.x
+            or x2 is not self.x2
         )
         if npoly != self.npoly:
             self.coeff = self.icoeff = None   # force reallocation on npoly change
@@ -1598,7 +1602,6 @@ class BSpline2D(BSpline):
         # breakpoints.size to allocate the coefficient arrays).
         if reset_knots or self.breakpoints is None:
             self.reset_knots(x, required=True)
-        self.x = x
 
         # Resolve the polynomial basis; updates self.npoly, funcname, xmin,
         # and xmax.  Must follow reset_knots so the cache-empty state is
@@ -1609,9 +1612,9 @@ class BSpline2D(BSpline):
         # _resolve_basis, which set self.P and the recalculate flag.
         if recalculate:
             self.P = P
-            self._cached_design   = self._build_design_matrix(x)
-            self._cached_x_shape  = x.shape
-            self._cached_x2_shape = x2.shape
+            self._cached_design = self._build_design_matrix(x)
+            self.x  = x
+            self.x2 = x2
         A, lower, upper = self._cached_design
         if A is None:
             self.yfit = np.zeros(y.shape, dtype=float)
@@ -1671,6 +1674,11 @@ class BSpline2D(BSpline):
         mask : :class:`numpy.ndarray` of bool
             ``True`` where the evaluation is within the valid fitting range.
         """
+        gpm = self._fit_gpm(x)
+
+        if x is self.x and x2 is self.x2:
+            return self.yfit, gpm
+
         xsort = x.argsort(kind='stable')
 
         if basis is None:
@@ -1694,20 +1702,6 @@ class BSpline2D(BSpline):
         P_saved, self.P = self.P, P_eval
         A, lower, upper = self._build_design_matrix(x[xsort])
         self.P = P_saved
-
-        n = self.bkpt_gpm.sum() - self.nord
         yfit = self._evaluate_model(A, lower, upper)
 
-        mask = np.ones(x.shape, dtype=bool)
-        goodbk = self.bkpt_gpm.nonzero()[0]
-        gb = self.breakpoints[goodbk]
-        mask[(x < gb[self.nord - 1]) | (x > gb[n])] = False
-        hmm = (np.diff(goodbk) > 2).nonzero()[0]
-        if hmm.size > 0:
-            for jj in range(hmm.size):
-                mask[
-                    (x >= self.breakpoints[goodbk[hmm[jj]]])
-                    & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])
-                ] = False
-
-        return yfit[np.argsort(xsort, kind='stable')], mask
+        return yfit[np.argsort(xsort, kind='stable')], gpm
