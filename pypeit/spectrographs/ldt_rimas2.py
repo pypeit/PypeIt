@@ -1171,30 +1171,22 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         """
 
         if grating == "Vph30":
-            pass
-            # # Use this `reid_arxiv` with the `full-template` method:
-            # par["calibrations"]["wavelengths"][
-            #     "reid_arxiv"
-            # ] = "ldt_deveny_150_HgCdAr.fits"
-            # # Because of the wide wavelength range, split DV1 arcs in half for reidentification
-            # par["calibrations"]["wavelengths"]["nsnippet"] = 2
-            # # Higher order wavelength fits because of larger span
-            # par["calibrations"]["wavelengths"]["n_first"] = 3  # Default: 2
-            # par["calibrations"]["wavelengths"]["n_final"] = 5  # Default: 4
-            # # The approximate resolution of this grating
-            # par["sensfunc"]["UVIS"]["resolution"] = 400
+            par["calibrations"]["wavelengths"][
+                "reid_arxiv"
+            ] = "ldt_deveny_150_HgCdAr.fits"
+            # Because of the wide wavelength range, split Vph30 arcs in half.
+            par["calibrations"]["wavelengths"]["nsnippet"] = 2
+            par["calibrations"]["wavelengths"]["n_first"] = 3
+            par["calibrations"]["wavelengths"]["n_final"] = 5
+            par["sensfunc"]["UVIS"]["resolution"] = 400
 
         elif grating == "Vph300":
-            pass
-            # # Use this `reid_arxiv` with the `full-template` method:
-            # par["calibrations"]["wavelengths"][
-            #     "reid_arxiv"
-            # ] = "ldt_deveny_300_HgCdAr.fits"
-            # # Higher order wavelength fits because of larger span
-            # par["calibrations"]["wavelengths"]["n_first"] = 3  # Default: 2
-            # par["calibrations"]["wavelengths"]["n_final"] = 5  # Default: 4
-            # # The approximate resolution of this grating
-            # par["sensfunc"]["UVIS"]["resolution"] = 800
+            par["calibrations"]["wavelengths"][
+                "reid_arxiv"
+            ] = "ldt_deveny_300_HgCdAr.fits"
+            par["calibrations"]["wavelengths"]["n_first"] = 3
+            par["calibrations"]["wavelengths"]["n_final"] = 5
+            par["sensfunc"]["UVIS"]["resolution"] = 800
 
         else:
             raise ValueError(f"Grating {grating} not recognized for RIMAS VPH modes")
@@ -1222,30 +1214,30 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         """
 
         if grating == "Vph30":
-            pass
-            # # Use this `reid_arxiv` with the `full-template` method:
-            # par["calibrations"]["wavelengths"][
-            #     "reid_arxiv"
-            # ] = "ldt_deveny_150_HgCdAr.fits"
-            # # Because of the wide wavelength range, split DV1 arcs in half for reidentification
-            # par["calibrations"]["wavelengths"]["nsnippet"] = 2
-            # # Higher order wavelength fits because of larger span
-            # par["calibrations"]["wavelengths"]["n_first"] = 3  # Default: 2
-            # par["calibrations"]["wavelengths"]["n_final"] = 5  # Default: 4
-            # # The approximate resolution of this grating
-            # par["sensfunc"]["UVIS"]["resolution"] = 400
+            par["calibrations"]["slitedges"]["edge_thresh"] = 2.0
+            par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.05
+            par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.05
+            par["calibrations"]["wavelengths"][
+                "reid_arxiv"
+            ] = "ldt_deveny_150_HgCdAr.fits"
+            # Because of the wide wavelength range, split Vph30 arcs in half.
+            par["calibrations"]["wavelengths"]["nsnippet"] = 2
+            par["calibrations"]["wavelengths"]["n_first"] = 3
+            par["calibrations"]["wavelengths"]["n_final"] = 5
+            par["calibrations"]["wavelengths"]["lamps"] = ["Hg_RIMAS"]
+            par["sensfunc"]["UVIS"]["resolution"] = 400
 
         elif grating == "Vph300":
-            pass
-            # # Use this `reid_arxiv` with the `full-template` method:
-            # par["calibrations"]["wavelengths"][
-            #     "reid_arxiv"
-            # ] = "ldt_deveny_300_HgCdAr.fits"
-            # # Higher order wavelength fits because of larger span
-            # par["calibrations"]["wavelengths"]["n_first"] = 3  # Default: 2
-            # par["calibrations"]["wavelengths"]["n_final"] = 5  # Default: 4
-            # # The approximate resolution of this grating
-            # par["sensfunc"]["UVIS"]["resolution"] = 800
+            par["calibrations"]["wavelengths"][
+                "reid_arxiv"
+            ] = "ldt_deveny_300_HgCdAr.fits"
+            par["calibrations"]["wavelengths"]["n_first"] = 3
+            par["calibrations"]["wavelengths"]["n_final"] = 5
+            par["calibrations"]["wavelengths"]["sigdetect"] = 5
+            par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]
+            par["reduce"]["findobj"]["find_fwhm"] = 7
+            par["reduce"]["findobj"]["snr_thresh"] = 10
+            par["sensfunc"]["UVIS"]["resolution"] = 800
 
         else:
             raise ValueError(f"Grating {grating} not recognized for RIMAS VPH modes")
@@ -1294,9 +1286,52 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         # Get the PypeIt and RIMAS-wide default parameters
         par = super().default_pypeit_par()
 
+        # Adjustments to slit and tilts for NIR
+        par["calibrations"]["slitedges"]["edge_thresh"] = 50.0
+        par["calibrations"]["slitedges"]["fit_order"] = 2
+        par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
+        par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
+        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.5
+        par["calibrations"]["slitedges"]["left_right_pca"] = True
+        par["calibrations"]["slitedges"]["length_range"] = 0.3
+
+        # Combine the IR calibration frames without clipping lamp/hot pixels.
+        par["calibrations"]["arcframe"]["process"]["clip"] = False
+        par["calibrations"]["arcframe"]["process"]["combine"] = "mean"
+        par["calibrations"]["tiltframe"]["process"]["clip"] = False
+        par["calibrations"]["tiltframe"]["process"]["combine"] = "mean"
+
+        # Make a bad pixel mask
+        par["calibrations"]["bpm_usebias"] = True
+
+        # Flat-field parameter modification
+        par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0
+        par["calibrations"]["flatfield"]["slit_illum_finecorr"] = False
+        par["calibrations"]["flatfield"]["spec_samp_fine"] = 30
+        par["calibrations"]["flatfield"]["tweak_slits"] = False
+
+        # Cosmic ray rejection parameters for science frames
+        par["scienceframe"]["process"]["sigclip"] = 5.0
+        par["scienceframe"]["process"]["objlim"] = 2.0
+
+        # Object finding, extraction, and sky subtraction parameters
+        assumed_seeing = 1.5  # arcsec
+        par["reduce"]["findobj"]["find_fwhm"] = np.round(assumed_seeing / 0.34, 1)
+        par["reduce"]["findobj"]["find_trim_edge"] = [0, 0]
+        par["reduce"]["extraction"]["boxcar_radius"] = np.round(
+            assumed_seeing * 1.28, 1
+        )
+        par["reduce"]["extraction"]["use_2dmodel_mask"] = False
+        par["reduce"]["skysub"]["sky_sigrej"] = 4.0
+
+        # Flexure correction parameters
+        par["flexure"]["spec_method"] = "boxcar"
+        par["flexure"]["spec_maxshift"] = 30
+
         # 1D wavelength solution
+        par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]
         par["calibrations"]["wavelengths"]["rms_thresh_frac_fwhm"] = 0.15
-        par["calibrations"]["wavelengths"]["sigdetect"] = 10.0
+        par["calibrations"]["wavelengths"]["sigdetect"] = 5
         par["calibrations"]["wavelengths"]["fwhm"] = 4.0
         par["calibrations"]["wavelengths"]["n_final"] = 4
         # Reidentification parameters
@@ -1313,6 +1348,14 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         # Measured FWHM is correct, but resulting wavelength solution is poor.
         # This should be explored further, but for now, turning off fwhm_fromlines helps.
         par["calibrations"]["wavelengths"]["fwhm_fromlines"] = False
+
+        # Tilts
+        par["calibrations"]["tilts"]["rm_continuum"] = True
+        par["calibrations"]["tilts"]["tracethresh"] = 25.0
+        par["calibrations"]["tilts"]["maxdev_tracefit"] = 0.04
+        par["calibrations"]["tilts"]["maxdev2d"] = 0.04
+        par["calibrations"]["tilts"]["spat_order"] = 3
+        par["calibrations"]["tilts"]["spec_order"] = 4
 
         # Flats
         par["calibrations"]["flatfield"]["tweak_slits_thresh"] = 0.90
