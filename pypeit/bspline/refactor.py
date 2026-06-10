@@ -251,9 +251,7 @@ class Knots:
         new.count = self.count
         new.stride = self.stride
         new.full = self.full
-        new._breakpoints = (
-            np.copy(self._breakpoints) if self._breakpoints is not None else None
-        )
+        new._breakpoints = None if self._breakpoints is None else np.copy(self._breakpoints)
         return new
 
 
@@ -669,8 +667,7 @@ class BSpline:
 
         return A, lower, upper
 
-    # TODO: Allow w to be optional
-    def _assemble_normal_equations(self, A, y, w, lower, upper):
+    def _assemble_normal_equations(self, A, y, lower, upper, w=None):
         r"""
         Assemble the banded normal equations :math:`A^\top W A\,c = A^\top W y`.
 
@@ -694,12 +691,13 @@ class BSpline:
             Design matrix with bandwidth ``bw = nord * npoly``.
         y : :class:`numpy.ndarray`, shape (N,)
             Dependent variable.
-        w : :class:`numpy.ndarray`, shape (N,)
-            Inverse-variance weights.
         lower : :class:`numpy.ndarray` of int
             First data index (inclusive) in each B-spline span.
         upper : :class:`numpy.ndarray` of int
             Last data index (inclusive) in each B-spline span.
+        w : :class:`numpy.ndarray`, shape (N,), optional
+            Inverse-variance weights.  When ``None`` (default), unit weights
+            are assumed and no weight array is allocated.
 
         Returns
         -------
@@ -714,8 +712,12 @@ class BSpline:
         bw = A.shape[1]
         nfull = self._poly_scale(nn)
 
-        sqrt_w = np.sqrt(w)
-        a2 = A * sqrt_w[:, np.newaxis]  # whitened design matrix
+        a2 = A
+        yw = y
+        if w is not None:
+            sqrt_w = np.sqrt(w)
+            a2 = A * sqrt_w[:, np.newaxis]  # whitened design matrix
+            yw = y * sqrt_w
 
         alpha = np.zeros((bw, nfull + bw), dtype=float)
         beta = np.zeros(nfull + bw, dtype=float)
@@ -734,7 +736,7 @@ class BSpline:
             ibottom = min(itop, nfull) + bw - 1
             work = a2[sl, :].T @ a2[sl, :]          # (bw, bw) Gram block
             alpha.T.flat[bo + itop * bw] += work.flat[bi]
-            beta[itop:ibottom + 1] += (y[sl] * sqrt_w[sl]) @ a2[sl, :]
+            beta[itop:ibottom + 1] += yw[sl] @ a2[sl, :]
 
         return alpha, beta
 
@@ -968,11 +970,9 @@ class BSpline:
             self.reset_coeff()
 
         # Assemble and solve the banded normal equations.
-        if ivar is None:
-            ivar = np.ones(y.size, dtype=float)
+        alpha, beta = self._assemble_normal_equations(A, y, lower, upper, w=ivar)
         nfull = self._poly_scale(nn)
-        mininf = 1.0e-10 * ivar.sum() / nfull
-        alpha, beta = self._assemble_normal_equations(A, y, ivar, lower, upper)
+        mininf = 1.0e-10 * (y.size if ivar is None else ivar.sum()) / nfull
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
         if bad_cols[0] != -1:
@@ -1168,7 +1168,7 @@ class BSpline2D(BSpline):
         new.xmin = self.xmin
         new.xmax = self.xmax
         new.funcname = self.funcname
-        new.P = np.copy(self.P) if self.P is not None else None
+        new.P = None if self.P is None else np.copy(self.P)
         new._cached_design = None
         new._cached_x_shape = None
         new._cached_x2_shape = None
@@ -1589,11 +1589,9 @@ class BSpline2D(BSpline):
             self.reset_coeff()
 
         # Assemble and solve the banded normal equations.
-        if ivar is None:
-            ivar = np.ones(y.size, dtype=float)
+        alpha, beta = self._assemble_normal_equations(A, y, lower, upper, w=ivar)
         nfull = self._poly_scale(nn)
-        mininf = 1.0e-10 * ivar.sum() / nfull
-        alpha, beta = self._assemble_normal_equations(A, y, ivar, lower, upper)
+        mininf = 1.0e-10 * (y.size if ivar is None else ivar.sum()) / nfull
         sol, chol, bad_cols = self._solve_banded(alpha, beta, mininf)
 
         if bad_cols[0] != -1:
