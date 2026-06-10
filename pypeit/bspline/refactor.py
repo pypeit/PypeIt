@@ -1033,39 +1033,27 @@ class BSpline2D(BSpline):
     ----------
     x : :class:`numpy.ndarray`, optional
         Independent variable used to set breakpoints.
-    npoly : int
-        Polynomial order in the second variable.
-    xmin : float, optional
-        Minimum value of ``x2`` for normalisation (default 0.0).
-    xmax : float, optional
-        Maximum value of ``x2`` for normalisation (default 1.0).
-    funcname : str, optional
-        Polynomial basis type.  One of ``'legendre'`` (default),
-        ``'chebyshev'``, ``'poly'`` (monomial:
-        :math:`1, x_2, x_2^2, \ldots`), or ``'poly1'`` (monomial without
-        constant term; ill-conditioned — use with caution).
     knots : :class:`Knots` or :class:`numpy.ndarray` or None
         Breakpoint specification forwarded to :class:`BSpline.__init__`.
     nord : int, optional
         B-spline order (default 4 = cubic).
+
+    Notes
+    -----
+    The polynomial-basis parameters ``npoly``, ``xmin``, ``xmax``, and ``basis``
+    (formerly ``funcname``) are now arguments of :meth:`fit` and :meth:`value` rather
+    than constructor parameters.  They are stored on the instance after the first
+    :meth:`fit` call.
     """
 
-    def __init__(
-        self, x=None, npoly=1, xmin=0.0, xmax=1.0, funcname='legendre', knots=None, nord=4
-    ):
-        if funcname == 'poly1':
-            warnings.warn(
-                "BSpline2D funcname='poly1' produces a basis with no constant x2 term "
-                "and may be ill-conditioned.  Consider using 'legendre' instead."
-            )
-
+    def __init__(self, x=None, knots=None, nord=4):
         super().__init__(x=x, knots=knots, nord=nord)
 
-        # Attributes specific to this 2D class
-        self.npoly = npoly
-        self.xmin = xmin
-        self.xmax = xmax
-        self.funcname = funcname
+        self.npoly = None
+        self.xmin = None
+        self.xmax = None
+        self.funcname = None
+        self.P = None
         self._cached_x2_shape = None
 
     def reset_knots(self, x, required=False):
@@ -1102,6 +1090,10 @@ class BSpline2D(BSpline):
         Does *not* reset the breakpoints or mask.  Does *not* invalidate the
         design matrix cache (breakpoints have not changed).
         """
+        if self.npoly is None:
+            raise ValueError(
+                'npoly is not set; call fit() before calling reset_coeff() directly.'
+            )
         nc = self.breakpoints.size - self.nord
         self.coeff = np.zeros((nc, self.npoly), dtype=float)
         self.icoeff = np.zeros((nc, self.npoly), dtype=float)
@@ -1125,6 +1117,7 @@ class BSpline2D(BSpline):
         new.xmin = self.xmin
         new.xmax = self.xmax
         new.funcname = self.funcname
+        new.P = np.copy(self.P) if self.P is not None else None
         new._cached_design = None
         new._cached_x_shape = None
         new._cached_x2_shape = None
@@ -1234,7 +1227,7 @@ class BSpline2D(BSpline):
                 )
         return P
 
-    def _build_design_matrix(self, x, x2):
+    def _build_design_matrix(self, x):
         r"""
         Construct the 2D B-spline design matrix via a vectorised outer product.
 
@@ -1249,15 +1242,18 @@ class BSpline2D(BSpline):
 
         .. code-block:: python
 
-            A_3d = B[:, :, np.newaxis] * P[:, np.newaxis, :]  # (N, nord, npoly)
-            A = A_3d.reshape(N, nord * npoly)                  # view, no copy
+            A_3d = B[:, :, np.newaxis] * self.P[:, np.newaxis, :]  # (N, nord, npoly)
+            A = A_3d.reshape(N, nord * npoly)                        # view, no copy
+
+        .. note::
+
+            :attr:`P` must be set by the caller (:meth:`fit` or :meth:`value`)
+            before this method is invoked.
 
         Parameters
         ----------
         x : :class:`numpy.ndarray`, shape (N,)
             Independent variable (sorted ascending).
-        x2 : :class:`numpy.ndarray`, shape (N,)
-            Second variable.
 
         Returns
         -------
@@ -1267,15 +1263,7 @@ class BSpline2D(BSpline):
             First data index (inclusive) in each B-spline span.
         upper : :class:`numpy.ndarray` of int
             Last data index (inclusive) in each B-spline span.
-
-        Raises
-        ------
-        ValueError
-            If ``x2.size != x.size``.
         """
-        if x2.size != x.size:
-            raise ValueError('Dimensions of x and x2 do not match.')
-
         nbkpt = self.bkpt_gpm.sum()
         if nbkpt < 2 * self.nord:
             warnings.warn(f'Order ({self.nord}) too low for {nbkpt} breakpoints.')
@@ -1295,12 +1283,9 @@ class BSpline2D(BSpline):
         bb = self._uniq(rindx)
         lower[rindx[bb] - self.nord + 1] = nx - bb - 1
 
-        x2norm = self._normalize_x2(x2)
-        P = self._poly_basis(x2norm)  # (N, npoly)
-
         # Vectorised outer product; reshape returns a view (no copy)
-        A_3d = B[:, :, np.newaxis] * P[:, np.newaxis, :]   # (N, nord, npoly)
-        A = A_3d.reshape(nx, self.nord * self.npoly)         # (N, bw)
+        A_3d = B[:, :, np.newaxis] * self.P[:, np.newaxis, :]   # (N, nord, npoly)
+        A = A_3d.reshape(nx, self.nord * self.npoly)              # (N, bw)
 
         return A, lower, upper
 
@@ -1387,7 +1372,9 @@ class BSpline2D(BSpline):
     # Public API — overrides with required x2
     # ------------------------------------------------------------------
 
-    def fit(self, x, y, x2, ivar=None, reset_knots=False):
+    def fit(self, x, y, x2, ivar=None,
+            basis='legendre', npoly=1, xmin=0.0, xmax=1.0,
+            reset_knots=False):
         """
         Fit a weighted least-squares 2D B-spline.
 
@@ -1408,6 +1395,21 @@ class BSpline2D(BSpline):
         ivar : :class:`numpy.ndarray`, optional
             Inverse variance of ``y``.  Zero entries are effectively masked.
             If not provided, uniform unit weights are used.
+        basis : str or :class:`numpy.ndarray`, optional
+            Polynomial basis specification.  When a string, one of
+            ``'legendre'`` (default), ``'chebyshev'``, ``'poly'``, or
+            ``'poly1'``.  When a 2-D :class:`numpy.ndarray` of shape
+            ``(N, k)``, it is used directly as the pre-built polynomial basis
+            ``P``; in this case ``npoly``, ``xmin``, and ``xmax`` are ignored
+            and ``npoly`` is derived from ``basis.shape[1]``.
+        npoly : int, optional
+            Number of polynomial terms; ignored when ``basis`` is an array.
+        xmin : float, optional
+            Minimum value of ``x2`` for normalisation; ignored when ``basis``
+            is an array.
+        xmax : float, optional
+            Maximum value of ``x2`` for normalisation; ignored when ``basis``
+            is an array.
         reset_knots : bool, optional
             Regardless of any existing breakpoints, reset the breakpoints using
             :attr:`knots` and ``x``.
@@ -1419,6 +1421,42 @@ class BSpline2D(BSpline):
         yfit : :class:`numpy.ndarray`
             Fitted model at ``x``.
         """
+        # --- resolve basis ---
+        if isinstance(basis, np.ndarray):
+            P_prebuilt = np.asarray(basis)
+            if P_prebuilt.ndim != 2:
+                raise ValueError('basis array must be 2-D with shape (N, npoly).')
+            if P_prebuilt.shape[0] != x.size:
+                raise ValueError(
+                    f'basis.shape[0] ({P_prebuilt.shape[0]}) != x.size ({x.size}).'
+                )
+            if P_prebuilt.shape[0] != x2.size:
+                raise ValueError(
+                    f'basis.shape[0] ({P_prebuilt.shape[0]}) != x2.size ({x2.size}).'
+                )
+            _npoly    = P_prebuilt.shape[1]
+            _funcname = None
+            _xmin = _xmax = None
+        else:
+            if basis == 'poly1':
+                warnings.warn(
+                    "basis='poly1' produces a polynomial with no constant term "
+                    "and may be ill-conditioned.  Consider using 'legendre' instead."
+                )
+            P_prebuilt = None
+            _npoly    = npoly
+            _funcname = basis
+            _xmin, _xmax = xmin, xmax
+
+        # --- update instance state ---
+        if _npoly != self.npoly:
+            self.coeff = self.icoeff = None   # force reallocation on npoly change
+        old_funcname = self.funcname
+        self.npoly    = _npoly
+        self.funcname = _funcname
+        self.xmin     = _xmin
+        self.xmax     = _xmax
+
         if ivar is None:
             ivar = np.ones(y.size, dtype=float)
 
@@ -1436,14 +1474,21 @@ class BSpline2D(BSpline):
         nfull = self._poly_scale(nn)
         mininf = 1.0e-10 * ivar.sum() / nfull
 
-        # Design matrix depends on both x and x2; invalidate cache if shapes change
+        # Rebuild design matrix when basis changes, shapes change, or cache is empty.
+        # Array basis always triggers a rebuild (content may change even if shape does not).
+        basis_changed = (P_prebuilt is not None) or (_funcname != old_funcname)
         if (
             self._cached_design is None
-            or x.shape != self._cached_x_shape
-            or x2.shape != self._cached_x2_shape
+            or x.shape   != self._cached_x_shape
+            or x2.shape  != self._cached_x2_shape
+            or basis_changed
         ):
-            self._cached_design = self._build_design_matrix(x, x2)
-            self._cached_x_shape = x.shape
+            if P_prebuilt is not None:
+                self.P = P_prebuilt
+            else:
+                self.P = self._poly_basis(self._normalize_x2(x2))
+            self._cached_design   = self._build_design_matrix(x)
+            self._cached_x_shape  = x.shape
             self._cached_x2_shape = x2.shape
         A, lower, upper = self._cached_design
         if A is None:
@@ -1459,7 +1504,7 @@ class BSpline2D(BSpline):
         self._update_coefficients(sol, chol, goodbk_idx)
         return 0, self._evaluate_model(A, lower, upper)
 
-    def value(self, x, x2):
+    def value(self, x, x2, basis=None):
         """
         Evaluate the fitted 2D B-spline at arbitrary ``(x, x2)`` positions.
 
@@ -1469,6 +1514,14 @@ class BSpline2D(BSpline):
             Independent variable.
         x2 : :class:`numpy.ndarray`
             Second variable.
+        basis : :class:`numpy.ndarray` or None, optional
+            When ``None`` (default), the polynomial basis is recomputed from
+            ``x2`` using the stored :attr:`funcname`, :attr:`xmin`, and
+            :attr:`xmax`.  A :class:`ValueError` is raised if those attributes
+            are not set (i.e., the fit was performed with a pre-built ``basis``
+            array).  When an :class:`numpy.ndarray` of shape
+            ``(x.size, self.npoly)``, it is used directly as ``P`` for the
+            evaluation points.
 
         Returns
         -------
@@ -1478,7 +1531,28 @@ class BSpline2D(BSpline):
             ``True`` where the evaluation is within the valid fitting range.
         """
         xsort = x.argsort(kind='stable')
-        A, lower, upper = self._build_design_matrix(x[xsort], x2[xsort])
+
+        if basis is None:
+            if self.funcname is None:
+                raise ValueError(
+                    'The fit was performed with a pre-built basis array; '
+                    'pass a basis array to value() for evaluation at new points.'
+                )
+            P_eval = self._poly_basis(self._normalize_x2(x2[xsort]))
+        elif isinstance(basis, np.ndarray):
+            basis = np.asarray(basis)
+            if basis.shape != (x.size, self.npoly):
+                raise ValueError(
+                    f'basis shape {basis.shape} is incompatible with '
+                    f'(x.size={x.size}, self.npoly={self.npoly}).'
+                )
+            P_eval = basis[xsort]
+        else:
+            raise TypeError('basis must be None or a numpy.ndarray.')
+
+        P_saved, self.P = self.P, P_eval
+        A, lower, upper = self._build_design_matrix(x[xsort])
+        self.P = P_saved
 
         n = self.bkpt_gpm.sum() - self.nord
         yfit = self._evaluate_model(A, lower, upper)
