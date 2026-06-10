@@ -173,6 +173,7 @@ def write_coadd3d_file(
     spatial_delta_line = (
         '' if spatial_delta is None else f'        spatial_delta = {spatial_delta}\n'
     )
+    sensfile_line = '' if sensfile is None else f'        sensfile = {sensfile}\n'
     lines = [
         '# User-defined execution parameters\n',
         '[rdx]\n',
@@ -189,7 +190,7 @@ def write_coadd3d_file(
         '        slice_subpixel = 1\n',
         '        spec_subpixel = 1\n',
         '        astrometric = False\n',
-        f'        sensfile = {sensfile}\n',
+        sensfile_line,
         '        save_whitelight = True\n',
         spatial_delta_line,
         '        # Optional initial object position for relative/auto weighting, in x:y format.\n',
@@ -282,7 +283,11 @@ class SetupDataCube(scriptbase.ScriptBase):
         )
         parser.add_argument('pypeit_file', type=str, help='PypeIt reduction file.')
         parser.add_argument('target', type=str, help='Target name, e.g. J0750+6927.')
-        parser.add_argument('sensfile', type=str, help='Sensitivity function file.')
+        parser.add_argument(
+            '--sensfile', type=str, default=None,
+            help='Optional sensitivity function file. If omitted, the generated .coadd3d '
+                 'file will produce unfluxed cubes.'
+        )
         parser.add_argument(
             '--whitelight_range', '--wl_range', dest='whitelight_range', type=str,
             default='None,None',
@@ -305,7 +310,7 @@ class SetupDataCube(scriptbase.ScriptBase):
         )
         parser.add_argument('--det', type=int, default=1, help='Detector number.')
         parser.add_argument(
-            '--overwrite', default=False, action='store_true',
+            '-o', '--overwrite', default=False, action='store_true',
             help='Overwrite an existing .extract file. The .coadd3d file is always refreshed.'
         )
         parser.add_argument(
@@ -326,9 +331,11 @@ class SetupDataCube(scriptbase.ScriptBase):
         spectrograph = pypeit_file.config['rdx']['spectrograph']
 
         wl_range = validate_whitelight_range(args.whitelight_range)
-        sensfile = Path(args.sensfile).expanduser().absolute()
-        if not sensfile.is_file():
-            raise PypeItError(f'Sensitivity function does not exist: {sensfile}')
+        sensfile = None
+        if args.sensfile is not None:
+            sensfile = Path(args.sensfile).expanduser().absolute()
+            if not sensfile.is_file():
+                raise PypeItError(f'Sensitivity function does not exist: {sensfile}')
 
         sci_dir = science_directory(pypeit_path)
         if not sci_dir.is_dir():
@@ -373,7 +380,7 @@ class SetupDataCube(scriptbase.ScriptBase):
         log.info(f'Wrote {coadd3d_file}')
 
         if extract_file.exists() and not args.overwrite:
-            log.warning(f'{extract_file} exists; leaving it unchanged. Use --overwrite to replace it.')
+            log.warning(f'{extract_file} exists; leaving it unchanged. Use -o/--overwrite to replace it.')
         else:
             write_extract_file(
                 extract_file, target_stub, wl_range, manual=args.manual, fwhm=args.fwhm,

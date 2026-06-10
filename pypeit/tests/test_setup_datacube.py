@@ -51,9 +51,7 @@ def test_setup_datacube_write_and_append(tmp_path):
     first_spec2d = science_dir / 'spec2d_kr260610_00054-J0750+6927_KCRM_test.fits'
     _write_spec2d(first_spec2d)
 
-    args = SetupDataCube.parse_args([
-        str(pypeit_file), 'J0750+6927', str(sensfile)
-    ])
+    args = SetupDataCube.parse_args([str(pypeit_file), 'J0750+6927'])
     SetupDataCube.main(args)
 
     source_dir = tmp_path / 'sources' / 'J0750+6927'
@@ -65,7 +63,7 @@ def test_setup_datacube_write_and_append(tmp_path):
     assert 'output_filename = J0750+6927' in coadd3d_text
     assert 'whitelight_range = None,None' in coadd3d_text
     assert 'whitelight_range = None,None' in extract_text
-    assert 'sensfile = ' + str(sensfile.absolute()) in coadd3d_text
+    assert 'sensfile =' not in coadd3d_text
     assert '# weights_init_obj_pos = x:y' in coadd3d_text
     assert first_spec2d.name in coadd3d_text
     assert 'kr260610_00058' not in coadd3d_text
@@ -80,9 +78,7 @@ def test_setup_datacube_write_and_append(tmp_path):
     second_spec2d = science_dir / 'spec2d_kr260610_00058-J0750+6927_KCRM_test.fits'
     _write_spec2d(second_spec2d)
 
-    args = SetupDataCube.parse_args([
-        '--append', str(pypeit_file), 'J0750+6927', str(sensfile)
-    ])
+    args = SetupDataCube.parse_args(['--append', str(pypeit_file), 'J0750+6927'])
     SetupDataCube.main(args)
 
     appended_text = coadd3d_file.read_text()
@@ -92,9 +88,16 @@ def test_setup_datacube_write_and_append(tmp_path):
     assert extract_file.read_text() == edited_extract
 
     args = SetupDataCube.parse_args([
-        str(pypeit_file), 'J0750+6927', str(sensfile), '--wl_range', '9400,10000'
+        str(pypeit_file), 'J0750+6927', '--wl_range', '9400,10000'
     ])
     assert args.whitelight_range == '9400,10000'
+
+    args = SetupDataCube.parse_args([
+        str(pypeit_file), 'J0750+6927', '--sensfile', str(sensfile), '-o'
+    ])
+    SetupDataCube.main(args)
+    assert 'sensfile = ' + str(sensfile.absolute()) in coadd3d_file.read_text()
+    assert '# user edit' not in extract_file.read_text()
 
     alias_rows = setup_datacube.matching_science_rows(
         inputfiles.PypeItFile.from_file(str(pypeit_file)), 'J0750p6927'
