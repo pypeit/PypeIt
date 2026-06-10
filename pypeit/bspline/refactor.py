@@ -331,41 +331,67 @@ class BSpline:
                 f'instance, not a {type(knots).__name__}.'
             )
 
-        if self.knots.breakpoints is None:
-            try:
-                self.knots.build(x, self.nord)
-            except ValueError:
-                # Assume the user will provide the information necessary to
-                # instantiate the breakpoints when calling the fit function.
-                pass
-
-        self._init_result_storage()
-
-    def _init_result_storage(self):
-        """
-        Initialize the arrays used to store the results of the fit
-        """
+        # Objects used during fitting, which hold the results and cache useful
+        # data that can be used across multiple fits
+        self.bkpt_gpm = None
+        self.coeff = None
+        self.icoeff = None
         self._cached_design = None
         self._cached_x_shape = None
 
-        if self.breakpoints is None:
-            # Empty instance (e.g. for copy / deserialization)
+        if self.knots.breakpoints is None:
+            # NOTE: This will fail quietly if there is a problem constructing
+            # the breakpoints.
+            self.reset_knots(x)
+
+    def reset_knots(self, x, required=False):
+        """
+        Reset the breakpoints provided a set of independent coordinates.
+
+        This is essentially a wrapper for :meth:`Knots.build` with some
+        additional setup of the attributes of this class.
+
+        .. warning::
+
+            Regardless of the outcome of this function, the coefficent arrays
+            (:attr:`coeff` and :attr:`icoeff`) are reset to None.  Use
+            :meth:`reset_coeff` to reset them.
+
+        Parameters
+        ----------
+        x : :class:`numpy.ndarray`
+            Independent variable used to set breakpoints, which is passed
+            directly to :meth:`Knots.build`.
+        required : bool, optional
+            If True, this function must yield a viable set of breakpoints for
+            the code to continue; if :meth:`Knots.build` fails, this function
+            re-raises the exception.  If False, any failures are caught and
+            quietly handled.
+        """
+        # The coefficient ar
+        self.coeff = None
+        self.icoeff = None
+        try:
+            self.knots.build(x, self.nord)
+        except ValueError as e:
             self.bkpt_gpm = None
-            self.coeff = None
-            self.icoeff = None
-            return
+            if required:
+                raise   # Re-raise the exception
+        else:
+            self.bkpt_gpm = np.ones(self.breakpoints.size, dtype=bool)
 
-        self.bkpt_gpm = np.ones(self.breakpoints.size, dtype=bool)
-
-        self.reinit_coeff()
-
-    def reinit_coeff(self):
+    def reset_coeff(self):
         """
         Reset coefficient arrays to zero.
 
         Does *not* reset the breakpoints or mask.  Does *not* invalidate the
         design matrix cache (breakpoints have not changed).
         """
+        if self.breakpoints is None:
+            raise ValueError(
+                'Cannot instantiate the coefficient arrays before the breakpoints have been '
+                'established.  First run reset_knots().'
+            )
         nc = self.breakpoints.size - self.nord
         self.coeff = np.zeros(nc, dtype=float)
         self.icoeff = np.zeros(nc, dtype=float)
@@ -892,9 +918,11 @@ class BSpline:
         if ivar is None:
             ivar = np.ones(y.size, dtype=float)
 
-        if reset_knots:
-            self.knots.build(x, self.nord)
-            self._init_result_storage()
+        if reset_knots or self.breakpoints is None:
+            self.reset_knots(x, required=True)
+
+        if self.coeff is None or self.icoeff is None:
+            self.reset_coeff()
 
         goodbk = self.bkpt_gpm[self.nord:]
         nn = goodbk.sum()
@@ -1027,6 +1055,8 @@ class BSpline2D(BSpline):
                 "and may be ill-conditioned.  Consider using 'legendre' instead."
             )
 
+        super().__init__(x=x, knots=knots, nord=nord)
+
         # WARNING: self.npoly must be defined before running super().__init__()
         # so that it can be used by the call to reinit_coeffs() during
         # instantion of the base class.
@@ -1036,7 +1066,6 @@ class BSpline2D(BSpline):
         self.xmax = xmax
         self.funcname = funcname
 
-        super().__init__(x=x, knots=knots, nord=nord)
 
     def _init_result_storage(self):
         """
@@ -1045,7 +1074,7 @@ class BSpline2D(BSpline):
         super()._init_result_storage()
         self._cached_x2_shape = None
 
-    def reinit_coeff(self):
+    def reset_coeff(self):
         """
         Reset 2D coefficient arrays to zero.
         """
@@ -1369,9 +1398,11 @@ class BSpline2D(BSpline):
         if ivar is None:
             ivar = np.ones(y.size, dtype=float)
 
-        if reset_knots:
-            self.knots.build(x, self.nord)
-            self._init_result_storage()
+        if reset_knots or self.breakpoints is None:
+            self.reset_knots(x, required=True)
+
+        if self.coeff is None or self.icoeff is None:
+            self.reset_coeff()
 
         goodbk = self.bkpt_gpm[self.nord:]
         nn = goodbk.sum()
