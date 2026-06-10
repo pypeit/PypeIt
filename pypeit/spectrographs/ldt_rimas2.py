@@ -35,6 +35,7 @@ arm's focal plane.
 .. include:: ../include/links.rst
 """
 
+import dataclasses
 import pathlib
 
 import astropy.io.fits
@@ -43,6 +44,7 @@ import astropy.time
 import numpy as np
 
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
@@ -50,6 +52,23 @@ from pypeit.images import detector_container
 from pypeit.par import parset
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+
+
+@dataclasses.dataclass
+class EchelleProps:
+    """Echelle Property Dataclass
+
+    Useful for instruments that have multiple fixed-format echelle setups
+    """
+
+    norders: int
+    orders: np.ndarray
+    order_spat_pos: np.ndarray
+    spec_min: np.ndarray
+    spec_max: np.ndarray
+    platescale: float
+    dloglam: float
+    loglam_minmax: tuple[float, float]
 
 
 class LDTRIMASSpectrograph(spectrograph.Spectrograph):
@@ -68,6 +87,11 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
     camera = "RIMAS"
     allowed_extensions = [".fits"]
     add_bg_columns = True
+
+    def __init__(self):
+        super().__init__()
+        self.arm = None
+        self.decker = None
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -437,11 +461,12 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         # Start with instrument-wide parameters
         par = super().config_specific_par(inp, inp_par=inp_par)
 
-        # Adjust parameters based on DeVeny grating used
-        arm = self.get_meta_value(inp, "arm")
+        # Save the arm and decker as instance variables for later use
+        self.arm = self.get_meta_value(inp, "arm")
+        self.decker = self.get_meta_value(inp, "decker")
 
         # Set the detector number based on the arm
-        par["rdx"]["detnum"] = 1 if arm == "YJ" else 2
+        par["rdx"]["detnum"] = 1 if self.arm == "YJ" else 2
 
         return par
 
@@ -642,7 +667,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
                 for dpat in np.unique(fitstbl[targ_idx]["dithpat"]):
 
-                    if dpat.upper() in ["NONE",  "MANUAL"]:
+                    if dpat.upper() in ["NONE", "MANUAL"]:
                         continue
 
                     dpat_idx = targ_idx & (fitstbl["dithpat"] == dpat)
@@ -1112,13 +1137,11 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         par = super().config_specific_par(inp, inp_par=inp_par)
 
         # Adjust parameters based on instrument settings
-        arm = self.get_meta_value(inp, "arm")
         grating = self.get_meta_value(inp, "dispname")
-        decker = self.get_meta_value(inp, "decker")
         binning = self.get_meta_value(inp, "binning")
 
         # Check for the 1.2" long slit... edge tracing is the same for both arms and both gratings
-        if "long" in decker:
+        if "long" in self.decker:
             # Slit-edge settings for long-slit data (75" long)
             par["calibrations"]["slitedges"]["bound_detector"] = True
             par["calibrations"]["slitedges"]["sync_predict"] = "nearest"
@@ -1129,10 +1152,10 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             log.warning("We have not set slit edge stuff for the short slits / VPH!")
 
         # Get the arm-specific parameters based on grating and decker
-        if arm == "YJ":
-            par = self.config_specific_par_vph_yj(par, grating, decker)
+        if self.arm == "YJ":
+            par = self.config_specific_par_vph_yj(par, grating, self.decker)
         else:
-            par = self.config_specific_par_vph_hk(par, grating, decker)
+            par = self.config_specific_par_vph_hk(par, grating, self.decker)
 
         # Adjust parameters based on CCD binning
         binspec, binspat = parse.parse_binning(binning)
@@ -1254,6 +1277,117 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
     comment = "LDT Rapid infrared IMAger Spectrometer, Med-Res Echelle Grism"
     pypeline = "Echelle"
     ech_fixed_format = True
+
+    # TODO: Measure these values for RIMAS GRISM spectra!!!
+    _grism_geometry = {
+        "YJ": EchelleProps(
+            norders=16,
+            orders=np.arange(26, 10, -1, dtype=int),
+            order_spat_pos=np.array(
+                [
+                    0.08284662,
+                    0.1483813,
+                    0.21158701,
+                    0.27261607,
+                    0.33141317,
+                    0.38813936,
+                    0.44310197,
+                    0.49637422,
+                    0.54839496,
+                    0.59948157,
+                    0.65005956,
+                    0.70074477,
+                    0.75240745,
+                    0.80622583,
+                    0.86391259,
+                    0.9280528,
+                ]
+            ),
+            spec_min=np.array(
+                [420, 390, 370, 345, 315, 285, 248, 210, 165, 115, 58, 5, 0, 0, 0, 0]
+            ),
+            spec_max=np.array(
+                [
+                    1477,
+                    1513,
+                    1547,
+                    1588,
+                    1628,
+                    1682,
+                    1733,
+                    1795,
+                    1855,
+                    1930,
+                    2005,
+                    2040,
+                    2040,
+                    2040,
+                    2040,
+                    2040,
+                ]
+            ),
+            platescale=0.19,
+            dloglam=1.93724e-5,
+            loglam_minmax=(np.log10(9500.0), np.log10(26000)),
+        ),
+        "HK": EchelleProps(
+            norders=16,
+            orders=np.arange(26, 10, -1, dtype=int),
+            order_spat_pos=np.array(
+                [
+                    0.08284662,
+                    0.1483813,
+                    0.21158701,
+                    0.27261607,
+                    0.33141317,
+                    0.38813936,
+                    0.44310197,
+                    0.49637422,
+                    0.54839496,
+                    0.59948157,
+                    0.65005956,
+                    0.70074477,
+                    0.75240745,
+                    0.80622583,
+                    0.86391259,
+                    0.9280528,
+                ]
+            ),
+            spec_min=np.array(
+                [420, 390, 370, 345, 315, 285, 248, 210, 165, 115, 58, 5, 0, 0, 0, 0]
+            ),
+            spec_max=np.array(
+                [
+                    1477,
+                    1513,
+                    1547,
+                    1588,
+                    1628,
+                    1682,
+                    1733,
+                    1795,
+                    1855,
+                    1930,
+                    2005,
+                    2040,
+                    2040,
+                    2040,
+                    2040,
+                    2040,
+                ]
+            ),
+            platescale=0.19,
+            dloglam=1.93724e-5,
+            loglam_minmax=(np.log10(9500.0), np.log10(26000)),
+        ),
+    }
+
+    def _geometry(self) -> EchelleProps:
+        if getattr(self, "arm", None) is None:
+            raise PypeItError(
+                "RIMAS grism arm is undefined; call config_specific_par with an example frame."
+            )
+        return self._grism_geometry[self.arm]
 
     def validate_fitstbl(self, fitstbl: astropy.table.Table) -> astropy.table.Table:
         """Validate the metadata table
@@ -1421,16 +1555,14 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         par = super().config_specific_par(inp, inp_par=inp_par)
 
         # Adjust parameters based on instrument settings
-        arm = self.get_meta_value(inp, "arm")
         grating = self.get_meta_value(inp, "dispname")
-        decker = self.get_meta_value(inp, "decker")
         binning = self.get_meta_value(inp, "binning")
 
         # Get the arm-specific parameters based on grating and decker
-        if arm == "YJ":
-            par = self.config_specific_par_grism_yj(par, grating, decker)
+        if self.arm == "YJ":
+            par = self.config_specific_par_grism_yj(par, grating, self.decker)
         else:
-            par = self.config_specific_par_grism_hk(par, grating, decker)
+            par = self.config_specific_par_grism_hk(par, grating, self.decker)
 
         # Adjust parameters based on CCD binning
         binspec, binspat = parse.parse_binning(binning)
@@ -1490,49 +1622,30 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         """
         return par
 
+    # Fixed-format Echelle properties consumed by the larger PypeIt code =====#
+    # These properties select the correct instrument arm to return based on the
+    # `self.arm` instance variable.
     @property
     def norders(self):
         """
         Number of orders for this spectograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
-        ### TODO: FIGURE OUT HOW TO RETURN THE PROPER VALUES FOR YJ vs HK
-        return 16
+        return self._geometry().norders
 
     @property
     def order_spat_pos(self):
         """
         Return the expected spatial position of each echelle order.
         """
-        ### TODO: FIGURE OUT HOW TO RETURN THE PROPER VALUES FOR YJ vs HK
-        return np.array(
-            [
-                0.08284662,
-                0.1483813,
-                0.21158701,
-                0.27261607,
-                0.33141317,
-                0.38813936,
-                0.44310197,
-                0.49637422,
-                0.54839496,
-                0.59948157,
-                0.65005956,
-                0.70074477,
-                0.75240745,
-                0.80622583,
-                0.86391259,
-                0.9280528,
-            ]
-        )
+        return self._geometry().order_spat_pos
 
     @property
     def orders(self):
         """
         Return the order number for each echelle order.
         """
-        ### TODO: FIGURE OUT HOW TO RETURN THE PROPER VALUES FOR YJ vs HK
-        return np.arange(26, 10, -1, dtype=int)
+        return self._geometry().orders
 
     @property
     def spec_min_max(self):
@@ -1540,31 +1653,7 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         Return the minimum and maximum spectral pixel expected for the
         spectral range of each order.
         """
-        ### TODO: FIGURE OUT HOW TO RETURN THE PROPER VALUES FOR YJ vs HK
-        spec_max = np.asarray(
-            [
-                1477,
-                1513,
-                1547,
-                1588,
-                1628,
-                1682,
-                1733,
-                1795,
-                1855,
-                1930,
-                2005,
-                2040,
-                2040,
-                2040,
-                2040,
-                2040,
-            ]
-        )
-        spec_min = np.asarray(
-            [420, 390, 370, 345, 315, 285, 248, 210, 165, 115, 58, 5, 0, 0, 0, 0]
-        )
-        return np.vstack((spec_min, spec_max))
+        return np.vstack((self._geometry().spec_min, self._geometry().spec_max))
 
     def order_platescale(self, order_vec, binning=None):
         """
@@ -1583,24 +1672,14 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        # TODO: Figure out the order-dependence of the updated plate scale
-        # From the X-Shooter P113 manual, average over all orders. No order-dependent values given.
-
-        ### TODO: FIGURE OUT HOW TO RETURN THE PROPER VALUES FOR YJ vs HK
-        plate_scale = 0.245 * np.ones_like(order_vec)
-        return plate_scale
+        return np.full(order_vec.size, self._geometry().platescale)
 
     @property
     def dloglam(self):
         """
         Return the logarithmic step in wavelength for output spectra.
         """
-        # This number was computed by taking the mean of the dloglam for all
-        # the X-shooter orders. The specific loglam across the orders deviates
-        # from this value by +-6% from this first to final order
-
-        ### TODO: FIGURE OUT HOW TO RETURN THE PROPER VALUES FOR YJ vs HK
-        return 1.93724e-5
+        return self._geometry().dloglam
 
     @property
     def loglam_minmax(self):
@@ -1608,5 +1687,4 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         Return the base-10 logarithm of the first and last wavelength for
         ouput spectra.
         """
-        ### TODO: FIGURE OUT HOW TO RETURN THE PROPER VALUES FOR YJ vs HK
-        return np.log10(9500.0), np.log10(26000)
+        return self._geometry().loglam_minmax
