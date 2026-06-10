@@ -656,7 +656,7 @@ class BSpline:
         lower = np.zeros(n - self.nord + 1, dtype=int)
         upper = np.zeros(n - self.nord + 1, dtype=int) - 1
 
-        indx = BSpline._find_spans(x, self.breakpoints[self.bkpt_gpm], self.nord)
+        indx = type(self)._find_spans(x, self.breakpoints[self.bkpt_gpm], self.nord)
         A = self._bspline_basis(x, indx)
 
         aa = self._uniq(indx)
@@ -1325,7 +1325,7 @@ class BSpline2D(BSpline):
         lower = np.zeros(n - self.nord + 1, dtype=int)
         upper = np.zeros(n - self.nord + 1, dtype=int) - 1
 
-        indx = BSpline._find_spans(x, self.breakpoints[self.bkpt_gpm], self.nord)
+        indx = type(self)._find_spans(x, self.breakpoints[self.bkpt_gpm], self.nord)
         B = self._bspline_basis(x, indx)  # (N, nord)
 
         aa = self._uniq(indx)
