@@ -816,7 +816,7 @@ def test_bspline2d_fit_basis_array_size_mismatch_raises():
     x2 = rng.uniform(0, 1, 100)
     spl = BSpline2D(x=x, knots=Knots(count=8), nord=4)
     with pytest.raises(ValueError):
-        spl.fit(x, np.sin(x), x2, basis=np.ones((x2.size - 5, 3)))
+        spl.fit(x, np.sin(x), x2=x2, basis=np.ones((x2.size - 5, 3)))
 
 
 def test_bspline2d_build_design_matrix_c_order():
@@ -872,7 +872,7 @@ def test_bspline2d_fit_exact_polynomial_legendre():
     x2norm = 2 * x2 - 1
     y = 1.0 + 0.5 * x + 0.3 * x2norm
     spl = BSpline2D(x=x, knots=Knots(count=20), nord=4)
-    err, yfit = spl.fit(x, y, x2, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
+    err, yfit = spl.fit(x, y, x2=x2, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
 
@@ -884,7 +884,7 @@ def test_bspline2d_fit_smooth_function():
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x) * (1 + 0.2 * x2)
     spl = BSpline2D(x=x, knots=Knots(count=30), nord=4)
-    err, yfit = spl.fit(x, y, x2, basis='legendre', npoly=3, xmin=0.0, xmax=1.0)
+    err, yfit = spl.fit(x, y, x2=x2, basis='legendre', npoly=3, xmin=0.0, xmax=1.0)
     assert err == 0
     assert np.std(yfit - y) < 2e-2
 
@@ -896,7 +896,7 @@ def test_bspline2d_fit_exact_polynomial_chebyshev():
     x2 = rng.uniform(-1, 1, N)
     y = 2.0 + x2  # T0 + T1 in Chebyshev basis
     spl = BSpline2D(x=x, knots=Knots(count=20), nord=4)
-    err, yfit = spl.fit(x, y, x2, basis='chebyshev', npoly=2, xmin=-1.0, xmax=1.0)
+    err, yfit = spl.fit(x, y, x2=x2, basis='chebyshev', npoly=2, xmin=-1.0, xmax=1.0)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
 
@@ -909,7 +909,7 @@ def test_bspline2d_fit_exact_polynomial_poly():
     x2norm = 2.0 * (x2 - 1.0) / 2.0 - 0.0   # xmin=0, xmax=2 → norm range [-1, 1]
     y = 1.0 + x2norm
     spl = BSpline2D(x=x, knots=Knots(count=15), nord=4)
-    err, yfit = spl.fit(x, y, x2, basis='poly', npoly=2, xmin=0.0, xmax=2.0)
+    err, yfit = spl.fit(x, y, x2=x2, basis='poly', npoly=2, xmin=0.0, xmax=2.0)
     assert err == 0
     np.testing.assert_allclose(yfit, y, atol=1e-6)
 
@@ -920,11 +920,11 @@ def test_bspline2d_fit_reset_knots_rebuilds_breakpoints():
     x1 = np.sort(rng.uniform(0, 5, N))
     x2_1 = rng.uniform(0, 1, N)
     spl = BSpline2D(x=x1, knots=Knots(count=10), nord=4)
-    spl.fit(x1, np.sin(x1), x2_1, npoly=2, xmin=0.0, xmax=1.0)
+    spl.fit(x1, np.sin(x1), x2=x2_1, npoly=2, xmin=0.0, xmax=1.0)
     bkpt_before = spl.breakpoints.copy()
     x3 = np.sort(rng.uniform(0, 10, N))
     x2_2 = rng.uniform(0, 1, N)
-    spl.fit(x3, np.sin(x3), x2_2, npoly=2, xmin=0.0, xmax=1.0, reset_knots=True)
+    spl.fit(x3, np.sin(x3), x2=x2_2, npoly=2, xmin=0.0, xmax=1.0, reset_knots=True)
     assert spl.breakpoints.min() <= x3.min()
     assert spl.breakpoints.max() >= x3.max()
     assert not np.array_equal(spl.breakpoints, bkpt_before)
@@ -937,10 +937,10 @@ def test_bspline2d_fit_reset_knots_resets_mask():
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x)
     spl = BSpline2D(x=x, knots=Knots(count=10), nord=4)
-    spl.fit(x, y, x2, npoly=2, xmin=0.0, xmax=1.0)
+    spl.fit(x, y, x2=x2, npoly=2, xmin=0.0, xmax=1.0)
     spl.bkpt_gpm[5] = False
     assert not spl.bkpt_gpm.all()
-    spl.fit(x, y, x2, npoly=2, xmin=0.0, xmax=1.0, reset_knots=True)
+    spl.fit(x, y, x2=x2, npoly=2, xmin=0.0, xmax=1.0, reset_knots=True)
     assert spl.bkpt_gpm.all()
 
 
@@ -951,7 +951,7 @@ def test_bspline2d_fit_returns_minus1_on_degenerate_cholesky():
     y = np.sin(x)
     full_bkpt = np.linspace(0, 10, 40)
     spl = BSpline2D(knots=Knots(full=full_bkpt), nord=4)
-    err, yfit = spl.fit(x, y, x2, npoly=2, xmin=0.0, xmax=1.0)
+    err, yfit = spl.fit(x, y, x2=x2, npoly=2, xmin=0.0, xmax=1.0)
     assert err == -1
     assert yfit.shape == x.shape
 
@@ -964,8 +964,8 @@ def test_bspline2d_fit_ivar_none_matches_unit_weights():
     y = np.sin(x) + 0.1 * x2
     spl_w = BSpline2D(x=x, knots=Knots(count=10), nord=4)
     spl_n = BSpline2D(x=x, knots=Knots(count=10), nord=4)
-    err_w, yfit_w = spl_w.fit(x, y, x2, npoly=2, xmin=0.0, xmax=1.0, ivar=np.ones(N))
-    err_n, yfit_n = spl_n.fit(x, y, x2, npoly=2, xmin=0.0, xmax=1.0)
+    err_w, yfit_w = spl_w.fit(x, y, x2=x2, npoly=2, xmin=0.0, xmax=1.0, ivar=np.ones(N))
+    err_n, yfit_n = spl_n.fit(x, y, x2=x2, npoly=2, xmin=0.0, xmax=1.0)
     assert err_w == 0 and err_n == 0
     np.testing.assert_array_equal(yfit_w, yfit_n)
 
@@ -979,8 +979,8 @@ def test_bspline2d_fit_nonuniform_ivar_affects_result():
     y = np.sin(x) + 0.1 * x2 + rng.standard_normal(N) / np.sqrt(ivar)
     spl_u = BSpline2D(x=x, knots=Knots(count=15), nord=4)
     spl_n = BSpline2D(x=x, knots=Knots(count=15), nord=4)
-    err_u, yfit_u = spl_u.fit(x, y, x2, npoly=2, xmin=0.0, xmax=1.0)
-    err_n, yfit_n = spl_n.fit(x, y, x2, npoly=2, xmin=0.0, xmax=1.0, ivar=ivar)
+    err_u, yfit_u = spl_u.fit(x, y, x2=x2, npoly=2, xmin=0.0, xmax=1.0)
+    err_n, yfit_n = spl_n.fit(x, y, x2=x2, npoly=2, xmin=0.0, xmax=1.0, ivar=ivar)
     assert err_u == 0 and err_n == 0
     assert np.isfinite(yfit_n).all()
     assert not np.allclose(yfit_u, yfit_n)
@@ -997,8 +997,8 @@ def test_bspline2d_value_matches_fit_at_training_points():
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x) + 0.1 * x2
     spl = BSpline2D(x=x, knots=Knots(count=12), nord=4)
-    err, yfit_fit = spl.fit(x, y, x2, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
-    yfit_val, _ = spl.value(x, x2)
+    err, yfit_fit = spl.fit(x, y, x2=x2, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
+    yfit_val, _ = spl.value(x, x2=x2)
     np.testing.assert_allclose(yfit_fit, yfit_val, atol=1e-12)
 
 
@@ -1007,9 +1007,9 @@ def test_bspline2d_value_x2_required():
     x = np.sort(rng.uniform(0, 5, 50))
     x2 = rng.uniform(0, 1, 50)
     spl = BSpline2D(x=x, knots=Knots(count=8), nord=4)
-    spl.fit(x, np.sin(x), x2, npoly=2, xmin=0.0, xmax=1.0)
-    with pytest.raises(TypeError):
-        spl.value(x)  # missing required x2
+    spl.fit(x, np.sin(x), x2=x2, npoly=2, xmin=0.0, xmax=1.0)
+    with pytest.raises(ValueError):
+        spl.value(x)  # x2=None not permitted when funcname is set
 
 
 def test_bspline2d_value_gap_masking():
@@ -1019,13 +1019,13 @@ def test_bspline2d_value_gap_masking():
     x2 = rng.uniform(0, 1, N)
     y = np.sin(x)
     spl = BSpline2D(x=x, knots=Knots(count=25), nord=4)
-    spl.fit(x, y, x2, npoly=2, xmin=0.0, xmax=1.0)
+    spl.fit(x, y, x2=x2, npoly=2, xmin=0.0, xmax=1.0)
     spl.bkpt_gpm[10:13] = False
     spl._cached_design = None
     bkpts = spl.breakpoints
     x_gap = np.array([(bkpts[10] + bkpts[11]) / 2.0])
     x2_gap = np.array([0.5])
-    _, vmask = spl.value(x_gap, x2_gap)
+    _, vmask = spl.value(x_gap, x2=x2_gap)
     assert not vmask[0]
 
 
@@ -1039,7 +1039,7 @@ def test_bspline2d_copy_attributes():
     x = np.sort(rng.uniform(0, 5, N))
     x2 = rng.uniform(0, 1, N)
     spl = BSpline2D(x=x, knots=Knots(count=8), nord=4)
-    spl.fit(x, np.sin(x), x2, basis='chebyshev', npoly=3, xmin=0.0, xmax=1.0)
+    spl.fit(x, np.sin(x), x2=x2, basis='chebyshev', npoly=3, xmin=0.0, xmax=1.0)
     cp = spl.copy()
     assert cp.npoly == spl.npoly
     assert cp.xmin == spl.xmin
@@ -1058,7 +1058,7 @@ def test_bspline2d_copy_coeff_independent():
     x = np.sort(rng.uniform(0, 5, N))
     x2 = rng.uniform(0, 1, N)
     spl = BSpline2D(x=x, knots=Knots(count=8), nord=4)
-    spl.fit(x, np.sin(x), x2, npoly=3, xmin=0.0, xmax=1.0)
+    spl.fit(x, np.sin(x), x2=x2, npoly=3, xmin=0.0, xmax=1.0)
     cp = spl.copy()
     orig_val = cp.coeff[0, 0]
     spl.coeff[0, 0] += 999.0
@@ -1125,7 +1125,7 @@ def test_crosscheck_2d_fit_yfit_match():
     new = BSpline2D(knots=old.breakpoints.copy(), nord=nord)
     new.bkpt_gpm[:] = old.mask
     new._cached_design = None
-    new_err, new_yfit = new.fit(x, y, x2, ivar=invvar,
+    new_err, new_yfit = new.fit(x, y, x2=x2, ivar=invvar,
                                 basis='legendre', npoly=npoly, xmin=0.0, xmax=1.0)
 
     assert old_err == 0 and new_err == 0
@@ -1149,7 +1149,7 @@ def test_crosscheck_2d_coeff_transposed():
     new = BSpline2D(knots=old.breakpoints.copy(), nord=4)
     new.bkpt_gpm[:] = old.mask
     new._cached_design = None
-    new.fit(x, y, x2, ivar=invvar, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
+    new.fit(x, y, x2=x2, ivar=invvar, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
 
     np.testing.assert_allclose(new.coeff, old.coeff.T, rtol=1e-8)
 
@@ -1187,13 +1187,13 @@ def test_bspline2d_fit_array_basis_matches_string_basis():
     y = np.sin(x) * (1 + 0.2 * x2)
 
     spl_str = BSpline2D(x=x, knots=Knots(count=15), nord=4)
-    err_s, yfit_s = spl_str.fit(x, y, x2, basis='legendre', npoly=3, xmin=0.0, xmax=1.0)
+    err_s, yfit_s = spl_str.fit(x, y, x2=x2, basis='legendre', npoly=3, xmin=0.0, xmax=1.0)
 
     # Build the same P array that the string path would have produced
     P = spl_str._poly_basis(spl_str._normalize_x2(x2))
 
     spl_arr = BSpline2D(x=x, knots=Knots(count=15), nord=4)
-    err_a, yfit_a = spl_arr.fit(x, y, x2, basis=P)
+    err_a, yfit_a = spl_arr.fit(x, y, x2=x2, basis=P)
 
     assert err_s == 0 and err_a == 0
     np.testing.assert_allclose(yfit_a, yfit_s, atol=1e-12)
@@ -1209,13 +1209,13 @@ def test_bspline2d_value_array_basis_raises_when_basis_none():
     # Build P directly so we don't need the object's internal state
     P = np.column_stack([np.ones(N), x2])  # shape (N, 2)
     spl = BSpline2D(x=x, knots=Knots(count=10), nord=4)
-    spl.fit(x, np.sin(x), x2, basis=P)
+    spl.fit(x, np.sin(x), x2=x2, basis=P)
     # The fast path fires for the training arrays; use new arrays to reach the
     # funcname is None check.
     x_new = np.sort(rng.uniform(0, 5, N))
     x2_new = rng.uniform(0, 1, N)
     with pytest.raises(ValueError):
-        spl.value(x_new, x2_new)  # funcname is None → must raise
+        spl.value(x_new, x2=x2_new)  # funcname is None → must raise
 
 
 def test_bspline2d_value_array_basis_with_explicit_basis():
@@ -1227,8 +1227,8 @@ def test_bspline2d_value_array_basis_with_explicit_basis():
     y = np.sin(x) * (1 + 0.2 * x2)
     P = np.column_stack([np.ones(N), x2])  # shape (N, 2)
     spl = BSpline2D(x=x, knots=Knots(count=15), nord=4)
-    err, yfit_fit = spl.fit(x, y, x2, basis=P)
-    yfit_val, _ = spl.value(x, x2, basis=P)
+    err, yfit_fit = spl.fit(x, y, x2=x2, basis=P)
+    yfit_val, _ = spl.value(x, x2=x2, basis=P)
     np.testing.assert_allclose(yfit_fit, yfit_val, atol=1e-12)
 
 
@@ -1239,7 +1239,7 @@ def test_bspline2d_fit_basis_array_1d_raises():
     x2 = rng.uniform(0, 1, 100)
     spl = BSpline2D(x=x, knots=Knots(count=8), nord=4)
     with pytest.raises(ValueError):
-        spl.fit(x, np.sin(x), x2, basis=np.ones(100))  # 1-D, not 2-D
+        spl.fit(x, np.sin(x), x2=x2, basis=np.ones(100))  # 1-D, not 2-D
 
 
 def test_bspline2d_value_restores_training_P_after_call():
@@ -1251,7 +1251,7 @@ def test_bspline2d_value_restores_training_P_after_call():
     y = np.sin(x) + 0.1 * x2
 
     spl = BSpline2D(x=x, knots=Knots(count=10), nord=4)
-    spl.fit(x, y, x2, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
+    spl.fit(x, y, x2=x2, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
     P_before = spl.P.copy()
 
     x_eval = np.sort(rng.uniform(0, 5, 50))
