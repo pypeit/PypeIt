@@ -462,7 +462,7 @@ class BSpline:
 
         Returns
         -------
-        :class:`numpy.ndarray
+        :class:`numpy.ndarray`
             Delegates to :attr:`knots.breakpoints <Knots.breakpoints>`.
         """
         return self.knots.breakpoints
@@ -1095,19 +1095,19 @@ class BSpline2D(BSpline):
     = 2(x_{2,i} - x_{\min}) / (x_{\max} - x_{\min}) - 1` is the normalised
     second variable.
 
-    ``basis_x`` is an optional keyword argument in :meth:`fit` and :meth:`value`; it is
-    required when ``basis`` is a string and may be omitted when ``basis`` is a pre-built
-    array.
+    ``basis_x`` is an optional keyword argument in :meth:`fit` and
+    :meth:`value`; it is required when ``basis`` is a string and may be omitted
+    when ``basis`` is a pre-built array.
 
     The 2D coefficient array :attr:`coeff` has shape ``(nc, npoly)`` (knot index
     first), stored in C order.
 
     .. warning::
 
-        ``basis_x`` must be statistically independent of ``x``.  If ``basis_x`` is a
-        smooth, monotonic function of ``x``, the polynomial-B-spline product columns
-        become nearly linearly dependent within each span, making the normal equations
-        ill-conditioned.
+        ``basis_x`` must be statistically independent of ``x``.  If ``basis_x``
+        is a smooth, monotonic function of ``x``, the polynomial-B-spline
+        product columns become nearly linearly dependent within each span,
+        making the normal equations ill-conditioned.
 
     Parameters
     ----------
@@ -1120,9 +1120,6 @@ class BSpline2D(BSpline):
 
     Attributes
     ----------
-    The following are in addition to those defined by the base class
-    :class:`BSpline`.
-
     npoly : int or None
         Number of polynomial basis functions along the second variable.
         ``None`` until :meth:`fit` is called.
@@ -1148,10 +1145,15 @@ class BSpline2D(BSpline):
 
     Notes
     -----
-    The polynomial-basis parameters ``npoly``, ``xmin``, ``xmax``, and ``basis``
-    (formerly ``funcname``) are now arguments of :meth:`fit` and :meth:`value` rather
-    than constructor parameters.  They are stored on the instance after the first
-    :meth:`fit` call.
+
+    - The attributes listed above are **in addition** to those alread in the
+      base class.
+
+    - The polynomial-basis parameters ``npoly``, ``xmin``, ``xmax``, and
+      ``basis`` (formerly ``funcname``) are now arguments of :meth:`fit` and
+      :meth:`value` rather than constructor parameters.  They are stored on the
+      instance after the first :meth:`fit` call.
+
     """
 
     def __init__(self, x=None, knots=None, nord=4):
@@ -1822,7 +1824,7 @@ def bspline_profile_refactor(
 
     Returns
     -------
-    sset : :class:`BSpline2D` or :class:`BSpline`
+    bspl : :class:`BSpline2D` or :class:`BSpline`
         Fitted spline object.  :class:`BSpline2D` when ``basis`` is
         provided; :class:`BSpline` otherwise.
     outmask : :class:`numpy.ndarray` of bool
@@ -1839,7 +1841,7 @@ def bspline_profile_refactor(
     _basis = basis
     if basis is None:
         _npoly = 1
-        spl_cls = BSpline
+        bspl_cls = BSpline
     elif isinstance(basis, np.ndarray):
         _basis = np.asarray(basis)
         if basis.ndim == 1:
@@ -1850,10 +1852,10 @@ def bspline_profile_refactor(
             _basis = _basis.reshape(nx, _npoly).copy()
         else:
             _npoly = _basis.shape[1]
-        spl_cls = BSpline2D
+        bspl_cls = BSpline2D
     else:
         _npoly = npoly
-        spl_cls = BSpline2D
+        bspl_cls = BSpline2D
 
     outmask = np.ones(y.shape, dtype=bool)
     maskwork = outmask.copy()
@@ -1864,11 +1866,11 @@ def bspline_profile_refactor(
     if not maskwork.any():
         raise PypeItError('No valid data points in bspline_profile_refactor.')
 
-    sset = spl_cls(x=x[maskwork], knots=Knots(**kwargs_knots), nord=nord)
-    if maskwork.sum() < sset.nord:
+    bspl = bspl_cls(x=x[maskwork], knots=Knots(**kwargs_knots), nord=nord)
+    if maskwork.sum() < bspl.nord:
         # TODO: Should this return outmask or maskwork?  Seems odd to return a
         # fully True gpm for a failed fit.
-        return sset, outmask, np.zeros(y.shape), 0., 4
+        return bspl, outmask, np.zeros(y.shape), 0., 4
 
     err = -1
     qdone = False
@@ -1889,29 +1891,29 @@ def bspline_profile_refactor(
             _ivar *= ivar
 
         if _basis is None:
-            err, yfit = sset.fit(x=x, y=y, ivar=_ivar)
+            err, yfit = bspl.fit(x=x, y=y, ivar=_ivar)
         else:
-            err, yfit = sset.fit(
+            err, yfit = bspl.fit(
                 x=x, y=y, ivar=_ivar, basis=_basis, basis_x=basis_x,
                 npoly=_npoly, xmin=xmin, xmax=xmax,
             )
         iiter += 1
 
         if err == -2:
-            return sset, np.zeros(x.shape, dtype=bool), np.zeros(x.shape), reduced_chi, 3
+            return bspl, np.zeros(x.shape, dtype=bool), np.zeros(x.shape), reduced_chi, 3
         if err != 0:
             continue
 
         ngood = maskwork.sum()
-        goodbk_count = sset.bkpt_gpm[sset.nord:].sum()
+        goodbk_count = bspl.bkpt_gpm[bspl.nord:].sum()
         chi_array = (y - yfit) * np.sqrt(_ivar)
-        reduced_chi = np.sum(chi_array**2) / (ngood - _npoly * (goodbk_count + sset.nord) - 1)
+        reduced_chi = np.sum(chi_array**2) / (ngood - _npoly * (goodbk_count + bspl.nord) - 1)
         if relative is not None:
             if nrel == 1:
                 this_chi2 = reduced_chi
             else:
                 this_chi2 = np.sum(chi_array[relative]**2) / (
-                    nrel - (goodbk_count + sset.nord) - 1
+                    nrel - (goodbk_count + bspl.nord) - 1
                 )
             relative_factor = max(np.sqrt(this_chi2), 1.0)
         maskwork, qdone = pydl.djs_reject(
@@ -1923,4 +1925,4 @@ def bspline_profile_refactor(
 
     if iiter == maxiter + 1:
         exit_status = 1
-    return sset, maskwork.copy(), yfit, reduced_chi, exit_status
+    return bspl, maskwork.copy(), yfit, reduced_chi, exit_status
