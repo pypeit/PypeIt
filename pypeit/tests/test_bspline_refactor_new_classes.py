@@ -18,6 +18,8 @@ import pytest
 from pypeit import dataPaths
 from pypeit.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
 from pypeit.bspline.bspline import bspline
+from pypeit.core.fitting import bspline_profile
+from pypeit.core.basis import flegendre
 
 
 # ============================================================================
@@ -1404,3 +1406,124 @@ def test_bspline_profile_refactor_twod():
             'Bad 2D bspline_profile_refactor result'
 
 
+# ============================================================================
+# bspline_profile_refactor option coverage and agreement tests
+# ============================================================================
+
+def test_bspline_profile_refactor_string_basis():
+    """basis='legendre' + basis_x activates the 2D BSpline2D path."""
+    rng = np.random.default_rng(42)
+    n = 300
+    x = np.sort(rng.uniform(0, 10, n))
+    basis_x = rng.uniform(-1, 1, n)
+    npoly = 3
+    y_true = (1.0 + 0.3 * basis_x) * (np.sin(x / 2) + 2.0)
+    y = y_true + rng.normal(0, 0.05, n)
+    ivar = np.full(n, 400.0)
+
+    sset, outmask, yfit, reduced_chi, exit_status = bspline_profile_refactor(
+        x, y, ivar=ivar, nord=4, npoly=npoly,
+        basis='legendre', basis_x=basis_x, xmin=-1.0, xmax=1.0,
+        upper=5.0, lower=5.0,
+        kwargs_knots={'spacing': 1.0},
+    )
+    assert isinstance(sset, BSpline2D)
+    assert exit_status == 0
+    assert np.allclose(y_true, yfit, atol=0.15)
+
+
+def test_bspline_profile_refactor_basis_array_shapes():
+    """Flat 1D basis array (auto-reshaped) gives identical yfit to its 2D form."""
+    rng = np.random.default_rng(99)
+    n = 200
+    x = np.sort(rng.uniform(0, 5, n))
+    x2 = rng.uniform(-1, 1, n)
+    npoly = 2
+    basis_2d = flegendre(x2, npoly)
+    basis_1d = basis_2d.flatten()
+    y = np.sin(x) + 1.5 * x2 + rng.normal(0, 0.1, n)
+    ivar = np.full(n, 100.0)
+
+    _, _, yfit_2d, _, _ = bspline_profile_refactor(
+        x, y, ivar=ivar, basis=basis_2d, kwargs_knots={'spacing': 0.5},
+    )
+    _, _, yfit_1d, _, _ = bspline_profile_refactor(
+        x, y, ivar=ivar, basis=basis_1d, kwargs_knots={'spacing': 0.5},
+    )
+    assert np.allclose(yfit_2d, yfit_1d)
+
+
+def test_bspline_profile_refactor_exit_statuses():
+    """Exit status 4 (too few points) and 1 (maxiter exceeded)."""
+    rng = np.random.default_rng(0)
+    n = 300
+    x = np.sort(rng.uniform(0, 10, n))
+    y = np.sin(x) + rng.normal(0, 0.1, n)
+    ivar = np.full(n, 100.0)
+
+    # exit_status = 4: only 3 good points, fewer than nord=4
+    gpm_few = np.zeros(n, dtype=bool)
+    gpm_few[:3] = True
+    _, _, _, _, es = bspline_profile_refactor(
+        x, y, ivar=ivar, gpm=gpm_few, nord=4,
+        kwargs_knots={'spacing': 1.0},
+    )
+    assert es == 4
+
+    # exit_status = 1: maxiter=1 with outliers that need exactly one rejection
+    # pass (converges in 2 iterations, but maxiter caps at 1)
+    y_out = y.copy()
+    y_out[rng.choice(n, 15, replace=False)] += 20.0
+    _, _, _, _, es = bspline_profile_refactor(
+        x, y_out, ivar=ivar, nord=4, maxiter=1, upper=3.0, lower=3.0,
+        kwargs_knots={'spacing': 1.0},
+    )
+    assert es == 1
+
+
+def test_bspline_profile_refactor_matches_bspline_profile_1d():
+    """1D path (basis=None) agrees with bspline_profile(profile_basis=ones)."""
+    rng = np.random.default_rng(77)
+    n = 400
+    x = np.sort(rng.uniform(0, 10, n))
+    y = np.sin(x / 2) + 2.0 + rng.normal(0, 0.05, n)
+    ivar = np.full(n, 400.0)
+    profile_basis = np.ones((n, 1))
+    spacing = 1.0
+
+    _, _, yfit_old, _, _ = bspline_profile(
+        x, y, ivar, profile_basis,
+        upper=5, lower=5, nord=4,
+        kwargs_bspline={'bkspace': spacing},
+        quiet=True,
+    )
+    _, _, yfit_new, _, _ = bspline_profile_refactor(
+        x, y, ivar=ivar, nord=4, upper=5, lower=5,
+        kwargs_knots={'spacing': spacing},
+    )
+    assert np.allclose(yfit_old, yfit_new)
+
+
+def test_bspline_profile_refactor_matches_bspline_profile_2d():
+    """2D path agrees with bspline_profile when given the same pre-built basis."""
+    rng = np.random.default_rng(13)
+    n = 400
+    x = np.sort(rng.uniform(0, 10, n))
+    x2 = rng.uniform(-1, 1, n)
+    npoly = 3
+    profile_basis = flegendre(x2, npoly)
+    y = (1.0 + 0.5 * x2) * (np.sin(x / 2) + 2.0) + rng.normal(0, 0.05, n)
+    ivar = np.full(n, 400.0)
+    spacing = 1.0
+
+    _, _, yfit_old, _, _ = bspline_profile(
+        x, y, ivar, profile_basis,
+        upper=5, lower=5, nord=4,
+        kwargs_bspline={'bkspace': spacing},
+        quiet=True,
+    )
+    _, _, yfit_new, _, _ = bspline_profile_refactor(
+        x, y, ivar=ivar, basis=profile_basis, nord=4, upper=5, lower=5,
+        kwargs_knots={'spacing': spacing},
+    )
+    assert np.allclose(yfit_old, yfit_new)
