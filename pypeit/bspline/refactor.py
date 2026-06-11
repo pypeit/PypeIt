@@ -1090,17 +1090,18 @@ class BSpline2D(BSpline):
     = 2(x_{2,i} - x_{\min}) / (x_{\max} - x_{\min}) - 1` is the normalised
     second variable.
 
-    ``x2`` is a **required positional argument** in :meth:`fit` and :meth:`value`.  A
-    :class:`BSpline2D` object always operates on two-variable data.
+    ``basis_x`` is an optional keyword argument in :meth:`fit` and :meth:`value`; it is
+    required when ``basis`` is a string and may be omitted when ``basis`` is a pre-built
+    array.
 
     The 2D coefficient array :attr:`coeff` has shape ``(nc, npoly)`` (knot index
     first), stored in C order.
 
     .. warning::
 
-        ``x2`` must be statistically independent of ``x``.  If ``x2`` is a smooth,
-        monotonic function of ``x``, the polynomial-B-spline product columns become
-        nearly linearly dependent within each span, making the normal equations
+        ``basis_x`` must be statistically independent of ``x``.  If ``basis_x`` is a
+        smooth, monotonic function of ``x``, the polynomial-B-spline product columns
+        become nearly linearly dependent within each span, making the normal equations
         ill-conditioned.
 
     Parameters
@@ -1121,10 +1122,10 @@ class BSpline2D(BSpline):
         Number of polynomial basis functions along the second variable.
         ``None`` until :meth:`fit` is called.
     xmin : float or None
-        Lower bound used to normalise ``x2`` to ``[-1, +1]``.  ``None``
+        Lower bound used to normalise ``basis_x`` to ``[-1, +1]``.  ``None``
         when the fit was performed with a pre-built basis array.
     xmax : float or None
-        Upper bound used to normalise ``x2`` to ``[-1, +1]``.  ``None``
+        Upper bound used to normalise ``basis_x`` to ``[-1, +1]``.  ``None``
         when the fit was performed with a pre-built basis array.
     funcname : str or None
         Name of the polynomial family (``'legendre'``, ``'chebyshev'``,
@@ -1135,8 +1136,8 @@ class BSpline2D(BSpline):
         the current cached design matrix.  ``None`` until :meth:`fit` is
         called; updated by :meth:`fit` on each cache miss and temporarily
         by :meth:`value` (which restores the training ``P`` on return).
-    x2 : :class:`numpy.ndarray` or None
-        Reference to the ``x2`` array from the most recent :meth:`fit`
+    basis_x : :class:`numpy.ndarray` or None
+        Reference to the ``basis_x`` array from the most recent :meth:`fit`
         call that rebuilt the design matrix.  Not a copy.  ``None`` until
         :meth:`fit` first builds the design matrix.
 
@@ -1156,7 +1157,7 @@ class BSpline2D(BSpline):
         self.xmax = None
         self.funcname = None
         self.P = None
-        self.x2 = None
+        self.basis_x = None
 
     def reset_coeff(self):
         """
@@ -1198,7 +1199,7 @@ class BSpline2D(BSpline):
         new.coeff = np.copy(self.coeff)
         new.icoeff = np.copy(self.icoeff)
         new.x = self.x
-        new.x2 = self.x2
+        new.basis_x = self.basis_x
         new.yfit = None if self.yfit is None else np.copy(self.yfit)
         new.xmin = self.xmin
         new.xmax = self.xmax
@@ -1248,21 +1249,21 @@ class BSpline2D(BSpline):
         """
         return bad_cols[self._uniq(bad_cols // self.npoly)] // self.npoly
 
-    def _normalize_x2(self, x2):
+    def _normalize_basis_x(self, basis_x):
         """
-        Map ``x2`` linearly to the interval ``[-1, +1]``.
+        Map ``basis_x`` linearly to the interval ``[-1, +1]``.
 
         Uses the stored :attr:`xmin` and :attr:`xmax` as the normalisation
-        range.  If either are None, they are replaced by the respective value in
-        ``x2``.  If they are equal, the value of :attr:`xmax` is set to ``xmax =
-        xmin + 1``.  If the range of ``x2`` is not fully covered by the
-        [:attr:`xmin`, :attr:`xmax`], a warning is issued noting that the
-        normalization of ``x2`` will not result in a new range this is within
-        [-1,1].
+        range.  If either are None, they are replaced by the respective value
+        in ``basis_x``.  If they are equal, the value of :attr:`xmax` is set
+        to ``xmax = xmin + 1``.  If the range of ``basis_x`` is not fully
+        covered by the [:attr:`xmin`, :attr:`xmax`], a warning is issued
+        noting that the normalization of ``basis_x`` will not result in a new
+        range this is within [-1,1].
 
         Parameters
         ----------
-        x2 : :class:`numpy.ndarray`
+        basis_x : :class:`numpy.ndarray`
             Second variable values.
 
         Returns
@@ -1271,16 +1272,18 @@ class BSpline2D(BSpline):
             Normalised second variable in ``[-1, +1]``.
         """
         if self.xmin is None:
-            self.xmin = x2.min()
+            self.xmin = basis_x.min()
         if self.xmax is None:
-            self.xmax = x2.max()
+            self.xmax = basis_x.max()
         if self.xmin == self.xmax:
             self.xmax = self.xmin + 1
-        if self.xmin > x2.min() or self.xmax < x2.max():
-            warnings.warn('Rescaled range for x2 will not remap linearly to the range [-1,1]!')
-        return 2.0 * (x2 - self.xmin) / (self.xmax - self.xmin) - 1.0
+        if self.xmin > basis_x.min() or self.xmax < basis_x.max():
+            warnings.warn(
+                'Rescaled range for basis_x will not remap linearly to the range [-1,1]!'
+            )
+        return 2.0 * (basis_x - self.xmin) / (self.xmax - self.xmin) - 1.0
 
-    def _poly_basis(self, x2norm):
+    def _poly_basis(self, basis_x_norm):
         """
         Evaluate the polynomial basis in the normalised second variable.
 
@@ -1289,34 +1292,34 @@ class BSpline2D(BSpline):
 
         Parameters
         ----------
-        x2norm : :class:`numpy.ndarray`, shape (N,)
+        basis_x_norm : :class:`numpy.ndarray`, shape (N,)
             Second variable values normalised to ``[-1, +1]``.
 
         Returns
         -------
         :class:`numpy.ndarray`, shape (N, npoly)
             Polynomial basis values.  ``P[i, k]`` is the ``k``-th basis function
-            evaluated at ``x2norm[i]``.
+            evaluated at ``basis_x_norm[i]``.
 
         Raises
         ------
         ValueError
             If :attr:`funcname` is not one of the recognised types.
         """
-        nx = x2norm.size
+        nx = basis_x_norm.size
         match self.funcname:
             case 'poly':
                 P = np.ones((nx, self.npoly), dtype=float)
                 for i in range(1, self.npoly):
-                    P[:, i] = P[:, i - 1] * x2norm
+                    P[:, i] = P[:, i - 1] * basis_x_norm
             case 'poly1':
-                P = np.tile(x2norm, self.npoly).reshape(nx, self.npoly)
+                P = np.tile(basis_x_norm, self.npoly).reshape(nx, self.npoly)
                 for i in range(1, self.npoly):
-                    P[:, i] = P[:, i - 1] * x2norm
+                    P[:, i] = P[:, i - 1] * basis_x_norm
             case 'chebyshev':
-                P = basis.fchebyshev(x2norm, self.npoly)
+                P = basis.fchebyshev(basis_x_norm, self.npoly)
             case 'legendre':
-                P = basis.flegendre(x2norm, self.npoly)
+                P = basis.flegendre(basis_x_norm, self.npoly)
             case _:
                 raise ValueError(
                     f"Unknown funcname '{self.funcname}'.  "
@@ -1469,17 +1472,18 @@ class BSpline2D(BSpline):
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _resolve_basis(self, basis, npoly, xmin, xmax, x, x2):
+    def _resolve_basis(self, basis, npoly, xmin, xmax, x, basis_x):
         """
         Resolve the ``basis`` argument, update instance state, and return
         the computed ``P`` matrix and a flag indicating whether the design
         matrix must be recalculated.
 
-        Validates array-valued ``basis`` against ``x`` and ``x2``, issues the
-        ``'poly1'`` warning when appropriate, updates :attr:`npoly`,
+        Validates array-valued ``basis`` against ``x`` and ``basis_x``, issues
+        the ``'poly1'`` warning when appropriate, updates :attr:`npoly`,
         :attr:`funcname`, :attr:`xmin`, and :attr:`xmax`, invalidates the
         coefficient arrays when :attr:`npoly` changes, and always computes the
-        polynomial basis matrix ``P`` from the resolved ``basis`` and ``x2``.
+        polynomial basis matrix ``P`` from the resolved ``basis`` and
+        ``basis_x``.
 
         Parameters
         ----------
@@ -1494,9 +1498,9 @@ class BSpline2D(BSpline):
         x : :class:`numpy.ndarray`
             Independent variable; used only to validate the row count of an
             array-valued ``basis``.
-        x2 : :class:`numpy.ndarray` or None
+        basis_x : :class:`numpy.ndarray` or None
             Second variable.  Required (non-``None``) when ``basis`` is a
-            string; used to compute ``P`` via :meth:`_normalize_x2` and
+            string; used to compute ``P`` via :meth:`_normalize_basis_x` and
             :meth:`_poly_basis`.  Optional (may be ``None``) when ``basis``
             is an array; the row count of the array is validated against
             ``x.size`` only.
@@ -1511,8 +1515,8 @@ class BSpline2D(BSpline):
             array object that was used to build the current cache and the cache
             is still valid; ``True`` otherwise.  For a string ``basis``,
             ``True`` when the polynomial family name has changed, the cache is
-            empty, or the shapes of ``x`` or ``x2`` differ from the cached
-            shapes.
+            empty, or the shapes of ``x`` or ``basis_x`` differ from the
+            cached shapes.
         """
         if isinstance(basis, np.ndarray):
             P = np.asarray(basis)
@@ -1521,7 +1525,7 @@ class BSpline2D(BSpline):
             if (basis is self.P
                     and self._cached_design is not None
                     and x is self.x
-                    and x2 is self.x2):
+                    and basis_x is self.basis_x):
                 return P, False
             if P.ndim != 2:
                 raise ValueError('basis array must be 2-D with shape (N, npoly).')
@@ -1529,9 +1533,9 @@ class BSpline2D(BSpline):
                 raise ValueError(
                     f'basis.shape[0] ({P.shape[0]}) != x.size ({x.size}).'
                 )
-            if x2 is not None and P.shape[0] != x2.size:
+            if basis_x is not None and P.shape[0] != basis_x.size:
                 raise ValueError(
-                    f'basis.shape[0] ({P.shape[0]}) != x2.size ({x2.size}).'
+                    f'basis.shape[0] ({P.shape[0]}) != basis_x.size ({basis_x.size}).'
                 )
             if P.shape[1] != self.npoly:
                 self.coeff = self.icoeff = None
@@ -1541,9 +1545,9 @@ class BSpline2D(BSpline):
             self.xmax     = None
             return P, True
 
-        if x2 is None:
+        if basis_x is None:
             raise ValueError(
-                "x2 is required when basis is a string.  Pass a pre-built "
+                "basis_x is required when basis is a string.  Pass a pre-built "
                 "numpy.ndarray as basis to fit without a second variable."
             )
         if basis == 'poly1':
@@ -1555,7 +1559,7 @@ class BSpline2D(BSpline):
             basis != self.funcname
             or self._cached_design is None
             or x is not self.x
-            or x2 is not self.x2
+            or basis_x is not self.basis_x
         )
         if npoly != self.npoly:
             self.coeff = self.icoeff = None   # force reallocation on npoly change
@@ -1563,13 +1567,13 @@ class BSpline2D(BSpline):
         self.funcname = basis
         self.xmin     = xmin
         self.xmax     = xmax
-        return self._poly_basis(self._normalize_x2(x2)), recalculate
+        return self._poly_basis(self._normalize_basis_x(basis_x)), recalculate
 
     # ------------------------------------------------------------------
-    # Public API — overrides with optional x2
+    # Public API — overrides with optional basis_x
     # ------------------------------------------------------------------
 
-    def fit(self, x, y, x2=None, ivar=None,
+    def fit(self, x, y, basis_x=None, ivar=None,
             basis='legendre', npoly=1, xmin=None, xmax=None,
             reset_knots=False):
         """
@@ -1577,7 +1581,7 @@ class BSpline2D(BSpline):
 
         .. note::
 
-            Both ``x`` and ``x2`` (when provided) must be **sorted in
+            Both ``x`` and ``basis_x`` (when provided) must be **sorted in
             ascending order by the same permutation** before being passed to
             this method.
 
@@ -1587,7 +1591,7 @@ class BSpline2D(BSpline):
             Independent variable (sorted ascending).
         y : :class:`numpy.ndarray`
             Dependent variable.
-        x2 : :class:`numpy.ndarray` or None, optional
+        basis_x : :class:`numpy.ndarray` or None, optional
             Second variable.  Required when ``basis`` is a string (e.g.
             ``'legendre'``); must be statistically independent of ``x`` (see
             class-level warning).  May be ``None`` when ``basis`` is a
@@ -1599,19 +1603,19 @@ class BSpline2D(BSpline):
         basis : str or :class:`numpy.ndarray`, optional
             Polynomial basis specification.  When a string, one of
             ``'legendre'`` (default), ``'chebyshev'``, ``'poly'``, or
-            ``'poly1'``; ``x2`` must be provided.  When a 2-D
+            ``'poly1'``; ``basis_x`` must be provided.  When a 2-D
             :class:`numpy.ndarray` of shape ``(N, k)``, it is used directly
             as the pre-built polynomial basis ``P``; in this case ``npoly``,
-            ``xmin``, ``xmax``, and ``x2`` are all ignored and ``npoly`` is
-            derived from ``basis.shape[1]``.
+            ``xmin``, ``xmax``, and ``basis_x`` are all ignored and ``npoly``
+            is derived from ``basis.shape[1]``.
         npoly : int, optional
             Number of polynomial terms; ignored when ``basis`` is an array.
         xmin : float, optional
-            Minimum value of ``x2`` for normalisation; ignored when ``basis``
-            is an array.
+            Minimum value of ``basis_x`` for normalisation; ignored when
+            ``basis`` is an array.
         xmax : float, optional
-            Maximum value of ``x2`` for normalisation; ignored when ``basis``
-            is an array.
+            Maximum value of ``basis_x`` for normalisation; ignored when
+            ``basis`` is an array.
         reset_knots : bool, optional
             Regardless of any existing breakpoints, reset the breakpoints using
             :attr:`knots` and ``x``.
@@ -1632,7 +1636,7 @@ class BSpline2D(BSpline):
         # Resolve the polynomial basis; updates self.npoly, funcname, xmin,
         # and xmax.  Must follow reset_knots so the cache-empty state is
         # visible when determining whether to recalculate the design matrix.
-        P, recalculate = self._resolve_basis(basis, npoly, xmin, xmax, x, x2)
+        P, recalculate = self._resolve_basis(basis, npoly, xmin, xmax, x, basis_x)
 
         # Build or retrieve the cached design matrix.  Must follow
         # _resolve_basis, which set self.P and the recalculate flag.
@@ -1640,7 +1644,7 @@ class BSpline2D(BSpline):
             self.P = P
             self._cached_design = self._build_design_matrix(x)
             self.x  = x
-            self.x2 = x2
+            self.basis_x = basis_x
         A, lower, upper = self._cached_design
         if A is None:
             self.yfit = np.zeros(y.shape, dtype=float)
@@ -1674,27 +1678,28 @@ class BSpline2D(BSpline):
         self.yfit = self._evaluate_model(A, lower, upper)
         return 0, self.yfit
 
-    def value(self, x, x2=None, basis=None):
+    def value(self, x, basis_x=None, basis=None):
         """
-        Evaluate the fitted 2D B-spline at arbitrary ``(x, x2)`` positions.
+        Evaluate the fitted 2D B-spline at arbitrary ``(x, basis_x)`` positions.
 
         Parameters
         ----------
         x : :class:`numpy.ndarray`
             Independent variable.
-        x2 : :class:`numpy.ndarray` or None, optional
+        basis_x : :class:`numpy.ndarray` or None, optional
             Second variable.  Required when ``basis`` is ``None`` and the fit
             was performed with a string basis (e.g. ``'legendre'``); must be
             ``None`` or omitted when the fit used a pre-built basis array
             and no ``basis`` is passed here.
         basis : :class:`numpy.ndarray` or None, optional
             When ``None`` (default), the polynomial basis is recomputed from
-            ``x2`` using the stored :attr:`funcname`, :attr:`xmin`, and
+            ``basis_x`` using the stored :attr:`funcname`, :attr:`xmin`, and
             :attr:`xmax`.  A :class:`ValueError` is raised if those attributes
             are not set (i.e., the fit was performed with a pre-built ``basis``
-            array) or if ``x2`` is ``None``.  When a :class:`numpy.ndarray`
-            of shape ``(x.size, self.npoly)``, it is used directly as ``P``
-            for the evaluation points and ``x2`` is not required.
+            array) or if ``basis_x`` is ``None``.  When a
+            :class:`numpy.ndarray` of shape ``(x.size, self.npoly)``, it is
+            used directly as ``P`` for the evaluation points and ``basis_x``
+            is not required.
 
         Returns
         -------
@@ -1705,7 +1710,7 @@ class BSpline2D(BSpline):
         """
         gpm = self._fit_gpm(x)
 
-        if x is self.x and x2 is self.x2:
+        if x is self.x and basis_x is self.basis_x:
             return self.yfit, gpm
 
         xsort = x.argsort(kind='stable')
@@ -1716,12 +1721,12 @@ class BSpline2D(BSpline):
                     'The fit was performed with a pre-built basis array; '
                     'pass a basis array to value() for evaluation at new points.'
                 )
-            if x2 is None:
+            if basis_x is None:
                 raise ValueError(
-                    'x2 is required to recompute the polynomial basis; '
-                    'pass x2 or supply a pre-built basis array.'
+                    'basis_x is required to recompute the polynomial basis; '
+                    'pass basis_x or supply a pre-built basis array.'
                 )
-            P_eval = self._poly_basis(self._normalize_x2(x2[xsort]))
+            P_eval = self._poly_basis(self._normalize_basis_x(basis_x[xsort]))
         elif isinstance(basis, np.ndarray):
             basis = np.asarray(basis)
             if basis.shape != (x.size, self.npoly):
