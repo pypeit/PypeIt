@@ -13,20 +13,16 @@ import scipy
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 from astropy.io import fits
-from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.table import Table
 from astropy import units
 
 from pypeit import log
 from pypeit import dataPaths
-from pypeit.core import arc
+from pypeit.core import arc, wave_modeling
 from pypeit import utils # for plotting utils.pyplot_rcparams() and utils.pyplot_rcparams_default()
 from pypeit.core.wave import airtovac
 #from pypeit import io # for io.load_thar_spec()
-
-from IPython import embed
 
 def blackbody(wavelength, T_BB=250., debug=False):
     """ Given wavelength [in microns] and Temperature in Kelvin
@@ -331,6 +327,15 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
     sky_model : `numpy.ndarray`_
         Flux of the final model of the sky.
     """
+
+    # dependencies:
+    # conv2res
+    # blackbody
+    # ohlines
+    # h2o_lines
+    # addlines2spec
+
+
     # Create the wavelength array:
     wv_min = waveminmax[0]
     wv_max = waveminmax[1]
@@ -342,9 +347,6 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
     else :
         log.info("Creating wavelength vector in linear space.")
         wave = np.arange(wv_min, wv_max, dlam)
-
-    # Calculate transparency
-    # trans = transparency(wave, debug=False)
 
     # Empirical match to gemini broadband continuum level
     logy = - 0.55 - 0.55 * (wave-1.0)
@@ -376,7 +378,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         mn_wv = np.mean(h2o_wv[filt_h2o_med])
         # Convolve to the instrument resolution. This is only
         # approximate.
-        smooth_fx, _, _ = conv2res(h2o_wv, h2o_rad,
+        smooth_fx, _, _ = wave_modeling.conv2res(h2o_wv, h2o_rad,
                                            resolution,
                                            central_wl = mn_wv,
                                            debug=debug)
@@ -498,7 +500,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
     mn_wv = np.mean(th_wv[filt_wl])
     # Convolve to the instrument resolution. This is only
     # approximate.
-    smooth_fx, _, _ = conv2res(th_wv, th_fx,
+    smooth_fx, _, _ = wave_modeling.conv2res(th_wv, th_fx,
                                         resolution,
                                         central_wl = mn_wv,
                                         debug=debug)
@@ -555,74 +557,6 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
         utils.pyplot_rcparams_default()
 
     return np.array(wave), np.array(thar_spec)
-
-
-def conv2res(wavelength, flux, resolution, central_wl='midpt',
-             debug=False):
-    """Convolve an imput spectrum to a specific resolution. This is only
-    approximate. It takes a fix FWHM for the entire spectrum given by:
-    fwhm = wl_cent / resolution
-
-    Parameters
-    ----------
-    wavelength : `numpy.ndarray`_
-        wavelength
-    flux : `numpy.ndarray`_
-        flux
-    resolution : float
-        resolution of the spectrograph
-    central_wl 
-        if 'midpt' the central pixel of wavelength is used, otherwise
-        the central_wl will be used.
-    debug : bool
-        If True will show debug plots
-
-    Returns
-    -------
-    flux_convolved : `numpy.ndarray`_
-        Resulting flux after convolution
-    px_sigma : float
-        Size of the sigma in pixels at central_wl
-    px_bin : float
-        Size of one pixel at central_wl
-    """
-
-    if central_wl == 'midpt':
-        wl_cent = np.median(wavelength)
-    else:
-        wl_cent = float(central_wl)
-    wl_sigma =  wl_cent / resolution / 2.355
-    wl_bin = np.abs((wavelength - np.roll(wavelength,1))[np.where( np.abs(wavelength-wl_cent) == np.min(np.abs(wavelength-wl_cent)) )])
-    log.info("The binning of the wavelength array at {} is: {}".format(wl_cent, wl_bin[0]))
-    px_bin = wl_bin[0]
-    px_sigma = wl_sigma / px_bin
-
-    log.info("Covolving with a Gaussian kernel with sigma = {} pixels".format(px_sigma))
-    gauss_kernel = Gaussian1DKernel(px_sigma)
-
-    flux_convolved = convolve(flux, gauss_kernel)
-
-    if debug:
-        utils.pyplot_rcparams()
-        log.info("Spectrum Convolved at R = {}".format(resolution))
-        plt.figure()
-        plt.plot(wavelength, flux,
-                 color='navy', linestyle='-', alpha=0.8,
-                 label=r'Original')
-        plt.plot(wavelength, flux_convolved, 
-                 color='crimson', linestyle='-', alpha=0.8,
-                 label=r'Convolved')
-        plt.legend()
-        plt.xlabel(r'Wavelength')
-        plt.ylabel(r'Flux')
-        plt.title(r'Spectrum Convolved at R = {}'.format(resolution))
-        log.info("Close the Figure to continue.")
-        plt.show(block=True)
-        plt.close()
-        utils.pyplot_rcparams_default()
-
-    return flux_convolved, px_sigma, px_bin
-
 
 def iraf_datareader(database_dir, id_file):
     """
