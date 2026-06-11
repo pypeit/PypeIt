@@ -1753,16 +1753,15 @@ class BSpline2D(BSpline):
 # ---------------------------------------------------------------------------
 
 def bspline_profile_refactor(
-    x, y, profile_basis, ivar=None, gpm=None, upper=5, lower=5, maxiter=25, nord=4,
-    kwargs_knots={}, relative=None, kwargs_reject={}
+    x, y, ivar=None, gpm=None, nord=4, npoly=1, basis=None, basis_x=None, xmin=None, xmax=None,
+    kwargs_knots={}, relative=None, upper=5, lower=5, maxiter=25, kwargs_reject={}
 ):
     """
-    Fit a B-spline with a pre-computed polynomial-profile basis using
-    iterative sigma-clipping rejection.
+    Fit a B-spline with iterative sigma-clipping rejection.
 
     This is a drop-in replacement for
     :func:`pypeit.core.fitting.bspline_profile` that uses
-    :class:`BSpline2D` instead of the legacy
+    :class:`BSpline2D` or :class:`BSpline` instead of the legacy
     :class:`~pypeit.bspline.bspline.bspline` class.
 
     Parameters
@@ -1771,23 +1770,34 @@ def bspline_profile_refactor(
         Independent variable, sorted ascending.
     y : :class:`numpy.ndarray`
         Dependent variable.
-    profile_basis : :class:`numpy.ndarray`
-        Pre-computed polynomial-profile basis.  Must have
-        ``profile_basis.size == x.size * npoly`` for some integer
-        ``npoly >= 1``; it is reshaped to ``(x.size, npoly)``
-        internally.
     ivar : :class:`numpy.ndarray`, optional
         Inverse variance of ``y``.  Zero entries are masked.
     gpm : :class:`numpy.ndarray` of bool, optional
         Input good-pixel mask.  Defaults to ``ivar > 0``.
-    upper : float, optional
-        Upper sigma-clipping threshold.
-    lower : float, optional
-        Lower sigma-clipping threshold.
-    maxiter : int, optional
-        Maximum number of fit-reject iterations.
     nord : int, optional
         B-spline order.
+    npoly : int, optional
+        Number of polynomial terms; forwarded to :meth:`BSpline2D.fit`
+        and ignored when ``basis`` is an array or ``None``.
+    basis : str or :class:`numpy.ndarray` or None, optional
+        Polynomial basis specification for the second variable.  When a
+        string, one of ``'legendre'`` (default), ``'chebyshev'``,
+        ``'poly'``, or ``'poly1'``; ``basis_x`` must be provided.  When
+        a :class:`numpy.ndarray`, it is used directly as the pre-built
+        polynomial basis; a 1D array of size ``x.size * npoly`` is
+        reshaped to ``(x.size, npoly)`` automatically.  When ``None``
+        (default), a 1D :class:`BSpline` fit is performed.
+    basis_x : :class:`numpy.ndarray` or None, optional
+        Second variable.  Required when ``basis`` is a string; ignored
+        when ``basis`` is ``None`` or a pre-built array.
+    xmin : float, optional
+        Minimum value of ``basis_x`` for normalisation; forwarded to
+        :meth:`BSpline2D.fit` and ignored when ``basis`` is an array or
+        ``None``.
+    xmax : float, optional
+        Maximum value of ``basis_x`` for normalisation; forwarded to
+        :meth:`BSpline2D.fit` and ignored when ``basis`` is an array or
+        ``None``.
     kwargs_knots : dict, optional
         Keyword arguments forwarded to :class:`Knots` to control knot
         placement.  An empty dict (default) uses the default
@@ -1796,14 +1806,21 @@ def bspline_profile_refactor(
         Index array for computing the relative chi-squared used to
         rescale the rejection thresholds.  When ``None`` (default) the
         thresholds are not rescaled.
+    upper : float, optional
+        Upper sigma-clipping threshold.
+    lower : float, optional
+        Lower sigma-clipping threshold.
+    maxiter : int, optional
+        Maximum number of fit-reject iterations.
     kwargs_reject : dict, optional
         Additional keyword arguments forwarded to
         :func:`pypeit.core.pydl.djs_reject`.
 
     Returns
     -------
-    sset : :class:`BSpline2D`
-        Fitted spline object.
+    sset : :class:`BSpline2D` or :class:`BSpline`
+        Fitted spline object.  :class:`BSpline2D` when ``basis`` is
+        provided; :class:`BSpline` otherwise.
     outmask : :class:`numpy.ndarray` of bool
         Final good-pixel mask after all rejection iterations.
     yfit : :class:`numpy.ndarray`
@@ -1815,14 +1832,27 @@ def bspline_profile_refactor(
         good points; 3 — singular / degenerate fit; 4 — fewer good
         points than ``nord`` on entry.
     """
-    nx = x.size
-    npoly = profile_basis.size // nx
-    if profile_basis.size != nx * npoly:
-        raise PypeItError('Profile basis is not a multiple of the number of data points.')
-    profile_basis_2d = np.asarray(profile_basis).reshape(nx, npoly)
+    _basis = basis
+    if basis is None:
+        _npoly = 1
+        spl_cls = BSpline
+    elif isinstance(basis, np.ndarray):
+        _basis = np.asarray(basis)
+        if basis.ndim == 1:
+            nx = x.size
+            _npoly = basis.size // nx
+            if basis.size != nx * _npoly:
+                raise PypeItError('basis array size is not a multiple of x.size.')
+            _basis = _basis.reshape(nx, _npoly).copy()
+        else:
+            _npoly = _basis.shape[1]
+        spl_cls = BSpline2D
+    else:
+        _npoly = npoly
+        spl_cls = BSpline2D
 
     outmask = np.ones(y.shape, dtype=bool)
-    maskwork = outmask
+    maskwork = outmask.copy()
     if gpm is not None:
         maskwork &= gpm
     if ivar is not None:
@@ -1830,7 +1860,7 @@ def bspline_profile_refactor(
     if not maskwork.any():
         raise PypeItError('No valid data points in bspline_profile_refactor.')
 
-    sset = BSpline2D(x=x[maskwork], knots=Knots(**kwargs_knots), nord=nord)
+    sset = spl_cls(x=x[maskwork], knots=Knots(**kwargs_knots), nord=nord)
     if maskwork.sum() < sset.nord:
         return sset, outmask, np.zeros(y.shape), 0., 4
 
@@ -1852,7 +1882,13 @@ def bspline_profile_refactor(
         if ivar is not None:
             _ivar *= ivar
 
-        err, yfit = sset.fit(x=x, y=y, ivar=_ivar, basis=profile_basis_2d)
+        if _basis is None:
+            err, yfit = sset.fit(x=x, y=y, ivar=_ivar)
+        else:
+            err, yfit = sset.fit(
+                x=x, y=y, ivar=_ivar, basis=_basis, basis_x=basis_x,
+                npoly=_npoly, xmin=xmin, xmax=xmax,
+            )
         iiter += 1
 
         if err == -2:
@@ -1863,9 +1899,7 @@ def bspline_profile_refactor(
         ngood = maskwork.sum()
         goodbk_count = sset.bkpt_gpm[sset.nord:].sum()
         chi_array = (y - yfit) * np.sqrt(_ivar)
-        reduced_chi = np.sum(chi_array**2) / (
-            ngood - sset.npoly * (goodbk_count + sset.nord) - 1
-        )
+        reduced_chi = np.sum(chi_array**2) / (ngood - _npoly * (goodbk_count + sset.nord) - 1)
         if relative is not None:
             if nrel == 1:
                 this_chi2 = reduced_chi
