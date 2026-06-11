@@ -56,9 +56,26 @@ from pypeit.spectrographs import spectrograph
 
 @dataclasses.dataclass
 class EchelleProps:
-    """Echelle Property Dataclass
+    """Fixed-format echelle geometry for one RIMAS configuration.
 
-    Useful for instruments that have multiple fixed-format echelle setups
+    Attributes
+    ----------
+    norders : int
+        Number of echelle orders.
+    orders : `numpy.ndarray`_
+        Order numbers.
+    order_spat_pos : `numpy.ndarray`_
+        Fractional spatial positions of each order.
+    spec_min : `numpy.ndarray`_
+        Minimum spectral pixel for each order.
+    spec_max : `numpy.ndarray`_
+        Maximum spectral pixel for each order.
+    platescale : float
+        Spatial platescale in arcsec/pixel.
+    dloglam : float
+        Base-10 logarithmic wavelength step.
+    loglam_minmax : tuple
+        Minimum and maximum base-10 logarithmic wavelength.
     """
 
     norders: int
@@ -71,6 +88,7 @@ class EchelleProps:
     loglam_minmax: tuple[float, float]
 
 
+# Base LDT/RIMAS Class =======================================================#
 class LDTRIMASSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle LDT/RIMAS specific code
@@ -93,7 +111,9 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.arm = None
         self.decker = None
 
-    def get_detector_par(self, det, hdu=None):
+    def get_detector_par(
+        self, det: int, hdu: astropy.io.fits.HDUList | None = None
+    ) -> detector_container.DetectorContainer:
         """
         Return metadata for the selected detector.
 
@@ -101,17 +121,19 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
             Many of the necessary detector parameters are read from the file
             header, meaning the ``hdu`` argument is effectively **required** for
-            LTD/DeVeny.  The optional use of ``hdu`` is only viable for
+            LDT/RIMAS.  The optional use of ``hdu`` is only viable for
             automatically generated documentation.
 
-        Args:
-            det (:obj:`int`):
-                1-indexed detector number.
-            hdu (`astropy.io.fits.HDUList`_, optional):
-                The open fits file with the raw image of interest.
+        Parameters
+        ----------
+        det : int
+            1-indexed detector number.
+        hdu : `astropy.io.fits.HDUList`_, optional
+            The open FITS file with the raw image of interest.
 
-        Returns:
-            :class:`~pypeit.images.detector_container.DetectorContainer`:
+        Returns
+        -------
+        :class:`~pypeit.images.detector_container.DetectorContainer`
             Object with the detector metadata.
         """
         if hdu is None:
@@ -170,22 +192,20 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         return detector_container.DetectorContainer(**detectors[det - 1])
 
     @staticmethod
-    def get_specflip(det: int, disp: str) -> bool:
-        """Get the spectral flip based on grating / arm
-
-        Blah, blah, blah, blah.  Talk about issues with the spectrograph...
+    def get_specflip(det: int, disp: str | np.ndarray) -> bool:
+        """Get the spectral flip based on grating and arm.
 
         Parameters
         ----------
-        det : :obj:`int`
-            Detector number (YJ = 1, HK = 2)
-        disp : :obj:`str`
-            Disperser for this arm
+        det : int
+            Detector number (YJ = 1, HK = 2).
+        disp : str or `numpy.ndarray`_
+            Disperser for this arm.
 
         Returns
         -------
-        :obj:`bool`
-            Whether the spectral direction is "flipped" (RED->BLUE) or not (BLUE->RED)
+        bool
+            Whether the spectral direction is flipped from red to blue.
         """
         # The YJ Vph300 grating is installed such that BLUE -> RED
         if det == 1 and disp == "Vph300":
@@ -224,21 +244,26 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["slitwid"] = dict(card=None, compound=True)
         self.meta["dithpat"] = dict(ext=0, card="DITHTYP")
         self.meta["dithpos"] = dict(card=None, compound=True)
-        # self.meta["dithoff"] = dict(ext=0, card="DITHRAD")
+        self.meta["dithoff"] = dict(ext=0, card="DITHRAD")
 
-    def compound_meta(self, headarr: list, meta_key: str) -> object:
+    def compound_meta(
+        self, headarr: list[astropy.io.fits.Header], meta_key: str
+    ) -> object:
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
 
-        Args:
-            headarr (:obj:`list`):
-                List of `astropy.io.fits.Header`_ objects.
-            meta_key (:obj:`str`):
-                Metadata keyword to construct.
+        Parameters
+        ----------
+        headarr : list
+            List of `astropy.io.fits.Header`_ objects.
+        meta_key : str
+            Metadata keyword to construct.
 
-        Returns:
-            :obj:`object`: Metadata value read from the header(s).
+        Returns
+        -------
+        object
+            Metadata value read from the header(s).
         """
         if meta_key == "dispname":
             # Return FILTER1 (Filter Wheel Name FW YJ) for YJ frames and
@@ -303,7 +328,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         log.error("Not ready for compound meta %s for LDT/DeVeny", meta_key)
 
-    def config_independent_frames(self):
+    def config_independent_frames(self) -> dict[str, str]:
         """
         Define frame types that are independent of the fully defined
         instrument configuration.
@@ -315,15 +340,16 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
         interprets the dictionary values, which can be None.
 
-        Returns:
-            :obj:`dict`: Dictionary where the keys are the frame types that
-            are configuration-independent and the values are the metadata
-            keywords that can be used to assign the frames to a configuration
-            group.
+        Returns
+        -------
+        dict
+            Dictionary where the keys are the frame types that are
+            configuration-independent and the values are the metadata keywords
+            that can be used to assign the frames to a configuration group.
         """
         return {"bias": "binning"}
 
-    def configuration_keys(self):
+    def configuration_keys(self) -> list[str]:
         """
         Return the metadata keys that define a unique instrument
         configuration.
@@ -332,14 +358,15 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         identify the unique configurations among the list of frames read
         for a given reduction.
 
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
+        Returns
+        -------
+        list
+            List of keywords of data pulled from file headers and used to
+            construct the :class:`~pypeit.metadata.PypeItMetaData` object.
         """
         return ["arm", "dispname", "decker"]
 
-    def raw_header_cards(self):
+    def raw_header_cards(self) -> list[str]:
         """
         Return additional raw header cards to be propagated in
         downstream output files for configuration identification.
@@ -354,18 +381,22 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
-        Returns:
-            :obj:`list`: List of keywords from the raw data files that should
-            be propagated in output files.
+        Returns
+        -------
+        list
+            List of keywords from the raw data files that should be propagated
+            in output files.
         """
         return ["CAMNAME", "FILTER1", "FILTER2", "FILTER3", "FILTER4"]
 
-    def pypeit_file_keys(self):
+    def pypeit_file_keys(self) -> list[str]:
         """
         Define the list of keys to be output into a standard PypeIt file.
 
-        Returns:
-            :obj:`list` : The list of keywords in the relevant
+        Returns
+        -------
+        list
+            The list of keywords in the relevant
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
@@ -380,7 +411,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         ]
 
     @classmethod
-    def default_pypeit_par(cls):
+    def default_pypeit_par(cls) -> pypeitpar.PypeItPar:
         """
         Return the default parameters to use for all of RIMAS.
 
@@ -389,9 +420,10 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             Each of the child classes will have modifications on top of these,
             but some parameters are instrument-wide.
 
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of PypeIt methods.
+        Returns
+        -------
+        :class:`~pypeit.par.pypeitpar.PypeItPar`
+            Parameters required by all PypeIt methods.
         """
         # Get the PypeIt default parameters
         par = super().default_pypeit_par()
@@ -422,7 +454,8 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         par["scienceframe"]["process"]["sigclip"] = 20.0
         par["scienceframe"]["process"]["satpix"] = "nothing"
 
-        # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
+        # TODO tune up LA COSMICS parameters here for X-shooter as tellurics
+        # are being excessively masked
 
         # # Tilt parameters
         # par["calibrations"]["arcframe"]["process"]["subtract_continuum"] = True
@@ -440,23 +473,26 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self,
         inp: str | list | pathlib.Path | astropy.io.fits.Header | astropy.table.Table,
         inp_par: parset.ParSet = None,
-    ):
+    ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
-        Args:
-            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
-                Input filename, an `astropy.io.fits.Header`_ object, or a list
-                of `astropy.io.fits.Header`_ objects.  Or a row from the
-                metadata table.
-            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
+        Parameters
+        ----------
+        inp : str, list, pathlib.Path, `astropy.io.fits.Header`_, or `astropy.table.Table`_
+            Input filename, an `astropy.io.fits.Header`_ object, a list of
+            `astropy.io.fits.Header`_ objects, or a row from the metadata
+            table.
+        inp_par : :class:`~pypeit.par.parset.ParSet`, optional
+            Parameter set used for the full run of PypeIt. If None, use
+            :func:`default_pypeit_par`.
 
-        Returns:
-            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
-            adjusted for configuration specific parameter values.
+        Returns
+        -------
+        :class:`~pypeit.par.parset.ParSet`
+            The PypeIt parameter set adjusted for configuration-specific
+            parameter values.
         """
         # Start with instrument-wide parameters
         par = super().config_specific_par(inp, inp_par=inp_par)
@@ -470,24 +506,31 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def check_frame_type(self, ftype: str, fitstbl: astropy.table.Table, exprng=None):
+    def check_frame_type(
+        self,
+        ftype: str,
+        fitstbl: astropy.table.Table,
+        exprng: list[float] | None = None,
+    ) -> np.ndarray:
         """
         Check for frames of the provided type.
 
-        Args:
-            ftype (:obj:`str`):
-                Type of frame to check. Must be a valid frame type; see
-                frame-type :ref:`frame_type_defs`.
-            fitstbl (`astropy.table.Table`_):
-                The table with the metadata for one or more frames to check.
-            exprng (:obj:`list`, optional):
-                Range in the allowed exposure time for a frame of type
-                ``ftype``. See
-                :func:`~pypeit.core.framematch.check_frame_exptime`.
+        Parameters
+        ----------
+        ftype : str
+            Type of frame to check. Must be a valid frame type; see frame-type
+            :ref:`frame_type_defs`.
+        fitstbl : `astropy.table.Table`_
+            The table with the metadata for one or more frames to check.
+        exprng : list, optional
+            Range in the allowed exposure time for a frame of type ``ftype``.
+            See :func:`~pypeit.core.framematch.check_frame_exptime`.
 
-        Returns:
-            `numpy.ndarray`_: Boolean array with the flags selecting the
-            exposures in ``fitstbl`` that are ``ftype`` type frames.
+        Returns
+        -------
+        `numpy.ndarray`_
+            Boolean array with the flags selecting the exposures in
+            ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl["exptime"], exprng)
         if ftype in ["arc", "tilt"]:
@@ -562,7 +605,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         log.warning("Cannot determine if frames are of type %s", ftype)
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def get_comb_group(self, fitstbl):
+    def get_comb_group(self, fitstbl: astropy.table.Table) -> astropy.table.Table:
         """
         Automatically assign combination groups and background images by parsing
         known dither patterns for LDT/RIMAS.
@@ -589,13 +632,15 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         recorded in the header is not recognized or is set to ``NONE`` or
         ``MANUAL``.
 
-        Args:
-            fitstbl(`astropy.table.Table`_):
-                The table with the metadata for all the frames.
+        Parameters
+        ----------
+        fitstbl : `astropy.table.Table`_
+            The table with the metadata for all the frames.
 
-        Returns:
-            `astropy.table.Table`_:
-                Modified fitstbl.
+        Returns
+        -------
+        `astropy.table.Table`_
+            Modified metadata table.
         """
         # Find index of fitstbl that contains science and standard frames
         sci_idx = np.array(
@@ -711,13 +756,41 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         return fitstbl
 
-    def get_rawimage(self, raw_file, det, sec_includes_binning=False):
+    def get_rawimage(
+        self,
+        raw_file: str | pathlib.Path,
+        det: int,
+        sec_includes_binning: bool = False,
+    ) -> tuple[
+        detector_container.DetectorContainer,
+        np.ndarray,
+        astropy.io.fits.HDUList,
+        float,
+        np.ndarray,
+        np.ndarray,
+    ]:
         """
         Read raw spectrograph image files and return data and relevant metadata
         needed for image processing.
 
         For LDT/RIMAS, we need to convert NaN pixels in the raw frames to
-        finite staturated values.
+        finite saturated values.
+
+        Parameters
+        ----------
+        raw_file : str or pathlib.Path
+            File to read.
+        det : int
+            1-indexed detector number.
+        sec_includes_binning : bool, optional
+            Interpret data and overscan sections as already including the
+            detector binning.
+
+        Returns
+        -------
+        tuple
+            Detector parameters, raw image, opened HDU list, exposure time, data
+            section image, and overscan section image.
         """
         # Call the super()
         (
@@ -739,7 +812,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         return detector_par, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     @staticmethod
-    def scrub_isot_dateobs(dt_str: str):
+    def scrub_isot_dateobs(dt_str: str) -> astropy.time.Time:
         """Scrub the input ``DATE-OBS`` for ingestion by AstroPy Time
 
         The main issue this method addresses is that sometimes the LOIS
@@ -765,13 +838,14 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         Parameters
         ----------
-        dt_str : :obj:`str`
-            Input datetime string from the ``DATE-OBS`` header keyword
+        dt_str : str
+            Input datetime string from the ``DATE-OBS`` header keyword.
 
         Returns
         -------
         `astropy.time.Time`_
-            The AstroPy Time object corresponding to the ``DATE-OBS`` input string
+            The AstroPy Time object corresponding to the ``DATE-OBS`` input
+            string.
         """
         # Clean all leading / trailing whitespace
         dt_str = dt_str.strip()
@@ -803,7 +877,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             return astropy.time.Time(f"{date}T{time}", format="isot")
 
 
-# Actual Operational Modes ===================================================#
+# VPH Child Class for LDT/RIMAS ==============================================#
 class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
     """
     Child to handle common aspects of the LDT/RIMAS VPH (low-res) modes
@@ -820,12 +894,15 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         from the metadata table frames not associated with this mode,
         namely removes frames that are not low-res (Vph) gratings with a slit.
 
-        Args:
-            fitstbl (`astropy.table.Table`_):
-                The metadata table to be validated
+        Parameters
+        ----------
+        fitstbl : `astropy.table.Table`_
+            The metadata table to be validated.
 
-        Returns:
-            `astropy.table.Table`_: The validated metadata table
+        Returns
+        -------
+        `astropy.table.Table`_
+            The validated metadata table.
         """
         # Only keep frames with one of the VPH gratings -- no slitless mode!
         vph_idx = (
@@ -835,12 +912,14 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         return fitstbl[vph_idx]
 
     @staticmethod
-    def configuration_list() -> dict:
+    def configuration_list() -> dict[str, dict[str, np.str_]]:
         """
-        Return the default-ordered list of configurations for this spectrograph
+        Return the default-ordered list of VPH configurations for this spectrograph
 
-        Returns:
-            :obj:`dict`: Dictionary of default-ordered spectrograph configurations
+        Returns
+        -------
+        dict
+            Dictionary of default-ordered spectrograph configurations.
         """
         return {
             # All of the VPH30 possible combinations first
@@ -932,9 +1011,10 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         """
         Return the default parameters to use for this instrument.
 
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of PypeIt methods.
+        Returns
+        -------
+        :class:`~pypeit.par.pypeitpar.PypeItPar`
+            Parameters required by all PypeIt methods.
         """
         # Get the PypeIt and RIMAS-wide default parameters
         par = super().default_pypeit_par()
@@ -959,7 +1039,8 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         par["calibrations"]["wavelengths"]["rms_thresh_frac_fwhm"] = 0.4
         par["calibrations"]["wavelengths"]["sigdetect"] = 5.0
         par["calibrations"]["wavelengths"]["lamps"] = ["OH_GNIRS"]
-        # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        # par['calibrations']['wavelengths']['nonlinear_counts'] =
+        #      self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par["calibrations"]["wavelengths"]["n_first"] = 1
         par["calibrations"]["wavelengths"]["n_final"] = 1
 
@@ -993,6 +1074,33 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         par["calibrations"]["flatfield"]["slit_illum_finecorr"] = False  # Default: True
         # par["calibrations"]["flatfield"]["spec_samp_fine"] = 30  # Default: 1.2
         # par["calibrations"]["flatfield"]["tweak_slits"] = False  # Default: True
+
+        # Common VPH processing defaults from the split YJ/HK RIMAS classes.
+        par["calibrations"]["arcframe"]["process"]["clip"] = False
+        par["calibrations"]["arcframe"]["process"]["combine"] = "mean"
+        par["calibrations"]["tiltframe"]["process"]["clip"] = False
+        par["calibrations"]["tiltframe"]["process"]["combine"] = "mean"
+        par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0
+        par["calibrations"]["flatfield"]["spec_samp_fine"] = 30
+        par["calibrations"]["flatfield"]["tweak_slits"] = False
+        par["scienceframe"]["process"]["sigclip"] = 5.0
+        par["scienceframe"]["process"]["objlim"] = 2.0
+
+        assumed_seeing = 1.5  # arcsec
+        par["reduce"]["findobj"]["trace_npoly"] = 3
+        par["reduce"]["findobj"]["maxnumber_std"] = 1
+        par["reduce"]["findobj"]["maxnumber_sci"] = 5
+        par["reduce"]["findobj"]["find_fwhm"] = np.round(assumed_seeing / 0.34, 1)
+        par["reduce"]["findobj"]["find_trim_edge"] = [0, 0]
+        par["reduce"]["extraction"]["boxcar_radius"] = np.round(
+            assumed_seeing * 1.28, 1
+        )
+        par["reduce"]["extraction"]["use_2dmodel_mask"] = False
+        par["reduce"]["skysub"]["sky_sigrej"] = 4.0
+        par["flexure"]["spec_method"] = "boxcar"
+        par["flexure"]["spec_maxshift"] = 30
+        par["sensfunc"]["UVIS"]["nresln"] = 15
+        par["sensfunc"]["UVIS"]["polycorrect"] = False
 
         # # For the tilts, our lines are not as well-behaved as others',
         # #   possibly due to the Wynne version E camera.
@@ -1120,18 +1228,21 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
-        Args:
-            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
-                Input filename, an `astropy.io.fits.Header`_ object, or a list
-                of `astropy.io.fits.Header`_ objects.  Or a row from the
-                metadata table.
-            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
+        Parameters
+        ----------
+        inp : str, list, pathlib.Path, `astropy.io.fits.Header`_, or `astropy.table.Table`_
+            Input filename, an `astropy.io.fits.Header`_ object, a list of
+            `astropy.io.fits.Header`_ objects, or a row from the metadata
+            table.
+        inp_par : :class:`~pypeit.par.parset.ParSet`, optional
+            Parameter set used for the full run of PypeIt. If None, use
+            :func:`default_pypeit_par`.
 
-        Returns:
-            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
-            adjusted for configuration specific parameter values.
+        Returns
+        -------
+        :class:`~pypeit.par.parset.ParSet`
+            The PypeIt parameter set adjusted for configuration-specific
+            parameter values.
         """
         # Start with instrument-wide parameters
         par = super().config_specific_par(inp, inp_par=inp_par)
@@ -1181,17 +1292,29 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         Parameters
         ----------
         par : :class:`~pypeit.par.parset.ParSet`
-            The instrumenr-wide parameter set to be modified
-        grating : :obj:`str`
-            The grating used (from :meth:`get_meta_value`)
+            The instrument-wide parameter set to be modified.
+        grating : str
+            The grating used (from :meth:`get_meta_value`).
         decker : str
-            The slit / decker used (from :meth:`get_meta_value`)
+            The slit / decker used (from :meth:`get_meta_value`).
 
         Returns
         -------
         :class:`~pypeit.par.parset.ParSet`
-            Modified parameter set for the YJ arm / Vph gratings
+            Modified parameter set for the YJ arm / Vph gratings.
         """
+        par["calibrations"]["slitedges"]["edge_thresh"] = 20.0
+        par["calibrations"]["slitedges"]["fit_order"] = 2
+        par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
+        par["calibrations"]["slitedges"]["trace_thresh"] = 20.0
+        par["calibrations"]["slitedges"]["sobel_enhance"] = 3
+        par["calibrations"]["slitedges"]["trim_spec"] = [1024, 1024]
+        par["calibrations"]["wavelengths"]["lamps"] = ["XeI"]
+        par["calibrations"]["wavelengths"]["method"] = "holy-grail"
+        par["calibrations"]["wavelengths"]["reid_arxiv"] = "ldt_nihts.fits"
+        par["calibrations"]["wavelengths"]["fwhm_fromlines"] = True
+        par["calibrations"]["wavelengths"]["nsnippet"] = 1
+        par["reduce"]["findobj"]["snr_thresh"] = 50.0
 
         if grating == "Vph30":
             par["calibrations"]["wavelengths"][
@@ -1224,17 +1347,35 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         Parameters
         ----------
         par : :class:`~pypeit.par.parset.ParSet`
-            The instrumenr-wide parameter set to be modified
-        grating : :obj:`str`
-            The grating used (from :meth:`get_meta_value`)
+            The instrument-wide parameter set to be modified.
+        grating : str
+            The grating used (from :meth:`get_meta_value`).
         decker : str
-            The slit / decker used (from :meth:`get_meta_value`)
+            The slit / decker used (from :meth:`get_meta_value`).
 
         Returns
         -------
         :class:`~pypeit.par.parset.ParSet`
-            Modified parameter set for the HK arm / Vph gratings
+            Modified parameter set for the HK arm / Vph gratings.
         """
+        par["calibrations"]["slitedges"]["edge_thresh"] = 20.0
+        par["calibrations"]["slitedges"]["fit_order"] = 2
+        par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
+        par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
+        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.4
+        par["calibrations"]["slitedges"]["left_right_pca"] = True
+        par["calibrations"]["slitedges"]["length_range"] = 0.3
+        par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.4
+        par["calibrations"]["slitedges"]["sync_predict"] = "nearest"
+        par["calibrations"]["bpm_usebias"] = True
+        par["calibrations"]["wavelengths"]["method"] = "full_template"
+        par["calibrations"]["wavelengths"]["fwhm"] = 5.0
+        par["calibrations"]["wavelengths"]["nsnippet"] = 1
+        par["calibrations"]["wavelengths"]["sigdetect"] = 1.0
+        par["calibrations"]["wavelengths"]["echelle"] = False
+        par["calibrations"]["tilts"]["spat_order"] = 4
+        par["calibrations"]["tilts"]["spec_order"] = 5
+        par["reduce"]["findobj"]["snr_thresh"] = 10.0
 
         if grating == "Vph30":
             par["calibrations"]["slitedges"]["edge_thresh"] = 2.0
@@ -1268,6 +1409,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         return par
 
 
+# GRISM Child Class for LDT/RIMAS ============================================#
 class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
     """
     Child to handle common aspects of the LDT/RIMAS Grism (echelle) modes
@@ -1383,6 +1525,13 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
     }
 
     def _geometry(self) -> EchelleProps:
+        """Return the echelle geometry for the active RIMAS arm.
+
+        Returns
+        -------
+        EchelleProps
+            Fixed-format echelle geometry for ``self.arm``.
+        """
         if getattr(self, "arm", None) is None:
             raise PypeItError(
                 "RIMAS grism arm is undefined; call config_specific_par with an example frame."
@@ -1396,26 +1545,74 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         from the metadata table frames not associated with this mode,
         namely removes frames that are not the med-res echelle grism.
 
-        Args:
-            fitstbl (`astropy.table.Table`_):
-                The metadata table to be validated
+        Parameters
+        ----------
+        fitstbl : `astropy.table.Table`_
+            The metadata table to be validated.
 
-        Returns:
-            `astropy.table.Table`_: The validated metadata table
+        Returns
+        -------
+        `astropy.table.Table`_
+            The validated metadata table.
         """
         # Only keep frames with the echelle grism -- no IFU mode!
         grism_idx = (fitstbl["dispname"] == "Grism") & (fitstbl["decker"] != "open")
         # Return the corrected table
         return fitstbl[grism_idx]
 
+    @staticmethod
+    def configuration_list() -> dict[str, dict[str, np.str_]]:
+        """
+        Return the default-ordered list of GRISM configurations for this spectrograph
+
+        Returns
+        -------
+        dict
+            Dictionary of default-ordered spectrograph configurations.
+        """
+        return {
+            # All of the GRISM possible combinations
+            "YJ06": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Grism"),
+                "decker": np.str_("0.6''"),
+            },
+            "HK06": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Grism"),
+                "decker": np.str_("0.6''"),
+            },
+            "YJ10": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Grism"),
+                "decker": np.str_("1.0''"),
+            },
+            "HK10": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Grism"),
+                "decker": np.str_("1.0''"),
+            },
+            "YJ20": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Grism"),
+                "decker": np.str_("2.0''"),
+            },
+            "HK20": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Grism"),
+                "decker": np.str_("2.0''"),
+            },
+        }
+
     @classmethod
-    def default_pypeit_par(cls):
+    def default_pypeit_par(cls) -> pypeitpar.PypeItPar:
         """
         Return the default parameters to use for this instrument.
 
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of PypeIt methods.
+        Returns
+        -------
+        :class:`~pypeit.par.pypeitpar.PypeItPar`
+            Parameters required by all PypeIt methods.
         """
         # Get the PypeIt and RIMAS-wide default parameters
         par = super().default_pypeit_par()
@@ -1527,6 +1724,21 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         # Coadding
         par["coadd1d"]["wave_method"] = "log10"
 
+        # Split-arm grism defaults from the original RIMAS classes. These
+        # intentionally follow the broad echelle defaults above so that the
+        # original child-class overrides are preserved in the consolidated class.
+        par["calibrations"]["wavelengths"]["lamps"] = ["use_header"]
+        par["calibrations"]["wavelengths"]["method"] = "full_template"
+        par["calibrations"]["wavelengths"]["fwhm"] = 3.0
+        par["calibrations"]["wavelengths"]["nsnippet"] = 1
+        par["calibrations"]["tilts"]["spat_order"] = 4
+        par["calibrations"]["tilts"]["spec_order"] = 5
+        par["reduce"]["findobj"]["trace_npoly"] = 3
+        par["reduce"]["findobj"]["snr_thresh"] = 50.0
+        par["reduce"]["findobj"]["maxnumber_sci"] = 5
+        par["sensfunc"]["UVIS"]["nresln"] = 15
+        par["sensfunc"]["UVIS"]["polycorrect"] = False
+
         return par
 
     def config_specific_par(
@@ -1538,18 +1750,21 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
-        Args:
-            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
-                Input filename, an `astropy.io.fits.Header`_ object, or a list
-                of `astropy.io.fits.Header`_ objects.  Or a row from the
-                metadata table.
-            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
+        Parameters
+        ----------
+        inp : str, list, pathlib.Path, `astropy.io.fits.Header`_, or `astropy.table.Table`_
+            Input filename, an `astropy.io.fits.Header`_ object, a list of
+            `astropy.io.fits.Header`_ objects, or a row from the metadata
+            table.
+        inp_par : :class:`~pypeit.par.parset.ParSet`, optional
+            Parameter set used for the full run of PypeIt. If None, use
+            :func:`default_pypeit_par`.
 
-        Returns:
-            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
-            adjusted for configuration specific parameter values.
+        Returns
+        -------
+        :class:`~pypeit.par.parset.ParSet`
+            The PypeIt parameter set adjusted for configuration-specific
+            parameter values.
         """
         # Start with instrument-wide parameters
         par = super().config_specific_par(inp, inp_par=inp_par)
@@ -1588,16 +1803,16 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         Parameters
         ----------
         par : :class:`~pypeit.par.parset.ParSet`
-            The instrumenr-wide parameter set to be modified
-        grating : :obj:`str`
-            The grating used (from :meth:`get_meta_value`)
+            The instrument-wide parameter set to be modified.
+        grating : str
+            The grating used (from :meth:`get_meta_value`).
         decker : str
-            The slit / decker used (from :meth:`get_meta_value`)
+            The slit / decker used (from :meth:`get_meta_value`).
 
         Returns
         -------
         :class:`~pypeit.par.parset.ParSet`
-            Modified parameter set for the YJ arm / grism
+            Modified parameter set for the YJ arm / grism.
         """
         return par
 
@@ -1609,16 +1824,16 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         Parameters
         ----------
         par : :class:`~pypeit.par.parset.ParSet`
-            The instrumenr-wide parameter set to be modified
-        grating : :obj:`str`
-            The grating used (from :meth:`get_meta_value`)
+            The instrument-wide parameter set to be modified.
+        grating : str
+            The grating used (from :meth:`get_meta_value`).
         decker : str
-            The slit / decker used (from :meth:`get_meta_value`)
+            The slit / decker used (from :meth:`get_meta_value`).
 
         Returns
         -------
         :class:`~pypeit.par.parset.ParSet`
-            Modified parameter set for the HK arm / grism
+            Modified parameter set for the HK arm / grism.
         """
         return par
 
@@ -1626,65 +1841,70 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
     # These properties select the correct instrument arm to return based on the
     # `self.arm` instance variable.
     @property
-    def norders(self):
+    def norders(self) -> int:
         """
-        Number of orders for this spectograph. Should only defined for
+        Number of orders for this spectrograph. Should only be defined for
         echelle spectrographs, and it is undefined for the base class.
         """
         return self._geometry().norders
 
     @property
-    def order_spat_pos(self):
+    def order_spat_pos(self) -> np.ndarray:
         """
         Return the expected spatial position of each echelle order.
         """
         return self._geometry().order_spat_pos
 
     @property
-    def orders(self):
+    def orders(self) -> np.ndarray:
         """
         Return the order number for each echelle order.
         """
         return self._geometry().orders
 
     @property
-    def spec_min_max(self):
+    def spec_min_max(self) -> np.ndarray:
         """
         Return the minimum and maximum spectral pixel expected for the
         spectral range of each order.
         """
         return np.vstack((self._geometry().spec_min, self._geometry().spec_max))
 
-    def order_platescale(self, order_vec, binning=None):
+    def order_platescale(
+        self, order_vec: np.ndarray, binning: str | None = None
+    ) -> np.ndarray:
         """
         Return the platescale for each echelle order.
 
         This routine is only defined for echelle spectrographs, and it is
         undefined in the base class.
 
-        Args:
-            order_vec (`numpy.ndarray`_):
-                The vector providing the order numbers.
-            binning (:obj:`str`, optional):
-                The string defining the spectral and spatial binning.
+        Parameters
+        ----------
+        order_vec : `numpy.ndarray`_
+            The vector providing the order numbers.
+        binning : str, optional
+            The string defining the spectral and spatial binning.
 
-        Returns:
-            `numpy.ndarray`_: An array with the platescale for each order
-            provided by ``order``.
+        Returns
+        -------
+        `numpy.ndarray`_
+            An array with the platescale for each order provided by
+            ``order_vec``.
         """
         return np.full(order_vec.size, self._geometry().platescale)
 
     @property
-    def dloglam(self):
+    def dloglam(self) -> float:
         """
         Return the logarithmic step in wavelength for output spectra.
         """
         return self._geometry().dloglam
 
     @property
-    def loglam_minmax(self):
+    def loglam_minmax(self) -> tuple[float, float]:
         """
         Return the base-10 logarithm of the first and last wavelength for
-        ouput spectra.
+        output spectra.
         """
         return self._geometry().loglam_minmax
