@@ -1753,10 +1753,8 @@ class BSpline2D(BSpline):
 # ---------------------------------------------------------------------------
 
 def bspline_profile_refactor(
-    xdata, ydata, invvar, profile_basis, ingpm=None,
-    upper=5, lower=5, maxiter=25,
-    nord=4, kwargs_knots={}, relative=None,
-    kwargs_reject={}, quiet=False,
+    x, y, profile_basis, ivar=None, gpm=None, upper=5, lower=5, maxiter=25, nord=4,
+    kwargs_knots={}, relative=None, kwargs_reject={}
 ):
     """
     Fit a B-spline with a pre-computed polynomial-profile basis using
@@ -1769,19 +1767,19 @@ def bspline_profile_refactor(
 
     Parameters
     ----------
-    xdata : :class:`numpy.ndarray`
+    x : :class:`numpy.ndarray`
         Independent variable, sorted ascending.
-    ydata : :class:`numpy.ndarray`
+    y : :class:`numpy.ndarray`
         Dependent variable.
-    invvar : :class:`numpy.ndarray`
-        Inverse variance of ``ydata``.  Zero entries are masked.
     profile_basis : :class:`numpy.ndarray`
         Pre-computed polynomial-profile basis.  Must have
-        ``profile_basis.size == xdata.size * npoly`` for some integer
-        ``npoly >= 1``; it is reshaped to ``(xdata.size, npoly)``
+        ``profile_basis.size == x.size * npoly`` for some integer
+        ``npoly >= 1``; it is reshaped to ``(x.size, npoly)``
         internally.
-    ingpm : :class:`numpy.ndarray` of bool, optional
-        Input good-pixel mask.  Defaults to ``invvar > 0``.
+    ivar : :class:`numpy.ndarray`, optional
+        Inverse variance of ``y``.  Zero entries are masked.
+    gpm : :class:`numpy.ndarray` of bool, optional
+        Input good-pixel mask.  Defaults to ``ivar > 0``.
     upper : float, optional
         Upper sigma-clipping threshold.
     lower : float, optional
@@ -1801,8 +1799,6 @@ def bspline_profile_refactor(
     kwargs_reject : dict, optional
         Additional keyword arguments forwarded to
         :func:`pypeit.core.pydl.djs_reject`.
-    quiet : bool, optional
-        Reserved for future use; currently ignored.
 
     Returns
     -------
@@ -1811,7 +1807,7 @@ def bspline_profile_refactor(
     outmask : :class:`numpy.ndarray` of bool
         Final good-pixel mask after all rejection iterations.
     yfit : :class:`numpy.ndarray`
-        Best-fit model values at ``xdata``.
+        Best-fit model values at ``x``.
     reduced_chi : float
         Reduced chi-squared of the final fit.
     exit_status : int
@@ -1819,52 +1815,54 @@ def bspline_profile_refactor(
         good points; 3 — singular / degenerate fit; 4 — fewer good
         points than ``nord`` on entry.
     """
-    nx = xdata.size
+    nx = x.size
     npoly = profile_basis.size // nx
     if profile_basis.size != nx * npoly:
         raise PypeItError('Profile basis is not a multiple of the number of data points.')
     profile_basis_2d = np.asarray(profile_basis).reshape(nx, npoly)
 
-    yfit = np.zeros(ydata.shape)
-    reduced_chi = 0.
-    outmask = True if invvar.size == 1 else np.ones(invvar.shape, dtype=bool)
-    if ingpm is None:
-        ingpm = invvar > 0
-    maskwork = outmask & ingpm & (invvar > 0)
+    outmask = np.ones(y.shape, dtype=bool)
+    maskwork = outmask
+    if gpm is not None:
+        maskwork &= gpm
+    if ivar is not None:
+        maskwork &= ivar > 0
     if not maskwork.any():
         raise PypeItError('No valid data points in bspline_profile_refactor.')
 
-    sset = BSpline2D(x=xdata[maskwork], knots=Knots(**kwargs_knots), nord=nord)
+    sset = BSpline2D(x=x[maskwork], knots=Knots(**kwargs_knots), nord=nord)
     if maskwork.sum() < sset.nord:
-        return sset, outmask, yfit, reduced_chi, 4
+        return sset, outmask, np.zeros(y.shape), 0., 4
 
     err = -1
     qdone = False
     iiter = 0
     exit_status = 0
+    reduced_chi = 0.
     relative_factor = 1.0
     nrel = 0 if relative is None else len(relative)
-    tempin = np.copy(ingpm)
+    _gpm = None if gpm is None else gpm.copy()
 
     while (err != 0 or not qdone) and iiter <= maxiter and exit_status == 0:
         if maskwork.sum() <= 1:
             exit_status = 2
             break
 
-        err, yfit = sset.fit(
-            x=xdata, y=ydata, ivar=invvar * maskwork, basis=profile_basis_2d
-        )
+        _ivar = maskwork.astype(float)
+        if ivar is not None:
+            _ivar *= ivar
+
+        err, yfit = sset.fit(x=x, y=y, ivar=_ivar, basis=profile_basis_2d)
         iiter += 1
 
         if err == -2:
-            return sset, np.zeros(xdata.shape, dtype=bool), \
-                   np.zeros(xdata.shape), reduced_chi, 3
+            return sset, np.zeros(x.shape, dtype=bool), np.zeros(x.shape), reduced_chi, 3
         if err != 0:
             continue
 
         ngood = maskwork.sum()
         goodbk_count = sset.bkpt_gpm[sset.nord:].sum()
-        chi_array = (ydata - yfit) * np.sqrt(invvar * maskwork)
+        chi_array = (y - yfit) * np.sqrt(_ivar)
         reduced_chi = np.sum(chi_array**2) / (
             ngood - sset.npoly * (goodbk_count + sset.nord) - 1
         )
@@ -1877,11 +1875,11 @@ def bspline_profile_refactor(
                 )
             relative_factor = max(np.sqrt(this_chi2), 1.0)
         maskwork, qdone = pydl.djs_reject(
-            ydata, yfit, invvar=invvar, inmask=tempin, outmask=maskwork,
+            y, yfit, invvar=_ivar, inmask=_gpm, outmask=maskwork,
             upper=upper * relative_factor, lower=lower * relative_factor,
             **kwargs_reject
         )
-        tempin = np.copy(maskwork)
+        _gpm = np.copy(maskwork)
 
     if iiter == maxiter + 1:
         exit_status = 1
