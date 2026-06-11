@@ -1253,7 +1253,12 @@ class BSpline2D(BSpline):
         Map ``x2`` linearly to the interval ``[-1, +1]``.
 
         Uses the stored :attr:`xmin` and :attr:`xmax` as the normalisation
-        range.
+        range.  If either are None, they are replaced by the respective value in
+        ``x2``.  If they are equal, the value of :attr:`xmax` is set to ``xmax =
+        xmin + 1``.  If the range of ``x2`` is not fully covered by the
+        [:attr:`xmin`, :attr:`xmax`], a warning is issued noting that the
+        normalization of ``x2`` will not result in a new range this is within
+        [-1,1].
 
         Parameters
         ----------
@@ -1265,6 +1270,14 @@ class BSpline2D(BSpline):
         :class:`numpy.ndarray`
             Normalised second variable in ``[-1, +1]``.
         """
+        if self.xmin is None:
+            self.xmin = x2.min()
+        if self.xmax is None:
+            self.xmax = x2.max()
+        if self.xmin == self.xmax:
+            self.xmax = self.xmin + 1
+        if self.xmin > x2.min() or self.xmax < x2.max():
+            warnings.warn('Rescaled range for x2 will not remap linearly to the range [-1,1]!')
         return 2.0 * (x2 - self.xmin) / (self.xmax - self.xmin) - 1.0
 
     def _poly_basis(self, x2norm):
@@ -1549,7 +1562,7 @@ class BSpline2D(BSpline):
     # ------------------------------------------------------------------
 
     def fit(self, x, y, x2, ivar=None,
-            basis='legendre', npoly=1, xmin=0.0, xmax=1.0,
+            basis='legendre', npoly=1, xmin=None, xmax=None,
             reset_knots=False):
         """
         Fit a weighted least-squares 2D B-spline.
