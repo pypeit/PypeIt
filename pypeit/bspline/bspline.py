@@ -428,6 +428,10 @@ class bspline(datamodel.DataContainer):
             self.xmax = x2.max()
         if self.xmin == self.xmax:
             self.xmax = self.xmin + 1
+            warnings.warn(
+                'Minimum and maximum value used to rescale the range for x2 are identical.  '
+                'Adjusting xmax but be wary of the output!'
+            )
         if self.xmin > x2.min() or self.xmax < x2.max():
             warnings.warn('Rescaled range for x2 will not remap linearly to the range [-1,1]!')
 
