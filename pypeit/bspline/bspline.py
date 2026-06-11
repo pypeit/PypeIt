@@ -137,8 +137,8 @@ class bspline(datamodel.DataContainer):
         else:
             self.coeff = np.zeros((nc,), dtype=float)
             self.icoeff = np.zeros((nc,), dtype=float)
-        self.xmin = 0.0
-        self.xmax = 1.0
+        self.xmin = None
+        self.xmax = None
         self.funcname = funcname
 
     @staticmethod
@@ -422,6 +422,13 @@ class bspline(datamodel.DataContainer):
 
         if x2.size != nx:
             raise ValueError('Dimensions of x and x2 do not match.')
+
+        if self.xmin is None:
+            self.xmin = x2.min()
+        if self.xmax is None:
+            self.xmax = x2.max()
+        if self.xmin == self.xmax:
+            self.xmax = self.xmin + 1
 
         # TODO: Below is unchanged.
         x2norm = 2.0 * (x2 - self.xmin) / (self.xmax - self.xmin) - 1.0
