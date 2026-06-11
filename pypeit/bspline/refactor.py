@@ -1284,6 +1284,10 @@ class BSpline2D(BSpline):
             self.xmax = basis_x.max()
         if self.xmin == self.xmax:
             self.xmax = self.xmin + 1
+            warnings.warn(
+                'Minimum and maximum value used to rescale the range for x2 are identical.  '
+                'Adjusting xmax but be wary of the output!'
+            )
         if self.xmin > basis_x.min() or self.xmax < basis_x.max():
             warnings.warn(
                 'Rescaled range for basis_x will not remap linearly to the range [-1,1]!'
