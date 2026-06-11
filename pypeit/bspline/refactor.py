@@ -1862,6 +1862,8 @@ def bspline_profile_refactor(
 
     sset = spl_cls(x=x[maskwork], knots=Knots(**kwargs_knots), nord=nord)
     if maskwork.sum() < sset.nord:
+        # TODO: Should this return outmask or maskwork?  Seems odd to return a
+        # fully True gpm for a failed fit.
         return sset, outmask, np.zeros(y.shape), 0., 4
 
     err = -1
@@ -1917,5 +1919,4 @@ def bspline_profile_refactor(
 
     if iiter == maxiter + 1:
         exit_status = 1
-    outmask = np.copy(maskwork)
-    return sset, outmask, yfit, reduced_chi, exit_status
+    return sset, maskwork.copy(), yfit, reduced_chi, exit_status
