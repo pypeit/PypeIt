@@ -1346,8 +1346,8 @@ def test_bspline_profile_refactor_spec():
     for f in files:
         d = np.load(f)
         _, _, spec_flat_fit, _, exit_status = bspline_profile_refactor(
-            d['spec_coo_data'], d['spec_flat_data'], d['spec_ivar_data'],
-            np.ones_like(d['spec_coo_data']), ingpm=d['spec_gpm_data'],
+            d['spec_coo_data'], d['spec_flat_data'], np.ones_like(d['spec_coo_data']),
+            ivar=d['spec_ivar_data'], gpm=d['spec_gpm_data'],
             nord=4, upper=logrej, lower=logrej,
             kwargs_knots={'spacing': spec_samp_fine},
             kwargs_reject={'groupbadpix': True, 'maxrej': 5},
@@ -1372,7 +1372,6 @@ def test_bspline_profile_refactor_spat():
         _, _, spat_flat_fit, _, exit_status = bspline_profile_refactor(
             d['spat_coo_data'], d['spat_flat_data'],
             np.ones_like(d['spat_flat_data']),
-            np.ones_like(d['spat_flat_data']),
             nord=4, upper=5.0, lower=5.0,
             kwargs_knots={'spacing': bkspace},
         )
@@ -1392,8 +1391,8 @@ def test_bspline_profile_refactor_twod():
     for f in files:
         d = np.load(f)
         _, _, twod_flat_fit, _, exit_status = bspline_profile_refactor(
-            d['twod_spec_coo_data'], d['twod_flat_data'], d['twod_ivar_data'],
-            d['poly_basis'], ingpm=d['twod_gpm_data'],
+            d['twod_spec_coo_data'], d['twod_flat_data'], d['poly_basis'],
+            ivar=d['twod_ivar_data'], gpm=d['twod_gpm_data'],
             nord=4, upper=twod_sigrej, lower=twod_sigrej,
             kwargs_knots={'spacing': spec_samp_coarse},
             kwargs_reject={'groupbadpix': True, 'maxrej': 10},
