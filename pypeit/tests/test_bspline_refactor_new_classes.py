@@ -1345,13 +1345,14 @@ def test_bspline_profile_refactor_spec():
     spec_samp_fine = 1.2
     for f in files:
         d = np.load(f)
-        _, _, spec_flat_fit, _, exit_status = bspline_profile_refactor(
-            d['spec_coo_data'], d['spec_flat_data'], np.ones_like(d['spec_coo_data']),
+        sset, _, spec_flat_fit, _, exit_status = bspline_profile_refactor(
+            d['spec_coo_data'], d['spec_flat_data'],
             ivar=d['spec_ivar_data'], gpm=d['spec_gpm_data'],
             nord=4, upper=logrej, lower=logrej,
             kwargs_knots={'spacing': spec_samp_fine},
             kwargs_reject={'groupbadpix': True, 'maxrej': 5},
         )
+        assert isinstance(sset, BSpline)
         assert np.allclose(d['spec_flat_fit'], spec_flat_fit), \
             'Bad spectral bspline_profile_refactor result'
 
@@ -1369,12 +1370,12 @@ def test_bspline_profile_refactor_spat():
             1.0 / d['median_slit_width'] / 10.0,
             1.2 * np.median(np.diff(d['spat_coo_data'])),
         )
-        _, _, spat_flat_fit, _, exit_status = bspline_profile_refactor(
+        sset, _, spat_flat_fit, _, exit_status = bspline_profile_refactor(
             d['spat_coo_data'], d['spat_flat_data'],
-            np.ones_like(d['spat_flat_data']),
             nord=4, upper=5.0, lower=5.0,
             kwargs_knots={'spacing': bkspace},
         )
+        assert isinstance(sset, BSpline)
         assert np.allclose(d['spat_flat_fit'], spat_flat_fit), \
             'Bad spatial bspline_profile_refactor result'
 
@@ -1390,13 +1391,15 @@ def test_bspline_profile_refactor_twod():
     twod_sigrej = 4.0
     for f in files:
         d = np.load(f)
-        _, _, twod_flat_fit, _, exit_status = bspline_profile_refactor(
-            d['twod_spec_coo_data'], d['twod_flat_data'], d['poly_basis'],
+        sset, _, twod_flat_fit, _, exit_status = bspline_profile_refactor(
+            d['twod_spec_coo_data'], d['twod_flat_data'],
+            basis=d['poly_basis'],
             ivar=d['twod_ivar_data'], gpm=d['twod_gpm_data'],
             nord=4, upper=twod_sigrej, lower=twod_sigrej,
             kwargs_knots={'spacing': spec_samp_coarse},
             kwargs_reject={'groupbadpix': True, 'maxrej': 10},
         )
+        assert isinstance(sset, BSpline2D)
         assert np.allclose(d['twod_flat_fit'], twod_flat_fit), \
             'Bad 2D bspline_profile_refactor result'
 
