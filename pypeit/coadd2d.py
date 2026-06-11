@@ -4,47 +4,161 @@ Module for performing two-dimensional coaddition of spectra.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+import dataclasses
 from pathlib import Path
-import os
-import copy
 
 from IPython import embed
 
-import numpy as np
-from scipy import ndimage
-from matplotlib import pyplot as plt
 from astropy.table import Table, vstack
 from astropy.io import fits
+from matplotlib import pyplot as plt
+import numpy as np
+from scipy import ndimage
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit import utils
-from pypeit import specobjs
-from pypeit import slittrace
 from pypeit import extraction
 from pypeit import find_objects
+from pypeit import slittrace
+from pypeit import specobjs
+from pypeit import utils
 from pypeit.images import pypeitimage
-from pypeit.core import findobj_skymask
-from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
+from pypeit.core import findobj_skymask
 from pypeit.core import parse 
-from pypeit import spec2dobj
+from pypeit.core.wavecal import wvutils
 from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
+from pypeit.spec2dobj import Spec2DObj
+
+
+@dataclasses.dataclass
+class CoAdd2dStack:
+    """ CoAdd 2D Stack dataclass
+
+    Attributes
+    ----------
+    specobjs_list : list
+        List of :class:`~pypeit.specobjs.SpecObjs` objects, one per exposure,
+        containing the 1D extracted objects associated with the loaded
+        ``spec2d`` inputs for the selected detector or mosaic. This list may be
+        empty if matching ``spec1d`` files are not available.
+    slits_list : list
+        List of :class:`~pypeit.slittrace.SlitTraceSet` objects, one per
+        exposure, containing the slit or order definitions for the input
+        frames.
+    slitmask_stack : list
+        List of two-dimensional slit-ID images, one per exposure, produced from
+        the corresponding :attr:`slits_list` entry using
+        :func:`~pypeit.slittrace.SlitTraceSet.slit_img`. Each image labels the
+        detector pixels by slit or order, including any recorded spatial
+        flexure correction.
+    sciimg_stack : list
+        List of two-dimensional science images, one per exposure. These are the
+        primary input images to be rectified and coadded.
+    sciivar_stack : list
+        List of two-dimensional inverse-variance images, one per exposure,
+        aligned with :attr:`sciimg_stack`. If the exposure times differ among
+        the input frames, these images are rescaled consistently with the
+        science images before coaddition.
+    skymodel_stack : list
+        List of two-dimensional sky-model images, one per exposure, aligned
+        with :attr:`sciimg_stack`. These are used when constructing sky-
+        subtracted images and are also rescaled if the exposure times are
+        homogenized.
+    mask_stack : list
+        List of bad-pixel mask images, one per exposure, containing the raw
+        mask values from the input :class:`~pypeit.spec2dobj.Spec2DObj`
+        instances.
+    waveimg_stack : list
+        List of two-dimensional wavelength images, one per exposure, giving the
+        wavelength associated with each detector pixel in the corresponding
+        science image.
+    exptime_stack : list
+        List of exposure times, one per input exposure, read from the primary
+        headers of the input ``spec2d`` data.
+    exptime_coadd : float
+        Reference exposure time adopted for the coadd. This is taken to be the
+        median input exposure time, using the higher of the two middle values
+        for even-length stacks. If the individual exposure times differ by more
+        than the allowed tolerance, the science, sky, and inverse-variance
+        images are rescaled to this effective exposure time before coaddition.
+    redux_path : :obj:`~pathlib.Path`
+        Reduction path associated with the current coaddition context. At
+        present this is set to the current working directory when the stack is
+        constructed.
+    detectors : list
+        List of detector or detector-mosaic metadata objects, one per exposure,
+        copied from the loaded :class:`~pypeit.spec2dobj.Spec2DObj` instances.
+        These are later used for bookkeeping and for propagating detector
+        properties into the coadded products.
+    spectrograph : str
+        Name of the spectrograph associated with the stack.
+    pypeline : str
+        Name of the PypeIt reduction mode associated with the stack, e.g.
+        multislit or echelle.
+    maskdef_designtab_list : list
+        List of slitmask-design tables, one per exposure, taken from the input
+        ``spec2d`` objects. These are used when propagating mask-design
+        metadata into the coadded products when such information is available.
+    spat_flexure_list : list
+        List of spatial-flexure corrections, one per exposure, used when
+        constructing slit masks and when relating slit geometry in the input
+        frames to the coadded frame.
+    """
+    specobjs_list:list
+    slits_list:list
+    slitmask_stack:list
+    sciimg_stack:list
+    sciivar_stack:list
+    skymodel_stack:list
+    mask_stack:list
+    waveimg_stack:list
+    exptime_stack:list
+    exptime_coadd:float
+    redux_path:Path
+    detectors:list
+    spectrograph:str
+    pypeline:str
+    maskdef_designtab_list:list
+    spat_flexure_list:list
+
 
 #TODO We should decide which parameters go in through the parset 
 # and which parameters are passed in to the method as arguments
 class CoAdd2D:
 
     """
-    Main routine to run the extraction for 2d coadds.
+    Main driver for two-dimensional spectral coaddition.
 
-    Algorithm steps are as follows:
-        - Fill this in.
+    This class coordinates loading a set of reduced ``spec2d`` products, selecting
+    the slits or orders to combine, determining relative offsets and weights among
+    the input exposures, rectifying the input images onto a common coordinate grid,
+    and reducing the resulting pseudo-image into final coadded products.
 
-    This performs 2d coadd specific tasks, and then also performs some
-    of the tasks analogous to the pypeit.extract_one method. Docs coming
-    soon....
+    The base class provides the shared machinery used by both multislit and
+    echelle coadds. Subclasses specialize the handling of reference objects,
+    offset determination, weighting, and wavelength-grid construction for their
+    respective reduction modes.
+
+    Notes
+    -----
+    The overall workflow is:
+
+        #. Load the per-exposure data products into a :class:`~pypeit.core.coadd2d.CoAdd2dStack`.
+        #. Determine the subset of slits or orders that are valid for coaddition.
+        #. Compute relative offsets among the exposures.
+        #. Compute the weights used during coaddition.
+        #. Rectify and coadd the input images slit-by-slit or order-by-order.
+        #. Build a pseudo-image from the coadd outputs.
+        #. Run the extraction and bookkeeping steps needed to write the coadded products to disk.
+
+    See Also
+    --------
+    MultiSlitCoAdd2D
+        Multislit and longslit implementation.
+    EchelleCoAdd2D
+        Echelle implementation.
     """
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -53,16 +167,48 @@ class CoAdd2D:
                      sn_smooth_npix=None, bkg_redux=False, find_negative=False, show=False,
                      show_peaks=False, debug_offsets=False, debug=False):
         """
-        Instantiate the subclass appropriate for the provided spectrograph.
+        Instantiate the appropriate :class:`CoAdd2D` subclass for a spectrograph.
 
-        The class to instantiate must match the ``pypeline``
-        attribute of the provided ``spectrograph``, and must be a
-        subclass of :class:`CoAdd2D`; see the parent class
-        instantiation for parameter descriptions.
+        The subclass is selected by matching the spectrograph ``pypeline`` name to a
+        child class of :class:`CoAdd2D`.
 
-        Returns:
-            :class:`CoAdd2D`: One of the subclasses with
-            :class:`CoAdd2D` as its base.
+        Parameters
+        ----------
+        spec2dfiles : list
+            List of input ``spec2d`` files or already-instantiated
+            :class:`~pypeit.spec2dobj.Spec2DObj` objects.
+        spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+            Spectrograph object describing the instrument and reduction mode.
+        par : :class:`~pypeit.par.parset.ParSet`
+            Parameter set controlling the coaddition.
+        det : int or tuple, optional
+            Detector number or detector mosaic identifier to process.
+        only_slits : list, optional
+            List of slit or order identifiers to include.
+        exclude_slits : list, optional
+            List of slit or order identifiers to exclude.
+        sn_smooth_npix : int, optional
+            Number of pixels used when smoothing S/N estimates for weight
+            determination.
+        bkg_redux : bool, optional
+            Flag indicating that the science images have already been background
+            subtracted.
+        find_negative : bool, optional
+            If True, search for and mask negative traces produced by image
+            differencing.
+        show : bool, optional
+            If True, display intermediate results.
+        show_peaks : bool, optional
+            If True, show QA plots for peak finding.
+        debug_offsets : bool, optional
+            If True, show QA plots related to offset determination.
+        debug : bool, optional
+            If True, enable additional debug output.
+
+        Returns
+        -------
+        :class:`CoAdd2D`
+            Instance of the subclass appropriate for the requested reduction mode.
         """
 
         return next(c for c in cls.__subclasses__()
@@ -77,52 +223,48 @@ class CoAdd2D:
                  sn_smooth_npix=None, bkg_redux=False, find_negative=False, show=False,
                  show_peaks=False, debug_offsets=False, debug=False):
         """
+        Initialize a two-dimensional coadd driver.
 
-        Args:
-            spec2d_files (:obj:`list`):
-                List of spec2d files or a list of
-                :class:`~pypeit.spec2dobj.Spec2dObj` objects.
-            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-                The instrument used to collect the data to be reduced.
-            par (:class:`~pypeit.par.parset.ParSet`):
-                Processing parameters.
-            det (:obj:`int`, :obj:`tuple`, optional):
-                The 1-indexed detector number(s) to process.  If a tuple, it
-                must include detectors viable as a mosaic for the provided
-                spectrograph; see
-                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
-            only_slits (:obj:`list`, optional):
-                List of slits to coadd. It must be `slitord_id`.
-            exclude_slits (:obj:`list`, optional):
-                List of slits to exclude from coaddition. It must be `slitord_id`.
-            sn_smooth_npix (:obj:`int`, optional):
-                Number of pixels to median filter by when computing S/N used to
-                decide how to scale and weight spectra. If set to None, the code
-                will simply take 10% of the image size in the spectral
-                direction.  TODO: for truncated echelle orders we should be
-                doing something more intelligent.
-            bkg_redux (:obj:`bool`, optional):
-                If True, the sciImg has been subtracted by
-                a background image (e.g. standard treatment in the IR)
-                This parameter is passed to pypeit.reduce for determining the reduction steps.
-            find_negative (:obj:`bool`, optional):
-                Do the images have negative trace as would be generated by
-                differencing two science frames? This parameter is passed to
-                pypeit.reduce for determining the reduction steps. If True, then
-                find and mask negative object traces.
-            show (:obj:`bool`, optional):
-                Show results in ginga
-            show_peaks (:obj:`bool`, optional):
-                Plot the QA for the object finding algorithm peak finding to the
-                screen.
-            debug_offset (:obj:`bool`, optional):
-                Plot QA for debugging the automatic determination of offsets to
-                the screen.
-            debug (:obj:`bool`, optional):
-                Show QA for debugging.
+        Parameters
+        ----------
+        spec2d : list
+            List of input ``spec2d`` files or
+            :class:`~pypeit.spec2dobj.Spec2DObj` objects to coadd.
+        spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+            Spectrograph object describing the instrument and reduction mode.
+        par : :class:`~pypeit.par.parset.ParSet`
+            Parameter set controlling the coaddition.
+        det : int or tuple, optional
+            One-indexed detector number or detector-mosaic identifier to process.
+        only_slits : list, optional
+            List of slit or order identifiers to include in the coadd.
+        exclude_slits : list, optional
+            List of slit or order identifiers to exclude from the coadd.
+        sn_smooth_npix : int, optional
+            Number of pixels used when smoothing S/N estimates for weight
+            determination. If None, a default based on the image size is used.
+            TODO: for truncated echelle orders we should be doing something more
+            intelligent.
+        bkg_redux : bool, optional
+            If True, the science images have already been background subtracted.
+        find_negative : bool, optional
+            If True, search for and mask negative traces produced by differenced
+            science frames.
+        show : bool, optional
+            If True, display intermediate results in Ginga.
+        show_peaks : bool, optional
+            If True, show QA plots for object-finding peaks.
+        debug_offsets : bool, optional
+            If True, display QA related to automatic offset determination.
+        debug : bool, optional
+            If True, enable additional debug output.
 
+        Raises
+        ------
+        PypeItError
+            Raised if the input stack is inconsistent, e.g. if the exposures do not
+            contain the same number of slits or have incompatible binning.
         """
-
         # Use Cases:
         # offsets
         #    1) offsets = 'auto' -- auto compute offsets from brightest object (if exists)
@@ -156,7 +298,7 @@ class CoAdd2D:
         self.debug_offsets = debug_offsets
         self.debug = debug
         self.offsets = None
-        self.stack_dict = None
+        self.coadd2d_stack = None
         self.pseudo_dict = None
 
         # Brightest object attributes used for both MultislitCoAdd2D and EchelleCoAdd2D
@@ -173,13 +315,13 @@ class CoAdd2D:
         self.maskdef_offset = None
 
         # Load the stack_dict
-        self.stack_dict = self.load_coadd2d_stacks(self.spec2d)
+        self.coadd2d_stack = self.load_coadd2d_stacks(self.spec2d)
         self.pypeline = self.spectrograph.pypeline
 
         self.nexp = len(self.spec2d)
 
         # Check that there are the same number of slits on every exposure
-        nslits_list = [slits.nslits for slits in self.stack_dict['slits_list']]
+        nslits_list = [slits.nslits for slits in self.coadd2d_stack.slits_list]
         if not len(set(nslits_list)) == 1:
             raise PypeItError(
                 'Not all of your files have the same number of slits. Check your inputs'
@@ -188,12 +330,12 @@ class CoAdd2D:
         self.nslits_single = nslits_list[0]
 
         # Check that nspec is the same for all the exposures
-        self.nspec_array = np.array([slits.nspec for slits in self.stack_dict['slits_list']])
+        self.nspec_array = np.array([slits.nspec for slits in self.coadd2d_stack.slits_list])
         self.nspec_max = self.nspec_array.max()
 
         # Check that binning is the same for all the exposures
-        binspec_list = [slits.binspec for slits in self.stack_dict['slits_list']]
-        binspat_list = [slits.binspat for slits in self.stack_dict['slits_list']]
+        binspec_list = [slits.binspec for slits in self.coadd2d_stack.slits_list]
+        binspat_list = [slits.binspat for slits in self.coadd2d_stack.slits_list]
         if not len(set(binspec_list)) == 1:
             raise PypeItError(
                 'Not all of your files have the same spectral binning. Check your inputs'
@@ -202,10 +344,10 @@ class CoAdd2D:
             raise PypeItError(
                 'Not all of your files have the same spatial binning. Check your inputs'
             )
-        self.binning = np.array([self.stack_dict['slits_list'][0].binspec,
-                                 self.stack_dict['slits_list'][0].binspat])
+        self.binning = np.array([self.coadd2d_stack.slits_list[0].binspec,
+                                 self.coadd2d_stack.slits_list[0].binspat])
 
-        self.spat_ids = self.stack_dict['slits_list'][0].spat_id
+        self.spat_ids = self.coadd2d_stack.slits_list[0].spat_id
 
         # If smoothing is not input, smooth by 10% of the maximum spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec_max
@@ -218,7 +360,7 @@ class CoAdd2D:
         self.nslits_coadded = self.good_slits.size
 
         # effective exposure time
-        self.exptime_coadd = self.stack_dict['exptime_coadd']
+        self.exptime_coadd = self.coadd2d_stack.exptime_coadd
         
         # define the wavelength grid for the 2d coadd
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid()
@@ -239,25 +381,25 @@ class CoAdd2D:
     @staticmethod
     def default_par(spectrograph, inp_cfg=None, det=None, only_slits=None, exclude_slits=None):
         """
-        Get the default 2D coadding parameters.
+        Construct the default parameter set for two-dimensional coaddition.
 
-        Args:
-            spectrograph (:obj:`str`):
-                The PypeIt-specific name of the spectrograph used to collect the
-                data.
-            inp_cfg (:obj:`dict`, optional):
-                An existing set of parameters to add to.
-            det (:obj:`list`, :obj:`str`, :obj:`tuple`, optional):
-                Limit the coadding to this (set of) detector(s)/detector mosaic(s)
-            only_slits (:obj:`list`, :obj:`str`, optional):
-                Limit the coadding to this (set of) slit(s). Only_slits and exclude_slits
-                are mutually exclusive. If both are set, only_slits takes precedence.
-            exclude_slits (:obj:`list`, :obj:`str`, optional):
-                Exclude this (set of) slit(s) from the coadding. Only_slits and exclude_slits
-                are mutually exclusive. If both are set, only_slits takes precedence.
+        Parameters
+        ----------
+        spectrograph : str
+            PypeIt spectrograph name.
+        inp_cfg : dict, optional
+            Existing configuration dictionary to update.
+        det : list, str, or tuple, optional
+            Detector or mosaic selection to place in the returned configuration.
+        only_slits : list or str, optional
+            Slit or order identifiers to include in the coadd.
+        exclude_slits : list or str, optional
+            Slit or order identifiers to exclude from the coadd.
 
-        Returns:
-            :obj:`dict`: The default set of parameters.
+        Returns
+        -------
+        dict
+            Dictionary with the default coadd2d configuration entries.
         """
         cfg = dict(rdx=dict(spectrograph=spectrograph))
         if inp_cfg is not None:
@@ -303,14 +445,17 @@ class CoAdd2D:
     @staticmethod
     def default_basename(spec2d_files):
         """
-        Construct the base name of the output spec2d file produced by coadding.
+        Construct the default basename for a coadded ``spec2d`` product.
 
-        Args:
-            spec2d_files (:obj:`list`):
-                The list of PypeIt spec2d files to be coadded.
+        Parameters
+        ----------
+        spec2d_files : list
+            List of input ``spec2d`` filenames.
 
-        Returns:
-            :obj:`str`: The root base name for the output coadd2d spec2d file.
+        Returns
+        -------
+        str
+            Basename used when writing the coadded output products.
         """
         # Get the output basename
         frsthdr = fits.getheader(spec2d_files[0])
@@ -330,29 +475,30 @@ class CoAdd2D:
     @staticmethod
     def output_paths(spec2d_files, par, coadd_dir=None):
         """
-        Construct the names and ensure the existence of the science and QA output directories.
+        Construct and create the science and QA output directories for coadd2d.
 
-        Args:
-            spec2d_files (:obj:`list`):
-                The list of PypeIt spec2d files to be coadded.  The top-level
-                directory for the coadd2d output directories is assumed to be
-                same as used by the basic reductions.  For example, if one of
-                the spec2d files is
-                ``/path/to/reductions/Science/spec2d_file.fits``, the parent
-                directory for the coadd2d directories is
-                ``/path/to/reductions/``.
-            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-                Full set of parameters.  The only used parameters are
-                ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.  WARNING:
-                This also *alters* the value of ``par['rdx']['qadir']``!!
-            coadd_dir (:obj:`str`, optional):
-                Path to the directory to use for the coadd2d output.
-                If None, the parent of the science directory is used.
+        Parameters
+        ----------
+        spec2d_files : list
+            List of input ``spec2d`` filenames. The parent reduction directory is
+            inferred from these paths if ``coadd_dir`` is not provided.
+        par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+            Full parameter set. The routine uses and may update the values in
+            ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.
+        coadd_dir : str, optional
+            Root directory for the coadd2d output. If None, the parent reduction
+            directory inferred from ``spec2d_files`` is used.
 
-        Returns:
-            :obj:`tuple`: Two strings with the names of (1) the science output
-            directory and (2) the QA output directory.  The function also
-            creates both directories if they do not exist.
+        Returns
+        -------
+        sci_output_dir : str
+            Path to the science output directory
+        qa_output_dir : str
+            Path to the QA output directory.
+
+        Notes
+        -----
+        The required directories are created if they do not already exist.
         """
         # Science output directory
         if coadd_dir is not None:
@@ -371,22 +517,26 @@ class CoAdd2D:
 
     def good_slitindx(self, only_slits=None, exclude_slits=None):
         """
-        This provides an array of index of slits in the un-coadded frames that are considered good for 2d coadding.
-        A bitmask common to all the un-coadded frames is used to determine which slits are good. Also,
-        If the `only_slits` parameter is provided only those slits are considered good for 2d coadding.
+        Determine which slits or orders are eligible for two-dimensional coaddition.
 
-        Args:
-            only_slits (:obj:`list`, optional):
-                List of slits to combine. It must be `slitord_id`.
-                Only_slits and exclude_slits are mutually exclusive.
-                If both are provided, only_slits takes precedence.
-            exclude_slits (:obj:`list`, optional):
-                List of slits to exclude. It must be `slitord_id`.
-                Only_slits and exclude_slits are mutually exclusive.
-                If both are provided, only_slits takes precedence.
+        A slit or order is considered good only if it is not masked by the common
+        bitmask across the full set of uncoadded exposures and it satisfies the
+        user-supplied inclusion or exclusion criteria.
 
-        Returns:
-            `numpy.ndarray`_: array of index of good slits in the un-coadded frames
+        Parameters
+        ----------
+        only_slits : list, optional
+            Slit or order identifiers to include. If provided, only these identifiers
+            are considered good.
+        exclude_slits : list, optional
+            Slit or order identifiers to exclude. Ignored if ``only_slits`` is
+            provided.
+
+        Returns
+        -------
+        numpy.ndarray
+            One-dimensional array of indices selecting the good slits or orders in the
+            uncoadded stack.
         """
 
         if exclude_slits is not None and only_slits is not None:
@@ -397,14 +547,14 @@ class CoAdd2D:
             _exclude_slits = exclude_slits
 
         # This creates a unified bpm common to all frames
-        slits0 = self.stack_dict['slits_list'][0]
+        slits0 = self.coadd2d_stack.slits_list[0]
         # bpm for the first frame
 
         reduce_bpm = slits0.bitmask.flagged(slits0.mask,
                                             and_not=slits0.bitmask.exclude_for_reducing)
         for i in range(1, self.nexp):
             # update bpm with the info from the other frames
-            slits = self.stack_dict['slits_list'][i]
+            slits = self.coadd2d_stack.slits_list[i]
             reduce_bpm |= slits.bitmask.flagged(slits.mask,
                                                 and_not=slits.bitmask.exclude_for_reducing)
         # these are the good slit index according to the bpm mask
@@ -447,66 +597,44 @@ class CoAdd2D:
 
     def optimal_weights(self, uniq_obj_id, order=None, weight_method='auto'):
         """
-        Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
-        object with specified uniq_obj_id and passes to coadd.sn_weights to determine the optimal weights for
-        each exposure.
+        Compute the optimal exposure weights for a set of reference objects.
+
+        The routine extracts the relevant one-dimensional spectra for the supplied
+        reference-object identifiers and passes them to
+        :func:`pypeit.core.coadd.sn_weights` to determine the weighting of each input
+        exposure.
 
         Parameters
         ----------
-        uniq_obj_id : `numpy.ndarray`_
-            Array of unique object IDs with shape = (nexp,) of the
-            brightest object whose S/N will be used to determine the
-            weight for each frame.
-        order : `int`, optional
-            The order of the object. Needed to accomodate echelle.
-        weight_method : `str`, optional
-            Weight method to be used in :func:`~pypeit.coadd.sn_weights`.
-            Options are ``'auto'``, ``'constant'``, ``'relative'``, or
-            ``'ivar'``. The default is ``'auto'``.  Behavior is as follows:
-
-                - ``'auto'``: Use constant weights if rms_sn < 3.0, otherwise
-                  use wavelength dependent.
-
-                - ``'constant'``: Constant weights based on rms_sn**2
-
-                - ``'uniform'``: Uniform weighting.
-
-                - ``'wave_dependent'``: Wavelength dependent weights will be
-                  used irrespective of the rms_sn ratio. This option will not
-                  work well at low S/N ratio although it is useful for objects
-                  where only a small fraction of the spectral coverage has high
-                  S/N ratio (like high-z quasars).
-
-                - ``'relative'``: Calculate weights by fitting to the ratio of
-                  spectra? Note, relative weighting will only work well when
-                  there is at least one spectrum with a reasonable S/N, and a
-                  continuum.  RJC note - This argument may only be better when
-                  the object being used has a strong continuum + emission lines.
-                  The reference spectrum is assigned a value of 1 for all
-                  wavelengths, and the weights of all other spectra will be
-                  determined relative to the reference spectrum. This is
-                  particularly useful if you are dealing with highly variable
-                  spectra (e.g. emission lines) and require a precision better
-                  than ~1 per cent.
-
-                - ``'ivar'``: Use inverse variance weighting. This is not well
-                  tested and should probably be deprecated.
+        uniq_obj_id : numpy.ndarray
+            Array of unique object identifiers, one per exposure, used to select the
+            reference object for the weight calculation.
+        order : int, optional
+            Echelle order to use when computing the weights. Ignored for multislit
+            reductions.
+        weight_method : {'auto', 'constant', 'uniform', 'wave_dependent', 'relative', 'ivar'}, optional
+            Weighting algorithm passed to :func:`pypeit.core.coadd.sn_weights`.
 
         Returns
         -------
-        rms_sn : `numpy.ndarray`_
+        rms_sn : numpy.ndarray
             Array of root-mean-square S/N value for each input spectra. Shape = (nexp,)
         weights : list
             List of  len(nexp) containing the signal-to-noise squared weights to be
             applied to the spectra. This output is aligned with the vector (or
             vectors) provided in waves which is read in by this routine, i.e. it is a
             list of arrays of type `numpy.ndarray`_  with the same shape as those in waves.
+
+        Notes
+        -----
+        This method is used by both the multislit and echelle subclasses when the
+        weights are determined from the brightest detected reference object.
         """
 
         # Grab the traces, flux, wavelength and noise for this uniq_obj_id.
         waves, fluxes, ivars, gpms = [], [], [], []
 
-        for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
+        for iexp, sobjs in enumerate(self.coadd2d_stack.specobjs_list):
             ithis = sobjs.slitorder_uniq_id_indices(uniq_obj_id[iexp], order=order)
             if not np.any(ithis):
                 raise PypeItError(f'Object {uniq_obj_id[iexp]} provided not valid. Optimal weights cannot be determined.')
@@ -542,34 +670,39 @@ class CoAdd2D:
 
     def coadd(self, interp_dspat=True):
         """
-        Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
-        This method calls loops over slits/orders and performs the 2d-coadd by
-        calling coadd.compute.coadd2d, which 'rectifies' images by coadding them
-        about the reference_trace_stack.
+        Perform the two-dimensional coaddition.
+
+        This routine loops over the selected good slits or orders, rectifies the
+        input images for each one onto a common coordinate system, and combines the
+        resulting rebinned images using the previously determined offsets and weights.
 
         Parameters
         ----------
         interp_dspat : bool, optional
-           Interpolate in the spatial coordinate image to faciliate running
-           through core.extract.local_skysub_extract.  Default=True
-
+            If True, interpolate the spatial sampling when constructing the coadd
+            grids.
 
         Returns
         -------
-        coadd_list : list
-            List of dictionaries, one for each slit, containing the 2d stack.
-            # TODO Make this a PypeIt object, with data model yada-yada.
+        list
+            List of per-slit or per-order coadd products. Each element contains the
+            data needed by :meth:`create_pseudo_image` to build the final pseudo-image.
 
+        Notes
+        -----
+        The exact contents of the returned list depend on the pypeline-specific
+        coaddition implementation, but each entry represents one coadded slit or
+        order.
         """
 
         coadd_list = []
         for slit_idx in self.good_slits:
-            _slitord_id = self.stack_dict['slits_list'][0].slitord_id
+            _slitord_id = self.coadd2d_stack.slits_list[0].slitord_id
             log.info(f'Performing 2D coadd for slit/order {_slitord_id[slit_idx]} ({slit_idx + 1}/{self.nslits_single})')
 
             # mask identifying the current slit in each exposure
             thismask_stack = [np.abs(slitmask - self.spat_ids[slit_idx]) <= self.par['coadd2d']['spat_toler']
-                              for slitmask in self.stack_dict['slitmask_stack']]
+                              for slitmask in self.coadd2d_stack.slitmask_stack]
 
             # check if the slit is found in every exposure
             if not np.all([np.any(thismask) for thismask in thismask_stack]):
@@ -585,13 +718,13 @@ class CoAdd2D:
             # Perform the 2d coadd
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
             # compute_coadd2d, and outmask in coadd_dict is also a gpm
-            mask_stack = [mask == 0 for mask in self.stack_dict['mask_stack']]
-            coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
-                                               self.stack_dict['sciivar_stack'],
-                                               self.stack_dict['skymodel_stack'],
+            mask_stack = [mask == 0 for mask in self.coadd2d_stack.mask_stack]
+            coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.coadd2d_stack.sciimg_stack,
+                                               self.coadd2d_stack.sciivar_stack,
+                                               self.coadd2d_stack.skymodel_stack,
                                                mask_stack,
                                                thismask_stack,
-                                               self.stack_dict['waveimg_stack'],
+                                               self.coadd2d_stack.waveimg_stack,
                                                self.wave_grid, self.par['coadd2d']['spat_samp_fact'],
                                                maskdef_dict=self.get_maskdef_dict(slit_idx, ref_trace_stack),
                                                weights=self._get_weights(indx=slit_idx), interp_dspat=interp_dspat)
@@ -606,10 +739,29 @@ class CoAdd2D:
 
     def create_pseudo_image(self, coadd_list):
         """
-        ..todo.. see below
+        Assemble the per-slit or per-order coadds into a pseudo-image.
 
-        THIS UNDOCUMENTED CODE PROBABLY SHOULD GENERATE AND RETURN
-        STANDARD PYPEIT OBJCTS INSTEAD OF SOME UNDEFINED DICT"""
+        Parameters
+        ----------
+        coadd_list : list
+            List of coadded slit or order products produced by :meth:`coadd`.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the pseudo-image and associated metadata needed for
+            downstream reduction and output writing.
+
+        Notes
+        -----
+        The pseudo-image is the rectified, stacked image representation consumed by
+        the later extraction steps.
+
+        .. todo::
+
+            THIS UNDOCUMENTED CODE PROBABLY SHOULD GENERATE AND RETURN
+            STANDARD PYPEIT OBJCTS INSTEAD OF SOME UNDEFINED DICT
+        """
 
         # Check that self.nslit is equal to len(coadd_list)
         if self.nslits_coadded != len(coadd_list):
@@ -725,8 +877,8 @@ class CoAdd2D:
             slits_pseudo.maskdef_designtab['SPAT_ID'] = slits_pseudo.spat_id
 
         # assign ech_order if exist
-        slits_pseudo.ech_order = self.stack_dict['slits_list'][0].ech_order[self.good_slits] \
-            if self.stack_dict['slits_list'][0].ech_order is not None else None
+        slits_pseudo.ech_order = self.coadd2d_stack.slits_list[0].ech_order[self.good_slits] \
+            if self.coadd2d_stack.slits_list[0].ech_order is not None else None
         slitmask_pseudo = slits_pseudo.slit_img()
         # This is a kludge to deal with cases where bad wavelengths result in large regions where the slit is poorly sampled,
         # which wreaks havoc on the local sky-subtraction
@@ -760,20 +912,33 @@ class CoAdd2D:
 
     def reduce(self, pseudo_dict, show=False, clear_ginga=True, show_peaks=False, show_skysub_fit=False, basename=None):
         """
-        Method to run the reduction on coadd2d pseudo images
+        Reduce a coadded pseudo-image into final science products.
 
-        Args:
-            pseudo_dict (dict):
-               Dictionary containing coadd2d pseudo images
-            show (bool):
-               If True, show the outputs to ginga and the screen analogous to run_pypeit with the -s option
-            show_peaks (bool):
-               If True, plot the object finding QA to the screen.
-            basename (str):
-               The basename for the spec2d output files.
+        Parameters
+        ----------
+        pseudo_dict : dict
+            Dictionary describing the pseudo-image and associated metadata, typically
+            returned by :meth:`create_pseudo_image`.
+        show : bool, optional
+            If True, display intermediate reduction results.
+        clear_ginga : bool, optional
+            If True, clear the Ginga display before showing new content.
+        show_peaks : bool, optional
+            If True, show QA plots related to object-finding peaks.
+        show_skysub_fit : bool, optional
+            If True, show QA for the sky-subtraction fit.
+        basename : str, optional
+            Basename to use when writing the output products.
 
-        Returns:
+        Returns
+        -------
+        tuple
+            The reduced data products generated from the pseudo-image.
 
+        Notes
+        -----
+        This method performs the coadd-specific analogue of the standard PypeIt
+        extraction sequence for a single frame.
         """
 
         show = self.show if show is None else show
@@ -781,13 +946,20 @@ class CoAdd2D:
         # NOTE: inmask is a gpm
         sciImage = pypeitimage.PypeItImage(pseudo_dict['imgminsky'], ivar=pseudo_dict['sciivar'],
                                            bpm=np.logical_not(pseudo_dict['inmask']))
-        sciImage.detector = self.stack_dict['detectors'][0]
-        #
+        sciImage.detector = self.coadd2d_stack.detectors[0].copy()
+        # update platescale in the detector object to reflect the resampling done in coadd2d.
+        # This is done to be able to propagate the correct spatial sampling to FindObjects and Extract
+        sciImage.detector.platescale *= self.par['coadd2d']['spat_samp_fact']
+        # if this is a mosaic, we need to update the detector object of each detector in the mosaic
+        if "detectors" in sciImage.detector.keys():
+            for det in sciImage.detector['detectors']:
+                det.platescale *= self.par['coadd2d']['spat_samp_fact']
+
         slitmask_pseudo = pseudo_dict['slits'].slit_img()
         sciImage.build_mask(slitmask=slitmask_pseudo)
 
         # Make changes to parset specific to 2d coadds
-        parcopy = copy.deepcopy(self.par)
+        parcopy = self.par.copy()
         # Enforce low order traces since we are rectified
         parcopy['reduce']['findobj']['trace_npoly'] = int(np.clip(parcopy['reduce']['findobj']['trace_npoly'],None,3))
         # Manual extraction.
@@ -813,7 +985,7 @@ class CoAdd2D:
         # maskdef stuff
         if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:
             # Get pixel scale, binned and resampled (if requested), i.e., pixel scale of the pseudo image
-            resampled_pixscale = parse.parse_binning(sciImage.detector.binning)[1]*sciImage.detector.platescale*self.par['coadd2d']['spat_samp_fact']
+            resampled_pixscale = parse.parse_binning(sciImage.detector.binning)[1]*sciImage.detector.platescale
 
             # Assign slitmask design information to detected objects
             slits.assign_maskinfo(sobjs_obj, resampled_pixscale, None, TOLER=parcopy['reduce']['slitmask']['obj_toler'])
@@ -851,16 +1023,16 @@ class CoAdd2D:
     @staticmethod
     def offsets_report(offsets, pixscale, offsets_method):
         """
-        Print out a report on the offsets of the frames to be coadded
+        Log a summary of the offsets used for coaddition.
 
-        Args:
-            offsets (`numpy.ndarray`_)
-                Array of offsets
-            pixscale (float):
-                The (binned) pixelscale in arcsec/pixel.
-            offsets_method (str):
-                A string describing the method used to determine the offsets
-
+        Parameters
+        ----------
+        offsets : array-like
+            Offsets, in pixels, applied to the input exposures.
+        pixscale : float
+            Pixel scale used to convert the offsets to arcseconds for reporting.
+        offsets_method : str
+            Description of how the offsets were determined.
         """
 
         if offsets_method is not None and offsets is not None:
@@ -875,54 +1047,57 @@ class CoAdd2D:
 
     def offset_slit_cen(self, slitid, offsets):
         """
-        Offset the slit centers of the slit designated by slitid by the provided offsets
+        Return the slit center traces shifted by the exposure offsets.
 
-        Args:
-            slitid (int):
-               ID of the slit that is being offset
-            offsets (list, `numpy.ndarray`_):
-               A list or array of offsets that are being applied to the slit center
+        Parameters
+        ----------
+        slitid : int
+            Slit or order identifier.
+        offsets : array-like
+            Offsets, in pixels, to apply to the slit centers for each exposure.
 
-        Returns:
-            :obj:`list`: A list of reference traces for the 2d coadding that
-            have been offset.
+        Returns
+        -------
+        numpy.ndarray
+            Stack of shifted slit-center traces with one column per exposure.
         """
         return [slits.center[:,slitid] - offsets[iexp]
-                    for iexp, slits in enumerate(self.stack_dict['slits_list'])]
+                    for iexp, slits in enumerate(self.coadd2d_stack.slits_list)]
 
     def get_wave_grid(self):
         """
-        Routine to create a wavelength grid for 2d coadds using all of the
-        wavelengths of the extracted objects. Calls
-        :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`.
+        Construct the wavelength grid used for the two-dimensional coadd.
 
+        Returns
+        -------
+        wave_grid : numpy.ndarray
+            New wavelength grid, not masked
+        wave_grid_mid : numpy.ndarray
+            New wavelength grid evaluated at the centers of the wavelength
+            bins, that is this grid is simply offset from wave_grid by
+            dsamp/2.0, in either linear space or log10 depending on whether
+            linear or (log10 or velocity) was requested.  For iref or
+            concatenate the linear wavelength sampling will be calculated.
+        dsamp : float
+            The pixel sampling for wavelength grid created.
 
-        Returns:
-            tuple: Returns the following:
-                - wave_grid (`numpy.ndarray`_): New wavelength grid, not
-                  masked
-                - wave_grid_mid (`numpy.ndarray`_): New wavelength grid
-                  evaluated at the centers of the wavelength bins, that
-                  is this grid is simply offset from wave_grid by
-                  dsamp/2.0, in either linear space or log10 depending
-                  on whether linear or (log10 or velocity) was
-                  requested.  For iref or concatenate the linear
-                  wavelength sampling will be calculated.
-                - dsamp (float): The pixel sampling for wavelength grid
-                  created.
+        Notes
+        -----
+        The exact grid construction depends on the reduction mode and is controlled
+        by :meth:`wave_method`.
         """
-        nobjs_tot = int(np.array([len(spec) for spec in self.stack_dict['specobjs_list']]).sum())
+        nobjs_tot = int(np.array([len(spec) for spec in self.coadd2d_stack.specobjs_list]).sum())
         # TODO: Do we need this flag since we can determine whether or not we have specobjs from nobjs_tot?
         #  This all seems a bit hacky
         if self.par['coadd2d']['use_slits4wvgrid'] or nobjs_tot==0:
-            nslits_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
+            nslits_tot = np.sum([slits.nslits for slits in self.coadd2d_stack.slits_list])
             waves, gpms = [], []
             box_radius = 3.
             #indx = 0
             # Loop on the exposures
-            for iexp, (waveimg, slitmask, slits) in enumerate(zip(self.stack_dict['waveimg_stack'],
-                                                self.stack_dict['slitmask_stack'],
-                                                self.stack_dict['slits_list'])):
+            for iexp, (waveimg, slitmask, slits) in enumerate(zip(self.coadd2d_stack.waveimg_stack,
+                                                self.coadd2d_stack.slitmask_stack,
+                                                self.coadd2d_stack.slits_list)):
                 slits_left, slits_righ, _ = slits.select_edges()
                 row = np.arange(slits_left.shape[0])
                 # Loop on the slits
@@ -940,7 +1115,7 @@ class CoAdd2D:
 
         else:
             waves, gpms = [], []
-            for iexp, spec_this in enumerate(self.stack_dict['specobjs_list']):
+            for iexp, spec_this in enumerate(self.coadd2d_stack.specobjs_list):
                 for spec in spec_this:
                     # NOTE: BOX extraction usage needed for quicklook
                     good_opt_ext = spec.has_opt_ext() and np.any(spec.OPT_MASK)
@@ -955,22 +1130,31 @@ class CoAdd2D:
         return wvutils.get_wave_grid(waves=waves, gpms=gpms, wave_method=self.wave_method(),
                                                                 spec_samp_fact=self.par['coadd2d']['spec_samp_fact'])
 
-    def load_coadd2d_stacks(self, spec2d, chk_version=False):
+    def load_coadd2d_stacks(self, spec2d:list, chk_version:bool=False) -> CoAdd2dStack:
         """
-        Routine to read in required images for 2d coadds given a list of spec2d files.
+        Load the input ``spec2d`` products into a :class:`CoAdd2dStack`.
 
-        Args:
-            spec2d_files: list
-               List of spec2d filenames
-            det: int
-               detector in question
+        Parameters
+        ----------
+        spec2d : list
+            List of input ``spec2d`` filenames or
+            :class:`~pypeit.spec2dobj.Spec2DObj` objects.
+        chk_version : bool, optional
+            If True, check the version compatibility of the loaded files.
 
-        Returns:
-            dict: Dictionary containing all the images and keys required
-            for perfomring 2d coadds.
+        Returns
+        -------
+        :class:`CoAdd2dStack`
+            Dataclass containing the stacked science images, masks, coordinate
+            images, slit definitions, exposure times, and related metadata needed for
+            coaddition.
+
+        Notes
+        -----
+        If the exposure times differ among the inputs beyond the allowed tolerance,
+        the science, sky, and inverse-variance images are rescaled to a common
+        effective exposure time before being stored in the returned stack.
         """
-        redux_path = os.getcwd()
-
         # Grab the files
         #head2d_list = []
 
@@ -990,15 +1174,15 @@ class CoAdd2D:
         detectors_list = []
         maskdef_designtab_list = []
         spat_flexure_list = []
-        for ifile, f in enumerate(spec2d):
-            if isinstance(f, spec2dobj.Spec2DObj):
+        for f in spec2d:
+            if isinstance(f, Spec2DObj):
                 # If spec2d is a list of objects
                 s2dobj = f
             else:
                 # If spec2d is a list of files, option to also use spec1ds
-                s2dobj = spec2dobj.Spec2DObj.from_file(f, self.detname, chk_version=chk_version)
+                s2dobj = Spec2DObj.from_file(f, self.detname, chk_version=chk_version)
                 spec1d_file = f.replace('spec2d', 'spec1d')
-                if os.path.isfile(spec1d_file):
+                if Path(spec1d_file).is_file():
                     sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=chk_version)
                     this_det = sobjs.DET == self.detname
                     specobjs_list.append(sobjs[this_det])
@@ -1029,15 +1213,17 @@ class CoAdd2D:
                     skymodel_stack[iexp] *= exp_scale[iexp]
                     sciivar_stack[iexp] /= exp_scale[iexp]**2
 
-        return dict(specobjs_list=specobjs_list, slits_list=slits_list,
+        return CoAdd2dStack(specobjs_list=specobjs_list,
+                    slits_list=slits_list,
                     slitmask_stack=slitmask_stack,
                     sciimg_stack=sciimg_stack,
                     sciivar_stack=sciivar_stack,
-                    skymodel_stack=skymodel_stack, mask_stack=mask_stack,
+                    skymodel_stack=skymodel_stack, 
+                    mask_stack=mask_stack,
                     waveimg_stack=waveimg_stack,
                     exptime_stack=exptime_stack,
                     exptime_coadd=exptime_coadd,
-                    redux_path=redux_path,
+                    redux_path=Path.cwd(),
                     detectors=detectors_list,
                     spectrograph=self.spectrograph.name,
                     pypeline=self.spectrograph.pypeline,
@@ -1047,13 +1233,24 @@ class CoAdd2D:
 
     def check_input(self, input, type):
         """
-        Check that the number of input values (weights or offsets) is the same as the number of exposures
-        Args:
-            input (:obj:`list` or `numpy.ndarray`_): User input values (e.g., weights or offsets)
-            type (:obj:`str`): String defining what the quantities are
+        Normalize a coadd configuration input to an internal representation.
 
-        Returns:
-            :obj:`list` or `numpy.ndarray`_: User input values
+        Parameters
+        ----------
+        input : object
+            User-supplied value to validate and normalize.
+        type : str
+            Expected input type or semantic category.
+
+        Returns
+        -------
+        object
+            Validated and normalized value.
+
+        Raises
+        ------
+        PypeItError
+            Raised if the input does not conform to the expected type or format.
         """
         if type != 'weights' and type != 'offsets':
             raise PypeItError('Unrecognized type for check_input')
@@ -1068,13 +1265,16 @@ class CoAdd2D:
 
     def compute_offsets(self):
         """
-        Determine self.offsets, the offset of the frames to be coadded with respect to the first frame.
-        This is partially overloaded by the child methods.
+        Determine the relative offsets among the input exposures.
 
+        Notes
+        -----
+        This base-class method is intended to be overridden by subclasses that define
+        how offsets are determined for specific reduction modes.
         """
         log.info('Get Offsets')
         # binned pixel scale of the frames to be coadded
-        pixscale = parse.parse_binning(self.stack_dict['detectors'][0].binning)[1]*self.stack_dict['detectors'][0].platescale
+        pixscale = parse.parse_binning(self.coadd2d_stack.detectors[0].binning)[1]*self.coadd2d_stack.detectors[0].platescale
         # 1) offsets are provided in the header of the spec2d files
         if self.par['coadd2d']['offsets'] == 'header':
             log.info('Using offsets from header')
@@ -1099,7 +1299,7 @@ class CoAdd2D:
 
         # 3) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
         elif self.par['coadd2d']['offsets'] == 'maskdef_offsets':
-            self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
+            self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.coadd2d_stack.slits_list])
             # Check if maskdef_offset is actually recoded in the SlitTraceSet
             if np.any(self.maskdef_offset == None):
                 raise PypeItError(
@@ -1120,11 +1320,12 @@ class CoAdd2D:
 
     def compute_weights(self):
         """
-        Determine the weights to be used in the coadd2d.
-        This is partially overloaded by the child methods.
+        Determine the exposure weights used in the coadd.
 
-        This method sets the internal :attr:`use_weights`.  Documentation on the
-        form of self.use_weights needs to be written.
+        Notes
+        -----
+        This base-class method is intended to be overridden by subclasses that define
+        how weights are determined for specific reduction modes.
         """
         log.info('Get Weights')
 
@@ -1160,37 +1361,46 @@ class CoAdd2D:
 
     def _get_weights(self, indx=None):
         """
-        Method to select the correct weights for the selected slit/order.
-        This is partially overloaded by the child methods
+        Return the weights appropriate for a given slit or order.
 
-        Args:
-            indx (:obj:`int`, optional):
-                Index of the slit/order for which the weights are to be returned.
-                Not used in the base class but can be used in child classes.
+        Parameters
+        ----------
+        indx : int, optional
+            Slit or order index for which to return the weights.
 
-        Returns:
-            :obj:`list`: List of weights to be used for 2D coadd. The length of the list
-                         is equal to the number of exposures.
+        Returns
+        -------
+        list
+            List of weights, one per exposure.
         """
         return self.use_weights
 
     @staticmethod
     def unpack_specobj(spec, spatord_id=None):
         """
-        Utility routine to unpack flux, ivar, and gpm from a single SpecObj
-        object.
+        Extract trace and S/N information from a :class:`~pypeit.specobjs.SpecObj`.
 
-        Args:
-            spec (:class:`~pypeit.specobj.SpecObj`):
-                SpecObj object to unpack.
-            spatord_id (:obj:`int`, optional):
-                Slit/order ID to unpack. If None, the Slit/order ID
-                of the SpecObj object is used.
+        Parameters
+        ----------
+        spec : :class:`~pypeit.specobjs.SpecObj`
+            Object to unpack.
+        spatord_id : int, optional
+            Slit spatial identifier or echelle order identifier used to select or
+            validate the object.
 
-        Returns:
-            :obj:`tuple`: Returns the following: flux (`numpy.ndarray`_), ivar
-            (`numpy.ndarray`_), gpm (`numpy.ndarray`_).
+        Returns
+        -------
+        flux : numpy.ndarray
+            Flux array from the :class:`~pypeit.specobjs.SpecObj`
+        ivar : numpy.ndarray
+            Inverse variance array from the :class:`~pypeit.specobjs.SpecObj`
+        gpm : numpy.ndarray
+            Good pixel mask array from the :class:`~pypeit.specobjs.SpecObj`
 
+        Notes
+        -----
+        This helper provides a common interface for the object-handling code used by
+        the multislit and echelle subclasses.
         """
         # Get the slit/order ID if not provided
         if spatord_id is None:
@@ -1215,22 +1425,34 @@ class CoAdd2D:
 
     def get_brightest_obj(self, specobjs_list, spat_ids):
         """
-        Dummy method to identify the brightest object. Overloaded by child methods.
+        Identify the brightest reference object in each exposure.
 
         Parameters
         ----------
-        specobjs_list
-        spat_ids
+        specobjs_list : list
+            List of :class:`~pypeit.specobjs.SpecObjs` containers, one per exposure.
+        spat_ids : numpy.ndarray
+            Slit or order identifiers used to constrain the object selection.
 
         Returns
         -------
+        tuple
+            Information describing the selected brightest objects.
 
+        Notes
+        -----
+        This base-class method is intended to be overridden by subclasses because the
+        object identifiers differ between multislit and echelle reductions.
         """
         raise PypeItError('The get_brightest_obj() method should be overloaded by the child class.')
     
     def handle_reference_obj(self):
         """
-        Dummy method to handle the reference object. Overloaded by child methods.
+        Interpret the user-supplied reference-object selection.
+
+        Notes
+        -----
+        This base-class method is overridden by subclasses.
         """
         
         raise PypeItError('The handle_reference_obj() method should be overloaded by the child class.')
@@ -1238,56 +1460,67 @@ class CoAdd2D:
 
     def reference_trace_stack(self, slitid, offsets=None, uniq_obj_id=None):
         """
-        Dummy method to obtain the stack of reference traces. Overloaded by child methods.
+        Construct the stack of reference traces used for rectification and coaddition.
 
         Parameters
         ----------
-        slitid: int
-            The slit/order ID for which the reference traces are to be obtained.
-        offsets: list, `numpy.ndarray`_, optional
-            List or array of offsets to apply to the reference traces.
-            It must have the same length as the number of exposures. Optional.
-        uniq_obj_id: list, `numpy.ndarray`_, optional
-            List or array of object IDs to use for the reference traces.
-            It must have the same length as the number of exposures. Optional.
+        slitid : int
+            Slit or order identifier.
+        offsets : array-like, optional
+            Offsets applied to the reference traces for each exposure.
+        uniq_obj_id : array-like, optional
+            Object identifiers selecting the reference trace in each exposure.
 
         Returns
         -------
-        ref_trace_stack: list
-            List of reference traces for the slit/order specified by slitid.
+        numpy.ndarray
+            Stack of reference traces with one column per exposure.
 
+        Notes
+        -----
+        This base-class method is overridden by subclasses.
         """
         raise PypeItError('The reference_trace_stack() method should be overloaded by the child class.')
 
 
     def get_maskdef_dict(self, slit_idx, ref_trace_stack):
         """
-        Dummy method to get maskdef info. Overloaded by child methods.
+        Collect mask-design metadata for a slit in the coadd.
 
-        Args:
-            slit_idx (:obj:`int`):
-                index of a slit in the uncoadded frames
-            ref_trace_stack (`numpy.ndarray`_):
-                Stack of reference traces about which the images are rectified
-                and coadded.  It is the slitcen appropriately shifted according
-                the frames offsets. Shape is (nspec, nimgs).
+        Parameters
+        ----------
+        slit_idx : int
+            Index of the slit in the uncoadded frames.
+        ref_trace_stack : numpy.ndarray
+            Stack of reference traces about which the images are rectified and
+            coadded. The shape is ``(nspec, nimgs)``.
 
-        Returns:
-            :obj:`dict`: Dictionary containing all the maskdef info. The
-            quantities saved are: maskdef_id, maskdef_objpos, maskdef_slitcen,
-            maskdef_designtab. To learn what they are see
-            :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
+        Returns
+        -------
+        dict
+            Dictionary containing the mask-design metadata associated with the slit,
+            including identifiers, object positions, slit centers, and design-table
+            information.
+
+        Notes
+        -----
+        This base-class method is overridden by subclasses.
         """
 
         return dict(maskdef_id=None, maskdef_objpos=None, maskdef_slitcen=None, maskdef_designtab=None)
 
     def wave_method(self):
         """
-        Get the wavelength method to be used in the coadd2d. This is a dummy method since
-        it is overloaded by child classes. 
+        Return the wavelength-grid construction method used for coadd2d.
 
-        Returns:
-            str: The wavelength method to be used in the coadd2d.
+        Returns
+        -------
+        str
+            Name of the wavelength-grid method.
+
+        Notes
+        -----
+        This base-class method is overridden by subclasses.
         """
 
         raise PypeItError('The wave_method() method should be overloaded by the child class.')
@@ -1296,25 +1529,57 @@ class CoAdd2D:
 # 1) input offsets or if offsets is None, it will find the brightest trace and compute them
 # 2) specified weights, or if weights is None and auto_weights=True, it will compute weights using the brightest object
 
-# Echelle can either stack with:
-# 1) input offsets or if offsets is None, it will find the objid of brightest trace and stack all orders relative to the trace of this object.
-# 2) specified weights, or if weights is None and auto_weights=True,
-#    it will use wavelength dependent weights determined from the spectrum of the brightest objects objid on each order
-
 class MultiSlitCoAdd2D(CoAdd2D):
     """
-    Child of Coadd2d for Multislit and Longslit reductions. For documentation see CoAdd2d parent class above.
+    Two-dimensional coaddition driver for multislit and longslit reductions.
 
-        # Multislit can coadd with:
-        # 1) input offsets or if offsets is None, it will find the brightest trace and compute them
-        # 2) specified weights, or if weights is None and auto_weights=True, it will compute weights using the brightest object
+    This subclass implements the multislit-specific handling of reference
+    objects, offsets, weights, and wavelength-grid construction on top of the
+    shared :class:`CoAdd2D` framework.
 
-
+    Notes
+    -----
+    Multislit coadds can use either user-supplied offsets or offsets derived from
+    a reference object or mask-design information. Weights may be user supplied,
+    uniform, or determined automatically from the brightest detected object.
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, 
                  only_slits=None, exclude_slits=None, sn_smooth_npix=None,
                  bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False):
+        """
+        Initialize a multislit or longslit two-dimensional coadd driver.
 
+        Parameters
+        ----------
+        spec2d_files : list
+            List of input ``spec2d`` files or
+            :class:`~pypeit.spec2dobj.Spec2DObj` objects.
+        spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+            Spectrograph object.
+        par : :class:`~pypeit.par.parset.ParSet`
+            Parameter set controlling the coaddition.
+        det : int or tuple, optional
+            Detector or detector-mosaic identifier.
+        only_slits : list, optional
+            Slits to include.
+        exclude_slits : list, optional
+            Slits to exclude.
+        sn_smooth_npix : int, optional
+            S/N smoothing scale used for weight estimation.
+        bkg_redux : bool, optional
+            If True, the input science frames have already been background
+            subtracted.
+        find_negative : bool, optional
+            If True, search for negative traces.
+        show : bool, optional
+            If True, display intermediate results.
+        show_peaks : bool, optional
+            If True, show QA plots for object-finding peaks.
+        debug_offsets : bool, optional
+            If True, show QA related to offset determination.
+        debug : bool, optional
+            If True, enable additional debug output.
+        """
 
         # Attributes specifically used by MultislitCoAdd2D
         # This is an integer, which is the spatial slit id of the slit with the brightest object.
@@ -1334,56 +1599,66 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
     def handle_reference_obj(self):
         """
-        Method to handle the syntrax for the reference object to be used for offsets and weights. 
+        Interpret the multislit reference-object syntax.
+
+        Notes
+        -----
+        This method parses the user-requested reference object used to compute
+        offsets and weights in multislit coadds.
+        """
+        # Check if 1) specobjs exist AND 2) either of 'offsets' or 'weights' are 'auto'; otherwise return
+        if not self.coadd2d_stack.specobjs_list or 'auto' not in [self.par['coadd2d']['offsets'], self.par['coadd2d']['weights']]:
+            return
+
+        # If no `user_obj_ids` are passed in, find the brightest object in the stack and obtain the relevant information
+        if self.par['coadd2d']['user_obj_ids'] is None:
+            self.spat_pixpos_id_bri, self.spat_pixpos_bri, self.spatid_bri, self.snr_bar_bri = self.get_brightest_obj(self.coadd2d_stack.specobjs_list, self.spat_ids)
+            self.obj_id_bri = self.spat_pixpos_id_bri        
+            return
         
-        """        
+        # The user passed in user_obj_ids that we will use these for the brighest object to 
+        # be optionally used for weights.
+        if self.par['coadd2d']['weights'] != 'auto':
+            raise PypeItError('Parameter `user_obj_ids` can only be used if weights are set to `auto`.')
+        if len(self.par['coadd2d']['user_obj_ids']) != self.nexp:
+            raise PypeItError(
+                'Parameter `user_obj_ids` must have the same number of elements as files.'
+            )
 
-        # otherwise, find if there is a bright object we could use
-        if len(self.stack_dict['specobjs_list']) > 0 and (self.par['coadd2d']['offsets'] == 'auto' or self.par['coadd2d']['weights'] == 'auto'):
-            # If the user passed in user_obj_ids, we will use these for the brighest object to 
-            # be optionally used for offsets and weights. 
-            if self.par['coadd2d']['user_obj_ids'] is not None:
-                if self.par['coadd2d']['weights'] != 'auto':
-                    raise PypeItError('Parameter `user_obj_ids` can only be used if weights are set to `auto`.')
-                if len(self.par['coadd2d']['user_obj_ids']) != self.nexp:
-                    raise PypeItError(
-                        'Parameter `user_obj_ids` must have the same number of elements as files.'
-                    )
-                user_obj_exist = np.zeros(self.nexp, dtype=bool)
-                # get the flux, ivar, gpm, and spatial pixel position of the user object
-                fluxes, ivars, gpms, spatids, spat_pixpos = [], [], [], [], []
-                self.spat_pixpos_id_bri = np.array(self.par['coadd2d']['user_obj_ids'])
-                for i, sobjs in enumerate(self.stack_dict['specobjs_list']):
-                    user_idx = sobjs.slitorder_uniq_id_indices(self.spat_pixpos_id_bri[i])
-                    if np.any(user_idx):
-                        this_sobj = sobjs[user_idx][0]
-                        flux_iobj, ivar_iobj, gpm_iobj = self.unpack_specobj(this_sobj)
-                        if flux_iobj is not None and ivar_iobj is not None and gpm_iobj is not None:
-                            fluxes.append(flux_iobj)
-                            ivars.append(ivar_iobj)
-                            gpms.append(gpm_iobj)
-                            spat_pixpos.append(this_sobj.SPAT_PIXPOS)
-                            spatids.append(this_sobj.SLITID)
-                            user_obj_exist[i] = True
-                # check if the user object exists in all the exposures
-                if not np.all(user_obj_exist):
-                    raise PypeItError(
-                         'Not all of the spat_pixpos_ids provided through `user_obj_ids` exist '
-                         'in all of the files.'
-                    )
-                # Check that all spatids are within the spat_toler of each other
-                if not np.all(np.abs(spatids - np.mean(spatids[0])) <= self.par['coadd2d']['spat_toler']):
-                    raise PypeItError('Not all spatial IDs are within spat_toler of each other')
-                self.spatid_bri = int(np.rint(np.mean(spatids)))
-                self.spat_pixpos_bri = np.array(spat_pixpos)
-                self.snr_bar_bri, _ = coadd.calc_snr(fluxes, ivars, gpms)                
-                self.obj_id_bri = self.spat_pixpos_id_bri                 
-            else:
-                # Otherwise, find the brightest object in the stack and obtain the relevant information 
-                self.spat_pixpos_id_bri, self.spat_pixpos_bri, self.spatid_bri, self.snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'], self.spat_ids)
-                self.obj_id_bri = self.spat_pixpos_id_bri        
+        user_obj_exist = np.zeros(self.nexp, dtype=bool)
+        # Get the flux, ivar, gpm, and spatial pixel position of the user object
+        fluxes, ivars, gpms, spatids, spat_pixpos = [], [], [], [], []
+        # Place the input objects into `spat_pixpos_id_bri`
+        self.spat_pixpos_id_bri = np.array(self.par['coadd2d']['user_obj_ids'])
+        # Loop over specobjs
+        for i, sobjs in enumerate(self.coadd2d_stack.specobjs_list):
+            # Get the index of the user-requested object in this slit
+            user_idx = sobjs.slitorder_uniq_id_indices(self.spat_pixpos_id_bri[i])
+            if np.any(user_idx):
+                this_sobj = sobjs[user_idx][0]
+                flux_iobj, ivar_iobj, gpm_iobj = self.unpack_specobj(this_sobj)
+                if flux_iobj is not None and ivar_iobj is not None and gpm_iobj is not None:
+                    fluxes.append(flux_iobj)
+                    ivars.append(ivar_iobj)
+                    gpms.append(gpm_iobj)
+                    spat_pixpos.append(this_sobj.SPAT_PIXPOS)
+                    spatids.append(this_sobj.SLITID)
+                    user_obj_exist[i] = True
 
-    
+        # Check that the user object exists in all the exposures
+        if not np.all(user_obj_exist):
+            raise PypeItError(
+                    'Not all of the spat_pixpos_ids provided through `user_obj_ids` exist '
+                    'in all of the files.'
+            )
+
+        # Check that all spatids are within the spat_toler of each other
+        if not np.all(np.abs(spatids - np.mean(spatids[0])) <= self.par['coadd2d']['spat_toler']):
+            raise PypeItError('Not all spatial IDs are within spat_toler of each other')
+        self.spatid_bri = int(np.rint(np.mean(spatids)))
+        self.spat_pixpos_bri = np.array(spat_pixpos)
+        self.snr_bar_bri, _ = coadd.calc_snr(fluxes, ivars, gpms)                
+        self.obj_id_bri = self.spat_pixpos_id_bri                
 
 
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
@@ -1391,174 +1666,214 @@ class MultiSlitCoAdd2D(CoAdd2D):
     # TODO The reason we rebin the images for the purposes of computing the offsets is to deal with combining
     # data that are dithered in the spectral direction. In these situations you cannot register the two dithered
     # reference objects into the same frame without first rebinning them onto the same grid.
-
     def compute_offsets(self):
         """
-        Determine self.offsets, the offset of the frames to be coadded with respect to the first frame
+        Determine the exposure offsets for a multislit coadd.
 
-        Args:
-            offsets (:obj:`list` or :obj:`str`):
-                Value that guides the determination of the offsets.
-                It could be a list of offsets, or a string, or None. If equal to 'maskdef_offsets' the
-                offsets computed during the slitmask design matching will be used.
+        The offsets are defined relative to the first exposure and may be supplied by
+        the user, inferred from slitmask-design information, or computed from the
+        brightest detected reference object.
         """
         super().compute_offsets()
 
-        # adjustment for multislit to case 4) parset `offsets` = 'auto' but we have a bright object
-        if self.par['coadd2d']['offsets'] == 'auto' and self.obj_id_bri is not None:
-            # Compute offsets using the bright object
-            if self.par['coadd2d']['user_obj_ids'] is not None:
-                offsets_method = 'user object on slitid = {:d}'.format(self.spatid_bri)
+        # If no bright object ID or the offsets are not 'auto', return
+        if self.obj_id_bri is None or self.par['coadd2d']['offsets'] != 'auto':
+            return
+
+        # Set boolean
+        use_obj_ids = self.par['coadd2d']['user_obj_ids'] is not None
+
+        # Compute offsets using the bright object / user-supplied object IDs
+        if use_obj_ids:
+            offsets_method = f'user object on slitid = {self.spatid_bri}'
+        else:
+            offsets_method = f'brightest object found on slit: {self.spatid_bri} with avg SNR={np.mean(self.snr_bar_bri):5.2f}'
+
+        log.info(f'Determining offsets using {offsets_method}')
+        thismask_stack = [np.abs(slitmask - self.spatid_bri) <= self.par['coadd2d']['spat_toler'] for slitmask in self.coadd2d_stack.slitmask_stack]
+
+        slitidx_bri = np.where(np.abs(self.spat_ids - self.spatid_bri) <= self.par['coadd2d']['spat_toler'])[0][0]
+        # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
+        trace_stack_bri = [slits.center[:, slitidx_bri]
+                                for slits in self.coadd2d_stack.slits_list]
+
+        # Determine the wavelength grid that we will use for the current slit/order
+        ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
+        ## compute offsets at full resolution??
+        wave_bins = coadd.get_wave_bins(thismask_stack, self.coadd2d_stack.waveimg_stack, self.wave_grid)
+        dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
+
+        sci_list = [[sciimg - skymodel for sciimg, skymodel in zip(self.coadd2d_stack.sciimg_stack, self.coadd2d_stack.skymodel_stack)]]
+        var_list = [[utils.inverse(sciivar) for sciivar in self.coadd2d_stack.sciivar_stack]]
+        if use_obj_ids:
+            ny, _ = self.coadd2d_stack.sciimg_stack[0].shape
+            obj_list = [[(spat, ny/2) for spat in self.spat_pixpos_bri]]
+        else:
+            obj_list = None
+
+        log.info('Rebinning Images')
+        mask_stack = [mask == 0 for mask in self.coadd2d_stack.mask_stack]
+        sci_list_rebin, var_list_rebin, norm_rebin_stack, _, obj_list_rebin = coadd.rebin2d(
+            wave_bins, 
+            dspat_bins, 
+            self.coadd2d_stack.waveimg_stack, 
+            dspat_stack, 
+            thismask_stack, 
+            mask_stack, 
+            sci_list, 
+            var_list, 
+            obj_list,
+        )
+
+        # Build up the masks
+        thismask = np.ones_like(sci_list_rebin[0][0,:,:],dtype=bool)
+        nspec_pseudo, nspat_pseudo = thismask.shape
+        slit_left = np.full(nspec_pseudo, 0.0)
+        slit_righ = np.full(nspec_pseudo, nspat_pseudo)
+        inmask = norm_rebin_stack > 0
+        traces_rect = np.zeros((nspec_pseudo, self.nexp))
+        user_obj_dspats = []
+
+
+        # Loop over exposures
+        for iexp in range(self.nexp):
+
+            if use_obj_ids:
+                spat, spec = obj_list_rebin[0][iexp]
+                detnum = self.coadd2d_stack.detectors[iexp].det
+                # Treat the object finding as a manual process
+                manual_obj = ManualExtractionObj.by_fitstbl_input(
+                    self.spec2d[iexp],
+                    f"{detnum}:{spat}:{spec}:{self.par['reduce']['findobj']['find_fwhm']}",
+                    self.spectrograph)
+                manual_extract_dict = manual_obj.dict_for_objfind(self.spectrograph.get_det_name(detnum))
             else:
-                offsets_method = 'brightest object found on slit: {:d} with avg SNR={:5.2f}'.format(self.spatid_bri,np.mean(self.snr_bar_bri))
+                # Otherwise, indicate auto-find
+                manual_extract_dict = None
 
-            log.info(f'Determining offsets using {offsets_method}')
-            thismask_stack = [np.abs(slitmask - self.spatid_bri) <= self.par['coadd2d']['spat_toler'] for slitmask in self.stack_dict['slitmask_stack']]
+            # Perform the extraction
+            sobjs_exp = findobj_skymask.objs_in_slit(
+                sci_list_rebin[0][iexp,:,:], 
+                utils.inverse(var_list_rebin[0][iexp,:,:]), 
+                thismask, 
+                slit_left, 
+                slit_righ,
+                inmask=inmask[iexp,:,:],
+                fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
+                maxshift=self.par['reduce']['findobj']['trace_maxshift'],
+                maxdev=self.par['reduce']['findobj']['trace_maxdev'],
+                numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
+                ncoeff=self.par['reduce']['findobj']['trace_npoly'],
+                snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
+                nperslit=1 if self.par['coadd2d']['user_obj_ids'] is None else None, 
+                find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                spec_min_max=self.par['reduce']['findobj']['trace_min_max'],
+                hand_extract_dict=manual_extract_dict,
+                show_trace=self.debug_offsets, 
+                show_peaks=self.debug_offsets)
 
-            slitidx_bri = np.where(np.abs(self.spat_ids - self.spatid_bri) <= self.par['coadd2d']['spat_toler'])[0][0]
-            # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
-            trace_stack_bri = [slits.center[:, slitidx_bri]
-                                    for slits in self.stack_dict['slits_list']]
+            # Perform QA on the extracted objects
+            if len(sobjs_exp) == 0:
+                raise PypeItError(
+                    f'No objects found in the rebinned image for file {iexp} (used to compute '
+                    'the offsets).  Check `FindObjPar` parameters and try to adjust '
+                    '`snr_thresh`.'
+                )
 
-            # Determine the wavelength grid that we will use for the current slit/order
-            ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
-            ## compute offsets at full resolution??
-            wave_bins = coadd.get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
-            dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
+            # Add the rectified traces to the stack
+            if use_obj_ids:
+                # find the spectrum of the user object and the corresponding trace
+                idx_orig = self.coadd2d_stack.specobjs_list[iexp].slitorder_uniq_id_indices(
+                    self.par['coadd2d']['user_obj_ids'][iexp])
+                trace_orig = self.coadd2d_stack.specobjs_list[iexp][idx_orig].TRACE_SPAT
+                # find the slit of the user object and its left edge
+                slitidx_orig = \
+                    self.coadd2d_stack.slits_list[iexp].spat_id == self.coadd2d_stack.specobjs_list[iexp][idx_orig].SLITID
+                left_edge_orig = self.coadd2d_stack.slits_list[iexp].select_edges(
+                    flexure=self.coadd2d_stack.spat_flexure_list[iexp])[0][:, slitidx_orig][:,0]
+                # Compute the mean median offset betweeh the original trace and the left edge of the slit
+                dist_to_left = np.median(trace_orig - left_edge_orig)
+                # Identify the trace in the sobjs_exp from the rebinned image that is closest to the original trace taking this offset into account
+                dspat_exp_orig = np.abs(np.median(sobjs_exp.TRACE_SPAT - dist_to_left, axis=1))
+                dspat_ex_orig_min = dspat_exp_orig.min()
+                if dspat_ex_orig_min < self.par['coadd2d']['spat_toler']:
+                    traces_rect[:, iexp] = sobjs_exp[np.argmin(dspat_exp_orig)].TRACE_SPAT
+                    user_obj_dspats.append(dspat_ex_orig_min)
+                else:
+                    raise PypeItError(f'Could not identify an object in the rebinned image corresponding '
+                                f'to the trace for the user object {self.par["coadd2d"]["user_obj_ids"][iexp]} '
+                                f'in file {iexp+1} within the specified spatial '
+                                f'tolerance ={self.par["coadd2d"]["spat_toler"]}')
+            else: 
+                traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
 
-            sci_list = [[sciimg - skymodel for sciimg, skymodel in zip(self.stack_dict['sciimg_stack'], self.stack_dict['skymodel_stack'])]]
-            var_list = [[utils.inverse(sciivar) for sciivar in self.stack_dict['sciivar_stack']]]
+        # After looping through all exposures, announce the offsets for user-specified objects
+        if use_obj_ids:
+            log.info(f'The median distance between the original traces and those in the '
+                        f'rebinned image for the user_obj_ids is {np.median(user_obj_dspats):.2f} pixels')
 
-            log.info('Rebinning Images')
-            mask_stack = [mask == 0 for mask in self.stack_dict['mask_stack']]
-            sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = coadd.rebin2d(
-                wave_bins, dspat_bins, self.stack_dict['waveimg_stack'], dspat_stack, thismask_stack, mask_stack, sci_list, var_list)
-            thismask = np.ones_like(sci_list_rebin[0][0,:,:],dtype=bool)
-            nspec_pseudo, nspat_pseudo = thismask.shape
-            slit_left = np.full(nspec_pseudo, 0.0)
-            slit_righ = np.full(nspec_pseudo, nspat_pseudo)
-            inmask = norm_rebin_stack > 0
-            traces_rect = np.zeros((nspec_pseudo, self.nexp))
-            user_obj_dspats = []
+        # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
+        med_traces_rect = np.median(traces_rect,axis=0)
+        self.offsets = med_traces_rect[0] - med_traces_rect
+        # TODO create a QA with this
+        if self.debug_offsets:
             for iexp in range(self.nexp):
-                sobjs_exp = findobj_skymask.objs_in_slit(
-                    sci_list_rebin[0][iexp,:,:], utils.inverse(var_list_rebin[0][iexp,:,:]), thismask, slit_left, slit_righ,
-                    inmask=inmask[iexp,:,:],
-                    fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                    trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
-                    maxshift=self.par['reduce']['findobj']['trace_maxshift'],
-                    maxdev=self.par['reduce']['findobj']['trace_maxdev'],
-                    numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
-                    ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-                    snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
-                    nperslit=1 if self.par['coadd2d']['user_obj_ids'] is None else None, 
-                    find_min_max=self.par['reduce']['findobj']['find_min_max'],
-                    spec_min_max=self.par['reduce']['findobj']['trace_min_max'],
-                    show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
-                if len(sobjs_exp) == 0:
-                    raise PypeItError(
-                        f'No objects found in the rebinned image for file {iexp} (used to compute '
-                        'the offsets).  Check `FindObjPar` parameters and try to adjust '
-                        '`snr_thresh`.'
-                    )
-                if self.par['coadd2d']['user_obj_ids'] is not None:
-                    # find the spectrum of the user object and the corresponding trace
-                    idx_orig = self.stack_dict['specobjs_list'][iexp].slitorder_uniq_id_indices(
-                        self.par['coadd2d']['user_obj_ids'][iexp])
-                    trace_orig = self.stack_dict['specobjs_list'][iexp][idx_orig].TRACE_SPAT
-                    # find the slit of the user object and its left edge
-                    slitidx_orig = \
-                        self.stack_dict['slits_list'][iexp].spat_id == self.stack_dict['specobjs_list'][iexp][idx_orig].SLITID
-                    left_edge_orig = self.stack_dict['slits_list'][iexp].select_edges(
-                        flexure=self.stack_dict['spat_flexure_list'][iexp])[0][:, slitidx_orig][:,0]
-                    # Compute the mean median offset betweeh the original trace and the left edge of the slit
-                    dist_to_left = np.median(trace_orig - left_edge_orig)
-                    # Identify the trace in the sobjs_exp from the rebinned image that is closest to the original trace taking this offset into account
-                    dspat_exp_orig = np.abs(np.median(sobjs_exp.TRACE_SPAT - dist_to_left, axis=1))
-                    dspat_ex_orig_min = dspat_exp_orig.min()
-                    if dspat_ex_orig_min < self.par['coadd2d']['spat_toler']:
-                        traces_rect[:, iexp] = sobjs_exp[np.argmin(dspat_exp_orig)].TRACE_SPAT
-                        user_obj_dspats.append(dspat_ex_orig_min)
-                    else:
-                        raise PypeItError(f'Could not identify an object in the rebinned image corresponding '
-                                   f'to the trace for the user object {self.par["coadd2d"]["user_obj_ids"][iexp]} '
-                                   f'in file {iexp+1} within the specified spatial '
-                                   f'tolerance ={self.par["coadd2d"]["spat_toler"]}')
-                else: 
-                    traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
+                plt.plot(traces_rect[:, iexp], linestyle='--', label='original trace')
+                plt.plot(traces_rect[:, iexp] + self.offsets[iexp], label='shifted traces')
+                plt.legend()
+            plt.show()
 
-            if self.par['coadd2d']['user_obj_ids'] is not None:
-                log.info(f'The median distance between the original traces and those in the '
-                          f'rebinned image for the user_obj_ids is {np.median(user_obj_dspats):.2f} pixels')
-
-            # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
-            med_traces_rect = np.median(traces_rect,axis=0)
-            offsets = med_traces_rect[0] - med_traces_rect
-            # TODO create a QA with this
-            if self.debug_offsets:
-                for iexp in range(self.nexp):
-                    plt.plot(traces_rect[:, iexp], linestyle='--', label='original trace')
-                    plt.plot(traces_rect[:, iexp] + offsets[iexp], label='shifted traces')
-                    plt.legend()
-                plt.show()
-
-            self.offsets = offsets
-            # binned pixel scale of the frames to be coadded
-            pixscale = parse.parse_binning(self.stack_dict['detectors'][0].binning)[1]*self.stack_dict['detectors'][0].platescale
-            self.offsets_report(self.offsets, pixscale, offsets_method)
+        # Binned pixel scale of the frames to be coadded
+        pixscale = parse.parse_binning(self.coadd2d_stack.detectors[0].binning)[1]*self.coadd2d_stack.detectors[0].platescale
+        self.offsets_report(self.offsets, pixscale, offsets_method)
 
 
     def compute_weights(self):
         """
-        Determine the weights to be used in the coadd2d.
+        Determine the exposure weights for a multislit coadd.
 
-        This method sets the internal :attr:`use_weights`.  Documentation on the
-        form of self.use_weights needs to be written.
-
-        Args:
-            weights (:obj:`list`, :obj:`str`):
-                Value that guides the determination of the weights.  It could be
-                a list of weights or a string. If equal to 'auto', the weight
-                will be computed using the brightest trace, if 'uniform' uniform
-                weights will be used.
+        This method sets the internal ``use_weights`` attribute using either the
+        user-supplied weights, uniform weights, or weights computed from the
+        brightest detected reference object.
         """
 
         super().compute_weights()
 
-        # adjustment for multislit to case 3) Bright object exists and parset `weights` is equal to 'auto'
-        if (self.obj_id_bri is not None) and (self.par['coadd2d']['weights'] == 'auto'):
-            # compute weights using bright object
-            # TODO add a parset for weight_method in optimal_weights. The default is currently 'auto'
-            _, self.use_weights = self.optimal_weights(self.obj_id_bri)
-            if self.par['coadd2d']['user_obj_ids'] is not None:
-                log.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} provided by the user')
-            else:
-                log.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} with the highest S/N')
-            self.snr_report(self.spatid_bri, self.spat_pixpos_bri, self.snr_bar_bri)
+        # If no bright object ID or the weights are not 'auto', return
+        if self.obj_id_bri is None or self.par['coadd2d']['weights'] != 'auto':
+            return
+
+        # compute weights using bright object
+        # TODO add a parset for weight_method in optimal_weights. The default is currently 'auto'
+        _, self.use_weights = self.optimal_weights(self.obj_id_bri)
+        if self.par['coadd2d']['user_obj_ids'] is not None:
+            log.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} provided by the user')
+        else:
+            log.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} with the highest S/N')
+        self.snr_report(self.spatid_bri, self.spat_pixpos_bri, self.snr_bar_bri)
 
 
     def get_brightest_obj(self, specobjs_list, slit_spat_ids):
-
         """
-        Utility routine to find the brightest reference object in each exposure given a specobjs_list 
-        for MultiSlit reductions.
+        Identify the brightest reference object in each multislit exposure.
 
-        Args:
-            specobjs_list: list
-               List of SpecObjs objects.
-            slit_spat_ids (`numpy.ndarray`_):
+        Parameters
+        ----------
+        specobjs_list : list
+            List of :class:`~pypeit.specobjs.SpecObjs` containers, one per exposure.
+        slit_spat_ids : numpy.ndarray
+            Array of slit spatial identifiers used to constrain the search.
 
-        Returns:
-            tuple: Returns the following:
-                - spat_pixpos_id: ndarray, int, shape=(len(specobjs_list),):
-                  Array of object spat_pixpos_ids representing the brightest reference object
-                  in each exposure
-                - spat_pixpos: ndarray, float, shape=(len(specobjs_list),):
-                  Array of spatial pixel positions of the brightest reference object
-                  in each exposure
-                - spat_id (int): 
-                  The SPAT_ID for the slit that the highest S/N ratio object is on
-                - snr_bar: ndarray, float, shape (len(list),): RMS S/N computed for this brightest reference object in each exposure
+        Returns
+        -------
+        tuple
+            Tuple containing:
+
+            - the reference-object ``SPAT_PIXPOS`` identifiers for each exposure,
+            - the corresponding spatial positions,
+            - the slit ``SPAT_ID`` containing the highest-S/N object, and
+            - the average S/N values for the selected object in each exposure.
         """
         log.info('Finding brightest object')
         nexp = len(specobjs_list)
@@ -1624,20 +1939,16 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
     def snr_report(self, slitid, spat_pixpos, snr_bar):
         """
-        
-        Print out a SNR report for the reference object used to compute the weights for multislit 2D coadds. 
+        Log an S/N report for the multislit reference object.
 
-        Args:
-            slitid (:obj:`int`):
-                The SPAT_ID of the slit that the reference object is on
-            spat_pixpos (:obj:`numpy.ndarray`):
-                Array of spatial pixel position of the reference object in the slit for each exposure shape = (nexp,)
-            snr_bar (:obj:`numpy.ndarray`):
-                Array of average S/N ratios for the reference object in each exposure, shape = (nexp,)
-  
-
-        Returns:
-
+        Parameters
+        ----------
+        slitid : int
+            ``SPAT_ID`` of the slit containing the reference object.
+        spat_pixpos : numpy.ndarray
+            Spatial positions of the reference object, one per exposure.
+        snr_bar : numpy.ndarray
+            Average S/N values of the reference object, one per exposure.
         """
 
         # Print out a report on the SNR
@@ -1657,57 +1968,53 @@ class MultiSlitCoAdd2D(CoAdd2D):
     # single slit???
     def reference_trace_stack(self, slitid, offsets=None, uniq_obj_id=None):
         """
-        Method to obtain the stack of reference traces for Multislit reductions.
+        Construct the reference-trace stack for a multislit slit.
 
         Parameters
         ----------
-        slitid: int
-            The slit ID for which the reference traces are to be obtained.
-        offsets: list, `numpy.ndarray`_, optional
-            List or array of offsets to apply to the reference traces.
-            It must have the same length as the number of exposures. Optional.
-        uniq_obj_id: list, `numpy.ndarray`_, optional
-            List or array of object IDs to use for the reference traces.
-            Not used in Multislit reductions.
+        slitid : int
+            Slit identifier for which to build the reference traces.
+        offsets : list or numpy.ndarray, optional
+            Offsets to apply to the slit-center traces, one per exposure.
+        uniq_obj_id : list or numpy.ndarray, optional
+            Object identifiers. This argument is accepted for interface
+            compatibility but is not used in multislit mode.
 
         Returns
         -------
-        ref_trace_stack: list
-            List of reference traces for the slit specified by slitid. Each element in the list corresponds
-            to a different exposure and contains the reference trace for that exposure.
-
+        list
+            List of reference traces, one per exposure, for the requested slit.
         """
 
         return self.offset_slit_cen(slitid, offsets)
 
     def get_maskdef_dict(self, slit_idx, ref_trace_stack):
         """
+        Collect mask-design metadata for a multislit slit in the coadd.
 
-        Args:
-            slit_idx (:obj:`int`):
-                index of a slit in the uncoadded frames
-            ref_trace_stack (`numpy.ndarray`_):
-                Stack of reference traces about which the images are rectified
-                and coadded.  It is the slitcen appropriately shifted according
-                the frames offsets. Shape is (nspec, nimgs).
+        Parameters
+        ----------
+        slit_idx : int
+            Index of the slit in the uncoadded frames.
+        ref_trace_stack : numpy.ndarray
+            Stack of reference traces about which the images are rectified and
+            coadded. The shape is ``(nspec, nimgs)``.
 
-        Returns:
-            :obj:`dict`: Dictionary containing all the maskdef info. The
-            quantities saved are: maskdef_id, maskdef_objpos, maskdef_slitcen,
-            maskdef_designtab. To learn what they are see
-            :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
-
+        Returns
+        -------
+        dict
+            Dictionary containing mask-design metadata for the slit.
         """
 
         # maskdef info
         if self.par['calibrations']['slitedges']['use_maskdesign'] and \
-                self.stack_dict['slits_list'][0].maskdef_id is not None and \
-                self.stack_dict['slits_list'][0].maskdef_objpos is not None and \
-                self.stack_dict['maskdef_designtab_list'][0] is not None and \
+                self.coadd2d_stack.slits_list[0].maskdef_id is not None and \
+                self.coadd2d_stack.slits_list[0].maskdef_objpos is not None and \
+                self.coadd2d_stack.maskdef_designtab_list[0] is not None and \
                 self.par['coadd2d']['offsets'] == 'maskdef_offsets':
             # maskdef_designtab info for only this slit
-            this_idx = self.stack_dict['maskdef_designtab_list'][0]['SPAT_ID'] == self.spat_ids[slit_idx]
-            this_maskdef_designtab = self.stack_dict['maskdef_designtab_list'][0][this_idx]
+            this_idx = self.coadd2d_stack.maskdef_designtab_list[0]['SPAT_ID'] == self.spat_ids[slit_idx]
+            this_maskdef_designtab = self.coadd2d_stack.maskdef_designtab_list[0][this_idx]
             # remove columns that are irrelevant in the coadd2d frames
             this_maskdef_designtab.remove_columns(['TRACEID', 'TRACESROW', 'TRACELPIX', 'TRACERPIX',
                                                    'SLITLMASKDEF', 'SLITRMASKDEF'])
@@ -1715,7 +2022,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             this_maskdef_designtab.meta['MASKRMSR'] = 0.
 
             # maskdef_id for this slit
-            imaskdef_id = self.stack_dict['slits_list'][0].maskdef_id[slit_idx]
+            imaskdef_id = self.coadd2d_stack.slits_list[0].maskdef_id[slit_idx]
 
             # maskdef_slitcen (slit center along the spectral direction) and
             # maskdef_objpos (expected position of the target, as distance from left slit edge) for this slit
@@ -1726,7 +2033,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             objpos_dspat_vec = np.zeros(self.nexp)
             for iexp in range(self.nexp):
                 # get maskdef_slitcen
-                mslitcen_pixpos = self.stack_dict['slits_list'][iexp].maskdef_slitcen
+                mslitcen_pixpos = self.coadd2d_stack.slits_list[iexp].maskdef_slitcen
                 if mslitcen_pixpos.ndim < 2:
                     mslitcen_pixpos = mslitcen_pixpos[:, None]
                 maskdef_slitcen_pixpos = mslitcen_pixpos[self.nspec_array[0]//2, slit_idx] + self.maskdef_offset[iexp]
@@ -1734,10 +2041,10 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 # get maskdef_objpos
                 # find left edge
                 slits_left, _, _ = \
-                    self.stack_dict['slits_list'][iexp].select_edges(flexure=self.stack_dict['spat_flexure_list'][iexp])
+                    self.coadd2d_stack.slits_list[iexp].select_edges(flexure=self.coadd2d_stack.spat_flexure_list[iexp])
                 # targeted object spat pix
                 maskdef_obj_pixpos = \
-                    self.stack_dict['slits_list'][iexp].maskdef_objpos[slit_idx] + self.maskdef_offset[iexp] \
+                    self.coadd2d_stack.slits_list[iexp].maskdef_objpos[slit_idx] + self.maskdef_offset[iexp] \
                     + slits_left[slits_left.shape[0]//2, slit_idx]
 
                 # change reference system
@@ -1761,34 +2068,72 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
     def wave_method(self):
         """
-        Return the wavelength method used for the coadd2d.
+        Return the wavelength-grid method used for multislit coadd2d.
 
-        Returns:
-            :obj:`str`: The wavelength method used for the coadd2d.
+        Returns
+        -------
+        str
+            Name of the wavelength-grid method.
         """
         return self.par['coadd2d']['wave_method'] if self.par['coadd2d']['wave_method'] is not None else 'linear'
 
+
+# Echelle can either stack with:
+# 1) input offsets or if offsets is None, it will find the objid of brightest trace and stack all orders relative to the trace of this object.
+# 2) specified weights, or if weights is None and auto_weights=True,
+#    it will use wavelength dependent weights determined from the spectrum of the brightest objects objid on each order
+
 class EchelleCoAdd2D(CoAdd2D):
     """
-    Coadd Echelle reductions.
-    
-    For documentation see :class:`CoAdd2D`.
+    Two-dimensional coaddition driver for echelle reductions.
 
-    Echelle can either stack with:
+    This subclass implements the echelle-specific handling of reference objects,
+    offsets, weights, and wavelength-grid construction on top of the shared
+    :class:`CoAdd2D` framework.
 
-        - input ``offsets`` or if ``offsets`` is None, it will find
-          the ``obj_id`` of brightest trace and stack all orders
-          relative to the trace of this object.
-
-        - specified ``weights``, or if ``weights`` is None and
-          ``auto_weights`` is True, it will use wavelength dependent
-          weights determined from the spectrum of the brightest
-          objects ``obj_id`` on each order
-
+    Notes
+    -----
+    Echelle coadds can be aligned either by user-supplied offsets or by the trace
+    of a selected reference object. Weights may be user supplied, uniform, or
+    derived order-by-order from the brightest reference object.
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, 
                  only_slits=None, exclude_slits=None, sn_smooth_npix=None,
                  bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False):
+        """
+        Initialize an echelle two-dimensional coadd driver.
+
+        Parameters
+        ----------
+        spec2d_files : list
+            List of input ``spec2d`` files or
+            :class:`~pypeit.spec2dobj.Spec2DObj` objects.
+        spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+            Spectrograph object.
+        par : :class:`~pypeit.par.parset.ParSet`
+            Parameter set controlling the coaddition.
+        det : int or tuple, optional
+            Detector or detector-mosaic identifier.
+        only_slits : list, optional
+            Orders to include.
+        exclude_slits : list, optional
+            Orders to exclude.
+        sn_smooth_npix : int, optional
+            S/N smoothing scale used for weight estimation.
+        bkg_redux : bool, optional
+            If True, the input science frames have already been background
+            subtracted.
+        find_negative : bool, optional
+            If True, search for negative traces.
+        show : bool, optional
+            If True, display intermediate results.
+        show_peaks : bool, optional
+            If True, show QA plots for object-finding peaks.
+        debug_offsets : bool, optional
+            If True, show QA related to offset determination.
+        debug : bool, optional
+            If True, enable additional debug output.
+        """
         super().__init__(spec2d_files, spectrograph, det=det, 
                          only_slits=only_slits, exclude_slits=exclude_slits,
                          sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
@@ -1798,12 +2143,16 @@ class EchelleCoAdd2D(CoAdd2D):
 
     def handle_reference_obj(self):
         """
-        Method to handle the syntrax for the reference object to be used for offsets and weights. 
-        
+        Interpret the echelle reference-object syntax.
+
+        Notes
+        -----
+        This method parses the user-requested reference object used to compute
+        offsets and weights in echelle coadds.
         """
 
         # If a user-input object to compute offsets and weights is provided, check if it exists and get the needed info
-        if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj_ids'] is not None:
+        if len(self.coadd2d_stack.specobjs_list) > 0 and self.par['coadd2d']['user_obj_ids'] is not None:
             if len(self.par['coadd2d']['user_obj_ids']) != self.nexp:
                 raise PypeItError(
                     f'Parameter `user_obj_ids` {self.par["coadd2d"]["user_obj_ids"]} must have '
@@ -1812,8 +2161,8 @@ class EchelleCoAdd2D(CoAdd2D):
             else:
                 # does it exists?
                 user_obj_exist = np.zeros((self.nexp,self.nslits_single), dtype=bool)
-                orders= self.stack_dict['slits_list'][0].slitord_id
-                for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
+                orders= self.coadd2d_stack.slits_list[0].slitord_id
+                for iexp, sobjs in enumerate(self.coadd2d_stack.specobjs_list):
                     for iord, ord in enumerate(orders):
                         # check if the object exists in this exposure
                         ind = sobjs.slitorder_uniq_id_indices(self.par['coadd2d']['user_obj_ids'][iexp], order=ord)
@@ -1836,21 +2185,18 @@ class EchelleCoAdd2D(CoAdd2D):
                 # get the needed info about the user object
                 self.obj_id_bri = np.array(self.par['coadd2d']['user_obj_ids'])
 
-        elif len(self.stack_dict['specobjs_list']) > 0 and (self.par['coadd2d']['offsets'] == 'auto' or self.par['coadd2d']['weights'] == 'auto'):
+        elif len(self.coadd2d_stack.specobjs_list) > 0 and (self.par['coadd2d']['offsets'] == 'auto' or self.par['coadd2d']['weights'] == 'auto'):
             self.obj_id_bri, self.snr_bar_bri = \
-                self.get_brightest_obj(self.stack_dict['specobjs_list'], self.stack_dict['slits_list'][0].slitord_id)
+                self.get_brightest_obj(self.coadd2d_stack.specobjs_list, self.coadd2d_stack.slits_list[0].slitord_id)
         
         
 
     def compute_offsets(self):
         """
-        Determine self.offsets, the offset of the frames to be coadded with respect to the first frame
+        Determine the exposure offsets for an echelle coadd.
 
-        Args:
-            offsets (:obj:`list` or :obj:`str`):
-                Value that guides the determination of the offsets.
-                It could be a list of offsets, or a string, or None.
-
+        The offsets are defined relative to the first exposure and may be either
+        user supplied or derived from the trace of the selected reference object.
         """
         super().compute_offsets()
 
@@ -1870,21 +2216,18 @@ class EchelleCoAdd2D(CoAdd2D):
 
     def compute_weights(self):
         """
-        Determine self.use_weights, the weights to be used in the coadd2d
+        Determine the exposure weights for an echelle coadd.
 
-        Args:
-            weights (:obj:`list` or :obj:`str`):
-                Value that guides the determination of the weights.
-                It could be a list of weights or a string. If 'auto' the weight will be computed using
-                the brightest trace, if 'uniform' uniform weights will be used.
-
+        This method sets the internal ``use_weights`` attribute using either the
+        user-supplied weights, uniform weights, or wavelength-dependent weights
+        computed from the brightest detected reference object.
         """
         super().compute_weights()
 
         # adjustment for echelle to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.obj_id_bri is not None) and (self.par['coadd2d']['weights'] == 'auto'):
             # computing a list of weights for all the slitord_ids that we than parse in coadd
-            slitord_ids = self.stack_dict['slits_list'][0].slitord_id
+            slitord_ids = self.coadd2d_stack.slits_list[0].slitord_id
             self.use_weights = []
             for order in slitord_ids:
                 _, iweights = self.optimal_weights(self.obj_id_bri, order=order)
@@ -1898,16 +2241,11 @@ class EchelleCoAdd2D(CoAdd2D):
 
     def _get_weights(self, indx=None):
         """
-        Method to select the correct weights for the selected slit/order.
-        This is partially overloaded by the child methods
+        Determine the exposure weights for an echelle coadd.
 
-        Args:
-            indx (:obj:`int`, optional):
-                Index of the slit/order for which the weights are to be returned.
-
-        Returns:
-            :obj:`list`: List of weights to be used for 2D coadd. The length of the list
-                         is equal to the number of exposures.
+        This method sets the internal ``use_weights`` attribute using either the
+        user-supplied weights, uniform weights, or wavelength-dependent weights
+        computed from the brightest detected reference object.
         """
 
         # if this is echelle data and the parset 'weights' is set to 'auto',
@@ -1920,21 +2258,24 @@ class EchelleCoAdd2D(CoAdd2D):
 
     def get_brightest_obj(self, specobjs_list, orders):
         """
-        Utility routine to find the brightest object in each exposure given a specobjs_list for Echelle reductions.
+        Identify the brightest reference object in each echelle exposure.
 
-        Args:
-            specobjs_list: list
-               List of SpecObjs objects.
-            orders: `numpy.ndarray`_
-                Array of order ids for which the brightest object is to be found.
+        Parameters
+        ----------
+        specobjs_list : list
+            List of :class:`~pypeit.specobjs.SpecObjs` containers, one per exposure.
+        orders : numpy.ndarray
+            Array of order identifiers over which to search for the brightest object.
 
-        Returns:
-            tuple: Returns the following:
-                - fracpos_id: ndarray, int, shape (len(specobjs_list),):
-                  Array of object ids representing the brightest object
-                  in each exposure
-                - snr_bar: ndarray, float, shape (len(list),): Average
-                  S/N over all the orders for this object
+        Returns
+        -------
+        tuple
+            Tuple containing:
+
+            - the reference-object echelle fractional-position identifiers for each
+              exposure, and
+            - the average S/N values of the selected object in each exposure.
+
         """
         log.info('Finding brightest object')
         nexp = len(specobjs_list)
@@ -1981,14 +2322,12 @@ class EchelleCoAdd2D(CoAdd2D):
 
     def snr_report(self, snr_bar):
         """
-        Printo out a SNR report for echelle 2D coadds.
+        Log an S/N report for the echelle reference object.
 
-        Args:
-            snr_bar (:obj:`numpy.ndarray`):
-                Array of average S/N ratios for the brightest object in each exposure. Shape = (nexp,)
-    
-        Returns:
-
+        Parameters
+        ----------
+        snr_bar : numpy.ndarray
+            Average S/N values of the selected reference object, one per exposure.
         """
 
         # Print out a report on the SNR
@@ -2004,39 +2343,35 @@ class EchelleCoAdd2D(CoAdd2D):
 
     def reference_trace_stack(self, slitid, offsets=None, uniq_obj_id=None):
         """
-        Method to obtain the stack of reference traces for Echelle reductions.
-
-        There are two modes of operation to determine the reference
-        trace for the 2d coadd of a given slit/order:
-
-            #. ``offsets``: We stack about the center of the slit for
-               the slit in question with the input offsets added
-
-            #. ``uniq_obj_id``: We stack about the trace of a reference
-               object for this slit given for each exposure by the
-               input user_obj_ids
-
-        Either offsets or uniq_obj_id must be provided, but the code will
-        raise an exception if both are provided.
+        Construct the reference-trace stack for an echelle order.
 
         Parameters
         ----------
-        slitid: int
-            The slit/order ID for which the reference traces are to be obtained.
-        offsets: list, `numpy.ndarray`_, optional
-            List or array of offsets to apply to the reference traces.
-            It must have the same length as the number of exposures. Optional.
-        uniq_obj_id: list, `numpy.ndarray`_, optional
-            List or array of object IDs to use for the reference traces.
-            It must have the same length as the number of exposures.
-            This is the ``ECH_FRACPOS_ID`` attribute of SpecObj for echelle reductions. Optional.
+        slitid : int
+            Order identifier for which to build the reference traces.
+        offsets : list or numpy.ndarray, optional
+            Offsets to apply to the slit-center traces, one per exposure.
+        uniq_obj_id : list or numpy.ndarray, optional
+            Object identifiers selecting the reference trace in each exposure. For
+            echelle reductions, these are ``ECH_FRACPOS_ID`` values.
 
         Returns
         -------
-        ref_trace_stack: list
-            List of reference traces for the slit/order specified by slitid. Each element in the list corresponds
-            to a different exposure and contains the reference trace for that exposure.
+        list
+            List of reference traces, one per exposure, for the requested order.
 
+        Raises
+        ------
+        PypeItError
+            Raised if neither or both of ``offsets`` and ``uniq_obj_id`` are
+            provided.
+
+        Notes
+        -----
+        Two alignment modes are supported:
+
+        - offset-based alignment about the slit or order center, and
+        - object-based alignment about a selected reference trace.
         """
 
         # check inputs
@@ -2051,8 +2386,8 @@ class EchelleCoAdd2D(CoAdd2D):
             return self.offset_slit_cen(slitid, offsets)
 
         # if uniq_obj_id is provided, we stack about the trace of the object
-        orders = self.stack_dict['slits_list'][0].slitord_id
-        specobjs_list = self.stack_dict['specobjs_list']
+        orders = self.coadd2d_stack.slits_list[0].slitord_id
+        specobjs_list = self.coadd2d_stack.specobjs_list
         ref_trace_stack = []
         for iexp, sobjs in enumerate(specobjs_list):
             ithis = sobjs.slitorder_uniq_id_indices(uniq_obj_id[iexp], order=orders[slitid])
@@ -2061,9 +2396,11 @@ class EchelleCoAdd2D(CoAdd2D):
 
     def wave_method(self):
         """
-        Returns the wavelength method used for the Echelle coadd2d.
+        Return the wavelength-grid method used for echelle coadd2d.
 
-        Returns:
-            :obj:`str`: The wavelength method used for the Echelle coadd2d.
+        Returns
+        -------
+        str
+            Name of the wavelength-grid method.
         """
         return 'log10' if self.par['coadd2d']['wave_method'] is None else self.par['coadd2d']['wave_method']

@@ -14,18 +14,33 @@ class Show1DSpec(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Show a 1D spectrum', width=width)
-        parser.add_argument("file", type=str, help="Spectral file")
-        parser.add_argument("--list", default=False, help="List the extensions only?",
-                            action="store_true")
-        parser.add_argument("--exten", type=int, default=1, help="FITS extension")
-        parser.add_argument("--obj", type=str,
-                            help="Object name in lieu of extension, e.g. SPAT0424-SLIT0000-DET01")
-        parser.add_argument("--extract", type=str, default='OPT',
-                            help="Extraction method. Default is OPT. ['BOX', 'OPT']")
-        parser.add_argument("--flux", default=False, action="store_true",
-                            help="Show fluxed spectrum?")
-        parser.add_argument('-m', '--unmasked', dest='masked', default=True, action='store_false',
-                            help='Only show unmasked data.')
+        parser.add_argument(
+            'file', type=str,
+            help='PypeIt spec1d file (this script does not work with coadd_1dspec output spectra).'
+        )
+        parser.add_argument(
+            '--list', default=False, action='store_true',
+            help='Instead of plotting any spectra, simply list the extensions with spectra'
+        )
+        grp = parser.add_mutually_exclusive_group()
+        grp.add_argument(
+            '--exten', type=int, default=1, help='Number of the extension to plot'
+        )
+        grp.add_argument(
+            '--obj', type=str, help='Extension (object) name to plot, e.g. SPAT0424-SLIT0000-DET01'
+        )
+        parser.add_argument(
+            '--extract', type=str, default='OPT', choices=['BOX', 'OPT'],
+            help='Method used to extract the spectrum'
+        )
+        parser.add_argument(
+            '--flux', default=False, action='store_true',
+            help='Show the flux-calibrated spectrum (if available)'
+        )
+        parser.add_argument(
+            '-m', '--unmasked', dest='masked', default=True, action='store_false',
+            help='Only show the unmasked data.'
+        )
 #        parser.add_argument('--jdaviz', default=False, action='store_true',
 #                            help='Open the spectrum in jdaviz (requires specutils and jdaviz '
 #                                 'to be installed)')
@@ -106,10 +121,10 @@ class Show1DSpec(scriptbase.ScriptBase):
 
         if args.obj is not None:
             exten = np.where(sobjs.NAME == args.obj)[0][0]
-            if exten < 0:
-                raise PypeItError(f"Bad input object name: {args.obj}")
         else:
             exten = args.exten-1 # 1-index in FITS file
+        if exten < 0:
+            raise PypeItError(f"Bad input extension/object name: {args.obj}")
 
         # Check Extraction
         if args.extract == 'OPT':

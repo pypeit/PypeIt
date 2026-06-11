@@ -6,7 +6,6 @@ Script to install user arc line lists into the PypeIt cache.
 """
 
 from pypeit.scripts import scriptbase
-from pypeit import cache
 
 class InstallLinelist(scriptbase.ScriptBase):
 
@@ -24,6 +23,7 @@ class InstallLinelist(scriptbase.ScriptBase):
     def main(cls, args):
         import numpy as np
         from pypeit import log
+        from pypeit.pkg import cache
 
         # Initialize the log
         cls.init_log(args)

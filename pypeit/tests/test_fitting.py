@@ -9,8 +9,10 @@ import pytest
 
 import numpy as np
 
+from pypeit import dataPaths
 from pypeit.core import fitting
 from pypeit.tests.tstutils import data_output_path
+
 
 def test_pypeitfit():
     out_file = data_output_path('test_fit.fits')
@@ -42,6 +44,7 @@ def test_polynomial():
     val = pypeitFit.eval(x)
     assert np.isclose(val[0], -0.04746603), 'Bad value'
 
+
 def test_legendre():
     x = np.pi*np.linspace(0, 1., 100)
     y = np.sin(x)
@@ -51,6 +54,31 @@ def test_legendre():
     np.testing.assert_allclose(pypeitFit.fitc, np.array([  6.37115652e-01,   6.83317251e-17,
                                                    -6.84581686e-01, -7.59352737e-17]), atol=1e-9)
 
-def test_robust_fit():
-    # NEED A TEST!!
-    pass
+
+def test_pypeitfitcollection():
+
+    # These are results generated from the old TraceSet fitter.  This just
+    # checks that the results are the same.
+    test_data_file = dataPaths.tests.get_file_path('trace_fit_data.npz')
+    db = np.load(test_data_file)
+
+    trace_coo = db['trace_coo']
+    cen = db['cen']
+    trace_fit_ivar = db['trace_fit_ivar']
+    xmin = float(db['xmin'])
+    xmax = float(db['xmax'])
+    function = str(db['function'])
+    order = int(db['order'])
+    maxdev = float(db['maxdev'])
+    maxiter = int(db['maxiter'])
+    trace_fit = db['trace_fit']
+
+    fit = fitting.PypeItFitCollection(
+        trace_coo, cen, ivar=trace_fit_ivar, func=function, order=order, xmin=xmin, xmax=xmax,
+        maxdev=maxdev, maxiter=maxiter
+    )
+
+    # NOTE: The array_equal test passed on my machine, but I changed it to
+    # allclose, just to be on the safe side.
+#    assert np.array_equal(fit.yfit, trace_fit), 'Fit changed!'
+    assert np.allclose(fit.yfit, trace_fit), 'Fit changed!'

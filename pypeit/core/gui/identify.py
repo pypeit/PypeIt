@@ -701,14 +701,13 @@ class Identify:
             bdisp = self.fitsol_deriv(self.specdata.size/2) # Angstroms/pixel at the centre of the spectrum
             try:
                 #n_final = wvutils.parse_param(self.par, 'n_final', self._slit)
-                final_fit = wv_fitting.iterative_fitting(self.specdata, self._detns, gd_det,
-                                                      self._lineids[gd_det], self._line_lists, bdisp,
-                                                      verbose=False, n_first=self._fitdict["polyorder"],
-                                                      match_toler=self.par['match_toler'],
-                                                      func=self.par['func'],
-                                                      n_final=self._fitdict["polyorder"], input_only=True,
-                                                      sigrej_first=self.par['sigrej_first'],
-                                                      sigrej_final=self.par['sigrej_final'])
+                final_fit = wv_fitting.iterative_fitting(
+                    self.specdata, self._detns, gd_det, self._lineids[gd_det], self._line_lists,
+                    bdisp, verbose=False, n_first=self._fitdict["polyorder"],
+                    match_toler=self.par['match_toler'], func=self.par['func'],
+                    n_final=self._fitdict["polyorder"], input_only=True,
+                    sigrej_first=self.par['sigrej_first'], sigrej_final=self.par['sigrej_final']
+                )
             except TypeError:
                 wvcalib = None
             else:
@@ -1351,14 +1350,13 @@ class Identify:
             # Then try a detailed fit
             try:
                 final_fit = wv_fitting.iterative_fitting(
-                    self.specdata, self._detns, gd_det[0],
-                    self._lineids[gd_det[0]], self._line_lists, bdisp,
-                    verbose=False, n_first=min(2, self._fitdict["polyorder"]),
-                    match_toler=self.par['match_toler'],
-                    func=self.par['func'], input_only=True,
-                    n_final=self._fitdict["polyorder"],
-                    sigrej_first=self.par['sigrej_first'],
-                    sigrej_final=self.par['sigrej_final'])
+                    self.specdata, self._detns, gd_det[0], self._lineids[gd_det[0]],
+                    self._line_lists, bdisp, verbose=False,
+                    n_first=min(2, self._fitdict["polyorder"]),
+                    match_toler=self.par['match_toler'], func=self.par['func'], input_only=True,
+                    n_final=self._fitdict["polyorder"], sigrej_first=self.par['sigrej_first'],
+                    sigrej_final=self.par['sigrej_final']
+                )
                 final_fit.spat_id = int(self._spatid)
 
                 # Update the fitdict

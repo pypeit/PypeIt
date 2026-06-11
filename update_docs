@@ -1,18 +1,24 @@
 #!/bin/bash
 
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
 cd doc
 printf "\n\nUpdating API documentation and testing html compilation\n\n"
 sleep 1
-make clean
+RAWDIR="${PYPEIT_DEV}/RAW_DATA"
 failed=0
-make html || failed=1
+if [ -n "$PYPEIT_DEV" ] && [ -e "$RAWDIR" ]; then
+    (make clean ; make html) || failed=1
+else
+    printf "${YELLOW}WARNING: Cannot access dev-suite RAW_DATA dir.  Building docs without automated example docs.${NC}\n"
+    make htmlnoex || failed=1
+fi
 git add api
 git add pypeit_par.rst
 cd ../
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
 
 nwarnings=$(wc -l "doc/sphinx_warnings.out" | awk '{print $1}')
 if [ ${failed} -ne 0 ]; then

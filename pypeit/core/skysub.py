@@ -3,21 +3,24 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from IPython import embed
 import numpy as np
-
+import matplotlib.pyplot as plt
 import scipy.ndimage
 import scipy.special
 from scipy.interpolate import RegularGridInterpolator
 
-import matplotlib.pyplot as plt
-
-from IPython import embed
-
-from pypeit.core import basis, pixels, extract
-from pypeit.core import fitting
-from pypeit.core import procimg
-from pypeit import log, utils, bspline, slittrace
+from pypeit import bspline
+from pypeit import log
 from pypeit import PypeItError
+from pypeit import slittrace
+from pypeit import utils
+from pypeit.core import basis
+from pypeit.core import extract
+from pypeit.core import fitting
+from pypeit.core import pixels
+from pypeit.core import procimg
+from pypeit.core import spatialprofile
 from pypeit.display import display
 
 
@@ -861,10 +864,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     log.info("At x = {:5.2f}".format(sobjs[iobj].SPAT_PIXPOS) + " on slit # {:}".format(sobjs[iobj].slit_order))
                     log.info("------------------------------------------------------------------------------------------------------------")
 
-                    # TODO -- Use extract_specobj_boxcar to avoid code duplication
-                    extract.extract_boxcar(sciimg-skyimage, modelivar, outmask, waveimg, skyimage,
-                                           sobjs[iobj], fwhmimg=fwhmimg, base_var=base_var, count_scale=count_scale,
-                                           noise_floor=adderr)
+                    sobjs[iobj].extract_boxcar(
+                        sciimg-skyimage, modelivar, outmask, waveimg, skyimage, fwhmimg=fwhmimg,
+                        base_var=base_var, count_scale=count_scale, noise_floor=adderr
+                    )
                     flux = sobjs[iobj].BOX_COUNTS
                     fluxivar = sobjs[iobj].BOX_COUNTS_IVAR * sobjs[iobj].BOX_MASK
                     wave = sobjs[iobj].BOX_WAVE
@@ -874,17 +877,22 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     trace = sobjs[iobj].TRACE_SPAT[:, None]
                     objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_R_PIX)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_R_PIX)))
                     # Boxcar
-                    extract.extract_boxcar(sciimg-skyimage, modelivar, (outmask & objmask), waveimg,
-                                           skyimage, sobjs[iobj], fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var,
-                                           count_scale=count_scale, noise_floor=adderr)
+                    sobjs[iobj].extract_boxcar(
+                        sciimg-skyimage, modelivar, (outmask & objmask), waveimg, skyimage,
+                        fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var,
+                        count_scale=count_scale, noise_floor=adderr
+                    )
                     # Optimal
-                    extract.extract_optimal(sciimg-skyimage, modelivar, (outmask & objmask), waveimg,
-                                            skyimage, thismask, last_profile, sobjs[iobj], min_frac_use=min_frac_use,
-                                            fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var, count_scale=count_scale,
-                                            noise_floor=adderr)
+                    sobjs[iobj].extract_optimal(
+                        sciimg-skyimage, modelivar, (outmask & objmask), waveimg, skyimage,
+                        thismask, last_profile, min_frac_use=min_frac_use, fwhmimg=fwhmimg,
+                        flatimg=flatimg, base_var=base_var, count_scale=count_scale,
+                        noise_floor=adderr
+                    )
+                    
                     # If the extraction is bad do not update
                     if sobjs[iobj].OPT_MASK is not None:
-                        # if there is only one good pixel `extract.fit_profile` fails
+                        # if there is only one good pixel `spatialprofile.fit_profile` fails
                         if np.sum(sobjs[iobj].OPT_MASK) > extract_good_frac * nspec:
                             flux = sobjs[iobj].OPT_COUNTS
                             fluxivar = sobjs[iobj].OPT_COUNTS_IVAR*sobjs[iobj].OPT_MASK
@@ -894,7 +902,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                 if wave.any():
                     sign = sobjs[iobj].sign
                     # TODO This is "sticky" masking. Do we want it to be?
-                    profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
+                    profile_model, trace_new, fwhmfit, med_sn2 = spatialprofile.fit_profile(
                         sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
                         thisfwhm=sobjs[iobj].FWHM, prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
@@ -1011,15 +1019,17 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             trace = sobjs[iobj].TRACE_SPAT[:, None]
             # Optimal
             objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_R_PIX)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_R_PIX)))
-            extract.extract_optimal(sciimg-skyimage, modelivar * thismask, (outmask_extract & objmask),
-                                    waveimg, extract_sky, thismask, this_profile, sobjs[iobj], min_frac_use=min_frac_use,
-                                    fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var, count_scale=count_scale,
-                                    noise_floor=adderr)
+            sobjs[iobj].extract_optimal(
+                sciimg-skyimage, modelivar*thismask, (outmask_extract & objmask), waveimg,
+                extract_sky, thismask, this_profile, min_frac_use=min_frac_use, fwhmimg=fwhmimg,
+                flatimg=flatimg, base_var=base_var, count_scale=count_scale, noise_floor=adderr
+            )
             # Boxcar
-            extract.extract_boxcar(sciimg-skyimage, modelivar*thismask, (outmask_extract & objmask),
-                                   waveimg, extract_sky, sobjs[iobj],
-                                   fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var,
-                                   count_scale=count_scale, noise_floor=adderr)
+            sobjs[iobj].extract_boxcar(
+                sciimg-skyimage, modelivar*thismask, (outmask_extract & objmask), waveimg,
+                extract_sky, fwhmimg=fwhmimg, flatimg=flatimg, base_var=base_var,
+                count_scale=count_scale, noise_floor=adderr
+            )
             sobjs[iobj].min_spat = min_spat
             sobjs[iobj].max_spat = max_spat
 
@@ -1406,12 +1416,12 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                         slitids[other_orders], order_vec[other_orders],
                         order_snr[other_orders,ibright], 
                         fwhm_here[other_orders]):
-                        str_out += f'{slit_now:<8d}{order_now:<8d}{snr_now:>10.2f}{fwhm_now:>10.2f}'
+                        str_out += f'{slit_now:<8d}{order_now:<8d}{snr_now:>10.2f}{fwhm_now:>10.2f}\n'
                     log.info(
                         f'\nUsing {fwhm_str} for FWHM of object={uni_objid[iobj]} on slit/order: '
                         f'{iord}/{order}\n{dash_big}\n'
                         f'{"slit":<8s}{"order":<8s}{"SNR":>10s}{"FWHM":>10s}\n{dash_big}\n'
-                        f'{str_out[:-8]}{fwhm_str.upper()}'
+                        f'{str_out[:-8]}{fwhm_str.upper()}'  # TODO : This formatting seems to be incorrect. Why chop off 8 characters from the end?
                         f':{iord:<8d}{order:<8d}{order_snr[iord,ibright]:>10.2f}'
                         f'{fwhm_this_ord:>10.2f}\n{dash_big}'
                     )

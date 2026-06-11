@@ -2,14 +2,15 @@
 
     $ pypeit_show_1dspec -h
     usage: pypeit_show_1dspec [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                              [--log_level LOG_LEVEL] [--list] [--exten EXTEN]
-                              [--obj OBJ] [--extract EXTRACT] [--flux] [-m]
+                              [--log_level LOG_LEVEL] [--list] [--exten EXTEN |
+                              --obj OBJ] [--extract {BOX,OPT}] [--flux] [-m]
                               file
     
     Show a 1D spectrum
     
     positional arguments:
-      file                  Spectral file
+      file                  PypeIt spec1d file (this script does not work with
+                            coadd_1dspec output spectra).
     
     options:
       -h, --help            show this help message and exit
@@ -25,12 +26,13 @@
                             Verbosity level for the log file. If a log file is
                             produce and this is None, the file log will match the
                             console stream log. (default: None)
-      --list                List the extensions only? (default: False)
-      --exten EXTEN         FITS extension (default: 1)
-      --obj OBJ             Object name in lieu of extension, e.g.
+      --list                Instead of plotting any spectra, simply list the
+                            extensions with spectra (default: False)
+      --exten EXTEN         Number of the extension to plot (default: 1)
+      --obj OBJ             Extension (object) name to plot, e.g.
                             SPAT0424-SLIT0000-DET01 (default: None)
-      --extract EXTRACT     Extraction method. Default is OPT. ['BOX', 'OPT']
-                            (default: OPT)
-      --flux                Show fluxed spectrum? (default: False)
-      -m, --unmasked        Only show unmasked data. (default: True)
+      --extract {BOX,OPT}   Method used to extract the spectrum (default: OPT)
+      --flux                Show the flux-calibrated spectrum (if available)
+                            (default: False)
+      -m, --unmasked        Only show the unmasked data. (default: True)
     
