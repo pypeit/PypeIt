@@ -70,8 +70,8 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'mjd':
             ttime = Time(headarr[0]['DATE-OBS'], format='isot')
             return ttime.mjd
-        else:
-            raise PypeItError("Not ready for this compound meta")
+
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -87,7 +87,7 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return []#'dispname']
+        return []
 
     def raw_header_cards(self):
         """
@@ -141,7 +141,7 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(3.8),
             ronoise         = np.atleast_1d(3.5),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = None #np.atleast_1d('[:,:]')
+            oscansec        = None 
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -175,14 +175,12 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
         # With the native arxiv every order self-reidentifies at high cc, so the
         # default cc_thresh is fine and no override is needed.
         par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_triplespec.fits'
-#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
-        #par['calibrations']['slitedges']['edge_thresh'] = 15.
         par['calibrations']['slitedges']['trace_thresh'] = 5.
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3
         par['calibrations']['slitedges']['fwhm_gaussian'] = 4.0
@@ -191,7 +189,6 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
         # The PCA is terrible, but fortunately the polynomial fits are good; so
         # just skip the PCA
         par['calibrations']['slitedges']['auto_pca'] = False
-#        par['calibrations']['slitedges']['left_right_pca'] = True
         # This is needed to remove the traces on either side of each order
         par['calibrations']['slitedges']['minimum_slit_length'] = 2.0
 
@@ -277,7 +274,7 @@ class SOARTSPECSpectrograph(spectrograph.Spectrograph):
         if ftype in ['pinhole','bias']:
             # No pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'dark':
+        if ftype == 'lampoffflats':
             return good_exp & ((fitstbl['idname'] == 'LAMPFLAT') & (fitstbl['target'] == 'DFLAT_OFF'))
         if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'STANDARD')

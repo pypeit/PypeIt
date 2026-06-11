@@ -16,7 +16,7 @@ spectrograph; PypeIt reduces it with the Echelle pipeline over five orders
 (order numbers 7 through 3), covering roughly 0.8--2.47 microns.  If you're
 having trouble reducing your data, we encourage you to work through this
 tutorial first.  See also the instrument notes at
-:doc:`../spectrographs/soar_triplespec`, join our `PypeIt Users Slack
+:ref:`soar_triplespec`, join our `PypeIt Users Slack
 <https://pypeit-users.slack.com>`__ using `this invitation link <invite_>`_ to
 ask for help, and/or `Submit an issue`_ to GitHub if you find a bug!
 
@@ -40,7 +40,8 @@ and ``-c all`` are equivalent.
 
 This produces a directory ``soar_tspec_A`` containing the pypeit file
 ``soar_tspec_A.pypeit``.  The key part is the :ref:`data_block`, which for this
-example looks like:
+example looks like (where the arc file has been commented out by hand and the science
+frame has been typed as "arc,tilt,science" instead of simply "science"):
 
 .. code-block:: console
 
@@ -49,7 +50,7 @@ example looks like:
      path ./
                                     filename |        frametype | ... | dispname | binning | exptime | calib | comb_id | bkg_id
     #          SPEC_ARC_04-02-2025_0103.fits |         arc,tilt | ... |     spec |     1,1 |     2.0 |     0 |      -1 |     -1
-             SPEC_DFLAT_04-02-2025_0088.fits |             dark | ... |     spec |     1,1 |     2.0 |     0 |      -1 |     -1
+             SPEC_DFLAT_04-02-2025_0088.fits |     lampoffflats | ... |     spec |     1,1 |     2.0 |     0 |      -1 |     -1
              SPEC_DFLAT_04-02-2025_0042.fits |  pixelflat,trace | ... |     spec |     1,1 |     2.0 |     0 |      -1 |     -1
             SPEC_2025cy_05-02-2025_0116.fits | arc,tilt,science | ... |     spec |     1,1 |   300.0 |     0 |       1 |      2
             SPEC_2025cy_05-02-2025_0117.fits | arc,tilt,science | ... |     spec |     1,1 |   300.0 |     0 |       2 |      1
@@ -105,7 +106,7 @@ To perform the core processing, run :ref:`run-pypeit`:
 
 The code runs uninterrupted through order tracing, wavelength calibration, field
 flattening, object finding, sky subtraction, and spectral extraction; see
-:doc:`../running`.  As it runs it produces a number of files and QA plots to
+:ref:`run-pypeit`.  As it runs it produces a number of files and QA plots to
 inspect.
 
 Order Edges
@@ -270,7 +271,7 @@ i.e. one spectrum per order, each stored in its own fits extension named like
 
     pypeit_show_1dspec Science/spec1d_SPEC_2025cy_05-02-2025_standard0120-HD_116699_TSPEC_20250205T043332.836.fits --exten 5
 
-See :doc:`../out_spec1D` for further details.
+See :ref:`spec-1d-output` for further details.
 
 ----
 

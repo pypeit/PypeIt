@@ -29,7 +29,7 @@ Here is some advice on how to setup your :ref:`pypeit_file`.  First, run:
 
 where ``-b`` indicates that the data use sky subtraction and the ``calib``,
 ``comb_id``, and ``bkg_id`` columns are added to the :ref:`data_block`.  See
-:ref:`pypeit_setup` and :doc:`../A-B_differencing` for the syntax used for the
+:ref:`pypeit_setup` and :ref:`a-b_differencing` for the syntax used for the
 data in these columns and how PypeIt uses them.
 
 Here is an example of the :ref:`data_block` of the PypeIt file:
@@ -40,7 +40,7 @@ Here is an example of the :ref:`data_block` of the PypeIt file:
     data read
      path ./
                                     filename |       frametype | ... |  dispname |  decker | binning | exptime | calib | comb_id | bkg_id
-             SPEC_DFLAT_04-02-2025_0088.fits |            dark | ... |      spec | default |     1,1 |     2.0 |     0 |      -1 |     -1
+             SPEC_DFLAT_04-02-2025_0088.fits |    lampoffflats | ... |      spec | default |     1,1 |     2.0 |     0 |      -1 |     -1
              SPEC_DFLAT_04-02-2025_0042.fits | pixelflat,trace | ... |      spec | default |     1,1 |     2.0 |     0 |      -1 |     -1
             SPEC_2025cy_05-02-2025_0116.fits | arc,tilt,science | ... |     spec | default |     1,1 |   300.0 |     0 |       1 |     -1
             SPEC_2025cy_05-02-2025_0117.fits | arc,tilt,science | ... |     spec | default |     1,1 |   300.0 |     0 |       2 |     -1
@@ -50,7 +50,7 @@ Here is an example of the :ref:`data_block` of the PypeIt file:
 ``frametype`` is automatically assigned to each frame using the values of
 various header keywords (see :meth:`~pypeit.spectrographs.soar_tspec.SOARTSPECSpectrograph.check_frame_type`):
 the dome flats taken with the lamp **on** are typed ``pixelflat,trace``, the
-dome flats taken with the lamp **off** are typed ``dark``, and the science
+dome flats taken with the lamp **off** are typed ``lampoffflats``, and the science
 exposures are typed ``science``.
 
 
@@ -89,9 +89,12 @@ Flat Fielding
 -------------
 
 Dome flats are taken in pairs: lamp **on** and lamp **off**.  PypeIt types the
-lamp-on flats as ``pixelflat,trace`` and the lamp-off flats as ``dark``; the
-dark is subtracted to remove the thermal/dome background before the field flat
-and order edges are constructed.  Bias subtraction and overscan correction are
+lamp-on flats as ``pixelflat,trace`` and the lamp-off flats as ``lampoffflats``. 
+By default, the lamp-off flats are subtracted although users report this does not 
+give significant improvement. If you do not want this correction, comment any such files
+out of your PypeIt file. 
+
+Bias subtraction and overscan correction are also
 turned off for this detector.
 
 
@@ -100,7 +103,7 @@ Additional Reading
 
 Here are additional docs relevant to reducing SOAR/TripleSpec data:
 
-- :doc:`../tutorials/soar_triplespec_howto` -- a full worked example reduction.
-- :doc:`../calibrations/wave_calib`
-- :doc:`../calibrations/flat`
-- :doc:`../A-B_differencing`
+- :ref:`soar_triplespec_howto` -- a full worked example reduction.
+- :ref:`wave_calib`
+- :ref:`flat`
+- :ref:`a-b_differencing`
