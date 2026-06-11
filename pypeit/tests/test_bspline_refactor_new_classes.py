@@ -15,7 +15,8 @@ from IPython import embed
 import numpy as np
 import pytest
 
-from pypeit.bspline.refactor import BSpline, BSpline2D, Knots
+from pypeit import dataPaths
+from pypeit.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
 from pypeit.bspline.bspline import bspline
 
 
@@ -1327,5 +1328,77 @@ def test_value_interpolate_training_x_fast_path():
 
     yfit_val, _ = spl.value(x, interpolate=True)
     assert yfit_val is yfit_fit
+
+
+# ---------------------------------------------------------------------------
+# bspline_profile_refactor — integration tests against reference data
+# ---------------------------------------------------------------------------
+
+def test_bspline_profile_refactor_spec():
+    """
+    bspline_profile_refactor reproduces the spectral flat-field reference fit
+    from the gemini_gnirs_32 test data files.
+    """
+    files = [dataPaths.tests.get_file_path('gemini_gnirs_32_{0}_spec_fit.npz'.format(slit))
+             for slit in [0, 1]]
+    logrej = 0.5
+    spec_samp_fine = 1.2
+    for f in files:
+        d = np.load(f)
+        _, _, spec_flat_fit, _, exit_status = bspline_profile_refactor(
+            d['spec_coo_data'], d['spec_flat_data'], d['spec_ivar_data'],
+            np.ones_like(d['spec_coo_data']), ingpm=d['spec_gpm_data'],
+            nord=4, upper=logrej, lower=logrej,
+            kwargs_knots={'spacing': spec_samp_fine},
+            kwargs_reject={'groupbadpix': True, 'maxrej': 5},
+        )
+        assert np.allclose(d['spec_flat_fit'], spec_flat_fit), \
+            'Bad spectral bspline_profile_refactor result'
+
+
+def test_bspline_profile_refactor_spat():
+    """
+    bspline_profile_refactor reproduces the spatial flat-field reference fit
+    from the gemini_gnirs_32 test data files.
+    """
+    files = [dataPaths.tests.get_file_path('gemini_gnirs_32_{0}_spat_fit.npz'.format(slit))
+             for slit in [0, 1]]
+    for f in files:
+        d = np.load(f)
+        bkspace = np.fmax(
+            1.0 / d['median_slit_width'] / 10.0,
+            1.2 * np.median(np.diff(d['spat_coo_data'])),
+        )
+        _, _, spat_flat_fit, _, exit_status = bspline_profile_refactor(
+            d['spat_coo_data'], d['spat_flat_data'],
+            np.ones_like(d['spat_flat_data']),
+            np.ones_like(d['spat_flat_data']),
+            nord=4, upper=5.0, lower=5.0,
+            kwargs_knots={'spacing': bkspace},
+        )
+        assert np.allclose(d['spat_flat_fit'], spat_flat_fit), \
+            'Bad spatial bspline_profile_refactor result'
+
+
+def test_bspline_profile_refactor_twod():
+    """
+    bspline_profile_refactor reproduces the 2D flat-field reference fit
+    from the gemini_gnirs_32 test data files.
+    """
+    files = [dataPaths.tests.get_file_path('gemini_gnirs_32_{0}_twod_fit.npz'.format(slit))
+             for slit in [0, 1]]
+    spec_samp_coarse = 50.0
+    twod_sigrej = 4.0
+    for f in files:
+        d = np.load(f)
+        _, _, twod_flat_fit, _, exit_status = bspline_profile_refactor(
+            d['twod_spec_coo_data'], d['twod_flat_data'], d['twod_ivar_data'],
+            d['poly_basis'], ingpm=d['twod_gpm_data'],
+            nord=4, upper=twod_sigrej, lower=twod_sigrej,
+            kwargs_knots={'spacing': spec_samp_coarse},
+            kwargs_reject={'groupbadpix': True, 'maxrej': 10},
+        )
+        assert np.allclose(d['twod_flat_fit'], twod_flat_fit), \
+            'Bad 2D bspline_profile_refactor result'
 
 
