@@ -645,8 +645,8 @@ def reidentify(
             max_lag_frac=max_lag_frac, stretch_func=stretch_func
         )
         log.info(
-            f'shift = {shift_vec[iarxiv]:5.3f}, stretch = {stretch_vec[iarxiv]:5.3f}, cc = '
-            f'{ccorr_vec[iarxiv]:5.3f}'
+            f'shift = {shift_vec[iarxiv]:5.3f}, stretch = {stretch_vec[iarxiv]:5.3f}, '
+            f'cc = {ccorr_vec[iarxiv]:5.3f}'
         )
         # If cc < cc_thresh or if this optimization failed, don't reidentify
         # from this arxiv spectrum
@@ -1147,10 +1147,11 @@ def set_fwhm(par, measured_fwhm=None, verbose=False):
     return fwhm
 
 
-def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_ids=None,
-                  measured_fwhms=None, debug_xcorr=False, debug_reid=False,
-                  x_percentile=50., template_dict=None, debug=False, 
-                  nonlinear_counts=1e10):
+def full_template(
+    spec, measured_fwhms, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_ids=None,
+    debug_xcorr=False, debug_reid=False, x_percentile=50., template_dict=None, debug=False,
+    nonlinear_counts=1e10
+):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
 
@@ -1164,6 +1165,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
     ----------
     spec : `numpy.ndarray`_
         Spectra to be calibrated.  Shape is (nspec, nslit).
+    measured_fwhms : `numpy.ndarray`_
+        Array of FWHM (in binned pixels) measured from the arc lines. Shape (nslit,).
     lamps : :obj:`list`
         List of arc lamps to be used for wavelength calibration.
         E.g., ['ArI','NeI','KrI','XeI']
@@ -1181,9 +1184,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         and input spectrum.
     slit_ids: ndarray, optional
         Array of slit/order IDs. Shape (nslit,)
-    measured_fwhms : `numpy.ndarray`_, optional
-        Array of FWHM (in binned pixels) measured from the arc lines. Shape (nslit,).
-        If None, the value provided by the user in the `fwhm` parset is used.
     x_percentile : float, optional
         Passed to reidentify to reduce the dynamic range of arc line amplitudes
     template_dict : dict, optional
@@ -1262,7 +1262,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         # Grab the observed arc spectrum
         obs_spec_i = spec[:,slit]
         # get FWHM for this slit
-        # TODO: Doesn't this mean measured_fwhms *cannot* be None?
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit], verbose=True)
         
         # Find the shift
@@ -1400,7 +1399,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
 
             # TODO: JFH This continue statement deals with the case when the
             # msnippet derives from *entirely* zero-padded pixels, and allows
-            # the code to continue with crashing. This code is constantly
+            # the code to continue without crashing. This code is constantly
             # causing reidentify to crash by passing in these junk snippets that
             # are almost entirely zero-padded for large shifts. We should be
             # checking for this intelligently rather than constantly calling
