@@ -49,6 +49,8 @@ dependencies = [
     "pygithub",
     "bottleneck",
     "pyqt6",
+    "pandas>=1.5",
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
