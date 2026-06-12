@@ -41,7 +41,7 @@ class PypeItStatus(scriptbase.ScriptBase):
         from pypeit import log
         from pypeit import PypeItError
 
-        # Set a default log file
+        # Set a default log file (avoid over-writing the standard one)
         if args.log_file == 'default':
             _pypeit_file = Path(args.pypeit_file)
             if _pypeit_file.suffix != '.pypeit':
