@@ -23,6 +23,5 @@ recursive-exclude pypeit/data/tests *.gz *.fits *.npz
 exclude .gitignore
 exclude checkout_current_tag
 exclude environment.yml
-exclude sphinx.readme
 exclude update_docs
 
