@@ -869,7 +869,7 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
         par["calibrations"]["slitedges"]["edge_thresh"] = 20.0  # Default: 20.0
         par["calibrations"]["slitedges"]["fit_order"] = 2  # Default: 5
         par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
-        par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
+        par["calibrations"]["slitedges"]["trace_thresh"] = 5.0
         par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.4
         par["calibrations"]["slitedges"]["left_right_pca"] = True
         par["calibrations"]["slitedges"]["length_range"] = 0.3
@@ -1002,7 +1002,7 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             par["reduce"]["findobj"]["find_fwhm"] = 7
             par["reduce"]["findobj"]["snr_thresh"] = 10
 
-            par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+            par["calibrations"]["wavelengths"]["lamps"] = ["300HK_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
 
         else:
             pass
