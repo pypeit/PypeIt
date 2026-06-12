@@ -105,6 +105,8 @@ either threshold are assigned zero weight for the next iteration.  The loop
 repeats until the mask converges (no new rejections) or the maximum number of
 iterations is reached.
 
+.. _bspline-usage:
+
 Usage
 =====
 
@@ -372,5 +374,3 @@ References
 .. [idlutils] https://www.sdss4.org/dr17/software/idlutils/
 
 .. [pydl] https://doi.org/10.5281/zenodo.1095150
-
-.. _bspline-usage:
