@@ -191,8 +191,7 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
     ----------
     x : :class:`numpy.ndarray`, optional
         Independent variable used to build the initial breakpoint grid.
-    knots : :class:`~pypeit.bspline.refactor.Knots` or :class:`numpy.ndarray` \
-or None, optional
+    knots : :class:`~pypeit.bspline.refactor.Knots` or :class:`numpy.ndarray` or None, optional
         Knot specification.
     nord : int, optional
         Order of the b-spline (default 4).
