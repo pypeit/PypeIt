@@ -1267,7 +1267,6 @@ def full_template(
         # Grab the observed arc spectrum
         obs_spec_i = spec[:,slit]
         # get FWHM for this slit
-        # TODO: Doesn't this mean measured_fwhms *cannot* be None?
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit], verbose=True)
         
         # Find the shift
