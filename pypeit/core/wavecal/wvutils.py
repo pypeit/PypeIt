@@ -407,6 +407,12 @@ def arc_lines_from_spec(
 
     if all(iter_args) and len(w)/len(tampl) < good_frac:
         # Iteratively increase the FWHM in an attempt to improve the line detection
+        # NOTE: In the limited testing done so far, it seems the algorithm tends
+        # to miss lines if the FWHM is too small, but not if it is too big.
+        # That means there is not much to be gained by iteratively making the
+        # FWHM smaller.  However, I (KBW) think it was worth imposing that
+        # `fwhm_incr` must be greater than 1, particularly given that it is
+        # effectively a developer-only parameter in the current workflow.
         for i in range(max_good_iter):
             _fwhm = fwhm*fwhm_incr**(i+1)
             tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(
