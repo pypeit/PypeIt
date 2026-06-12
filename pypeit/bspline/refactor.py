@@ -1314,16 +1314,11 @@ class BSpline2D(BSpline):
         ValueError
             If :attr:`funcname` is not one of the recognised types.
         """
-        nx = basis_x_norm.size
         match self.funcname:
             case 'poly':
-                P = np.ones((nx, self.npoly), dtype=float)
-                for i in range(1, self.npoly):
-                    P[:, i] = P[:, i - 1] * basis_x_norm
+                P = basis.fpoly(basis_x_norm, self.npoly)
             case 'poly1':
-                P = np.tile(basis_x_norm, self.npoly).reshape(nx, self.npoly)
-                for i in range(1, self.npoly):
-                    P[:, i] = P[:, i - 1] * basis_x_norm
+                P = basis.fpoly(basis_x_norm, self.npoly + 1)[:, 1:]
             case 'chebyshev':
                 P = basis.fchebyshev(basis_x_norm, self.npoly)
             case 'legendre':

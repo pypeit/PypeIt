@@ -35,7 +35,6 @@ from pypeit.images import buildimage
 from pypeit.core import qa
 from pypeit.core import flat
 from pypeit.core import tracewave
-from pypeit.core import basis
 from pypeit.core import fitting
 from pypeit.core import parse
 from pypeit.core.mosaic import build_image_mosaic
@@ -1247,12 +1246,12 @@ class FlatField:
             twod_ivar_data = twod_gpm_data.astype(float)/(twod_sig**2)
             twod_sigrej = 4.0
 
-            poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
-
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
                     = bspline_profile_refactor(twod_spec_coo_data, twod_flat_data,
-                                              ivar=twod_ivar_data, basis=poly_basis,
+                                              ivar=twod_ivar_data, basis='poly',
+                                              basis_x=twod_spat_coo_data, npoly=npoly,
+                                              xmin=0.0, xmax=1.0,
                                               gpm=twod_gpm_data, nord=4,
                                               upper=twod_sigrej, lower=twod_sigrej,
                                               kwargs_knots={'spacing': spec_samp_coarse},
