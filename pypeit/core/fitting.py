@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 
 from pypeit.core import pydl
-from pypeit import bspline
+from pypeit.bspline.bspline import bspline
 from pypeit import log
 from pypeit import PypeItError
 from pypeit.datamodel import DataContainer
@@ -1155,7 +1155,7 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
         #        if 'fullbkpt' in kwargs:
         #            fullbkpt = kwargs['fullbkpt']
         else:
-            sset = bspline.bspline(xdata[xsort[maskwork]], nord=nord, bkpt=bkpt, fullbkpt=fullbkpt, **kwargs_bspline)
+            sset = bspline(xdata[xsort[maskwork]], nord=nord, bkpt=bkpt, fullbkpt=fullbkpt, **kwargs_bspline)
             if maskwork.sum() < sset.nord:
                 print('Number of good data points fewer than nord.')
                 return (sset, outmask)
@@ -1280,7 +1280,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
         the upper,lower rejection thresholds
     kwargs_bspline : :obj:`dict`, optional
         Keyword arguments used to instantiate
-        :class:`pypeit.bspline.bspline`
+        :class:`pypeit.bspline.bspline.bspline`
     kwargs_reject : :obj:`dict`, optional
         Keyword arguments passed to :func:`pypeit.core.pydl.djs_reject`
     quiet : :obj:`bool`, optional
@@ -1288,7 +1288,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
 
     Returns
     -------
-    sset : :class:`pypeit.bspline.bspline`
+    sset : :class:`pypeit.bspline.bspline.bspline`
         Result of the fit.
     gpm : `numpy.ndarray`_
         Output good-pixel mask which the same size as ``xdata``. The
@@ -1364,7 +1364,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
         raise PypeItError('No valid data points in bspline_profile!.')
 
     # Init bspline class
-    sset = bspline.bspline(
+    sset = bspline(
         xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt, **kwargs_bspline
     )
     if maskwork.sum() < sset.nord:

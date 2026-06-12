@@ -23,7 +23,7 @@ from astropy import stats
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
-from pypeit import bspline
+from pypeit.bspline.refactor import Knots, bspline_profile_refactor
 from pypeit import io
 from pypeit.wavemodel import conv2res
 from pypeit.core.wavecal import wvutils
@@ -1012,11 +1012,9 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     log.info(f" Breakpoint spacing: {std_res * nresln:.2f} pixels")
 
     # Fit zeropoint with bspline
-    kwargs_bspline = {'bkspace': std_res * nresln}
     kwargs_reject = {'maxrej': 5}
     log.info("Initialize bspline for flux calibration")
-    init_bspline = bspline.bspline(wave[zeropoint_data_gpm], bkspace=kwargs_bspline['bkspace'])
-    fullbkpt = init_bspline.breakpoints
+    fullbkpt = Knots(spacing=std_res * nresln, x=wave[zeropoint_data_gpm], nord=4).breakpoints
 
     # remove masked regions from breakpoints
     msk_bkpt = interpolate.interp1d(wave[zeropoint_data_gpm], zeropoint_fitmask[zeropoint_data_gpm], kind='nearest', fill_value='extrapolate')(fullbkpt)
@@ -1024,9 +1022,11 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
 
     # init_breakpoints = fullbkpt
     log.info("Bspline fit on zeropoint. ")
-    bset1, bmask = fitting.iterfit(wave, zeropoint_clean, invvar=zeropoint_ivar, inmask=zeropoint_fitmask, upper=upper, lower=lower,
-                                fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
-                                kwargs_reject=kwargs_reject)
+    bset1, bmask, *_ = bspline_profile_refactor(
+        wave, zeropoint_clean, ivar=zeropoint_ivar, gpm=zeropoint_fitmask, upper=upper, lower=lower,
+        kwargs_knots={'full': init_breakpoints}, maxiter=maxiter,
+        kwargs_reject=kwargs_reject
+    )
     zeropoint_bspl, zeropoint_fit_gpm = bset1.value(wave)
     zeropoint_bspl_bkpt, _ = bset1.value(init_breakpoints)
     if debug:

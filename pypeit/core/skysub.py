@@ -10,7 +10,7 @@ import scipy.ndimage
 import scipy.special
 from scipy.interpolate import RegularGridInterpolator
 
-from pypeit import bspline
+from pypeit.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import slittrace
@@ -171,10 +171,10 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             #lsky_ivar = np.full(lsky.shape, 0.1)
             # Init bspline to get the sky breakpoints (kludgy)
             lskyset, outmask, lsky_fit, red_chi, exit_status \
-                    = fitting.bspline_profile(pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
-                                            ingpm=inmask_fit[pos_sky], upper=sigrej, lower=sigrej,
-                                            kwargs_bspline={'bkspace':bsp},
-                                            kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+                    = bspline_profile_refactor(pix[pos_sky], lsky, ivar=lsky_ivar,
+                                              gpm=inmask_fit[pos_sky], upper=sigrej, lower=sigrej,
+                                              kwargs_knots={'spacing': bsp},
+                                              kwargs_reject={'groupbadpix': True, 'maxrej': 10})
             if exit_status != 0:
                 log.warning(
                     'Global sky-subtraction did not exit cleanly for initial positive sky fit.\n'
@@ -188,18 +188,21 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
 
     # Include a polynomial basis?
     if no_poly:
-        poly_basis = np.ones_like(sky)
         npoly_fit = 1
+        _basis_kws = {}
     else:
         npoly_fit = skysub_npoly(thismask) if npoly is None else npoly
-        poly_basis = basis.flegendre(2.0*ximg_fit - 1.0, npoly_fit)
+        _basis_kws = {'basis': 'legendre', 'basis_x': ximg_fit, 'xmin': 0.0, 'xmax': 1.0,
+                      'npoly': npoly_fit}
 
     # Perform the full fit now
     log.info("Full fit in global sky sub.")
-    skyset, outmask, yfit, _, exit_status = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
-                                                                    upper=sigrej, lower=sigrej, maxiter=maxiter,
-                                                                    kwargs_bspline={'bkspace':bsp},
-                                                                    kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    skyset, outmask, yfit, _, exit_status \
+            = bspline_profile_refactor(pix, sky, ivar=sky_ivar, gpm=inmask_fit, nord=4,
+                                       upper=sigrej, lower=sigrej, maxiter=maxiter,
+                                       kwargs_knots={'spacing': bsp},
+                                       kwargs_reject={'groupbadpix': True, 'maxrej': 10},
+                                       **_basis_kws)
 
     # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related
     # to the groupbadpix behavior requested for the djs_reject rejection. It would be good to
@@ -210,13 +213,12 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             'Maximum iterations reached in bspline_profile global sky-subtraction for '
             f'npoly={npoly_fit}.\nRedoing sky-subtraction without polynomial degrees of freedom'
         )
-        poly_basis = np.ones_like(sky)
         # Perform the full fit now
         skyset, outmask, yfit, _, exit_status \
-                = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
-                                        upper=sigrej, lower=sigrej, maxiter=maxiter,
-                                        kwargs_bspline={'bkspace': bsp},
-                                        kwargs_reject={'groupbadpix': False, 'maxrej': 10})
+                = bspline_profile_refactor(pix, sky, ivar=sky_ivar, gpm=inmask_fit, nord=4,
+                                           upper=sigrej, lower=sigrej, maxiter=maxiter,
+                                           kwargs_knots={'spacing': bsp},
+                                           kwargs_reject={'groupbadpix': False, 'maxrej': 10})
 
     sky_frame = np.zeros_like(image)
     ythis = np.zeros_like(yfit)
@@ -343,10 +345,11 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
 
     if ngood > 0:
         sset1, gpm_good1, yfit1, red_chi1, exit_status \
-                = fitting.bspline_profile(piximg[good], data[good], ivar[good], profile_basis[good, :],
-                                        fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
-                                        relative=relative,
-                                        kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+                = bspline_profile_refactor(piximg[good], data[good], ivar=ivar[good],
+                                          basis=profile_basis[good, :],
+                                          kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej,
+                                          relative=relative,
+                                          kwargs_reject={'groupbadpix': True, 'maxrej': 5})
     else:
         log.warning('All pixels are masked in skyoptimal. Not performing local sky subtraction.')
         return np.zeros_like(piximg), np.zeros_like(piximg), gpm
@@ -362,34 +365,31 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     log.info('Iter     Chi^2     Rejected Pts')
     if np.any(mask1):
         sset, gpm_good, yfit, red_chi, exit_status \
-                = fitting.bspline_profile(piximg[good], data[good], ivar[good], profile_basis[good,:],
-                                        ingpm=mask1, fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
-                                        relative=relative,
-                                        kwargs_reject={'groupbadpix': True, 'maxrej': 1})
+                = bspline_profile_refactor(piximg[good], data[good], ivar=ivar[good],
+                                          basis=profile_basis[good, :], gpm=mask1,
+                                          kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej,
+                                          relative=relative,
+                                          kwargs_reject={'groupbadpix': True, 'maxrej': 1})
     else:
         log.warning('All pixels are masked in skyoptimal after first round of rejection. Not performing local sky subtraction.')
         return np.zeros_like(piximg), np.zeros_like(piximg), gpm
 
-    ncoeff = npoly + nobj
-    skyset = bspline.bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord, npoly=npoly)
-    # Set coefficients for the sky.
-    # The rehshape below deals with the different sizes of the coeff for npoly = 1 vs npoly > 1
-    # and mirrors similar logic in the bspline.py
-    skyset.coeff = sset.coeff[nobj:, :].reshape(skyset.coeff.shape)
-
-    skyset.mask = sset.mask
-    skyset.xmin = xmin
-    skyset.xmax = xmax
-
-    # JFH TODO Seems odd that spatial_img is not centered in the same way as x2 above. The value code recenters
-    # the x2 input about skyset.xmin and skyset.xmax but I admit I don't completely follow
-    sky_bmodel, _ = skyset.value(piximg, x2=spatial_img)
+    skyset = BSpline2D(knots=Knots(full=sset.breakpoints), nord=sset.nord)
+    skyset.npoly    = npoly
+    skyset.coeff    = sset.coeff[:, nobj:].copy()
+    skyset.icoeff   = sset.icoeff[:, nobj:].copy()
+    skyset.bkpt_gpm = sset.bkpt_gpm.copy()
+    skyset.funcname = 'legendre'
+    skyset.xmin     = xmin
+    skyset.xmax     = xmax
+    _basis_x = piximg if spatial_img is None else spatial_img
+    sky_bmodel, _ = skyset.value(piximg, basis_x=_basis_x)
 
     obj_bmodel = np.zeros(sky_bmodel.shape)
-    objset = bspline.bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord)
-    objset.mask = sset.mask
+    objset = BSpline(knots=Knots(full=sset.breakpoints), nord=sset.nord)
+    objset.bkpt_gpm = sset.bkpt_gpm.copy()
     for i in range(nobj):
-        objset.coeff = sset.coeff[i, :]
+        objset.coeff = sset.coeff[:, i]
         obj_bmodel1, _ = objset.value(piximg)
         obj_bmodel = obj_bmodel + obj_bmodel1 * profile_basis[:, i]
 
@@ -440,8 +440,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
     pix = pix[isrt]
     piximg_min = pix.min()
     piximg_max = pix.max()
-    bset0 = bspline.bspline(pix, nord=4, bkspace=bsp_min)
-    fullbkpt_grid = bset0.breakpoints
+    fullbkpt_grid = Knots(spacing=bsp_min, x=pix, nord=4).breakpoints
     keep = (fullbkpt_grid >= piximg_min) & (fullbkpt_grid <= piximg_max)
     fullbkpt_grid = fullbkpt_grid[keep]
     used_grid = False
@@ -659,10 +658,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         which we allow.  If ``bkpts_optimal = False``, the
         break-points will be chosen to have a uniform spacing in
         pixel units sets by the bsp parameter, i.e.  using the
-        bkspace functionality of the bspline class::
+        bkspace functionality of the :class:`~pypeit.bspline.refactor.Knots` class::
 
-            bset = bspline.bspline(piximg_values, nord=4, bkspace=bsp)
-            fullbkpt = bset.breakpoints
+            fullbkpt = Knots(spacing=bsp, x=piximg_values, nord=4).breakpoints
 
     debug_bkpts : bool, default=False
         Make an interactive plot to the screen to indicate how the
@@ -1201,10 +1199,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         which we allow.  If ``bkpts_optimal = False``, the
         break-points will be chosen to have a uniform spacing in
         pixel units sets by the bsp parameter, i.e.  using the
-        bkspace functionality of the bspline class::
+        bkspace functionality of the :class:`~pypeit.bspline.refactor.Knots` class::
 
-            bset = bspline.bspline(piximg_values, nord=4, bkspace=bsp)
-            fullbkpt = bset.breakpoints
+            fullbkpt = Knots(spacing=bsp, x=piximg_values, nord=4).breakpoints
 
     force_gauss : bool, default = False
         If True, a Gaussian profile will always be assumed for the optimal
