@@ -707,7 +707,12 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                                                                   show_profile, ind=good, l_limit=l_limit,r_limit=r_limit, xlim=7.0)
                 return (profile_model, trace_in, fwhmfit, med_sn2)
 
-            bset = bset_out[0] # This updated bset used for the next set of trace corrections
+            # bset is BSpline2D (npoly=1, funcname=None); extract 1D view for
+            # value() calls in the next iteration at arbitrary sigma_x points
+            _bset2d = bset_out[0]
+            bset = BSpline(knots=Knots(full=_bset2d.breakpoints), nord=_bset2d.nord)
+            bset.bkpt_gpm = _bset2d.bkpt_gpm.copy()
+            bset.coeff = _bset2d.coeff[:, 0]
 
     # Apply trace corrections only if they are small (added by JFH)
     if np.median(np.abs(trace_corr*sigma)) < max_trace_corr:
@@ -728,19 +733,19 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         ivar=norm_ivar.flat[ss[inside]], basis=pb.flat[ss[inside]], nord=4,
         kwargs_knots={'interior': bkpt}, upper=10, lower=10
     )
-    bset = bset_out[0]
+    # Convert BSpline2D (npoly=1, funcname=None) to 1D BSpline so value() works
+    # at arbitrary evaluation points throughout the rest of this function
+    _bset2d = bset_out[0]
+    bset = BSpline(knots=Knots(full=_bset2d.breakpoints), nord=_bset2d.nord)
+    bset.bkpt_gpm = _bset2d.bkpt_gpm.copy()
+    bset.coeff = _bset2d.coeff[:, 0]
     outmask = bset_out[1]
 
     # igood = False for pixels within (min_sigma, max_sigma), True outside
     igood = (sigma_x.flatten() > min_sigma) & (sigma_x.flatten() < max_sigma)
     full_bsp = np.zeros(nspec*nspat, dtype=float)
     sigma_x_igood = sigma_x.flat[igood]
-    # bset was fitted with a 2D profile basis (npoly=1); evaluate as 1D B-spline
-    # by extracting the single coefficient column, matching legacy value() with x2=None
-    bset_eval = BSpline(knots=Knots(full=bset.breakpoints), nord=bset.nord)
-    bset_eval.bkpt_gpm = bset.bkpt_gpm.copy()
-    bset_eval.coeff = bset.coeff[:, 0]
-    yfit_out, _  = bset_eval.value(sigma_x_igood)
+    yfit_out, _  = bset.value(sigma_x_igood)
     full_bsp[igood] = yfit_out
     isrt2 = sigma_x_igood.argsort(kind='stable')
     (peak, peak_x, lwhm, rwhm) = findfwhm(yfit_out[isrt2] - median_fit, sigma_x_igood[isrt2])
