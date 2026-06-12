@@ -1243,7 +1243,7 @@ class Calibrations:
             if self.par['wavelengths']['redo_slits'] is None:
                 self.wvcalib_state(cal_file)
                 return self.wv_calib
-
+            
         # Determine lamp list to use for wavecalib
         # Find all the arc frames in this calibration group
         is_arc = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID)

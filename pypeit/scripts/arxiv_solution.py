@@ -5,12 +5,6 @@ into a PypeIt arxiv solution that can be used with the full_template method.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import time
-from pypeit import log
-from pypeit import PypeItError
-from pypeit import par
-from pypeit import inputfiles
-from pypeit import utils
 from pypeit.scripts import scriptbase
 
 
@@ -33,6 +27,7 @@ class ArxivSolution(scriptbase.ScriptBase):
     @classmethod
     def main(cls, args):
         import os
+        from pypeit import PypeItError
         from pypeit.wavecalib import WaveCalib
         from pypeit.core.wavecal import wvutils
 

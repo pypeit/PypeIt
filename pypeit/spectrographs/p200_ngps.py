@@ -283,7 +283,6 @@ class P200NGPSSpectrograph_r(P200NGPSSpectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 50. # Lower edge tracing thresdhold to catch leftmost slit
         par['calibrations']['slitedges']['minimum_slit_length'] = 100 # Set minimum slit length 
         par['calibrations']['slitedges']['min_edge_side_sep'] = 1.0
-#        #par['calibrations']['slitedges']['add_slits'] = ['1:1090:24:153']
         
         par['scienceframe']['process']['combine'] = 'median'
         par['calibrations']['standardframe']['process']['combine'] = 'median'
@@ -451,7 +450,6 @@ class P200NGPSSpectrograph_i(P200NGPSSpectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 50. # Lower edge tracing thresdhold to catch leftmost slit
         par['calibrations']['slitedges']['minimum_slit_length'] = 100 # Set minimum slit length 
         par['calibrations']['slitedges']['min_edge_side_sep'] = 1.0
-#        #par['calibrations']['slitedges']['add_slits'] = ['1:1015:123:251']
         
         par['scienceframe']['process']['combine'] = 'median'
         par['calibrations']['standardframe']['process']['combine'] = 'median'

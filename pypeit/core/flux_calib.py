@@ -15,7 +15,6 @@ from matplotlib import pyplot as plt
 
 from astropy import units
 from astropy import constants
-from astropy import coordinates
 from astropy import table
 from astropy.io import ascii
 from astropy import stats

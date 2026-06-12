@@ -49,7 +49,7 @@ Instrument-specific Updates
 Script Changes
 --------------
 
-- Removed -G/--gui option from pypeit_obslog.
+- Removed -G/--gui option from ``pypeit_obslog``.
 
 Testing
 -------
@@ -72,6 +72,9 @@ Under-the-hood Improvements
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
+- Refactor of :class:`~pypeit.par.parset.Parset`, and relevant modifications to
+  all its subclasses.
+
 
 Bug Fixes
 ---------

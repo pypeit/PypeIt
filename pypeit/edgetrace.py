@@ -54,7 +54,7 @@ from pypeit.datamodel import DataContainer
 from pypeit import calibframe
 from pypeit.bitmask import BitMask
 from pypeit.display import display
-from pypeit.par.pypeitpar import EdgeTracePar
+from pypeit.par import pypeitpar
 from pypeit.core import parse, procimg, trace, slitdesign_matching
 from pypeit.core import fitting
 from pypeit.images.buildimage import TraceImage
@@ -430,7 +430,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             raise PypeItError('Input traceimg must be a TraceImage object.')
         if not isinstance(spectrograph, Spectrograph):
             raise PypeItError('Input spectrograph must be a Spectrograph object.')
-        if not isinstance(par, EdgeTracePar):
+        if not isinstance(par, pypeitpar.EdgeTracePar):
             raise PypeItError('Input par must be an EdgeTracePar object.')
 
         self.traceimg = traceimg                        # Input TraceImage
@@ -1250,7 +1250,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # or TracePCA DataContainers
         self.spectrograph = load_spectrograph(hdu['SOBELSIG'].header['PYP_SPEC'])
         self.spectrograph.dispname = self.dispname
-        self.par = EdgeTracePar.from_header(hdu['SOBELSIG'].header)
+        self.par = pypeitpar.EdgeTracePar.from_header(hdu['SOBELSIG'].header)
         self.qa_path = Path(hdu['SOBELSIG'].header['QAPATH']).absolute()
 
         # Check the bitmasks

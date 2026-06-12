@@ -38,7 +38,7 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
         from pypeit import log
         from pypeit import PypeItError
-        from pypeit import par
+        from pypeit.par import pypeitpar
         from pypeit import inputfiles
         from pypeit import utils
         from pypeit.spectrographs.util import load_spectrograph
@@ -61,8 +61,9 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
             # Parameters
             spectrograph_def_par = spectrograph.default_pypeit_par()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                  merge_with=(ext3dfile.cfg_lines,))
+            parset = pypeitpar.PypeItPar.from_cfg_lines(
+                cfg_lines=spectrograph_def_par.to_config(), merge_with=(ext3dfile.cfg_lines,)
+            )
 
         # Set the boxcar radius
         boxcar_radius = args.boxcar_radius
@@ -74,7 +75,10 @@ class ExtractDataCube(scriptbase.ScriptBase):
         tstart = time.time()
 
         # Extract the spectrum
-        extcube.extract_spec(parset['reduce'], outname=outname, boxcar_radius=boxcar_radius, overwrite=args.overwrite)
+        extcube.extract_spec(
+            parset['reduce'], outname=outname, boxcar_radius=boxcar_radius,
+            overwrite=args.overwrite
+        )
 
         # Report the extraction time
         log.info(utils.get_time_string(time.time()-tstart))

@@ -8,7 +8,7 @@ Main driver class for object finding, global skysubtraction and skymask construc
 
 import inspect
 import numpy as np
-import os
+from pathlib import Path
 
 from astropy import stats
 from abc import ABCMeta
@@ -696,7 +696,7 @@ class FindObjects:
         # Set objfind QA filename
         objfindQA_filename = None
         if save_objfindQA and (self.basename is not None):
-            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+            out_dir = Path(self.par['rdx']['redux_path']).absolute() / self.par['rdx']['qadir']
             if self.find_negative:
                 basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
             else:

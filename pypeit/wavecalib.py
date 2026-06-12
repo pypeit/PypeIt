@@ -4,15 +4,14 @@ Module for guiding 1D Wavelength Calibration
 .. include:: ../include/links.rst
 
 """
+import ast
 import inspect
-import json
 
-import numpy as np
-from matplotlib import pyplot as plt
-
-from pypeit.utils import jsonify
 from astropy.table import Table
 from astropy.io import fits
+from IPython import embed
+from matplotlib import pyplot as plt
+import numpy as np
 
 from pypeit import log
 from pypeit import PypeItError
@@ -24,9 +23,8 @@ from pypeit.core.gui.identify import Identify
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit.core.wavecal import echelle
+from pypeit.par import pypeitpar
 
-
-from IPython import embed
 
 class WaveCalib(calibframe.CalibFrame):
     """
@@ -47,9 +45,11 @@ class WaveCalib(calibframe.CalibFrame):
     calib_file_format = 'fits'
 
     # NOTE:
-    #   - Internals are identical to the base class
+    #   - Internals are identical to the base class plus the parameter set
     #   - Datamodel already contains CalibFrame base elements, so no need to
     #     include it here.
+
+    internals = calibframe.CalibFrame.internals + ['_par']
 
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
@@ -87,6 +87,11 @@ class WaveCalib(calibframe.CalibFrame):
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
+
+        self._par = (
+            None if strpar is None
+            else pypeitpar.WavelengthSolutionPar.from_dict(ast.literal_eval(strpar))
+        )
 
     def _bundle(self):
         """
@@ -244,7 +249,9 @@ class WaveCalib(calibframe.CalibFrame):
 
     @property
     def par(self):
-        return json.loads(self.strpar)
+        if self._par is None:
+            self._par = pypeitpar.WavelengthSolutionPar.from_dict(ast.literal_eval(self.strpar))
+        return self._par
 
     def chk_synced(self, slits):
         """
@@ -1205,9 +1212,7 @@ class BuildWaveCalib:
                     self.slits.mask[wv_masked], 'BADWVCALIB')
 
         # Pack up
-        sv_par = self.par.data.copy()
-        j_par = jsonify(sv_par)
-        self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
+        self.wv_calib.strpar = str(self.par.to_dict())
 
         # Post a warning if you're reducing SlicerIFU data and not all slits are available
         ngood = np.where(np.logical_not(self.wvc_bpm))[0].size

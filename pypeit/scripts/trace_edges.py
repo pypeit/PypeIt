@@ -78,8 +78,9 @@ class TraceEdges(scriptbase.ScriptBase):
             pypeit_file = Path(args.pypeit_file).absolute()
             if not pypeit_file.exists():
                 raise PypeItError(f'File does not exist: {pypeit_file}')
-            redux_path = pypeit_file.parent if args.redux_path is None \
-                            else Path(args.redux_path).absolute()
+            redux_path = (
+                pypeit_file.parent if args.redux_path is None else Path(args.redux_path).absolute()
+            )
 
             rdx = PypeIt(str(pypeit_file), redux_path=str(redux_path))
             detectors = rdx.par['rdx']['detnum'] if args.detector is None else args.detector
@@ -135,8 +136,9 @@ class TraceEdges(scriptbase.ScriptBase):
             if not trace_file.exists():
                 raise PypeItError(f'File does not exist: {trace_file}')
             files = [str(trace_file)]
-            redux_path = trace_file.parent if args.redux_path is None \
-                            else Path(args.redux_path).absolute()
+            redux_path = (
+                trace_file.parent if args.redux_path is None else Path(args.redux_path).absolute()
+            )
             par = spec.default_pypeit_par()
             proc_par = par['calibrations']['traceframe']
             trace_par = par['calibrations']['slitedges']

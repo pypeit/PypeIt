@@ -92,7 +92,7 @@ def science_path(par) -> Path:
     Returns:
         Path: The full path to the science directory as a `Path` object.
     """
-    return Path(par['rdx']['redux_path']) / par['rdx']['scidir']
+    return Path(par['rdx']['redux_path']).absolute() / par['rdx']['scidir']
 
 def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
                      ext:str='.fits', sci_path:Path=None) -> Path:

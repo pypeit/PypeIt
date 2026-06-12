@@ -7,7 +7,6 @@ Main driver class for PypeIt run
 """
 from pathlib import Path
 import time
-import os
 import datetime
 
 from IPython import embed
@@ -33,29 +32,31 @@ class PypeIt:
     .. todo::
         Fill in list of attributes!
 
-    Args:
-        pypeit_file (:obj:`str`):
-            PypeIt filename.
-        overwrite (:obj:`bool`, optional):
-            Flag to overwrite any existing files/directories.
-        reuse_calibs (:obj:`bool`, optional):
-            Reuse any pre-existing calibration files
-        show: (:obj:`bool`, optional):
-            Show reduction steps via plots (which will block further
-            execution until clicked on) and outputs to ginga. Requires
-            remote control ginga session via ``ginga --modules=RC,SlitWavelength &``
-        redux_path (:obj:`str`, optional):
-            Over-ride reduction path in PypeIt file (e.g. Notebook usage)
-        calib_only: (:obj:`bool`, optional):
-            Only generate the calibration files that you can
+    Parameters
+    ----------
+    pypeit_file : :obj:`str`
+        PypeIt filename.
+    overwrite : :obj:`bool`, optional
+        Flag to overwrite any existing files/directories.
+    reuse_calibs : :obj:`bool`, optional
+        Reuse any pre-existing calibration files
+    show : :obj:`bool`, optional
+        Show reduction steps via plots (which will block further
+        execution until clicked on) and outputs to ginga. Requires
+        remote control ginga session via ``ginga --modules=RC,SlitWavelength &``
+    redux_path : :obj:`str`, :class:`Path`, optional
+        Over-ride reduction path in PypeIt file (e.g. Notebook usage)
+    calib_only : :obj:`bool`, optional
+        Only generate the calibration files that you can
 
-    Attributes:
-        pypeit_file (:obj:`str`):
-            Name of the pypeit file to read.  PypeIt files have a
-            specific set of valid formats. A description can be found
-            :ref:`pypeit_file`.
-        fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
-
+    Attributes
+    ----------
+    pypeit_file : :obj:`str`
+        Name of the pypeit file to read.  PypeIt files have a
+        specific set of valid formats. A description can be found
+        :ref:`pypeit_file`.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        Table with the metadata extracted from the raw file headers
     """
     def __init__(
         self, pypeit_file, overwrite=True, reuse_calibs=False, show=False, redux_path=None,
@@ -80,12 +81,14 @@ class PypeIt:
         # Build the spectrograph and the parameters
         self.spectrograph, self.par, config_specific_file = self.pypeItFile.get_pypeitpar()
         log.info(f'Loaded spectrograph {self.spectrograph.name}')
-        log.info('Setting configuration-specific parameters using '
-                  f'{os.path.split(config_specific_file)[1]}.')
+        log.info(
+            'Setting configuration-specific parameters using '
+            f'{Path(config_specific_file).absolute().name}.'
+        )
 
         # Check the output paths are ready
         if redux_path is not None:
-            self.par['rdx']['redux_path'] = redux_path
+            self.par['rdx']['redux_path'] = Path(redux_path).absolute()
 
         # Write the full parameter set here
         # --------------------------------------------------------------
@@ -116,7 +119,9 @@ class PypeIt:
         self.show = show
 
         # Set paths
-        self.calibrations_path = Path(self.par['rdx']['redux_path']) / self.par['calibrations']['calib_dir']
+        self.calibrations_path = (
+            Path(self.par['rdx']['redux_path']).absolute() / self.par['calibrations']['calib_dir']
+        )
 
         # Check for calibrations
         if not self.calib_only:
@@ -149,7 +154,7 @@ class PypeIt:
     @property
     def qa_path(self) -> str:
         """Return the path to the top-level QA directory."""
-        return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+        return Path(self.par['rdx']['redux_path']).absolute() / self.par['rdx']['qadir']
 
     def build_qa(self):
         """
@@ -201,9 +206,7 @@ class PypeIt:
         :func:`reduce_exposure`.
 
         """
-        # Validate the parameter set
-        self.par.validate_keys(required=['rdx', 'calibrations', 'scienceframe', 'reduce',
-                                         'flexure'])
+        # Start a performance counter
         self.tstart = time.perf_counter()
 
         # ############################################################################

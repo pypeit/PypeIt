@@ -57,7 +57,7 @@ from pypeit import inputfiles
 from pypeit import outputfiles
 from pypeit import pypeit
 from pypeit import coadd2d
-from pypeit.par.pypeitpar import PypeItPar
+from pypeit.par import pypeitpar
 from pypeit.calibframe import CalibFrame
 from pypeit.core.parse import parse_binning
 from pypeit.scripts import scriptbase
@@ -204,55 +204,52 @@ def quicklook_regroup(fitstbl):
             comb_strt = np.amax(fitstbl['comb_id'].data[is_type])+1
 
 
-def generate_sci_pypeitfile(redux_path:str, 
-                            ref_calib_dir:Path,
-                            ps_sci, 
-                            det:str=None,
-                            clear:bool=False,
-                            slitspatnum:str=None,
-                            maskID:str=None,
-                            boxcar_radius:float=None,
-                            snr_thresh:float=None,
-                            chk_version:bool=True):
+def generate_sci_pypeitfile(
+    redux_path:str|Path, ref_calib_dir:Path, ps_sci, det:str=None, clear:bool=False,
+    slitspatnum:str=None, maskID:str=None, boxcar_radius:float=None, snr_thresh:float=None,
+    chk_version:bool=True
+):
     """
     Prepare to reduce the science frames:
 
-        - Correct the setup and calibration group for the science frames to be
-          the same as the associated calibration files.
+    - Correct the setup and calibration group for the science frames to be the
+      same as the associated calibration files.
 
-        - Create the path for the science reductions, and including a symlink to
-          the pre-processed (reference) calibration frames.
+    - Create the path for the science reductions, and including a symlink to the
+      pre-processed (reference) calibration frames.
 
-        - Write the pypeit file with the requested parameter adjustments.
-    
-    Args:
-        redux_path (:obj:`str`):
-            Path to the redux folder
-        ref_calib_dir (`Path`_):
-            Path with the pre-processed calibration frames.  A symlink will be
-            created to this directory from within ``redux_path`` to mimic the
-            location of the calibrations expected by
-            :class:`~pypeit.pypeit.PypeIt`.
-        ps_sci (:class:`~pypeit.pypeitsetup.PypeItSetup`):
-            Setup object for the science frame(s) only.
-        det (:obj:`str`, optional):
-            Detector/mosaic identifier.  If None, all detectors are reduced.
-        clear (:obj:`bool`, optional):
-            Remove the directory structure for these files; i.e., start a
-            completely clean reduction.  If false, any existing directory
-            structure will remain, but any existing science reduction products
-            will still be overwritten.
-        slitspatnum (:obj:`str`, optional):  
-            Used to identify the slit that should be reduced; see
-            :ref:`reduxpar`.  If None, all slits are reduced.
-        maskID (:obj:`str`, optional):
-            Slit identifier from the mask design, used to select a single slit
-            to reduce.  If None, all slits are reduced.
-        boxcar_radius (:obj:`float`, optional):
-            Boxcar radius in arcsec used for extraction.  
+    - Write the pypeit file with the requested parameter adjustments.
 
-    Returns:
-        :obj:`str`:  The name of the pypeit file.
+    Parameters
+    ----------    
+    redux_path : :obj:`str`, :class:`Path`
+        Path to the redux folder
+    ref_calib_dir : :class:`Path`
+        Path with the pre-processed calibration frames.  A symlink will be
+        created to this directory from within ``redux_path`` to mimic the
+        location of the calibrations expected by :class:`~pypeit.pypeit.PypeIt`.
+    ps_sci : :class:`~pypeit.pypeitsetup.PypeItSetup`
+        Setup object for the science frame(s) only.
+    det : :obj:`str`, optional
+        Detector/mosaic identifier.  If None, all detectors are reduced.
+    clear : :obj:`bool`, optional
+        Remove the directory structure for these files; i.e., start a completely
+        clean reduction.  If false, any existing directory structure will
+        remain, but any existing science reduction products will still be
+        overwritten.
+    slitspatnum : :obj:`str`, optional
+        Used to identify the slit that should be reduced; see :ref:`reduxpar`.
+        If None, all slits are reduced.
+    maskID : :obj:`str`, optional
+        Slit identifier from the mask design, used to select a single slit to
+        reduce.  If None, all slits are reduced.
+    boxcar_radius : :obj:`float`, optional
+        Boxcar radius in arcsec used for extraction.  
+
+    Returns
+    -------
+    :obj:`str`
+        The name of the pypeit file.
     """
 
     # Check the directory with the reference calibrations exists
@@ -451,7 +448,7 @@ def calib_manifest(calib_dir, spectrograph):
         # Remove the 'Setup *' entry
         del setups[pypeitFile.setup_name][f'Setup {pypeitFile.setup_name}']
         # Add the calibrations directory
-        par = PypeItPar.from_cfg_lines(pypeitFile.cfg_lines)
+        par = pypeitpar.PypeItPar.from_cfg_lines(pypeitFile.cfg_lines)
         setups[pypeitFile.setup_name]['calib_dir'] \
                 = pypeit_file.parent / par['calibrations']['calib_dir']
         # If the calibrations directory doesn't exist, ignore the directory!

@@ -7,7 +7,7 @@ from importlib import resources
 import numpy
 
 from pypeit.utils import string_table
-from pypeit.par.pypeitpar import ProcessImagesPar, PypeItPar
+from pypeit.par import pypeitpar
 
 from IPython import embed
 
@@ -49,8 +49,8 @@ def write_imgproc_def_table(ofile, spec=None):
                   'standardframe',
                   'scienceframe']
 
-    procpar = ProcessImagesPar()
-    par = PypeItPar() if spec is None else spec.default_pypeit_par()
+    procpar = pypeitpar.ProcessImagesPar()
+    par = pypeitpar.PypeItPar() if spec is None else spec.default_pypeit_par()
 
     data_table = numpy.empty((len(par_list)+1, len(frame_list)+2), dtype=object)
     data_table[0,:] = ['Parameter', 'Default'] \

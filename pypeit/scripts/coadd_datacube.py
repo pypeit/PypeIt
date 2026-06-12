@@ -28,7 +28,7 @@ class CoAddDataCube(scriptbase.ScriptBase):
 
         from pypeit import log
         from pypeit import PypeItError
-        from pypeit import par
+        from pypeit.par import pypeitpar
         from pypeit import inputfiles
         from pypeit import utils
         from pypeit.coadd3d import CoAdd3D
@@ -47,8 +47,9 @@ class CoAddDataCube(scriptbase.ScriptBase):
 
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
-        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                              merge_with=(coadd3dfile.cfg_lines,))
+        parset = pypeitpar.PypeItPar.from_cfg_lines(
+            cfg_lines=spectrograph_def_par.to_config(), merge_with=(coadd3dfile.cfg_lines,)
+        )
 
         # If detector was passed as an argument override whatever was in the coadd3d file
         if args.det is not None:

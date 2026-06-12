@@ -6,19 +6,19 @@ Main driver class for skysubtraction and extraction
 
 """
 
+from abc import ABCMeta
 import inspect
-import numpy as np
-import os
+from pathlib import Path
 
 from astropy import stats
-from abc import ABCMeta
+from IPython import embed
+import numpy as np
 
 from pypeit import log, utils
 from pypeit import PypeItError
 from pypeit.display import display
 from pypeit.core import skysub, extract, flexure, flat
 from pypeit.core.moment import moment1d
-from IPython import embed
 
 
 class Extract:
@@ -582,7 +582,7 @@ class Extract:
         # Save QA
         if flex_list is not None:
             basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
-            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+            out_dir = Path(self.par['rdx']['redux_path']).absolute() / self.par['rdx']['qadir']
             flexure.spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
                                     specobjs=sobjs, out_dir=out_dir)
 

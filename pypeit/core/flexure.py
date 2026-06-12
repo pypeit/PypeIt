@@ -6,6 +6,7 @@
 """
 import copy
 import inspect
+from pathlib import Path
 
 from astropy.stats import sigma_clipped_stats
 from IPython import embed
@@ -1214,24 +1215,25 @@ def spec_flexure_corrQA(ax:plt.Axes, this_flex_dict:dict, cntr:int, name:str):
 #       objects from `core`.
 def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
                     flex_list:list[dict], specobjs=None,
-                    out_dir:str|None=None):
+                    out_dir:str|Path|None=None):
     """
     Generate QA for the spectral flexure calculation
 
-    Args:
-        slitords (`numpy.ndarray`_):
-            Array of slit/order numbers
-        bpm (`numpy.ndarray`_):
-            Boolean mask; True = masked slit
-        basename (str):
-            Used to generate the output file name
-        flex_list (list):
-            list of :obj:`dict` objects containing the flexure information
-        specobjs (:class:`~pypeit.specobjs.SpecObjs`, optional):
-            Spectrally extracted objects
-        out_dir (str, optional):
-            Path to the output directory for the QA plots.  If None, the current
-            is used.
+    Parameters
+    ----------
+    slitords : :class:`numpy.ndarray`
+        Array of slit/order numbers
+    bpm : :class:`numpy.ndarray`
+        Boolean mask; True = masked slit
+    basename : str
+        Used to generate the output file name
+    flex_list : list
+        List of :obj:`dict` objects containing the flexure information
+    specobjs : :class:`~pypeit.specobjs.SpecObjs`, optional
+        Spectrally extracted objects
+    out_dir : str, :class:`Path`, optional
+        Path to the output directory for the QA plots.  If None, the current
+        is used.
     """
     # Extract the mode and detector from the ``basename``
     *_, mode, det = basename.split("_")

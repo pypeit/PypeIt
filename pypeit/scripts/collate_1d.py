@@ -572,6 +572,11 @@ def build_parameters(args):
         # No config file, use the defaults and supplement with command line args
         params = spectrograph_def_par
         params['collate1d'] = pypeitpar.Collate1DPar()
+        # NOTE: We instantiated the Collate1DPar() directly, instead of doing so as
+        # part of the PypeItPar superset, which means we need to fill the path.
+        # We can do that directly, or we can use the fill_callable function like
+        # so:
+        params['collate1d'].fill_callable()
 
     # command line arguments take precedence over config file parameters
     if args.tolerance is not None:
@@ -693,7 +698,7 @@ class Collate1D(scriptbase.ScriptBase):
                                  'F|  wv_rms_thresh         If set, any objects with a wavelength rms > than the input\n'
                                  'F|                        value are skipped, else all wavelength rms values are accepted.\n'
                                  'F|  refframe              Perform reference frame correction prior to coadding.\n'
-                                f'F|                        Options are {pypeitpar.WavelengthSolutionPar.valid_reference_frames()}. Defaults to None.\n'
+                                f'F|                        Options are {pypeitpar.WavelengthSolutionPar.valid_reference_frames}. Defaults to None.\n'
                                  '\n'
                                  'F|spec1d read\n'
                                  'F|<path to spec1d files, wildcards allowed>\n'
@@ -705,22 +710,22 @@ class Collate1D(scriptbase.ScriptBase):
                                  'Can contain wildcards')
         parser.add_argument('--par_outfile', default=None, type=str,
                             help='Output to save the parameters')
-        parser.add_argument('--outdir', type=str, help=blank_par.descr['outdir'] + " Defaults to the current directory.")
-        parser.add_argument('--spec1d_outdir', type=str, help=blank_par.descr['spec1d_outdir'] + " Defaults to overwriting existing spec1ds.")
-        parser.add_argument('--tolerance', type=str, help=blank_par.descr['tolerance'])
-        parser.add_argument('--match_using', type=str, choices=blank_par.options['match_using'],
-                            help=blank_par.descr['match_using'])
-        parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
-        parser.add_argument('--ignore_flux', default=False, action='store_true', help=blank_par.descr['ignore_flux'])
-        parser.add_argument('--flux', default=False, action = 'store_true', help=blank_par.descr['flux'])
-        parser.add_argument('--exclude_slit_trace_bm', type=str, # nargs='*',
-                            help=blank_par.descr['exclude_slit_trace_bm']+' Comma separated.')
+        parser.add_argument('--outdir', type=str, help=blank_par.parameters['outdir']['descr'])
+        parser.add_argument('--spec1d_outdir', type=str, help=blank_par.parameters['spec1d_outdir']['descr'])
+        parser.add_argument('--tolerance', type=str, help=blank_par.parameters['tolerance']['descr'])
+        parser.add_argument('--match_using', type=str, choices=blank_par.parameters['match_using']['options'],
+                            help=blank_par.parameters['match_using']['descr'])
+        parser.add_argument('--dry_run', action='store_true', help=blank_par.parameters['dry_run']['descr'])
+        parser.add_argument('--ignore_flux', default=False, action='store_true', help=blank_par.parameters['ignore_flux']['descr'])
+        parser.add_argument('--flux', default=False, action = 'store_true', help=blank_par.parameters['flux']['descr'])
+        parser.add_argument('--exclude_slit_trace_bm', type=str,
+                            help=blank_par.parameters['exclude_slit_trace_bm']['descr'])
         parser.add_argument('--exclude_serendip', action='store_true',
-                            help=blank_par.descr['exclude_serendip'])
-        parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.descr['wv_rms_thresh'])
-        parser.add_argument("--refframe", type=str, default = None, choices = pypeitpar.WavelengthSolutionPar.valid_reference_frames(),
-                            help=blank_par.descr['refframe'])
-        parser.add_argument('--chk_version', action = 'store_true', help=blank_pypar['rdx'].descr['chk_version'])
+                            help=blank_par.parameters['exclude_serendip']['descr'])
+        parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.parameters['wv_rms_thresh']['descr'])
+        parser.add_argument("--refframe", type=str, default = None, choices = pypeitpar.WavelengthSolutionPar.valid_reference_frames,
+                            help=blank_par.parameters['refframe']['descr'])
+        parser.add_argument('--chk_version', action = 'store_true', help=blank_pypar['rdx'].parameters['chk_version']['descr'])
         return parser
 
     @classmethod

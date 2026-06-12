@@ -55,7 +55,7 @@ class ChkForCalibs(scriptbase.ScriptBase):
         from pypeit.pypeitsetup import PypeItSetup
         from pypeit import calibrations
         from pypeit import log
-        from pypeit.par import PypeItPar
+        from pypeit.par import pypeitpar
 
 
         # Initialize the log
@@ -137,7 +137,7 @@ class ChkForCalibs(scriptbase.ScriptBase):
 
             #   - Build the full set, merging with any user-provided
             #     parameters
-            par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines)
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines)
             # Print science frames
             if np.any(in_cfg & is_science):
                 log.info('Your science frames are: {0}'.format(

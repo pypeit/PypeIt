@@ -19,7 +19,7 @@ from IPython import embed
 # to QA directory, even if the user sets something else...
 def set_qa_filename(
     root:str, method:str, det:str|None=None, slit:int|None=None, 
-    prefix:str|None=None, mode:str|None=None, out_dir:str|None=None
+    prefix:str|None=None, mode:str|None=None, out_dir:str|pathlib.Path|None=None
 ) -> str:
     """
     Generate the filename for the QA file from the input parameters.

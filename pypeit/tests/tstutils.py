@@ -8,8 +8,8 @@ from IPython import embed
 
 import numpy as np
 from astropy import time
+from astropy.io import fits
 from astropy.table import Table
-import astropy.io.fits as fits
 
 from pypeit import dataPaths
 from pypeit.spectrographs.util import load_spectrograph
