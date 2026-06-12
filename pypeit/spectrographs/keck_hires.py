@@ -840,7 +840,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         composite_arc_file = 'keck_hires_composite_arc.fits'
 
         return [angle_fits_file, composite_arc_file]
-        
 
     def order_platescale(self, order_vec, binning=None):
         """
