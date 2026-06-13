@@ -81,7 +81,7 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
         float:  The spatial flexure shift relative to the initial slits
 
     """
-    initial = True  # Spatial flexure should be relative to the tweaked edges
+    initial = True  # Spatial flexure should be relative to the initial edges
 
     log.info("Measuring spatial flexure")
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
@@ -154,9 +154,6 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
         plt.tight_layout()
         plt.show()
 
-        # 2D plot
-        spat_flexure_qa(sciimg, slits, shift, gpm=np.logical_not(bpm), vrange=qa_vrange)
-
     # If we're only calculating the detector flexure, return now
     if method == "detector":
         pass
@@ -190,14 +187,6 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
             delta_flexure = np.mean(delta_flexure, axis=1).reshape((slits.nslits, 1)).repeat(2, axis=1)
         # Add the delta_flexure to the total_flexure
         total_flexure += delta_flexure
-        # print the flexure for each slit
-        for slit_idx in range(slits.nslits):
-            if method == "slit":
-                log.info("Slit {0:d}: Spatial flexure = {1:5.3f} pixels".format(slit_idx + 1, total_flexure[slit_idx, 0]))
-            elif method == "edge":
-                log.info("Slit {0:d}: Left/right spatial flexure = {1:5.3f} / {2:5.3f} pixels".format(slit_idx + 1,
-                                                                                                total_flexure[slit_idx, 0],
-                                                                                                total_flexure[slit_idx, 1]))
     else:
         log.error("Not ready for this method")
 
@@ -342,13 +331,14 @@ def spat_flexure_qa(img, slits, spat_flexure, gpm=None, vrange=None, outfile=Non
     if debug:
         plt.show()
     else:
+        log.info(f"Saving spatial flexure QA to file:\n{outfile}")
         fig.savefig(outfile, dpi=200)
         plt.close(fig)
 
 
-def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,
-                    spec_fwhm_pix=None, mxshft=20, excess_shft="crash",
-                    method="boxcar", minwave=None, maxwave=None):
+def spec_flexure_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,
+                       spec_fwhm_pix=None, mxshft=20, excess_shft="crash",
+                       method="boxcar", minwave=None, maxwave=None):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
@@ -735,8 +725,8 @@ def spec_flex_shift_global(slit_specs, islit, sky_file, empty_flex_dict,
     flex_dict = copy.deepcopy(empty_flex_dict)
 
     # Calculate the shift
-    fdict = spec_flex_shift(slit_specs[islit], sky_file=sky_file, mxshft=mxshft, excess_shft=excess_shft,
-                            spec_fwhm_pix=spec_fwhm_pix, method=method, minwave=minwave, maxwave=maxwave)
+    fdict = spec_flexure_shift(slit_specs[islit], sky_file=sky_file, mxshft=mxshft, excess_shft=excess_shft,
+                               spec_fwhm_pix=spec_fwhm_pix, method=method, minwave=minwave, maxwave=maxwave)
 
     # Was it successful?
     if fdict is not None:
@@ -845,8 +835,8 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_file, empty_flex_
         )
 
         # Calculate the shift
-        fdict = spec_flex_shift(obj_sky, sky_file=sky_file, mxshft=mxshft, excess_shft=excess_shft,
-                                spec_fwhm_pix=spec_fwhm_pix, method=method, minwave=minwave, maxwave=maxwave)
+        fdict = spec_flexure_shift(obj_sky, sky_file=sky_file, mxshft=mxshft, excess_shft=excess_shft,
+                                   spec_fwhm_pix=spec_fwhm_pix, method=method, minwave=minwave, maxwave=maxwave)
 
         if fdict is not None:
             # Update dict

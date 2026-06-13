@@ -295,6 +295,12 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Make sure the overscan is subtracted from the dark
         par['calibrations']['darkframe']['process']['use_overscan'] = True
 
+        # Spatial flexure
+        par['calibrations']['pixelflatframe']['process']['spat_flexure_method'] = "edge"  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+        par['calibrations']['illumflatframe']['process']['spat_flexure_method'] = "edge"  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+        par['calibrations']['arcframe']['process']['spat_flexure_method'] = "edge"  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+        par['calibrations']['tiltframe']['process']['spat_flexure_method'] = "edge"  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
         par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
@@ -324,6 +330,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
+
         # Illumination corrections
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination

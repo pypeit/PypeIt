@@ -1834,7 +1834,7 @@ class IFUCalibrations(Calibrations):
             list: Calibration steps, in order of execution
         """
         # Order matters!
-        return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align',
+        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'align',
                 'scattlight', 'flats']
 
 

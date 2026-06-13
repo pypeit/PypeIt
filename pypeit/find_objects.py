@@ -1210,12 +1210,12 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                                global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
                                                self.pypeline, self.det)
         # Calculate the flexure
-        flex_dict_ref = flexure.spec_flex_shift(ref_skyspec, sky_file=self.par['flexure']['spectrum'], spec_fwhm_pix=ref_fwhm_pix,
-                                            mxshft=self.par['flexure']['spec_maxshift'],
-                                            excess_shft=self.par['flexure']['excessive_shift'],
-                                            method="slitcen",
-                                            minwave=self.par['flexure']['minwave'],
-                                            maxwave=self.par['flexure']['maxwave'])
+        flex_dict_ref = flexure.spec_flexure_shift(ref_skyspec, sky_file=self.par['flexure']['spectrum'], spec_fwhm_pix=ref_fwhm_pix,
+                                                   mxshft=self.par['flexure']['spec_maxshift'],
+                                                   excess_shft=self.par['flexure']['excessive_shift'],
+                                                   method="slitcen",
+                                                   minwave=self.par['flexure']['minwave'],
+                                                   maxwave=self.par['flexure']['maxwave'])
         this_slitshift = np.zeros(self.slits.nslits)
         if flex_dict_ref is not None:
             log.warning("Only a relative spectral flexure correction will be performed")
@@ -1229,13 +1229,13 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                                     global_sky, box_rad, self.slits, trace_spat[:, slit_idx],
                                                     self.pypeline, self.det)
             # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, arx_skyspec=ref_skyspec, arx_fwhm_pix=ref_fwhm_pix * 1.01,
-                                                spec_fwhm_pix=ref_fwhm_pix,
-                                                mxshft=self.par['flexure']['spec_maxshift'],
-                                                excess_shft=self.par['flexure']['excessive_shift'],
-                                                method="slitcen",
-                                                minwave=self.par['flexure']['minwave'],
-                                                maxwave=self.par['flexure']['maxwave'])
+            flex_dict = flexure.spec_flexure_shift(this_skyspec, arx_skyspec=ref_skyspec, arx_fwhm_pix=ref_fwhm_pix * 1.01,
+                                                   spec_fwhm_pix=ref_fwhm_pix,
+                                                   mxshft=self.par['flexure']['spec_maxshift'],
+                                                   excess_shft=self.par['flexure']['excessive_shift'],
+                                                   method="slitcen",
+                                                   minwave=self.par['flexure']['minwave'],
+                                                   maxwave=self.par['flexure']['maxwave'])
             this_slitshift[slit_idx] += flex_dict['shift']
             flex_list.append(flex_dict.copy())
         # Replace the reference slit with the absolute shift

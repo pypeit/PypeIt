@@ -854,7 +854,6 @@ class BuildWaveTilts:
             # Save to final image
             self.final_tilts[thismask_science] = self.tilts
 
-
             # This is a workaround for the Python memory usage issues
             self.tilts = None
             gc.collect(2)
