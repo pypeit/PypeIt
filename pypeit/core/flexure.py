@@ -33,7 +33,7 @@ from pypeit.core.wavecal import autoid
 
 
 def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None,
-                       maxlag=20, sigdetect=10., debug=False, qa_outfile=None, qa_vrange=None):
+                       maxlag=20, sigdetect=10., debug=False):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -71,11 +71,6 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
             in the collapsed sobel image
         debug (:obj:`bool`, optional):
             Run in debug mode
-        qa_outfile (:obj:`str`, optional):
-            Path to the output file where the QA is saved.  If None, the QA is not generated.
-        qa_vrange (:obj:`tuple`, optional):
-            Tuple with the vmin and vmax values for the imshow plot in the QA. If None, the
-            vmin and vmax values are calculated from the data.
 
     Returns:
         float:  The spatial flexure shift relative to the initial slits
@@ -189,13 +184,6 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
         total_flexure += delta_flexure
     else:
         log.error("Not ready for this method")
-
-    if qa_outfile is not None:
-        # Generate the QA plot
-        log.info("Generating QA plot for spatial flexure")
-        spat_flexure_qa(sciimg, slits, total_flexure, gpm=np.logical_not(bpm), vrange=qa_vrange, outfile=qa_outfile)
-
-    # TODO :: Should we include the possibility of post-processing the slit edges according to the spectrograph (e.g. fit linear relationship to total_flexure)?
 
     return total_flexure
 

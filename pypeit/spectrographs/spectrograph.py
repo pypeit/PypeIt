@@ -1756,6 +1756,27 @@ class Spectrograph:
         log.warning("2D detector response is not implemented for spectrograph: {0:s}".format(self.name))
         return np.ones_like(det_resp)
 
+    def spatial_flexure(self, spat_flexure):
+        """
+
+        Parameters
+        ----------
+        spat_flexure (`numpy.ndarray`_):
+            The spatial flexure in pixels.  This is a 2D array with the
+            shape (number of slits, 2). spat_flexure[:,0] have the raw
+            spatial flexure values of the left edges, and spat_flexure[:,1]
+            have the raw spatial flexure values of the right edges.
+
+        Returns
+        -------
+        `numpy.ndarray`_: The spatial flexure in pixels.  This is a 2D array
+            with the shape (number of slits, 2). spat_flexure[:,0] have the
+            spatial flexure values of the left edges, and spat_flexure[:,1]
+            have the spatial flexure values of the right edges. Each spectrograph
+            can optionally post-process the spatial flexure values before returning.
+        """
+        return spat_flexure
+
     def validate_metadata(self):
         """
         Validates the definitions of the Spectrograph metadata by making a

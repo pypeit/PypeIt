@@ -846,8 +846,7 @@ class RawImage:
                                                       method=self.par['spat_flexure_method'],
                                                       slitprof=slitprof, maxlag=self.par['spat_flexure_maxlag'],
                                                       sigdetect=self.par['spat_flexure_sigdetect'],
-                                                      debug=debug, qa_outfile=qa_outfile,
-                                                      qa_vrange=self.par['spat_flexure_vrange'])
+                                                      debug=debug)
 
         # Print the flexure values
         if np.all(spat_flexure == spat_flexure[0, 0]):
@@ -862,9 +861,21 @@ class RawImage:
                     log.info(
                         f'Spatial flexure for slit {slits.spat_id[slit]} is: left={spat_flexure[slit, 0]:5.3f} pixels; right={spat_flexure[slit, 1]:5.3f} pixels')
 
+        # Each spectrograph can optionally post-process the spatial flexure values
+        _spat_flexure = self.spectrograph.spatial_flexure(spat_flexure)
+
+        # Save QA to file
+        if qa_outfile is not None:
+            # Generate the QA plot
+            log.info("Generating QA plot for spatial flexure")
+            flexure.spat_flexure_qa(self.image[0], slits, _spat_flexure,
+                                    gpm=np.logical_not(self._bpm[0]),
+                                    vrange=self.par['spat_flexure_vrange'],
+                                    outfile=qa_outfile)
+
         self.steps[step] = True
         # Return
-        return spat_flexure
+        return _spat_flexure
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
         """
