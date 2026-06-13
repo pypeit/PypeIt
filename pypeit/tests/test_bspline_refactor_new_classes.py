@@ -19,7 +19,7 @@ from pypeit import dataPaths
 from pypeit.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
 from pypeit.bspline.bspline import bspline
 from pypeit.core.fitting import bspline_profile
-from pypeit.core.basis import flegendre
+from pypeit.core.basis import fchebyshev, flegendre
 
 
 # ============================================================================
@@ -716,6 +716,50 @@ def test_normalize_basis_x_linear_mapping():
     np.testing.assert_allclose(spl._normalize_basis_x(basis_x), np.linspace(-1, 1, 11), atol=1e-14)
 
 
+def test_normalize_basis_x_explicit_kwarg_overrides_stored():
+    """xmin/xmax kwargs take precedence over self.xmin / self.xmax."""
+    spl = BSpline2D.__new__(BSpline2D)
+    spl.xmin = 0.0
+    spl.xmax = 10.0
+    # Explicitly normalise to [2, 8]; points at 2 and 8 should map to ±1
+    result = spl._normalize_basis_x(np.array([2.0, 5.0, 8.0]), xmin=2.0, xmax=8.0)
+    np.testing.assert_allclose(result, [-1.0, 0.0, 1.0], atol=1e-14)
+
+
+def test_normalize_basis_x_kwarg_none_falls_back_to_stored():
+    """Passing xmin=None / xmax=None uses the stored attributes."""
+    spl = BSpline2D.__new__(BSpline2D)
+    spl.xmin = 0.0
+    spl.xmax = 4.0
+    result = spl._normalize_basis_x(np.array([2.0]), xmin=None, xmax=None)
+    np.testing.assert_allclose(result, [0.0], atol=1e-14)
+
+
+def test_normalize_basis_x_no_mutation_with_explicit_kwarg():
+    """Explicit xmin/xmax kwargs must not change self.xmin or self.xmax."""
+    spl = BSpline2D.__new__(BSpline2D)
+    spl.xmin = 0.0
+    spl.xmax = 10.0
+    spl._normalize_basis_x(np.array([1.0, 5.0, 9.0]), xmin=1.0, xmax=9.0)
+    assert spl.xmin == 0.0
+    assert spl.xmax == 10.0
+
+
+def test_normalize_basis_x_no_mutation_when_all_none():
+    """When self.xmin/xmax and the kwargs are all None, bounds come from data
+    and the stored attributes remain None."""
+    spl = BSpline2D.__new__(BSpline2D)
+    spl.xmin = None
+    spl.xmax = None
+    basis_x = np.array([3.0, 5.0, 7.0])
+    result = spl._normalize_basis_x(basis_x)
+    # Data min/max span → endpoints map to ±1
+    np.testing.assert_allclose(result[[0, -1]], [-1.0, 1.0], atol=1e-14)
+    # Stored attributes must NOT be mutated
+    assert spl.xmin is None
+    assert spl.xmax is None
+
+
 # ============================================================================
 # BSpline2D._poly_basis
 # ============================================================================
@@ -765,6 +809,29 @@ def test_poly_basis_unknown_funcname_raises():
     spl = _make_poly_spl('invalid_basis', 2)
     with pytest.raises(ValueError):
         spl._poly_basis(np.array([0.0]))
+
+
+def test_poly_basis_funcname_kwarg_overrides_stored():
+    """funcname kwarg takes precedence over self.funcname."""
+    spl = _make_poly_spl('legendre', 3)
+    xnorm = np.linspace(-1, 1, 10)
+    P_override = spl._poly_basis(xnorm, funcname='chebyshev')
+    np.testing.assert_allclose(P_override, fchebyshev(xnorm, 3), atol=1e-14)
+
+
+def test_poly_basis_npoly_kwarg_changes_column_count():
+    """npoly kwarg changes the number of output columns without affecting self.npoly."""
+    spl = _make_poly_spl('legendre', 3)
+    P = spl._poly_basis(np.linspace(-1, 1, 10), npoly=5)
+    assert P.shape == (10, 5)
+    assert spl.npoly == 3
+
+
+def test_poly_basis_funcname_kwarg_does_not_mutate_stored():
+    """Passing funcname kwarg must not change self.funcname."""
+    spl = _make_poly_spl('legendre', 2)
+    spl._poly_basis(np.linspace(-1, 1, 5), funcname='chebyshev')
+    assert spl.funcname == 'legendre'
 
 
 # ============================================================================
@@ -832,6 +899,47 @@ def test_bspline2d_build_design_matrix_c_order():
     assert A.flags['C_CONTIGUOUS']
 
 
+def test_bspline2d_build_design_matrix_P_kwarg_used():
+    """Explicit P kwarg changes the design matrix relative to self.P."""
+    rng = np.random.default_rng(120)
+    N = 60
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    spl = _setup_bspline2d(x, basis_x, npoly=2, xmin=0.0, xmax=1.0,
+                           funcname='legendre', knots=Knots(count=6), nord=4)
+    A_stored, _, _ = spl._build_design_matrix(x)
+    P_alt = spl._poly_basis(spl._normalize_basis_x(basis_x * 0.5 + 0.1))  # different basis_x
+    A_alt, _, _ = spl._build_design_matrix(x, P=P_alt)
+    assert not np.allclose(A_stored, A_alt)
+
+
+def test_bspline2d_build_design_matrix_P_kwarg_no_mutation():
+    """Passing P kwarg must not change self.P."""
+    rng = np.random.default_rng(121)
+    N = 60
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    spl = _setup_bspline2d(x, basis_x, npoly=2, xmin=0.0, xmax=1.0,
+                           funcname='legendre', knots=Knots(count=6), nord=4)
+    P_orig = spl.P.copy()
+    P_alt = rng.standard_normal((N, 2))
+    spl._build_design_matrix(x, P=P_alt)
+    np.testing.assert_array_equal(spl.P, P_orig)
+
+
+def test_bspline2d_build_design_matrix_npoly_kwarg_gives_correct_shape():
+    """npoly kwarg controls the column count of the returned design matrix."""
+    rng = np.random.default_rng(122)
+    N = 60
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    spl = _setup_bspline2d(x, basis_x, npoly=2, xmin=0.0, xmax=1.0,
+                           funcname='legendre', knots=Knots(count=6), nord=4)
+    P3 = spl._poly_basis(spl._normalize_basis_x(basis_x), npoly=3)
+    A3, _, _ = spl._build_design_matrix(x, P=P3, npoly=3)
+    assert A3.shape == (N, spl.nord * 3)
+
+
 # ============================================================================
 # BSpline2D._evaluate_model
 # ============================================================================
@@ -860,6 +968,41 @@ def test_bspline2d_evaluate_model_matches_explicit_einsum():
         goodcoeff[k:k + nord, :],
     )
     np.testing.assert_allclose(yfit[sl], expected, atol=1e-14)
+
+
+def test_bspline2d_evaluate_model_coeff_kwarg_differs_from_stored():
+    """Explicit coeff kwarg is contracted against the design matrix instead of self.coeff."""
+    rng = np.random.default_rng(130)
+    N = 80
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    npoly = 3
+    spl = _setup_bspline2d(x, basis_x, npoly=npoly, xmin=0.0, xmax=1.0,
+                           funcname='legendre', knots=Knots(count=8), nord=4)
+    spl.reset_coeff()
+    spl.coeff[:] = rng.standard_normal(spl.coeff.shape)
+    A, lower, upper = spl._build_design_matrix(x)
+    coeff_alt = rng.standard_normal(spl.coeff.shape)
+    yfit_stored = spl._evaluate_model(A, lower, upper)
+    yfit_alt = spl._evaluate_model(A, lower, upper, coeff=coeff_alt)
+    assert not np.allclose(yfit_stored, yfit_alt)
+
+
+def test_bspline2d_evaluate_model_coeff_kwarg_no_mutation():
+    """Passing coeff kwarg must not change self.coeff."""
+    rng = np.random.default_rng(131)
+    N = 80
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    npoly = 3
+    spl = _setup_bspline2d(x, basis_x, npoly=npoly, xmin=0.0, xmax=1.0,
+                           funcname='legendre', knots=Knots(count=8), nord=4)
+    spl.reset_coeff()
+    spl.coeff[:] = rng.standard_normal(spl.coeff.shape)
+    coeff_before = spl.coeff.copy()
+    A, lower, upper = spl._build_design_matrix(x)
+    spl._evaluate_model(A, lower, upper, coeff=rng.standard_normal(spl.coeff.shape))
+    np.testing.assert_array_equal(spl.coeff, coeff_before)
 
 
 # ============================================================================
@@ -1030,6 +1173,84 @@ def test_bspline2d_value_gap_masking():
     basis_x_gap = np.array([0.5])
     _, vmask = spl.value(x_gap, basis_x=basis_x_gap)
     assert not vmask[0]
+
+
+# --- value() override kwarg tests ---
+
+def test_bspline2d_value_string_basis_matches_stored_funcname():
+    """Passing basis='legendre' explicitly gives the same result as basis=None."""
+    rng = np.random.default_rng(140)
+    N = 200
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    y = np.sin(x) + 0.1 * basis_x
+    spl = BSpline2D(x=x, knots=Knots(count=12), nord=4)
+    spl.fit(x, y, basis_x=basis_x, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
+    yfit_none, _ = spl.value(x, basis_x=basis_x)
+    yfit_str, _ = spl.value(x, basis='legendre', basis_x=basis_x)
+    np.testing.assert_allclose(yfit_none, yfit_str, atol=1e-12)
+
+
+def test_bspline2d_value_xmin_xmax_kwarg_affects_normalization():
+    """Supplying different xmin/xmax bounds changes the evaluated polynomial basis."""
+    rng = np.random.default_rng(141)
+    N = 200
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    # Strong unit-amplitude Legendre component guarantees coeff[:,1] ~ 1.
+    x_norm = 2.0 * basis_x - 1.0
+    y = np.sin(x) + x_norm
+    spl = BSpline2D(x=x, knots=Knots(count=12), nord=4)
+    spl.fit(x, y, basis_x=basis_x, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
+    yfit_stored, _ = spl.value(x, basis='legendre', basis_x=basis_x)
+    # xmax=2.0 maps x_norm_alt = basis_x - 1, which differs from x_norm by basis_x
+    yfit_alt, _ = spl.value(x, basis='legendre', basis_x=basis_x, xmin=0.0, xmax=2.0)
+    assert not np.allclose(yfit_stored, yfit_alt)
+
+
+def test_bspline2d_value_coeff_kwarg_additivity():
+    """Partial coeff evaluations sum to the full model (linearity)."""
+    rng = np.random.default_rng(142)
+    N = 300
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    y = np.sin(x) + 0.2 * basis_x + 0.1 * basis_x**2
+    spl = BSpline2D(x=x, knots=Knots(count=15), nord=4)
+    spl.fit(x, y, basis_x=basis_x, basis='legendre', npoly=3, xmin=0.0, xmax=1.0)
+    P = spl.P  # shape (N, 3)
+    yfit_full, _ = spl.value(x, basis_x=basis_x)
+    yfit_part0, _ = spl.value(x, basis=P[:, :1], coeff=spl.coeff[:, :1])
+    yfit_part1, _ = spl.value(x, basis=P[:, 1:], coeff=spl.coeff[:, 1:])
+    np.testing.assert_allclose(yfit_part0 + yfit_part1, yfit_full, atol=1e-12)
+
+
+def test_bspline2d_value_overrides_do_not_mutate_instance():
+    """Calling value() with override kwargs must not change any stored attributes."""
+    rng = np.random.default_rng(143)
+    N = 200
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    y = np.sin(x) + 0.2 * basis_x
+    spl = BSpline2D(x=x, knots=Knots(count=12), nord=4)
+    spl.fit(x, y, basis_x=basis_x, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
+
+    npoly_before = spl.npoly
+    funcname_before = spl.funcname
+    xmin_before = spl.xmin
+    xmax_before = spl.xmax
+    coeff_before = spl.coeff.copy()
+    P_before = spl.P.copy()
+
+    coeff_alt = rng.standard_normal(spl.coeff.shape)
+    spl.value(x, basis='chebyshev', basis_x=basis_x, xmin=0.1, xmax=0.9,
+              coeff=coeff_alt)
+
+    assert spl.npoly == npoly_before
+    assert spl.funcname == funcname_before
+    assert spl.xmin == xmin_before
+    assert spl.xmax == xmax_before
+    np.testing.assert_array_equal(spl.coeff, coeff_before)
+    np.testing.assert_array_equal(spl.P, P_before)
 
 
 # ============================================================================

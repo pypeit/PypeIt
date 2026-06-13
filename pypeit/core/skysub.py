@@ -10,7 +10,7 @@ import scipy.ndimage
 import scipy.special
 from scipy.interpolate import RegularGridInterpolator
 
-from pypeit.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
+from pypeit.bspline.refactor import Knots, bspline_profile_refactor
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import slittrace
@@ -170,11 +170,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             lsky_ivar = inmask_fit[pos_sky].astype(float)/3.0**2  # set errors to just be 3.0 in the log
             #lsky_ivar = np.full(lsky.shape, 0.1)
             # Init bspline to get the sky breakpoints (kludgy)
-            lskyset, outmask, lsky_fit, red_chi, exit_status \
-                    = bspline_profile_refactor(pix[pos_sky], lsky, ivar=lsky_ivar,
-                                              gpm=inmask_fit[pos_sky], upper=sigrej, lower=sigrej,
-                                              kwargs_knots={'spacing': bsp},
-                                              kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+            lskyset, outmask, lsky_fit, red_chi, exit_status = bspline_profile_refactor(
+                pix[pos_sky], lsky, ivar=lsky_ivar, gpm=inmask_fit[pos_sky], upper=sigrej,
+                lower=sigrej, kwargs_knots={'spacing': bsp},
+                kwargs_reject={'groupbadpix': True, 'maxrej': 10}
+            )
             if exit_status != 0:
                 log.warning(
                     'Global sky-subtraction did not exit cleanly for initial positive sky fit.\n'
@@ -197,12 +197,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
 
     # Perform the full fit now
     log.info("Full fit in global sky sub.")
-    skyset, outmask, yfit, _, exit_status \
-            = bspline_profile_refactor(pix, sky, ivar=sky_ivar, gpm=inmask_fit, nord=4,
-                                       upper=sigrej, lower=sigrej, maxiter=maxiter,
-                                       kwargs_knots={'spacing': bsp},
-                                       kwargs_reject={'groupbadpix': True, 'maxrej': 10},
-                                       **_basis_kws)
+    skyset, outmask, yfit, _, exit_status = bspline_profile_refactor(
+        pix, sky, ivar=sky_ivar, gpm=inmask_fit, nord=4, upper=sigrej, lower=sigrej,
+        maxiter=maxiter, kwargs_knots={'spacing': bsp},
+        kwargs_reject={'groupbadpix': True, 'maxrej': 10}, **_basis_kws
+    )
 
     # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related
     # to the groupbadpix behavior requested for the djs_reject rejection. It would be good to
@@ -214,29 +213,23 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             f'npoly={npoly_fit}.\nRedoing sky-subtraction without polynomial degrees of freedom'
         )
         # Perform the full fit now
-        skyset, outmask, yfit, _, exit_status \
-                = bspline_profile_refactor(pix, sky, ivar=sky_ivar, gpm=inmask_fit, nord=4,
-                                           upper=sigrej, lower=sigrej, maxiter=maxiter,
-                                           kwargs_knots={'spacing': bsp},
-                                           kwargs_reject={'groupbadpix': False, 'maxrej': 10})
+        skyset, outmask, yfit, _, exit_status = bspline_profile_refactor(
+            pix, sky, ivar=sky_ivar, gpm=inmask_fit, nord=4, upper=sigrej, lower=sigrej,
+            maxiter=maxiter, kwargs_knots={'spacing': bsp},
+            kwargs_reject={'groupbadpix': False, 'maxrej': 10}
+        )
 
     sky_frame = np.zeros_like(image)
     ythis = np.zeros_like(yfit)
     ythis[isrt] = yfit
     sky_frame[thismask] = ythis
 
-
-    #skyset.funcname ='legendre'
-    #skyset.xmin = spat_min
-    #skyset.xmax = spat_max
-
-    # Evaluate and save
-    #bgframe, _ = skyset.value(piximg[thismask],x2=spatial_img[thismask])
-
     # Debugging/checking
 
-    # ToDo This QA ceases to make sense I think for 2-d fits. I need to think about what the best QA would be here, but I think
-    # probably looking at residuals as a function of spectral and spatial position like in the flat fielding code.
+    # TODO: This QA ceases to make sense I think for 2-d fits. I need to think
+    # about what the best QA would be here, but I think probably looking at
+    # residuals as a function of spectral and spatial position like in the flat
+    # fielding code.
     if show_fit:
         goodbk = skyset.mask
         # This is approximate
@@ -320,11 +313,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     if nc != nx:
         raise ValueError('Object profile should have oprof.shape[0] equal to nx')
 
-    log.info('Iter     Chi^2     Rejected Pts')
-    xmin = 0.0
-    xmax = 1.0
-
-    if ((npoly == 1) | (spatial_img is None)):
+    if npoly == 1 or spatial_img is None:
         profile_basis = np.column_stack((oprof, np.ones(nx)))
     else:
         xmin = spatial_img.min()
@@ -343,55 +332,44 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
 
     gpm = np.zeros(piximg.shape, dtype=bool)
 
-    if ngood > 0:
-        sset1, gpm_good1, yfit1, red_chi1, exit_status \
-                = bspline_profile_refactor(piximg[good], data[good], ivar=ivar[good],
-                                          basis=profile_basis[good, :],
-                                          kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej,
-                                          relative=relative,
-                                          kwargs_reject={'groupbadpix': True, 'maxrej': 5})
-    else:
+    if ngood == 0:
         log.warning('All pixels are masked in skyoptimal. Not performing local sky subtraction.')
         return np.zeros_like(piximg), np.zeros_like(piximg), gpm
 
-    chi2 = (data[good] - yfit1) ** 2 * ivar[good]
+    log.info('Iter     Chi^2     Rejected Pts')
+    sset1, gpm_good1, yfit1, red_chi1, exit_status = bspline_profile_refactor(
+        piximg[good], data[good], ivar=ivar[good], basis=profile_basis[good, :],
+        kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej, relative=relative,
+        kwargs_reject={'groupbadpix': True, 'maxrej': 5}
+    )
+    chi2 = (data[good] - yfit1)**2 * ivar[good]
     chi2_srt = np.sort(chi2)
     gauss_prob = 1.0 - 2.0 * scipy.special.ndtr(-1.2 * sigrej)
     sigind = int(np.fmin(np.rint(gauss_prob * float(ngood)), ngood - 1))
     chi2_sigrej = chi2_srt[sigind]
     mask1 = (chi2 < chi2_sigrej)
 
-    log.info('2nd round....')
-    log.info('Iter     Chi^2     Rejected Pts')
-    if np.any(mask1):
-        sset, gpm_good, yfit, red_chi, exit_status \
-                = bspline_profile_refactor(piximg[good], data[good], ivar=ivar[good],
-                                          basis=profile_basis[good, :], gpm=mask1,
-                                          kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej,
-                                          relative=relative,
-                                          kwargs_reject={'groupbadpix': True, 'maxrej': 1})
-    else:
+    if not np.any(mask1):
         log.warning('All pixels are masked in skyoptimal after first round of rejection. Not performing local sky subtraction.')
         return np.zeros_like(piximg), np.zeros_like(piximg), gpm
 
-    skyset = BSpline2D(knots=Knots(full=sset.breakpoints), nord=sset.nord)
-    skyset.npoly    = npoly
-    skyset.coeff    = sset.coeff[:, nobj:].copy()
-    skyset.icoeff   = sset.icoeff[:, nobj:].copy()
-    skyset.bkpt_gpm = sset.bkpt_gpm.copy()
-    skyset.funcname = 'legendre'
-    skyset.xmin     = xmin
-    skyset.xmax     = xmax
-    _basis_x = piximg if spatial_img is None else spatial_img
-    sky_bmodel, _ = skyset.value(piximg, basis_x=_basis_x)
+    log.info('2nd round....')
+    log.info('Iter     Chi^2     Rejected Pts')
+    sset, gpm_good, yfit, red_chi, exit_status = bspline_profile_refactor(
+        piximg[good], data[good], ivar=ivar[good], basis=profile_basis[good, :], gpm=mask1,
+        kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej, relative=relative,
+        kwargs_reject={'groupbadpix': True, 'maxrej': 1}
+    )
 
-    obj_bmodel = np.zeros(sky_bmodel.shape)
-    objset = BSpline(knots=Knots(full=sset.breakpoints), nord=sset.nord)
-    objset.bkpt_gpm = sset.bkpt_gpm.copy()
-    for i in range(nobj):
-        objset.coeff = sset.coeff[:, i]
-        obj_bmodel1, _ = objset.value(piximg)
-        obj_bmodel = obj_bmodel + obj_bmodel1 * profile_basis[:, i]
+    # Get the sky-only model
+    sky_bmodel, _ = sset.value(
+        piximg, basis=profile_basis[:, nobj:], coeff=sset.coeff[:, nobj:]
+    )
+
+    # Get the source-only model
+    obj_bmodel, _ = sset.value(
+        piximg, basis=profile_basis[:, :nobj], coeff=sset.coeff[:, :nobj]
+    )
 
     gpm[good] = gpm_good
 
