@@ -823,6 +823,7 @@ class RawImage:
             return
 
         # First check for manual flexure
+        qa_outfile = None
         if not np.ma.is_masked(manual_spat_flexure):
             log.info(f'Adopting a manual spatial flexure of {manual_spat_flexure} pixels')
             spat_flexure = np.full((slits.nslits, 2), np.float64(manual_spat_flexure))
@@ -855,14 +856,17 @@ class RawImage:
             # Print the flexure values for each slit separately
             for slit in range(spat_flexure.shape[0]):
                 if self.par['spat_flexure_method'] == "slit":
-                    log.info("Slit {0:d}: Spatial flexure = {1:5.3f} pixels".format(slits.spat_id[slit],
-                                                                                    spat_flexure[slit, 0]))
+                    log.info("Slit {0:d}: Spatial flexure = {1:.2f} pixels".format(slits.spat_id[slit],
+                                                                                   spat_flexure[slit, 0]))
                 elif self.par['spat_flexure_method'] == "edge":
                     log.info(
-                        f'Spatial flexure for slit {slits.spat_id[slit]} is: left={spat_flexure[slit, 0]:5.3f} pixels; right={spat_flexure[slit, 1]:5.3f} pixels')
+                        f'Spatial flexure for slit {slits.spat_id[slit]} is: '
+                        f'left={spat_flexure[slit, 0]:.2f} pixels; '
+                        f'right={spat_flexure[slit, 1]:.2f} pixels'
+                    )
 
-        # Each spectrograph can optionally post-process the spatial flexure values
-        _spat_flexure = self.spectrograph.spatial_flexure(spat_flexure)
+        # Each spectrograph can optionally post-process the spatial flexure values in their own way
+        _spat_flexure = self.spectrograph.spatial_flexure(spat_flexure, polyord=1)
 
         # Save QA to file
         if qa_outfile is not None:
@@ -1302,7 +1306,7 @@ class RawImage:
                                f"               {tmp[13]}, {tmp[14]}, {tmp[15]}])  # Polynomial terms (coefficients of spec**index)\n"
                     print(strprint)
                     pad = msscattlight.pad // spatbin
-                    offslitmask = slits.slit_img(pad=pad, spat_flexure=None) == -1
+                    offslitmask = slits.slit_img(pad=pad, spat_flexure=self.spat_flexure_shift) == -1
                     from matplotlib import pyplot as plt
                     _frame = self.image[ii, ...]
                     vmin, vmax = 0, np.max(scatt_img)
@@ -1321,13 +1325,13 @@ class RawImage:
                 arx_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
                 arx_modpar[8] = 0.0
                 if arx_modpar is None:
-                    raise PypeItError(f"{self.spectrograph.name} does not have archival scattered light parameters. Please "
-                               f"set 'scattlight_method' to another option.")
+                    raise PypeItError(f"{self.spectrograph.name} does not have archival scattered light parameters. "
+                                      f"Please set 'scattlight_method' to another option.")
                 scatt_img = scattlight.scattered_light_model(arx_modpar, _img)
             elif self.par["scattlight"]["method"] == "frame":
                 # Calculate a model specific for this frame
                 pad = msscattlight.pad // spatbin
-                offslitmask = slits.slit_img(pad=pad, spat_flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, spat_flexure=self.spat_flexure_shift) == -1
                 # Get starting parameters for the scattered light model
                 x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
                 # Perform a fit to the scattered light
@@ -1351,11 +1355,11 @@ class RawImage:
             # Check if a fine correction to the scattered light should be applied
             if do_finecorr:
                 pad = self.par['scattlight']['finecorr_pad'] // spatbin
-                offslitmask = slits.slit_img(pad=pad, spat_flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, spat_flexure=self.spat_flexure_shift) == -1
                 # Check if the user wishes to mask some inter-slit regions
                 if self.par['scattlight']['finecorr_mask'] is not None:
                     # Get the central trace of each slit
-                    left, right, _ = slits.select_edges(spat_flexure=None)
+                    left, right, _ = slits.select_edges(spat_flexure=self.spat_flexure_shift)
                     centrace = 0.5*(left+right)
                     # Now mask user-defined inter-slit regions
                     offslitmask = scattlight.mask_slit_regions(offslitmask, centrace,

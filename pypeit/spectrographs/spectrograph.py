@@ -1756,7 +1756,7 @@ class Spectrograph:
         log.warning("2D detector response is not implemented for spectrograph: {0:s}".format(self.name))
         return np.ones_like(det_resp)
 
-    def spatial_flexure(self, spat_flexure):
+    def spatial_flexure(self, spat_flexure, polyord=None):
         """
 
         Parameters
@@ -1766,6 +1766,9 @@ class Spectrograph:
             shape (number of slits, 2). spat_flexure[:,0] have the raw
             spatial flexure values of the left edges, and spat_flexure[:,1]
             have the raw spatial flexure values of the right edges.
+        polyord (:obj:`int`, optional):
+            The order of the polynomial to fit to the spatial flexure. If None,
+            no polynomial fitting is applied.
 
         Returns
         -------
@@ -1775,7 +1778,14 @@ class Spectrograph:
             have the spatial flexure values of the right edges. Each spectrograph
             can optionally post-process the spatial flexure values before returning.
         """
-        return spat_flexure
+        # Fit the flexure with a low order polynomial
+        spat_flexure_out = spat_flexure.copy()
+        if polyord is not None:
+            x = np.arange(spat_flexure.shape[0])
+            for ii in range(2):
+                p = np.polyfit(x, spat_flexure[:,ii], polyord)
+                spat_flexure_out[:,ii] = np.polyval(p, x)
+        return spat_flexure_out
 
     def validate_metadata(self):
         """
