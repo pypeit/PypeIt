@@ -38,11 +38,9 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
 
-    It is *important* to use original=True when defining the
-    slitmask as everything should be relative to the initial slits
-    TODO :: Check the above statement... I think it might be relative to the tweaked slits.
-
-    Otherwise, the WaveTilts could get out of sync with science images
+    When defining the slitmask, it is *important* to use initial=True, so that
+    everything is relative to the initial slits. Otherwise, the WaveTilts could
+    get out of sync with science images.
 
     Args:
         sciimg (`numpy.ndarray`_):
@@ -83,13 +81,12 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
         float:  The spatial flexure shift relative to the initial slits
 
     """
-    initial = False  # Spatial flexure should be relative to the tweaked edges
+    initial = True  # Spatial flexure should be relative to the tweaked edges
 
     log.info("Measuring spatial flexure")
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
     slitmask = slits.slit_img(initial=initial, exclude_flag=slits.bitmask.exclude_for_flexure)
-    # slitmask = slits.slit_img(initial=initial, spat_flexure=spat_flexure*np.ones((slits.nslits,2)), exclude_flag=slits.bitmask.exclude_for_flexure)
-    onslits = slitmask > -1
+    onslits = slitmask != -1
 
     corr_slits = (slitprof*onslits).flatten() if slitprof is not None else onslits.astype(float).flatten()
 
@@ -167,7 +164,7 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
         log.info(f"Calculating the spatial flexure of each {method}.")
         # Store an array of the small correction to the flexure for each slit
         delta_flexure = np.zeros((slits.nslits, 2))
-        # Setup the slits and image properties
+        # Set up the slits and image properties
         left, right, _ = slits.select_edges(initial=initial, spat_flexure=total_flexure)
         # Loop through all slits and calculate the flexure of each slit edge.
         for slit_idx in range(slits.nslits):
@@ -214,7 +211,7 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
     return total_flexure
 
 
-def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
+def spat_flexure_qa(img, slits, spat_flexure, gpm=None, vrange=None, outfile=None):
     """
     Generate QA for the spatial flexure
 
@@ -223,8 +220,9 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
             Image of the detector
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Slits object
-        shift (:obj:`float`):
-            Shift in pixels
+        spat_flexure (`numpy.ndarray`_):
+            Shift in pixels for each slit edge. Shape is (nslits, 2), where the 2 refers to
+            the left [0] and right[1] slits.
         gpm (`numpy.ndarray`_, optional):
             Good pixel mask (True = Bad)
         vrange (:obj:`tuple`, optional):
@@ -233,7 +231,6 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
             Path to the output file where the QA is saved.  If None, the QA is
             shown on screen and not saved.
     """
-    # TODO :: Need to implement different shifts for each edge.
     debug = True if outfile is None else False
 
     # check that vrange is a tuple
@@ -241,9 +238,10 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
         log.warning('vrange must be a tuple with the min and max values for the imshow plot. Ignoring vrange.')
         vrange = None
 
-    # TODO: should we use initial or tweaked slits in this plot?
+    # Spatial flexure is *always* relative to the initial slits, otherwise it pushes the tilts
+    # to be out of sync with the slit edges.
     left_slits, right_slits, mask_slits = slits.select_edges(initial=True, spat_flexure=None)
-    left_flex, right_flex, mask = slits.select_edges(initial=True, spat_flexure=shift)
+    left_flex, right_flex, mask = slits.select_edges(initial=True, spat_flexure=spat_flexure)
 
     if debug:
         # where to start and end the plot in the spatial&spectral direction
@@ -334,7 +332,7 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
                 plt.plot(right_flex[::thin, i], spec[::thin, i], color='C1', lw=1, zorder=6)
             ax.tick_params(axis='both', labelsize=6)
             if r == 0 and s == 0:
-                plt.suptitle(f'Shift={shift:.1f} pixels', fontsize=18)
+                plt.suptitle(f'L/R spatial flexure = {spat_flexure[i,0]:.1f}/{spat_flexure[i,1]:.1f} pixels', fontsize=18)
                 ax.legend(handles=legend_elements, fontsize=7)
                 if not debug:
                     ax.set_ylabel('Upper snippets', fontsize=18)

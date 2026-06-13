@@ -311,7 +311,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
-        par['calibrations']['flatfield']['tweak_slits'] = True  # Tweak the slit edges
+        par['calibrations']['flatfield']['tweak_slits'] = False  # Don't tweak the slit edges. Everything (including spatial flexure) should be relative to the initial slits.
         par['calibrations']['flatfield']['tweak_method'] = 'gradient'  # The gradient method is better for SlicerIFU.
         # par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.1

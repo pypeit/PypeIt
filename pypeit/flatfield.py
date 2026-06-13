@@ -1144,7 +1144,6 @@ class FlatField:
 
             if tweak_slits:
                 # TODO: Should the tweak be based on the bspline fit?
-                # TODO: Will this break if
                 left_thresh, left_shift, self.slits.left_tweak[:,slit_idx], right_thresh, \
                     right_shift, self.slits.right_tweak[:,slit_idx] \
                         = self.tweak_slit_edges(self.slits.left_init[:,slit_idx],
@@ -1166,7 +1165,7 @@ class FlatField:
                 spat_coo_tweak = self.slits.spatial_coordinate_image(slitidx=slit_idx, full=True, slitid_img=_slitid_img)
 
                 # Construct the empirical illumination profile
-                # TODO This is extremely inefficient, because we only need to re-fit the illumflat, but
+                # TODO: This is extremely inefficient, because we only need to re-fit the illumflat, but
                 #  spatial_fit does both the reconstruction of the illumination function and the bspline fitting.
                 #  Only the b-spline fitting needs be reddone with the new tweaked spatial coordinates, so that would
                 #  save a ton of runtime. It is not a trivial change because the coords are sorted, etc.
@@ -1708,6 +1707,8 @@ class FlatField:
         r"""
         Tweak the slit edges based on the normalized slit illumination profile.
 
+        # TODO :: Since this is just a wrapper, and not really "core", maybe it should be moved to pypeit.flatfield?
+
         Args:
             left (`numpy.ndarray`_):
                 Array with the left slit edge for a single slit. Shape is
@@ -1762,7 +1763,6 @@ class FlatField:
                 - The adjusted right edge
 
         """
-        # TODO :: Since this is just a wrapper, and not really "core", maybe it should be moved to pypeit.flatfield?
         # Tweak the edges via the specified method
         if method == "threshold":
             return flat.tweak_slit_edges_threshold(left, right, spat_coo, norm_flat,

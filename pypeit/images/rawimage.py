@@ -674,13 +674,15 @@ class RawImage:
 
         # Calculate flexure, if slits are provided and the correction is
         # requested.  NOTE: This step must come after trim, orient (just like
-        # bias and dark subtraction) and before field flattening.  Also the
+        # bias and dark subtraction) and before field flattening. Also, the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
         self.spat_flexure_shift = None
         if self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(manual_spat_flexure):
-            self.spat_flexure_shift = self.spatial_flexure_shift(slits, flatimages, manual_spat_flexure=manual_spat_flexure,
-                                                                 debug=debug)
+            self.spat_flexure_shift = self.spatial_flexure_shift(slits, flatimages=flatimages,
+                                                                 manual_spat_flexure=manual_spat_flexure,
+                                                                 debug=debug
+                                                                 )
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
@@ -773,7 +775,7 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, flatimages, force=False, manual_spat_flexure=np.ma.masked, debug=False):
+    def spatial_flexure_shift(self, slits, flatimages=None, force=False, manual_spat_flexure=np.ma.masked, debug=False):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
@@ -783,8 +785,9 @@ class RawImage:
         Args:
             slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit edge traces
-            flatimages (:class:`~pypeit.flatfield.FlatImages`):
-                Flat field images
+            flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
+                Flat field images DataContainer. This must be provided if you wish to use
+                the slit profile for the spatial flexure.
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
@@ -814,14 +817,14 @@ class RawImage:
         # Check if the slits are provided
         if slits is None:
             if not np.ma.is_masked(manual_spat_flexure):
-                msgs.warn('Manual spatial flexure provided without slits - assuming no spatial flexure.')
+                log.warning('Manual spatial flexure provided without slits - assuming no spatial flexure.')
             else:
-                msgs.warn('Cannot calculate spatial flexure without slits - assuming no spatial flexure.')
+                log.warning('Cannot calculate spatial flexure without slits - assuming no spatial flexure.')
             return
 
         # First check for manual flexure
         if not np.ma.is_masked(manual_spat_flexure):
-            msgs.info(f'Adopting a manual spatial flexure of {manual_spat_flexure} pixels')
+            log.info(f'Adopting a manual spatial flexure of {manual_spat_flexure} pixels')
             spat_flexure = np.full((slits.nslits, 2), np.float64(manual_spat_flexure))
         else:
             # get filename for QA
@@ -831,8 +834,13 @@ class RawImage:
             # Prepare the slit illumination profile to be used in the flexure correction
             slitprof = None
             if self.par['use_illumflat']:
-                slitprof = flatimages.fit2illumflat(slits, finecorr=False)
-                slitprof *= flatimages.fit2illumflat(slits, finecorr=True)
+                if flatimages is None:
+                    log.warning("Spatial flexure correction requested but no flat images provided.  "
+                                "A flexure correction will still be performed, but the slit illumination "
+                                "profile will not be utilised.")
+                else:
+                    slitprof = flatimages.fit2illumflat(slits, finecorr=False)
+                    slitprof *= flatimages.fit2illumflat(slits, finecorr=True)
             # Now compute the spatial flexure shift
             spat_flexure = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
                                                       method=self.par['spat_flexure_method'],
@@ -843,11 +851,11 @@ class RawImage:
 
         # Print the flexure values
         if np.all(spat_flexure == spat_flexure[0, 0]):
-            msgs.info(f'Spatial flexure is: {spat_flexure[0, 0]} pixels')
+            log.info(f'Spatial flexure is: {spat_flexure[0, 0]} pixels')
         else:
             # Print the flexure values for each slit separately
             for slit in range(spat_flexure.shape[0]):
-                msgs.info(
+                log.info(
                     f'Spatial flexure for slit {slits.spat_id[slit]} is: left={spat_flexure[slit, 0]} pixels; right={spat_flexure[slit, 1]} pixels')
 
         self.steps[step] = True
