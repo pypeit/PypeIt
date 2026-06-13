@@ -106,16 +106,21 @@ class ScattLightCalibState(BaseCalibState):
 class AlignCalibState(BaseCalibState):
     step: Literal["align"] = "align"
 
+# NOTE: the key order here is authoritative for the order in which steps
+# are iterated/displayed (e.g. get_status, print_status).  It is kept in
+# the pipeline's processing order, matching
+# MultiSlitCalibrations.default_steps() (bpm is not tracked here); align is
+# IFU-only and appended last.
 calib_classes = {
     'bias': BiasCalibState,
     'dark': DarkCalibState,
+    'slits': SlitEdgesState,
     'arc': ArcCalibState,
     'tiltimg': TiltImgCalibState,
     'wv_calib': WvCalibState,
     'tilts': TiltsState,
     'scattlight': ScattLightCalibState,
     'flats': FlatsState,
-    'slits': SlitEdgesState,
     'align': AlignCalibState,
 }
 
@@ -137,12 +142,13 @@ class RunPypeItState(BaseModel):
     # Optional
     previous_step: str = 'none'
 
-    # Calibrations
+    # Calibrations (listed in pipeline processing order, matching
+    # calib_classes / default_steps(); align is IFU-only, appended last)
     bias: Optional[List[BiasCalibState]] = Field(default_factory=list)
     dark: Optional[List[DarkCalibState]] = Field(default_factory=list)
+    slits: Optional[List[SlitEdgesState]] = Field(default_factory=list)
     arc: Optional[List[ArcCalibState]] = Field(default_factory=list)
     tiltimg: Optional[List[TiltImgCalibState]] = Field(default_factory=list)
-    slits: Optional[List[SlitEdgesState]] = Field(default_factory=list)
     wv_calib: Optional[List[WvCalibState]] = Field(default_factory=list)
     tilts: Optional[List[TiltsState]] = Field(default_factory=list)
     scattlight: Optional[List[ScattLightCalibState]] = Field(default_factory=list)
@@ -190,7 +196,10 @@ class RunPypeItState(BaseModel):
             key (:obj:`str`):
                 Name of the field to set on the step (or per-slit) entry.
             value:
-                Value to assign (or append, for list-valued fields).
+                Value to assign.  A list/tuple replaces the field with a
+                flat list (e.g. ``input_files``); a scalar appended to a
+                field that already holds a list accumulates (e.g. flats
+                ``types``); otherwise the scalar is assigned.
             slit (:obj:`int`, optional):
                 Slit/order ID.  If provided, ``key`` is set on the
                 per-slit sub-entry rather than the step entry itself.
@@ -221,8 +230,18 @@ class RunPypeItState(BaseModel):
 
         # Set
         if slit is None:
-            if isinstance(getattr(self_items[index],key), list):
-                getattr(self_items[index],key).append(value)
+            current = getattr(self_items[index], key)
+            if isinstance(value, (list, tuple)):
+                # A list/tuple value (e.g. input_files=self.raw_files) is
+                # stored wholesale as a flat list.  Doing this explicitly
+                # (rather than appending) keeps repeat calls idempotent: it
+                # avoids nesting the new list inside the old one, which
+                # would corrupt the field and break load() validation.
+                setattr(self_items[index], key, list(value))
+            elif isinstance(current, list):
+                # A scalar added to a field that is already a list (e.g.
+                # flats 'types') is appended.
+                current.append(value)
             else:
                 setattr(self_items[index], key, value)
         else:
