@@ -851,16 +851,16 @@ class RawImage:
 
         # Print the flexure values
         if np.all(spat_flexure == spat_flexure[0, 0]):
-            log.info(f'Spatial flexure is: {spat_flexure[0, 0]} pixels')
+            log.info(f'Spatial flexure: {spat_flexure[0, 0]} pixels')
         else:
             # Print the flexure values for each slit separately
             for slit in range(spat_flexure.shape[0]):
                 if self.par['spat_flexure_method'] == "slit":
-                    log.info("Slit {0:d}: Spatial flexure = {1:.2f} pixels".format(slits.spat_id[slit],
+                    log.info("Spatial flexure (Slit {0:d}): {1:.2f} pixels".format(slits.spat_id[slit],
                                                                                    spat_flexure[slit, 0]))
                 elif self.par['spat_flexure_method'] == "edge":
                     log.info(
-                        f'Spatial flexure for slit {slits.spat_id[slit]} is: '
+                        f'Spatial flexure (Slit {slits.spat_id[slit]}): '
                         f'left={spat_flexure[slit, 0]:.2f} pixels; '
                         f'right={spat_flexure[slit, 1]:.2f} pixels'
                     )

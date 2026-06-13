@@ -268,6 +268,22 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic,
             manual_spat_flexure=manual_spatflex[ii]))
 
+    # Before combining, perform a quick check to make sure all
+    # spatial flexure values of all input frames are consistent.
+    # If not, print a warning message to the user.
+    spat_flexure = [rawImage.spat_flexure for rawImage in rawImage_list]
+    all_spatflex = np.dstack(spat_flexure)
+    # Subtract off the minimum value
+    all_spatflex -= np.min(all_spatflex, axis=-1)[:, :, None]
+    max_diff = np.max(all_spatflex)
+    if max_diff >= 0.5:
+        log.warning(f'Spatial flexure values of input frames are not consistent to within 0.5 pixels. '
+                    f'Largest difference between spatial flexure was {max_diff:.2f} pixels. '
+                    f'This may lead to a poor combination of the images.')
+    else:
+        log.info(f'Spatial flexure values of input frames are consistent to within 0.5 pixels. '
+                 f'Maximum difference between spatial flexure was {max_diff:.2f} pixels.')
+
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])
     pypeitImage = combineImage.run(maxiters=maxiters, ignore_saturation=ignore_saturation)
