@@ -907,64 +907,7 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, spat_flexure=
     return _spec_eval, _spat_eval
 
 
-def fit2tilts_SOMEONEELSE(shape, coeff2, func2d, spat_shift=None, slit_mask=None):
-    """
-    Evaluate the wavelength tilt model.
-
-    When ``slit_mask`` is not provided, the model is evaluated over a full
-    meshgrid spanning the image.  When ``slit_mask`` is provided, the model
-    is evaluated only at the ``True`` pixels in the mask, which avoids
-    allocating full-frame meshgrid arrays and significantly reduces memory
-    usage for spectrographs with many slits (e.g., fiber-fed IFUs).
-
-    Parameters
-    ----------
-    shape : tuple of ints,
-        shape of image
-    coeff2 : `numpy.ndarray`_, float
-        result of griddata tilt fit
-    func2d : str
-        the 2d function used to fit the tilts
-    spat_shift : float, optional
-        Spatial shift to be added to image pixels before evaluation.
-        If you are accounting for flexure, then you probably wish to
-        input -1*flexure_shift into this parameter.
-    slit_mask : `numpy.ndarray`_, bool, optional
-        Boolean mask with the same shape as the image.  If provided,
-        tilts are evaluated only where ``slit_mask`` is ``True`` and
-        the returned image is zero elsewhere.
-
-    Returns
-    -------
-    tilts : `numpy.ndarray`_, float
-        Image indicating how spectral pixel locations move across the
-        image. This output is used in the pipeline.
-
-    """
-    _spat_shift = 0. if spat_shift is None else spat_shift
-    nspec, nspat = shape
-    xnspecmin1 = float(nspec - 1)
-    xnspatmin1 = float(nspat - 1)
-
-    pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
-                                  minx2=0.0, maxx2=1.0, func=func2d)
-
-    if slit_mask is None:
-        spat_pix, spec_pix = map(
-            lambda x : x.ravel(), np.meshgrid(np.arange(nspat), np.arange(nspec))
-        )
-    else:
-        spec_pix, spat_pix = np.where(slit_mask)
-
-    tilts_vals = pypeitFit.eval(spec_pix / xnspecmin1, x2=(spat_pix - _spat_shift) / xnspatmin1)
-    tilts_vals = np.fmax(np.fmin(tilts_vals, 1.2), -0.2)
-    tilts = np.zeros(shape, dtype=float)
-    tilts[(spec_pix,spat_pix)] = tilts_vals
-    del tilts_vals, spec_pix, spat_pix
-
-    return tilts
-
-def fit2tilts_MYVERSION(coeff2, func2d, shape=None, spec_eval=None, spat_eval=None):
+def fit2tilts(coeff2, func2d, shape=None, spec_eval=None, spat_eval=None):
     """
     Evaluate the wavelength tilt model over the full image. Note that this function
     requires either shape or both spec_eval and spat_eval to be provided. If all three
@@ -1001,19 +944,19 @@ def fit2tilts_MYVERSION(coeff2, func2d, shape=None, spec_eval=None, spat_eval=No
     else:
         # Print a warning just in case only one was provided
         if (spec_eval is None and spat_eval is not None) or (spec_eval is not None and spat_eval is None):
-            msgs.warn('Both spec_eval and spat_eval must be provided.' + msgs.newline() +
-                      'Only one variable provided, so a new (full) grid will be generated.')
+            log.warning('Both spec_eval and spat_eval must be provided. Only one variable was provided, '
+                        'so a new (full) grid will be generated with no spatial flexure.')
         # Print a warning if neither are provided
         if spec_eval is None and spat_eval is None:
-            msgs.warn('No spatial and spectral coordinates provided.' + msgs.newline() +
-                      'A new (full) grid will be generated.')
+            log.warning('No spatial and spectral coordinates provided. A new (full) grid will '
+                        'be generated with no spatial flexure.')
         # Print a warning is shape is not provided
         if shape is None:
-            msgs.error('No shape provided for the image.' + msgs.newline() +
-                       'You must provide either `shape` or both `spat_eval` and `spec_eval`.')
-        msgs.warn("Assuming no spatial flexure.")
+            log.error('No shape provided for the image. You must provide either '
+                      '`shape` or both `spat_eval` and `spec_eval`.')
+        log.warning("Assuming no spatial flexure.")
         _spat_shift = 0.0
-        # Setup the evaluation grid
+        # Set up the evaluation grid
         nspec, nspat = shape
         xnspecmin1 = float(nspec - 1)
         xnspatmin1 = float(nspat - 1)
