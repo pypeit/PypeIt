@@ -254,8 +254,8 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
 
 def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None, fullbkpt=None):
     """
-    Utility routine used by local_skysub_extract that performs the joint b-spline fit for sky-background
-    and object flux.
+    Utility routine used by local_skysub_extract that performs the joint
+    b-spline fit for sky-background and object flux.
 
     Parameters
     ----------
@@ -350,7 +350,10 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     mask1 = (chi2 < chi2_sigrej)
 
     if not np.any(mask1):
-        log.warning('All pixels are masked in skyoptimal after first round of rejection. Not performing local sky subtraction.')
+        log.warning(
+            'All pixels are masked in skyoptimal after first round of rejection. Not performing '
+            'local sky subtraction.'
+        )
         return np.zeros_like(piximg), np.zeros_like(piximg), gpm
 
     log.info('2nd round....')
