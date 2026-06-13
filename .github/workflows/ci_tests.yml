@@ -1,17 +1,79 @@
+
 name: CI Tests
 
 on:
+  workflow_dispatch:
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - labeled
+      - synchronize
+
   push:
     branches:
-    - release
-    - develop
-  pull_request:
+      - release
+      - develop
 
 env:
   SETUP_XVFB: True  # avoid issues if something tries to open a GUI window
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      success: ${{ steps.check.outputs.success }}
+    steps:
+      - name: Check for protected branches or PR label
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Always pass the gate for pushes directly to our two protected
+          # branches
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BRANCH="${{ github.ref_name }}"
+            if [ "$BRANCH" = "release" ] || [ "$BRANCH" = "develop" ]; then
+              echo "Push to protected branch '$BRANCH' — bypassing label check."
+              echo "success=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          else
+            PR_NUMBER=$(gh pr list \
+              --repo "${{ github.repository }}" \
+              --head "${{ github.ref_name }}" \
+              --state open \
+              --json number \
+              --jq '.[0].number')
+          fi
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No open PR found for this branch — skipping."
+            echo "success=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LABEL_COUNT=$(gh pr view "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --json labels \
+            --jq '.labels | length')
+
+          if [ "$LABEL_COUNT" -gt 0 ]; then
+            echo "success=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "success=false" >> "$GITHUB_OUTPUT"
+          fi
+
   ci-tests:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     name: Tox env ${{ matrix.python }}-${{ matrix.toxenv }}
     runs-on: ${{ matrix.os }}
     permissions:
@@ -19,8 +81,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: ['3.11', '3.12', '3.13']
-        toxenv: [test, test-alldeps-cov, test-numpydev, test-gingadev, test-astropydev]
+        python: ['3.11', '3.12', '3.13', '3.14']
+        toxenv: [test, test-alldeps]
     steps:
     - name: Check out repository
       uses: actions/checkout@v3
@@ -34,15 +96,36 @@ jobs:
     - name: Test with tox
       run: |
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
-#    - name: Upload coverage to codecov
-#      if: "contains(matrix.toxenv, '-cov')"
-#      uses: codecov/codecov-action@v3
-#      with:
-#        token: ${{ secrets.CODECOV }}
-#        file: ./coverage.xml
-#        fail_ci_if_error: true
+
+  dev-tests:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
+    name: Tox env ${{ matrix.python }}-${{ matrix.toxenv }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python: ['3.13']
+        toxenv: [test-numpydev, test-astropydev]
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install base dependencies
+      run: |
+        python -m pip install --upgrade pip tox
+    - name: Test with tox
+      run: |
+        tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
 
   os-tests:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     permissions:
@@ -52,7 +135,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest]
-        python: ['3.11', '3.12', '3.13']
+        python: ['3.11', '3.12', '3.13', '3.14']
         toxenv: [test-alldeps]
     steps:
     - name: Check out repository
@@ -69,6 +152,8 @@ jobs:
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
 
   conda:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -77,7 +162,7 @@ jobs:
     - name: Conda environment check
       uses: actions/setup-python@v4
       with:
-        python-version: '3.12'
+        python-version: '3.13'
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
@@ -86,6 +171,8 @@ jobs:
         tox -e conda
 
   codestyle:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -94,7 +181,7 @@ jobs:
     - name: Python codestyle check
       uses: actions/setup-python@v4
       with:
-        python-version: '3.12'
+        python-version: '3.13'
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip
