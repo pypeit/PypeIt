@@ -166,23 +166,6 @@ class WaveTilts(calibframe.CalibFrame):
         for slit_spat in gdslit_spat:
             # Get the slit index
             slit_idx = self.spatid_to_zero(slit_spat)
-            log.error("Here's a problem to resolve")
-            ##########################
-            # Someone else's version
-            # Calculate
-            coeff_out = self.coeffs[:self.spec_order[slit_idx]+1,:self.spat_order[slit_idx]+1,slit_idx]
-            thismask_science = slitmask == slit_spat
-            _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d,
-                                         spat_shift=-1*_flexure,
-                                         slit_mask=thismask_science)
-            # Fill
-            final_tilts[thismask_science] = _tilts[thismask_science]
-
-            # This is a work around for the Python memory usage issues
-            _tilts = None
-            gc.collect(2)
-            ##########################
-            # My version
             # Prepare the coefficients
             coeff_out = self.coeffs[:self.spec_order[slit_idx]+1, :self.spat_order[slit_idx]+1, slit_idx]
             # Extract the spectral and spatial coordinates for this slit
@@ -850,38 +833,17 @@ class BuildWaveTilts:
                 continue
             self.coeffs[:self.spec_order[slit_idx]+1,:self.spat_order[slit_idx]+1,slit_idx] = coeff_out
 
-            # TODO: Need a way to assess the success of fit_tilts and
-            # flag the slit if it fails
+            # TODO: Need a way to assess the success of fit_tilts and flag the slit if it fails
 
             # Tilts are created with the size of the original slitmask,
             # which corresonds to the same binning as the science
             # images, trace images, and pixelflats etc.
-            log.error("Something to resolve here...")
-            ############################
-            # Someone else's version
             thismask_science = self.slitmask_science == slit_spat
-            self.tilts = tracewave.fit2tilts(self.slitmask_science.shape, coeff_out,
-                                             self.par['func2d'],
-                                             slit_mask=thismask_science)
-            # Check that the tilts image has values that span a reasonable range.
-            # Tilts are normalized by (nspec - 1), so a slit/order that covers
-            # the full spectral direction has an expected within-slit range of 1.
-            # For echelle orders that only cover part of the spectral direction
-            # (specmin/specmax from the spectrograph), the expected range is
-            # smaller, so scale the threshold to 80% of that expected range.
-            nspec = self.slitmask_science.shape[0]
-            xnspecmin1 = float(nspec - 1)
-            spec_lo = np.clip(self.slits.specmin[slit_idx], 0.0, xnspecmin1)
-            spec_hi = np.clip(self.slits.specmax[slit_idx], 0.0, xnspecmin1)
-            expected_range = (spec_hi - spec_lo) / xnspecmin1
-            _slit_tilts = self.tilts[thismask_science]
-            if np.nanmax(_slit_tilts) - np.nanmin(_slit_tilts) < 0.8 * expected_range:
-            ############################
-            # My version
-            thismask_science = self.slitmask_science == slit_spat
+            # Extract the spectral and spatial coordinates for this slit
             _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left[:, slit_idx], slits_right[:, slit_idx],
                                                                      thismask_science, self.spat_flexure[slit_idx, :])
-            tilts = tracewave.fit2tilts(coeff_out, self.par['func2d'], spec_eval=_spec_eval, spat_eval=_spat_eval)
+            # Calculate the tilts
+            self.tilts = tracewave.fit2tilts(coeff_out, self.par['func2d'], spec_eval=_spec_eval, spat_eval=_spat_eval)
             # Check that the tilts image has values that span a reasonable range
             # TODO: Is this the right threshold?
             if np.nanmax(self.tilts) - np.nanmin(self.tilts) < 0.8:
@@ -890,10 +852,10 @@ class BuildWaveTilts:
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
             # Save to final image
-            self.final_tilts[thismask_science] = self.tilts[thismask_science]
+            self.final_tilts[thismask_science] = self.tilts
 
 
-            # This is a work around for the Python memory usage issues
+            # This is a workaround for the Python memory usage issues
             self.tilts = None
             gc.collect(2)
 
