@@ -1362,9 +1362,8 @@ class Calibrations:
                 status = 'fail'
             else:
                 status = 'success'
-            self.state.update_calib('tilts', self.calib_ID, self.det, 
+            self.state.update_calib('tilts', self.calib_ID, self.det,
                                 'status', status, slit=slit_ID)
-            #embed(header='1288 of calibrations')
             # Metrics
             if self.buildwaveTilts is not None and status == 'success':
                 rms = self.buildwaveTilts.all_fit_dict[islit]['pypeitFit'].calc_fit_rms(
@@ -1492,11 +1491,11 @@ class Calibrations:
         Run full the full recipe of calibration steps.
         """
 
-        # State
+        # State (use the safe_* wrappers so state I/O can never abort a run)
         if self.state is not None:
             self.state.current_det = self.det
             self.state.current_calibID = self.calib_ID
-            self.state.write()
+            self.state.safe_write()
 
         for step in self.steps:
             self.success = True
@@ -1504,32 +1503,38 @@ class Calibrations:
                 force = 'reload'
             elif stop_at_step is not None and step == stop_at_step:
                 force = 'remake'
-                log.info(f"Calibrations will stop at {stop_at_step}") 
+                log.info(f"Calibrations will stop at {stop_at_step}")
             else:
                 force = None
 
             # Run the step
             if self.state is not None:
-                self.state.update_calib(step, self.calib_ID, self.det, 'status', 'running')
-                self.state.write()
+                self.state.safe_update_calib(step, self.calib_ID, self.det, 'status', 'running')
+                self.state.safe_write()
             getattr(self, f'get_{step}')(force=force)
 
             # Update state
             if self.state is not None:
                 if not self.success:
-                    self.state.update_calib(step, self.calib_ID, self.det, 'status', 'failed')
+                    # NOTE: must match the BaseCalibState.status Literal
+                    # ('fail', not 'failed') or the file fails to reload
+                    self.state.safe_update_calib(step, self.calib_ID, self.det, 'status', 'fail')
                 else:
-                    # Run status method
-                    getattr(self, f'{step}_state')()
+                    # Run status method; metric collection is non-essential
+                    # to the reduction, so never let it crash the run
+                    try:
+                        getattr(self, f'{step}_state')()
+                    except Exception as e:
+                        log.warning(f"Failed to collect state metrics for "
+                                    f"step '{step}': {e}")
 
                 # Write?
                 if not status_only:
-                    try:
-                        self.state.write()
-                    except:
-                        embed(header='1551 of calibrations')
-                        
-            
+                    # State writing is non-essential: log and continue on
+                    # failure rather than crashing the reduction
+                    self.state.safe_write()
+
+
             # Drop out?
             if not self.success and not status_only:
                 self.failed_step = f'get_{step}'
