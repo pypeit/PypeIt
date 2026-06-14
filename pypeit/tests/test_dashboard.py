@@ -550,19 +550,17 @@ def test_inspect_output_commands(tmp_path):
     """
     from pypeit.dashboard import inspect as dash_inspect
     m = _multidet_model(tmp_path)
-    # Processed image → pypeit_view_fits --proc (S3-Q13).
+    # Processed image → ginga directly (Round-2 #3).
     bias = dash_inspect.output_command(m, 'bias', 0, 1)
-    assert bias[0] == 'pypeit_view_fits' and bias[1] == 'shane_kast_blue'
-    assert bias[-1] == '--proc' and bias[2].endswith('Bias_A_0_DET01.fits')
+    assert bias[0] == 'ginga' and bias[1].endswith('Bias_A_0_DET01.fits')
+    arc = dash_inspect.output_command(m, 'arc', 0, 1)
+    assert arc[0] == 'ginga'
     # slits → pypeit_chk_edges on the Edges file, not the Slits output.
     slits = dash_inspect.output_command(m, 'slits', 0, 1)
     assert slits[0] == 'pypeit_chk_edges'
     assert slits[1].endswith('Edges_A_0_DET01.fits.gz')
-    # wv_calib → ginga on the WaveCalib FITS (pypeit_chk_wavecalib only
-    # prints to the terminal; Round-1 #7/#8).
-    wv = dash_inspect.output_command(m, 'wv_calib', 0, 1)
-    assert wv[0] == 'ginga'
-    assert wv[1].endswith('WaveCalib_A_0_DET01.fits')
+    # wv_calib has no standalone viewer (Round-2 #4) → command is None.
+    assert dash_inspect.output_command(m, 'wv_calib', 0, 1) is None
     # An input frame → pypeit_view_fits <spec> <file>.
     vin = dash_inspect.view_input_command(m, 'b3.fits.gz')
     assert vin == ['pypeit_view_fits', 'shane_kast_blue', 'b3.fits.gz']

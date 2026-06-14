@@ -72,6 +72,8 @@ PypeIt BibTeX Entries
    Execution <running>
    outputs
    QA <qa>
+   Reduction State <state>
+   Dashboard <dashboard/dashboard>
    Step-by-step Processing <reduce_by_step>
 
 .. toctree::

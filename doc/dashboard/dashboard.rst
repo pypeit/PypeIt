@@ -1,0 +1,278 @@
+.. include:: ../include/links.rst
+
+.. _dashboard:
+
+================
+PypeIt Dashboard
+================
+
+**Dashboard documentation version: 1.0.0**
+
+Overview
+========
+
+The **PypeIt Dashboard** is a desktop graphical application that gives a single,
+coherent place to **monitor** and **inspect** a PypeIt data reduction.  A
+typical reduction produces a scattered collection of calibration files, 2D/1D
+spectra, and fixed-format QA figures, and its progress is not surfaced in any
+one place.  The dashboard makes that workflow *legible and navigable*: it shows,
+at a glance, where a reduction stands, what it has produced, and where it may
+have gone wrong, and it puts the existing inspection tools one click away.
+
+The dashboard concentrates on the **core run** of PypeIt — the reduction and the
+inspection / QA of its calibrations.  It reads the reduction **state** that
+``run_pypeit`` records on disk (see :doc:`/state`) and **reuses the existing
+PypeIt inspection scripts** (``pypeit_chk_*`` / ``pypeit_view_fits`` / ``ginga``)
+rather than reimplementing any plotting.
+
+.. note::
+
+   The dashboard is built on PyQt6 (via ``qtpy``), the same GUI stack as the
+   PypeIt setup GUI.  It launches the inspection tools as subprocesses, so no
+   extra plotting dependencies are required.
+
+Architecture
+------------
+
+The dashboard follows a Model–View–Controller organization:
+
+- a **headless model** (``pypeit.dashboard.model.DashboardModel``) that loads or
+  derives the reduction state and exposes it as clean, Qt-free data (a status
+  table, the ``(calibration group, detector)`` pairs, the path-aware step order,
+  per-step metrics, and per-slit/order detail);
+- thin **Qt views** (the Status and Calibrations tabs) that render what the
+  model provides; and
+- a small launcher that runs the inspection tools as subprocesses and reports
+  to the shared status bar.
+
+Launching
+=========
+
+The dashboard is launched like any other PypeIt command-line script, from within
+a reduction (configuration) folder — the per-configuration directory created by
+:ref:`pypeit_setup` that contains the ``.pypeit`` file.  The ``.pypeit`` file is
+a **required argument**::
+
+    pypeit_dashboard shane_kast_blue_A.pypeit
+
+Useful options:
+
+- ``--redux_path`` — the reduction directory (defaults to the directory
+  containing the ``.pypeit`` file).
+- standard PypeIt logging options (``-v``, ``--log_file``).
+
+On startup the dashboard derives the reduction **state**: if a
+``<root>_state.json`` file is present (written by ``run_pypeit``; see
+:doc:`/state`) it is loaded; otherwise the state is computed the way
+``pypeit_status`` does (no processing is performed).  Computing the state may
+briefly block the UI on launch.
+
+Layout and navigation
+=====================
+
+Every view shares a **header banner** (top) showing the ``.pypeit`` file, the
+spectrograph, the setup/configuration ID, the pipeline (MultiSlit / Echelle /
+IFU), and the reduction directory, with the PypeIt logo in the top-right corner.
+A **tab bar** selects between the two views, and a **status bar** at the bottom
+(labeled "Dashboard status:") reports what the dashboard is doing.
+
+.. _dashboard-status-palette:
+
+The status palette
+------------------
+
+Throughout the dashboard, a calibration step's status is shown with a
+**color paired with a glyph and label** (never color alone), so it is readable
+without relying on color:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 20 50
+
+   * - Status
+     - Glyph
+     - Meaning
+   * - success / complete
+     - ✓ (green)
+     - generated successfully
+   * - running
+     - ⏳ (orange)
+     - currently being generated
+   * - fail
+     - ✗ (red)
+     - failed to generate
+   * - required, not done
+     - ○ (white)
+     - required but not yet generated
+   * - optional / not required
+     - – (grey)
+     - not required (an undone optional step is not a problem)
+   * - not used / n/a
+     - – (dim grey)
+     - not part of this spectrograph's pipeline
+   * - skipped
+     - ⊘ (blue-grey)
+     - per-slit: intentionally skipped (e.g. flats ``SKIPFLATCALIB``)
+
+A light and a dark variant of the palette are provided; the view picks one based
+on the active Qt theme.
+
+.. _dashboard-status-view:
+
+The Status view
+===============
+
+The Status tab is the landing, *state-first* view: it answers "where does this
+reduction stand?" at a glance.
+
+.. figure:: /figures/dashboard_status_view.png
+   :width: 90%
+
+   The Status view for a Shane Kast blue reduction: the global summary strip,
+   the scope drop-downs and Refresh, the configuration-overview navigator, and
+   the color-coded calibration table.
+
+Top to bottom it shows:
+
+- **Global summary strip** — whole-run health, e.g. "Calibrations: 6/6 required
+  succeeded" plus counts of failed / running / to-do.
+- **Scope toolbar** — calibration-group and detector/mosaic drop-downs that
+  scope the table to one ``(group, detector)``; a **Refresh** button that
+  re-reads (or re-derives) the state; and a **stale** badge if the state file is
+  older than the ``.pypeit`` file or the calibration outputs.
+- **Configuration-overview navigator** — a compact ``(group × detector)`` grid,
+  each cell colored by the *worst* step status in that cell (fail > running >
+  to-do > success).  Clicking a cell scopes the table to it (it is a single
+  cell for a single-group/single-detector run, and a heat-map for
+  MOS/mosaic runs).
+- **Calibrations table** — the scoped step status: **Step | Required | Status |
+  Output**, with the status palette above and optional steps dimmed.
+- **Science frames** — a placeholder section, present so it can be populated
+  once per-science-frame status is tracked.
+
+If the reduction has not started, or the state file is missing or unreadable, the
+view shows a clear message instead of an empty grid.
+
+.. _dashboard-calibrations-view:
+
+The Calibrations view
+=====================
+
+The Calibrations tab is the drill-down: it shows the detailed status of the
+calibrations for **one** ``(calibration group, detector/mosaic)`` at a time and
+lets the user inspect each calibration.
+
+.. figure:: /figures/dashboard_calibrations_view.png
+   :width: 90%
+
+   The Calibrations view with ``wv_calib`` selected: the path-aware step-button
+   row (selected step ringed in magenta), the detail panel, and the per-slit
+   table.
+
+It contains:
+
+- **Scope selectors** — the calibration-group and detector/mosaic drop-downs
+  (independent of the Status tab's).
+- **Step-button row** — one button per calibration step, laid out left→right in
+  the spectrograph's dependency order (MultiSlit/Echelle vs IFU), each colored
+  by the status palette.  The internal ``bpm`` step is omitted (it has no
+  standalone output).  Clicking a button selects it; the selected step is ringed
+  in **magenta**.
+- **Detail panel** for the selected step:
+
+  - **Metrics** — whatever the state records for that step (e.g. ``bias``
+    mean/std; ``slits`` nslits; ``flats`` corrections and provenance).
+  - **Inspect output** — launches the appropriate viewer for the step's
+    processed output (see the table below).  Enabled only when the output file
+    exists on disk.
+  - **QA files** — the related QA PNGs; double-click to open one full size.
+  - **Per-slit/order table** — for ``slits`` / ``wv_calib`` / ``tilts`` /
+    ``flats``, one row per slit/order with its status and metric.  For
+    ``flats`` the row carries per-correction ``mean``/``rms`` columns and may be
+    *skipped*.
+  - **Input files** (bottom) — the raw frames used to build the calibration;
+    double-click to view one.  For ``flats`` they are grouped by role
+    (pixelflat / illum / lamp-off).
+
+Inspection tools
+----------------
+
+"Inspect output" launches the matching existing PypeIt tool as a subprocess; the
+status bar reports the launch and where the result appears (e.g. a Ginga window).
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Step
+     - Output
+     - Viewer
+   * - ``bias`` / ``dark`` / ``arc`` / ``tiltimg``
+     - processed image
+     - ``ginga``
+   * - ``slits``
+     - ``Edges_*``
+     - ``pypeit_chk_edges`` (Ginga)
+   * - ``wv_calib``
+     - ``WaveCalib_*``
+     - *no separate viewer* — see its QA files (the ``Arc_1dfit`` /
+       ``Arc_FWHMfit`` / ``Arc_tilts`` PNGs); "Inspect output" is disabled
+   * - ``tilts``
+     - ``Tilts_*``
+     - ``pypeit_chk_tilts``
+   * - ``flats``
+     - ``Flat_*``
+     - ``pypeit_chk_flats``
+   * - ``scattlight``
+     - ``ScatteredLight_*``
+     - ``pypeit_chk_scattlight``
+   * - ``align`` (IFU)
+     - ``Alignment_*``
+     - ``pypeit_chk_alignments``
+
+Raw input frames are viewed with ``pypeit_view_fits``.  See :doc:`/qa` and
+:doc:`/scripts` for more on the inspection tools.
+
+Actions
+=======
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Control
+     - Action
+   * - Calibration-group / Detector drop-downs
+     - Scope the table / detail to one ``(group, detector)``.
+   * - Navigator cell (Status view)
+     - Click to scope to that ``(group, detector)``.
+   * - **Refresh** (Status view)
+     - Re-read the state file (or re-derive it) and re-render; the status bar
+       reports which source was used.
+   * - Step button (Calibrations view)
+     - Select the step and show its detail panel.
+   * - **Inspect output**
+     - Launch the step's viewer as a subprocess.
+   * - Input-file / QA entry (double-click)
+     - View the raw frame (``pypeit_view_fits``) / open the QA PNG.
+
+Not yet implemented
+===================
+
+The dashboard is built up in stages.  The following are planned but not part of
+this version:
+
+- **(Re)generating** a calibration from the dashboard (via
+  :ref:`pypeit-run-to-calibstep`), with a single-run lock and overwrite
+  protection.
+- **Live monitoring** that auto-updates while a reduction is running.
+- A populated **Science-frames** section (awaiting per-science-frame status in
+  the state model).
+
+See also
+========
+
+- :doc:`/state` — the reduction state file the dashboard reads.
+- :doc:`/qa` — the QA figures.
+- :doc:`/scripts` — the ``pypeit_chk_*`` / ``pypeit_show_*`` inspection scripts.
+- :doc:`/running` — the core ``run_pypeit`` execution.

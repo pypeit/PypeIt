@@ -549,4 +549,6 @@ class StatusView(QWidget):
 
         for col, it in enumerate((step_item, req_item, status_item,
                                   out_item)):
+            # Center the cell contents (Round-2 #6).
+            it.setTextAlignment(Qt.AlignCenter)
             self._table.setItem(r, col, it)

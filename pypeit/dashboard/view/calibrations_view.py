@@ -17,7 +17,7 @@ from pathlib import Path
 from qtpy.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QComboBox, QPushButton, QTableWidget,
                             QTableWidgetItem, QHeaderView, QListWidget,
-                            QListWidgetItem, QScrollArea,
+                            QListWidgetItem, QScrollArea, QGroupBox,
                             QAbstractItemView)
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor, QPalette
@@ -413,9 +413,11 @@ class CalibrationsView(QWidget):
         self._detail.addWidget(heading)
 
         # Metrics (C6) — entry-level; per-slit metrics are in the table below.
+        # Numeric values are shown to a few significant figures (Round-2 #2).
         metrics = self._model.step_metrics(step, group, det)
         if metrics:
-            text = '   '.join(f'{k}: {v}' for k, v in metrics.items())
+            text = '   '.join(f'{k}: {self._fmt(v)}'
+                              for k, v in metrics.items())
             self._detail.addWidget(QLabel(text))
 
         # Inspect output (C8): enabled only when the output file exists.
@@ -499,10 +501,8 @@ class CalibrationsView(QWidget):
         """
         if entry is None:
             return
-        self._detail.addWidget(QLabel('Input files (double-click to view):'))
         listw = QListWidget()
-        # Short and only half the width (Round-1 #3); the right half is left
-        # free for future content.
+        # Short list (Round-1 #3).
         listw.setMaximumHeight(90)
         if step == 'flats':
             # Grouped by role, with the pixel-flat provenance noted.
@@ -519,9 +519,13 @@ class CalibrationsView(QWidget):
             for f in (entry.input_files or []):
                 self._add_file_item(listw, f)
         listw.itemDoubleClicked.connect(self._on_input_double_clicked)
-        # Half-width: list on the left, an empty stretch on the right.
+        # Put the list in a titled box so the section reads as self-contained
+        # (Round-2 #1), at half width (Round-1 #3) — the right half is free.
+        box = QGroupBox('Input files (double-click to view)')
+        box_layout = QVBoxLayout(box)
+        box_layout.addWidget(listw)
         wrap = QHBoxLayout()
-        wrap.addWidget(listw, stretch=1)
+        wrap.addWidget(box, stretch=1)
         wrap.addStretch(1)
         self._detail.addLayout(wrap)
 
@@ -647,15 +651,19 @@ class CalibrationsView(QWidget):
         table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         for r, row in enumerate(rows):
-            table.setItem(r, 0, QTableWidgetItem(str(row['slit'])))
+            slit_item = QTableWidgetItem(str(row['slit']))
+            slit_item.setTextAlignment(Qt.AlignCenter)
+            table.setItem(r, 0, slit_item)
             style = palette.slit_style(row['status'], theme=self._theme)
             status_item = QTableWidgetItem(f'{style.glyph} {style.label}')
+            status_item.setTextAlignment(Qt.AlignCenter)
             if style.category != palette.REQUIRED_UNDONE:
                 status_item.setForeground(QColor(style.color))
             table.setItem(r, 1, status_item)
             for c, col in enumerate(metric_cols, start=2):
-                table.setItem(r, c,
-                              QTableWidgetItem(self._slit_cell(row, col)))
+                cell = QTableWidgetItem(self._slit_cell(row, col))
+                cell.setTextAlignment(Qt.AlignCenter)
+                table.setItem(r, c, cell)
         # Keep the per-slit table from collapsing for many slits.
         table.setMinimumHeight(160)
         self._detail.addWidget(table)

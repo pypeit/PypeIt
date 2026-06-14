@@ -893,8 +893,16 @@ class Calibrations:
             return
         # Status + output file
         self.state.update_calib('flats', cid, det, 'status', 'success')
-        self.state.update_calib('flats', cid, det, 'output_file',
-                                self.flatimages.get_path())
+        # Get the output path defensively: a FlatImages merged from a
+        # user/archived pixelflat may lack calib_key, so get_path() can raise;
+        # never let that abort the rest of the state recording.
+        try:
+            out_path = self.flatimages.get_path()
+        except Exception as e:
+            log.warning(f"Could not determine flat output path for state: {e}")
+            out_path = None
+        if out_path is not None:
+            self.state.update_calib('flats', cid, det, 'output_file', out_path)
         # Input files: grouped by role plus a de-duplicated union for the
         # generic input list.  (Stashed by get_flats.)
         inputs = getattr(self, '_flat_input_files', None) or {}
@@ -1378,8 +1386,9 @@ class Calibrations:
         png_dir = Path(self.qa_path) / 'PNGs'
         if key is None or not png_dir.exists():
             return []
-        # Arc_tilts_* belong to the tilts step, not wv_calib.
-        prefixes = ('Arc_1dfit', 'Arc_FWHMfit')
+        # The wavelength 1D fit + FWHM figures, plus the arc-line tilt figures
+        # (the user groups Arc_tilts_* under wv_calib too; Round-2 #7).
+        prefixes = ('Arc_1dfit', 'Arc_FWHMfit', 'Arc_tilts')
         return sorted(str(p) for p in png_dir.glob('*.png')
                       if key in p.name and p.name.startswith(prefixes))
 

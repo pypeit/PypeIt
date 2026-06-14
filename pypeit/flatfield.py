@@ -2607,5 +2607,14 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
                 )
                 nrm_image = None
 
-    return merge(flatimages, nrm_image)
+    # Merge the user/archived pixel flat into the existing flat images.
+    merged = merge(flatimages, nrm_image)
+    # merge() rebuilds the object from datamodel fields only, so it drops the
+    # calibration identifiers (calib_key/calib_dir).  Carry them over from the
+    # input so the merged FlatImages can still report its on-disk path (e.g.
+    # via get_path()); otherwise calib_key is None and get_path() raises.
+    if merged is not None and flatimages is not None:
+        merged.calib_key = flatimages.calib_key
+        merged.calib_dir = flatimages.calib_dir
+    return merged
 

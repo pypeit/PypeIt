@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python dashboard_status_view.py)",
+      "Bash(python dashboard_calibrations.py)",
+      "Bash(python -c:*)",
+      "Bash(python:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(pytest:*)",
+      "Bash(./pypeit_test:*)",
+      "Bash(pypeit_test:*)",
+      "Bash(cd:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(sed:*)",
+      "Bash(find:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(echo:*)",
+      "Bash(cp:*)",
+      "Bash(mkdir:*)"
+    ]
+  }
+}
