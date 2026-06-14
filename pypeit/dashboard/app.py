@@ -20,7 +20,7 @@ from qtpy.QtCore import QCoreApplication, QTimer
 
 from pypeit import log
 from pypeit.dashboard import util
-from pypeit.dashboard.model import read_header_info
+from pypeit.dashboard.model import DashboardModel
 from pypeit.dashboard.view.main_window import DashboardMainWindow
 
 # The window icon shipped with the dashboard package.
@@ -73,15 +73,24 @@ def launch(args):
     # Make failures loud from the very first interaction (Debugging plan).
     util.install_excepthook()
 
-    # Cheap, no-reduction metadata for the header banner (R6).  An absent
-    # file raises FileNotFoundError here (R11), surfaced via the excepthook.
+    # Build the reduction-state model: load the state file if present, else
+    # derive it (R4/R5; deriving may briefly block the UI on launch, which is
+    # acceptable per the design).  Edge states (missing/empty/malformed) are
+    # reported via model.load_status and rendered by the Status view (R11).
     redux_path = getattr(args, 'redux_path', None)
-    header_info = read_header_info(args.pypeit_file, redux_path=redux_path)
-    log.info(f'Launching PypeIt Dashboard for {header_info.pypeit_file} '
-             f'({header_info.spectrograph}, {header_info.path})')
+    model = DashboardModel(args.pypeit_file, redux_path=redux_path,
+                           derive=True)
+    if model.header_info is not None:
+        log.info(f'Launching PypeIt Dashboard for '
+                 f'{model.header_info.pypeit_file} '
+                 f'({model.header_info.spectrograph}, '
+                 f'{model.header_info.path}); state: {model.load_status}')
+    else:
+        log.warning(f'Launching PypeIt Dashboard: {model.load_status} '
+                    f'({model.error})')
 
     app = _make_application()
-    window = DashboardMainWindow(header_info)
+    window = DashboardMainWindow(model)
 
     # Keep the window within the available screen area: the design's default
     # size (1650x900) is wider than some displays, so clamp to ~95% of the
