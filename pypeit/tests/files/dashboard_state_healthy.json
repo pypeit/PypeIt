@@ -162,10 +162,8 @@
             ],
             "output_file": "Flat_A_0_DET01.fits",
             "status": "success",
-            "types": [
-                "pixelflat",
-                "illumflat"
-            ]
+            "corrections": [],
+            "slits": {}
         }
     ],
     "align": []

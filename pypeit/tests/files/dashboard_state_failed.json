@@ -99,7 +99,8 @@
             "step": "flats",
             "required": true,
             "status": "undone",
-            "types": []
+            "corrections": [],
+            "slits": {}
         }
     ],
     "align": []

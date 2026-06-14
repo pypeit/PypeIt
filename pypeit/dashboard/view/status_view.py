@@ -77,9 +77,10 @@ class StatusView(QWidget):
             The parent widget.
     """
 
-    def __init__(self, model, parent=None):
+    def __init__(self, model, activity=None, parent=None):
         super().__init__(parent=parent)
         self._model = model
+        self._activity = activity
         self._theme = 'light'
         # The currently scoped (calibration_group, detector) pair.
         self._scope = None
@@ -475,6 +476,14 @@ class StatusView(QWidget):
         fresh = dash_model.DashboardModel(self._model.pypeit_file,
                                           redux_path=str(self._model.redux_dir))
         self.set_model(fresh)
+        # Report what the refresh did to the shared activity area (S3-Q9).
+        if self._activity is not None:
+            if fresh.load_status == dash_model.LOAD_STATE_FILE:
+                self._activity.set_status('Reloaded state file.')
+            elif fresh.load_status == dash_model.LOAD_DERIVED:
+                self._activity.set_status('Re-derived state (no state file).')
+            else:
+                self._activity.set_status(f'Refreshed: {fresh.load_status}.')
 
     def _render_table(self):
         """
