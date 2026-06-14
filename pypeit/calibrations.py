@@ -523,8 +523,9 @@ class Calibrations:
         alignment = alignframe.TraceAlignment(msalign, self.slits, self.spectrograph,
                                               self.par['alignment'], det=self.det,
                                               qa_path=self.qa_path, msbpm=self.msbpm)
+        # NOTE: The spatial flexure (if any) is stored in the msalign image, and passed into the alignment variable.
         self.alignments = alignment.run(show=self.show)
-        # NOTE: The alignment object inherets the calibration frame naming from
+        # NOTE: The alignment object inherits the calibration frame naming from
         # the msalign image.
         self.alignments.to_file()
         return self.alignments
@@ -746,7 +747,7 @@ class Calibrations:
 
         spatbin = parse.parse_binning(binning)[1]
         pad = self.par['scattlight_pad'] // spatbin
-        offslitmask = self.slits.slit_img(pad=pad, spat_flexure=None) == -1
+        offslitmask = self.slits.slit_img(pad=pad, spat_flexure=scattlightImage.spat_flexure) == -1
 
         # Get starting parameters for the scattered light model
         x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
@@ -772,6 +773,7 @@ class Calibrations:
                                                       scattlight_param=modelpar)
 
         # TODO :: Should we go back and recalculate the slit edges once the scattered light is known?
+        #  (probably won't change the gradient and spatial flexure values by very much)
 
         if self.msscattlight is not None:
             # Show the result if requested
@@ -1003,6 +1005,7 @@ class Calibrations:
                 illum_flat = illum_flat.sub(lampoff_flat)
 
             # Initialise the illum flat
+            # TODO :: Propagate spatial flexure to all FlatField instances (not just this one).
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
                                                  wv_calib=self.wv_calib, spat_illum_only=True,

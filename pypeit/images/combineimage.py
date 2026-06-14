@@ -161,12 +161,12 @@ class CombineImage:
                 basev_stack = np.zeros(shape, dtype=float)
                 gpm_stack = np.zeros(shape, dtype=bool)
                 exptime = np.zeros(self.nimgs, dtype=float)
-                spat_flex = np.zeros(self.nimgs, dtype=float)
+                all_spat_flexure = np.zeros((self.nimgs,)+rawImage.spat_flexure.shape, dtype=float)
 
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = rawImage.exptime
             # Save the spatial flexure to check if it's consistent for all images and propagate it to the combined image
-            spat_flex[kk] = rawImage.spat_flexure
+            all_spat_flexure[kk] = rawImage.spat_flexure
             # Processed image
             img_stack[kk] = rawImage.image
             # Get the count scaling
@@ -199,17 +199,21 @@ class CombineImage:
             comb_texp = exptime[0]
 
         # Check that all spatial flexure values are consistent
-        comb_spat_flex = None
-        # remove nan (None) values. Since spat_flex is a float array,
-        # if rawImage.spat_flexure is None, it will be converted to nan
-        no_nan = np.logical_not(np.isnan(spat_flex))
-        if np.sum(no_nan) > 0:
-            if np.any(np.absolute(np.diff(spat_flex[no_nan])) > 0.1):
-                log.warning(f'Spatial flexure is not consistent for all images being combined: {spat_flex}.')
-                comb_spat_flex = np.round(np.mean(spat_flex[no_nan]),3)
-                log.warning(f'Using the average: {comb_spat_flex}.')
-            else:
-                comb_spat_flex = spat_flex[no_nan][0]
+        comb_spat_flexure = np.mean(all_spat_flexure, axis=0)
+
+        # Before combining, perform a quick check to make sure all
+        # spatial flexure values of all input frames are consistent.
+        # If not, print a warning message to the user.
+        # Subtract off the minimum value
+        tst_spat_flexure = all_spat_flexure - np.min(all_spat_flexure, axis=0)[None, :, :]
+        max_diff = np.max(tst_spat_flexure)
+        if max_diff >= 0.2:
+            log.warning(f'Spatial flexure values of input frames are not consistent to within 0.2 pixels. '
+                        f'Largest difference between spatial flexure was {max_diff:.2f} pixels. '
+                        f'This may lead to a poor combination of the images.')
+        elif max_diff != 0.0:
+            log.info(f'Spatial flexure values of input frames are consistent to within 0.2 pixels. '
+                     f'Maximum difference between spatial flexure was {max_diff:.2f} pixels.')
 
         # scale the images to their mean, if requested, before combining
         if self.par['scale_to_mean']:
@@ -291,7 +295,7 @@ class CombineImage:
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
                                        detector=rawImage.detector,
-                                       spat_flexure=comb_spat_flex,
+                                       spat_flexure=comb_spat_flexure,
                                        PYP_SPEC=rawImage.PYP_SPEC,
                                        units='e-' if self.par['apply_gain'] else 'ADU',
                                        exptime=comb_texp, noise_floor=self.par['noise_floor'],

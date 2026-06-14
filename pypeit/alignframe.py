@@ -9,6 +9,7 @@ import numpy as np
 from IPython import embed
 from scipy.interpolate import interp1d, RegularGridInterpolator
 
+from pypeit.core.flexure import spat_flexure_shift
 from pypeit.display import display
 from pypeit.core import findobj_skymask
 from pypeit import datamodel
@@ -170,20 +171,20 @@ class TraceAlignment:
         Main routine to generate the align profile traces in all slits
 
         Args:
-             show_peaks (bool, optional):
+            show_peaks (bool, optional):
                Generate QA showing peaks identified by alignment profile tracing
-             show_trace (bool, optional):
+            show_trace (bool, optional):
                Generate QA showing traces identified. Requires an open ginga RC modules window.
                Launch with ``ginga --modules=RC,SlitWavelength &``
-             debug (bool, optional):
+            debug (bool, optional):
                Debug the alignment tracing algorithm
 
         Returns:
             dict:  self.align_dict
         """
         # Generate slits
-        slitid_img_init = self.slits.slit_img()
-        left, right, _ = self.slits.select_edges()
+        slitid_img_init = self.slits.slit_img(initial=True, spat_flexure=self.rawalignimg.spat_flexure)
+        left, right, _ = self.slits.select_edges(initial=True, spat_flexure=self.rawalignimg.spat_flexure)
         align_prof = dict({})
 
         # Go through the slits
