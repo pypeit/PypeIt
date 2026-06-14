@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.0.0**
+**Dashboard documentation version: 1.0.1**
 
 Overview
 ========
@@ -189,7 +189,8 @@ It contains:
   - **Per-slit/order table** — for ``slits`` / ``wv_calib`` / ``tilts`` /
     ``flats``, one row per slit/order with its status and metric.  For
     ``flats`` the row carries per-correction ``mean``/``rms`` columns and may be
-    *skipped*.
+    *skipped*.  For an Echelle reduction the rows are per **order**, and the
+    table and its column are labeled "Order" accordingly.
   - **Input files** (bottom) — the raw frames used to build the calibration;
     double-click to view one.  For ``flats`` they are grouped by role
     (pixelflat / illum / lamp-off).
@@ -208,8 +209,8 @@ status bar reports the launch and where the result appears (e.g. a Ginga window)
      - Output
      - Viewer
    * - ``bias`` / ``dark`` / ``arc`` / ``tiltimg``
-     - processed image
-     - ``ginga``
+     - processed (intermediate) image
+     - ``pypeit_view_fits --inter`` (Ginga)
    * - ``slits``
      - ``Edges_*``
      - ``pypeit_chk_edges`` (Ginga)
@@ -230,7 +231,9 @@ status bar reports the launch and where the result appears (e.g. a Ginga window)
      - ``Alignment_*``
      - ``pypeit_chk_alignments``
 
-Raw input frames are viewed with ``pypeit_view_fits``.  See :doc:`/qa` and
+Raw input frames are viewed with ``pypeit_view_fits --proc`` (processed/oriented
+for a proper view).  The status bar shows the exact command it runs, in quotes,
+so you can reproduce it from the command line.  See :doc:`/qa` and
 :doc:`/scripts` for more on the inspection tools.
 
 Actions

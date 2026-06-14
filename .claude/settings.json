@@ -20,7 +20,15 @@
       "Bash(tail:*)",
       "Bash(echo:*)",
       "Bash(cp:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(cat >:*)",
+      "Bash(run_pypeit:*)",
+      "Bash(pypeit_setup:*)",
+      "Bash(pypeit_chk_edges:*)",
+      "Bash(pypeit_dashboard:*)",
+      "Bash(QT_QPA_PLATFORM=offscreen python:*)",
+      "Bash(wc:*)",
+      "Bash(awk:*)"
     ]
   }
 }

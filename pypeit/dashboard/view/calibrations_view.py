@@ -421,7 +421,7 @@ class CalibrationsView(QWidget):
             self._detail.addWidget(QLabel(text))
 
         # Inspect output (C8): enabled only when the output file exists.
-        self._add_output_control(step, group, det, entry)
+        self._add_output_control(step, group, det)
 
         # QA files (C9).
         self._add_qa_files(entry)
@@ -435,7 +435,7 @@ class CalibrationsView(QWidget):
         self._detail.addStretch(1)
         self._add_input_files(step, entry)
 
-    def _add_output_control(self, step, group, det, entry):
+    def _add_output_control(self, step, group, det):
         """
         Add the "Inspect output" control (C8).
 
@@ -445,7 +445,6 @@ class CalibrationsView(QWidget):
             step (:obj:`str`): The step name.
             group (:obj:`int`): The calibration group.
             det: The detector.
-            entry: The step's state entry (or ``None``).
 
         Returns:
             None.
@@ -560,7 +559,8 @@ class CalibrationsView(QWidget):
             None.
         """
         path = item.data(Qt.UserRole)
-        argv = dash_inspect.view_input_command(self._model, path)
+        det = self._scope[1] if self._scope else None
+        argv = dash_inspect.view_input_command(self._model, path, det=det)
         self._launch(argv, 'view input', hint='Ginga window')
 
     def _add_qa_files(self, entry):
@@ -625,9 +625,14 @@ class CalibrationsView(QWidget):
         rows = self._model.slit_table(step, group, det)
         if not rows:
             return
-        self._detail.addWidget(QLabel(f'Per-slit/order ({len(rows)}):'))
+        # For the Echelle pipeline these rows are spectral orders, so label
+        # them "Order" rather than "Slit" (S3b-Q1).
+        is_echelle = self._model.header_info is not None \
+            and self._model.header_info.path == 'Echelle'
+        unit = 'order' if is_echelle else 'slit'
+        self._detail.addWidget(QLabel(f'Per-{unit} ({len(rows)}):'))
 
-        # Build columns: Slit, Status, then step-specific metric columns.
+        # Build columns: Slit/Order, Status, then step-specific metric columns.
         if step == 'slits':
             metric_cols = ['center', 'slitord_id']
         elif step in ('wv_calib', 'tilts'):
@@ -639,7 +644,7 @@ class CalibrationsView(QWidget):
             for corr in corrections:
                 metric_cols += [f'{corr} mean', f'{corr} rms']
 
-        columns = ['Slit', 'Status'] + metric_cols
+        columns = [unit.capitalize(), 'Status'] + metric_cols
         table = QTableWidget()
         table.setColumnCount(len(columns))
         table.setHorizontalHeaderLabels(columns)
