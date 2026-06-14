@@ -51,7 +51,7 @@ class Launcher:
         if self.activity is not None:
             self.activity.set_status(message, busy=busy)
 
-    def launch(self, argv, description=None):
+    def launch(self, argv, description=None, hint='viewer window'):
         """
         Launch ``argv`` as a detached-from-the-UI subprocess.
 
@@ -61,6 +61,9 @@ class Launcher:
             argv (:obj:`list`): The command and its arguments.
             description (:obj:`str`, optional): Human description for the
                 activity bar (defaults to the program name).
+            hint (:obj:`str`, optional): Where the result appears (e.g.
+                ``'Ginga window'``); shown in the finished message so the
+                user knows where to look.
 
         Returns:
             bool: True if the process was started, False if it could not be
@@ -91,13 +94,13 @@ class Launcher:
         proc.errorOccurred.connect(
             lambda _err, p=proc, lbl=label: self._on_error(p, lbl))
         proc.finished.connect(
-            lambda code, _status, p=proc, lbl=label:
-            self._on_finished(p, lbl, code))
+            lambda code, _status, p=proc, lbl=label, h=hint:
+            self._on_finished(p, lbl, code, h))
 
         proc.start(program, args)
         return True
 
-    def _on_finished(self, proc, label, code):
+    def _on_finished(self, proc, label, code, hint='viewer window'):
         """
         Handle process completion: report the outcome and capture output.
 
@@ -107,13 +110,14 @@ class Launcher:
             proc (:obj:`QProcess`): The finished process.
             label (:obj:`str`): The command label.
             code (:obj:`int`): The exit code.
+            hint (:obj:`str`, optional): Where the result appears.
 
         Returns:
             None.
         """
         output = bytes(proc.readAll()).decode('utf-8', errors='replace')
         if code == 0:
-            self._report(f'{label} finished.', busy=False)
+            self._report(f'{label} finished — see the {hint}.', busy=False)
         else:
             self._report(f'{label} exited with code {code}.', busy=False)
             log.warning(f'{label} output:\n{output}')

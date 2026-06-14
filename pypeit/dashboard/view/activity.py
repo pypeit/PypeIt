@@ -25,8 +25,11 @@ class ActivityBar(QStatusBar):
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        # A message label (left) + an indeterminate busy bar (right), hidden
-        # until a long/blocking task is running.
+        # A fixed title, then the message label (left), then an indeterminate
+        # busy bar (right) hidden until a long/blocking task is running.
+        title = QLabel('Dashboard status:')
+        title.setStyleSheet('font-weight: bold;')
+        self.addWidget(title)
         self._message = QLabel('Idle')
         self.addWidget(self._message, stretch=1)
         self._busy = QProgressBar()
