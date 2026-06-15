@@ -223,6 +223,9 @@ class ScienceFrameState(BaseModel):
     objtype: str                            # 'science' or 'standard'
     comb_id: Optional[int] = None
     bkg_id: Optional[int] = None
+    # Contributing raw frame filename(s) — recorded so a tool (e.g. the
+    # Dashboard's (Re)Build) can re-run this exposure via pypeit_reduce_by_step.
+    raw_files: Optional[List[str]] = Field(default_factory=list)
     # Macro-step statuses
     process: ScienceStep = Field(default_factory=ScienceStep)
     findobj: ScienceStep = Field(default_factory=ScienceStep)

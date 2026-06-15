@@ -967,6 +967,8 @@ class CalibrationsView(QWidget):
         table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         table.setSelectionMode(QAbstractItemView.NoSelection)
         table.setAlternatingRowColors(True)
+        # Neutral selection fill, consistent with the science tables (Round-1 #2).
+        table.setStyleSheet(palette.selection_style(self._theme))
         table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         for r, row in enumerate(rows):

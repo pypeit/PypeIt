@@ -135,6 +135,15 @@ class ReducebyStep(scriptbase.ScriptBase):
         has_bg, bkg_redux, find_negative = pypeit_steps.set_bkg_negative(
             pypeIt.fitstbl, pypeIt.par, bg_frames)
 
+        # Record that this science step is starting, so the PypeIt Dashboard can
+        # show it live (mirrors the run_to_calibstep state-write fix).  State I/O
+        # is non-essential, so use the safe_* wrappers.
+        pypeIt.run_state.safe_update_science(basename, det, step=args.step,
+                                             status='running',
+                                             calib_id=calib_ID,
+                                             objtype=objtype_out)
+        pypeIt.run_state.safe_write()
+
         # Process?
         if args.step == 'process':
             pypeit_steps.process_one_det(
@@ -142,9 +151,7 @@ class ReducebyStep(scriptbase.ScriptBase):
                 frames, det, calib_ID, pypeIt.calibrations_path,
                 bg_frames=bg_frames, sci_outfile=sci_filename,
                 bkg_outfile=bkg_filename)
-
-            # All done
-            return
+            # Fall through to the state refresh below (no early return).
 
         # Find Objects
         if args.step == 'findobj':
@@ -291,3 +298,17 @@ class ReducebyStep(scriptbase.ScriptBase):
                                    pypeIt.par, frame, all_spec2d, sobjs_extract,
                                    pypeIt.calibrations_path,
                                    in_update_det=det)
+
+        # Refresh the science state from the products just written and persist
+        # it, so the Dashboard reflects this (re)build (mirrors the
+        # run_to_calibstep state-write fix; reached by every step since
+        # 'process' no longer returns early).  Non-essential: never crash here.
+        try:
+            from pypeit.state import science_status
+            science_status.derive_science_from_disk(
+                pypeIt.run_state, pypeIt.par['rdx']['redux_path'],
+                fitstbl=pypeIt.fitstbl)
+            pypeIt.run_state.write()
+        except Exception as e:
+            log.warning(f'Could not update science state after '
+                        f'{args.step}: {e}')

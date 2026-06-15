@@ -108,3 +108,7 @@ Bug Fixes
   launch) no longer **writes** ``*_state.json``: it is a read, so it no longer
   leaves the last step marked ``running`` / overwrites an existing state file.
   Only a real run persists state.
+- ``pypeit_reduce_by_step`` now writes the reduction state file: it records the
+  science step it runs (marking it ``running`` then refreshing from disk) and
+  the contributing raw frame(s), so status tools / the Dashboard reflect a
+  step-by-step science (re)build.

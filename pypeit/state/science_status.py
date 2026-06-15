@@ -155,6 +155,12 @@ def record_process(run_state, spectrograph, fitstbl, frames, detectors,
             basename, det, calib_id=calib_ID, objtype=objtype,
             comb_id=comb_id, bkg_id=bkg_id)
         entry.process.status = 'success'
+        # Record the contributing raw frame(s) so the Dashboard can re-run this
+        # exposure (pypeit_reduce_by_step takes a raw frame, not the basename).
+        try:
+            entry.raw_files = [str(f) for f in fitstbl['filename'][frames]]
+        except Exception:
+            pass
 
 
 def record_findobj(run_state, spectrograph, fitstbl, frames, detectors,

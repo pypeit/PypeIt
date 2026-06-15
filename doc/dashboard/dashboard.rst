@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.2.1**
+**Dashboard documentation version: 1.3.1**
 
 Overview
 ========
@@ -74,7 +74,8 @@ Layout and navigation
 Every view shares a **header banner** (top) showing the ``.pypeit`` file, the
 spectrograph, the setup/configuration ID, the pipeline (MultiSlit / Echelle /
 IFU), and the reduction directory, with the PypeIt logo in the top-right corner.
-A **tab bar** selects between the two views, and a **status bar** at the bottom
+A **tab bar** selects between the three views (Status, Calibrations, Science),
+and a **status bar** at the bottom
 reports what the dashboard is doing.  It has two channels: **Build** (left —
 (re)builds and live monitoring of a running reduction) and **Inspection** (right
 — feedback for viewers you launch), each with its own busy indicator, so the two
@@ -151,8 +152,12 @@ Top to bottom it shows:
   MOS/mosaic runs).
 - **Calibrations table** — the scoped step status: **Step | Required | Status |
   Output**, with the status palette above and optional steps dimmed.
-- **Science frames** — a placeholder section, present so it can be populated
-  once per-science-frame status is tracked.
+- **Science frames** — a **compact summary** (frame/standard counts, how many
+  extracted, how many failed) above a **science navigator** grid: one clickable
+  cell per ``(frame, detector)`` (science frames first, then standards), each a
+  four-segment strip coloring the ``process`` / ``findobj`` / ``skysub`` /
+  ``extract`` macro-steps by the status palette.  Clicking a cell switches to
+  the :ref:`Science view <dashboard-science-view>` and selects that frame.
 
 If the reduction has not started, or the state file is missing or unreadable, the
 view shows a clear message instead of an empty grid.
@@ -279,6 +284,58 @@ The run is reported in the status bar, and when it finishes the dashboard
 **re-reads the state** and re-colors the step buttons and tables to reflect the
 new outputs.
 
+.. _dashboard-science-view:
+
+The Science view
+================
+
+The Science tab shows the reduction status of each **science and standard
+exposure**, the counterpart of the Calibrations view for the science frames.
+
+.. figure:: /figures/dashboard_science_view.png
+   :width: 90%
+
+   The Science view: the per-frame table (one row per ``(frame, detector)``,
+   with the four reduction-step statuses), and the detail panel for the selected
+   frame with its per-slit and per-object tables and the (Re)Build controls.
+
+It contains:
+
+- **Per-frame table** — one row per reduced ``(frame, detector)`` exposure, with
+  an **objtype** column (science / standard, both in the same table), the four
+  macro-step statuses (``process`` → ``findobj`` → ``skysub`` → ``extract``) as
+  color+glyph cells, the object count ``nobj``, and whether the ``spec2d`` /
+  ``spec1d`` products exist.  It is scrollable for runs with many frames.
+- **Detail panel** for the selected frame:
+
+  - **View spec2d** — opens the 2D spectrum (``pypeit_show_2dspec``); enabled
+    when the product exists.
+  - **(Re)Build** — per step (``process`` / ``findobj`` / ``extract``), a blue
+    control that re-runs that science step for the frame via
+    :doc:`/reduce_by_step`, governed by the same single-run lock as the
+    calibrations (Re)Build (it turns orange "⏳ Run in progress" while a run is
+    active).  A step is enabled only when its prerequisite step has succeeded.
+  - **Per-slit table** — one row per slit with its status (``BADSKYSUB`` /
+    ``BADEXTRACT`` flagged) and object count.
+  - **Per-object table** — one row per detected object (``snr_find``, ``s2n``,
+    spatial position, FWHM, sign, extracted); **double-click** a metric cell to
+    view that object's 1D spectrum (``pypeit_show_1dspec`` on the selected
+    object), or its ``obj_prof`` / ``obj_trace`` cell to open that object's QA
+    figure.
+  - **QA files** — all of the frame's science QA PNGs (the per-object
+    ``obj_prof`` / ``obj_trace`` figures and the ``spec_flex_*`` flexure
+    figures); double-click to open one full size, as in the Calibrations view.
+
+Selecting a frame uses a neutral (soft blue-grey) highlight, the same across all
+of the dashboard tables, so a selected row reads as "selected" rather than as a
+problem.
+
+The Science status feed comes from the same reduction **state** (see
+:doc:`/state`); a normal ``run_pypeit`` records it live, and a launch with no
+state file derives it from the on-disk ``spec2d``/``spec1d`` (and any
+``Intermediate/`` files).  Like the calibrations, the Science view auto-updates
+during a run (`Live monitoring`_).
+
 Actions
 =======
 
@@ -335,8 +392,8 @@ The dashboard is built up in stages.  The following are planned but not part of
 this version:
 
 - A **log view** that tails the reduction ``.log`` while running.
-- A populated **Science-frames** section (awaiting per-science-frame status in
-  the state model).
+- Deferred per-object science metrics (``OPT_CHI2``, ``WAVE_RMS``, flexure) and
+  mosaic-detector science derivation from disk.
 
 See also
 ========
