@@ -479,11 +479,11 @@ class StatusView(QWidget):
         # Report what the refresh did to the shared activity area (S3-Q9).
         if self._activity is not None:
             if fresh.load_status == dash_model.LOAD_STATE_FILE:
-                self._activity.set_status('Reloaded state file.')
+                self._activity.set_build('Reloaded state file.')
             elif fresh.load_status == dash_model.LOAD_DERIVED:
-                self._activity.set_status('Re-derived state (no state file).')
+                self._activity.set_build('Re-derived state (no state file).')
             else:
-                self._activity.set_status(f'Refreshed: {fresh.load_status}.')
+                self._activity.set_build(f'Refreshed: {fresh.load_status}.')
 
     def _render_table(self):
         """

@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.1.3**
+**Dashboard documentation version: 1.2.0**
 
 Overview
 ========
@@ -74,7 +74,10 @@ Every view shares a **header banner** (top) showing the ``.pypeit`` file, the
 spectrograph, the setup/configuration ID, the pipeline (MultiSlit / Echelle /
 IFU), and the reduction directory, with the PypeIt logo in the top-right corner.
 A **tab bar** selects between the two views, and a **status bar** at the bottom
-(labeled "Dashboard status:") reports what the dashboard is doing.
+reports what the dashboard is doing.  It has two channels: **Build** (left —
+(re)builds and live monitoring of a running reduction) and **Inspection** (right
+— feedback for viewers you launch), each with its own busy indicator, so the two
+never overwrite each other.
 
 .. _dashboard-status-palette:
 
@@ -301,15 +304,36 @@ Actions
    * - Input-file / QA entry (double-click)
      - View the raw frame (``pypeit_view_fits``) / open the QA PNG.
 
+Live monitoring
+===============
+
+While a reduction is **running** — whether you launched a **(Re)Build** from the
+dashboard or started ``run_pypeit`` / ``pypeit_run_to_calibstep`` in a terminal —
+the dashboard **auto-updates**: as PypeIt writes the reduction state on each step
+transition (see :doc:`/state`), the Status table, summary, navigator, and the
+Calibrations button row refresh on their own, with **no manual Refresh**.  You
+watch each calibration go white → orange (running) → green (success) live.
+
+How it works and what to expect:
+
+- A run is detected by watching the reduction ``.log`` (it is written
+  continuously while running); while active, the dashboard polls the
+  ``*_state.json`` (every ~2 s) and re-renders only when it actually changes.
+- The live refresh **preserves your scope** (group/detector) and **selected
+  step**, so it does not yank the view around — and you can still **inspect
+  already-built calibrations while later steps build** (inspection feedback uses
+  the separate **Inspection** status channel).
+- The **Build** status channel shows "Monitoring run — updating live…" while a
+  run is active and returns to "Idle" when it finishes (with one final refresh).
+- Mid-run, the state is read from ``*_state.json`` (never re-derived).
+
 Not yet implemented
 ===================
 
 The dashboard is built up in stages.  The following are planned but not part of
 this version:
 
-- **Live monitoring** that auto-updates while a reduction is running (today the
-  state is re-read on **Refresh** and once a **(Re)Build** completes, not
-  continuously).
+- A **log view** that tails the reduction ``.log`` while running.
 - A populated **Science-frames** section (awaiting per-science-frame status in
   the state model).
 
