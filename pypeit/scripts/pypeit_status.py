@@ -38,6 +38,7 @@ class PypeItStatus(scriptbase.ScriptBase):
         from IPython import embed
 
         from pypeit import pypeit
+        from pypeit import science_status
         from pypeit import log
         from pypeit import PypeItError
 
@@ -59,10 +60,16 @@ class PypeItStatus(scriptbase.ScriptBase):
         # Run calibration status check only (no processing)
         pypeIt.calib_all(status_only=True, reload_only=True)
 
+        # Derive the science-frame state from the on-disk products (Science
+        # spec2d/spec1d, with Intermediate/ as a fallback); no processing.
+        science_status.derive_science_from_disk(
+            pypeIt.run_state, pypeIt.par['rdx']['redux_path'],
+            fitstbl=pypeIt.fitstbl)
+
         # Write state to JSON
         #pypeIt.run_state.write()
 
-        # Pretty-print the state
+        # Pretty-print the state (calibrations + science)
         pypeIt.run_state.print_status()
 
         return 0
