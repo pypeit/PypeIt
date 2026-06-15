@@ -686,17 +686,17 @@ class BSpline:
 
         Constructs the symmetric positive-definite banded matrix ``alpha`` and
         right-hand-side vector ``beta`` for the weighted least-squares problem.
-        ``alpha`` uses upper-triangular banded storage compatible with
-        :func:`scipy.linalg.cholesky_banded`:
+        ``alpha`` uses lower banded storage compatible with
+        :func:`scipy.linalg.cholesky_banded` (``lower=True``):
 
-        - ``alpha[0, j]`` = diagonal element :math:`(A^\top W A)_{jj}`
+        - ``alpha[0, j]`` = diagonal element :math:`(A^\top W A)_{j,j}`
 
-        - ``alpha[k, j]`` = ``k``-th superdiagonal element :math:`(A^\top W A)_{j-k,j}`
+        - ``alpha[k, j]`` = ``k``-th superdiagonal element :math:`(A^\top W A)_{j,j+k}`
 
         The matrix is assembled span-by-span.  For each span ``k``, the
         contribution is the ``(bw, bw)`` block :math:`A_k^\top W_k A_k` (and
         similarly for ``beta``), which is accumulated into the banded storage
-        via pre-computed flat index arrays.
+        via the upper-triangle indices returned by :func:`numpy.triu_indices`.
 
         Parameters
         ----------
@@ -735,21 +735,18 @@ class BSpline:
         alpha = np.zeros((bw, nfull + bw), dtype=float)
         beta = np.zeros(nfull + bw, dtype=float)
 
-        # bi: flat indices of the upper triangle (incl. diagonal) of a (bw, bw) block
-        # bo: corresponding flat indices in alpha.T (offset to the current span)
-        # Together they map each upper-triangle entry of (A_k^T W_k A_k) into alpha.
-        bi = np.concatenate([np.arange(i) + (bw - i) * (bw + 1) for i in range(bw, 0, -1)])
-        bo = np.concatenate([np.arange(i) + (bw - i) * bw for i in range(bw, 0, -1)])
+        # Upper-triangle indices of a (bw, bw) Gram block.
+        # Scatter rule: superdiagonal = bi_col - bi_row; alpha column = bi_row + itop.
+        bi_row, bi_col = np.triu_indices(bw)
 
         for k in range(nn - self.nord + 1):
             if upper[k] < lower[k]:
                 continue
             sl = slice(lower[k], upper[k] + 1)
             itop = self._poly_scale(k)
-            ibottom = min(itop, nfull) + bw - 1
             work = a2[sl, :].T @ a2[sl, :]          # (bw, bw) Gram block
-            alpha.T.flat[bo + itop * bw] += work.flat[bi]
-            beta[itop:ibottom + 1] += yw[sl] @ a2[sl, :]
+            alpha[bi_col - bi_row, bi_row + itop] += work[bi_row, bi_col]
+            beta[itop:min(itop, nfull) + bw] += yw[sl] @ a2[sl, :]
 
         return alpha, beta
 
