@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.1.0**
+**Dashboard documentation version: 1.1.1**
 
 Overview
 ========
@@ -257,8 +257,10 @@ disk.  Two safeguards apply:
 - **Clobber confirmation.**  Regenerating overwrites the step's existing
   output.  Before launching, a dialog **names the exact file(s)** that will be
   overwritten (for ``slits`` this is both the ``Slits_*`` and ``Edges_*``
-  files); only the selected step's output is removed — the preceding steps are
-  reused.  Cancelling does nothing.
+  files); only the selected step's output is moved aside — the preceding steps
+  are reused.  The move-aside is **crash-safe**: if the run **fails**, the
+  original file is **restored**, so a failed (re)build never loses an existing
+  calibration.  Cancelling does nothing.
 - **Single-run lock.**  At most one PypeIt run may be active at a time.  While a
   run is in progress — whether you launched it from the dashboard *or* started
   ``run_pypeit`` / ``pypeit_run_to_calibstep`` in a terminal (detected by
