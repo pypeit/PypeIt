@@ -44,6 +44,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    LBT MODS <mods_howto>
    LDT DeVeny <deveny_howto>
    Shane Kast <kast_howto>
+   SOAR TripleSpec <soar_triplespec_howto>
    Subaru FOCAS <focas_howto>
 
 ----
