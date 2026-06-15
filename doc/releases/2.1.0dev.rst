@@ -100,3 +100,5 @@ Bug Fixes
 - Fix a bug in 2D coaddition where manually identified objects were not being
   used to compute offsets between input frames.  Add description of this failure
   mode to the :ref:`known_issues_coadd2d` documentation for 2D coaddition.
+- Fixes a bug in :class:`~pypeit.bspline.bspline.bspline` which was not
+  correctly setting ``xmin`` and ``xmax`` when using the ``x2`` option.
