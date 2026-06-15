@@ -60,6 +60,9 @@ Instrument-specific Updates
   (orders 7--3, ~0.8--2.47 microns).  Wavelength calibration uses OH sky lines
   from the science frames and a new native ``soar_triplespec.fits`` reid
   archive.
+- MMT/Binospec: ``pypeit_setup`` now splits setups by slit mask in addition to
+  grating (``decker`` added to ``configuration_keys``), so frames taken with
+  different masks no longer share calibrations.
 
 Script Changes
 --------------
@@ -71,6 +74,8 @@ Testing
 
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
+- Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
+  typing.
 
 Under-the-hood Improvements
 ---------------------------
@@ -110,3 +115,6 @@ Bug Fixes
   mode to the :ref:`known_issues_coadd2d` documentation for 2D coaddition.
 - Fixes a bug in :class:`~pypeit.bspline.bspline.bspline` which was not
   correctly setting ``xmin`` and ``xmax`` when using the ``x2`` option.
+- MMT/Binospec: flat/trace/illumflat frame typing now requires the
+  incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
+  ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.
