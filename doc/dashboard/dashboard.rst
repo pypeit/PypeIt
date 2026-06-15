@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.1.1**
+**Dashboard documentation version: 1.1.2**
 
 Overview
 ========
@@ -190,8 +190,12 @@ It contains:
     that regenerates the selected calibration by launching
     :ref:`pypeit-run-to-calibstep` for it (and any preceding steps it depends
     on).  Before it runs, a confirmation names the output file(s) it will
-    overwrite; it is disabled while any PypeIt run is in progress.  See
+    overwrite; it is disabled while any PypeIt run is in progress.  While the
+    (re)build runs, that step's button turns **orange** (running); when it
+    finishes the step stays selected so you see its new status.  See
     `(Re)building a calibration`_ below.
+  - **Output filename** — the step's output file is named in the panel (so it
+    is visible even for steps with no viewer, e.g. ``wv_calib``).
   - **QA files** — the related QA PNGs; double-click to open one full size.
   - **Per-slit/order table** — for ``slits`` / ``wv_calib`` / ``tilts`` /
     ``flats``, one row per slit/order with its status and metric.  For
@@ -216,8 +220,8 @@ status bar reports the launch and where the result appears (e.g. a Ginga window)
      - Output
      - Viewer
    * - ``bias`` / ``dark`` / ``arc`` / ``tiltimg``
-     - processed (intermediate) image
-     - ``pypeit_view_fits --inter`` (Ginga)
+     - processed calibration image
+     - ``ginga`` (opened directly)
    * - ``slits``
      - ``Edges_*``
      - ``pypeit_chk_edges`` (Ginga)

@@ -128,4 +128,6 @@ class DashboardMainWindow(QMainWindow):
             self.model.pypeit_file, redux_path=str(self.model.redux_dir))
         self.model = fresh
         self.status_view.set_model(fresh)
-        self.calibrations_view.set_model(fresh)
+        # refresh() (not set_model) so the rebuilt step stays selected
+        # (Round-2 #2).
+        self.calibrations_view.refresh(fresh)
