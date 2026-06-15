@@ -1685,11 +1685,16 @@ class Calibrations:
         Run full the full recipe of calibration steps.
         """
 
-        # State (use the safe_* wrappers so state I/O can never abort a run)
+        # State (use the safe_* wrappers so state I/O can never abort a run).
+        # A status-only pass is a *read* (e.g. the Dashboard deriving status on
+        # launch): it must not write the state file, or it would leave the
+        # last step marked 'running' / current_step set (Stage 5 R2, S5-Q12
+        # option A).  Only a real run persists state.
         if self.state is not None:
             self.state.current_det = self.det
             self.state.current_calibID = self.calib_ID
-            self.state.safe_write()
+            if not status_only:
+                self.state.safe_write()
 
         for step in self.steps:
             self.success = True
@@ -1704,15 +1709,28 @@ class Calibrations:
             # Run the step
             if self.state is not None:
                 self.state.safe_update_calib(step, self.calib_ID, self.det, 'status', 'running')
-                self.state.safe_write()
+                # Skip the 'running' write for a status-only read (S5-Q12 A);
+                # a real run writes it as the live-monitoring feed.
+                if not status_only:
+                    self.state.safe_write()
             getattr(self, f'get_{step}')(force=force)
 
             # Update state
             if self.state is not None:
                 if not self.success:
+                    # A step can be "not successful" two ways: a genuine build
+                    # failure (-> 'fail'), or — in reload/status-only mode — a
+                    # calibration that simply has not been built yet (its file
+                    # is missing; see _reload_or_remake).  The latter is
+                    # 'undone' (required-but-not-done in the Dashboard), not a
+                    # failure (Stage 5 R1 #1).
                     # NOTE: must match the BaseCalibState.status Literal
-                    # ('fail', not 'failed') or the file fails to reload
-                    self.state.safe_update_calib(step, self.calib_ID, self.det, 'status', 'fail')
+                    # ('fail'/'undone', not 'failed') or the file fails to
+                    # reload.
+                    missing_status = 'undone' if reload_only else 'fail'
+                    self.state.safe_update_calib(step, self.calib_ID,
+                                                 self.det, 'status',
+                                                 missing_status)
                 else:
                     # Run status method; metric collection is non-essential
                     # to the reduction, so never let it crash the run

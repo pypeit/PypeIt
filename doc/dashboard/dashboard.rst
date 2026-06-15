@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.2.0**
+**Dashboard documentation version: 1.2.1**
 
 Overview
 ========
@@ -62,10 +62,11 @@ Useful options:
 - standard PypeIt logging options (``-v``, ``--log_file``).
 
 On startup the dashboard derives the reduction **state**: if a
-``<root>_state.json`` file is present (written by ``run_pypeit``; see
-:doc:`/state`) it is loaded; otherwise the state is computed the way
-``pypeit_status`` does (no processing is performed).  Computing the state may
-briefly block the UI on launch.
+``<root>_state.json`` file is present (written by ``run_pypeit`` /
+``pypeit_run_to_calibstep``; see :doc:`/state`) it is loaded; otherwise the
+state is computed the way ``pypeit_status`` does (a read — no processing is
+performed and no state file is written).  Computing the state may briefly block
+the UI on launch.
 
 Layout and navigation
 =====================

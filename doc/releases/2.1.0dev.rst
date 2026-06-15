@@ -95,3 +95,16 @@ Bug Fixes
   mode to the :ref:`known_issues_coadd2d` documentation for 2D coaddition.
 - Fix an ``IndexError`` in ``pypeit_run_to_calibstep`` when run with
   ``--calib_group`` (the matched row was indexed as a scalar).
+- ``pypeit_run_to_calibstep`` now writes the reduction state file
+  (``*_state.json``): it passes the ``run_state`` to ``calib_one`` (so each step
+  is recorded as it runs) and refreshes the full state from disk on completion.
+  Previously the state was never updated, so status tools/the Dashboard showed
+  stale statuses after a (re)build.
+- The reduction-state derivation (``Calibrations.run_the_steps`` in reload/
+  status-only mode) now records a calibration whose output file is simply
+  missing as ``undone`` (not yet built) rather than ``fail``; ``fail`` is
+  reserved for genuine build failures.
+- A **status-only** state derivation (e.g. the Dashboard computing status on
+  launch) no longer **writes** ``*_state.json``: it is a read, so it no longer
+  leaves the last step marked ``running`` / overwrites an existing state file.
+  Only a real run persists state.

@@ -95,12 +95,26 @@ class RunToCalibStep(scriptbase.ScriptBase):
         calib_id = pypeIt.fitstbl.find_frame_calib_groups(row)[0]
 
         # Calibrations?
+        # Pass run_state so the reduction state file (*_state.json) is written
+        # as each step runs -- without it the state is never updated, so e.g.
+        # the PypeIt Dashboard would show stale statuses after a (re)build
+        # (and could not monitor the (re)build live).
         for det in detectors:
-            pypeit_steps.calib_one(pypeIt.spectrograph, pypeIt.fitstbl, pypeIt.par, det, calib_id, pypeIt.calibrations_path, stop_at_step=args.step)
-        
+            pypeit_steps.calib_one(pypeIt.spectrograph, pypeIt.fitstbl, pypeIt.par, det, calib_id, pypeIt.calibrations_path, stop_at_step=args.step, run_state=pypeIt.run_state)
+
         # QA HTML
         log.info('Generating QA HTML')
         pypeIt.build_qa()
+
+        # Refresh the *full* reduction state from disk and persist it.  The
+        # stop-at-step run above only visited steps up to args.step, so steps
+        # after it (and any in other calibration groups) would otherwise be left
+        # at their initial status even when their files exist on disk.  A
+        # status-only reload pass re-derives every step's status from the
+        # Calibrations/ outputs (present -> success, missing -> undone); since
+        # status_only does not auto-write per step, persist it explicitly.
+        pypeIt.calib_all(status_only=True, reload_only=True)
+        pypeIt.run_state.write()
 
         return 0
 
