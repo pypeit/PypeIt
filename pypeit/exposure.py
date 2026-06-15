@@ -14,7 +14,7 @@ from pypeit import spec2dobj
 from pypeit import calibrations
 
 from pypeit import pypeit_steps
-from pypeit import science_status
+from pypeit.state import science_status
 
 from IPython import embed
 

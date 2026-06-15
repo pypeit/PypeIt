@@ -38,7 +38,7 @@ class PypeItStatus(scriptbase.ScriptBase):
         from IPython import embed
 
         from pypeit import pypeit
-        from pypeit import science_status
+        from pypeit.state import science_status
         from pypeit import log
         from pypeit import PypeItError
 
