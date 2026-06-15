@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.1.2**
+**Dashboard documentation version: 1.1.3**
 
 Overview
 ========
@@ -190,10 +190,10 @@ It contains:
     that regenerates the selected calibration by launching
     :ref:`pypeit-run-to-calibstep` for it (and any preceding steps it depends
     on).  Before it runs, a confirmation names the output file(s) it will
-    overwrite; it is disabled while any PypeIt run is in progress.  While the
-    (re)build runs, that step's button turns **orange** (running); when it
-    finishes the step stays selected so you see its new status.  See
-    `(Re)building a calibration`_ below.
+    overwrite.  While any PypeIt run is in progress the button turns **orange**
+    and reads "⏳ Run in progress" and cannot be clicked (the lock's visual
+    cue); when the run finishes the rebuilt step stays selected so you see its
+    new status.  See `(Re)building a calibration`_ below.
   - **Output filename** — the step's output file is named in the panel (so it
     is visible even for steps with no viewer, e.g. ``wv_calib``).
   - **QA files** — the related QA PNGs; double-click to open one full size.
@@ -268,7 +268,8 @@ disk.  Two safeguards apply:
 - **Single-run lock.**  At most one PypeIt run may be active at a time.  While a
   run is in progress — whether you launched it from the dashboard *or* started
   ``run_pypeit`` / ``pypeit_run_to_calibstep`` in a terminal (detected by
-  watching the reduction ``.log``) — the **(Re)Build** control is disabled.
+  watching the reduction ``.log``) — the **(Re)Build** control turns orange,
+  reads "⏳ Run in progress", and is disabled.
 
 The run is reported in the status bar, and when it finishes the dashboard
 **re-reads the state** and re-colors the step buttons and tables to reflect the
