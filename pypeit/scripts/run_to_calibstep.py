@@ -81,16 +81,16 @@ class RunToCalibStep(scriptbase.ScriptBase):
 
         detectors = pypeIt.spectrograph.select_detectors(dets if pypeIt.par['rdx']['slitspatnum'] is None else dets)
 
-        # Find the row of the frame
+        # Find the row of the frame.  Both branches leave ``row`` as an array
+        # of matching indices, so the int(row[0]) below selects the first.
         if args.science_frame is not None:
             row = np.where(pypeIt.fitstbl['filename'] == args.science_frame)[0]
             if len(row) != 1:
                 raise PypeItError(f"Frame {args.science_frame} not found or not unique")
         elif args.calib_group is not None:
-            rows = np.where((pypeIt.fitstbl['calib'].data.astype(str) == args.calib_group))[0] 
-            if len(rows) == 0:
+            row = np.where((pypeIt.fitstbl['calib'].data.astype(str) == args.calib_group))[0]
+            if len(row) == 0:
                 raise PypeItError(f"Calibration group {args.calib_group} not found")
-            row = rows[0]
         row = int(row[0])
         calib_id = pypeIt.fitstbl.find_frame_calib_groups(row)[0]
 

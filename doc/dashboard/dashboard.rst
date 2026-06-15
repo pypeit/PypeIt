@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.0.1**
+**Dashboard documentation version: 1.1.0**
 
 Overview
 ========
@@ -165,9 +165,10 @@ lets the user inspect each calibration.
 .. figure:: /figures/dashboard_calibrations_view.png
    :width: 90%
 
-   The Calibrations view with ``wv_calib`` selected: the path-aware step-button
-   row (selected step ringed in magenta), the detail panel, and the per-slit
-   table.
+   The Calibrations view with ``flats`` selected: the path-aware step-button
+   row (selected step ringed in magenta), the detail panel with the "Inspect
+   output" and blue **(Re)Build** actions, the per-slit/order table (here with
+   per-correction columns and a skipped slit), and the grouped input-file list.
 
 It contains:
 
@@ -185,6 +186,12 @@ It contains:
   - **Inspect output** — launches the appropriate viewer for the step's
     processed output (see the table below).  Enabled only when the output file
     exists on disk.
+  - **(Re)Build** — a distinct **blue** action button (beside "Inspect output")
+    that regenerates the selected calibration by launching
+    :ref:`pypeit-run-to-calibstep` for it (and any preceding steps it depends
+    on).  Before it runs, a confirmation names the output file(s) it will
+    overwrite; it is disabled while any PypeIt run is in progress.  See
+    `(Re)building a calibration`_ below.
   - **QA files** — the related QA PNGs; double-click to open one full size.
   - **Per-slit/order table** — for ``slits`` / ``wv_calib`` / ``tilts`` /
     ``flats``, one row per slit/order with its status and metric.  For
@@ -236,6 +243,31 @@ for a proper view).  The status bar shows the exact command it runs, in quotes,
 so you can reproduce it from the command line.  See :doc:`/qa` and
 :doc:`/scripts` for more on the inspection tools.
 
+.. _dashboard-rebuild:
+
+(Re)building a calibration
+--------------------------
+
+The **(Re)Build** button (blue, in the detail panel) regenerates the selected
+calibration without leaving the dashboard.  It launches
+:ref:`pypeit-run-to-calibstep` for the selected step, which rebuilds that step
+**and any preceding steps it depends on**, reusing the calibrations already on
+disk.  Two safeguards apply:
+
+- **Clobber confirmation.**  Regenerating overwrites the step's existing
+  output.  Before launching, a dialog **names the exact file(s)** that will be
+  overwritten (for ``slits`` this is both the ``Slits_*`` and ``Edges_*``
+  files); only the selected step's output is removed — the preceding steps are
+  reused.  Cancelling does nothing.
+- **Single-run lock.**  At most one PypeIt run may be active at a time.  While a
+  run is in progress — whether you launched it from the dashboard *or* started
+  ``run_pypeit`` / ``pypeit_run_to_calibstep`` in a terminal (detected by
+  watching the reduction ``.log``) — the **(Re)Build** control is disabled.
+
+The run is reported in the status bar, and when it finishes the dashboard
+**re-reads the state** and re-colors the step buttons and tables to reflect the
+new outputs.
+
 Actions
 =======
 
@@ -256,6 +288,9 @@ Actions
      - Select the step and show its detail panel.
    * - **Inspect output**
      - Launch the step's viewer as a subprocess.
+   * - **(Re)Build**
+     - Regenerate the selected calibration via :ref:`pypeit-run-to-calibstep`
+       (with a clobber confirmation); disabled while a run is active.
    * - Input-file / QA entry (double-click)
      - View the raw frame (``pypeit_view_fits``) / open the QA PNG.
 
@@ -265,10 +300,9 @@ Not yet implemented
 The dashboard is built up in stages.  The following are planned but not part of
 this version:
 
-- **(Re)generating** a calibration from the dashboard (via
-  :ref:`pypeit-run-to-calibstep`), with a single-run lock and overwrite
-  protection.
-- **Live monitoring** that auto-updates while a reduction is running.
+- **Live monitoring** that auto-updates while a reduction is running (today the
+  state is re-read on **Refresh** and once a **(Re)Build** completes, not
+  continuously).
 - A populated **Science-frames** section (awaiting per-science-frame status in
   the state model).
 
