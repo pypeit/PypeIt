@@ -54,6 +54,7 @@ Instrument-specific Updates
   Wavelength solution uses ``method='full_template'`` against the
   shipped ``wvarxiv_p200_ngps_{u,g,r,i}_thar_central.fits``
   binspec=1 ThAr archives.  See :ref:`p200_ngps_doc`.
+- Added wavelength-calibration template for GRIS_1200R grating in VLT/FORS2
 - Added support for the SOAR/TripleSpec near-IR echelle spectrograph
   (``soar_tspec``), reduced via the Echelle pipeline over all five orders
   (orders 7--3, ~0.8--2.47 microns).  Wavelength calibration uses OH sky lines
