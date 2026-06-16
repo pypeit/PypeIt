@@ -45,6 +45,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    LDT DeVeny <deveny_howto>
    LDT RIMAS <rimas_howto>
    Shane Kast <kast_howto>
+   SOAR TripleSpec <soar_triplespec_howto>
    Subaru FOCAS <focas_howto>
 
 ----

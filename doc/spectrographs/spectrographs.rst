@@ -58,6 +58,7 @@ instrument-specific details for running PypeIt.
    p200_ngps
    shane_kast
    soar_goodman
+   soar_triplespec
    subaru_focas
    vlt_uves
    xshooter
