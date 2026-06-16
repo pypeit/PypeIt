@@ -360,6 +360,10 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI','HgI','CdI']
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1200B.fits'
                 par['calibrations']['wavelengths']['method'] = 'full_template'
+            case 'GRIS_1200R':
+                par['calibrations']['wavelengths']['lamps'] = ['HeI', 'HgI','NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1200R.fits'
+                par['calibrations']['wavelengths']['method'] = 'full_template'
             case 'GRIS_1400V':
                 par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','HgI','CdI']
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_1400V.fits'
