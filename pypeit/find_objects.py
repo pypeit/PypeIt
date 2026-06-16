@@ -237,8 +237,8 @@ class FindObjects:
             else:
                 tilt_flexure_shift = self.spat_flexure_shift
             log.info("Generating tilts image from fit in waveTilts")
-            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, self.slits_left, self.slits_right,
-                                                    spat_flexure=tilt_flexure_shift)
+            # TODO : I think this is the wrong spat flexure -- sort out before merging!!
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=tilt_flexure_shift)
         elif waveTilts is None and tilts is not None:
             log.info("Using user input tilts image")
             self.tilts = tilts

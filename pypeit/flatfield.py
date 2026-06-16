@@ -712,9 +712,8 @@ class FlatField:
             raise PypeItError("Wavelength calib or tilts are not available.  Cannot generate wavelength image.")
         else:
             spat_flexure = self.wavetilts.spat_flexure
-            left, right, msk = self.slits.select_edges(initial=True, spat_flexure=spat_flexure)
             slitmask = self.slits.slit_img(initial=True, spat_flexure=spat_flexure)
-            tilts = self.wavetilts.fit2tiltimg(slitmask, left, right, spat_flexure=spat_flexure)
+            tilts = self.wavetilts.fit2tiltimg(slitmask, spat_flexure=spat_flexure)
             # Save to class attribute for inclusion in the Flat calibration frame
             self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=spat_flexure)
 
@@ -1001,9 +1000,12 @@ class FlatField:
                 tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
             else:
                 _flexure = np.zeros(2) if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure[slit_idx,:]
+                # TODO :: relative_spat_flexure is set incorrectly here!
+                # TODO :: We have the WaveTilts, so we should just use that to avoid future issues.
                 _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(self.slits.left_init[:, slit_idx],
                                                                          self.slits.right_init[:, slit_idx],
-                                                                         onslit_init, _flexure)
+                                                                         onslit_init,
+                                                                         relative_spat_flexure=_flexure)
                 tilts = np.zeros(rawflat.shape, dtype=float)
                 tilts[onslit_init] = tracewave.fit2tilts(self.wavetilts['coeffs'][:,:,slit_idx],
                                                          self.wavetilts['func2d'],

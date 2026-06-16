@@ -155,9 +155,9 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         Array containing arc line centroids along the center of the slit for each arc line that will be traced. This is
         in pixels in image coordinates.
     lines_spat: `numpy.ndarray`_ float (nlines,)
-        Array contianing the spatial position of the center of the slit along which the arc was extracted. This is is in
+        Array containing the spatial position of the center of the slit along which the arc was extracted. This is in
         pixels in image coordinates.
-    thismask: `numpy.ndarray`_ boolean (nspec, nsapt)
+    thismask: `numpy.ndarray`_ boolean (nspec, nspat)
         Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
         The convention is: True = on the slit/order, False  = off the slit/order. This must be the same size as the arcimg.
     inmask: float `numpy.ndarray`_ default = None, optional
@@ -340,7 +340,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # Do iterative flux-weighted tracing and polynomial fitting to
         # refine these traces. This must also be done in a loop since
         # the sub image is different for every aperture, i.e. each
-        # aperature has its own image.
+        # aperture has its own image.
         tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, trace_results \
             = trace.fit_trace(sub_img, tilts_guess_now, spat_order,
                               bpm=np.logical_not(sub_inmask.astype(bool)),
@@ -453,6 +453,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # spat_fit_now = np.interp(spec_fit_now,spec_vec, slit_cen)
         # tilts_spec[:, iline] = np.full(nspat, spec_fit_now)
 
+        # spat_vec = np.arange(nspat)
         tilts_dspat[:, iline] = (spat_vec - lines_spat[iline])
         imask = tilts_mask[:, iline]
         try:
@@ -654,7 +655,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
                                 max_badpix_frac=max_badpix_frac, show_tracefits=show_tracefits)
 
 
-def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,
+def fit_tilts(trc_tilt_dict, thismask, slit_cen, slit_left, slit_right, spat_order=3, spec_order=4, maxdev=0.2,
               maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
               doqa=True, calib_key='test', slitord_id=0, show_QA=False, out_dir=None,
               minmax_extrap=(150.,1000.)):
@@ -664,7 +665,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     Parameters
     ----------
     trc_tilt_dict: dict
-        Diciontary containing tilt info
+        Dictionary containing tilt info
     slitord_id : int
         Slit ID, spatial; only used for QA
     all_tilts:
@@ -795,7 +796,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # JFH What I find confusing is that this last fit was actually what
     # Burles was doing on the raw tilts, so why was that failing?
     tilts_ivar1 = utils.calc_ivar((sigma[thismask_grow] / xnspecmin1) ** 2)
-    # JFH Something appers wrong in this fit for LRIS-red with a
+    # JFH Something appears wrong in this fit for LRIS-red with a
     # science frame as the tilt image. It appears to be rejecting too
     # much in this fit, which is just a simple inversion of the fit
     # above. Perhaps the noise and maxdev need to be cranked up. That
@@ -807,7 +808,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                    maxdev=10.0 / xnspecmin1, in_gpm=inmask, function=func2d,
                                    maxiter=20, minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0,
                                    use_mad=False, sticky=False)
-    # JFH changed above to use stick=False, to limit the amount of rejection
+    # JFH changed above to use sticky=False, to limit the amount of rejection
     irej = np.logical_not(pypeitFit.bool_gpm) & inmask
     log.info('Rejected {0}/{1} pixels in final inversion tilts image fit'.format(
         np.sum(irej), np.sum(inmask)))
@@ -858,22 +859,27 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # log.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
 
-def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, spat_flexure=None):
+def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, relative_spat_flexure=None):
     """
     Prepare the slit for the fit2tilts function
 
     Parameters
     ----------
     slit_left : `numpy.ndarray`_
-        Left slit edge
+        Left slit edge, including the spatial flexure of the tilts frame relative to the initial slit edges.
+        This should be the same left slit edge that was used initially to fit the tilts.
     slit_right : `numpy.ndarray`_
-        Right slit edge
+        Right slit edge, including the spatial flexure of the tilts frame relative to the initial slit edges.
+        This should be the same right slit edge that was used initially to fit the tilts.
     thismask_science : `numpy.ndarray`_
         Boolean mask for the science pixels in this slit (True = on slit)
-    spat_flexure : `numpy.ndarray`_, optional
+    relative_spat_flexure : `numpy.ndarray`_, optional
         Spatial flexure in pixels. This should be a two element array with the first element being the flexure at the
         left edge of the slit and the second element being the flexure at the right edge of the slit. If None, no
-        flexure is applied.
+        flexure is applied. NOTE : The coeff_out coefficients are evaluated at the tilts spat_flexure location, and
+        the tilts spat_flexure is the spatial flexure of the tilts relative to the initial slits. To prepare the
+        tilt coordinates for a frame other than the tilts frame, this variable must be the *relative* spatial
+        flexure between the frame of interest and the tilts frame.
 
     Returns
     -------
@@ -884,9 +890,9 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, spat_flexure=
     # Get the image shape
     img_shape = thismask_science.shape
     # Check the spatial flexure input
-    if spat_flexure is not None and len(spat_flexure) != 2:
+    if relative_spat_flexure is not None and len(relative_spat_flexure) != 2:
         log.error('Spatial flexure must be a two element array')
-    _spat_flexure = np.zeros(2) if spat_flexure is None else spat_flexure
+    _spat_flexure = np.zeros(2) if relative_spat_flexure is None else relative_spat_flexure
     # Check dimensions
     if len(slit_left) != len(slit_right):
         log.error('Slit left and right edges must have the same length')
@@ -902,6 +908,13 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, spat_flexure=
     _spec_eval = spec_img[thismask_science] / (nspec - 1)
     flex_coord = (spat_img - slit_left[:, None]) / (slit_right - slit_left)[:, None]
     # Linearly interpolate the spatial flexure over the slit coordinates
+    # Note that the spatial coordinate of the tilts is fit and evaluated over the interval 0-1
+    # (where 0 represents the left edge of the detector and 1 represents the right edge of the
+    # detector, even when there are multiple slits). Therefore, if the relative spatial flexure
+    # between the tilts frame and the frame being currently investigated is 0.0, the following
+    # line for spat_eval evaluates to spat_img, as expected. The spat_flexure and flex_coord
+    # terms linearly interpolate the *relative* spat_flexure between the tilts frame, and the
+    # frame (e.g. science) that you wish to infer the tilts for.
     spat_eval = spat_img + _spat_flexure[0] + flex_coord * (_spat_flexure[1] - _spat_flexure[0])
     _spat_eval = spat_eval[thismask_science] / (nspat - 1)
     return _spec_eval, _spat_eval
@@ -958,13 +971,11 @@ def fit2tilts(coeff2, func2d, shape=None, spec_eval=None, spat_eval=None):
         _spat_shift = 0.0
         # Set up the evaluation grid
         nspec, nspat = shape
-        xnspecmin1 = float(nspec - 1)
-        xnspatmin1 = float(nspat - 1)
         spec_vec = np.arange(nspec)
         spat_vec = np.arange(nspat) - _spat_shift
         spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
-        _spec_eval = spec_img / xnspecmin1
-        _spat_eval = spat_img / xnspatmin1
+        _spec_eval = spec_img / (nspec-1.0)
+        _spat_eval = spat_img / (nspat-1.0)
 
     # Compute the tilts image
     pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,

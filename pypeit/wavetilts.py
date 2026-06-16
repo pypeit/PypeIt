@@ -129,7 +129,7 @@ class WaveTilts(calibframe.CalibFrame):
             raise PypeItError('Your tilt solutions are out of sync with your slits.  Remove calibrations '
                        'and restart from scratch.')
 
-    def fit2tiltimg(self, slitmask, slits_left, slits_right, spat_flexure=None):
+    def fit2tiltimg(self, slitmask, spat_flexure=None, chk_version=True):
         """
         Generate a tilt image from the fit parameters
         Mainly to allow for spatial flexure
@@ -138,10 +138,6 @@ class WaveTilts(calibframe.CalibFrame):
             slitmask (`numpy.ndarray`_):
                 An image identifying the slit/order at each pixel.  Pixels
                 without a slit are marked with -1.
-            slits_left (`numpy.ndarray`_):
-                Left slit edges
-            slits_right (`numpy.ndarray`_):
-                Right slit edges
             spat_flexure (`numpy.ndarray`_, optional):
                 If provided, this is the shift, in spatial pixels, of the tilt
                 image onto the desired frame (typically a science image). The
@@ -150,14 +146,30 @@ class WaveTilts(calibframe.CalibFrame):
                 where the first column is the shift to apply to the
                 left edge of each slit and the second column is the
                 shift to apply to the right edge of each slit.
+            chk_version (:obj:`bool`, optional):
+                When reading in existing files written by PypeIt, perform strict
+                version checking to ensure a valid file.  If False, the code
+                will try to keep going, but this may lead to faults and quiet
+                failures.  User beware!
 
         Returns:
             `numpy.ndarray`_:  New tilt image
         """
         log.info("Generating a tilts image from the fit parameters")
 
-        # Check the optional inputs
-        _spat_flexure = np.zeros((slits_left.shape[1], 2)) if spat_flexure is None else spat_flexure
+        # Load the slits
+        cal_file = Path(self.calib_dir).absolute() / self.slits_filename
+        if cal_file.exists():
+            slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
+            _left, _right, _mask = slits.select_edges(initial=True, spat_flexure=self.spat_flexure)
+        else:
+            log.error(f'Slits file {str(cal_file)} not found.  Cannot generate tilts image.')
+
+        # Check the spatial flexure input
+        _spat_flexure = np.zeros((self.nslit, 2)) if spat_flexure is None else spat_flexure
+        if _spat_flexure.shape != (self.nslit, 2):
+            log.error(f'Input spat_flexure has shape {_spat_flexure.shape}, but should be '
+                      f'({self.nslit}, 2).  Cannot generate tilts image.')
 
         # Set up the output image
         final_tilts = np.zeros_like(slitmask).astype(float)
@@ -177,8 +189,8 @@ class WaveTilts(calibframe.CalibFrame):
             # between the current frame and the tilts. Therefore:
             rel_spat_flexure = _spat_flexure[slit_idx, :] - self.spat_flexure[slit_idx, :]
             # Prepare the evaluation coordinates
-            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left[:, slit_idx],
-                                                                     slits_right[:, slit_idx],
+            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(_left[:, slit_idx],
+                                                                     _right[:, slit_idx],
                                                                      thismask_science,
                                                                      relative_spat_flexure=rel_spat_flexure)
             # Calculate the tilts
@@ -264,7 +276,7 @@ class WaveTilts(calibframe.CalibFrame):
             wv_calib_name = wavecalib.WaveCalib.construct_file_name(self.calib_key, calib_dir=_calib_dir)
             if Path(wv_calib_name).absolute().exists():
                 wv_calib = wavecalib.WaveCalib.from_file(wv_calib_name, chk_version=chk_version)
-                tilts = self.fit2tiltimg(slitmask, _left, _right, spat_flexure=self.spat_flexure)
+                tilts = self.fit2tiltimg(slitmask, spat_flexure=self.spat_flexure)
                 waveimg = wv_calib.build_waveimg(tilts, slits, spat_flexure=self.spat_flexure)
             else:
                 log.warning('Could not load Wave image to show with tilts image.')

@@ -745,7 +745,7 @@ def extract_det(spectrograph, fitstbl, par,
         # get spat_flexure and tilts (same as in extract)
         _spat_flexure = 0. if sciImg.spat_flexure is None else sciImg.spat_flexure
         _tilts_spat_flexure = 0. if caliBrate.wavetilts.spat_flexure is None else caliBrate.wavetilts.spat_flexure
-        tilts = caliBrate.wavetilts.fit2tiltimg(slitmask, flexure=_tilts_spat_flexure)
+        tilts = caliBrate.wavetilts.fit2tiltimg(slitmask, flexure=_tilts_spat_flexure) # TODO : I think this is the wrong spat_flexure. sort out before merging!!!
         waveImg = caliBrate.wv_calib.build_waveimg(tilts, slits, spat_flexure=sciImg.spat_flexure, spec_flexure=slitshift)
 
     # Apply a reference frame correction to each object and the waveimg
