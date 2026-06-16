@@ -24,9 +24,13 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
-- Setup GUI now uses a standard button bar that can be moved. 
+- Setup GUI now uses a standard button bar that can be moved.
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
 - Increased default font size for Setup GUI.
+- Added an optional residual-CR path to L.A.Cosmic-based cosmic-ray
+  rejection, controlled by the new ``cr_median_width`` process
+  parameter.  Useful for line-rich frames with small tilts; see
+  :ref:`image_proc-cr` for details.
 
 Instrument-specific Updates
 ---------------------------
