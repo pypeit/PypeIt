@@ -73,8 +73,8 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["dec"] = dict(ext=0, card="DEC")
         self.meta["target"] = dict(ext=0, card="OBJNAME")
         self.meta["dispname"] = dict(card=None, compound=True)
-        self.meta["decker"] = dict(ext=0, card="FILTER4")  # SLIT filter wheel
-        self.meta["binning"] = dict(ext=0, card=None, default='1,1', compound=True)
+        self.meta["decker"] = dict(card="FILTER4", compound=True)  # SLIT filter wheel
+        self.meta["binning"] = dict(card=None, default='1,1', compound=True)
         self.meta["mjd"] = dict(card=None, compound=True)
         self.meta["airmass"] = dict(ext=0, card="SECZ")
         self.meta["exptime"] = dict(ext=0, card="EXPTIMEE")
@@ -109,6 +109,12 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             # Return FILTER1 (Filter Wheel Name FW YJ) for YJ frames and
             #   FILTER2 (Filter Wheel Name FW HK) for HK frames
             return headarr[0]["FILTER1" if headarr[0]["CAMNAME"] == "YJ" else "FILTER2"]
+        
+        if meta_key == "decker":
+            if headarr[0]["FILTER4"].strip() == "long":
+                return "1.2'' long"
+            else:
+                return headarr[0]["FILTER4"].strip()
 
         if meta_key == "idname":
             # Force uppercase to match other LDT instruments
@@ -137,6 +143,8 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 case "250 um":
                     return 2.5
                 case "1.2'' long":
+                    return 1.2
+                case "long": # For compatibility with the headers of older files.
                     return 1.2
                 case "0.6''":
                     return 0.6
@@ -1000,9 +1008,10 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             par["sensfunc"]["UVIS"]["resolution"] = 800
 
             par["reduce"]["findobj"]["find_fwhm"] = 7
-            par["reduce"]["findobj"]["snr_thresh"] = 10
+            par["reduce"]["findobj"]["snr_thresh"] = 20
 
             par["calibrations"]["wavelengths"]["lamps"] = ["300HK_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+            #par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
 
         else:
             pass
