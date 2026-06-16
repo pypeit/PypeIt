@@ -565,7 +565,6 @@ def reidentify(
     tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
         spec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks
     )
-    print(f'tcent: {tcent}')
     # If the detections were not passed in, use the ones detected from above
     if detections is None:
         detections = tcent[icut]
@@ -591,7 +590,6 @@ def reidentify(
             spec_arxiv[:, iarxiv], sigdetect=sigdetect, nonlinear_counts=nonlinear_counts,
             fwhm=fwhm, good_frac=0.5, fwhm_incr=1.1, max_good_iter=5, debug=debug_peaks
         )
-        print(f'tcent_arxiv: {tcent_arxiv}')
         # TODO: Dictionary keywords can be integers.  No need to convert it to a
         # string...
         det_arxiv1[str(iarxiv)] = tcent_arxiv[icut_arxiv]
@@ -632,13 +630,6 @@ def reidentify(
     stretch_vec = np.zeros(narxiv)
     stretch2_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
-
-    np.savez_compressed(
-        'test_xcorr_shift_stretch_new.npz', use_spec=use_spec, use_spec_arxiv=use_spec_arxiv,
-        sigdetect=sigdetect, lag_range=cc_shift_range, cc_thresh=cc_thresh, fwhm=fwhm,
-        percent_ceil=percent_ceil, max_lag_frac=max_lag_frac, stretch_func=stretch_func
-    )
-    exit()
 
     for iarxiv in range(narxiv):
         log.info(f'Cross-correlating with arxiv slit # {iarxiv+1}/{narxiv}')
@@ -1432,21 +1423,16 @@ def full_template(
                 stretch_func=par['stretch_func'],
                 debug_peaks=debug
             )
-            print(f'detections: {detections}')
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
                 sv_IDs.append(patt_dict['IDs'])
             except KeyError:
                 log.warning("Failed to perform wavelength calibration in reidentify..")
-                embed()
-                exit()
                 sv_IDs.append(np.zeros_like(detections))
             else:
                 # Save now in case the next one barfs
                 bdisp = patt_dict['bdisp']
-
-        exit()
 
         # Collate and proceed
         dets = np.concatenate(sv_det)
