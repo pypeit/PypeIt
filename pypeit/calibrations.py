@@ -1261,14 +1261,11 @@ class Calibrations:
         # wavelength calibration.  Create EchelleCalibrations and
         # EchelleBuildWaveCalib subclasses instead..
         log.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
-        embed(header='starting wave calib')
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], lamps, meta_dict=meta_dict,
                                              det=self.det, qa_path=self.qa_path)
         self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa),
                                       prev_wvcalib=self.wv_calib)
-        embed(header='done wave calib')
-        exit()
         # If orders were found, save slits to disk
         #   or if redo_slits
         if (self.par['wavelengths']['redo_slits'] is not None) or (
