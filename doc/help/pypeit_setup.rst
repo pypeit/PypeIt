@@ -1,30 +1,30 @@
 .. code-block:: console
 
     $ pypeit_setup -h
-    usage: pypeit_setup [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                        [--log_level LOG_LEVEL] [-s SPECTROGRAPH]
-                        [-r ROOT [ROOT ...]] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
-                        [-c CFG_SPLIT] [-b] [-f] [-m] [-k] [-p PARAM_BLOCK_FILE]
-                        [-G]
+    [1;34musage: [0m[1;35mpypeit_setup[0m [[32m-h[0m] [[32m-v [33mVERBOSITY[0m] [[36m--log_file [33mLOG_FILE[0m]
+                        [[36m--log_level [33mLOG_LEVEL[0m] [[32m-s [33mSPECTROGRAPH[0m]
+                        [[32m-r [33mROOT [ROOT ...][0m] [[32m-e [33mEXTENSION[0m] [[32m-d [33mOUTPUT_PATH[0m] [[32m-o[0m]
+                        [[32m-c [33mCFG_SPLIT[0m] [[32m-b[0m] [[32m-f[0m] [[32m-m[0m] [[32m-k[0m] [[32m-p [33mPARAM_BLOCK_FILE[0m]
+                        [[32m-G[0m]
     
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
     
-    options:
-      -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+    [1;34moptions:[0m
+      [1;32m-h[0m, [1;36m--help[0m            show this help message and exit
+      [1;32m-v[0m, [1;36m--verbosity[0m [1;33mVERBOSITY[0m
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
                             messages and the calling sequence. (default: 2)
-      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+      [1;36m--log_file[0m [1;33mLOG_FILE[0m   Name for the log file. If set to "default", a default
                             name is used. If None, a log file is not produced.
                             (default: default)
-      --log_level LOG_LEVEL
+      [1;36m--log_level[0m [1;33mLOG_LEVEL[0m
                             Verbosity level for the log file. If a log file is
                             produce and this is None, the file log will match the
                             console stream log. (default: None)
-      -s, --spectrograph SPECTROGRAPH
+      [1;32m-s[0m, [1;36m--spectrograph[0m [1;33mSPECTROGRAPH[0m
                             A valid spectrograph identifier: aat_uhrf, apf_levy,
                             bok_bc, gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
@@ -49,46 +49,46 @@
                             vlt_sinfoni, vlt_uves_blue, vlt_uves_red,
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red (default: None)
-      -r, --root ROOT [ROOT ...]
+      [1;32m-r[0m, [1;36m--root[0m [1;33mROOT [ROOT ...][0m
                             Root to search for data files. You can provide the top-
                             level directory (e.g., /data/Kast) or the search string
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
                             for. (default: current working directory)
-      -e, --extension EXTENSION
+      [1;32m-e[0m, [1;36m--extension[0m [1;33mEXTENSION[0m
                             File extension to use. Must include the period (e.g.,
                             ".fits") and it must be one of the allowed extensions
                             for this spectrograph. If None, root directory will be
                             searched for all files with any of the allowed
                             extensions. (default: None)
-      -d, --output_path OUTPUT_PATH
+      [1;32m-d[0m, [1;36m--output_path[0m [1;33mOUTPUT_PATH[0m
                             Path to top-level output directory. (default: current
                             working directory)
-      -o, --overwrite       Overwrite any existing files/directories (default:
+      [1;32m-o[0m, [1;36m--overwrite[0m       Overwrite any existing files/directories (default:
                             False)
-      -c, --cfg_split CFG_SPLIT
+      [1;32m-c[0m, [1;36m--cfg_split[0m [1;33mCFG_SPLIT[0m
                             Generate the PypeIt files and folders by input
                             configuration. To write all unique configurations
                             identifed, use 'all', otherwise provide the list of
                             configuration letters; e.g., 'A,B' or 'B,D,E' or 'E'.
                             (default: None)
-      -b, --background      Include the background-pair columns for the user to edit
+      [1;32m-b[0m, [1;36m--background[0m      Include the background-pair columns for the user to edit
                             (default: False)
-      -f, --flexure         Include the manual spatial shift (flexure) column for
+      [1;32m-f[0m, [1;36m--flexure[0m         Include the manual spatial shift (flexure) column for
                             the user to edit (default: False)
-      -m, --manual_extraction
+      [1;32m-m[0m, [1;36m--manual_extraction[0m
                             Include the manual extraction column for the user to
                             edit (default: False)
-      -k, --keep_bad_frames
+      [1;32m-k[0m, [1;36m--keep_bad_frames[0m
                             Keep all frames, even if they are identified as having
                             bad/unrecognized configurations that cannot be reduced
                             by pypeit. (This is the opposite of the --bad_frames
                             option in pypeit_obslog; i.e., you have to tell
                             pypeit_setup to keep these frames, whereas you have to
                             tell pypeit_obslog to remove them. (default: False)
-      -p, --param_block_file PARAM_BLOCK_FILE
+      [1;32m-p[0m, [1;36m--param_block_file[0m [1;33mPARAM_BLOCK_FILE[0m
                             File containing the additional PypeIt user parameters to
                             be added to the parameter block of the generated
                             reduction file (default: None)
-      -G, --gui             Run setup in a GUI (default: False)
+      [1;32m-G[0m, [1;36m--gui[0m             Run setup in a GUI (default: False)
     

@@ -1,33 +1,33 @@
 .. code-block:: console
 
     $ pypeit_tellfit -h
-    usage: pypeit_tellfit [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                          [--log_level LOG_LEVEL] [--objmodel {qso,star,poly}]
-                          [-r REDSHIFT] [-g TELL_GRID] [-p PCA_FILE] [-t TELL_FILE]
-                          [--debug] [--plot] [--par_outfile PAR_OUTFILE]
-                          [--chk_version]
-                          spec1dfile
+    [1;34musage: [0m[1;35mpypeit_tellfit[0m [[32m-h[0m] [[32m-v [33mVERBOSITY[0m] [[36m--log_file [33mLOG_FILE[0m]
+                          [[36m--log_level [33mLOG_LEVEL[0m] [[36m--objmodel [33m{qso,star,poly}[0m]
+                          [[32m-r [33mREDSHIFT[0m] [[32m-g [33mTELL_GRID[0m] [[32m-p [33mPCA_FILE[0m] [[32m-t [33mTELL_FILE[0m]
+                          [[36m--debug[0m] [[36m--plot[0m] [[36m--par_outfile [33mPAR_OUTFILE[0m]
+                          [[36m--chk_version[0m]
+                          [32mspec1dfile[0m
     
     Telluric correct a spectrum
     
-    positional arguments:
-      spec1dfile            spec1d or coadd file that will be used for telluric
+    [1;34mpositional arguments:[0m
+      [1;32mspec1dfile[0m            spec1d or coadd file that will be used for telluric
                             correction.
     
-    options:
-      -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+    [1;34moptions:[0m
+      [1;32m-h[0m, [1;36m--help[0m            show this help message and exit
+      [1;32m-v[0m, [1;36m--verbosity[0m [1;33mVERBOSITY[0m
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
                             messages and the calling sequence.
-      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+      [1;36m--log_file[0m [1;33mLOG_FILE[0m   Name for the log file. If set to "default", a default
                             name is used. If None, a log file is not produced.
-      --log_level LOG_LEVEL
+      [1;36m--log_level[0m [1;33mLOG_LEVEL[0m
                             Verbosity level for the log file. If a log file is
                             produce and this is None, the file log will match the
                             console stream log.
-      --objmodel {qso,star,poly}
+      [1;36m--objmodel[0m [1;33m{qso,star,poly}[0m
                             The object model to be used for telluric fitting.
                             Currently the options are: ``qso``, ``star``, and
                             ``poly``. For ``qso``, you might need to set
@@ -35,10 +35,10 @@
                             must set ``star_type``, ``star_ra``, ``star_dec``, and
                             ``star_mag``. For ``poly``, you might need to set
                             ``fit_wv_min_max`` and ``norder``.
-      -r, --redshift REDSHIFT
+      [1;32m-r[0m, [1;36m--redshift[0m [1;33mREDSHIFT[0m
                             The redshift for the object model. This is currently
                             only used by the QSO model.
-      -g, --tell_grid TELL_GRID
+      [1;32m-g[0m, [1;36m--tell_grid[0m [1;33mTELL_GRID[0m
                             File with the telluric model spectra to use. Generally,
                             these do not need to be set; reasonable defaults are
                             provided for each spectrograph. Due to their size, the
@@ -49,9 +49,9 @@
                             correct format), or it can be the name of the specific
                             cache file to use (e.g.,
                             TellPCA_3000_26000_R10000.fits).
-      -p, --pca_file PCA_FILE
+      [1;32m-p[0m, [1;36m--pca_file[0m [1;33mPCA_FILE[0m
                             qso_pca_1200_3100.fits
-      -t, --tell_file TELL_FILE
+      [1;32m-t[0m, [1;36m--tell_file[0m [1;33mTELL_FILE[0m
                             Configuration file to change default telluric
                             parameters.  The format is identical to any telluric
                             parameters in your pypeit file.  See the PypeIt
@@ -73,12 +73,12 @@
                                      polyorder = 3
                                      fit_wv_min_max = 9000.,9500.
                              
-      --debug               show debug plots?
-      --plot                Show the telluric corrected spectrum
-      --par_outfile PAR_OUTFILE
+      [1;36m--debug[0m               show debug plots?
+      [1;36m--plot[0m                Show the telluric corrected spectrum
+      [1;36m--par_outfile[0m [1;33mPAR_OUTFILE[0m
                             Name of output file to save the parameters used by the
                             fit
-      --chk_version         Ensure the datamodels are from the current PypeIt
+      [1;36m--chk_version[0m         Ensure the datamodels are from the current PypeIt
                             version. By default (consistent with previous
                             functionality) this is not enforced and crashes may
                             ensue ...

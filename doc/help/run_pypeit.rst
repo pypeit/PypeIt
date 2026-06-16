@@ -1,9 +1,9 @@
 .. code-block:: console
 
     $ run_pypeit -h
-    usage: run_pypeit [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                      [--log_level LOG_LEVEL] [-r REDUX_PATH] [-m] [-s] [-o] [-c]
-                      pypeit_file
+    [1;34musage: [0m[1;35mrun_pypeit[0m [[32m-h[0m] [[32m-v [33mVERBOSITY[0m] [[36m--log_file [33mLOG_FILE[0m]
+                      [[36m--log_level [33mLOG_LEVEL[0m] [[32m-r [33mREDUX_PATH[0m] [[32m-m[0m] [[32m-s[0m] [[32m-o[0m] [[32m-c[0m]
+                      [32mpypeit_file[0m
     
     PypeIt: The Python Spectroscopic Data Reduction Pipeline
     Version 2.0.2.dev420+gc9fb1e8f6.d20260611
@@ -28,32 +28,32 @@
         vlt_uves_blue, vlt_uves_red, vlt_xshooter_nir, vlt_xshooter_uvb,
         vlt_xshooter_vis, wht_isis_blue, wht_isis_red
     
-    positional arguments:
-      pypeit_file           PypeIt reduction file (must have .pypeit extension)
+    [1;34mpositional arguments:[0m
+      [1;32mpypeit_file[0m           PypeIt reduction file (must have .pypeit extension)
     
-    options:
-      -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+    [1;34moptions:[0m
+      [1;32m-h[0m, [1;36m--help[0m            show this help message and exit
+      [1;32m-v[0m, [1;36m--verbosity[0m [1;33mVERBOSITY[0m
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
                             messages and the calling sequence.
-      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+      [1;36m--log_file[0m [1;33mLOG_FILE[0m   Name for the log file. If set to "default", a default
                             name is used. If None, a log file is not produced.
-      --log_level LOG_LEVEL
+      [1;36m--log_level[0m [1;33mLOG_LEVEL[0m
                             Verbosity level for the log file. If a log file is
                             produce and this is None, the file log will match the
                             console stream log.
-      -r, --redux_path REDUX_PATH
+      [1;32m-r[0m, [1;36m--redux_path[0m [1;33mREDUX_PATH[0m
                             Path to directory for the reduction. Only advised for
                             testing
-      -m, --do_not_reuse_calibs
+      [1;32m-m[0m, [1;36m--do_not_reuse_calibs[0m
                             Do not load previously generated calibrations, even ones
                             made during the run.
-      -s, --show            Show reduction steps via plots (which will block further
+      [1;32m-s[0m, [1;36m--show[0m            Show reduction steps via plots (which will block further
                             execution until clicked on) and outputs to ginga.
                             Requires remote control ginga session via "ginga
                             --modules=RC,SlitWavelength &"
-      -o, --overwrite       Overwrite any existing files/directories
-      -c, --calib_only      Only run on calibrations
+      [1;32m-o[0m, [1;36m--overwrite[0m       Overwrite any existing files/directories
+      [1;32m-c[0m, [1;36m--calib_only[0m      Only run on calibrations
     

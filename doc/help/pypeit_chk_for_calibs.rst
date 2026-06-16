@@ -1,31 +1,31 @@
 .. code-block:: console
 
     $ pypeit_chk_for_calibs -h
-    usage: pypeit_chk_for_calibs [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                                 [--log_level LOG_LEVEL] [-s SPECTROGRAPH]
-                                 [-e EXTENSION] [--save_setups]
-                                 root
+    [1;34musage: [0m[1;35mpypeit_chk_for_calibs[0m [[32m-h[0m] [[32m-v [33mVERBOSITY[0m] [[36m--log_file [33mLOG_FILE[0m]
+                                 [[36m--log_level [33mLOG_LEVEL[0m] [[32m-s [33mSPECTROGRAPH[0m]
+                                 [[32m-e [33mEXTENSION[0m] [[36m--save_setups[0m]
+                                 [32mroot[0m
     
     Script to check for calibrations
     
-    positional arguments:
-      root                  File path+root, e.g. /data/Kast/b
+    [1;34mpositional arguments:[0m
+      [1;32mroot[0m                  File path+root, e.g. /data/Kast/b
     
-    options:
-      -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+    [1;34moptions:[0m
+      [1;32m-h[0m, [1;36m--help[0m            show this help message and exit
+      [1;32m-v[0m, [1;36m--verbosity[0m [1;33mVERBOSITY[0m
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
                             messages and the calling sequence. (default: 2)
-      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+      [1;36m--log_file[0m [1;33mLOG_FILE[0m   Name for the log file. If set to "default", a default
                             name is used. If None, a log file is not produced.
                             (default: None)
-      --log_level LOG_LEVEL
+      [1;36m--log_level[0m [1;33mLOG_LEVEL[0m
                             Verbosity level for the log file. If a log file is
                             produce and this is None, the file log will match the
                             console stream log. (default: None)
-      -s, --spectrograph SPECTROGRAPH
+      [1;32m-s[0m, [1;36m--spectrograph[0m [1;33mSPECTROGRAPH[0m
                             A valid spectrograph identifier: aat_uhrf, apf_levy,
                             bok_bc, gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
@@ -50,12 +50,12 @@
                             vlt_sinfoni, vlt_uves_blue, vlt_uves_red,
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red (default: None)
-      -e, --extension EXTENSION
+      [1;32m-e[0m, [1;36m--extension[0m [1;33mEXTENSION[0m
                             File extension to use. Must include the period (e.g.,
                             ".fits") and it must be one of the allowed extensions
                             for this spectrograph. If None, root directory will be
                             searched for all files with any of the allowed
                             extensions. (default: None)
-      --save_setups         If not toggled, remove setup_files/ folder and its
+      [1;36m--save_setups[0m         If not toggled, remove setup_files/ folder and its
                             files. (default: False)
     

@@ -1,17 +1,17 @@
 .. code-block:: console
 
     $ pypeit_view_fits -h
-    usage: pypeit_view_fits [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                            [--log_level LOG_LEVEL] [--list] [--proc]
-                            [--bkg_file BKG_FILE] [--inter] [--exten EXTEN]
-                            [--det [DET ...]] [--chname CHNAME] [--showmask]
-                            [--embed]
-                            spectrograph file
+    [1;34musage: [0m[1;35mpypeit_view_fits[0m [[32m-h[0m] [[32m-v [33mVERBOSITY[0m] [[36m--log_file [33mLOG_FILE[0m]
+                            [[36m--log_level [33mLOG_LEVEL[0m] [[36m--list[0m] [[36m--proc[0m]
+                            [[36m--bkg_file [33mBKG_FILE[0m] [[36m--inter[0m] [[36m--exten [33mEXTEN[0m]
+                            [[36m--det [33m[DET ...][0m] [[36m--chname [33mCHNAME[0m] [[36m--showmask[0m]
+                            [[36m--embed[0m]
+                            [32mspectrograph[0m [32mfile[0m
     
     View FITS files with ginga
     
-    positional arguments:
-      spectrograph          A valid spectrograph identifier: aat_uhrf, apf_levy,
+    [1;34mpositional arguments:[0m
+      [1;32mspectrograph[0m          A valid spectrograph identifier: aat_uhrf, apf_levy,
                             bok_bc, gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
@@ -35,41 +35,41 @@
                             vlt_sinfoni, vlt_uves_blue, vlt_uves_red,
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
-      file                  FITS file. Either a Raw file or an Intermediate PypeIt
+      [1;32mfile[0m                  FITS file. Either a Raw file or an Intermediate PypeIt
                             file
     
-    options:
-      -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+    [1;34moptions:[0m
+      [1;32m-h[0m, [1;36m--help[0m            show this help message and exit
+      [1;32m-v[0m, [1;36m--verbosity[0m [1;33mVERBOSITY[0m
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
                             messages and the calling sequence. (default: 2)
-      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+      [1;36m--log_file[0m [1;33mLOG_FILE[0m   Name for the log file. If set to "default", a default
                             name is used. If None, a log file is not produced.
                             (default: None)
-      --log_level LOG_LEVEL
+      [1;36m--log_level[0m [1;33mLOG_LEVEL[0m
                             Verbosity level for the log file. If a log file is
                             produce and this is None, the file log will match the
                             console stream log. (default: None)
-      --list                List the extensions only? (default: False)
-      --proc                Process the image (i.e. orient, overscan subtract,
+      [1;36m--list[0m                List the extensions only? (default: False)
+      [1;36m--proc[0m                Process the image (i.e. orient, overscan subtract,
                             multiply by gain) using pypeit.images.buildimage.
                             (default: False)
-      --bkg_file BKG_FILE   FITS file to be subtracted from the image in file.--proc
+      [1;36m--bkg_file[0m [1;33mBKG_FILE[0m   FITS file to be subtracted from the image in file.--proc
                             must be set in order for this option to work. (default:
                             None)
-      --inter               Input file is an Intermediate SciImage file (default:
+      [1;36m--inter[0m               Input file is an Intermediate SciImage file (default:
                             False)
-      --exten EXTEN         Show a FITS extension in the raw file. Note --proc and
+      [1;36m--exten[0m [1;33mEXTEN[0m         Show a FITS extension in the raw file. Note --proc and
                             --mosaic will not work with this option. (default: None)
-      --det [DET ...]       Detector(s) to show. If more than one, the list of
+      [1;36m--det[0m [1;33m[DET ...][0m       Detector(s) to show. If more than one, the list of
                             detectors, i.e. --det 4 8 to show detectors 4 and 8.
                             This combination must be one of the allowed mosaics
                             hard-coded for the selected spectrograph. Using "mosaic"
                             for gemini_gmos, keck_deimos, or keck_lris will show the
                             mosaic of all detectors. (default: 1)
-      --chname CHNAME       Name of Ginga tab (default: Image)
-      --showmask            Overplot masked pixels (default: False)
-      --embed               Upon completion embed in ipython shell (default: False)
+      [1;36m--chname[0m [1;33mCHNAME[0m       Name of Ginga tab (default: Image)
+      [1;36m--showmask[0m            Overplot masked pixels (default: False)
+      [1;36m--embed[0m               Upon completion embed in ipython shell (default: False)
     
