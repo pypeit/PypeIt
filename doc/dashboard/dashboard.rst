@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.3.8**
+**Dashboard documentation version: 1.3.9**
 
 .. warning::
 
@@ -68,7 +68,9 @@ Layout and navigation
 
 Every view shares a **header banner** (top) showing the ``.pypeit`` file, the
 spectrograph, the setup/configuration ID, the pipeline (MultiSlit / Echelle /
-IFU), and the reduction directory, with the PypeIt logo in the top-right corner.
+IFU), and the reduction directory, with the PypeIt logo — and the **Dashboard
+version number** beneath it — in the top-right corner.  (The version is the
+"Dashboard documentation version" noted at the top of this page.)
 A **tab bar** selects between the three views (Status, Calibrations, Science),
 and a **status bar** at the bottom
 reports what the dashboard is doing.  It has two channels: **Build** (left —
