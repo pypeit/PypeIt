@@ -33,13 +33,18 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    :caption: Instrument-specific Tutorials
    :maxdepth: 1
 
+   APF Levy <apf_howto>
    Gemini GNIRS <gnirs_howto>
    Keck DEIMOS <deimos_howto>
+   Keck HIRES <hires_howto>
    Keck LRIS <lris_howto>
    Keck MOSFIRE <mosfire_howto>
    Keck NIRES <nires_howto>
    Keck NIRSPEC <nirspec_high_howto>
+   LBT MODS <mods_howto>
+   LDT DeVeny <deveny_howto>
    Shane Kast <kast_howto>
+   Subaru FOCAS <focas_howto>
 
 ----
 
@@ -48,6 +53,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    :maxdepth: 1
 
    2D Coadds <coadd2d_howto>
+   Setup GUI <setup_gui>
 
 
 

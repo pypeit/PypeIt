@@ -4,19 +4,7 @@ Script to measure and correct for flexure in multi-slit data.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-
-from IPython import embed
-
-import numpy as np
-
-from pypeit import msgs
-from pypeit import inputfiles
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.par import pypeitpar
-from pypeit.core import flexure
 from pypeit.scripts import scriptbase
-
 
 # TODO: Maybe not a good idea to name this script the same as the
 # flexure.MultiSlitFlexure class, but it is technically okay...
@@ -45,17 +33,27 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
                             action="store_true", help="show debug plots?")
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         from astropy.io import fits
+        from IPython import embed
+
+        from pypeit import log
+        from pypeit import inputfiles
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.par import pypeitpar
+        from pypeit import multislit_flexure
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Load the file
         flexFile = inputfiles.FlexureFile.from_file(args.flex_file)
 
         # Read in spectrograph from spec1dfile header
         header = fits.getheader(flexFile.filenames[0])
-        spectrograph = load_spectrograph(header['PYP_SPEC'])
+        spectrograph = load_spectrograph(header['PYP_SPEC'], pypeit_fits=True)
 
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
@@ -66,32 +64,32 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
         # Loop to my loop
         for filename in flexFile.filenames:
             # Instantiate
-            mdFlex = flexure.MultiSlitFlexure(s1dfile=filename)
+            mdFlex = multislit_flexure.MultiSlitFlexure(s1dfile=filename)
             # Initalize 
-            msgs.info("Setup")
+            log.info("Setup")
             mdFlex.init(spectrograph, par['flexure'])
 
             # INITIAL SKY LINE STUFF
-            msgs.info("Measuring sky lines")
+            log.info("Measuring sky lines")
             mdFlex.measure_sky_lines()
 
             # FIT SURFACES
-            msgs.info("Fitting the surface")
+            log.info("Fitting the surface")
             mdFlex.fit_mask_surfaces()
 
             # Apply
-            msgs.info("Applying flexure correction")
+            log.info("Applying flexure correction")
             mdFlex.update_fit()
 
             # REFIT FOR QA PLOTS
-            msgs.info("Generate QA")
+            log.info("Generate QA")
             mask = header['TARGET'].strip()
             fnames = header['FILENAME'].split('.')
             root = mask+'_'+fnames[2]
             mdFlex.qa_plots('./', root)
 
             # Write
-            msgs.info("Write to disk")
+            log.info("Write to disk")
             mdFlex.to_file(args.outroot+root+'.fits', overwrite=args.clobber)
 
             # Apply??

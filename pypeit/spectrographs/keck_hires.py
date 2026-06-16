@@ -3,26 +3,26 @@ Module for Keck/HIRES
 
 .. include:: ../include/links.rst
 """
-import os
+from pathlib import Path
 
 from IPython import embed
 
-
-
 import numpy as np
-from scipy.io import readsav
 
+from astropy.io import fits
 from astropy.table import Table
-from astropy import time
+from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import standard
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from pypeit.par import pypeitpar
+from pypeit.par import parset
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
 
@@ -92,6 +92,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # or use the overscan for standards but not for science frames
 
         # Set the default exposure time ranges for the frame typing
+        # HIRES cannot write out files with exp time < .5s, .001 for biases is arbitrary
+        # If this value is changed, change the check in compound_meta for idname too   
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
@@ -114,6 +116,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['max_nudge'] = 0.
         par['calibrations']['slitedges']['overlap'] = True
         par['calibrations']['slitedges']['dlength_range'] = 0.25
+        par['calibrations']['slitedges']['mask_off_detector'] = True
 
         par['calibrations']['slitedges']['add_missed_orders'] = True
         par['calibrations']['slitedges']['order_width_poly'] = 2
@@ -162,10 +165,17 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # number of objects
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is max two object in each order.
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
+        # Extraction parameters
+        par['reduce']['extraction']['min_frac_prof'] = 0.9  # deals well with masked orders in chip gaps
 
         # Sensitivity function parameters
+        par['sensfunc']['trim_std_pixs'] = [4, 40]  # Trim each side of the standard star spectrum
+        par['sensfunc']['mask_hydrogen_lines'] = False
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 5 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['polyorder'] = 7
+        par['sensfunc']['extrap_blu'] = 0.01
+        par['sensfunc']['extrap_red'] = 0.01
+        par['fluxcalib']['extrap_sens'] = True
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_10500_R120000.fits'
         par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0,40.0)
         
@@ -180,15 +190,20 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -197,11 +212,13 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        headarr = self.get_headarr(scifile)
+        # Adjust parameters based on binning
+        binning = self.get_meta_value(inp, 'binning')
 
-        bin_spec, bin_spat = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
+        bin_spec, bin_spat = parse.parse_binning(binning)
 
         # slit edges
         # NOTE: With add_missed_orders set to True and order_spat_range set to the
@@ -239,7 +256,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
         self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
-        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
+        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2, atol=1e-1)
         self.meta['object'] = dict(ext=0, card='OBJECT')
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
@@ -268,7 +285,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             if headarr[0].get('MJD', None) is not None:
                 return headarr[0]['MJD']
             else:
-                return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
+                return Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
         elif meta_key == 'lampstat01':
             if headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2'):
                 return 'ThAr1' if headarr[0].get('LAMPCAT1') else 'ThAr2'
@@ -290,7 +307,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
                     return 'Object'
                 elif not headarr[0].get('HATOPEN'):
-                    return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
+                    # Note that the check below ignores the bias exprng set in the
+                    # default pypeit par because that information is not available here
+                    return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
             elif xcovopen and collcoveropen and \
                     headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
                 return 'Line'
@@ -304,7 +323,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                     return 'IntFlat'
 
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -393,8 +412,17 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
+        # std
+        if ftype == 'standard':
+            std = np.zeros(len(fitstbl), dtype=bool)
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                std = np.array([
+                    standard.get_archive_standard(ra, dec, tol=10., check=True)
+                    if ra is not None and dec is not None and not np.isnan(ra) and not np.isnan(dec)
+                    else False for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+            return good_exp & (fitstbl['idname'] == 'Object') & std
         # 'science' category
-        if ftype in ['science', 'standard']:
+        if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
@@ -409,7 +437,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             # Arc and tilt frames are typed together
             return good_exp & (fitstbl['idname'] == 'Line')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def vet_assigned_ftypes(self, type_bits, fitstbl):
@@ -491,11 +519,11 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         if ftype == 'slitless_pixflat':
             # Check for the required info
             if len(fitstbl) == 0:
-                msgs.warn('Fitstbl provided is emtpy. No parsing done.')
+                log.warning('Fitstbl provided is emtpy. No parsing done.')
                 # return empty array
                 return np.array([], dtype=int)
             elif det is None:
-                msgs.warn('Detector number must be provided to parse slitless_pixflat frames.  No parsing done.')
+                log.warning('Detector number must be provided to parse slitless_pixflat frames.  No parsing done.')
                 # return index array of length of fitstbl
                 return np.arange(len(fitstbl))
 
@@ -516,7 +544,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                     # red detector
                     return np.where(np.int32(fitstbl['xdangle'].value) == -5)[0]
             else:
-                msgs.warn('The provided list of slitless_pixflat frames does not have exactly 3 unique XDANGLE values. '
+                log.warning('The provided list of slitless_pixflat frames does not have exactly 3 unique XDANGLE values. '
                           'Pypeit cannot determine which slitless_pixflat frame corresponds to the requested detector. '
                           'All frames will be used.')
                 return np.arange(len(fitstbl))
@@ -562,8 +590,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
 
         # Check for file; allow for extra .gz, etc. suffix
-        if not os.path.isfile(raw_file):
-            msgs.error(f'{raw_file} not found!')
+        if not Path(raw_file).is_file():
+            raise PypeItError(f'{raw_file} not found!')
         hdu = io.fits_open(raw_file)
 
         head0 = hdu[0].header
@@ -582,7 +610,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 #        # TODO: JFH I think this works fine
 #        if binning != '3,1':
-#            msgs.warn("This binning for HIRES might not work.  But it might..")
+#            log.warning("This binning for HIRES might not work.  But it might..")
 
         # We are flipping this because HIRES stores the binning oppostire of the (binspec, binspat) pypeit convention.
         binspatial, binspec = parse.parse_binning(head0['BINNING'])
@@ -678,7 +706,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
         # Binning *must* be consistent for all detectors
         if any(d.binning != detectors[0].binning for d in detectors[1:]):
-            msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+            raise PypeItError('Binning is somehow inconsistent between detectors in the mosaic!')
 
         # Collect the offsets and rotations for *all unbinned* detectors in the
         # full instrument, ordered by the number of the detector.  Detector
@@ -795,7 +823,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             detector_dict2['gain'] = np.atleast_1d([0.86])
             detector_dict3['gain'] = np.atleast_1d([0.84])
         else:
-            msgs.error("Bad CCDGAIN mode for HIRES")
+            raise PypeItError("Bad CCDGAIN mode for HIRES")
             
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2, detector_dict3]
@@ -812,7 +840,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         composite_arc_file = 'keck_hires_composite_arc.fits'
 
         return [angle_fits_file, composite_arc_file]
-        
 
     def order_platescale(self, order_vec, binning=None):
         """

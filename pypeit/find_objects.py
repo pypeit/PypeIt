@@ -14,7 +14,8 @@ from astropy import stats
 from abc import ABCMeta
 
 from pypeit import specobjs
-from pypeit import msgs, utils
+from pypeit import log, utils
+from pypeit import PypeItError
 from pypeit.display import display
 from pypeit.core import skysub, qa, parse, flat, flexure
 from pypeit.core import procimg
@@ -98,6 +99,7 @@ class FindObjects:
             WaveImage image generated on-the-spot
         slitshift (`numpy.ndarray`_):
             Global spectral flexure correction for each slit (in pixels)
+            Currently only used with the IFU
         vel_corr (:obj:`float`):
             Relativistic reference frame velocity correction (e.g. heliocentyric/barycentric/topocentric)
 
@@ -159,7 +161,7 @@ class FindObjects:
             self.spat_flexure_shift = None
 
         # Initialise the slits
-        msgs.info("Initializing slits")
+        log.info("Initializing slits")
         self.initialize_slits(slits)
 
         # Internal bpm mask
@@ -176,7 +178,7 @@ class FindObjects:
         # make sure any of the `exclude_for_reducing` flags are not on.  This
         # previous code may also have included slits that were flagged as
         # SHORTSLIT.  Was that on purpose?
-#        self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
+#        self.reduce_bpm = (self.slits.mask > 2) & (np.logical_not(self.slits.bitmask.flagged(
 #                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
@@ -214,9 +216,9 @@ class FindObjects:
 
         # Deal with dynamically generated calibrations, i.e. the tilts.
         if waveTilts is None and tilts is None:
-            msgs.error("Must provide either waveTilts or tilts to FindObjects")
+            raise PypeItError("Must provide either waveTilts or tilts to FindObjects")
         elif waveTilts is not None and tilts is not None:
-            msgs.error("Cannot provide both waveTilts and tilts to FindObjects")
+            raise PypeItError("Cannot provide both waveTilts and tilts to FindObjects")
         elif waveTilts is not None and tilts is None:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
@@ -227,10 +229,10 @@ class FindObjects:
                 tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
             else:
                 tilt_flexure_shift = self.spat_flexure_shift
-            msgs.info("Generating tilts image from fit in waveTilts")
+            log.info("Generating tilts image from fit in waveTilts")
             self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
         elif waveTilts is None and tilts is not None:
-            msgs.info("Using user input tilts image")
+            log.info("Using user input tilts image")
             self.tilts = tilts
 
         # Show?
@@ -263,7 +265,7 @@ class FindObjects:
         gdslits = np.where(np.logical_not(self.reduce_bpm))[0]
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
-            msgs.info(f'Generating skymask for slit # {slit_spat}')
+            log.info(f'Generating skymask for slit # {slit_spat}')
             thismask = self.slitmask == slit_spat
             this_sobjs = sobjs_obj.SLITID == slit_spat
             # Boxcar mask?
@@ -301,7 +303,7 @@ class FindObjects:
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
         #bpm = self.slits.mask.astype(bool)
-        #bpm &= np.invert(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing + ['BOXSLIT']))
+        #bpm &= np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing + ['BOXSLIT']))
         #gpm = np.logical_not(bpm)
         #self.slits_left = slits_left[:, gpm]
         #self.slits_right = slits_right[:, gpm]
@@ -347,7 +349,7 @@ class FindObjects:
 
         # If the skip_skysub is set (i.e. image is already sky-subtracted), simply find objects
         if self.par['reduce']['findobj']['skip_skysub']:
-            msgs.info("Skipping global sky sub as per user request")
+            log.info("Skipping global sky sub as per user request")
             sobjs_obj, self.nobj = self.find_objects(self.sciImg.image, self.sciImg.ivar,
                                                      std_trace=std_trace, show=self.findobj_show,
                                                      show_peaks=show_peaks)
@@ -368,7 +370,7 @@ class FindObjects:
         if self.nobj == 0 or self.initial_skymask is not None:
             # Either no objects were found, or the initial sky mask was provided by the user.
             # Either way, don't don't redo global sky subtraction
-            msgs.info('Either no objects were found or a user-provided sky mask was used.  '
+            log.info('Either no objects were found or a user-provided sky mask was used.  '
                       'Skipping second pass of sky-subtraction and object finding.')
             return initial_sky0, sobjs_obj
 
@@ -385,7 +387,7 @@ class FindObjects:
                                                      self.sciImg.ivar, std_trace=std_trace,
                                                      show=self.findobj_show, show_peaks=show_peaks)
         else:
-            msgs.info("Skipping 2nd run of finding objects")
+            log.info("Skipping 2nd run of finding objects")
         # TODO I think the final global should go here as well from the pypeit.py class lines 837
         return initial_sky, sobjs_obj
 
@@ -448,7 +450,7 @@ class FindObjects:
 
         # Find negative objects
         if self.find_negative:
-            msgs.info("Finding objects in the negative image")
+            log.info("Finding objects in the negative image")
             # Parses
             manual_extract_dict = self.manual.dict_for_objfind(self.detname, neg=True) if self.manual is not None else None
             sobjs_obj_single_neg, nobj_single_neg = \
@@ -550,7 +552,7 @@ class FindObjects:
             sigrej = 7.0
             update_crmask = False
             if not self.par['reduce']['skysub']['global_sky_std']:
-                msgs.info('Skipping global sky-subtraction for standard star.')
+                log.info('Skipping global sky-subtraction for standard star.')
                 return global_sky
         else:
             sigrej = 3.0
@@ -578,12 +580,12 @@ class FindObjects:
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
-            msgs.info("Global sky subtraction for slit: {:d}".format(slit_spat))
+            log.info("Global sky subtraction for slit: {:d}".format(slit_spat))
             thismask = self.slitmask == slit_spat
             inmask = self.sciImg.select_flag(invert=True) & thismask & skymask_now
             # All masked?
             if not np.any(inmask):
-                msgs.warn("No pixels for fitting sky.  If you are using mask_by_boxcar=True, your radius may be too large.")
+                log.warning("No pixels for fitting sky.  If you are using mask_by_boxcar=True, your radius may be too large.")
                 self.reduce_bpm[slit_idx] = True
                 continue
 
@@ -602,7 +604,7 @@ class FindObjects:
 
             # Mask if something went wrong
             if np.sum(global_sky[thismask]) == 0.:
-                msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_spat))
+                log.warning("Bad fit to sky.  Rejecting slit: {:d}".format(slit_spat))
                 self.reduce_bpm[slit_idx] = True
 
         if update_crmask and self.par['scienceframe']['process']['mask_cr']:
@@ -669,7 +671,7 @@ class FindObjects:
             ch_name = chname if chname is not None else 'image'
             viewer, ch = display.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
         else:
-            msgs.warn("Not an option for show")
+            log.warning("Not an option for show")
 
         if sobjs is not None:
             for spec in sobjs:
@@ -690,6 +692,19 @@ class FindObjects:
         txt += '>'
         return txt
 
+    def get_findobj_qa_filename(self, slit:int, neg:bool, save_objfindQA:bool) -> str:
+        # Set objfind QA filename
+        objfindQA_filename = None
+        if save_objfindQA and (self.basename is not None):
+            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+            if self.find_negative:
+                basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
+            else:
+                basename = self.basename
+            objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit,
+                                                    det=self.detname, out_dir=out_dir)
+
+        return objfindQA_filename
 
 class MultiSlitFindObjects(FindObjects):
     """
@@ -761,7 +776,7 @@ class MultiSlitFindObjects(FindObjects):
         nobj : :obj:`int`
             Number of objects identified
         """
-        gdslits = np.where(np.invert(self.reduce_bpm))[0]
+        gdslits = np.where(np.logical_not(self.reduce_bpm))[0]
 
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
@@ -770,7 +785,7 @@ class MultiSlitFindObjects(FindObjects):
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
             qa_title ="Finding objects on slit # {:d}".format(slit_spat)
-            msgs.info(qa_title)
+            log.info(qa_title)
             thismask = self.slitmask == slit_spat
             inmask = self.sciImg.select_flag(invert=True) & thismask
             specobj_dict = {'SLITID': slit_spat,
@@ -786,21 +801,20 @@ class MultiSlitFindObjects(FindObjects):
             else:
                 snr_thresh = self.par['reduce']['findobj']['snr_thresh']
 
-            # Set objfind QA filename
-            objfindQA_filename = None
-            if save_objfindQA and (self.basename is not None):
-                out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
-                if self.find_negative:
-                    basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
-                else:
-                    basename = self.basename
-                objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit_spat,
-                                                        det=self.detname, out_dir=out_dir)
+            objfindQA_filename = self.get_findobj_qa_filename(slit_spat, neg, save_objfindQA)
 
             maxnumber =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
                 else self.par['reduce']['findobj']['maxnumber_sci']
             # standard star
             std_in = std_trace[0]['TRACE_SPAT'] if std_trace is not None else None
+
+            # set the find_min_max and trace_min_max parameters
+            find_minmax = [self.slits.specmin[slit_idx], self.slits.specmax[slit_idx]] if \
+                self.par['reduce']['findobj']['find_min_max'] is None else \
+                self.par['reduce']['findobj']['find_min_max']
+            trace_minmax = [self.slits.specmin[slit_idx], self.slits.specmax[slit_idx]] if \
+                self.par['reduce']['findobj']['trace_min_max'] is None else \
+                self.par['reduce']['findobj']['trace_min_max']
 
             # Find objects
             sobjs_slit = \
@@ -818,8 +832,11 @@ class MultiSlitFindObjects(FindObjects):
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                 use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
                                 boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
-                                maxdev=self.par['reduce']['findobj']['find_maxdev'],
-                                find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                                maxshift=self.par['reduce']['findobj']['trace_maxshift'],
+                                maxdev=self.par['reduce']['findobj']['trace_maxdev'],
+                                numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
+                                find_min_max=find_minmax,
+                                spec_min_max=trace_minmax,
                                 extract_maskwidth=self.par['reduce']['skysub']['local_maskwidth'],
                                 qa_title=qa_title, nperslit=maxnumber,
                                 objfindQA_filename=objfindQA_filename,
@@ -852,7 +869,7 @@ class EchelleFindObjects(FindObjects):
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype and spectrograph.orders is not None \
                             else self.slits.ech_order
         if self.order_vec is None:
-            msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
+            raise PypeItError('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
 
     def get_platescale(self, slitord_id=None):
@@ -868,7 +885,7 @@ class EchelleFindObjects(FindObjects):
 
         """
         if slitord_id is None:
-            msgs.error('slitord_id is missing. Plate scale for current echelle order cannot be determined.')
+            raise PypeItError('slitord_id is missing. Plate scale for current echelle order cannot be determined.')
         return self.spectrograph.order_platescale(slitord_id, binning=self.binning)[0]
 
 
@@ -923,16 +940,7 @@ class EchelleFindObjects(FindObjects):
                         'OBJTYPE': self.objtype,
                         'PYPELINE': self.pypeline}
 
-        # Set objfind QA filename
-        objfindQA_filename = None
-        if save_objfindQA and (self.basename is not None):
-            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
-            if self.find_negative:
-                basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
-            else:
-                basename = self.basename
-            objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
-                                                    det=self.detname, out_dir=out_dir)
+        objfindQA_filename = self.get_findobj_qa_filename(999, neg, save_objfindQA)
 
         #This could cause problems if there are more than one object on the echelle slit, i,e, this tacitly
         #assumes that the standards for echelle have a single object. If this causes problems, we could make an
@@ -958,7 +966,8 @@ class EchelleFindObjects(FindObjects):
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
             fof_link = self.par['reduce']['findobj']['fof_link'],
-            maxdev=self.par['reduce']['findobj']['find_maxdev'],
+            maxdev=self.par['reduce']['findobj']['trace_maxdev'],
+            numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
             nperorder=nperorder,
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
@@ -1014,9 +1023,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             return global_sky_sep
 
         if self.wv_calib is None:
-            msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
-        msgs.info("Generating wavelength image")
-
+            raise PypeItError("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
+        log.info("Generating wavelength image")
         # Generate the waveimg which is needed if flexure is being computed
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
@@ -1029,7 +1037,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         if method in ['slitcen']:
             self.slitshift = self.calculate_flexure(global_sky_sep)
             # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
-            msgs.info("Generating wavelength image, accounting for spectral flexure")
+            log.info("Generating wavelength image, accounting for spectral flexure")
             self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
                                                        spat_flexure=self.spat_flexure_shift)
 
@@ -1050,11 +1058,11 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         """ Perform a joint sky model fit to the data. See Reduce.global_skysub()
         for parameter definitions.
         """
-        msgs.info("Performing joint global sky subtraction")
+        log.info("Performing joint global sky subtraction")
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         _global_sky = np.zeros_like(self.sciImg.image)
-        thismask = (self.slitmask > 0)
+        thismask = (self.slitmask != -1)
         inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(bool)
         # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
         # the tilts frame, but conserves wavelength position in each slit)
@@ -1067,7 +1075,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             sigrej = 7.0
             update_crmask = False
             if not self.par['reduce']['skysub']['global_sky_std']:
-                msgs.info('Skipping global sky-subtraction for standard star.')
+                log.info('Skipping global sky-subtraction for standard star.')
                 return _global_sky
 
         # Use the FWHM map determined from the arc lines to convert the science frame
@@ -1084,7 +1092,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
         slitmask_trim = self.slits.slit_img(pad=-3, flexure=self.spat_flexure_shift)
         for nn in range(numiter):
-            msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
+            log.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
             _global_sky[thismask] = skysub.global_skysub(sciimg, model_ivar, tilt_wave,
                                                          thismask, self.slits_left, self.slits_right, inmask=inmask,
@@ -1102,7 +1110,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             sciimg /= scaleImg
 
             # Update the ivar image used in the sky fit
-            msgs.info("Updating sky noise model")
+            log.info("Updating sky noise model")
             # Choose the highest counts out of sky and object
             counts = _global_sky
             _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
@@ -1145,7 +1153,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                                      show_fit=show_fit)
 
         # Update the ivar image used in the sky fit
-        msgs.info("Updating sky noise model")
+        log.info("Updating sky noise model")
         # Choose the highest counts out of sky and object
         counts = _global_sky
         _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
@@ -1184,7 +1192,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             The flexure in pixels
         """
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
-        box_rad = self.par['reduce']['extraction']['boxcar_radius']
+        box_rad = self.par['reduce']['extraction']['boxcar_radius']/ self.get_platescale()
         trace_spat = 0.5 * (self.slits_left + self.slits_right)
         iwv = np.where(self.wv_calib.spat_ids == self.slits.spat_id[sl_ref])[0][0]
         ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm
@@ -1202,7 +1210,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                             maxwave=self.par['flexure']['maxwave'])
         this_slitshift = np.zeros(self.slits.nslits)
         if flex_dict_ref is not None:
-            msgs.warn("Only a relative spectral flexure correction will be performed")
+            log.warning("Only a relative spectral flexure correction will be performed")
             this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
         # Now loop through all slits to calculate the additional shift relative to the reference slit
         flex_list = []
@@ -1228,12 +1236,12 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         new_slitshift = self.slitshift + this_slitshift
         # Now report the flexure values
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            msgs.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
+            log.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
                                                                                               self.slitshift[slit_idx]))
         # Save QA
         # TODO :: Need to implement QA once the flexure code has been tidied up, and this routine has been moved
         #         out of the find_objects() class.
-        msgs.work("QA is not currently implemented for the flexure correction")
+        log.debug("QA is not currently implemented for the flexure correction")
         if False:#flex_list is not None:
             basename = f'{self.basename}_global_{self.spectrograph.get_det_name(self.det)}'
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
@@ -1252,7 +1260,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         if self.scaleimg.size == 1:
             self.scaleimg = np.ones_like(self.sciImg.image)
         # Correct the relative illumination of the science frame
-        msgs.info("Correcting science frame for relative illumination")
+        log.info("Correcting science frame for relative illumination")
         self.scaleimg *= scaleImg.copy()
         self.sciImg.image, _bpm, varImg = flat.flatfield(self.sciImg.image, scaleImg,
                                                          varframe=utils.inverse(self.sciImg.ivar))

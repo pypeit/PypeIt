@@ -42,21 +42,195 @@ setting ``mask_by_boxcar`` which will mask each object by the
           mask_by_boxcar = True
 
 
-Local
-=====
 
-Assuming you perform :ref:`extraction-optimal` extraction,
-the default is to refine the sky subtraction in tandem.
+.. _skysub_local_algorithm:
 
-To turn this off (e.g. recommended for bright extended emission
-lines on faint galaxy continua), set
-``no_local_sky`` in :ref:`skysubpar`:
+Local Sky Subtraction
+=====================
+
+Local sky subtraction refines the sky model in the immediate vicinity of each
+detected object while simultaneously fitting the object's spatial profile. This
+coupled approach provides superior sky subtraction near sources and enables
+optimal spectral extraction.
+
+The local sky subtraction is performed by ``local_skysub_extract`` (for
+multi-slit spectrographs) and ``ech_local_skysub_extract`` (for echelle
+spectrographs).
+
+Core Algorithm
+--------------
+
+The local sky subtraction operates through an iterative procedure that alternates
+between profile fitting and sky modeling:
+
+1. **Object Grouping**
+^^^^^^^^^^^^^^^^^^^^^^
+
+Objects are first organized into extraction groups based on spatial proximity.
+Two objects are grouped together if their extraction regions (defined by
+``maskwidth``) overlap at any spectral position::
+
+    groups = sobjs.get_extraction_groups(model_full_slit=model_full_slit)
+
+For each group, a local mask defines the region to be modeled::
+
+    localmask = (spat_img > min_spat) & (spat_img < max_spat) & thismask
+
+where ``min_spat`` and ``max_spat`` encompass all objects in the group plus
+their mask widths.
+
+2. **Iterative Profile Fitting and Sky Modeling**
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The algorithm performs ``niter`` iterations (default 4) of the following steps:
+
+**a. Profile Fitting**
+
+For each object in the group, fit the spatial profile using
+``extract.fit_profile``. On the first iteration, this uses a boxcar extraction
+to initialize; subsequent iterations use optimal extraction from the previous
+iteration.
+
+The profile fitting:
+
+- Determines the object's FWHM as a function of wavelength (``FWHMFIT``)
+- Updates the object trace position (``TRACE_SPAT``)
+- Constructs a 2D profile model (``profile_model``)
+
+For objects with median S/N < ``sn_gauss`` (default 4.0), a Gaussian profile
+is assumed. Higher S/N objects receive a non-parametric B-spline profile fit.
+
+**b. Breakpoint Determination**
+
+Generate optimal breakpoints for the B-spline sky model using
+``optimal_bkpts``. When ``bkpts_optimal=True``, breakpoints are placed to
+ensure adequate sampling of the sky signal based on the pixel coordinate
+distribution within the local region.
+
+**c. Joint Sky and Object Fitting**
+
+The ``skyoptimal`` function performs a simultaneous B-spline fit to both the
+sky background and object flux contributions::
+
+    sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(
+        piximg, sciimg, modelivar * skymask, obj_profiles,
+        spatial_img=spatial_img, fullbkpt=fullbkpt, sigrej=sigrej_eff)
+
+This fit uses a basis consisting of:
+
+- Object spatial profiles for each source
+- Polynomial terms (Legendre) for spatial sky variations
+- B-splines in the spectral direction
+
+The model simultaneously solves for the sky and all object contributions
+within the local region, accounting for potential overlap between sources.
+
+**d. Variance Update**
+
+When ``model_noise=True``, the inverse variance image is updated using the
+current sky model to properly account for Poisson noise from the sky::
+
+    modelivar = procimg.variance_model(base_var, sky=skyimage, ...)
+
+3. **Final Extraction**
+^^^^^^^^^^^^^^^^^^^^^^^
+
+After the iterative fitting converges, final optimal and boxcar extractions
+are performed for each object using the refined sky model and object profiles:
+
+- **Optimal extraction**: Uses the fitted spatial profile as weights
+- **Boxcar extraction**: Simple aperture sum within ``boxcar_radius``
+
+
+The ``skyoptimal`` Function
+---------------------------
+
+The core fitting engine ``skyoptimal`` performs the coupled sky-object fit:
+
+1. **Basis Construction**: Create a combined basis matrix with columns for:
+
+   - Each object's normalized spatial profile (``nobj`` columns)
+   - Spatial polynomial terms (``npoly`` columns, default 1)
+
+2. **First B-spline Fit**: Initial fit with relatively loose rejection::
+
+       sset, gpm, yfit1, _, _ = fitting.bspline_profile(
+           piximg, data, ivar, profile_basis,
+           ingpm=mask, fullbkpt=fullbkpt, upper=sigrej, lower=sigrej)
+
+3. **Chi-squared Rejection**: Compute chi-squared for each pixel and apply
+   an additional rejection threshold based on Gaussian statistics::
+
+       chi2_sigrej = chi2_srt[sigind]  # Threshold from sorted chi2
+       mask1 = (chi2 < chi2_sigrej)
+
+4. **Second B-spline Fit**: Refit with tightened mask::
+
+       sset, gpm_good, yfit, _, _ = fitting.bspline_profile(
+           piximg, data, ivar, profile_basis,
+           ingpm=mask1, fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+           kwargs_reject={'groupbadpix': True, 'maxrej': 1})
+
+5. **Model Separation**: Extract the sky and object models from the fit
+   coefficients::
+
+       skyset.coeff = sset.coeff[nobj:, :]  # Sky coefficients
+       for i in range(nobj):
+           objset.coeff = sset.coeff[i, :]  # Object i coefficients
+
 
 .. code-block:: ini
 
     [reduce]
        [[skysub]]
           no_local_sky = True
+
+Echelle-Specific Processing
+---------------------------
+
+For echelle spectrographs, ``ech_local_skysub_extract`` adds additional
+handling:
+
+- **Order-by-Order Processing**: Each order is processed independently in
+  order of decreasing S/N
+- **FWHM Propagation**: The FWHM determined from high-S/N orders is used
+  as prior information for low-S/N orders on the same object
+- **Cross-Object FWHM**: Fainter objects use FWHM information from brighter
+  objects (assuming point sources with seeing-limited profiles)
+
+
+Key Parameters
+--------------
+
+``bsp`` : float
+    B-spline breakpoint spacing in pixels. Default is 0.6.
+
+``niter`` : int
+    Number of profile fitting and sky subtraction iterations. Default is 4.
+
+``sigrej`` : float
+    Sigma rejection threshold. Default is 3.5.
+
+``sn_gauss`` : float
+    S/N threshold below which Gaussian profiles are assumed. Default is 4.0.
+
+``force_gauss`` : bool
+    If True, always use Gaussian profiles regardless of S/N.
+
+``model_full_slit`` : bool
+    If True, model the entire slit width rather than just regions near objects.
+    Recommended for echelle spectra with narrow slits.
+
+``bkpts_optimal`` : bool
+    If True, use optimal breakpoint spacing. If False, use uniform spacing.
+
+``model_noise`` : bool
+    If True, iteratively update the variance model. Should be False for
+    A-B difference imaging where sky residuals are being fit.
+
+``no_local_sky`` : bool
+    If True, skip local sky fitting but still perform profile fitting and
+    optimal extraction. Useful for extended emission lines.
 
 .. _skysub-regions:
 

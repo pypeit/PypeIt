@@ -1,8 +1,8 @@
 
 try:
-    from specutils import Spectrum1D, SpectrumList
+    from specutils import Spectrum, SpectrumList
 except ModuleNotFoundError:
-    Spectrum1D = None
+    Spectrum = None
     SpectrumList = None
 else:
     from pypeit.specutils import pypeit_loaders

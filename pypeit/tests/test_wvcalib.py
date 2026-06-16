@@ -2,8 +2,6 @@
 Module to run tests on WaveCalib and WaveFit
 """
 from pathlib import Path
-import os
-
 from IPython import embed
 
 import pytest
@@ -15,6 +13,18 @@ from pypeit.core import fitting
 from pypeit import wavecalib
 from pypeit import slittrace
 from pypeit.tests.tstutils import data_output_path
+from pypeit.core.wavecal import waveio
+
+
+def test_load_template():
+    # Test full read
+    ret = waveio.load_template('gemini_gmos_r831_ham.fits', 1)
+    assert len(ret) == 7, 'Number of returned objects changed'
+
+    # Only catch the spectrum, and test its contents
+    wave, flux = waveio.load_template('gemini_gmos_r831_ham.fits', 1)[:2]
+    assert wave[0] > 6200, 'Bad wavelength read'
+    assert np.amax(flux) > 1e5, 'Bad flux read'
 
 
 def test_wavefit_hduprefix():

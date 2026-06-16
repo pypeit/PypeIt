@@ -17,10 +17,14 @@ class SensFunc(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Compute a sensitivity function', width=width,
-                                    formatter=scriptbase.SmartFormatter)
-        parser.add_argument("spec1dfile", type=str,
-                            help='spec1d file for the standard that will be used to compute '
-                                 'the sensitivity function')
+                                    formatter=scriptbase.SmartFormatter, default_log_file=True)
+        parser.add_argument("spec1dfiles", type=str, nargs='+',
+                            help='file(s) of the reduced standard star spectrum.  These '
+                                 'can be either spec1d*.fits files or the output of '
+                                 '`pypeit_coadd_1dspec` (except for cross-dispersed echelle data).'
+                                 ' Multiple files can be provided, but they are helpful only'
+                                 'if they cover different wavelength ranges, since this'
+                                 'script will splice (not combine) them together.')
         parser.add_argument("--extr", type=str, default=None, choices=['OPT', 'BOX'],
                             help="R|Override the default extraction method used for computing the sensitivity "
                                  "function.  Note that it is not possible to set --extr and "
@@ -80,30 +84,28 @@ class SensFunc(scriptbase.ScriptBase):
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
                             help="Name of output file to save the parameters used by the fit")
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename sensfunc_YYYYMMDD-HHMM.log')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         """Executes sensitivity function computation."""
 
         import os
 
-        from pypeit import msgs
+        from pypeit import log
+        from pypeit import PypeItError
         from pypeit import inputfiles
         from pypeit import io
         from pypeit.par import pypeitpar
         from pypeit import sensfunc
         from pypeit.spectrographs.util import load_spectrograph
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('sensfunc', args.verbosity)
+        # Initialize the log
+        cls.init_log(args)
 
         # Check parameter inputs
         if args.algorithm is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --algorithm and simultaneously use a .sens "
+            raise PypeItError("It is not possible to set --algorithm and simultaneously use a .sens "
                        "file via the --sens_file option. If you are using a .sens file set the "
                        "algorithm there via:\n"
                        "\n"
@@ -112,7 +114,7 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n")
 
         if args.use_flat and args.sens_file is not None:
-            msgs.error("It is not possible to set --use_flat and simultaneously use a .sens "
+            raise PypeItError("It is not possible to set --use_flat and simultaneously use a .sens "
                        "file via the --sens_file option. If you are using a .sens file set the "
                        "use_flat flag in your .sens file using the argument:\n"
                        "\n"
@@ -121,7 +123,7 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n")
 
         if args.multi is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --multi and simultaneously use a .sens file via "
+            raise PypeItError("It is not possible to set --multi and simultaneously use a .sens file via "
                        "the --sens_file option. If you are using a .sens file set the detectors "
                        "there via:\n"
                        "\n"
@@ -130,7 +132,7 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n")
 
         if args.extr is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --extr and simultaneously use a .sens file via "
+            raise PypeItError("It is not possible to set --extr and simultaneously use a .sens file via "
                        "the --sens_file option. If you are using a .sens file set the extraction "
                        "method there via:\n"
                        "\n"
@@ -140,8 +142,8 @@ class SensFunc(scriptbase.ScriptBase):
 
 
         # Determine the spectrograph and generate the primary FITS header
-        with io.fits_open(args.spec1dfile) as hdul:
-            spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
+        with io.fits_open(args.spec1dfiles[0]) as hdul:
+            spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'], pypeit_fits=True)
             spectrograph_config_par = spectrograph.config_specific_par(hdul)
 
             # Construct a primary FITS header that includes the spectrograph's
@@ -193,7 +195,7 @@ class SensFunc(scriptbase.ScriptBase):
         # command line, overwrite the parset values read in from the .sens file
 
         # Write the par to disk
-        msgs.info(f'Writing the parameters to {args.par_outfile}')
+        log.info(f'Writing the parameters to {args.par_outfile}')
         par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
         # TODO JFH I would like to be able to run only
@@ -203,10 +205,17 @@ class SensFunc(scriptbase.ScriptBase):
         # pypeit.par.pypeitpar.SensFuncPar class.
 
         # Parse the output filename
-        outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') \
-                        if args.outfile is None else args.outfile
+        if args.outfile is not None:
+            outfile = args.outfile
+        else:
+            # read the filenames and parse
+            _names = [Path(f).name for f in args.spec1dfiles]
+            # if spec1d_ in the filename, remove it
+            _names = [n.split('spec1d_')[-1] if n.startswith('spec1d') else n for n in _names]
+            spec1dname = _names[0] if len(_names) == 1 else f"{_names[0].split('.fits')[0]}-{_names[-1]}"
+            outfile = 'sens_' + spec1dname
         # Instantiate the relevant class for the requested algorithm
-        sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
+        sensobj = sensfunc.SensFunc.get_instance(args.spec1dfiles, outfile, par['sensfunc'],
                                                  par_fluxcalib=par['fluxcalib'], debug=args.debug,
                                                  chk_version=par['rdx']['chk_version'])
         # Generate the sensfunc

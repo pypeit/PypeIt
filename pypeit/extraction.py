@@ -13,9 +13,11 @@ import os
 from astropy import stats
 from abc import ABCMeta
 
-from pypeit import msgs, utils
+from pypeit import log, utils
+from pypeit import PypeItError
 from pypeit.display import display
 from pypeit.core import skysub, extract, flexure, flat
+from pypeit.core.moment import moment1d
 from IPython import embed
 
 
@@ -167,7 +169,7 @@ class Extract:
             self.spat_flexure_shift = None
 
         # Initialize the slits
-        msgs.info("Initializing slits")
+        log.info("Initializing slits")
         self.initialize_slits(slits)
 
         # Internal bpm mask
@@ -207,9 +209,9 @@ class Extract:
         # Deal with dynamically generated calibrations, i.e. the tilts. If the tilts are not input generate
         # them from the  fits in caliBrate, otherwise use the input tilts
         if waveTilts is None and tilts is None:
-            msgs.error("Must provide either waveTilts or tilts to Extract")
+            raise PypeItError("Must provide either waveTilts or tilts to Extract")
         elif waveTilts is not None and tilts is not None:
-            msgs.error("Cannot provide both waveTilts and tilts to Extract")
+            raise PypeItError("Cannot provide both waveTilts and tilts to Extract")
         elif waveTilts is not None and tilts is None:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
@@ -220,30 +222,30 @@ class Extract:
                 tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
             else:
                 tilt_flexure_shift = self.spat_flexure_shift
-            msgs.info("Generating tilts image from fit in waveTilts")
+            log.info("Generating tilts image from fit in waveTilts")
             self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
         elif waveTilts is None and tilts is not None:
-            msgs.info("Using user input tilts image")
+            log.info("Using user input tilts image")
             self.tilts = tilts
 
         # Now generate the wavelength image
-        msgs.info("Generating wavelength image")
+        log.info("Generating wavelength image")
         if wv_calib is None and waveimg is None:
-            msgs.error("Must provide either wv_calib or waveimg to Extract")
+            raise PypeItError("Must provide either wv_calib or waveimg to Extract")
         if wv_calib is not None and waveimg is not None:
-            msgs.error("Cannot provide both wv_calib and waveimg to Extract")
+            raise PypeItError("Cannot provide both wv_calib and waveimg to Extract")
         if wv_calib is not None and waveimg is None:
             self.wv_calib = wv_calib
             self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
         elif wv_calib is None and waveimg is not None:
             self.waveimg = waveimg
 
-        msgs.info("Generating spectral FWHM image")
+        log.info("Generating spectral FWHM image")
         self.fwhmimg = None
         if wv_calib is not None:
             self.fwhmimg = wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
         else:
-            msgs.warn("Spectral FWHM image could not be generated")
+            log.warning("Spectral FWHM image could not be generated")
 
         # get flatfield image for blaze function
         self.flatimg = None
@@ -255,7 +257,7 @@ class Extract:
                 # TODO: Can we just use flat_raw if flatimages.pixelflat_norm is None?
                 self.flatimg, _ = flat.flatfield(flat_raw, flatimages.pixelflat_norm)
         if self.flatimg is None:
-            msgs.warn("No flat image was found. A spectrum of the flatfield will not be extracted!")
+            log.warning("No flat image was found. A spectrum of the flatfield will not be extracted!")
 
         # Now apply a global flexure correction to each slit provided it's not a standard star
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
@@ -359,7 +361,7 @@ class Extract:
         #self.sobjs_obj = sobjs_obj
 
         if self.par['reduce']['extraction']['skip_optimal']:  # Boxcar only with global sky subtraction
-            msgs.info("Skipping optimal extraction")
+            log.info("Skipping optimal extraction")
 
             # This will hold the extracted objects
             self.sobjs = self.sobjs_obj.copy()
@@ -371,10 +373,11 @@ class Extract:
                 inmask = self.sciImg.select_flag(invert=True) & thismask
                 extract_sky = global_sky if bkg_redux_global_sky is None else bkg_redux_global_sky
                 # Do it
-                extract.extract_boxcar(self.sciImg.image-global_sky, self.sciImg.ivar, inmask, self.waveimg,
-                                       extract_sky, sobj, fwhmimg=self.fwhmimg, base_var=self.sciImg.base_var,
-                                       count_scale=self.sciImg.img_scale,
-                                       noise_floor=self.sciImg.noise_floor)
+                sobj.extract_boxcar(
+                    self.sciImg.image-global_sky, self.sciImg.ivar, inmask, self.waveimg,
+                    extract_sky, fwhmimg=self.fwhmimg, base_var=self.sciImg.base_var,
+                    count_scale=self.sciImg.img_scale, noise_floor=self.sciImg.noise_floor
+                )
 
             # Fill up extra bits and pieces
             self.objmodel = np.zeros_like(self.sciImg.image)
@@ -401,20 +404,28 @@ class Extract:
             # Find them
             if sobj.OPT_COUNTS is None and sobj.BOX_COUNTS is None:
                 remove_idx.append(idx)
-                msgs.warn(f'Removing object at pixel {sobj.SPAT_PIXPOS} because '
+                log.warning(f'Removing object at pixel {sobj.SPAT_PIXPOS} because '
                           f'both optimal and boxcar extraction could not be performed')
             elif sobj.OPT_COUNTS is None:
-                msgs.warn(f'Optimal extraction could not be performed for object at pixel {sobj.SPAT_PIXPOS}')
+                log.warning(f'Optimal extraction could not be performed for object at pixel {sobj.SPAT_PIXPOS}')
 
         # Remove them
         if len(remove_idx) > 0:
             self.sobjs.remove_sobj(remove_idx)
 
-        # Add the DETECTOR container, S/N ratio, and FWHM in ARCSEC for each extracted object
+        # Add the DETECTOR container, S/N ratio, and FWHM in ARCSEC and BOX_R_ASEC for each extracted object
         for sobj in self.sobjs:
+            # this is an internal attribute
+            sobj.spectrograph = self.spectrograph
+            # these are datamodel attributes
+            sobj.PYP_SPEC = self.spectrograph.name
             sobj.DETECTOR = self.sciImg.detector
             sobj.S2N = sobj.med_s2n()
             sobj.SPAT_FWHM = sobj.med_fwhm()
+            sobj.BOX_R_ASEC = sobj.boxcar_arcsec()
+            if self.sciImg.det_img is not None:
+                _det_spec = moment1d(self.sciImg.det_img, sobj.TRACE_SPAT, 1, row=sobj.trace_spec)[0].astype(int)
+                sobj.SPEC_DET = np.clip(_det_spec, 0, len(sobj.DETECTOR.detectors))
 
         # Return
         return self.skymodel, self.bkg_redux_skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
@@ -508,21 +519,21 @@ class Extract:
                 Spectrally extracted objects
         """
         if self.par['flexure']['spec_method'] == 'skip':
-            msgs.info('Skipping flexure correction.')
+            log.info('Skipping flexure correction.')
             return
 
         # Perform some checks
         if mode == "local" and sobjs is None:
-            msgs.error("No spectral extractions provided for flexure, using slit center instead")
+            raise PypeItError("No spectral extractions provided for flexure, using slit center instead")
         elif mode not in ["local", "global"]:
-            msgs.error("Flexure mode must be 'global' or 'local'.")
+            raise PypeItError("Flexure mode must be 'global' or 'local'.")
 
         # initialize flex_list
         flex_list = None
 
         # Prepare a list of slit spectra, if required.
         if mode == "global":
-            msgs.info('Performing global spectral flexure correction')
+            log.info('Performing global spectral flexure correction')
             gd_slits = np.logical_not(self.extract_bpm)
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
             _global_sky = self.global_sky if self.bkg_redux_global_sky is None else self.bkg_redux_global_sky
@@ -536,12 +547,12 @@ class Extract:
                 if gd_slits[islit] and len(flex_list[islit]['shift']) > 0:
                     self.slitshift[islit] = flex_list[islit]['shift'][0]
             # Apply flexure to the new wavelength solution
-            msgs.info("Regenerating wavelength image")
+            log.info("Regenerating wavelength image")
             self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
                                                        spat_flexure=self.spat_flexure_shift,
                                                        spec_flexure=self.slitshift)
         elif mode == "local":
-            msgs.info('Performing local spectral flexure correction')
+            log.info('Performing local spectral flexure correction')
             # Measure flexure:
             # If mode == local: specobjs != None and slitspecs = None
             flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.extract_bpm,
@@ -566,7 +577,7 @@ class Extract:
                     if len(this_flex_dict['shift']) > 0 and this_flex_dict['shift'][ss] is not None:
                         new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][ss],
                                                               this_flex_dict['sky_spec'][ss])
-                        flex_list[islit]['sky_spec'][ss] = new_sky.copy()
+                        flex_list[islit]['sky_spec'][ss] = new_sky#.copy()
 
         # Save QA
         if flex_list is not None:
@@ -652,7 +663,7 @@ class Extract:
             ch_name = chname if chname is not None else 'image'
             viewer, ch = display.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
         else:
-            msgs.warn("Not an option for show")
+            log.warning("Not an option for show")
 
         if sobjs is not None:
             for spec in sobjs:
@@ -758,7 +769,7 @@ class MultiSlitExtract(Extract):
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
-            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit_spat))
+            log.info("Local sky subtraction and extraction for slit: {:d}".format(slit_spat))
             thisobj = self.sobjs.SLITID == slit_spat    # indices of objects for this slit
             if not np.any(thisobj):
                 continue
@@ -775,6 +786,7 @@ class MultiSlitExtract(Extract):
             sn_gauss = self.par['reduce']['extraction']['sn_gauss']
             use_2dmodel_mask = self.par['reduce']['extraction']['use_2dmodel_mask']
             no_local_sky = self.par['reduce']['skysub']['no_local_sky']
+            min_frac_prof = self.par['reduce']['extraction']['min_frac_prof']
 
             # TODO: skysub.local_skysub_extract() accepts a `prof_nsigma` parameter, but none
             #       is provided here.  Additionally, the ExtractionPar keyword std_prof_nsigma
@@ -788,7 +800,7 @@ class MultiSlitExtract(Extract):
                                               self.tilts, self.waveimg, self.global_sky,
                                               thismask, self.slits_left[:,slit_idx],
                                               self.slits_right[:, slit_idx],
-                                              self.sobjs[thisobj], ingpm=ingpm,
+                                              self.sobjs[thisobj], min_frac_use=min_frac_prof, ingpm=ingpm,
                                               bkg_redux_global_sky=bkg_redux_global_sky,
                                               fwhmimg=self.fwhmimg, flatimg=self.flatimg, spat_pix=spat_pix,
                                               model_full_slit=model_full_slit,
@@ -835,7 +847,7 @@ class EchelleExtract(Extract):
         #self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
         #                    else self.slits.ech_order
         #if self.order_vec is None:
-        #    msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
+        #    raise PypeItError('Unable to set Echelle orders, likely because they were incorrectly '
         #               'assigned in the relevant SlitTraceSet.')
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
@@ -894,12 +906,14 @@ class EchelleExtract(Extract):
         force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
         use_2dmodel_mask = self.par['reduce']['extraction']['use_2dmodel_mask']
         no_local_sky = self.par['reduce']['skysub']['no_local_sky']
+        min_frac_prof = self.par['reduce']['extraction']['min_frac_prof']
 
         self.skymodel, self.bkg_redux_skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
             = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                               self.sciImg.fullmask, self.tilts, self.waveimg,
                                               self.global_sky, self.slits_left[:, gdorders],
                                               self.slits_right[:, gdorders], self.slitmask, sobjs,
+                                              min_frac_use=min_frac_prof,
                                               bkg_redux_global_sky=bkg_redux_global_sky,
                                               spat_pix=spat_pix,
                                               fwhmimg=self.fwhmimg, flatimg=self.flatimg,

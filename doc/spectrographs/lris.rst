@@ -212,7 +212,7 @@ Pixel Flat
 
 It is recommend to correct for pixel-to-pixel variations using a slitless
 flat.  If you did not take such calibration frames or cannot process them,
-you may wish to use an archival one available in the PypeIt cache (see ref:`data_installation`).
+you may wish to use an archival one available in the PypeIt cache (see :ref:`data_installation`).
 
 And then set the following in your :ref:`pypeit_file`:
 

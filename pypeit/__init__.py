@@ -5,79 +5,40 @@ The current main purpose of this is to provide package-level globals
 that can be imported by submodules.
 """
 
-# Imports for signal and log handling
-import os
-import sys
-import signal
-import warnings
-
-from .version import version
-
-def short_warning(message, category, filename, lineno, file=None, line=None):
-    """
-    Return the format for a short warning message.
-    """
-    return ' %s: %s (%s:%s)\n' % (category.__name__, message, os.path.split(filename)[1], lineno)
-
-warnings.formatwarning = short_warning
-
+from .pkg.version import version
 
 # Set version
 __version__ = version
 
 # Report current coverage
+# TODO: How old is this?  Can we update it automatically?
 __coverage__ = 0.55
 
-# Import and instantiate the user
-# NOTE: This **MUST** come before instantiating the logger, msgs
-try:
-    # There appears to be a bug in getpass in windows systems where the pwd
-    # module doesn't load
-    import getpass
-    pypeit_user = getpass.getuser()
-except (ModuleNotFoundError, OSError):
-    pypeit_user = None
-if pypeit_user is None:
-    try:
-        pypeit_user = os.getlogin()
-    except OSError:
-        pypeit_user = None
-if pypeit_user is None:
-    # Assume the user is not defined
-    pypeit_user = 'unknownuser'
-
-# Import and instantiate the logger
-# NOTE: This **MUST** be defined after __version__; i.e., pypmsgs imports pypeit
-# and uses pypeit.__version__.
-from pypeit import pypmsgs
-msgs = pypmsgs.Messages()
+# Start the log
+import logging
+from .pkg.logger import get_logger
+log = get_logger(level=logging.DEBUG)
 
 # Import and instantiate the data path parser
-# NOTE: This *MUST* come after msgs and __version__ are defined above
-from pypeit import pypeitdata
-dataPaths = pypeitdata.PypeItDataPaths()
+# NOTE: This *MUST* come after log and __version__ are defined above
+from .pkg.pypeitdata import PypeItDataPaths
+dataPaths = PypeItDataPaths()
 
-# Import the close_qa method so that it can be called when a hard stop
-# is requested by the user
-from pypeit.core.qa import close_qa
+# Import all the exceptions so that they can be directly imported (e.g., `from
+# pypeit import PypeItError`) in all package imports.
+from .pkg.exceptions import *
 
-# Send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
-def signal_handler(signalnum, handler):
-    """
-    Handle signals sent by the keyboard during code execution
-    """
-    if signalnum == 2:
-        msgs.info('Ctrl+C was pressed. Ending processes...')
-        close_qa(msgs.pypeit_file, msgs.qa_path)
-        msgs.close()
-        sys.exit()
-
-signal.signal(signal.SIGINT, signal_handler)
-
-# Ignore all warnings given by python
-# TODO: I'd rather we not do this.  Is there a way we can redirect
-# warnings to pypeit.msgs ?
-#warnings.resetwarnings()
-#warnings.simplefilter('ignore')
-
+## Imports for signal and log handling
+#import sys
+#import signal
+## Send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
+#def signal_handler(signalnum, handler):
+#    """
+#    Handle signals sent by the keyboard during code execution
+#    """
+#    if signalnum == 2:
+#        log.info('Ctrl+C was pressed. Ending processes...')
+#        sys.exit()
+#
+#signal.signal(signal.SIGINT, signal_handler)
 

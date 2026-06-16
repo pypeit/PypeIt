@@ -121,13 +121,6 @@ The script usage can be displayed by calling the script with the ``-h`` option:
 
 .. include:: help/pypeit_install_extinctfile.rst
 
-pypeit_c_enabled
-----------------
-
-This is a simple script to check of the compiled C code used by PypeIt was
-successfully installed.  The script takes no arguments and reports success if
-the C libraries were successfully imported.
-
 pypeit_chk_plugins
 ------------------
 
@@ -201,6 +194,8 @@ run_pypeit
 This is the main executable for PypeIt for its core end-to-end data processing.
 See :ref:`run-pypeit` for details.
 
+.. _pypeit-run-to-calibstep:
+
 pypeit_run_to_calibstep
 -----------------------
 
@@ -234,6 +229,36 @@ An example call is:
 
     pypeit_run_to_calibstep shane_kast_blue_A.pypeit wv_calib --science_frame b28.fits.gz 
 
+pypeit_reduce_by_step
+---------------------
+
+See :doc:`reduce_by_step` for a complete discussion of this
+script which is used to isolate individual steps of the reduction
+on individual science/standard frames and detectors/mosaics.
+
+.. _pypeit_status:
+
+pypeit_status
+-------------
+
+This prints the status of a PypeIt reduction — for each calibration group and
+detector, which calibration steps have been built (and the status of the science
+frames) — *without* performing any processing.  It derives the
+:doc:`reduction state <state>` the same way the :ref:`dashboard` does on launch
+(a read; it does not write the ``*_state.json`` file), and writes a
+human-readable ``<pypeit_root>.status.log``.  It is the command-line counterpart
+of the graphical :ref:`dashboard`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_status.rst
+
+A typical call is:
+
+.. code-block:: console
+
+    pypeit_status shane_kast_blue_A.pypeit
 
 pypeit_trace_edges
 ------------------
@@ -307,6 +332,8 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_sensfunc.rst
+
+.. _pypeit_flux_setup:
 
 pypeit_flux_setup
 -----------------
@@ -606,7 +633,7 @@ pypeit_show_pixflat
 -------------------
 
 Inspect in a Ginga window the (slitless) pixel flat produced by PypeIt and stored
-in the PypeIt cache (see ref:`data_installation`).  It displays each detector separately
+in the PypeIt cache (see :ref:`data_installation`).  It displays each detector separately
 in different channels. The script is useful for assessing the quality of the pixel-to-pixel
 response of the detector. Typical call is:
 
@@ -681,13 +708,16 @@ Here is an example from the Dev Suite:
 pypeit_show_1dspec
 ------------------
 
-This script loads a 1D spectrum file from PypeIt and launches a GUI from the
-`linetools`_ package for inspection; see :ref:`pypeit_show_1dspec`.
+This script loads a 1D spectrum file from PypeIt and launches a ginga viewer for
+inspection; see :ref:`pypeit_show_1dspec`.  This script can be used to view both
+1D extractions from a basic run of the reductions or 1D coadds.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_1dspec.rst
+
+.. _pypeit_chk_noise_1dspec:
 
 pypeit_chk_noise_1dspec
 -----------------------
@@ -706,6 +736,23 @@ Here is an example from the Dev Suite:
 .. code-block:: console
 
     pypeit_chk_noise_1dspec Science/spec1d_d0225_0054-16045h_DEIMOS_20190225T145727.158.fits
+
+.. _pypeit_rectify_2dspec:
+
+pypeit_rectify_2dspec
+---------------------
+
+This script creates a rectified 2D spectral image. Each slit/order in the
+spec2d output file is rectified onto a common wavelength grid. This rectified 2D
+image must be used only for quick-look visualization purposes, and not for
+scientific analysis. This image can be easily visualized using `ginga`_ (soon!) or
+`ds9`_.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_rectify_2dspec.rst
+
 
 ----
 

@@ -3,11 +3,7 @@
 prune .github
 prune build
 prune dist
-prune deprecated
 prune doc
-prune proposals
-prune presentations
-prune paper
 
 # Remove file types
 global-exclude *.pyc *.o *.so *.DS_Store *.ipynb
@@ -27,6 +23,5 @@ recursive-exclude pypeit/data/tests *.gz *.fits *.npz
 exclude .gitignore
 exclude checkout_current_tag
 exclude environment.yml
-exclude sphinx.readme
 exclude update_docs
 

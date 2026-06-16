@@ -12,11 +12,13 @@ jobs:
   cron-tests:
     name: Tox env ${{ matrix.python }}-${{ matrix.toxenv }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: ['3.11', '3.12', '3.13']
-        toxenv: [test, test-alldeps-cov, test-numpydev, test-linetoolsdev, test-gingadev, test-astropydev]
+        python: ['3.13']
+        toxenv: [test, test-alldeps]
     steps:
     - name: Check out repository
       uses: actions/checkout@v3

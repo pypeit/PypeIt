@@ -3,18 +3,23 @@ Module for Shane/Kast specific methods.
 
 .. include:: ../include/links.rst
 """
-
 from IPython import embed
+
+from pathlib import Path
 
 import numpy as np
 
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class ShaneKastSpectrograph(spectrograph.Spectrograph):
@@ -101,7 +106,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
             time = headarr[0]['DATE']
             ttime = Time(time, format='isot')
             return ttime.mjd
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -153,7 +158,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
   
     def lamps(self, fitstbl, status):
@@ -271,15 +276,20 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -288,17 +298,25 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        # TODO: Should we allow the user to override these?
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == '600/4310':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600.fits'
-        elif self.get_meta_value(scifile, 'dispname') == '452/3306':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_452.fits'
-        elif self.get_meta_value(scifile, 'dispname') == '830/3460':  # NOT YET TESTED
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_830.fits'
-        else:
-            msgs.error("NEED TO ADD YOUR GRISM HERE!")
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        # TODO: Should we allow the user to override these?
+        match grating:
+            case '600/4310':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600.fits'
+            case '452/3306':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_452.fits'
+            case '830/3460':  # NOT YET TESTED
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_830.fits'
+            case _:
+                raise PypeItError(
+                    f"{grating} does not have a reid_arxiv solution.  Cannot proceed."
+                )
+        
         # Return
         return par
 
@@ -421,7 +439,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # Allow for reading only Amp 2!
         if x1_1 < 3:
-            msgs.warn("Only Amp 2 data was written.  Ignoring Amp 1")
+            log.warning("Only Amp 2 data was written.  Ignoring Amp 1")
             detector_dict['numamplifiers'] = 1
             detector_dict['gain'] = np.atleast_1d(detector_dict['gain'][0])
             detector_dict['ronoise'] = np.atleast_1d(detector_dict['ronoise'][0])
@@ -512,56 +530,68 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         """
         return ['GRATNG_N', 'BSPLIT_N', 'GRTILT_P']
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == '300/7500':
-            # TODO -- Note in docs that a NoNe solution is available too
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_300_7500.fits'
-            # Add CdI
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
-        elif self.get_meta_value(scifile, 'dispname') == '600/7500':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_600_7500.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
-        elif self.get_meta_value(scifile, 'dispname') == '1200/5000':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_1200_5000.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
-        else:
-            par['calibrations']['wavelengths']['use_instr_flag'] = True
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        # TODO: Should we allow the user to override these?
+        match grating:
+            case '300/7500':
+                # TODO -- Note in docs that a NoNe solution is available too
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_300_7500.fits'
+                # Add CdI
+                par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
+            case '600/7500':
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_600_7500.fits'
+                par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
+            case '1200/5000':
+                par['calibrations']['wavelengths']['method'] = 'full_template'
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_1200_5000.fits'
+                par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
+            case _:
+                par['calibrations']['wavelengths']['use_instr_flag'] = True
 
         # Return
         return par
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                        trim_std_pixs=None,log10_blaze_function=None):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
         function fits will be well behaved. For example, masking second order light. For instruments that don't
         require such tweaks it will just return the inputs, but for isntruments that do this function is overloaded
         with a method that performs the tweaks.
+
+        NOTE: if the `trim_std_pixs` parameter is not None, then the standard star spectrum will be only trimmed
+        by the specified number of pixels at the start and end of the spectrum, and no other tweaks will be
+        performed.
 
         Parameters
         ----------
@@ -577,6 +607,10 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
         log10_blaze_function: `numpy.ndarray`_ or None
             Input blaze function to be tweaked, optional. Default=None.
 
@@ -593,6 +627,10 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         log10_blaze_function_out: `numpy.ndarray`_ or None
             Output blaze function after being tweaked.
         """
+
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
 
         # Could check the wavelenghts here to do something more robust to header/meta data issues
         if '600/7500' in meta_table['DISPNAME']:

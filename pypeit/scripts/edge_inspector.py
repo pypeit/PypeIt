@@ -21,13 +21,16 @@ class EdgeInspector(scriptbase.ScriptBase):
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         from pathlib import Path
         from matplotlib import pyplot
         from pypeit import edgetrace
         from pypeit.core.gui import edge_inspector
+
+        # Initialize the log
+        cls.init_log(args)
 
         chk_version = not args.try_old
 
