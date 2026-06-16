@@ -1208,9 +1208,9 @@ def full_template(
 
     """
 
-    debug_xcorr=True
-    debug_reid=True
-    debug=True
+#    debug_xcorr=True
+#    debug_reid=True
+#    debug=True
 
     # Load line lists
     line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
