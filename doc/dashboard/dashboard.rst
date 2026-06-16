@@ -6,7 +6,16 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.3.5**
+**Dashboard documentation version: 1.3.7**
+
+.. warning::
+
+   Because the Dashboard intentionally lets you run **individual steps** of the
+   pipeline, users who are not yet familiar with PypeIt — and with data reduction
+   in general — can easily get lost or run steps in an improper order.  This is
+   largely why PypeIt is designed to run **end-to-end**.  Please keep this in
+   mind, and try **not** to report what is in fact user error (running steps out
+   of order, or without their prerequisite calibrations) as a Dashboard bug.
 
 Overview
 ========
@@ -375,11 +384,25 @@ Actions
      - Select the step and show its detail panel.
    * - **Inspect output**
      - Launch the step's viewer as a subprocess.
-   * - **(Re)Build**
+   * - **(Re)Build** (Calibrations)
      - Regenerate the selected calibration via :ref:`pypeit-run-to-calibstep`
        (with a clobber confirmation); disabled while a run is active.
    * - Input-file / QA entry (double-click)
      - View the raw frame (``pypeit_view_fits``) / open the QA PNG.
+   * - Science navigator cell (Status view)
+     - Switch to the Science view and select that ``(frame, detector)``.
+   * - **View spec2d** (Science view)
+     - Open the frame's 2D spectrum (``pypeit_show_2dspec``).
+   * - Object row (double-click, Science view)
+     - View that object's 1D spectrum (``pypeit_show_1dspec --obj``), or its
+       ``obj_prof`` / ``obj_trace`` cell to open that QA figure.
+   * - **(Re)Build** (Science view)
+     - Re-run a science step for the frame via :doc:`/reduce_by_step`; enabled
+       only once the frame's calibrations are built (and its prerequisite step);
+       disabled while a run is active.
+   * - **Run PypeIt** (Science view)
+     - Run the full reduction (``run_pypeit -o``) over all frames, overwriting
+       existing outputs (with a warning); disabled while a run is active.
 
 Live monitoring
 ===============
@@ -387,9 +410,10 @@ Live monitoring
 While a reduction is **running** — whether you launched a **(Re)Build** from the
 dashboard or started ``run_pypeit`` / ``pypeit_run_to_calibstep`` in a terminal —
 the dashboard **auto-updates**: as PypeIt writes the reduction state on each step
-transition (see :doc:`/state`), the Status table, summary, navigator, and the
-Calibrations button row refresh on their own, with **no manual Refresh**.  You
-watch each calibration go white → orange (running) → green (success) live.
+transition (see :doc:`/state`), the Status table, summary, navigators, the
+Calibrations button row, **and the Science view** refresh on their own, with
+**no manual Refresh**.  You watch each calibration — and each science step — go
+white → orange (running) → green (success) live.
 
 How it works and what to expect:
 

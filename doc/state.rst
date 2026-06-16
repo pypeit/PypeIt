@@ -69,8 +69,9 @@ detector)`` entry the state records:
 
 A tabular per-frame summary is available via
 :meth:`~pypeit.state.RunPypeItState.get_science_status` (columns ``frame``,
-``detector``, ``objtype``, the four step statuses, ``nobj``, ``spec2d``,
-``spec1d``).  The :doc:`dashboard/dashboard` renders this in its Science view.
+``detector``, ``calib``, ``objtype``, the four step statuses, ``nobj``,
+``spec2d``, ``spec1d``).  The :doc:`dashboard/dashboard` renders this in its
+Science view.
 
 How and when it is generated
 ============================
@@ -81,7 +82,12 @@ How and when it is generated
   macro-steps.  So the file is a live, per-step record of the run's progress.
   ``pypeit_run_to_calibstep`` (rebuilding a single calibration) and
   ``pypeit_reduce_by_step`` (rebuilding a single science step) likewise write the
-  state as they run and refresh it from disk on completion.
+  state as they run and refresh it from disk on completion.  Because each of
+  these single-purpose runs only populates its own portion of the state, they
+  first **merge** the existing on-disk state
+  (:meth:`~pypeit.state.RunPypeItState.merge_from_disk`) so a calibration build
+  does not blank the science entries, nor a science build the calibration
+  statuses.
 - **Without running (read-only).** The ``pypeit_status`` script derives the same
   state *without* performing any processing — it instantiates PypeIt in
   ``calib_only`` mode, checks what calibrations exist, and prints a status

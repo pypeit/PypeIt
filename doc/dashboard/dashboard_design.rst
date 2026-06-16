@@ -6,7 +6,7 @@
 PypeIt Dashboard: Design
 ========================
 
-**Dashboard documentation version: 1.3.5**
+**Dashboard documentation version: 1.3.7**
 
 This page explains *how the dashboard is built* — its component structure, how it
 acquires the reduction :doc:`state </state>`, and how it stays in sync with a
@@ -94,13 +94,22 @@ processing and writes no state file.
        CAL --> RS["RunPypeItState<br/>(load_status = derived,<br/>NOT written to disk)"]
        SCI --> RS
        LOAD --> RS
-       RS --> ACCESS["Model accessors:<br/>status_table / slit_table /<br/>science_table / ..."]
+       RS --> SEED["seed planned science/standard frames<br/>(from cached .pypeit metadata)"]
+       SEED --> ACCESS["Model accessors:<br/>status_table / slit_table /<br/>science_table / ..."]
        ACCESS --> RENDER["Views render"]
 
 The user's **Refresh** button re-runs this acquisition.  Mid-run (see below) the
 model is re-read from ``*_state.json`` only — it is **never re-derived** while a
 run is active, so a transient mid-write file is skipped rather than triggering a
 heavy re-derivation.
+
+**Planned science frames.**  On *both* paths the model also seeds the *planned*
+science/standard frames — the upcoming exposures read from the ``.pypeit``
+metadata — so the Science view lists what is coming even before any reduction
+(mirroring the planned calibrations), and keeps showing them after a calibration
+build replaces the state file.  The planned-frame list is computed once and
+cached per ``.pypeit`` (a one-time metadata read), so re-seeding it on every
+state reload is cheap.
 
 Live monitoring and (Re)Build
 =============================
@@ -142,7 +151,16 @@ engages the lock, ``stateChanged`` drives the live refresh, and the views update
 on their own with no manual Refresh.  The refresh **preserves** the user's scope
 (group/detector) and selected step/frame, and inspection launches use a
 **separate** ``ActivityBar`` channel so monitoring messages and viewer feedback
-never overwrite each other.
+never overwrite each other.  The Science view's **Run PypeIt** button launches a
+full ``run_pypeit -o`` through this same lock-governed path.
+
+**One shared state file, two writers.**  ``pypeit_run_to_calibstep`` (a
+calibration build) and ``pypeit_reduce_by_step`` (a science step-build) each only
+populate their own portion of ``*_state.json``.  To avoid one blanking the
+other's portion when it writes, both call ``RunPypeItState.merge_from_disk()``
+first — overlaying the existing on-disk calibration **and** science statuses onto
+their fresh state — so a science (re)build keeps the calibration statuses (and
+vice versa).
 
 Deriving science state from disk
 ================================
