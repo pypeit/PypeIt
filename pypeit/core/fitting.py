@@ -1069,170 +1069,170 @@ def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
     return g.ravel()
 
-# Below here are codes related to b-spline fitting
-def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
-            maxiter=10, nord=4, bkpt=None, fullbkpt=None, kwargs_bspline={}, kwargs_reject={}):
-    """Iteratively fit a b-spline set to data, with rejection.
-    This is a utility function that allows
-    the bspline to be used via a direct function call.
-
-    Parameters
-    ----------
-    xdata : :class:`numpy.ndarray`
-        Independent variable.
-    ydata : :class:`numpy.ndarray`
-        Dependent variable.
-    invvar : :class:`numpy.ndarray`, optional
-        Inverse variance of `ydata`.  If not set, it will be calculated based
-        on the standard deviation.
-    inmask : :class:`numpy.ndarray`, optional
-        Input Good Pixel Mask for performing the fit.  If not set, it will be
-        set to the locus of positive ``invvar`` points.
-    upper : :class:`int` or :class:`float`, optional
-        Upper rejection threshold in units of sigma, defaults to 5 sigma.
-    lower : :class:`int` or :class:`float`, optional
-        Lower rejection threshold in units of sigma, defaults to 5 sigma.
-    x2 : :class:`numpy.ndarray`, optional
-        Orthogonal dependent variable for 2d fits.
-    maxiter : :class:`int`, optional
-        Maximum number of rejection iterations, default 10.  Set this to
-        zero to disable rejection.
-    nord : :class:`int`, optional
-        Order of the b-spline, default 4.
-    bkpt : :class:`numpy.ndarray`, optional
-        Breakpoints for the b-spline, default None.
-    fullbkpt : :class:`numpy.ndarray`, optional
-        Full breakpoints for the b-spline, default None.
-    kwargs_bspline : :class:`dict`, optional
-        Keyword arguments for the b-spline, default {}.
-    kwargs_reject : :class:`dict`, optional
-        Keyword arguments passed to :func:`pypeit.core.pydl.djs_reject`, default {}.
-
-    Returns
-    -------
-    outputs: tuple
-        A tuple containing the fitted bspline object and an output mask.
-    """
-    # from .math import djs_reject
-    nx = xdata.size
-    if ydata.size != nx:
-        raise ValueError('Dimensions of xdata and ydata do not agree.')
-    if invvar is not None:
-        if invvar.size != nx:
-            raise ValueError('Dimensions of xdata and invvar do not agree.')
-    else:
-        #
-        # This correction to the variance makes it the same
-        # as IDL's variance()
-        #
-        var = ydata.var() * (float(nx) / float(nx - 1))
-        if var == 0:
-            var = 1.0
-        invvar = np.ones(ydata.shape, dtype=ydata.dtype) / var
-
-    if inmask is None:
-        inmask = invvar > 0.0
-
-    if x2 is not None:
-        if x2.size != nx:
-            raise ValueError('Dimensions of xdata and x2 do not agree.')
-    yfit = np.zeros(ydata.shape)
-    if invvar.size == 1:
-        outmask = True
-    else:
-        outmask = np.ones(invvar.shape, dtype='bool')
-    xsort = xdata.argsort(kind='stable')
-    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]  # `maskwork` is in xsort order
-    if 'oldset' in kwargs_bspline:
-        sset = kwargs_bspline['oldset']
-        sset.mask[:] = True
-        sset.coeff[:] = 0.
-    else:
-        if not maskwork.any():
-            raise ValueError('No valid data points.')
-            # return (None,None)
-        # JFH comment this out for now
-        #        if 'fullbkpt' in kwargs:
-        #            fullbkpt = kwargs['fullbkpt']
-        else:
-            sset = bspline.bspline(xdata[xsort[maskwork]], nord=nord, bkpt=bkpt, fullbkpt=fullbkpt, **kwargs_bspline)
-            if maskwork.sum() < sset.nord:
-                print('Number of good data points fewer than nord.')
-                return (sset, outmask)
-            if x2 is not None:
-                if 'xmin' in kwargs_bspline:
-                    xmin = kwargs_bspline['xmin']
-                else:
-                    xmin = x2.min()
-                if 'xmax' in kwargs_bspline:
-                    xmax = kwargs_bspline['xmax']
-                else:
-                    xmax = x2.max()
-                if xmin == xmax:
-                    xmax = xmin + 1
-                sset.xmin = xmin
-                sset.xmax = xmax
-                if 'funcname' in kwargs_bspline:
-                    sset.funcname = kwargs_bspline['funcname']
-                    if kwargs_bspline['funcname'] == 'poly1':
-                        log.warning("bspline funcname='poly1' produces a basis with no constant "
-                                    "x2 term and may be ill-conditioned.  Consider using "
-                                    "'legendre' instead.")
-    xwork = xdata[xsort]
-    ywork = ydata[xsort]
-    invwork = invvar[xsort]
-    if x2 is not None:
-        x2work = x2[xsort]
-    else:
-        x2work = None
-    iiter = 0
-    error = -1
-    qdone = False
-    while (error != 0 or qdone is False) and iiter <= maxiter:
-        goodbk = sset.mask.nonzero()[0]
-        if maskwork.sum() <= 1 or not sset.mask.any():
-            sset.coeff[:] = 0.
-            iiter = maxiter + 1  # End iterations
-        else:
-            if 'requiren' in kwargs_bspline:
-                i = 0
-                while xwork[i] < sset.breakpoints[goodbk[sset.nord]] and i < nx - 1:
-                    i += 1
-                ct = 0
-                for ileft in range(sset.nord, sset.mask.sum() - sset.nord + 1):
-                    while (xwork[i] >= sset.breakpoints[goodbk[ileft]] and
-                           xwork[i] < sset.breakpoints[goodbk[ileft + 1]] and
-                           i < nx - 1):
-                        ct += invwork[i] * maskwork[i] > 0
-                        i += 1
-                    if ct >= kwargs_bspline['requiren']:
-                        ct = 0
-                    else:
-                        sset.mask[goodbk[ileft]] = False
-            error, yfit = sset.fit(
-                xwork,  # x-sorted x data array
-                ywork,  # x-sorted y data array
-                invwork * maskwork,  # masked x-sorted invvar array
-                x2=x2work  # x-sorted x2 array
-            )
-        iiter += 1
-        inmask_rej = maskwork
-        if error == -2:
-
-            return (sset, outmask)
-        elif error == 0:
-            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
-            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring sticky to be set is the more transparent behavior.
-            maskwork, qdone = pydl.djs_reject(ywork, yfit, invvar=invwork, inmask=inmask_rej, outmask=maskwork,
-                                              upper=upper, lower=lower, **kwargs_reject)
-        else:
-            pass
-    outmask[xsort] = maskwork
-    # TODO: TPEB 2/2/23. Why do these next two lines exist?  They don't seem to do anything.
-    temp = yfit
-    yfit[xsort] = temp
-    return (sset, outmask)
+# # Below here are codes related to b-spline fitting
+# def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
+#             maxiter=10, nord=4, bkpt=None, fullbkpt=None, kwargs_bspline={}, kwargs_reject={}):
+#     """Iteratively fit a b-spline set to data, with rejection.
+#     This is a utility function that allows
+#     the bspline to be used via a direct function call.
+# 
+#     Parameters
+#     ----------
+#     xdata : :class:`numpy.ndarray`
+#         Independent variable.
+#     ydata : :class:`numpy.ndarray`
+#         Dependent variable.
+#     invvar : :class:`numpy.ndarray`, optional
+#         Inverse variance of `ydata`.  If not set, it will be calculated based
+#         on the standard deviation.
+#     inmask : :class:`numpy.ndarray`, optional
+#         Input Good Pixel Mask for performing the fit.  If not set, it will be
+#         set to the locus of positive ``invvar`` points.
+#     upper : :class:`int` or :class:`float`, optional
+#         Upper rejection threshold in units of sigma, defaults to 5 sigma.
+#     lower : :class:`int` or :class:`float`, optional
+#         Lower rejection threshold in units of sigma, defaults to 5 sigma.
+#     x2 : :class:`numpy.ndarray`, optional
+#         Orthogonal dependent variable for 2d fits.
+#     maxiter : :class:`int`, optional
+#         Maximum number of rejection iterations, default 10.  Set this to
+#         zero to disable rejection.
+#     nord : :class:`int`, optional
+#         Order of the b-spline, default 4.
+#     bkpt : :class:`numpy.ndarray`, optional
+#         Breakpoints for the b-spline, default None.
+#     fullbkpt : :class:`numpy.ndarray`, optional
+#         Full breakpoints for the b-spline, default None.
+#     kwargs_bspline : :class:`dict`, optional
+#         Keyword arguments for the b-spline, default {}.
+#     kwargs_reject : :class:`dict`, optional
+#         Keyword arguments passed to :func:`pypeit.core.pydl.djs_reject`, default {}.
+# 
+#     Returns
+#     -------
+#     outputs: tuple
+#         A tuple containing the fitted bspline object and an output mask.
+#     """
+#     # from .math import djs_reject
+#     nx = xdata.size
+#     if ydata.size != nx:
+#         raise ValueError('Dimensions of xdata and ydata do not agree.')
+#     if invvar is not None:
+#         if invvar.size != nx:
+#             raise ValueError('Dimensions of xdata and invvar do not agree.')
+#     else:
+#         #
+#         # This correction to the variance makes it the same
+#         # as IDL's variance()
+#         #
+#         var = ydata.var() * (float(nx) / float(nx - 1))
+#         if var == 0:
+#             var = 1.0
+#         invvar = np.ones(ydata.shape, dtype=ydata.dtype) / var
+# 
+#     if inmask is None:
+#         inmask = invvar > 0.0
+# 
+#     if x2 is not None:
+#         if x2.size != nx:
+#             raise ValueError('Dimensions of xdata and x2 do not agree.')
+#     yfit = np.zeros(ydata.shape)
+#     if invvar.size == 1:
+#         outmask = True
+#     else:
+#         outmask = np.ones(invvar.shape, dtype='bool')
+#     xsort = xdata.argsort(kind='stable')
+#     maskwork = (outmask & inmask & (invvar > 0.0))[xsort]  # `maskwork` is in xsort order
+#     if 'oldset' in kwargs_bspline:
+#         sset = kwargs_bspline['oldset']
+#         sset.mask[:] = True
+#         sset.coeff[:] = 0.
+#     else:
+#         if not maskwork.any():
+#             raise ValueError('No valid data points.')
+#             # return (None,None)
+#         # JFH comment this out for now
+#         #        if 'fullbkpt' in kwargs:
+#         #            fullbkpt = kwargs['fullbkpt']
+#         else:
+#             sset = bspline.bspline(xdata[xsort[maskwork]], nord=nord, bkpt=bkpt, fullbkpt=fullbkpt, **kwargs_bspline)
+#             if maskwork.sum() < sset.nord:
+#                 print('Number of good data points fewer than nord.')
+#                 return (sset, outmask)
+#             if x2 is not None:
+#                 if 'xmin' in kwargs_bspline:
+#                     xmin = kwargs_bspline['xmin']
+#                 else:
+#                     xmin = x2.min()
+#                 if 'xmax' in kwargs_bspline:
+#                     xmax = kwargs_bspline['xmax']
+#                 else:
+#                     xmax = x2.max()
+#                 if xmin == xmax:
+#                     xmax = xmin + 1
+#                 sset.xmin = xmin
+#                 sset.xmax = xmax
+#                 if 'funcname' in kwargs_bspline:
+#                     sset.funcname = kwargs_bspline['funcname']
+#                     if kwargs_bspline['funcname'] == 'poly1':
+#                         log.warning("bspline funcname='poly1' produces a basis with no constant "
+#                                     "x2 term and may be ill-conditioned.  Consider using "
+#                                     "'legendre' instead.")
+#     xwork = xdata[xsort]
+#     ywork = ydata[xsort]
+#     invwork = invvar[xsort]
+#     if x2 is not None:
+#         x2work = x2[xsort]
+#     else:
+#         x2work = None
+#     iiter = 0
+#     error = -1
+#     qdone = False
+#     while (error != 0 or qdone is False) and iiter <= maxiter:
+#         goodbk = sset.mask.nonzero()[0]
+#         if maskwork.sum() <= 1 or not sset.mask.any():
+#             sset.coeff[:] = 0.
+#             iiter = maxiter + 1  # End iterations
+#         else:
+#             if 'requiren' in kwargs_bspline:
+#                 i = 0
+#                 while xwork[i] < sset.breakpoints[goodbk[sset.nord]] and i < nx - 1:
+#                     i += 1
+#                 ct = 0
+#                 for ileft in range(sset.nord, sset.mask.sum() - sset.nord + 1):
+#                     while (xwork[i] >= sset.breakpoints[goodbk[ileft]] and
+#                            xwork[i] < sset.breakpoints[goodbk[ileft + 1]] and
+#                            i < nx - 1):
+#                         ct += invwork[i] * maskwork[i] > 0
+#                         i += 1
+#                     if ct >= kwargs_bspline['requiren']:
+#                         ct = 0
+#                     else:
+#                         sset.mask[goodbk[ileft]] = False
+#             error, yfit = sset.fit(
+#                 xwork,  # x-sorted x data array
+#                 ywork,  # x-sorted y data array
+#                 invwork * maskwork,  # masked x-sorted invvar array
+#                 x2=x2work  # x-sorted x2 array
+#             )
+#         iiter += 1
+#         inmask_rej = maskwork
+#         if error == -2:
+# 
+#             return (sset, outmask)
+#         elif error == 0:
+#             # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
+#             # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
+#             # further consideration. I think requiring sticky to be set is the more transparent behavior.
+#             maskwork, qdone = pydl.djs_reject(ywork, yfit, invvar=invwork, inmask=inmask_rej, outmask=maskwork,
+#                                               upper=upper, lower=lower, **kwargs_reject)
+#         else:
+#             pass
+#     outmask[xsort] = maskwork
+#     # TODO: TPEB 2/2/23. Why do these next two lines exist?  They don't seem to do anything.
+#     temp = yfit
+#     yfit[xsort] = temp
+#     return (sset, outmask)
 
 
 def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lower=5, maxiter=25,
@@ -1490,9 +1490,9 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
         ydata (`numpy.ndarray`_):
             Array with the dependent variable. Regardless of shape,
             data is treated as one-dimensional.
-        sset (:class:`pypeit.bspline.bspline`):
+        sset (:class:`pypeit.bspline.refactor.BSpline`):
             Object with the results of the fit. (First object
-            returned by :func:`bspline_profile`).
+            returned by :func:`pypeit.bspline.refactor.bspline_profile_refactor`).
         gpm (`numpy.ndarray`_):
             Boolean array with the same size as ``xdata``.
             Measurements rejected during the fit have ``gpm=False``.
@@ -1515,7 +1515,7 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
         `matplotlib.axes.Axes`_: Axes instance with the data, model,
         and breakpoints.  Only returned if ``show`` is False.
     """
-    goodbk = sset.mask
+    goodbk = sset.bkpt_gpm
     bkpt, _ = sset.value(sset.breakpoints[goodbk])
     was_fit_and_masked = np.logical_not(gpm)
 

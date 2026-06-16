@@ -11,6 +11,11 @@ All random-number generators use a fixed seed for reproducibility.
 
 import warnings
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.axes
+import matplotlib.pyplot
+
 from IPython import embed
 import numpy as np
 import pytest
@@ -18,7 +23,7 @@ import pytest
 from pypeit import dataPaths
 from pypeit.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
 from pypeit.bspline.bspline import bspline
-from pypeit.core.fitting import bspline_profile
+from pypeit.core.fitting import bspline_profile, bspline_qa
 from pypeit.core.basis import fchebyshev, flegendre
 
 
@@ -1748,3 +1753,57 @@ def test_bspline_profile_refactor_matches_bspline_profile_2d():
         kwargs_knots={'spacing': spacing},
     )
     assert np.allclose(yfit_old, yfit_new)
+
+
+# ============================================================================
+# bspline_qa
+# ============================================================================
+
+def _make_bspline_fit(rng=None, n=300, spacing=1.0):
+    """Return (sset, gpm, xdata, ydata, yfit) from bspline_profile_refactor."""
+    if rng is None:
+        rng = np.random.default_rng(0)
+    x = np.sort(rng.uniform(0, 10, n))
+    y = np.sin(x) + rng.normal(0, 0.1, n)
+    ivar = np.full(n, 100.0)
+    sset, gpm, yfit, _, _ = bspline_profile_refactor(
+        x, y, ivar=ivar, nord=4, upper=5, lower=5,
+        kwargs_knots={'spacing': spacing},
+    )
+    return sset, gpm, x, y, yfit
+
+
+def test_bspline_qa_returns_axes_when_show_false():
+    """bspline_qa returns a matplotlib Axes when show=False."""
+    sset, gpm, xdata, ydata, yfit = _make_bspline_fit()
+    matplotlib.pyplot.figure()
+    ax = bspline_qa(xdata, ydata, sset, gpm, yfit, show=False)
+    assert isinstance(ax, matplotlib.axes.Axes)
+    matplotlib.pyplot.close('all')
+
+
+def test_bspline_qa_breakpoints_on_axes():
+    """bspline_qa plots breakpoints at the correct x positions on the axes."""
+    sset, gpm, xdata, ydata, yfit = _make_bspline_fit()
+    matplotlib.pyplot.figure()
+    ax = bspline_qa(xdata, ydata, sset, gpm, yfit, show=False)
+
+    # The breakpoint line is the 4th line added (index 3).
+    bkpt_line = ax.lines[3]
+    plotted_bkx = bkpt_line.get_xdata()
+    expected_bkx = sset.breakpoints[sset.bkpt_gpm]
+    assert np.allclose(plotted_bkx, expected_bkx)
+    matplotlib.pyplot.close('all')
+
+
+def test_bspline_qa_breakpoint_y_from_value():
+    """bspline_qa evaluates breakpoint y-values via BSpline.value."""
+    sset, gpm, xdata, ydata, yfit = _make_bspline_fit()
+    matplotlib.pyplot.figure()
+    ax = bspline_qa(xdata, ydata, sset, gpm, yfit, show=False)
+
+    bkpt_line = ax.lines[3]
+    plotted_bky = bkpt_line.get_ydata()
+    expected_bky, _ = sset.value(sset.breakpoints[sset.bkpt_gpm])
+    assert np.allclose(plotted_bky, expected_bky)
+    matplotlib.pyplot.close('all')
