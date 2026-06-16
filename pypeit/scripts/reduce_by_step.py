@@ -135,6 +135,13 @@ class ReducebyStep(scriptbase.ScriptBase):
         has_bg, bkg_redux, find_negative = pypeit_steps.set_bkg_negative(
             pypeIt.fitstbl, pypeIt.par, bg_frames)
 
+        # Preserve any existing reduction state — especially the calibration
+        # statuses written by pypeit_run_to_calibstep.  PypeIt starts with a
+        # fresh run_state (calibrations 'undone', no science); without this,
+        # writing the state after a science step would reset the calibrations
+        # to 'undone' and (in the Dashboard) disable every science (Re)Build.
+        pypeIt.run_state.merge_from_disk()
+
         # Record that this science step is starting, so the PypeIt Dashboard can
         # show it live (mirrors the run_to_calibstep state-write fix).  State I/O
         # is non-essential, so use the safe_* wrappers.

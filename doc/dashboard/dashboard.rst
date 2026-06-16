@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.3.1**
+**Dashboard documentation version: 1.3.5**
 
 Overview
 ========
@@ -307,11 +307,21 @@ exposure**, the counterpart of the Calibrations view for the science frames.
 
 It contains:
 
-- **Per-frame table** — one row per reduced ``(frame, detector)`` exposure, with
-  an **objtype** column (science / standard, both in the same table), the four
-  macro-step statuses (``process`` → ``findobj`` → ``skysub`` → ``extract``) as
-  color+glyph cells, the object count ``nobj``, and whether the ``spec2d`` /
-  ``spec1d`` products exist.  It is scrollable for runs with many frames.
+- **Run PypeIt** — a view-level button (above the table) that launches the
+  **full** reduction (``run_pypeit -o``): it processes *all* science and
+  standard frames and **overwrites** the existing science outputs.  It warns
+  before running and is governed by the same single-run lock as the (Re)Build
+  controls (it turns orange "⏳ Run in progress" while a run is active).  This is
+  distinct from the per-frame, per-step (Re)Build buttons in the detail panel.
+- **Per-frame table** — one row per ``(frame, detector)`` exposure, with its
+  **calibration group** and **detector**, an **objtype** column (science /
+  standard, both in the same table), the four macro-step statuses
+  (``process`` → ``findobj`` → ``skysub`` → ``extract``) as color+glyph cells,
+  the object count ``nobj``, and whether the ``spec2d`` / ``spec1d`` products
+  exist.  It is scrollable for runs with many frames.  In a folder that has not
+  been reduced yet, the table lists the **planned** science and standard frames
+  (read from the ``.pypeit`` file) with every step ``undone``, so you can see
+  what is coming — the science counterpart of the planned calibrations.
 - **Detail panel** for the selected frame:
 
   - **View spec2d** — opens the 2D spectrum (``pypeit_show_2dspec``); enabled
@@ -320,7 +330,10 @@ It contains:
     control that re-runs that science step for the frame via
     :doc:`/reduce_by_step`, governed by the same single-run lock as the
     calibrations (Re)Build (it turns orange "⏳ Run in progress" while a run is
-    active).  A step is enabled only when its prerequisite step has succeeded.
+    active).  A step is enabled only when its prerequisite step has succeeded
+    **and the frame's calibrations have been built successfully** — until then
+    the (Re)Build is disabled (a science step cannot run without its
+    calibrations).
   - **Per-slit table** — one row per slit with its status (``BADSKYSUB`` /
     ``BADEXTRACT`` flagged) and object count.
   - **Per-object table** — one row per detected object (``snr_find``, ``s2n``,

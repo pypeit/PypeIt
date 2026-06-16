@@ -6,7 +6,7 @@
 PypeIt Dashboard: Design
 ========================
 
-**Dashboard documentation version: 1.3.1**
+**Dashboard documentation version: 1.3.5**
 
 This page explains *how the dashboard is built* — its component structure, how it
 acquires the reduction :doc:`state </state>`, and how it stays in sync with a

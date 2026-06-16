@@ -94,6 +94,13 @@ class RunToCalibStep(scriptbase.ScriptBase):
         row = int(row[0])
         calib_id = pypeIt.fitstbl.find_frame_calib_groups(row)[0]
 
+        # Preserve any existing reduction state — especially the science
+        # entries (a science step-build via pypeit_reduce_by_step, or the
+        # Dashboard's planned frames).  PypeIt starts with a fresh run_state
+        # (no science); without this, writing the state after a calibration
+        # build would blank out the science portion of *_state.json.
+        pypeIt.run_state.merge_from_disk()
+
         # Calibrations?
         # Pass run_state so the reduction state file (*_state.json) is written
         # as each step runs -- without it the state is never updated, so e.g.

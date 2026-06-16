@@ -578,9 +578,9 @@ def test_get_science_status_table():
     assert s.get_science_status() is None
     s.safe_update_science('b27', 1, step='process', status='success')
     df = s.get_science_status()
-    assert list(df.columns) == ['frame', 'detector', 'objtype', 'process',
-                                'findobj', 'skysub', 'extract', 'nobj',
-                                'spec2d', 'spec1d']
+    assert list(df.columns) == ['frame', 'detector', 'calib', 'objtype',
+                                'process', 'findobj', 'skysub', 'extract',
+                                'nobj', 'spec2d', 'spec1d']
     row = df.iloc[0]
     assert row['process'] == 'success'
     assert row['findobj'] == 'undone'

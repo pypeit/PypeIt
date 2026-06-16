@@ -112,3 +112,9 @@ Bug Fixes
   science step it runs (marking it ``running`` then refreshing from disk) and
   the contributing raw frame(s), so status tools / the Dashboard reflect a
   step-by-step science (re)build.
+- ``pypeit_reduce_by_step`` and ``pypeit_run_to_calibstep`` now **merge** the
+  existing reduction state (``RunPypeItState.merge_from_disk``) before writing,
+  rather than overwriting it from their fresh, single-purpose state.  Previously
+  a science step-build reset the calibration statuses to ``undone`` (and a
+  calibration build blanked the science entries), since each script only
+  populates its own portion of the shared ``*_state.json``.
