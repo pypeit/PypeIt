@@ -31,29 +31,69 @@ For each step it records:
   ``tilts`` per-slit RMS; and ``flats`` corrections (pixel-to-pixel, spatial and
   spectral illumination), provenance, and per-slit per-correction mean/RMS.
 
-The state is modeled by :class:`~pypeit.state.RunPypeItState` (a pydantic model)
-and a tabular summary is available via
-:meth:`~pypeit.state.RunPypeItState.get_status`.
+In addition to the calibrations, the state records the **science frames** (see
+`Science-frame state`_ below): one entry per reduced science/standard exposure
+and detector, with the status of each science macro-step and the per-object /
+per-slit detail.
+
+The state is modeled by :class:`~pypeit.state.RunPypeItState` (a pydantic model);
+a tabular summary of the calibrations is available via
+:meth:`~pypeit.state.RunPypeItState.get_status`, and of the science frames via
+:meth:`~pypeit.state.RunPypeItState.get_science_status`.
+
+Science-frame state
+===================
+
+Alongside the calibrations, the state records a list of **science-frame**
+entries — one per reduced science or standard exposure **and detector/mosaic**.
+The science reduction is tracked as four macro-steps,
+
+.. code-block:: none
+
+    process  ->  findobj  ->  skysub  ->  extract
+
+(``findobj`` and ``skysub`` are produced together).  For each ``(frame,
+detector)`` entry the state records:
+
+- the ``objtype`` (``science`` or ``standard``) and the contributing raw
+  frame(s);
+- the ``status`` of each of the four macro-steps (same vocabulary as the
+  calibrations: ``undone`` / ``running`` / ``success`` / ``fail``);
+- the data products — the ``spec2d`` and ``spec1d`` files — and the object count
+  ``nobj``;
+- **per-slit** detail (a status from the ``BADSKYSUB`` / ``BADEXTRACT`` slit
+  bitmask, and the object count on the slit); and
+- **per-object** detail for each detected object — ``snr_find`` (the
+  object-finding S/N), ``s2n`` (the extraction S/N), the spatial pixel position,
+  FWHM, the trace ``sign``, and whether it was ``extracted``.
+
+A tabular per-frame summary is available via
+:meth:`~pypeit.state.RunPypeItState.get_science_status` (columns ``frame``,
+``detector``, ``objtype``, the four step statuses, ``nobj``, ``spec2d``,
+``spec1d``).  The :doc:`dashboard/dashboard` renders this in its Science view.
 
 How and when it is generated
 ============================
 
 - **During a run.** ``run_pypeit`` updates the state as it goes: it marks a step
   ``running`` before building it and ``success`` / ``fail`` afterward, writing
-  the JSON file at each transition.  So the file is a live, per-step record of
-  the run's progress.  ``pypeit_run_to_calibstep`` (rebuilding a single
-  calibration) likewise writes the state as it runs and refreshes it from disk on
-  completion.
+  the JSON file at each transition — for both the calibrations and the science
+  macro-steps.  So the file is a live, per-step record of the run's progress.
+  ``pypeit_run_to_calibstep`` (rebuilding a single calibration) and
+  ``pypeit_reduce_by_step`` (rebuilding a single science step) likewise write the
+  state as they run and refresh it from disk on completion.
 - **Without running (read-only).** The ``pypeit_status`` script derives the same
   state *without* performing any processing — it instantiates PypeIt in
   ``calib_only`` mode, checks what calibrations exist, and prints a status
   table; it writes a human-readable ``<pypeit_root>.status.log`` but, being a
   read, does **not** write ``<pypeit_root>_state.json``.  The dashboard derives
-  the same way on launch when no state file is present.
+  the same way on launch when no state file is present, and additionally
+  reconstructs the **science** state from the on-disk ``spec2d`` / ``spec1d``
+  products (and any ``Intermediate/`` files).
 
 The :doc:`dashboard/dashboard` reads ``<pypeit_root>_state.json`` to render its
-Status and Calibrations views; if the file is absent it derives the state the
-same way ``pypeit_status`` does.
+Status, Calibrations, and Science views; if the file is absent it derives the
+state the same way ``pypeit_status`` does.
 
 .. warning::
 

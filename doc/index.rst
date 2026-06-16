@@ -74,6 +74,7 @@ PypeIt BibTeX Entries
    QA <qa>
    Reduction State <state>
    Dashboard <dashboard/dashboard>
+   Dashboard Design <dashboard/dashboard_design>
    Step-by-step Processing <reduce_by_step>
 
 .. toctree::

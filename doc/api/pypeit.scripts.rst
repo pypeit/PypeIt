@@ -42,6 +42,8 @@ Submodules
    pypeit.scripts.obslog
    pypeit.scripts.parse_slits
    pypeit.scripts.print_bpm
+   pypeit.scripts.pypeit_dashboard
+   pypeit.scripts.pypeit_status
    pypeit.scripts.qa_html
    pypeit.scripts.ql
    pypeit.scripts.rectify_2dspec

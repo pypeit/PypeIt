@@ -37,13 +37,19 @@ Architecture
 The dashboard follows a Model–View–Controller organization:
 
 - a **headless model** (``pypeit.dashboard.model.DashboardModel``) that loads or
-  derives the reduction state and exposes it as clean, Qt-free data (a status
-  table, the ``(calibration group, detector)`` pairs, the path-aware step order,
-  per-step metrics, and per-slit/order detail);
-- thin **Qt views** (the Status and Calibrations tabs) that render what the
-  model provides; and
-- a small launcher that runs the inspection tools as subprocesses and reports
-  to the shared status bar.
+  derives the reduction state and exposes it as clean, Qt-free data (the
+  calibration status table, the ``(calibration group, detector)`` pairs, the
+  path-aware step order, per-step metrics, per-slit/order detail, and the
+  per-frame science table with its per-slit/per-object detail);
+- thin **Qt views** (the Status, Calibrations, and Science tabs) that render what
+  the model provides, coloring everything through the shared status palette;
+- a **launcher** (``Launcher``) that runs the inspection tools and (re)builds as
+  subprocesses and reports to the shared status bar; and
+- a single-run **lock** (``RunLock``) that detects an active reduction and drives
+  the live monitoring.
+
+For the component graph, the state-acquisition flow, and the live-monitoring /
+(Re)Build sequence — as diagrams — see :doc:`dashboard_design`.
 
 Launching
 =========
@@ -398,6 +404,8 @@ this version:
 See also
 ========
 
+- :doc:`dashboard_design` — how the dashboard is built (component, state-flow,
+  and live-monitoring diagrams).
 - :doc:`/state` — the reduction state file the dashboard reads.
 - :doc:`/qa` — the QA figures.
 - :doc:`/scripts` — the ``pypeit_chk_*`` / ``pypeit_show_*`` inspection scripts.

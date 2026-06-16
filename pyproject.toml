@@ -75,6 +75,7 @@ docs = [
     "sphinx-design",
     "sphinx_rtd_theme==3.0.0",
     "sphinx-autodoc-typehints>3.2",
+    "sphinxcontrib-mermaid",
 ]
 devsuite = [
     "psutil",
@@ -95,6 +96,7 @@ dev = [
     "sphinx-design",
     "sphinx_rtd_theme==3.0.0",
     "sphinx-autodoc-typehints>3.2",
+    "sphinxcontrib-mermaid",
     "psutil",
     "pytest-qt",
 ]

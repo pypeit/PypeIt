@@ -9,6 +9,7 @@ Subpackages
 
    pypeit.bspline
    pypeit.core
+   pypeit.dashboard
    pypeit.display
    pypeit.images
    pypeit.move_median
@@ -18,6 +19,7 @@ Subpackages
    pypeit.setup_gui
    pypeit.spectrographs
    pypeit.specutils
+   pypeit.state
 
 Submodules
 ----------
