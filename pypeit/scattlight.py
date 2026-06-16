@@ -107,7 +107,7 @@ class ScatteredLight(calibframe.CalibFrame):
         # Return the model of the scattered light
         return scattlight.scattered_light_model_pad(self.scattlight_param, image)
 
-    def show(self, image=None, slits=None, mask=False, wcs_match=True):
+    def show(self, image=None, slits=None, spat_flexure=None, mask=False, wcs_match=True):
         """ Display the master scattered light frame, the model, and data-model.
 
         Parameters
@@ -117,12 +117,17 @@ class ScatteredLight(calibframe.CalibFrame):
             the master Scattered Light frame wil be displayed by default
         slits : :class:`~pypeit.slittrace.SlitTraceSet`, optional
             The current slit traces
+        spat_flexure (:obj:`numpy.ndarray`, optional):
+            If provided, this is the shift, in spatial pixels, to
+            the slit edges. Shape is (nslits, 2), where nslits is
+            the number of slits, spat_flexure[:,0] is for the left
+            edges, and spat_flexure[:,1] is for the right edges.
         mask : :obj:`bool`
             If True, the slits will be masked to show only the scattered light regions
         wcs_match : :obj:`bool`, optional
             Use a reference image for the WCS and match all image in other channels to it.
         """
-        offslitmask = slits.slit_img(pad=0, spat_flexure=None) == -1 if mask else 1
+        offslitmask = slits.slit_img(pad=0, spat_flexure=spat_flexure) == -1 if mask else 1
 
         # Prepare the frames
         _data = self.scattlight_raw if image is None else image

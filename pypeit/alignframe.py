@@ -9,7 +9,6 @@ import numpy as np
 from IPython import embed
 from scipy.interpolate import interp1d, RegularGridInterpolator
 
-from pypeit.core.flexure import spat_flexure_shift
 from pypeit.display import display
 from pypeit.core import findobj_skymask
 from pypeit import datamodel
@@ -111,6 +110,11 @@ class TraceAlignment:
             The parameters used for the align traces
         det (:obj:`int`, optional):
             Detector number
+        spat_flexure (:obj:`numpy.ndarray`, optional):
+            If provided, this is the shift, in spatial pixels, to
+            the slit edges. Shape is (nslits, 2), where nslits is
+            the number of slits, spat_flexure[:,0] is for the left
+            edges, and spat_flexure[:,1] is for the right edges.
         qa_path (:obj:`str`, optional):
             Directory for QA plots
         msbpm (`numpy.ndarray`_, optional):
@@ -124,14 +128,15 @@ class TraceAlignment:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edge traces.
     """
-    def __init__(self, rawalignimg, slits, spectrograph, alignpar, det=1, qa_path=None,
-                 msbpm=None):
+    def __init__(self, rawalignimg, slits, spectrograph, alignpar,
+                 det=1, spat_flexure=None, qa_path=None, msbpm=None):
 
         # Defaults
         self.spectrograph = spectrograph
         self.PYP_SPEC = spectrograph.name
         # Alignment parameters
         self.alignpar = alignpar
+        self.spat_flexure = spat_flexure
 
         # Input data
         self.rawalignimg = rawalignimg
@@ -183,8 +188,8 @@ class TraceAlignment:
             dict:  self.align_dict
         """
         # Generate slits
-        slitid_img_init = self.slits.slit_img(initial=True, spat_flexure=self.rawalignimg.spat_flexure)
-        left, right, _ = self.slits.select_edges(initial=True, spat_flexure=self.rawalignimg.spat_flexure)
+        slitid_img_init = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
+        left, right, _ = self.slits.select_edges(initial=True, spat_flexure=self.spat_flexure)
         align_prof = dict({})
 
         # Go through the slits

@@ -465,6 +465,13 @@ class BuildWaveCalib:
         par (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`):
             The parameters used for the wavelength solution.
             Uses ``['calibrations']['wavelengths']``.
+        lamps (list):
+            List of lamps used for the wavelength calibration
+        spat_flexure (`numpy.ndarray`_, optional):
+            If provided, this is the shift, in spatial pixels, to
+            the slit edges. Shape is (nslits, 2), where nslits is
+            the number of slits, spat_flexure[:,0] is for the left
+            edges, and spat_flexure[:,1] is for the right edges.
         meta_dict (dict, optional):
             Dictionary containing meta information required for wavelength
             calibration. Specifically for non-fixed format echelles this dict
@@ -507,7 +514,7 @@ class BuildWaveCalib:
     frametype = 'wv_calib'
 
     def __init__(self, msarc, slits, spectrograph, par, lamps,
-                 meta_dict=None, det=1, qa_path=None, msbpm=None):
+                 spat_flexure=None, meta_dict=None, det=1, qa_path=None, msbpm=None):
 
         # TODO: This should be a stop-gap to avoid instantiation of this with
         # any Nones.
@@ -522,6 +529,7 @@ class BuildWaveCalib:
         self.par = par
         self.lamps = lamps
         self.meta_dict = meta_dict
+        self.spat_flexure = spat_flexure
 
         # Optional parameters
         self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
@@ -564,8 +572,7 @@ class BuildWaveCalib:
                             self.slits.mask[idx], 'BADWVCALIB')
 
             # Load up slits
-            # TODO -- Allow for flexure
-            slits_left, slits_right, mask = self.slits.select_edges(initial=True, spat_flexure=None)  # Grabs all, init slits + flexure
+            slits_left, slits_right, mask = self.slits.select_edges(initial=True, spat_flexure=self.spat_flexure)
             self.orders = self.slits.ech_order  # Can be None
 #            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
@@ -577,7 +584,7 @@ class BuildWaveCalib:
             self.wvc_bpm_init = self.wvc_bpm.copy()
             # Slitmask -- Grabs only unmasked, initial slits
             #self.slitmask_science = self.slits.slit_img(initial=True, flexure=None, exclude_flag=['BOXSLIT'])
-            self.slitmask_science = self.slits.slit_img(initial=True, spat_flexure=None)
+            self.slitmask_science = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
             # Resize
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
@@ -987,7 +994,6 @@ class BuildWaveCalib:
 
         # Prep
         if self.par['ech_separate_2d']:
-            slit_img = self.slits.slit_img()
             # Grab the detectors in the mosaic (1-based indexing)
             dets = np.unique(self.msarc.det_img)
             dets = dets[dets > 0]
@@ -1016,7 +1022,7 @@ class BuildWaveCalib:
                     # What is the most common detector for this order?
                     ordr_det = self.slits.det_of_slit(
                         spat_id, self.msarc.det_img,
-                        slit_img=slit_img)
+                        slit_img=self.slitmask)
                     # Correct detector?
                     if ordr_det != idet:
                         continue

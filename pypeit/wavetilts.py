@@ -159,7 +159,7 @@ class WaveTilts(calibframe.CalibFrame):
         # Check the optional inputs
         _spat_flexure = np.zeros((slits_left.shape[1], 2)) if spat_flexure is None else spat_flexure
 
-        # Setup the output image
+        # Set up the output image
         final_tilts = np.zeros_like(slitmask).astype(float)
         gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)
         # Loop through all good slits
@@ -170,8 +170,17 @@ class WaveTilts(calibframe.CalibFrame):
             coeff_out = self.coeffs[:self.spec_order[slit_idx]+1, :self.spat_order[slit_idx]+1, slit_idx]
             # Extract the spectral and spatial coordinates for this slit
             thismask_science = (slitmask == slit_spat)
-            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left[:, slit_idx], slits_right[:, slit_idx],
-                                                                     thismask_science, _spat_flexure[slit_idx, :])
+            # NOTE : The coeff_out coefficients are evaluated at the self.spat_flexure location, and
+            # self.spat_flexure is the spatial flexure of the tilts relative to the initial slits.
+            # Furthermore, _spat_flexure is the spatial flexure of the current frame relative to the
+            # initial slits. We therefore need to evaluate the tilts at the relative spatial flexure
+            # between the current frame and the tilts. Therefore:
+            rel_spat_flexure = _spat_flexure[slit_idx, :] - self.spat_flexure[slit_idx, :]
+            # Prepare the evaluation coordinates
+            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left[:, slit_idx],
+                                                                     slits_right[:, slit_idx],
+                                                                     thismask_science,
+                                                                     relative_spat_flexure=rel_spat_flexure)
             # Calculate the tilts
             final_tilts[thismask_science] = tracewave.fit2tilts(coeff_out, self.func2d,
                                                                 spec_eval=_spec_eval, spat_eval=_spat_eval)
@@ -239,7 +248,7 @@ class WaveTilts(calibframe.CalibFrame):
         if cal_file.exists():
             slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
             _slitmask = slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
-            _left, _right, _mask = slits.select_edges(spat_flexure=self.spat_flexure)
+            _left, _right, _mask = slits.select_edges(initial=True, spat_flexure=self.spat_flexure)
             gpm = _mask == 0
             # resize
             slitmask = arc.resize_mask2arc(tilt_img_dict.image.shape, _slitmask)
@@ -492,7 +501,13 @@ class BuildWaveTilts:
         """
         Fit the tilts
 
-        all_fit_dict and all_trace_dict are filled in place
+        all_fit_dict and all_trace_dict are filled in place.
+
+        TODO: Flexure can now be performed on left and right slit edges. It no longer makes
+         sense to fit the tilts relative to the slit centre. This will be a small correction,
+         but we should fit the tilts relative to the left and right edges. We need to fit
+         pixels on a small from 0-1, instead of absolute pixel difference from the slit centre
+         divided by (nspat-1).
 
         Args:
             trc_tilt_dict (dict): Contains information from tilt tracing
@@ -534,10 +549,10 @@ class BuildWaveTilts:
                 Array containing the spectral pixel location of each
                 line found for this slit.  Shape is (nlines,).
             lines_spat (`numpy.ndarray`_):
-               Array containing the spatial pixel location of each line,
-               which is the slitcen evaluate at the spectral position
-               position of the line stored in lines_spec. Shape is
-               (nlines,).
+                Array containing the spatial pixel location of each line,
+                which is the slitcen evaluate at the spectral position
+                of the line stored in lines_spec. Shape is
+                (nlines,).
             thismask (`numpy.ndarray`_):
                Image indicating which pixels lie on the slit in
                equation. True = on the slit. False = not on slit.  Shape
@@ -839,9 +854,13 @@ class BuildWaveTilts:
             # which corresonds to the same binning as the science
             # images, trace images, and pixelflats etc.
             thismask_science = self.slitmask_science == slit_spat
-            # Extract the spectral and spatial coordinates for this slit
-            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left[:, slit_idx], slits_right[:, slit_idx],
-                                                                     thismask_science, self.spat_flexure[slit_idx, :])
+            # Extract the spectral and spatial coordinates for this slit (NOTE: The relative spat flexure is zero
+            # here because the tilts are fit with the spatial flexure taken into account. So, there is no relative
+            # spatial flexure, in this case).
+            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left[:, slit_idx],
+                                                                     slits_right[:, slit_idx],
+                                                                     thismask_science,
+                                                                     relative_spat_flexure=None)
             # Calculate the tilts
             self.tilts = tracewave.fit2tilts(coeff_out, self.par['func2d'], spec_eval=_spec_eval, spat_eval=_spat_eval)
             # Check that the tilts image has values that span a reasonable range

@@ -518,11 +518,16 @@ class Calibrations:
                                                  setup=setup, calib_id=calib_id,
                                                  manual_spat_flexure=manual_spat_flexure)
 
+        # Get flexure
+        _spat_flexure = msalign.spat_flexure \
+            if self.par['alignframe']['process']['spat_flexure_method'] != "skip" \
+            else None
+
         # Instantiate
         # TODO: From JFH: Do we need the bpm here?  Check that this was in the previous code.
         alignment = alignframe.TraceAlignment(msalign, self.slits, self.spectrograph,
                                               self.par['alignment'], det=self.det,
-                                              qa_path=self.qa_path, msbpm=self.msbpm)
+                                              spat_flexure=_spat_flexure, qa_path=self.qa_path, msbpm=self.msbpm)
         # NOTE: The spatial flexure (if any) is stored in the msalign image, and passed into the alignment variable.
         self.alignments = alignment.run(show=self.show)
         # NOTE: The alignment object inherits the calibration frame naming from
@@ -745,9 +750,15 @@ class Calibrations:
                                                          setup=setup, calib_id=calib_id,
                                                          manual_spat_flexure=manual_spat_flexure)
 
+        # Get flexure
+        _spat_flexure = scattlightImage.spat_flexure \
+            if self.par['scattlightframe']['process']['spat_flexure_method'] != "skip" \
+            else None
+
+
         spatbin = parse.parse_binning(binning)[1]
         pad = self.par['scattlight_pad'] // spatbin
-        offslitmask = self.slits.slit_img(pad=pad, spat_flexure=scattlightImage.spat_flexure) == -1
+        offslitmask = self.slits.slit_img(pad=pad, spat_flexure=_spat_flexure) == -1
 
         # Get starting parameters for the scattered light model
         x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
@@ -778,7 +789,7 @@ class Calibrations:
         if self.msscattlight is not None:
             # Show the result if requested
             if self.show:
-                self.msscattlight.show()
+                self.msscattlight.show(spat_flexure=_spat_flexure)
 
             # Save the master scattered light model
             self.msscattlight.set_paths(self.calib_dir, setup, calib_id, detname)
@@ -1307,6 +1318,12 @@ class Calibrations:
         meta_dict = dict(self.fitstbl[is_arc][0]) \
                     if self.spectrograph.pypeline == 'Echelle' \
                         and not self.spectrograph.ech_fixed_format else None
+
+        # Get flexure
+        _spat_flexure = self.msarc.spat_flexure \
+            if self.par['arcframe']['process']['spat_flexure_method'] != "skip" \
+            else None
+
         # Instantiate
         # TODO: Pull out and pass only the necessary parts of meta_dict to
         # this, or include the relevant parts as parameters.  See comments
@@ -1317,7 +1334,7 @@ class Calibrations:
         log.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], lamps, meta_dict=meta_dict,
-                                             det=self.det, qa_path=self.qa_path)
+                                             spat_flexure=_spat_flexure, det=self.det, qa_path=self.qa_path)
         self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa),
                                       prev_wvcalib=self.wv_calib)
         # If orders were found, save slits to disk
