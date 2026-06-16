@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.3.7**
+**Dashboard documentation version: 1.3.8**
 
 .. warning::
 
@@ -40,26 +40,6 @@ rather than reimplementing any plotting.
    PypeIt setup GUI.  It launches the inspection tools as subprocesses, so no
    extra plotting dependencies are required.
 
-Architecture
-------------
-
-The dashboard follows a Model–View–Controller organization:
-
-- a **headless model** (``pypeit.dashboard.model.DashboardModel``) that loads or
-  derives the reduction state and exposes it as clean, Qt-free data (the
-  calibration status table, the ``(calibration group, detector)`` pairs, the
-  path-aware step order, per-step metrics, per-slit/order detail, and the
-  per-frame science table with its per-slit/per-object detail);
-- thin **Qt views** (the Status, Calibrations, and Science tabs) that render what
-  the model provides, coloring everything through the shared status palette;
-- a **launcher** (``Launcher``) that runs the inspection tools and (re)builds as
-  subprocesses and reports to the shared status bar; and
-- a single-run **lock** (``RunLock``) that detects an active reduction and drives
-  the live monitoring.
-
-For the component graph, the state-acquisition flow, and the live-monitoring /
-(Re)Build sequence — as diagrams — see :doc:`dashboard_design`.
-
 Launching
 =========
 
@@ -79,7 +59,7 @@ Useful options:
 On startup the dashboard derives the reduction **state**: if a
 ``<root>_state.json`` file is present (written by ``run_pypeit`` /
 ``pypeit_run_to_calibstep``; see :doc:`/state`) it is loaded; otherwise the
-state is computed the way ``pypeit_status`` does (a read — no processing is
+state is computed the way :ref:`pypeit_status` does (a read — no processing is
 performed and no state file is written).  Computing the state may briefly block
 the UI on launch.
 
@@ -437,6 +417,26 @@ this version:
 - A **log view** that tails the reduction ``.log`` while running.
 - Deferred per-object science metrics (``OPT_CHI2``, ``WAVE_RMS``, flexure) and
   mosaic-detector science derivation from disk.
+
+Architecture
+============
+
+The dashboard follows a Model–View–Controller organization:
+
+- a **headless model** (``pypeit.dashboard.model.DashboardModel``) that loads or
+  derives the reduction state and exposes it as clean, Qt-free data (the
+  calibration status table, the ``(calibration group, detector)`` pairs, the
+  path-aware step order, per-step metrics, per-slit/order detail, and the
+  per-frame science table with its per-slit/per-object detail);
+- thin **Qt views** (the Status, Calibrations, and Science tabs) that render what
+  the model provides, coloring everything through the shared status palette;
+- a **launcher** (``Launcher``) that runs the inspection tools and (re)builds as
+  subprocesses and reports to the shared status bar; and
+- a single-run **lock** (``RunLock``) that detects an active reduction and drives
+  the live monitoring.
+
+For the component graph, the state-acquisition flow, and the live-monitoring /
+(Re)Build sequence — as diagrams — see :doc:`dashboard_design`.
 
 See also
 ========

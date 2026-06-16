@@ -13,6 +13,9 @@ Documentation Updates
 - Updated the Setup GUI tutorial to reflect the new look of the GUI.
 - Modified the ``update_docs`` script to allow the docs to be built without
   access to ``$PYPEIT_DEV/RAW_DATA``.
+- Registered ``pypeit_status`` in the documented script list and added a
+  :ref:`pypeit_status` section to the scripts documentation (it was a working
+  command-line entry point but was missing from the docs/script registry).
 
 Dependency Changes
 ------------------

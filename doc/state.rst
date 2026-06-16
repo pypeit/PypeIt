@@ -88,8 +88,8 @@ How and when it is generated
   (:meth:`~pypeit.state.RunPypeItState.merge_from_disk`) so a calibration build
   does not blank the science entries, nor a science build the calibration
   statuses.
-- **Without running (read-only).** The ``pypeit_status`` script derives the same
-  state *without* performing any processing — it instantiates PypeIt in
+- **Without running (read-only).** The :ref:`pypeit_status` script derives the
+  same state *without* performing any processing — it instantiates PypeIt in
   ``calib_only`` mode, checks what calibrations exist, and prints a status
   table; it writes a human-readable ``<pypeit_root>.status.log`` but, being a
   read, does **not** write ``<pypeit_root>_state.json``.  The dashboard derives
@@ -120,5 +120,5 @@ See also
 ========
 
 - :doc:`dashboard/dashboard` — the GUI that visualizes the state.
-- ``pypeit_status`` — print the reduction status from the command line.
+- :ref:`pypeit_status` — print the reduction status from the command line.
 - :doc:`running` — the core ``run_pypeit`` execution.

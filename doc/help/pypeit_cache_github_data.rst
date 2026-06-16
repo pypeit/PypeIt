@@ -1,17 +1,17 @@
 .. code-block:: console
 
     $ pypeit_cache_github_data -h
-    [1;34musage: [0m[1;35mpypeit_cache_github_data[0m [[32m-h[0m] [[32m-v [33mVERBOSITY[0m] [[36m--log_file [33mLOG_FILE[0m]
-                                    [[36m--log_level [33mLOG_LEVEL[0m]
-                                    [[36m--exclude [33mEXCLUDE [EXCLUDE ...][0m |
-                                    [36m--include [33mINCLUDE [INCLUDE ...][0m]
-                                    [[36m--spec_dependent_only[0m] [[36m--force_update[0m]
-                                    [32mspectrograph [spectrograph ...][0m
+    usage: pypeit_cache_github_data [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                                    [--log_level LOG_LEVEL]
+                                    [--exclude EXCLUDE [EXCLUDE ...] |
+                                    --include INCLUDE [INCLUDE ...]]
+                                    [--spec_dependent_only] [--force_update]
+                                    spectrograph [spectrograph ...]
     
     Script to download/cache PypeIt github data
     
-    [1;34mpositional arguments:[0m
-      [1;32mspectrograph[0m          A valid spectrograph identifier: aat_uhrf, apf_levy,
+    positional arguments:
+      spectrograph          A valid spectrograph identifier: aat_uhrf, apf_levy,
                             bok_bc, gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
@@ -36,37 +36,37 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    [1;34moptions:[0m
-      [1;32m-h[0m, [1;36m--help[0m            show this help message and exit
-      [1;32m-v[0m, [1;36m--verbosity[0m [1;33mVERBOSITY[0m
+    options:
+      -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
                             messages and the calling sequence. (default: 2)
-      [1;36m--log_file[0m [1;33mLOG_FILE[0m   Name for the log file. If set to "default", a default
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
                             name is used. If None, a log file is not produced.
                             (default: None)
-      [1;36m--log_level[0m [1;33mLOG_LEVEL[0m
+      --log_level LOG_LEVEL
                             Verbosity level for the log file. If a log file is
                             produce and this is None, the file log will match the
                             console stream log. (default: None)
-      [1;36m--exclude[0m [1;33mEXCLUDE [EXCLUDE ...][0m
+      --exclude EXCLUDE [EXCLUDE ...]
                             A subset of the directories to *exclude* from the list
                             of files to download. Options are: tests, reid_arxiv,
                             nist, standards, skisim, sensfunc, pixelflat. This
                             option is mutually exclusive with --include. (default:
                             ['tests'])
-      [1;36m--include[0m [1;33mINCLUDE [INCLUDE ...][0m
+      --include INCLUDE [INCLUDE ...]
                             The directories to *include* in the list of files to
                             download. Use "--include all" to include all
                             directories. Options are: all, tests, reid_arxiv, nist,
                             standards, skisim, sensfunc, pixelflat. This option is
                             mutually exclusive with --exclude. (default: None)
-      [1;36m--spec_dependent_only[0m
+      --spec_dependent_only
                             Only include files that are specific to the provided
                             list of spectrographs. By default, the script also
                             includes any files in the selected directories that are
                             *not* specific to a given spectrograph (e.g.,
                             atmospheric extinction curves). (default: False)
-      [1;36m--force_update[0m        Force re-download of existing files (default: False)
+      --force_update        Force re-download of existing files (default: False)
     

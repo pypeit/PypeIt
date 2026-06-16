@@ -39,6 +39,7 @@ __all__ = [
     'obslog',
     'parse_slits',
     'print_bpm',
+    'pypeit_status',
     'qa_html',
     'ql',
     'rectify_2dspec',
