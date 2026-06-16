@@ -137,8 +137,7 @@ class CombineImage:
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The combination of
             all the processed images.
         """
-        
-        
+
         # Check the input (i.e., bomb out *before* it does any processing)
         if self.nimgs == 0:
             raise PypeItError('Object contains no files to process!')
@@ -161,7 +160,7 @@ class CombineImage:
                 basev_stack = np.zeros(shape, dtype=float)
                 gpm_stack = np.zeros(shape, dtype=bool)
                 exptime = np.zeros(self.nimgs, dtype=float)
-                all_spat_flexure = np.zeros((self.nimgs,)+rawImage.spat_flexure.shape, dtype=float)
+                all_spat_flexure = [None for ii in range(self.nimgs)]
 
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = rawImage.exptime
@@ -198,35 +197,42 @@ class CombineImage:
         else:
             comb_texp = exptime[0]
 
-        # Check that all spatial flexure values are consistent
-        comb_spat_flexure = np.mean(all_spat_flexure, axis=0)
+        # Check if any or all spatial flexure are None
+        comb_spat_flexure = np.zeros((1, 2)) # Default is that we don't know the current number of slits.
+        if np.all([a is None for a in all_spat_flexure]):
+            log.warning('No flexure values found for all images being combined!')
+        elif np.any([a is None for a in all_spat_flexure]):
+            log.warning('Some images do not have spatial flexure values, but will still be combined!')
+        else:
+            # Check that all spatial flexure values are consistent
+            comb_spat_flexure = np.mean(all_spat_flexure, axis=0)
 
-        # Before combining, perform a quick check to make sure all
-        # spatial flexure values of all input frames are consistent.
-        # If not, print a warning message to the user.
-        # Subtract off the minimum value
-        tst_spat_flexure = all_spat_flexure - np.min(all_spat_flexure, axis=0)[None, :, :]
-        max_diff = np.max(tst_spat_flexure)
-        if max_diff >= 0.2:
-            log.warning(f'Spatial flexure values of input frames are not consistent to within 0.2 pixels. '
-                        f'Largest difference between spatial flexure was {max_diff:.2f} pixels. '
-                        f'This may lead to a poor combination of the images.')
-        elif max_diff != 0.0:
-            log.info(f'Spatial flexure values of input frames are consistent to within 0.2 pixels. '
-                     f'Maximum difference between spatial flexure was {max_diff:.2f} pixels.')
+            # Before combining, perform a quick check to make sure all
+            # spatial flexure values of all input frames are consistent.
+            # If not, print a warning message to the user.
+            # Subtract off the minimum value
+            tst_spat_flexure = all_spat_flexure - np.min(all_spat_flexure, axis=0)[None, :, :]
+            max_diff = np.max(tst_spat_flexure)
+            if max_diff >= 0.2:
+                log.warning(f'Spatial flexure values of input frames are not consistent to within 0.2 pixels. '
+                            f'Largest difference between spatial flexure was {max_diff:.2f} pixels. '
+                            f'This may lead to a poor combination of the images.')
+            elif max_diff != 0.0:
+                log.info(f'Spatial flexure values of input frames are consistent to within 0.2 pixels. '
+                         f'Maximum difference between spatial flexure was {max_diff:.2f} pixels.')
 
-        # scale the images to their mean, if requested, before combining
-        if self.par['scale_to_mean']:
-            log.info("Scaling images to have the same mean before combining")
-            # calculate the mean of the images
-            [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nimgs, dtype=float)/self.nimgs,
-                                                                  [img_stack],
-                                                                  [rn2img_stack],
-                                                                  # var_list is added because it is
-                                                                  # required by the function but not used
-                                                                  gpm_stack, sigma_clip=self.par['clip'],
-                                                                  sigma_clip_stack=img_stack,
-                                                                  sigrej=self.par['comb_sigrej'], maxiters=maxiters)
+            # scale the images to their mean, if requested, before combining
+            if self.par['scale_to_mean']:
+                log.info("Scaling images to have the same mean before combining")
+                # calculate the mean of the images
+                [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nimgs, dtype=float)/self.nimgs,
+                                                                      [img_stack],
+                                                                      [rn2img_stack],
+                                                                      # var_list is added because it is
+                                                                      # required by the function but not used
+                                                                      gpm_stack, sigma_clip=self.par['clip'],
+                                                                      sigma_clip_stack=img_stack,
+                                                                      sigrej=self.par['comb_sigrej'], maxiters=maxiters)
 
             # scale factor
             # TODO: Chose the median over the whole frame to avoid outliers.  Is this the right choice?

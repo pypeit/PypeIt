@@ -807,7 +807,7 @@ class RawImage:
         """
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
-            # Already field flattened
+            # Spatial flexure already calculated
             log.warning('Spatial flexure shift already calculated.')
             return
         if self.nimg > 1:
@@ -820,7 +820,7 @@ class RawImage:
                 log.warning('Manual spatial flexure provided without slits - assuming no spatial flexure.')
             else:
                 log.warning('Cannot calculate spatial flexure without slits - assuming no spatial flexure.')
-            return
+            return np.full((slits.nslits, 2), 0.0)
 
         # First check for manual flexure
         qa_outfile = None
