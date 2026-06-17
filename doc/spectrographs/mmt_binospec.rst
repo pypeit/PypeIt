@@ -19,6 +19,22 @@ PypeIt supports Binospec in three modes:
 - **Longslit**: ``mmt_binospec`` (auto-detected from the ``MASK`` header keyword)
 - **IFU**: ``mmt_binospec_ifu`` (fiber-fed integral field unit)
 
+Setups and Frame Typing
++++++++++++++++++++++++
+
+Unique configurations (setups) are defined by both the grating
+(``dispname``, FITS ``DISPERS1``) and the slit mask (``decker``, FITS
+``MASK``).  Frames taken with different masks therefore end up in separate
+setups (separate ``.pypeit`` files and calibration groups), so that slit
+traces, pixel flats, and wavelength solutions are never mixed across
+distinct slit-mask geometries.
+
+Pixel flats, trace flats, and illumination flats require the incandescent
+flat lamp to be on (FITS ``INCAN`` = ``on``), in addition to the arc lamp
+being off (``HENEAR`` = ``off``) and the screen deployed (``SCRN`` =
+``deployed``).  Exposures taken with ``INCAN`` = ``off`` are dark/noisy and
+are not auto-typed as flats.
+
 Wavelength Calibration
 ++++++++++++++++++++++
 

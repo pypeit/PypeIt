@@ -376,7 +376,7 @@ However, thick, deep-depletion detectors like those found in
 :doc:`Keck's KCRM </spectrographs/keck_kcwi>` are prone to very large or
 extended cosmic ray features, especially when the cosmic ray hits the
 detector at a shallow angle.  These features can be several pixels wide and
-hundreds of pixels long, and are difficult for the standard L.A. Cosmic
+hundreds of pixels long. This makes it difficult for the standard L.A. Cosmic
 algorithm to detect because they appear smooth in their interiors and only
 show up as significant deviations at their endpoints.
 
@@ -397,7 +397,7 @@ values are not modified.  The core routine is
 This method works best for frames with small tilts, where the lines are
 nearly horizontal and the row-local median can effectively capture the line
 signal.  For frames with large tilts, the row-local median will struggle to
-capture the line signal, and the residual image will be dominated by line
+capture the line signal. he residual image will be dominated by line
 residuals rather than CR features, leading to many false positives.  In that
 case, set ``cr_median_width`` to 0 to disable the residual path and fall
 back to the standard L.A. Cosmic approach.
