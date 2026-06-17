@@ -9204,6 +9204,162 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TellPCA_3000_26000_R15000.fits
 
+.. _instr_par-soar_tspec:
+
+SOAR TSPEC (``soar_tspec``)
+---------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = soar_tspec
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 0, None,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = 1, None,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          exprng = 1, None,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_illumflat = False
+      [[standardframe]]
+          exprng = None, 60,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_illumflat = False
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_norder_coeff = 6
+          ech_sigrej = 3.0
+          lamps = OH_NIRES,
+          fwhm = 2.9
+          reid_arxiv = soar_triplespec.fits
+          rms_thresh_frac_fwhm = 0.103
+          n_final = 3, 4, 4, 4, 4,
+      [[slitedges]]
+          fit_min_spec_length = 0.3
+          auto_pca = False
+          trace_thresh = 5.0
+          fwhm_gaussian = 4.0
+          det_buffer = 10
+          minimum_slit_length = 2.0
+      [[tilts]]
+          tracethresh = 10.0
+  [scienceframe]
+      exprng = 60, None,
+      [[process]]
+          satpix = nothing
+          mask_cr = True
+          sigclip = 20.0
+          use_biasimage = False
+          use_overscan = False
+          noise_floor = 0.01
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          bspline_spacing = 0.8
+      [[extraction]]
+          boxcar_radius = 0.75
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+  [sensfunc]
+      algorithm = IR
+      polyorder = 8
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
+
 .. _instr_par-subaru_focas:
 
 SUBARU FOCAS (``subaru_focas``)

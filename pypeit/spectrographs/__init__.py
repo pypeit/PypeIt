@@ -39,6 +39,7 @@ __all__ = [
     'shane_kast',
     'shane_hamspec',
     'soar_goodman',
+    'soar_tspec',
     'subaru_focas',
     'tng_dolores',
     'vlt_fors',

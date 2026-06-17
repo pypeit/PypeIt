@@ -516,7 +516,11 @@ class BuildWaveCalib:
         self.meta_dict = meta_dict
 
         # Optional parameters
-        self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
+        # Mask BPM and CR-flagged pixels: when residual CR rejection runs without
+        # filling, CR pixels still carry their original (contaminated) values, so
+        # they must be excluded from line centroiding.
+        self.bpm = self.msarc.select_flag(flag=['BPM', 'CR']) if msbpm is None \
+                    else msbpm.astype(bool)
         if self.bpm.shape != self.msarc.shape:
             raise PypeItError('Bad-pixel mask is not the same shape as the arc image.')
         self.qa_path = qa_path
