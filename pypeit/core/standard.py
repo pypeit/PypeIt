@@ -903,13 +903,9 @@ def get_model_standard(spectral_type, V_mag):
 
 
 
-def get_standard_spectrum(archives, spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None):
-
-# archives is now the first, positional argument, since it can take on the name of the standard star directory,
-# if it is given as a parameter, "star_arxiv" in the sensfunc input file. If "star_arxiv" is not in the sensfunc input 
-# file, then the selection of the standard star flux table defaults to the original behavior where the first result in
-# the ordered search of archives=['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'lbtmods'] is used.
- 
+def get_standard_spectrum(
+    archives='default', spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None
+):
     """
     Return a standard spectrum.
 
@@ -921,6 +917,11 @@ def get_standard_spectrum(archives, spectral_type=None, V_mag=None, ra=None, dec
 
     Parameters
     ----------
+    archives : str, optional
+        The specific archive to search for the spectrum.  If ``'default'``, the
+        search will proceed through the priortized list provided by
+        :func:`~pypeit.core.standard.get_archive_sets`.  Otherwise, it will only
+        search the single archive provided.
     spectral_type : str, optional
         The spectral type of the star or the signifier of the spectrum to use.
         See :func:`~pypeit.core.standard.get_model_standard`.
@@ -950,7 +951,5 @@ def get_standard_spectrum(archives, spectral_type=None, V_mag=None, ra=None, dec
         raise PypeItError('Insufficient data provided to determine the appropriate standard spectrum.  '
                    'Provide either the coordinates of the standard or a stellar type and '
                    'magnitude.')
-# add star_arxiv here
-#   if archives != 'default': 
     return get_archive_standard(ra, dec, tol=tol, unit=unit, archives=archives)
 

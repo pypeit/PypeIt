@@ -2073,9 +2073,14 @@ class SensFuncPar(ParSet):
         dtypes['star_dec'] = float
         descr['star_dec'] = 'DEC of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)'
 
-        defaults['star_arxiv'] = None
+        defaults['star_arxiv'] = 'default'
         dtypes['star_arxiv'] = str
-        descr['star_arxiv'] = 'Name of the archive to search for the standard star flux table/spectrum, to override the default search order (e.g. `lbtmods`)'
+        descr['star_arxiv'] = (
+            'Specify the name of the archive to search for the standard star flux '
+            'table/spectrum.  When set to ``default``, code will search through the '
+            'prioritized list set by :func:`~pypeit.core.standard.get_archive_sets`.  Note this '
+            'must be a valid, single string identifying the archive to use (e.g. ``lbtmods``).'
+        )
 
         defaults['mask_hydrogen_lines'] = True
         dtypes['mask_hydrogen_lines'] = bool
