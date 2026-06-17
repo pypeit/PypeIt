@@ -405,8 +405,11 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         Returns:
             list: List of files
         """
-        angle_fits_file = 'lick_hamspec_angle_fits.fits'
-        composite_arc_file = 'lick_hamspec_composite_arc.fits'
+        # These archive files do not exist yet; they will be built as part of
+        # the wavelength-calibration development.  Named to match the
+        # spectrograph (shane_hamspec), not the legacy lick_hamspec prefix.
+        angle_fits_file = 'shane_hamspec_angle_fits.fits'
+        composite_arc_file = 'shane_hamspec_composite_arc.fits'
 
         return [angle_fits_file, composite_arc_file]
         
