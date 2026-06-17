@@ -87,8 +87,14 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['n_final'] = 4
 
         par['calibrations']['wavelengths']['match_toler'] = 1.5
-        # Reidentification parameters
-        par['calibrations']['wavelengths']['method'] = 'echelle'
+        # Reidentification parameters.  We follow the Keck/NIRES recipe: a
+        # single composite-arc template (built from the legacy ThAr solution,
+        # one ThAr spectrum + wavelength solution per order) is reidentified
+        # against each observed order by cross-correlation.  This avoids the
+        # HIRES-style 'echelle' angle_fits model, which would need ThAr at
+        # many cross-disperser settings we do not have (see Report 04).
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_hamspec.fits'
         par['calibrations']['wavelengths']['cc_shift_range'] = (-200.,200.)
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.25
@@ -158,9 +164,12 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='PLATENAM')  # Aperture plate
-        #self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
-        self.meta['echangle'] = dict(ext=0, card=None, default=0.)
-        self.meta['xdangle'] = dict(ext=0, card='GTILTRAW', rtol=1e-2)
+        # The grating tilt (GTILTRAW) sets the along-dispersion wavelength, so
+        # it is the echelle angle; the cross-disperser is moved via the dewar
+        # height (DHEITRAW), which sets which orders land where, so it is the
+        # cross-dispersion angle (see Report 04, Q&A 21).
+        self.meta['echangle'] = dict(ext=0, card='GTILTRAW', rtol=1e-2)
+        self.meta['xdangle'] = dict(ext=0, card='DHEITRAW', rtol=1e-2)
 
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         self.meta['dispname'] = dict(ext=0, card=None, default='Hamspec')
@@ -216,9 +225,13 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        # decker is not included because arcs are often taken with a 0.5" slit
+        # decker is not included because arcs are often taken with a 0.5" slit.
+        # The configuration is set by the grating tilt (echangle <- GTILTRAW,
+        # the along-dispersion wavelength) and the cross-disperser / dewar
+        # height (xdangle <- DHEITRAW, which orders land where); both must
+        # match for frames to share a calibration (see Report 04, Q&A 21).
         #return ['decker', 'filter1', 'xdangle', 'binning']
-        return ['xdangle', 'binning']
+        return ['echangle', 'xdangle', 'binning']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

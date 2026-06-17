@@ -771,8 +771,10 @@ class BuildWaveCalib:
             self.slits.ech_order = order_vec
             log.info(f"The observation covers the following orders: {order_vec}")
 
-            embed(header='line 741 wavecalib.py')
-            reload(autoid)
+            # NOTE: leftover debugging calls disabled so the 'echelle' wavecal
+            # path does not halt mid-reduction (see Report 04, Q&A 22).
+            #embed(header='line 741 wavecalib.py')
+            #reload(autoid)
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
                 self.lamps, self.par, ok_mask=ok_mask_idx,
