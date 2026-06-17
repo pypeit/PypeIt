@@ -76,7 +76,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["decker"] = dict(card="FILTER4", compound=True)  # SLIT filter wheel
         self.meta["binning"] = dict(card=None, default='1,1', compound=True)
         self.meta["mjd"] = dict(card=None, compound=True)
-        self.meta["airmass"] = dict(ext=0, card="SECZ")
+        self.meta["airmass"] = dict(card=None, compound=True)
         self.meta["exptime"] = dict(ext=0, card="EXPTIMEE")
         self.meta["instrument"] = dict(ext=0, card="INSTRUME")
 
@@ -111,10 +111,11 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             return headarr[0]["FILTER1" if headarr[0]["CAMNAME"] == "YJ" else "FILTER2"]
         
         if meta_key == "decker":
-            if headarr[0]["FILTER4"].strip() == "long":
-                return "1.2'' long"
+            slitName = headarr[0]["FILTER4"].strip()
+            if slitName == "long" or slitName == "1.2\'\' long":
+                return "1.2\'\' long"
             else:
-                return headarr[0]["FILTER4"].strip()
+                return slitName
 
         if meta_key == "idname":
             # Force uppercase to match other LDT instruments
@@ -128,6 +129,12 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             # Use custom scrubber + AstroPy to convert 'DATE-OBS' into a mjd.
             ttime = self.scrub_isot_dateobs(headarr[0]["DATE-BEG"])
             return ttime.mjd
+
+        if meta_key == "airmass":
+            try:
+                return headarr[0]["AIRMASS"] #Current keyword
+            except KeyError:
+                return headarr[0]["SECZ"] #Old keyword
 
         if meta_key == "lampstat01":
             # The spectral comparison lamps turned on are listed in `LAMPCAL`, but
@@ -145,6 +152,8 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 case "1.2'' long":
                     return 1.2
                 case "long": # For compatibility with the headers of older files.
+                    return 1.2
+                case "1.2'''' long":
                     return 1.2
                 case "0.6''":
                     return 0.6
@@ -384,7 +393,6 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 good_exp
                 & (
                     (fitstbl["idname"] == "STANDARD")
-                    | (fitstbl["idname"] == "Standard")
                 )
                 #& (fitstbl["lampstat01"] == "off")
             )
@@ -393,7 +401,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                 good_exp
                 & (
                     (fitstbl["idname"] == "DARK")
-                    | (fitstbl["idname"] == "Dark")
+                    | (fitstbl["idname"] == "DARKS")
                 )
                 #& (fitstbl["lampstat01"] == "off")
             )
@@ -402,7 +410,6 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             "pinhole",
             "align",
             "sky",
-            "lampoffflats",
             "scattlight",
             "slitless_pixflat",
         ]:
