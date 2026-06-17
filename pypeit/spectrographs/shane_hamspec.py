@@ -9,11 +9,15 @@ from IPython import embed
 import numpy as np
 
 from astropy.time import Time
+from astropy.coordinates import SkyCoord
+from astropy.coordinates import EarthLocation
+from astropy.coordinates import AltAz
 
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
+from pypeit.core import meta
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from pypeit.core import parse
@@ -47,7 +51,14 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         par = super().default_pypeit_par()
 
         # Copied from Keck/HIRES
-        
+
+        # No bias or dark frames are taken with Hamspec, so subtract the
+        # overscan (the raw frames have a 64-column overscan, two amps) and
+        # disable bias subtraction for every processed image type.
+        turn_off_on = dict(use_biasimage=False, use_overscan=True,
+                           overscan_method='median')
+        par.reset_all_processimages_par(**turn_off_on)
+
         # Slit tracing
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
         par['calibrations']['slitedges']['fit_order'] = 5  # 8 was too high
@@ -128,9 +139,9 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['exprng'] = [0, None]
         par['calibrations']['traceframe']['exprng'] = [0, None]
         par['calibrations']['arcframe']['exprng'] = [None, 61]
-        par['calibrations']['standardframe']['exprng'] = [1, 61]
+        par['calibrations']['standardframe']['exprng'] = [1, 301]
         #
-        par['scienceframe']['exprng'] = [61, None]
+        par['scienceframe']['exprng'] = [301, None]
         #par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
@@ -156,7 +167,7 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
 
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['airmass'] = dict(ext=0, card=None, compound=True)
         # Additional ones, generally for configuration determination or time
         self.meta['filter1'] = dict(ext=0, card='DFILTNAM')
         self.meta['lampstat01'] = dict(ext=0, card='LAMPPOS')
@@ -179,6 +190,16 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
             time = headarr[0]['DATE']
             ttime = Time(time, format='isot')
             return ttime.mjd
+        elif meta_key == 'airmass':
+            # The raw headers have no AIRMASS card, so compute it from the
+            # pointing (RA/DEC), the readout time (DATE), and the Shane/Lick
+            # location via the reusable pypeit.core.meta.airmass helper.
+            ra, dec = meta.convert_radec(headarr[0]['RA'], headarr[0]['DEC'])
+            obstime = Time(headarr[0]['DATE'], format='isot')
+            return meta.airmass(ra, dec, obstime,
+                                self.telescope['longitude'],
+                                self.telescope['latitude'],
+                                self.telescope['elevation'])
         raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
@@ -196,7 +217,8 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
             object.
         """
         # decker is not included because arcs are often taken with a 0.5" slit
-        return ['decker', 'filter1', 'xdangle', 'binning']
+        #return ['decker', 'filter1', 'xdangle', 'binning']
+        return ['xdangle', 'binning']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -219,12 +241,19 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & self.lamps(fitstbl, 'off')
+            return good_exp & self.lamps(fitstbl, 'Off')
         if ftype == 'bias':
             return good_exp # & (fitstbl['target'] == 'Bias')
-        if ftype in ['pixelflat', 'trace', 'illumflat']:
-            # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'flat')
+        # The aperture plate (PLATENAM) is stored under the PypeIt 'decker'
+        # meta key; the wide 800:6.0 plate floods the detector (pixelflat),
+        # while the narrow 640:5.0 science plate gives the order edges
+        # (trace) and slit illumination (illumflat).
+        if ftype in ['pixelflat']:
+            return good_exp & self.lamps(fitstbl, 'flat') \
+                & (fitstbl['decker'] == '800:6.0')
+        if ftype in ['trace', 'illumflat']:
+            return good_exp & self.lamps(fitstbl, 'flat') \
+                & (fitstbl['decker'] == '640:5.0')
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -253,10 +282,13 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
             ValueError:
                 Raised if the status is not one of the valid options.
         """
-        if status == 'off':
-            # Check if all are off
-            return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
-                                        for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
+        if status.lower() == 'off':
+            # Check if all are off.  The LAMPPOS card reads 'Off' (capital
+            # O), so compare case-insensitively against 'off'/'none'.
+            return np.all(np.array(
+                [np.isin(np.char.lower(np.asarray(fitstbl[k], dtype=str)),
+                         ['off', 'none'])
+                 for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
         elif status == 'arcs':
             # Check if any arc lamps are on
             arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,2) ]
