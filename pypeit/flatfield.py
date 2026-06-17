@@ -603,6 +603,7 @@ class FlatField:
             :class:`FlatImages`: Container with the results of the flat-field
             analysis.
         """
+        raise PypeItError("This is only a test")
 
         # check if self.wavetilts is available. It can be None if the flat is slitless, but it's needed otherwise
         if self.wavetilts is None and not self.slitless:

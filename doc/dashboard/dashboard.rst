@@ -6,7 +6,7 @@
 PypeIt Dashboard
 ================
 
-**Dashboard documentation version: 1.3.9**
+**Dashboard documentation version: 1.4.0**
 
 .. warning::
 
@@ -279,7 +279,11 @@ disk.  Two safeguards apply:
 
 The run is reported in the status bar, and when it finishes the dashboard
 **re-reads the state** and re-colors the step buttons and tables to reflect the
-new outputs.
+new outputs.  If the run **fails** (the reduction errors out and exits with a
+non-zero code), the offending step is colored **red** (``fail``) rather than
+left stuck on orange (``running``), and the **Build** channel of the status bar
+reports the failure (e.g. *"(Re)Build failed (exit code 1) — see the log."*)
+instead of returning to *Idle*.
 
 .. _dashboard-science-view:
 

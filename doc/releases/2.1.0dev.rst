@@ -107,6 +107,11 @@ Bug Fixes
   status-only mode) now records a calibration whose output file is simply
   missing as ``undone`` (not yet built) rather than ``fail``; ``fail`` is
   reserved for genuine build failures.
+- ``Calibrations.run_the_steps`` now marks a calibration step ``fail`` (and
+  persists it to ``*_state.json``) when the step **raises** mid-build, before
+  re-raising the exception.  Previously the step was left stuck at ``running``,
+  so status tools / the Dashboard kept reporting a crashed (re)build as
+  in-progress indefinitely.
 - A **status-only** state derivation (e.g. the Dashboard computing status on
   launch) no longer **writes** ``*_state.json``: it is a read, so it no longer
   leaves the last step marked ``running`` / overwrites an existing state file.
