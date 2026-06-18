@@ -22,7 +22,7 @@ import pytest
 
 from pypeit import dataPaths
 from pypeit.core.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
-from pypeit.core.bspline.bspline import bspline
+from pypeit.core.bspline import bspline
 from pypeit.core.fitting import bspline_profile, bspline_qa
 from pypeit.core.basis import fchebyshev, flegendre
 
@@ -1306,7 +1306,7 @@ def test_crosscheck_1d_fit_yfit_match():
     nord = 4
     nbkpts = 15
 
-    old = bspline(x=x, nord=nord, npoly=1, nbkpts=nbkpts)
+    old = bspline.bspline(x=x, nord=nord, npoly=1, nbkpts=nbkpts)
     old_err, old_yfit = old.fit(x, y, invvar)
 
     new = BSpline(knots=old.breakpoints.copy(), nord=nord)
@@ -1324,7 +1324,7 @@ def test_crosscheck_1d_coeff_match():
     y = np.sin(x) + 0.05 * rng.standard_normal(200)
     invvar = np.ones_like(x)
 
-    old = bspline(x=x, nord=4, npoly=1, nbkpts=15)
+    old = bspline.bspline(x=x, nord=4, npoly=1, nbkpts=15)
     old.fit(x, y, invvar)
 
     new = BSpline(knots=old.breakpoints.copy(), nord=4)
@@ -1346,7 +1346,7 @@ def test_crosscheck_2d_fit_yfit_match():
     npoly = 2
     nbkpts = 12
 
-    old = bspline(x=x, nord=nord, npoly=npoly, nbkpts=nbkpts, funcname='legendre')
+    old = bspline.bspline(x=x, nord=nord, npoly=npoly, nbkpts=nbkpts, funcname='legendre')
     old.xmin = 0.0
     old.xmax = 1.0
     old_err, old_yfit = old.fit(x, y, invvar, x2=basis_x)
@@ -1370,7 +1370,7 @@ def test_crosscheck_2d_coeff_transposed():
     y = np.sin(x) * (1 + 0.3 * basis_x)
     invvar = np.ones(N)
 
-    old = bspline(x=x, nord=4, npoly=2, nbkpts=12, funcname='legendre')
+    old = bspline.bspline(x=x, nord=4, npoly=2, nbkpts=12, funcname='legendre')
     old.xmin = 0.0
     old.xmax = 1.0
     old.fit(x, y, invvar, x2=basis_x)
@@ -1389,7 +1389,7 @@ def test_crosscheck_1d_value_match():
     y = 1 + 2*x - 0.1*x**2
     invvar = np.ones_like(x)
 
-    old = bspline(x=x, nord=4, npoly=1, nbkpts=12)
+    old = bspline.bspline(x=x, nord=4, npoly=1, nbkpts=12)
     old.fit(x, y, invvar)
 
     new = BSpline(knots=old.breakpoints.copy(), nord=4)

@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 
 from pypeit.core import pydl
-from pypeit.core import bspline
+from pypeit.core.bspline import bspline
 from pypeit import log
 from pypeit import PypeItError
 from pypeit.datamodel import DataContainer
