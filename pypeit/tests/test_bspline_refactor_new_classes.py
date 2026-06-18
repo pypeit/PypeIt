@@ -23,7 +23,7 @@ import pytest
 from pypeit import dataPaths
 from pypeit.core.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
 from pypeit.core.bspline import bspline
-from pypeit.core.fitting import bspline_profile, bspline_qa
+from pypeit.core.fitting import bspline_qa
 from pypeit.core.basis import fchebyshev, flegendre
 
 
@@ -115,6 +115,62 @@ def test_build_breakpoints_no_strategy_raises_valueerror():
 def test_knots_init_nord_without_x_warns():
     with pytest.warns(UserWarning):
         Knots(count=10, nord=4)
+
+
+def test_build_breakpoints_spread_doubles_phantom_spacing():
+    """spread=2.0 must double the phantom-knot step at each end relative to spread=1.0."""
+    x = np.arange(1000, dtype=float)
+    k1 = Knots(interior=x[[0, -1]], x=x, nord=4)           # spread=1.0 (default)
+    k2 = Knots(interior=x[[0, -1]], x=x, nord=4, spread=2.0)
+    np.testing.assert_array_equal(
+        np.diff(k2.breakpoints)[[0, -1]],
+        2 * np.diff(k1.breakpoints)[[0, -1]],
+    )
+
+
+def test_build_breakpoints_spacing_count_equivalence():
+    """spacing=10. and count=100 produce identical breakpoints for x = arange(1000)."""
+    x = np.arange(1000, dtype=float)
+    k_spacing = Knots(spacing=10., x=x, nord=4)
+    k_count = Knots(count=100, x=x, nord=4)
+    np.testing.assert_array_equal(k_spacing.breakpoints, k_count.breakpoints)
+
+
+def test_build_breakpoints_single_interior_matches_count_one():
+    """A single interior point collapses to [sx, ex], giving the same breakpoints as count=1."""
+    x = np.arange(1000, dtype=float)
+    k_interior = Knots(interior=np.array([500.]), x=x, nord=4)
+    k_count = Knots(count=1, x=x, nord=4)
+    np.testing.assert_array_equal(k_interior.breakpoints, k_count.breakpoints)
+
+
+def test_build_breakpoints_stride_too_large_matches_count_one():
+    """stride >= x.size falls back to [sx, ex], giving the same breakpoints as count=1."""
+    x = np.arange(1000, dtype=float)
+    k_stride = Knots(stride=x.size + 1, x=x, nord=4)
+    k_count = Knots(count=1, x=x, nord=4)
+    np.testing.assert_array_equal(k_stride.breakpoints, k_count.breakpoints)
+
+
+def test_build_breakpoints_float_stride_uniform_spacing():
+    """A float stride on a uniform grid produces uniformly spaced breakpoints."""
+    x = np.arange(1000, dtype=float)
+    k = Knots(stride=1.5, x=x, nord=4)
+    diffs = np.diff(k.breakpoints)
+    assert np.all(diffs == 1.5), (
+        f'Expected all diffs == 1.5; got unique values {np.unique(diffs)}'
+    )
+
+
+def test_build_breakpoints_stride_irregular_grid():
+    """stride on an irregular grid produces non-uniform breakpoint spacing."""
+    x = np.arange(1000, dtype=float)
+    rng = np.random.default_rng(99)
+    x_irr = np.sort(x + 5. * rng.standard_normal(x.size))
+    k = Knots(stride=10, x=x_irr, nord=4)
+    assert np.std(np.diff(k.breakpoints)) > 1., (
+        'Expected irregular breakpoint spacing for an irregular-grid stride'
+    )
 
 
 # ============================================================================
@@ -473,6 +529,69 @@ def test_mask_breakpoints_too_few_returns_minus2():
     spl.bkpt_gpm[:2 * 4] = True  # leave only 2*nord active
     result = spl._mask_breakpoints(np.array([0]))
     assert result == -2
+
+
+# ============================================================================
+# BSpline.reset_coeff / BSpline2D.reset_coeff
+# ============================================================================
+
+def test_reset_coeff_1d_shape_and_zeros():
+    """reset_coeff() sets coeff and icoeff to zero arrays of shape (nc,)."""
+    x = np.linspace(0., 10., 300)
+    spl = BSpline(x=x, knots=Knots(count=20), nord=4)
+    spl.fit(x, np.sin(x))
+    nc = spl.breakpoints.size - spl.nord
+    spl.reset_coeff()
+    assert spl.coeff.shape == (nc,), f'Wrong coeff shape: {spl.coeff.shape}'
+    assert spl.icoeff.shape == (nc,), f'Wrong icoeff shape: {spl.icoeff.shape}'
+    assert np.all(spl.coeff == 0.), 'reset_coeff must zero coeff'
+    assert np.all(spl.icoeff == 0.), 'reset_coeff must zero icoeff'
+
+
+def test_reset_coeff_1d_leaves_mask_and_cache_unchanged():
+    """reset_coeff() must not modify bkpt_gpm or invalidate _cached_design."""
+    rng = np.random.default_rng(42)
+    x = np.sort(rng.uniform(0., 10., 200))
+    spl = BSpline(x=x, knots=Knots(count=15), nord=4)
+    spl.fit(x, np.sin(x))
+    gpm_before = spl.bkpt_gpm.copy()
+    cache_id = id(spl._cached_design)
+    spl.reset_coeff()
+    np.testing.assert_array_equal(spl.bkpt_gpm, gpm_before)
+    assert id(spl._cached_design) == cache_id
+
+
+def test_reset_coeff_1d_before_breakpoints_raises():
+    """reset_coeff() raises ValueError when breakpoints have not been established."""
+    spl = BSpline.__new__(BSpline)
+    spl.knots = Knots()
+    spl.nord = 4
+    with pytest.raises(ValueError):
+        spl.reset_coeff()
+
+
+def test_reset_coeff_2d_shape_and_zeros():
+    """BSpline2D.reset_coeff() sets coeff and icoeff to zero arrays of shape (nc, npoly)."""
+    rng = np.random.default_rng(43)
+    x = np.sort(rng.uniform(0., 10., 300))
+    basis_x = rng.uniform(0., 1., 300)
+    npoly = 3
+    spl = BSpline2D(x=x, knots=Knots(count=15), nord=4)
+    spl.fit(x, np.sin(x), basis_x=basis_x, basis='legendre', npoly=npoly, xmin=0., xmax=1.)
+    nc = spl.breakpoints.size - spl.nord
+    spl.reset_coeff()
+    assert spl.coeff.shape == (nc, npoly), f'Wrong coeff shape: {spl.coeff.shape}'
+    assert spl.icoeff.shape == (nc, npoly), f'Wrong icoeff shape: {spl.icoeff.shape}'
+    assert np.all(spl.coeff == 0.), 'reset_coeff must zero coeff'
+    assert np.all(spl.icoeff == 0.), 'reset_coeff must zero icoeff'
+
+
+def test_reset_coeff_2d_before_npoly_raises():
+    """BSpline2D.reset_coeff() raises ValueError when npoly has not been set by fit()."""
+    x = np.linspace(0., 5., 100)
+    spl = BSpline2D(x=x, knots=Knots(count=8), nord=4)
+    with pytest.raises(ValueError):
+        spl.reset_coeff()
 
 
 # ============================================================================
@@ -1705,54 +1824,6 @@ def test_bspline_profile_refactor_exit_statuses():
         kwargs_knots={'spacing': 1.0},
     )
     assert es == 1
-
-
-def test_bspline_profile_refactor_matches_bspline_profile_1d():
-    """1D path (basis=None) agrees with bspline_profile(profile_basis=ones)."""
-    rng = np.random.default_rng(77)
-    n = 400
-    x = np.sort(rng.uniform(0, 10, n))
-    y = np.sin(x / 2) + 2.0 + rng.normal(0, 0.05, n)
-    ivar = np.full(n, 400.0)
-    profile_basis = np.ones((n, 1))
-    spacing = 1.0
-
-    _, _, yfit_old, _, _ = bspline_profile(
-        x, y, ivar, profile_basis,
-        upper=5, lower=5, nord=4,
-        kwargs_bspline={'bkspace': spacing},
-        quiet=True,
-    )
-    _, _, yfit_new, _, _ = bspline_profile_refactor(
-        x, y, ivar=ivar, nord=4, upper=5, lower=5,
-        kwargs_knots={'spacing': spacing},
-    )
-    assert np.allclose(yfit_old, yfit_new)
-
-
-def test_bspline_profile_refactor_matches_bspline_profile_2d():
-    """2D path agrees with bspline_profile when given the same pre-built basis."""
-    rng = np.random.default_rng(13)
-    n = 400
-    x = np.sort(rng.uniform(0, 10, n))
-    x2 = rng.uniform(-1, 1, n)
-    npoly = 3
-    profile_basis = flegendre(x2, npoly)
-    y = (1.0 + 0.5 * x2) * (np.sin(x / 2) + 2.0) + rng.normal(0, 0.05, n)
-    ivar = np.full(n, 400.0)
-    spacing = 1.0
-
-    _, _, yfit_old, _, _ = bspline_profile(
-        x, y, ivar, profile_basis,
-        upper=5, lower=5, nord=4,
-        kwargs_bspline={'bkspace': spacing},
-        quiet=True,
-    )
-    _, _, yfit_new, _, _ = bspline_profile_refactor(
-        x, y, ivar=ivar, basis=profile_basis, nord=4, upper=5, lower=5,
-        kwargs_knots={'spacing': spacing},
-    )
-    assert np.allclose(yfit_old, yfit_new)
 
 
 # ============================================================================

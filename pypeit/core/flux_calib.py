@@ -15,21 +15,19 @@ from matplotlib import pyplot as plt
 
 from astropy import units
 from astropy import constants
-from astropy import coordinates
 from astropy import table
 from astropy.io import ascii
 from astropy import stats
 
+from pypeit import dataPaths
+from pypeit import io
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
-from pypeit.core.bspline.refactor import Knots, bspline_profile_refactor
-from pypeit import io
-from pypeit.wavemodel import conv2res
-from pypeit.core import bspline
-from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
-from pypeit import dataPaths
+from pypeit.core.bspline.refactor import Knots, bspline_profile_refactor
+from pypeit.core.wavecal import wvutils
+from pypeit.wavemodel import conv2res
 
 
 

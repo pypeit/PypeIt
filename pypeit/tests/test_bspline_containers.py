@@ -247,6 +247,29 @@ def test_bsplinecontainer_roundtrip_after_reset_knots():
     np.testing.assert_allclose(yfit_loaded, yfit_orig, atol=1e-14)
 
 
+def test_bsplinecontainer_roundtrip_overwrite():
+    """to_file with overwrite=True must not raise when the file already exists."""
+    spl, x, y = _make_1d_fitted()
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / 'bspline.fits'
+        spl.to_file(str(path))
+        spl.to_file(str(path), overwrite=True)
+        loaded = BSplineContainer.from_file(str(path))
+    np.testing.assert_array_equal(loaded.bkpt_full, spl.bkpt_full)
+
+
+def test_bsplinecontainer_empty_write():
+    """An unfitted BSplineContainer must serialise and load without error,
+    with all array attributes remaining None."""
+    spl = BSplineContainer()
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / 'bspline_empty.fits'
+        spl.to_file(str(path))
+        loaded = BSplineContainer.from_file(str(path))
+    assert loaded.bkpt_full is None
+    assert loaded.coeff is None
+
+
 # ===========================================================================
 # BSpline2DContainer — construction and basic behaviour
 # ===========================================================================
@@ -461,6 +484,29 @@ def test_bspline2dcontainer_roundtrip_array_basis_value():
 
     yfit_loaded, _ = loaded.value(x_eval, basis=P_eval)
     np.testing.assert_allclose(yfit_loaded, yfit_orig, atol=1e-14)
+
+
+def test_bspline2dcontainer_roundtrip_overwrite():
+    """to_file with overwrite=True must not raise when the file already exists."""
+    spl, x, basis_x, y = _make_2d_fitted_string()
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / 'bspline2d.fits'
+        spl.to_file(str(path))
+        spl.to_file(str(path), overwrite=True)
+        loaded = BSpline2DContainer.from_file(str(path))
+    np.testing.assert_array_equal(loaded.bkpt_full, spl.bkpt_full)
+
+
+def test_bspline2dcontainer_empty_write():
+    """An unfitted BSpline2DContainer must serialise and load without error,
+    with all array attributes remaining None."""
+    spl = BSpline2DContainer()
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / 'bspline2d_empty.fits'
+        spl.to_file(str(path))
+        loaded = BSpline2DContainer.from_file(str(path))
+    assert loaded.bkpt_full is None
+    assert loaded.coeff is None
 
 
 # ===========================================================================
