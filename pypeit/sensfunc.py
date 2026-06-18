@@ -23,6 +23,7 @@ from pypeit import specobj
 from pypeit import utils
 from pypeit import io
 from pypeit.core import coadd
+from pypeit.core.plot import pyplot_rcparams
 from pypeit.core import flux_calib
 from pypeit.core import standard
 from pypeit.core import telluric
@@ -697,7 +698,7 @@ class SensFunc(datamodel.DataContainer):
         """
         Write out zeropoint QA files
         """
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
 
         # Plot QA for zeropoint
         if 'Echelle' in self.spectrograph.pypeline:

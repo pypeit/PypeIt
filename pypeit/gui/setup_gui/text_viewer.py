@@ -14,8 +14,8 @@ from qtpy.QtGui import QIcon, QFont,QTextCursor,QFontDatabase
 from qtpy.QtCore import Qt, Signal, QSettings, QEvent
 
 from pypeit import log
-from pypeit.setup_gui.dialog_helpers import display_error, FileDialog, FileType, PersistentStringListModel, DialogResponses
-from pypeit.setup_gui.model import LogBuffer
+from pypeit.gui.setup_gui.dialog_helpers import display_error, FileDialog, FileType, PersistentStringListModel, DialogResponses
+from pypeit.gui.setup_gui.model import LogBuffer
 
 class TextViewerWindow(QWidget):
     """Window to display text. The text can also be saved to a file.

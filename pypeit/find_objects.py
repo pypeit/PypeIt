@@ -14,10 +14,10 @@ from astropy import stats
 from abc import ABCMeta
 
 from pypeit import specobjs
-from pypeit import log, utils
+from pypeit import log, utils, qa
 from pypeit import PypeItError
 from pypeit.display import display
-from pypeit.core import skysub, qa, parse, flat, flexure
+from pypeit.core import skysub, parse, flat, flexure
 from pypeit.core import procimg
 from pypeit.core import findobj_skymask
 
@@ -1034,7 +1034,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # the wavelengths need to be aligned for different slits before the sky is fit.
         method = self.par['flexure']['spec_method']
         # TODO :: Perhaps include a new label for IFU flexure correction - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
-        #      :: If a new label is introduced, change the other instances of 'method' (see below), and in flexure.spec_flexure_qa()
+        #      :: If a new label is introduced, change the other instances of 'method' (see below), and in qa.spec_flexure_qa()
         if method in ['slitcen']:
             self.slitshift = self.calculate_flexure(global_sky_sep)
             # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
@@ -1242,6 +1242,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # Save QA
         # TODO :: Need to implement QA once the flexure code has been tidied up, and this routine has been moved
         #         out of the find_objects() class.
+        # TODO TODO :: Is this TODO still valid, spec_flexure_qa is called from extraction? Maybe this section can be removed?
         log.debug("QA is not currently implemented for the flexure correction")
         if False:#flex_list is not None:
             basename = f'{self.basename}_global_{self.spectrograph.get_det_name(self.det)}'
