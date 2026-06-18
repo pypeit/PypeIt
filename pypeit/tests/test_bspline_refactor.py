@@ -10,8 +10,8 @@ intentionally independent of the existing golden-file integration tests in
 import numpy as np
 import pytest
 
-from pypeit.bspline import bspline
-from pypeit.bspline.util import bspline_model, cholesky_band, cholesky_solve, intrv, solution_arrays
+from pypeit.core import bspline
+from pypeit.core.bspline.util import bspline_model, cholesky_band, cholesky_solve, intrv, solution_arrays
 
 
 def test_1d_exact_polynomial():

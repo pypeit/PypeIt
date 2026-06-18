@@ -21,8 +21,8 @@ import numpy as np
 import pytest
 
 from pypeit import dataPaths
-from pypeit.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
-from pypeit.bspline.bspline import bspline
+from pypeit.core.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
+from pypeit.core.bspline.bspline import bspline
 from pypeit.core.fitting import bspline_profile, bspline_qa
 from pypeit.core.basis import fchebyshev, flegendre
 

@@ -11,8 +11,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pypeit.bspline.refactor import BSpline, BSpline2D, Knots
-from pypeit.bspline.containers import BSplineContainer, BSpline2DContainer
+from pypeit.core.bspline.refactor import BSpline, BSpline2D, Knots
+from pypeit.core.bspline.containers import BSplineContainer, BSpline2DContainer
 
 
 # ---------------------------------------------------------------------------
