@@ -24,7 +24,6 @@ Submodules
    pypeit.core.bitmask
    pypeit.core.coadd
    pypeit.core.combine
-   pypeit.core.convert_DEIMOSsavfiles
    pypeit.core.datacube
    pypeit.core.extract
    pypeit.core.findobj_skymask

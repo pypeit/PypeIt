@@ -13,7 +13,7 @@ Per-channel CCD readout orientation is expressed through PypeIt's stock
 image is reoriented by
 :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`
 exactly as for every other spectrograph (and the
-:ref:`instr_par-detectors` table reports the true orientation):
+:ref:`detectors-table` table reports the true orientation):
 
 * R, I: dispersion along NAXIS1 -> ``specaxis=1``.
 * G:    dispersion along NAXIS1 but flipped left-right relative to R/I
