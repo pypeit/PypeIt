@@ -31,7 +31,7 @@ location of each object to do differential wavelength adjustments.
 PypeIt is not set up to do this, so current options are 1) to do
 spectral flexure correction using sky lines (should be good in red
 at least), or 2) use the internal lamps taken at the location
-of the object for wavelength calibration
+of the object for wavelength calibration.
 
 
 Setup
@@ -66,6 +66,10 @@ Different configurations are defined as those with different grism,
 slit, and binning combinations. Note that, in the setup gui and the
 configuration files, the grating is the grism, and the decker is the
 slit.
+
+If you want to use different calibration frames for different science
+images (e.g., for internal lamps at the position of each object), 
+you should create a separate .pypeit file for each group.
 
 After running this, you should have one or more .pypeit configuration
 files, e.g. arc_kosmos_A.pypeit. You should inspect these files to
