@@ -1489,9 +1489,9 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
         ydata (`numpy.ndarray`_):
             Array with the dependent variable. Regardless of shape,
             data is treated as one-dimensional.
-        sset (:class:`pypeit.bspline.refactor.BSpline`):
+        sset (:class:`pypeit.core.bspline.BSpline`):
             Object with the results of the fit. (First object
-            returned by :func:`pypeit.bspline.refactor.bspline_profile_refactor`).
+            returned by :func:`pypeit.core.bspline.bspline_profile_refactor`).
         gpm (`numpy.ndarray`_):
             Boolean array with the same size as ``xdata``.
             Measurements rejected during the fit have ``gpm=False``.

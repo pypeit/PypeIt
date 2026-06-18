@@ -1,6 +1,6 @@
 """
-Unit tests for :class:`~pypeit.bspline.containers.BSplineContainer` and
-:class:`~pypeit.bspline.containers.BSpline2DContainer`.
+Unit tests for :class:`~pypeit.containers.bspline.BSplineContainer` and
+:class:`~pypeit.containers.bspline.BSpline2DContainer`.
 
 All random-number generators use a fixed seed for reproducibility.
 """
@@ -11,8 +11,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pypeit.core.bspline.refactor import BSpline, BSpline2D, Knots
-from pypeit.core.bspline.containers import BSplineContainer, BSpline2DContainer
+from pypeit.core.bspline import BSpline, BSpline2D, Knots
+from pypeit.containers.bspline import BSplineContainer, BSpline2DContainer
 
 
 # ---------------------------------------------------------------------------

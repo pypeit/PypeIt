@@ -8,8 +8,8 @@ from IPython import embed
 import numpy as np
 
 from pypeit import flatfield
-from pypeit.core.bspline.refactor import Knots
-from pypeit.core.bspline.containers import BSplineContainer
+from pypeit.core.bspline import Knots
+from pypeit.containers.bspline import BSplineContainer
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import data_output_path
 

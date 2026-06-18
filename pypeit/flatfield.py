@@ -23,8 +23,8 @@ from IPython import embed
 from pypeit import log
 from pypeit import PypeItError, PypeItDataModelError
 from pypeit import utils
-from pypeit.core.bspline.refactor import Knots, bspline_profile_refactor
-from pypeit.core.bspline.containers import BSplineContainer
+from pypeit.core.bspline import bspline_profile_refactor
+from pypeit.containers.bspline import BSplineContainer
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit import edgetrace
@@ -1398,7 +1398,7 @@ class FlatField:
                  - exit_status (int):
                  - spat_coo_data
                  - spat_flat_data
-                 - spat_bspl (:class:`~pypeit.bspline.containers.BSplineContainer`): Bspline model of the spatial fit.  Used for illumflat
+                 - spat_bspl (:class:`~pypeit.containers.bspline.BSplineContainer`): Bspline model of the spatial fit.  Used for illumflat
                  - spat_gpm_fit
                  - spat_flat_fit
                  - spat_flat_data_raw

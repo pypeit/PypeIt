@@ -19,7 +19,7 @@ from pypeit.core import fitting
 from pypeit.core import pixels
 from pypeit.core import procimg
 from pypeit.core import spatialprofile
-from pypeit.core.bspline.refactor import Knots, bspline_profile_refactor
+from pypeit.core.bspline import Knots, bspline_profile_refactor
 from pypeit.display import display
 
 
@@ -638,7 +638,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         which we allow.  If ``bkpts_optimal = False``, the
         break-points will be chosen to have a uniform spacing in
         pixel units sets by the bsp parameter, i.e.  using the
-        bkspace functionality of the :class:`~pypeit.bspline.refactor.Knots` class::
+        bkspace functionality of the :class:`~pypeit.core.bspline.Knots` class::
 
             fullbkpt = Knots(spacing=bsp, x=piximg_values, nord=4).breakpoints
 
@@ -1179,7 +1179,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         which we allow.  If ``bkpts_optimal = False``, the
         break-points will be chosen to have a uniform spacing in
         pixel units sets by the bsp parameter, i.e.  using the
-        bkspace functionality of the :class:`~pypeit.bspline.refactor.Knots` class::
+        bkspace functionality of the :class:`~pypeit.core.bspline.Knots` class::
 
             fullbkpt = Knots(spacing=bsp, x=piximg_values, nord=4).breakpoints
 

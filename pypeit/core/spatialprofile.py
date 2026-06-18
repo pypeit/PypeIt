@@ -16,7 +16,7 @@ from IPython import embed
 
 from pypeit import log
 from pypeit import utils
-from pypeit.core.bspline.refactor import BSpline, Knots, bspline_profile_refactor
+from pypeit.core.bspline import BSpline, Knots, bspline_profile_refactor
 from pypeit.core import pydl
 from pypeit.core import fitting
 

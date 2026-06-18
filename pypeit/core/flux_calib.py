@@ -25,7 +25,7 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
 from pypeit.core import fitting
-from pypeit.core.bspline.refactor import Knots, bspline_profile_refactor
+from pypeit.core.bspline import Knots, bspline_profile_refactor
 from pypeit.core.wavecal import wvutils
 from pypeit.wavemodel import conv2res
 

@@ -1,6 +1,6 @@
 """
-Per-method unit tests for :class:`~pypeit.bspline.refactor.BSpline` and
-:class:`~pypeit.bspline.refactor.BSpline2D`.
+Per-method unit tests for :class:`~pypeit.core.bspline.BSpline` and
+:class:`~pypeit.core.bspline.BSpline2D`.
 
 Each test function targets a single method or a tightly coupled pair.  The final
 section contains cross-check tests that compare numerical output against the original
@@ -21,8 +21,7 @@ import numpy as np
 import pytest
 
 from pypeit import dataPaths
-from pypeit.core.bspline.refactor import BSpline, BSpline2D, Knots, bspline_profile_refactor
-from pypeit.core.bspline import bspline
+from pypeit.core.bspline import BSpline, BSpline2D, Knots, bspline_profile_refactor
 from pypeit.core.fitting import bspline_qa
 from pypeit.core.basis import fchebyshev, flegendre
 
@@ -1417,109 +1416,109 @@ def test_bspline2d_copy_coeff_independent():
 # Cross-check tests: new vs. original implementation
 # ============================================================================
 
-def test_crosscheck_1d_fit_yfit_match():
-    rng = np.random.default_rng(50)
-    x = np.sort(rng.uniform(0, 10, 200))
-    y = np.sin(x) + 0.05 * rng.standard_normal(200)
-    invvar = np.ones_like(x)
-    nord = 4
-    nbkpts = 15
-
-    old = bspline.bspline(x=x, nord=nord, npoly=1, nbkpts=nbkpts)
-    old_err, old_yfit = old.fit(x, y, invvar)
-
-    new = BSpline(knots=old.breakpoints.copy(), nord=nord)
-    new.bkpt_gpm[:] = old.mask
-    new._cached_design = None
-    new_err, new_yfit = new.fit(x, y, ivar=invvar)
-
-    assert old_err == 0 and new_err == 0
-    np.testing.assert_allclose(new_yfit, old_yfit, rtol=1e-10)
-
-
-def test_crosscheck_1d_coeff_match():
-    rng = np.random.default_rng(51)
-    x = np.sort(rng.uniform(0, 10, 200))
-    y = np.sin(x) + 0.05 * rng.standard_normal(200)
-    invvar = np.ones_like(x)
-
-    old = bspline.bspline(x=x, nord=4, npoly=1, nbkpts=15)
-    old.fit(x, y, invvar)
-
-    new = BSpline(knots=old.breakpoints.copy(), nord=4)
-    new.bkpt_gpm[:] = old.mask
-    new._cached_design = None
-    new.fit(x, y, ivar=invvar)
-
-    np.testing.assert_allclose(new.coeff, old.coeff, rtol=1e-10)
-
-
-def test_crosscheck_2d_fit_yfit_match():
-    rng = np.random.default_rng(52)
-    N = 300
-    x = np.sort(rng.uniform(0, 8, N))
-    basis_x = rng.uniform(0, 1, N)
-    y = np.sin(x) * (1 + 0.3 * basis_x)
-    invvar = np.ones(N)
-    nord = 4
-    npoly = 2
-    nbkpts = 12
-
-    old = bspline.bspline(x=x, nord=nord, npoly=npoly, nbkpts=nbkpts, funcname='legendre')
-    old.xmin = 0.0
-    old.xmax = 1.0
-    old_err, old_yfit = old.fit(x, y, invvar, x2=basis_x)
-
-    new = BSpline2D(knots=old.breakpoints.copy(), nord=nord)
-    new.bkpt_gpm[:] = old.mask
-    new._cached_design = None
-    new_err, new_yfit = new.fit(x, y, basis_x=basis_x, ivar=invvar,
-                                basis='legendre', npoly=npoly, xmin=0.0, xmax=1.0)
-
-    assert old_err == 0 and new_err == 0
-    np.testing.assert_allclose(new_yfit, old_yfit, rtol=1e-8)
-
-
-def test_crosscheck_2d_coeff_transposed():
-    """new.coeff should equal old.coeff.T (shape change from (npoly,nc) to (nc,npoly))."""
-    rng = np.random.default_rng(53)
-    N = 300
-    x = np.sort(rng.uniform(0, 8, N))
-    basis_x = rng.uniform(0, 1, N)
-    y = np.sin(x) * (1 + 0.3 * basis_x)
-    invvar = np.ones(N)
-
-    old = bspline.bspline(x=x, nord=4, npoly=2, nbkpts=12, funcname='legendre')
-    old.xmin = 0.0
-    old.xmax = 1.0
-    old.fit(x, y, invvar, x2=basis_x)
-
-    new = BSpline2D(knots=old.breakpoints.copy(), nord=4)
-    new.bkpt_gpm[:] = old.mask
-    new._cached_design = None
-    new.fit(x, y, basis_x=basis_x, ivar=invvar, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
-
-    np.testing.assert_allclose(new.coeff, old.coeff.T, rtol=1e-8)
-
-
-def test_crosscheck_1d_value_match():
-    rng = np.random.default_rng(54)
-    x = np.sort(rng.uniform(0, 10, 150))
-    y = 1 + 2*x - 0.1*x**2
-    invvar = np.ones_like(x)
-
-    old = bspline.bspline(x=x, nord=4, npoly=1, nbkpts=12)
-    old.fit(x, y, invvar)
-
-    new = BSpline(knots=old.breakpoints.copy(), nord=4)
-    new.bkpt_gpm[:] = old.mask
-    new._cached_design = None
-    new.fit(x, y, ivar=invvar)
-
-    x_eval = np.sort(rng.uniform(0, 10, 50))
-    old_val, _ = old.value(x_eval)
-    new_val, _ = new.value(x_eval)
-    np.testing.assert_allclose(new_val, old_val, rtol=1e-10)
+# def test_crosscheck_1d_fit_yfit_match():
+#     rng = np.random.default_rng(50)
+#     x = np.sort(rng.uniform(0, 10, 200))
+#     y = np.sin(x) + 0.05 * rng.standard_normal(200)
+#     invvar = np.ones_like(x)
+#     nord = 4
+#     nbkpts = 15
+# 
+#     old = bspline.bspline(x=x, nord=nord, npoly=1, nbkpts=nbkpts)
+#     old_err, old_yfit = old.fit(x, y, invvar)
+# 
+#     new = BSpline(knots=old.breakpoints.copy(), nord=nord)
+#     new.bkpt_gpm[:] = old.mask
+#     new._cached_design = None
+#     new_err, new_yfit = new.fit(x, y, ivar=invvar)
+# 
+#     assert old_err == 0 and new_err == 0
+#     np.testing.assert_allclose(new_yfit, old_yfit, rtol=1e-10)
+# 
+# 
+# def test_crosscheck_1d_coeff_match():
+#     rng = np.random.default_rng(51)
+#     x = np.sort(rng.uniform(0, 10, 200))
+#     y = np.sin(x) + 0.05 * rng.standard_normal(200)
+#     invvar = np.ones_like(x)
+# 
+#     old = bspline.bspline(x=x, nord=4, npoly=1, nbkpts=15)
+#     old.fit(x, y, invvar)
+# 
+#     new = BSpline(knots=old.breakpoints.copy(), nord=4)
+#     new.bkpt_gpm[:] = old.mask
+#     new._cached_design = None
+#     new.fit(x, y, ivar=invvar)
+# 
+#     np.testing.assert_allclose(new.coeff, old.coeff, rtol=1e-10)
+# 
+# 
+# def test_crosscheck_2d_fit_yfit_match():
+#     rng = np.random.default_rng(52)
+#     N = 300
+#     x = np.sort(rng.uniform(0, 8, N))
+#     basis_x = rng.uniform(0, 1, N)
+#     y = np.sin(x) * (1 + 0.3 * basis_x)
+#     invvar = np.ones(N)
+#     nord = 4
+#     npoly = 2
+#     nbkpts = 12
+# 
+#     old = bspline.bspline(x=x, nord=nord, npoly=npoly, nbkpts=nbkpts, funcname='legendre')
+#     old.xmin = 0.0
+#     old.xmax = 1.0
+#     old_err, old_yfit = old.fit(x, y, invvar, x2=basis_x)
+# 
+#     new = BSpline2D(knots=old.breakpoints.copy(), nord=nord)
+#     new.bkpt_gpm[:] = old.mask
+#     new._cached_design = None
+#     new_err, new_yfit = new.fit(x, y, basis_x=basis_x, ivar=invvar,
+#                                 basis='legendre', npoly=npoly, xmin=0.0, xmax=1.0)
+# 
+#     assert old_err == 0 and new_err == 0
+#     np.testing.assert_allclose(new_yfit, old_yfit, rtol=1e-8)
+# 
+# 
+# def test_crosscheck_2d_coeff_transposed():
+#     """new.coeff should equal old.coeff.T (shape change from (npoly,nc) to (nc,npoly))."""
+#     rng = np.random.default_rng(53)
+#     N = 300
+#     x = np.sort(rng.uniform(0, 8, N))
+#     basis_x = rng.uniform(0, 1, N)
+#     y = np.sin(x) * (1 + 0.3 * basis_x)
+#     invvar = np.ones(N)
+# 
+#     old = bspline.bspline(x=x, nord=4, npoly=2, nbkpts=12, funcname='legendre')
+#     old.xmin = 0.0
+#     old.xmax = 1.0
+#     old.fit(x, y, invvar, x2=basis_x)
+# 
+#     new = BSpline2D(knots=old.breakpoints.copy(), nord=4)
+#     new.bkpt_gpm[:] = old.mask
+#     new._cached_design = None
+#     new.fit(x, y, basis_x=basis_x, ivar=invvar, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
+# 
+#     np.testing.assert_allclose(new.coeff, old.coeff.T, rtol=1e-8)
+# 
+# 
+# def test_crosscheck_1d_value_match():
+#     rng = np.random.default_rng(54)
+#     x = np.sort(rng.uniform(0, 10, 150))
+#     y = 1 + 2*x - 0.1*x**2
+#     invvar = np.ones_like(x)
+# 
+#     old = bspline.bspline(x=x, nord=4, npoly=1, nbkpts=12)
+#     old.fit(x, y, invvar)
+# 
+#     new = BSpline(knots=old.breakpoints.copy(), nord=4)
+#     new.bkpt_gpm[:] = old.mask
+#     new._cached_design = None
+#     new.fit(x, y, ivar=invvar)
+# 
+#     x_eval = np.sort(rng.uniform(0, 10, 50))
+#     old_val, _ = old.value(x_eval)
+#     new_val, _ = new.value(x_eval)
+#     np.testing.assert_allclose(new_val, old_val, rtol=1e-10)
 
 
 # ============================================================================

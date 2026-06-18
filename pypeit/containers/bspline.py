@@ -1,6 +1,6 @@
 """
-FITS-serialisable wrappers for the :class:`~pypeit.bspline.refactor.BSpline` and
-:class:`~pypeit.bspline.refactor.BSpline2D` classes.
+FITS-serialisable wrappers for the :class:`~pypeit.core.bspline.BSpline` and
+:class:`~pypeit.core.bspline.BSpline2D` classes.
 
 Each container inherits from both :class:`~pypeit.datamodel.DataContainer` (for FITS
 I/O) and its respective algorithmic base class (for all fitting and evaluation
@@ -11,8 +11,8 @@ the already-prepared ``__dict__``.
 
 .. note::
 
-    The :attr:`~pypeit.bspline.refactor.BSpline.breakpoints` property defined on
-    :class:`~pypeit.bspline.refactor.BSpline` is a read-only data descriptor that
+    The :attr:`~pypeit.core.bspline.BSpline.breakpoints` property defined on
+    :class:`~pypeit.core.bspline.BSpline` is a read-only data descriptor that
     delegates to ``self.knots.breakpoints``.  Using ``breakpoints`` as a datamodel
     key would create an irresolvable naming conflict (the property intercepts all
     attribute-level reads, making the stored value invisible).  The breakpoint
@@ -30,12 +30,12 @@ from pypeit.core.bspline.refactor import BSpline, BSpline2D, Knots
 
 class BSplineContainer(datamodel.DataContainer, BSpline):
     """
-    FITS-serialisable wrapper for :class:`~pypeit.bspline.refactor.BSpline`.
+    FITS-serialisable wrapper for :class:`~pypeit.core.bspline.BSpline`.
 
     Inherits all fitting and evaluation methods from
-    :class:`~pypeit.bspline.refactor.BSpline` and adds FITS I/O via
+    :class:`~pypeit.core.bspline.BSpline` and adds FITS I/O via
     :class:`~pypeit.datamodel.DataContainer`.  Instances can be used wherever a
-    plain :class:`~pypeit.bspline.refactor.BSpline` is expected.
+    plain :class:`~pypeit.core.bspline.BSpline` is expected.
 
     The datamodel attributes are:
 
@@ -45,16 +45,16 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
     ----------
     x : :class:`numpy.ndarray`, optional
         Independent variable used to build the initial breakpoint grid.  Passed
-        directly to :class:`~pypeit.bspline.refactor.BSpline`.
-    knots : :class:`~pypeit.bspline.refactor.Knots` or :class:`numpy.ndarray` or None, optional
+        directly to :class:`~pypeit.core.bspline.BSpline`.
+    knots : :class:`~pypeit.core.bspline.Knots` or :class:`numpy.ndarray` or None, optional
         Knot specification.  Passed directly to
-        :class:`~pypeit.bspline.refactor.BSpline`.
+        :class:`~pypeit.core.bspline.BSpline`.
     nord : int, optional
         Order of the b-spline (default 4).
 
     See Also
     --------
-    pypeit.bspline.refactor.BSpline
+    pypeit.core.bspline.BSpline
     """
 
     version = '2.0.0'
@@ -98,13 +98,13 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
     def from_bspline(cls, spl):
         """
         Construct a :class:`BSplineContainer` from an existing
-        :class:`~pypeit.bspline.refactor.BSpline`.
+        :class:`~pypeit.core.bspline.BSpline`.
 
         Parameters
         ----------
-        spl : :class:`~pypeit.bspline.refactor.BSpline`
+        spl : :class:`~pypeit.core.bspline.BSpline`
             Source B-spline.  Its
-            :attr:`~pypeit.bspline.refactor.BSpline.breakpoints` must not be
+            :attr:`~pypeit.core.bspline.BSpline.breakpoints` must not be
             ``None``.
 
         Returns
@@ -112,7 +112,7 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
         :class:`BSplineContainer`
             A new container wrapping a copy of the spline state.  The transient
             internals ``x`` and ``yfit`` are not copied; call
-            :meth:`~pypeit.bspline.refactor.BSpline.fit` or use
+            :meth:`~pypeit.core.bspline.BSpline.fit` or use
             :meth:`copy` if those are needed.
         """
         return cls.from_dict(d={
@@ -129,7 +129,7 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
 
         The design-matrix cache is not copied (the copy starts with a cold
         cache), matching the behaviour of
-        :meth:`pypeit.bspline.refactor.BSpline.copy`.
+        :meth:`pypeit.core.bspline.BSpline.copy`.
 
         Returns
         -------
@@ -144,9 +144,9 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
         """
         Fit a weighted least-squares B-spline.
 
-        This delegates entirely to :meth:`~pypeit.bspline.refactor.BSpline.fit`,
+        This delegates entirely to :meth:`~pypeit.core.bspline.BSpline.fit`,
         but updates :attr:`bkpt_full`, as necessary.  See documentation for
-        :meth:`~pypeit.bspline.refactor.BSpline.fit`.
+        :meth:`~pypeit.core.bspline.BSpline.fit`.
         """
         result = super().fit(x, y, ivar=ivar, reset_knots=reset_knots)
         if self.knots is not None and self.knots.breakpoints is not None:
@@ -167,38 +167,38 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
 
 class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
     """
-    FITS-serialisable wrapper for :class:`~pypeit.bspline.refactor.BSpline2D`.
+    FITS-serialisable wrapper for :class:`~pypeit.core.bspline.BSpline2D`.
 
     Inherits all fitting and evaluation methods from
-    :class:`~pypeit.bspline.refactor.BSpline2D` and adds FITS I/O via
+    :class:`~pypeit.core.bspline.BSpline2D` and adds FITS I/O via
     :class:`~pypeit.datamodel.DataContainer`.  Instances can be used wherever a
-    plain :class:`~pypeit.bspline.refactor.BSpline2D` is expected.
+    plain :class:`~pypeit.core.bspline.BSpline2D` is expected.
 
     The datamodel attributes are:
 
     .. include:: ../include/class_datamodel_bspline2dcontainer.rst
 
     The ``basis`` datamodel field is populated only when
-    :meth:`~pypeit.bspline.refactor.BSpline2D.fit` was called with a
+    :meth:`~pypeit.core.bspline.BSpline2D.fit` was called with a
     :class:`numpy.ndarray` ``basis`` argument (i.e., when ``funcname`` is
     ``None`` after fitting).  Storing the basis enables evaluation via
-    :meth:`~pypeit.bspline.refactor.BSpline2D.value` without re-supplying it
+    :meth:`~pypeit.core.bspline.BSpline2D.value` without re-supplying it
     after loading from a file.  When the fit was performed with a string basis
     (e.g. ``'legendre'``), ``basis`` is ``None`` and the caller must supply
-    ``basis_x`` to :meth:`~pypeit.bspline.refactor.BSpline2D.value`.
+    ``basis_x`` to :meth:`~pypeit.core.bspline.BSpline2D.value`.
 
     Parameters
     ----------
     x : :class:`numpy.ndarray`, optional
         Independent variable used to build the initial breakpoint grid.
-    knots : :class:`~pypeit.bspline.refactor.Knots` or :class:`numpy.ndarray` or None, optional
+    knots : :class:`~pypeit.core.bspline.Knots` or :class:`numpy.ndarray` or None, optional
         Knot specification.
     nord : int, optional
         Order of the b-spline (default 4).
 
     See Also
     --------
-    pypeit.bspline.refactor.BSpline2D
+    pypeit.core.bspline.BSpline2D
     """
 
     version = '2.0.0'
@@ -265,13 +265,13 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
     def from_bspline2d(cls, spl):
         """
         Construct a :class:`BSpline2DContainer` from an existing
-        :class:`~pypeit.bspline.refactor.BSpline2D`.
+        :class:`~pypeit.core.bspline.BSpline2D`.
 
         Parameters
         ----------
-        spl : :class:`~pypeit.bspline.refactor.BSpline2D`
+        spl : :class:`~pypeit.core.bspline.BSpline2D`
             Source B-spline.  Its
-            :attr:`~pypeit.bspline.refactor.BSpline.breakpoints` must not be
+            :attr:`~pypeit.core.bspline.BSpline.breakpoints` must not be
             ``None``.
 
         Returns
@@ -327,9 +327,9 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
         Fit a weighted least-squares 2D B-spline.
 
         This delegates entirely to
-        :meth:`~pypeit.bspline.refactor.BSpline2D.fit`, but updates
+        :meth:`~pypeit.core.bspline.BSpline2D.fit`, but updates
         :attr:`bkpt_full`, as necessary.  See documentation for
-        :meth:`~pypeit.bspline.refactor.BSpline2D.fit`.
+        :meth:`~pypeit.core.bspline.BSpline2D.fit`.
         """
         result = super().fit(
             x, y, ivar=ivar, basis=basis, npoly=npoly, basis_x=basis_x,
