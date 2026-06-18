@@ -25,7 +25,8 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
 from pypeit.core import fitting
-from pypeit.core.bspline import Knots, bspline_profile_refactor
+from pypeit.core.bspline import Knots
+from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.core.wavecal import wvutils
 from pypeit.wavemodel import conv2res
 
@@ -1021,7 +1022,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
 
     # init_breakpoints = fullbkpt
     log.info("Bspline fit on zeropoint. ")
-    bset1, bmask, *_ = bspline_profile_refactor(
+    bset1, bmask, *_ = iterative_bspline_fit(
         wave, zeropoint_clean, ivar=zeropoint_ivar, gpm=zeropoint_fitmask, upper=upper, lower=lower,
         kwargs_knots={'full': init_breakpoints}, maxiter=maxiter,
         kwargs_reject=kwargs_reject

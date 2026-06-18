@@ -23,7 +23,7 @@ from IPython import embed
 from pypeit import log
 from pypeit import PypeItError, PypeItDataModelError
 from pypeit import utils
-from pypeit.core.bspline import bspline_profile_refactor
+from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.containers.bspline import BSplineContainer
 from pypeit import datamodel
 from pypeit import calibframe
@@ -1039,7 +1039,7 @@ class FlatField:
             # TODO: Can we add defaults to bspline_profile so that we
             #  don't have to instantiate invvar and profile_basis
             spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
-                    = bspline_profile_refactor(spec_coo_data, spec_flat_data, ivar=spec_ivar_data,
+                    = iterative_bspline_fit(spec_coo_data, spec_flat_data, ivar=spec_ivar_data,
                                               gpm=spec_gpm_data, nord=4,
                                               upper=logrej, lower=logrej,
                                               kwargs_knots={'spacing': spec_samp_fine},
@@ -1247,7 +1247,7 @@ class FlatField:
 
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
-                    = bspline_profile_refactor(twod_spec_coo_data, twod_flat_data,
+                    = iterative_bspline_fit(twod_spec_coo_data, twod_flat_data,
                                               ivar=twod_ivar_data, basis='poly',
                                               basis_x=twod_spat_coo_data, npoly=npoly,
                                               xmin=0.0, xmax=1.0,
@@ -1427,7 +1427,7 @@ class FlatField:
         # the typical sampling.
         bsp = np.fmax(1.0 / median_slit_width / 10.0, 1.2 * np.median(np.diff(spat_coo_data)))
         spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
-            = bspline_profile_refactor(spat_coo_data, spat_flat_data, nord=4,
+            = iterative_bspline_fit(spat_coo_data, spat_flat_data, nord=4,
                                        upper=5.0, lower=5.0,
                                        kwargs_knots={'spacing': bsp})
         spat_bspl = BSplineContainer.from_bspline(spat_bspl)

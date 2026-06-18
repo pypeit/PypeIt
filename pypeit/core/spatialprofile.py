@@ -16,9 +16,9 @@ from IPython import embed
 
 from pypeit import log
 from pypeit import utils
-from pypeit.core.bspline import BSpline, Knots, bspline_profile_refactor
+from pypeit.core.bspline import BSpline, Knots
+from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.core import pydl
-from pypeit.core import fitting
 
 
 def findfwhm(model, sig_x):
@@ -391,15 +391,15 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
         return profile_model, trace_in, fwhmfit, 0.0
 
-    b_answer, bmask, *_ = bspline_profile_refactor(
+    b_answer, bmask, *_ = iterative_bspline_fit(
         wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp],
         kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
-    b_answer, bmask2, *_ = bspline_profile_refactor(
+    b_answer, bmask2, *_ = iterative_bspline_fit(
         wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp]*bmask,
         kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
-    c_answer, cmask, *_ = bspline_profile_refactor(
+    c_answer, cmask, *_ = iterative_bspline_fit(
         wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp]*bmask2,
         kwargs_knots={'stride': 30}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
@@ -554,7 +554,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     si = inside[np.argsort(sigma_x.flat[inside], kind='stable')]
     sr = si[::-1]
 
-    bset, bmask, *_ = bspline_profile_refactor(
+    bset, bmask, *_ = iterative_bspline_fit(
         sigma_x.flat[si], norm_obj.flat[si], ivar=norm_ivar.flat[si],
         nord=4, kwargs_knots={'interior': bkpt}, maxiter=15, upper=1, lower=1
     )
@@ -631,7 +631,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = bspline_profile_refactor(
+        mode_shift_out = iterative_bspline_fit(
             xtemp.flat[inside], norm_obj.flat[inside], ivar=norm_ivar.flat[inside],
             basis=profile_basis, maxiter=1, kwargs_knots={'count': nbkpts}
         )
@@ -656,7 +656,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = bspline_profile_refactor(
+        mode_stretch_out = iterative_bspline_fit(
             xtemp.flat[inside], norm_obj.flat[inside], ivar=norm_ivar.flat[inside],
             basis=profile_basis, maxiter=1,
             kwargs_knots={'full': mode_shift_set.breakpoints}
@@ -695,7 +695,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, dtype=bool)
-            bset_out = bspline_profile_refactor(
+            bset_out = iterative_bspline_fit(
                 sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
                 ivar=norm_ivar.flat[inside[ss]], basis=pb[ss], nord=4,
                 kwargs_knots={'interior': bkpt[keep]}, maxiter=2
@@ -728,7 +728,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = bspline_profile_refactor(
+    bset_out = iterative_bspline_fit(
         sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
         ivar=norm_ivar.flat[ss[inside]], basis=pb.flat[ss[inside]], nord=4,
         kwargs_knots={'interior': bkpt}, upper=10, lower=10

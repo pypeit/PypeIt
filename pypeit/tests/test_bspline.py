@@ -21,7 +21,8 @@ import numpy as np
 import pytest
 
 from pypeit import dataPaths
-from pypeit.core.bspline import BSpline, BSpline2D, Knots, bspline_profile_refactor
+from pypeit.core.bspline import BSpline, BSpline2D, Knots
+from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.core.fitting import bspline_qa
 from pypeit.core.basis import fchebyshev, flegendre
 
@@ -1677,12 +1678,12 @@ def test_value_interpolate_training_x_fast_path():
 
 
 # ---------------------------------------------------------------------------
-# bspline_profile_refactor — integration tests against reference data
+# iterative_bspline_fit — integration tests against reference data
 # ---------------------------------------------------------------------------
 
-def test_bspline_profile_refactor_spec():
+def test_iterative_bspline_fit_spec():
     """
-    bspline_profile_refactor reproduces the spectral flat-field reference fit
+    iterative_bspline_fit reproduces the spectral flat-field reference fit
     from the gemini_gnirs_32 test data files.
     """
     files = [dataPaths.tests.get_file_path('gemini_gnirs_32_{0}_spec_fit.npz'.format(slit))
@@ -1691,7 +1692,7 @@ def test_bspline_profile_refactor_spec():
     spec_samp_fine = 1.2
     for f in files:
         d = np.load(f)
-        sset, _, spec_flat_fit, _, exit_status = bspline_profile_refactor(
+        sset, _, spec_flat_fit, _, exit_status = iterative_bspline_fit(
             d['spec_coo_data'], d['spec_flat_data'],
             ivar=d['spec_ivar_data'], gpm=d['spec_gpm_data'],
             nord=4, upper=logrej, lower=logrej,
@@ -1700,12 +1701,12 @@ def test_bspline_profile_refactor_spec():
         )
         assert isinstance(sset, BSpline)
         assert np.allclose(d['spec_flat_fit'], spec_flat_fit), \
-            'Bad spectral bspline_profile_refactor result'
+            'Bad spectral iterative_bspline_fit result'
 
 
-def test_bspline_profile_refactor_spat():
+def test_iterative_bspline_fit_spat():
     """
-    bspline_profile_refactor reproduces the spatial flat-field reference fit
+    iterative_bspline_fit reproduces the spatial flat-field reference fit
     from the gemini_gnirs_32 test data files.
     """
     files = [dataPaths.tests.get_file_path('gemini_gnirs_32_{0}_spat_fit.npz'.format(slit))
@@ -1716,19 +1717,19 @@ def test_bspline_profile_refactor_spat():
             1.0 / d['median_slit_width'] / 10.0,
             1.2 * np.median(np.diff(d['spat_coo_data'])),
         )
-        sset, _, spat_flat_fit, _, exit_status = bspline_profile_refactor(
+        sset, _, spat_flat_fit, _, exit_status = iterative_bspline_fit(
             d['spat_coo_data'], d['spat_flat_data'],
             nord=4, upper=5.0, lower=5.0,
             kwargs_knots={'spacing': bkspace},
         )
         assert isinstance(sset, BSpline)
         assert np.allclose(d['spat_flat_fit'], spat_flat_fit), \
-            'Bad spatial bspline_profile_refactor result'
+            'Bad spatial iterative_bspline_fit result'
 
 
-def test_bspline_profile_refactor_twod():
+def test_iterative_bspline_fit_twod():
     """
-    bspline_profile_refactor reproduces the 2D flat-field reference fit
+    iterative_bspline_fit reproduces the 2D flat-field reference fit
     from the gemini_gnirs_32 test data files.
     """
     files = [dataPaths.tests.get_file_path('gemini_gnirs_32_{0}_twod_fit.npz'.format(slit))
@@ -1737,7 +1738,7 @@ def test_bspline_profile_refactor_twod():
     twod_sigrej = 4.0
     for f in files:
         d = np.load(f)
-        sset, _, twod_flat_fit, _, exit_status = bspline_profile_refactor(
+        sset, _, twod_flat_fit, _, exit_status = iterative_bspline_fit(
             d['twod_spec_coo_data'], d['twod_flat_data'],
             basis=d['poly_basis'],
             ivar=d['twod_ivar_data'], gpm=d['twod_gpm_data'],
@@ -1747,14 +1748,14 @@ def test_bspline_profile_refactor_twod():
         )
         assert isinstance(sset, BSpline2D)
         assert np.allclose(d['twod_flat_fit'], twod_flat_fit), \
-            'Bad 2D bspline_profile_refactor result'
+            'Bad 2D iterative_bspline_fit result'
 
 
 # ============================================================================
-# bspline_profile_refactor option coverage and agreement tests
+# iterative_bspline_fit option coverage and agreement tests
 # ============================================================================
 
-def test_bspline_profile_refactor_string_basis():
+def test_iterative_bspline_fit_string_basis():
     """basis='legendre' + basis_x activates the 2D BSpline2D path."""
     rng = np.random.default_rng(42)
     n = 300
@@ -1765,7 +1766,7 @@ def test_bspline_profile_refactor_string_basis():
     y = y_true + rng.normal(0, 0.05, n)
     ivar = np.full(n, 400.0)
 
-    sset, outmask, yfit, reduced_chi, exit_status = bspline_profile_refactor(
+    sset, outmask, yfit, reduced_chi, exit_status = iterative_bspline_fit(
         x, y, ivar=ivar, nord=4, npoly=npoly,
         basis='legendre', basis_x=basis_x, xmin=-1.0, xmax=1.0,
         upper=5.0, lower=5.0,
@@ -1776,7 +1777,7 @@ def test_bspline_profile_refactor_string_basis():
     assert np.allclose(y_true, yfit, atol=0.15)
 
 
-def test_bspline_profile_refactor_basis_array_shapes():
+def test_iterative_bspline_fit_basis_array_shapes():
     """Flat 1D basis array (auto-reshaped) gives identical yfit to its 2D form."""
     rng = np.random.default_rng(99)
     n = 200
@@ -1788,16 +1789,16 @@ def test_bspline_profile_refactor_basis_array_shapes():
     y = np.sin(x) + 1.5 * x2 + rng.normal(0, 0.1, n)
     ivar = np.full(n, 100.0)
 
-    _, _, yfit_2d, _, _ = bspline_profile_refactor(
+    _, _, yfit_2d, _, _ = iterative_bspline_fit(
         x, y, ivar=ivar, basis=basis_2d, kwargs_knots={'spacing': 0.5},
     )
-    _, _, yfit_1d, _, _ = bspline_profile_refactor(
+    _, _, yfit_1d, _, _ = iterative_bspline_fit(
         x, y, ivar=ivar, basis=basis_1d, kwargs_knots={'spacing': 0.5},
     )
     assert np.allclose(yfit_2d, yfit_1d)
 
 
-def test_bspline_profile_refactor_exit_statuses():
+def test_iterative_bspline_fit_exit_statuses():
     """Exit status 4 (too few points) and 1 (maxiter exceeded)."""
     rng = np.random.default_rng(0)
     n = 300
@@ -1808,7 +1809,7 @@ def test_bspline_profile_refactor_exit_statuses():
     # exit_status = 4: only 3 good points, fewer than nord=4
     gpm_few = np.zeros(n, dtype=bool)
     gpm_few[:3] = True
-    _, _, _, _, es = bspline_profile_refactor(
+    _, _, _, _, es = iterative_bspline_fit(
         x, y, ivar=ivar, gpm=gpm_few, nord=4,
         kwargs_knots={'spacing': 1.0},
     )
@@ -1818,7 +1819,7 @@ def test_bspline_profile_refactor_exit_statuses():
     # pass (converges in 2 iterations, but maxiter caps at 1)
     y_out = y.copy()
     y_out[rng.choice(n, 15, replace=False)] += 20.0
-    _, _, _, _, es = bspline_profile_refactor(
+    _, _, _, _, es = iterative_bspline_fit(
         x, y_out, ivar=ivar, nord=4, maxiter=1, upper=3.0, lower=3.0,
         kwargs_knots={'spacing': 1.0},
     )
@@ -1830,13 +1831,13 @@ def test_bspline_profile_refactor_exit_statuses():
 # ============================================================================
 
 def _make_bspline_fit(rng=None, n=300, spacing=1.0):
-    """Return (sset, gpm, xdata, ydata, yfit) from bspline_profile_refactor."""
+    """Return (sset, gpm, xdata, ydata, yfit) from iterative_bspline_fit."""
     if rng is None:
         rng = np.random.default_rng(0)
     x = np.sort(rng.uniform(0, 10, n))
     y = np.sin(x) + rng.normal(0, 0.1, n)
     ivar = np.full(n, 100.0)
-    sset, gpm, yfit, _, _ = bspline_profile_refactor(
+    sset, gpm, yfit, _, _ = iterative_bspline_fit(
         x, y, ivar=ivar, nord=4, upper=5, lower=5,
         kwargs_knots={'spacing': spacing},
     )
