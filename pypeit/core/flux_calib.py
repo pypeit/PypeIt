@@ -23,9 +23,10 @@ from astropy import stats
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
-from pypeit.bspline.refactor import Knots, bspline_profile_refactor
+from pypeit.core.bspline.refactor import Knots, bspline_profile_refactor
 from pypeit import io
 from pypeit.wavemodel import conv2res
+from pypeit.core import bspline
 from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
 from pypeit import dataPaths

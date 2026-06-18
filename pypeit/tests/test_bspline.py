@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 
 from pypeit import dataPaths
-from pypeit.bspline import bspline
+from pypeit.core import bspline
 from pypeit.tests.tstutils import data_output_path
 from pypeit.core import fitting
 

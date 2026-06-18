@@ -1,4 +1,4 @@
-pypeit.move\_median package
+pypeit.core.bspline package
 ===========================
 
 Submodules
@@ -7,13 +7,13 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   pypeit.move_median.mmpy
-   pypeit.move_median.move_median
+   pypeit.core.bspline.bspline
+   pypeit.core.bspline.util
 
 Module contents
 ---------------
 
-.. automodule:: pypeit.move_median
+.. automodule:: pypeit.core.bspline
    :members:
    :private-members:
    :show-inheritance:

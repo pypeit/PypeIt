@@ -23,15 +23,15 @@ from IPython import embed
 from pypeit import log
 from pypeit import PypeItError, PypeItDataModelError
 from pypeit import utils
-from pypeit.bspline.refactor import Knots, bspline_profile_refactor
-from pypeit.bspline.containers import BSplineContainer
-
+from pypeit.core.bspline.refactor import Knots, bspline_profile_refactor
+from pypeit.core.bspline.containers import BSplineContainer
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit import edgetrace
 from pypeit import io
 from pypeit.display import display
 from pypeit.images import buildimage
+from pypeit.core import bspline
 from pypeit.core import qa
 from pypeit.core import flat
 from pypeit.core import tracewave
@@ -72,7 +72,7 @@ class FlatImages(calibframe.CalibFrame):
                  'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, descr='Model flat'),
                  'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=BSplineContainer,
                                                  descr='B-spline models for pixel flat; see '
-                                                       ':class:`~pypeit.bspline.containers.BSplineContainer`'),
+                                                       ':class:`~pypeit.core.bspline.containers.BSplineContainer`'),
                  'pixelflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of '
                                              'the spatial illumination profile'),
@@ -86,7 +86,7 @@ class FlatImages(calibframe.CalibFrame):
                                        descr='Processed, combined illum flats'),
                  'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=BSplineContainer,
                                                  descr='B-spline models for illum flat; see '
-                                                       ':class:`~pypeit.bspline.containers.BSplineContainer`'),
+                                                       ':class:`~pypeit.core.bspline.containers.BSplineContainer`'),
                  'illumflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of '
                                              'the spatial illumination profile'),

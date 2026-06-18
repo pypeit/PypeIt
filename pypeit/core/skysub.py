@@ -10,12 +10,13 @@ import scipy.ndimage
 import scipy.special
 from scipy.interpolate import RegularGridInterpolator
 
-from pypeit.bspline.refactor import Knots, bspline_profile_refactor
+from pypeit.core.bspline.refactor import Knots, bspline_profile_refactor
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.core import basis
+from pypeit.core import bspline
 from pypeit.core import extract
 from pypeit.core import fitting
 from pypeit.core import pixels

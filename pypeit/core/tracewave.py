@@ -794,7 +794,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
     # JFH What I find confusing is that this last fit was actually what
     # Burles was doing on the raw tilts, so why was that failing?
-    tilts_ivar1 = utils.calc_ivar((sigma[thismask_grow] / xnspecmin1) ** 2)
+    tilts_ivar1 = utils.inverse((sigma[thismask_grow] / xnspecmin1) ** 2)
     # JFH Something appers wrong in this fit for LRIS-red with a
     # science frame as the tilt image. It appears to be rejecting too
     # much in this fit, which is just a simple inversion of the fit
