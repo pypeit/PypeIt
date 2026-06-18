@@ -89,6 +89,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``shane_kast_red_ret``        1    1         False     False     1         3.0                         12.5                    0.0       -1.0e+10  120000.0      0.7600     0.7740    
 ``soar_goodman_blue``         1    1         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       1.0000     0.1500    
 ``soar_goodman_red``          1    1         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       1.0000     0.1500    
+``soar_tspec``                1    0         False     False     1         3.8                         3.5                     306.0     -1.0e+10  28000         0.9000     0.3700    
 ``subaru_focas``              1    0         True      False     4         2.081, 2.047, 2.111, 2.087  4.2, 3.8, 3.6, 4.0      0.8       -1.0e+10  65535.0       0.6104     0.1038    
 ``tng_dolores``               1    1         False     False     1         0.97                        9.0                     0.0       -1.0e+10  65500.0       0.9900     0.2520    
 ``vlt_fors2``                 1    1         False     False     1         0.7                         2.9                     2.1       -1.0e+10  200000.0      0.8000     0.1260    
