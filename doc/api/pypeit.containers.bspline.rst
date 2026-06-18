@@ -1,7 +1,7 @@
-pypeit.bspline.containers module
+pypeit.containers.bspline module
 ================================
 
-.. automodule:: pypeit.bspline.containers
+.. automodule:: pypeit.containers.bspline
    :members:
    :private-members:
    :show-inheritance:

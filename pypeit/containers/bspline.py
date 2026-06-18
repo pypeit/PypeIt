@@ -25,7 +25,7 @@ the already-prepared ``__dict__``.
 import numpy as np
 
 from pypeit import datamodel
-from pypeit.core.bspline.refactor import BSpline, BSpline2D, Knots
+from pypeit.core.bspline import BSpline, BSpline2D, Knots
 
 
 class BSplineContainer(datamodel.DataContainer, BSpline):

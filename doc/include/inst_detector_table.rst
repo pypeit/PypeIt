@@ -81,8 +81,10 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``ntt_efosc2``                1    0         False     False     1         0.91                        10.0                    0.0       -1.0e+10  65535         0.8000     0.1200    
 ``p200_dbsp_blue``            1    0         True      False     1         0.72                        2.5                     0.0       -1.0e+10  65000.0       0.9538     0.3890    
 ``p200_dbsp_red``             1    1         False     False     1         2.8                         8.5                     0.0       -1.0e+10  45000.0       0.8889     0.2930    
-``p200_ngps_i``               1    1         False     False     1         2.8                         8.5                     0.0       -1.0e+10  65000.0       0.8889     0.5000    
-``p200_ngps_r``               1    1         False     False     1         2.8                         8.5                     0.0       -1.0e+10  65000.0       0.8889     0.5000    
+``p200_ngps_g``               1    1         True      False     1         2.88                        8.5                     0.0       -1.0e+10  40000.0       0.8889     0.1870    
+``p200_ngps_i``               1    1         False     False     1         0.86                        8.5                     0.0       -1.0e+10  40000.0       0.8889     0.1870    
+``p200_ngps_r``               1    1         False     False     1         0.9                         8.5                     0.0       -1.0e+10  40000.0       0.8889     0.1870    
+``p200_ngps_u``               1    0         True      False     1         0.755                       8.5                     0.0       -1.0e+10  40000.0       0.8889     0.1870    
 ``p200_tspec``                1    1         True      False     1         3.8                         3.5                     306.0     -1.0e+10  28000         0.9000     0.3700    
 ``shane_kast_blue``           1    1         False     False     2         1.2, 1.2                    3.7, 3.7                0.0       -1.0e+10  65535.0       0.7600     0.4300    
 ``shane_kast_red``            1    0         False     False     2         1.9, 1.9                    3.8, 3.8                0.0       -1.0e+10  65535.0       0.7600     0.4300    
