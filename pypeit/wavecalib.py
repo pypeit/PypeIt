@@ -637,13 +637,11 @@ class BuildWaveCalib:
         # Generate a map of the instrumental spectral FWHM
         # TODO nsample should be a parameter
         
-        # TODO PUT THIS BACK
-        '''
+        # Re-enabled: this was commented out on the branch ("TODO PUT THIS
+        # BACK") which left fwhm_map undefined where it is used below.
         fwhm_map = autoid.map_fwhm(self.msarc.image, self.gpm, self.slits_left, self.slits_right, self.slitmask,
                                    nsample=10, slit_bpm=self.wvc_bpm, specord=self.par['fwhm_spec_order'],
                                    spatord=self.par['fwhm_spat_order'])
-
-        '''
         # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
 

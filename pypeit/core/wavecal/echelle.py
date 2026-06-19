@@ -181,7 +181,7 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle,
         # wave_composite[igood, indx] and the corresponding arcspec_guess[:, iord] is all zeros
         # here we try to deal with this case, by using wave_composite[igood, indx] but we need make some padding
         if np.all(arcspec_guess[:, iord] == 0):
-            msgs.warn("All wavelengths are outside the order")
+            log.warning("All wavelengths are outside the order")
             # this is adapted from pypeit.core.wavecal.autoid.full_template
             npad = nspec - np.sum(igood)
             if npad > 0:
@@ -295,12 +295,21 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
 
     # Assign
     order_vec = order_vec_guess[0] + ordr_shift - np.arange(norders)
-    ind = np.isin(order_vec_guess, order_vec, assume_unique=True)
 
-    #if debug:
-    #    embed(header='identify_ech_orders 232 of echelle.py')
+    # Build per-observed-order arxiv arrays aligned 1:1 with order_vec.  Orders
+    # in order_vec that are not in the predicted coverage / composite (e.g. the
+    # data extends beyond the archived orders) are left as zeros; downstream
+    # echelle_wvcalib skips all-zero orders.  (Previously this returned only the
+    # overlapping subset, whose size != norders, crashing echelle_wvcalib.)
+    wave_soln_arxiv = np.zeros((nspec, norders))
+    arcspec_arxiv = np.zeros((nspec, norders))
+    for jord, oord in enumerate(order_vec):
+        match = np.where(order_vec_guess == oord)[0]
+        if match.size:
+            wave_soln_arxiv[:, jord] = wave_soln_guess_pad[:, match[0]]
+            arcspec_arxiv[:, jord] = arcspec_guess_pad[:, match[0]]
 
     # Return
-    return order_vec, wave_soln_guess_pad[:, ind], arcspec_guess_pad[:, ind]
+    return order_vec, wave_soln_arxiv, arcspec_arxiv
 
 

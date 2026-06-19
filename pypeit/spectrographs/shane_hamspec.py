@@ -70,7 +70,11 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['overlap'] = True
         par['calibrations']['slitedges']['dlength_range'] = 0.25
 
-        par['calibrations']['slitedges']['add_missed_orders'] = True
+        # The real edge tracing already finds ~the true number of orders
+        # (~100).  Leaving add_missed_orders on inserts ~140 spurious orders in
+        # the dark detector regions (Hamspec orders do not fill the detector),
+        # which corrupts the echelle order-number identification.  Disable it.
+        par['calibrations']['slitedges']['add_missed_orders'] = False
         par['calibrations']['slitedges']['order_width_poly'] = 2
         par['calibrations']['slitedges']['order_gap_poly'] = 3
 
@@ -93,8 +97,7 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         # against each observed order by cross-correlation.  This avoids the
         # HIRES-style 'echelle' angle_fits model, which would need ThAr at
         # many cross-disperser settings we do not have (see Report 04).
-        par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_hamspec.fits'
+        par['calibrations']['wavelengths']['method'] = 'echelle'
         par['calibrations']['wavelengths']['cc_shift_range'] = (-200.,200.)
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.25
@@ -105,7 +108,10 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
         par['calibrations']['wavelengths']['ech_sigrej'] = 2.0
-        par['calibrations']['wavelengths']['ech_separate_2d'] = True
+        # Hamspec is a single detector (unlike the HIRES mosaic this was copied
+        # from), so do not separate the 2D wavelength fit by detector — there is
+        # no det_img and ech_separate_2d=True crashes echelle_2dfit.
+        par['calibrations']['wavelengths']['ech_separate_2d'] = False
         par['calibrations']['wavelengths']['bad_orders_maxfrac'] = 0.5
 
         # Flats
@@ -169,7 +175,10 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         # height (DHEITRAW), which sets which orders land where, so it is the
         # cross-dispersion angle (see Report 04, Q&A 21).
         self.meta['echangle'] = dict(ext=0, card='GTILTRAW', rtol=1e-2)
-        self.meta['xdangle'] = dict(ext=0, card='DHEITRAW', rtol=1e-2)
+        # Use the dewar height in microns (DHEITVAL), not the raw stepper
+        # counts, so xdangle matches the micron-based geometry encoded in the
+        # angle_fits archive (order shift = DHEITVAL / 15 um pixel).
+        self.meta['xdangle'] = dict(ext=0, card='DHEITVAL', rtol=1e-2)
 
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         self.meta['dispname'] = dict(ext=0, card=None, default='Hamspec')
