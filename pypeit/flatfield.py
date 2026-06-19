@@ -1035,7 +1035,7 @@ class FlatField:
             if self.slitless:
                 tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
             else:
-                tilts = self.wavetilts.fit2tiltimg(onslit_init, spat_flexure=self.spat_flexure)
+                tilts = self.wavetilts.fit2tiltimg(slitid_img_init, spat_flexure=self.spat_flexure)
 
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
