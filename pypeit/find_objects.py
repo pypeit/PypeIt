@@ -228,17 +228,12 @@ class FindObjects:
         elif waveTilts is not None and tilts is None:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
-            #   Deal with Flexure
-            if self.par['calibrations']['tiltframe']['process']['spat_flexure_method'] != "skip":
-                _spat_flexure = np.zeros((slits.nslits, 2)) if self.spat_flexure_shift is None \
-                    else self.spat_flexure_shift
-                # If they both shifted the same, there will be no reason to shift the tilts
-                tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
-            else:
-                tilt_flexure_shift = self.spat_flexure_shift
+            # Deal with Flexure
+            _spat_flexure = self.spat_flexure_shift
+            if self.par['calibrations']['tiltframe']['process']['spat_flexure_method'] != "skip" and self.spat_flexure_shift is None:
+                _spat_flexure = np.zeros((slits.nslits, 2))
             log.info("Generating tilts image from fit in waveTilts")
-            # TODO : I think this is the wrong spat flexure -- sort out before merging!!
-            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=tilt_flexure_shift)
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=_spat_flexure)
         elif waveTilts is None and tilts is not None:
             log.info("Using user input tilts image")
             self.tilts = tilts
@@ -304,7 +299,7 @@ class FindObjects:
         # Slits
         self.slits = slits
         # Select the edges to use
-        # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
+        # TODO JFH: This is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
             = self.slits.select_edges(initial=initial, spat_flexure=self.spat_flexure_shift)
         # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
@@ -367,7 +362,7 @@ class FindObjects:
         # uses the mask specified by the user.
 
         # TODO: Should we make this no_poly=True to have fewer degrees of freedom in
-        # the with with-object global sky fits??
+        #  the with with-object global sky fits??
         initial_sky0 = self.global_skysub(skymask=self.initial_skymask, update_crmask=False,
                                           objs_not_masked=True, show_fit=show_skysub_fit)
         # First pass object finding

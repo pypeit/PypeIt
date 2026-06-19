@@ -535,7 +535,7 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
 
 
 def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
-                    calibrations_path:str, scifile:str=None, initial_slits=False):
+                    calibrations_path:str, scifile:str=None, initial_slits=False, spat_flexure=None):
     """
     Generate or load sky regions, if defined by the user.
 
@@ -562,10 +562,29 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
 
     Parameters
     ----------
-    initial_slits : :obj:`bool`, optional
-        Flag to use the initial slits before any tweaking based on the
-        slit-illumination profile; see
-        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.
+    spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+        The spectrograph instance
+    fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+        The class holding the metadata for all the frames in this PypeIt run.
+    par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+        The parameter set for the reduction, including slitmask and
+        object finding parameters.
+    frame (:obj:`int`):
+        The index of the frame in the fitstbl
+    det (:obj:`int`):
+        Detector number (1-indexed)
+    caliBrate (:class:`~pypeit.calibrations.Calibrations`):
+        The calibrations for the given frame and detector
+    calibrations_path (:obj:`str`):
+        Path to the calibration files
+    scifile (:obj:`str`, optional):
+        The science file name, used to construct the SkyRegions file name.
+        Default is None.
+    initial_slits (:obj:`bool`, optional):
+        If True, use the initial slits for the sky region selection. Default is False.
+    spat_flexure (`numpy.ndarray`_, optional):
+        The spatial flexure for each slit, used to adjust the sky region selection.
+        Default is None, which means no spatial flexure adjustment is applied.
 
     Returns
     -------
@@ -577,8 +596,7 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
     if par['reduce']['skysub']['user_regions'] in [None, '']:
         return None
 
-    # Flexure
-    spat_flexure = None
+    _spat_flexure = np.zeros((caliBrate.slits.nslits, 2)) if spat_flexure is None else spat_flexure
 
     # First priority given to user_regions first
     if par['reduce']['skysub']['user_regions'] == 'user':
@@ -607,7 +625,7 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
     # NOTE : Do not include spatial flexure here!
     #        It is included when generating the mask in the return statement below
     slits_left, slits_right, _ \
-        = caliBrate.slits.select_edges(initial=initial_slits, flexure=None)
+        = caliBrate.slits.select_edges(initial=initial_slits, flexure=None)  # Don't change flexure - see comment above
 
     maxslitlength = np.max(slits_right-slits_left)
     # Get the regions
@@ -623,7 +641,7 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
         )
     # Generate and return image
     return skysub.generate_mask(spectrograph.pypeline, regions, caliBrate.slits,
-                                slits_left, slits_right, spat_flexure=spat_flexure)
+                                slits_left, slits_right, spat_flexure=_spat_flexure)
 
 
 def extract_det(spectrograph, fitstbl, par,
@@ -740,13 +758,11 @@ def extract_det(spectrograph, fitstbl, par,
             sobjs_obj
         slitgpm = (slits.mask == 0)
         slitshift = sciImg.flex_shift
-        # get slitmask (same as in extract)
-        slitmask = slits.slit_img(flexure=sciImg.spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
-        # get spat_flexure and tilts (same as in extract)
-        _spat_flexure = 0. if sciImg.spat_flexure is None else sciImg.spat_flexure
-        _tilts_spat_flexure = 0. if caliBrate.wavetilts.spat_flexure is None else caliBrate.wavetilts.spat_flexure
-        tilts = caliBrate.wavetilts.fit2tiltimg(slitmask, flexure=_tilts_spat_flexure) # TODO : I think this is the wrong spat_flexure. sort out before merging!!!
-        waveImg = caliBrate.wv_calib.build_waveimg(tilts, slits, spat_flexure=sciImg.spat_flexure, spec_flexure=slitshift)
+        # get spatial flexure, slitmask, and tilts (same as in extract)
+        _spat_flexure = np.zeros((slits.nslits, 2)) if sciImg.spat_flexure is None else sciImg.spat_flexure
+        slitmask = slits.slit_img(spat_flexure=_spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
+        tilts = caliBrate.wavetilts.fit2tiltimg(slitmask, spat_flexure=sciImg.spat_flexure)
+        waveImg = caliBrate.wv_calib.build_waveimg(tilts, slits, spat_flexure=_spat_flexure, spec_flexure=slitshift)
 
     # Apply a reference frame correction to each object and the waveimg
     vel_corr, waveImg = refframe_correct(spectrograph, par, slits, 
@@ -856,8 +872,8 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
         # Build the initial sky mask
         initial_skymask = load_skyregions(
             spectrograph, fitstbl, par, frames[0], det,
-            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline != 'SlicerIFU',
-            scifile=fitstbl.frame_paths(frames[0]))
+            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline != 'SlicerIFU',  # TODO :: Before Merge - think about this,,,
+            scifile=fitstbl.frame_paths(frames[0]), spat_flexure=sciImg.spat_flexure)
             
 
     objFind = find_objects.FindObjects.get_instance(

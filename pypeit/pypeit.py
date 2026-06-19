@@ -225,10 +225,10 @@ class PypeIt:
         # Iterate over each calibration group again and reduce the science frames
         for calib_ID in self.fitstbl.calib_groups:
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
-                                        calib_ID, self.calibrations_path,
-                                        reduce_standard=False, overwrite=self.overwrite,
-                                        show=self.show, run_state=self.run_state,
-                                        reuse_calibs=self.reuse_calibs)
+                           calib_ID, self.calibrations_path,
+                           reduce_standard=False, overwrite=self.overwrite,
+                           show=self.show, run_state=self.run_state,
+                           reuse_calibs=self.reuse_calibs)
             log.info(f'Finished calibration group {calib_ID}')
 
         # Finish
@@ -347,7 +347,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
                                             frames[0], twod=True)
         if not outfile2d.is_file() or overwrite:
 
-            # Build history to document what contributd to the reduced
+            # Build history to document what contributed to the reduced
             # exposure
             history = History(fitstbl.frame_paths(frames[0]))
             history.add_reduce(calib_ID, fitstbl, frames, bg_frames)
