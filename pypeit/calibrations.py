@@ -956,8 +956,8 @@ class Calibrations:
             # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
-                                                 wv_calib=self.wv_calib, qa_path=self.qa_path,
-                                                 calib_key=calib_key)
+                                                 wv_calib=self.wv_calib, spat_flexure=pixel_flat.spat_flexure,
+                                                 qa_path=self.qa_path, calib_key=calib_key)
             # Generate
             pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
             # Set flatimages in case we want to apply the pixel-to-pixel
@@ -1016,10 +1016,10 @@ class Calibrations:
                 illum_flat = illum_flat.sub(lampoff_flat)
 
             # Initialise the illum flat
-            # TODO :: Propagate spatial flexure to all FlatField instances (not just this one).
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
                                                  wv_calib=self.wv_calib, spat_illum_only=True,
+                                                 spat_flexure=illum_flat.spat_flexure,
                                                  qa_path=self.qa_path, calib_key=calib_key)
             # Generate
             illumflatImages = illumFlatField.run(doqa=self.write_qa, show=self.show)
