@@ -59,6 +59,8 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
     header_name = "RIMAS"
     supported = True
 
+    useOHCalib = True #Use OH for arc calibration if set to true, otherwise, use Kr arc lines
+
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
@@ -73,7 +75,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["dec"] = dict(ext=0, card="DEC")
         self.meta["target"] = dict(ext=0, card="OBJNAME")
         self.meta["dispname"] = dict(card=None, compound=True)
-        self.meta["decker"] = dict(card="FILTER4", compound=True)  # SLIT filter wheel
+        self.meta["decker"] = dict(card=None, compound=True)  # SLIT filter wheel
         self.meta["binning"] = dict(card=None, default='1,1', compound=True)
         self.meta["mjd"] = dict(card=None, compound=True)
         self.meta["airmass"] = dict(card=None, compound=True)
@@ -105,6 +107,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`object`: Metadata value read from the header(s).
         """
+
         if meta_key == "dispname":
             # Return FILTER1 (Filter Wheel Name FW YJ) for YJ frames and
             #   FILTER2 (Filter Wheel Name FW HK) for HK frames
@@ -267,7 +270,8 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         par["calibrations"]["tilts"]["spec_order"] = 4
 
         # 1D wavelength solution
-        par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]#["Hg_RIMAS", "HGI_lines"]
+        
+        par["calibrations"]["wavelengths"]["lamps"] = ["300HK_Kr"]
         par["calibrations"]["wavelengths"]["rms_thresh_frac_fwhm"] = 0.15
         par["calibrations"]["wavelengths"]["sigdetect"] = 5
         par["calibrations"]["wavelengths"]["fwhm"] = 4.0
@@ -348,8 +352,6 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         if ftype in ["arc", "tilt"]:
             return good_exp & (
                 (fitstbl["idname"] == "SCIENCE")
-                | (fitstbl["idname"] == "SCIENCE_EXTENDED")
-                | (fitstbl["idname"] == "TEST")
                 | (fitstbl["idname"] == "SCIENCE_ON")
                 | (fitstbl["idname"] == "SCIENCE_OFF")
             )
@@ -499,6 +501,16 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             date = f"{int(yea):04d}-{int(mon):02d}-{int(day):02d}"
             time = f"{int(hou):02d}:{int(mnt):02d}:{float(sec):09.6f}"
             return astropy.time.Time(f"{date}T{time}", format="isot")
+
+    def get_meta_value(self, inp, meta_key, required=False,
+                        ignore_bad_header=False,
+                        usr_row=None, no_fussing=False):
+        ret = super().get_meta_value(inp, meta_key, required, ignore_bad_header, usr_row, no_fussing)
+        if usr_row is None:
+            return ret
+        if ("arc" in usr_row["frametype"]) and ("science" in usr_row["frametype"]):
+            self.useOHCalib = True
+        return ret
 
 
 class YJArm(LDTRIMASSpectrograph):
@@ -1003,10 +1015,6 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             par["calibrations"]["wavelengths"]["lamps"] = ["Hg_RIMAS"]
 
         elif grating == "Vph300":
-            # Use this `reid_arxiv` with the `full-template` method:
-            par["calibrations"]["wavelengths"][
-                "reid_arxiv"
-            ] = "ldt_deveny_300_HgCdAr.fits"
             # Higher order wavelength fits because of larger span
             par["calibrations"]["wavelengths"]["n_first"] = 3  # Default: 2
             par["calibrations"]["wavelengths"]["n_final"] = 5  # Default: 4
@@ -1017,8 +1025,14 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             par["reduce"]["findobj"]["find_fwhm"] = 7
             par["reduce"]["findobj"]["snr_thresh"] = 20
 
-            par["calibrations"]["wavelengths"]["lamps"] = ["300HK_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
-            #par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+            if self.useOHCalib:
+                par["calibrations"]["wavelengths"]["lamps"] = ["OH_RIMAS_HK"]
+                par["calibrations"]["wavelengths"]["reid_arxiv"] = "ldt_rimas_HK_300_OH.fits"
+                
+            else:
+                par["calibrations"]["wavelengths"]["lamps"] = ["300HK_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+                # Use this `reid_arxiv` with the `full-template` method:
+                par["calibrations"]["wavelengths"]["reid_arxiv"] = "ldt_rimas_HK_300_KrHgArXe.fits"
 
         else:
             pass
