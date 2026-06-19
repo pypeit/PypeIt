@@ -11,6 +11,7 @@ from pypeit import flatfield
 from pypeit import bspline
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import data_output_path
+from pypeitdev.flats.dev_flats import pixelflat
 
 
 def test_flatimages():
@@ -24,8 +25,10 @@ def test_flatimages():
                         pixelflat_model=None,
                         pixelflat_spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
                         pixelflat_spec_illum=None,
+                        pixelflat_spat_flexure=None,
                         illumflat_raw=tmp,
                         illumflat_spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
+                        illumflat_spat_flexure=None,
                         spat_id=np.asarray([100, 200]),
                         PYP_SPEC="specname")
 

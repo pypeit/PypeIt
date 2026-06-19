@@ -137,13 +137,13 @@ class WaveTilts(calibframe.CalibFrame):
         Args:
             slitmask (`numpy.ndarray`_):
                 An image identifying the slit/order at each pixel.  Pixels
-                without a slit are marked with -1.
+                without a slit are marked with -1. Note that this should be
+                the slitmask generated with spat_flexure spatial flexure.
             spat_flexure (`numpy.ndarray`_, optional):
-                If provided, this is the shift, in spatial pixels, of the tilt
-                image onto the desired frame (typically a science image). The
-                shifts apply to each slit. This is used to correct for spatial
-                flexure. The shape of the array should be (nslits, 2),
-                where the first column is the shift to apply to the
+                If provided, this is the shift, in spatial pixels, of the frame
+                you wish to calculate the tilts for (typically a science image),
+                relative to the initial slits. The shape of the array should be
+                (nslits, 2), where the first column is the shift to apply to the
                 left edge of each slit and the second column is the
                 shift to apply to the right edge of each slit.
             chk_version (:obj:`bool`, optional):
@@ -333,7 +333,7 @@ class BuildWaveTilts:
             Detector index
         qa_path (:obj:`str`, optional):
             Directory for QA output.
-        spat_flexure (float, optional):
+        spat_flexure (`numpy.ndarray`_, optional):
             If input, the slitmask and slit edges are shifted prior
             to tilt analysis.
         measured_fwhms (`numpy.ndarray`_, optional):
