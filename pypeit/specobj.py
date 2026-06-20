@@ -54,7 +54,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.14'
+    version = '1.1.15'
     """
     Current datamodel version number.
     """
@@ -147,14 +147,14 @@ class SpecObj(datamodel.DataContainer):
                  'S2N': dict(otype=float, descr='Median signal to noise ratio of the extracted spectrum'
                                                 '(OPT if available, otherwise BOX)'),
                  #
-                 'FLEX_SHIFT_GLOBAL': dict(otype=float, descr='Global shift of the spectrum to correct for spectral'
+                 'SPEC_FLEXURE_GLOBAL': dict(otype=float, descr='Global shift of the spectrum to correct for spectral'
                                                               'flexure (pixels). This is based on the sky spectrum at'
                                                               'the center of the slit'),
-                 'FLEX_SHIFT_LOCAL': dict(otype=float, descr='Local shift of the spectrum to correct for spectral'
+                 'SPEC_FLEXURE_LOCAL': dict(otype=float, descr='Local shift of the spectrum to correct for spectral'
                                                              'flexure (pixels). This should be a small correction to'
                                                              'the global value, and is based on the sky spectrum'
                                                              'extracted near the object'),
-                 'FLEX_SHIFT_TOTAL': dict(otype=float, descr='Total shift of the spectrum to correct for spectral'
+                 'SPEC_FLEXURE_TOTAL': dict(otype=float, descr='Total shift of the spectrum to correct for spectral'
                                                              'flexure (pixels). This is the sum of the global and'
                                                              'local FLEX_SHIFT'),
                  'VEL_TYPE': dict(otype=str, descr='Type of heliocentric correction (if any)'),
@@ -262,9 +262,9 @@ class SpecObj(datamodel.DataContainer):
         if self.sign is None:
             self.sign = 1.
 
-        self.FLEX_SHIFT_GLOBAL = 0.
-        self.FLEX_SHIFT_LOCAL = 0.
-        self.FLEX_SHIFT_TOTAL = 0.
+        self.SPEC_FLEXURE_GLOBAL = 0.
+        self.SPEC_FLEXURE_LOCAL = 0.
+        self.SPEC_FLEXURE_TOTAL = 0.
 
         # Name
         self.set_name()
@@ -537,12 +537,12 @@ class SpecObj(datamodel.DataContainer):
         # Shift sky spec too
         twave = flexure.flexure_interp(shift, sky_spec.wave)
         new_sky = onespec.OneSpec(twave, None, sky_spec.flux)
-        # Save - since flexure may have been applied/calculated twice, this needs to be additive
-        self.update_flex_shift(shift, flex_type='local')
+        # Save - since spectral flexure may have been applied/calculated twice, this needs to be additive
+        self.update_spec_flexure(shift, flex_type='local')
         # Return
         return new_sky
 
-    def update_flex_shift(self, shift, flex_type='local'):
+    def update_spec_flexure(self, shift, flex_type='local'):
         """Store the total spectral flexure shift in pixels
 
         Args:
@@ -550,13 +550,13 @@ class SpecObj(datamodel.DataContainer):
                 additive spectral flexure in pixels
         """
         if flex_type == 'global':
-            self.FLEX_SHIFT_GLOBAL = shift
+            self.SPEC_FLEXURE_GLOBAL = shift
         elif flex_type == 'local':
-            self.FLEX_SHIFT_LOCAL = shift
+            self.SPEC_FLEXURE_LOCAL = shift
         else:
             raise PypeItError("Spectral flexure type must be 'global' or 'local' only")
         # Now update the total flexure
-        self.FLEX_SHIFT_TOTAL += shift
+        self.SPEC_FLEXURE_TOTAL += shift
 
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, extinct_file=None, extrap_sens=False):

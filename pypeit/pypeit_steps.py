@@ -745,7 +745,7 @@ def extract_det(spectrograph, fitstbl, par,
         skymodel, bkg_redux_skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg,\
             tilts, slits = exTract.run()
         slitgpm = np.logical_not(exTract.extract_bpm)
-        slitshift = exTract.slitshift
+        slitshift = exTract.spec_flexure
     else:
         log.info(f"Extraction skipped for {basename} on det={det}")
         # Since the extraction was not performed, fill the arrays with the best available information
@@ -757,7 +757,7 @@ def extract_det(spectrograph, fitstbl, par,
             sciImg.fullmask, \
             sobjs_obj
         slitgpm = (slits.mask == 0)
-        slitshift = sciImg.flex_shift
+        slitshift = sciImg.spec_flexure
         # get spatial flexure, slitmask, and tilts (same as in extract)
         _spat_flexure = np.zeros((slits.nslits, 2)) if sciImg.spat_flexure is None else sciImg.spat_flexure
         slitmask = slits.slit_img(spat_flexure=_spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)

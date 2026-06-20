@@ -94,7 +94,7 @@ def test_run_pypeit():
     assert specObjs[0].WAVE_RMS < 0.08  # RMS must be less than 0.08 pixels
 
     # Flexure
-    assert abs(-0.03 - specObjs[0].FLEX_SHIFT_TOTAL) < 0.1  # difference must be less than 0.1 pixels
+    assert abs(-0.03 - specObjs[0].SPEC_FLEXURE_TOTAL) < 0.1  # difference must be less than 0.1 pixels
 
     # Helio
     assert abs(specObjs[0].VEL_CORR - 0.9999251762866389) < 1.0E-10

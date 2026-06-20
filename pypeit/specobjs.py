@@ -1131,15 +1131,15 @@ class SpecObjs:
         """    
         spec_flex = Table()
         spec_flex['NAME'] = self.NAME
-        spec_flex['global_spec_shift'] = self.FLEX_SHIFT_GLOBAL
-        if np.all(spec_flex['global_spec_shift'] != None):
-            spec_flex['global_spec_shift'].format = '0.3f'
-        spec_flex['local_spec_shift'] = self.FLEX_SHIFT_LOCAL
-        if np.all(spec_flex['local_spec_shift'] != None):
-            spec_flex['local_spec_shift'].format = '0.3f'
-        spec_flex['total_spec_shift'] = self.FLEX_SHIFT_TOTAL
-        if np.all(spec_flex['total_spec_shift'] != None):
-            spec_flex['total_spec_shift'].format = '0.3f'
+        spec_flex['global_spec_flexure'] = self.SPEC_FLEXURE_GLOBAL
+        if np.all(spec_flex['global_spec_spexure'] != None):
+            spec_flex['global_spec_flexure'].format = '0.3f'
+        spec_flex['local_spec_flexure'] = self.SPEC_FLEXURE_LOCAL
+        if np.all(spec_flex['local_spec_flexure'] != None):
+            spec_flex['local_spec_flexure'].format = '0.3f'
+        spec_flex['total_spec_flexure'] = self.SPEC_FLEXURE_TOTAL
+        if np.all(spec_flex['total_spec_flexure'] != None):
+            spec_flex['total_spec_flexure'].format = '0.3f'
         # print the table
         spec_flex.pprint_all()
         # return the table

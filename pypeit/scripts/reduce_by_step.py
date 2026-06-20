@@ -210,7 +210,7 @@ class ReducebyStep(scriptbase.ScriptBase):
             # Update the sciImg with the scaleImg information
             sciImg.rel_scaleImg = objFind.scaleimg
             # and the global spectral flexure shift
-            sciImg.flex_shift = objFind.slitshift
+            sciImg.spec_flexure = objFind.spec_flexure
 
             # Write
             # sobjs object found

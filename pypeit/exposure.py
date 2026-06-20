@@ -251,7 +251,7 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
         # Update the sciImg with the scaleImg information
         sciImg_dict[det].rel_scaleImg = this_objfind.scaleimg
         # and the global spectral flexure shift
-        sciImg_dict[det].flex_shift = this_objfind.slitshift
+        sciImg_dict[det].spec_flexure = this_objfind.spec_flexure
         # TODO: RJC please check if slitshift here should be assigned or added to sciImg_dict[det].flex_shift
 
         # update here slits.mask since global_skysub modify reduce_bpm, and we need to propagate it into extraction
