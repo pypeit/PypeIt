@@ -99,6 +99,10 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         # many cross-disperser settings we do not have (see Report 04).
         par['calibrations']['wavelengths']['method'] = 'echelle'
         par['calibrations']['wavelengths']['cc_shift_range'] = (-200.,200.)
+        # NOTE (Q36a): lowering cc_thresh to 0.5 and enabling reid_cont_sub were
+        # tried to pick up the bluer orders but did not help (no extra orders,
+        # higher RMS), so keep the original values.  The blue-order coverage
+        # limit is in the observed-data matching, not these thresholds.
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.25
         par['calibrations']['wavelengths']['reid_cont_sub'] = False
