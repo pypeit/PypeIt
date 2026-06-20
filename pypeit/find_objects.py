@@ -1202,7 +1202,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # Extract a spectrum of the sky
         thismask = (self.slitmask == self.slits.spat_id[sl_ref])
         ref_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
-                                               global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
+                                               global_sky, box_rad, trace_spat[:, sl_ref],
                                                self.pypeline, self.det)
         # Calculate the flexure
         flex_dict_ref = flexure.spec_flexure_shift(ref_skyspec, sky_file=self.par['flexure']['spectrum'], spec_fwhm_pix=ref_fwhm_pix,
@@ -1221,7 +1221,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             thismask = (self.slitmask == slit_spat)
             # Extract sky spectrum for this slit
             this_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
-                                                    global_sky, box_rad, self.slits, trace_spat[:, slit_idx],
+                                                    global_sky, box_rad, trace_spat[:, slit_idx],
                                                     self.pypeline, self.det)
             # Calculate the flexure
             flex_dict = flexure.spec_flexure_shift(this_skyspec, arx_skyspec=ref_skyspec, arx_fwhm_pix=ref_fwhm_pix * 1.01,

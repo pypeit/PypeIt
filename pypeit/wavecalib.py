@@ -368,9 +368,9 @@ class WaveCalib(calibframe.CalibFrame):
                 if self.par['ech_separate_2d']:
                     ordr_det = slits.det_of_slit(slit_spat, self.det_img, slit_img=slitmask)
                     # There are ways for this to go sour..
-                    #  if the seperate solutions are not aligned with the detectors
+                    #  if the separate solutions are not aligned with the detectors
                     #  or if one reruns with a different number of detectors
-                    #  without regeneating
+                    #  without regenerating
                     #  But that would be bad practice
                     idx_fit2d = ordr_det-1  
                 else:

@@ -860,7 +860,7 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_file, empty_flex_
                 onespec.OneSpec(sky_wave_new, None, this_specobjs[obj_idx].BOX_COUNTS_SKY)
             )
 
-    # if flexure failed for every objects in this slit, save for later to use value from other slits
+    # if flexure failed for every object in this slit, save for later to use value from other slits
     elif (len(return_later_sobjs) > 0) and (len(flex_dict['shift']) == 0):
         return_later_slits.append(islit)
 
@@ -1081,7 +1081,6 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask,
         results of each slit. This is filled with a basically empty
         dict if the slit is skipped.
     """
-    # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
     slit_specs = []
     # get boxcar radius. Needs to be in pixels
     _, binspat = parse.parse_binning(sciImg.detector.binning)
@@ -1095,7 +1094,7 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask,
         inmask = sciImg.select_flag(invert=True) & thismask
         # Pack
         slit_specs.append(get_sky_spectrum(sciImg.image, sciImg.ivar, waveimg, inmask, global_sky,
-                                           box_radius, slits, trace_spat[:, ss], pypeline, det))
+                                           box_radius, trace_spat[:, ss], pypeline, det))
 
     # Measure flexure
     flex_list = spec_flexure_slit(slits, slits.slitord_id, np.logical_not(gd_slits),
@@ -1171,7 +1170,7 @@ def get_archive_spectrum(sky_file, obj_skyspec=None, spec_fwhm_pix=None):
     return sky_spectrum, arx_fwhm_pix
 
 
-def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, slits, trace_spat, pypeline, det):
+def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, trace_spat, pypeline, det):
     """ Obtain a boxcar extraction of the sky spectrum
 
     Args:
@@ -1187,8 +1186,6 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
             2D array of the global_sky fit - shape (nspec, nspat)
         box_radius (float):
             Radius of the boxcar extraction (in pixels)
-        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-            Slit trace set
         trace_spat (`numpy.ndarray`_):
             Spatial pixel values (usually the center of each slit) where the sky spectrum will be extracted.
             The shape of this array should be (nspec, nslits)
@@ -1204,7 +1201,7 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
     """
     wave, _, _, _, _, mask, _, _, counts_sky, _, _ = extract.extract_boxcar(
         box_radius, trace_spat, sciimg, ivar, thismask, waveimg, global_sky,
-        trace_spec=np.arange(slits.nspec)
+        trace_spec=np.arange(trace_spat.shape[0])
     )
     return onespec.OneSpec(wave[mask], None, counts_sky[mask], fluxed=False)
 
