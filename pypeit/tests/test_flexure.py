@@ -23,7 +23,7 @@ def test_flex_shift():
     # Call
     flex_dict = flexure.spec_flexure_shift(obj_spec, sky_file=arx_file, mxshft=60)
 
-    assert np.abs(flex_dict['shift'] - 43.5) < 0.1
+    assert np.abs(flex_dict['spec_flexure'] - 43.5) < 0.1
 
 
 def test_flex_image():

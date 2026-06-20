@@ -156,7 +156,7 @@ class SpecObj(datamodel.DataContainer):
                                                              'extracted near the object'),
                  'SPEC_FLEXURE_TOTAL': dict(otype=float, descr='Total shift of the spectrum to correct for spectral'
                                                              'flexure (pixels). This is the sum of the global and'
-                                                             'local FLEX_SHIFT'),
+                                                             'local SPEC_FLEXURE'),
                  'VEL_TYPE': dict(otype=str, descr='Type of heliocentric correction (if any)'),
                  'VEL_CORR': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
@@ -511,12 +511,12 @@ class SpecObj(datamodel.DataContainer):
         # Return
         return copy.deepcopy(self)
 
-    def apply_spectral_flexure(self, shift, sky_spec):
+    def apply_spectral_flexure(self, spec_flexure, sky_spec):
         """
         Apply interpolation with the flexure dict
 
         Args:
-            shift (float):
+            spec_flexure (float):
                 additive spectral flexure in pixels
             sky_spec (:class:`~pypeit.onespec.OneSpec`):
                 Sky Spectrum
@@ -533,30 +533,30 @@ class SpecObj(datamodel.DataContainer):
                 log.info(
                     f"Applying flexure correction to {attr:s} extraction for object:\n{self.NAME}"
                 )
-                self[attr+'_WAVE'] = flexure.flexure_interp(shift, self[attr+'_WAVE']).copy()
+                self[attr+'_WAVE'] = flexure.flexure_interp(spec_flexure, self[attr + '_WAVE']).copy()
         # Shift sky spec too
-        twave = flexure.flexure_interp(shift, sky_spec.wave)
+        twave = flexure.flexure_interp(spec_flexure, sky_spec.wave)
         new_sky = onespec.OneSpec(twave, None, sky_spec.flux)
         # Save - since spectral flexure may have been applied/calculated twice, this needs to be additive
-        self.update_spec_flexure(shift, flex_type='local')
+        self.update_spec_flexure(spec_flexure, flex_type='local')
         # Return
         return new_sky
 
-    def update_spec_flexure(self, shift, flex_type='local'):
+    def update_spec_flexure(self, spec_flexure, flex_type='local'):
         """Store the total spectral flexure shift in pixels
 
         Args:
-            shift (float):
+            spec_flexure (float):
                 additive spectral flexure in pixels
         """
         if flex_type == 'global':
-            self.SPEC_FLEXURE_GLOBAL = shift
+            self.SPEC_FLEXURE_GLOBAL = spec_flexure
         elif flex_type == 'local':
-            self.SPEC_FLEXURE_LOCAL = shift
+            self.SPEC_FLEXURE_LOCAL = spec_flexure
         else:
             raise PypeItError("Spectral flexure type must be 'global' or 'local' only")
         # Now update the total flexure
-        self.SPEC_FLEXURE_TOTAL += shift
+        self.SPEC_FLEXURE_TOTAL += spec_flexure
 
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, extinct_file=None, extrap_sens=False):

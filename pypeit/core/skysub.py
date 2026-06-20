@@ -836,7 +836,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                        'Something is very wrong with either your slit edges or your object traces'.format(group))
         npoly = skysub_npoly(localmask)
 
-        # Some bookeeping to define the sub-image and make sure it does not land off the mask
+        # Some bookkeeping to define the sub-image and make sure it does not land off the mask
         objwork = len(group)
         scope = np.sum(thismask, axis=0)
         iscp, = np.where(scope)

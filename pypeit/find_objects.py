@@ -1214,7 +1214,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         this_spec_flexure = np.zeros(self.slits.nslits)
         if flex_dict_ref is not None:
             log.warning("Only a relative spectral flexure correction will be performed")
-            this_spec_flexure = np.ones(self.slits.nslits) * flex_dict_ref['shift']
+            this_spec_flexure = np.ones(self.slits.nslits) * flex_dict_ref['spec_flexure']
         # Now loop through all slits to calculate the additional shift relative to the reference slit
         flex_list = []
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
@@ -1231,9 +1231,9 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                                    method="slitcen",
                                                    minwave=self.par['flexure']['minwave'],
                                                    maxwave=self.par['flexure']['maxwave'])
-            this_spec_flexure[slit_idx] += flex_dict['shift']
+            this_spec_flexure[slit_idx] += flex_dict['spec_flexure']
             flex_list.append(flex_dict.copy())
-        # Replace the reference slit with the absolute shift
+        # Replace the reference slit with the absolute spectral flexure
         flex_list[sl_ref] = flex_dict_ref.copy()
         # Add this flexure to the previous flexure correction
         new_spec_flexure = self.spec_flexure + this_spec_flexure

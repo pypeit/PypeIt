@@ -11,7 +11,7 @@ from pypeit import flatfield
 from pypeit import bspline
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import data_output_path
-from pypeitdev.flats.dev_flats import pixelflat
+# from pypeitdev.flats.dev_flats import pixelflat
 
 
 def test_flatimages():
