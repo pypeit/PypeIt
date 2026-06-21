@@ -688,8 +688,8 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             except KeyError:
                 pass
         par['calibrations']['standardframe']['process']['use_overscan'] = cls._use_overscan
-        par['scienceframe']['process']['spat_flexure_correct'] = True
-        par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_method'] = 'detector'
+        par['calibrations']['standardframe']['process']['spat_flexure_method'] = 'detector'
 
         # Disable LACosmic for standard-star frames only.  Empirically
         # the bright sharp trace of a flux standard (Feige34 at
