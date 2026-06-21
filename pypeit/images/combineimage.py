@@ -221,18 +221,18 @@ class CombineImage:
                 log.info(f'Spatial flexure values of input frames are consistent to within 0.2 pixels. '
                          f'Maximum difference between spatial flexure was {max_diff:.2f} pixels.')
 
-            # scale the images to their mean, if requested, before combining
-            if self.par['scale_to_mean']:
-                log.info("Scaling images to have the same mean before combining")
-                # calculate the mean of the images
-                [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nimgs, dtype=float)/self.nimgs,
-                                                                      [img_stack],
-                                                                      [rn2img_stack],
-                                                                      # var_list is added because it is
-                                                                      # required by the function but not used
-                                                                      gpm_stack, sigma_clip=self.par['clip'],
-                                                                      sigma_clip_stack=img_stack,
-                                                                      sigrej=self.par['comb_sigrej'], maxiters=maxiters)
+        # scale the images to their mean, if requested, before combining
+        if self.par['scale_to_mean']:
+            log.info("Scaling images to have the same mean before combining")
+            # calculate the mean of the images
+            [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nimgs, dtype=float)/self.nimgs,
+                                                                  [img_stack],
+                                                                  [rn2img_stack],
+                                                                  # var_list is added because it is
+                                                                  # required by the function but not used
+                                                                  gpm_stack, sigma_clip=self.par['clip'],
+                                                                  sigma_clip_stack=img_stack,
+                                                                  sigrej=self.par['comb_sigrej'], maxiters=maxiters)
 
             # scale factor
             # TODO: Chose the median over the whole frame to avoid outliers.  Is this the right choice?

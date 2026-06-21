@@ -1304,6 +1304,8 @@ class PypeItMetaData:
         # Make indx an array
         _indx = np.atleast_1d(indx)
         # Check if shifts are defined, if not, return a masked array
+        # TODO : Maybe change the shifts to spatflex to be clear that this is a spatial flexure?
+        #        "shift" was previously used to indicate spectral flexure.
         if 'shift' not in self.keys():
             return np.ma.array(np.zeros(_indx.shape), mask=np.ones(_indx.shape, dtype=bool))
         # Otherwise, return the shifts
