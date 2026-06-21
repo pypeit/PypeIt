@@ -374,8 +374,12 @@ class ProcessImagesPar(ParSet):
                                         'Options are: {0}'.format(', '.join(options['spat_flexure_method'])) + \
                                         '"skip" means no correction is performed. ' \
                                         '"detector" means that a single shift is applied to all slits. ' \
-                                        '"slit" means that each slit is shifted independently.' \
-                                        '"edge" means that each slit edge is shifted independently.'
+                                        '"slit" means that each slit is shifted independently. ' \
+                                        '"edge" means that each slit edge is shifted independently. ' \
+                                        '"leftedge" means that the left slit edge will be used to determine ' \
+                                            'the shift, and this value will be assigned to the right edge. ' \
+                                        '"rightedge" means that the right slit edge will be used to determine ' \
+                                            'the shift, and this value will be assigned to the left edge.'
 
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
@@ -529,7 +533,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid methods for combining frames.
         """
-        return ['skip', 'detector', 'slit', 'edge']
+        return ['skip', 'detector', 'slit', 'edge', 'leftedge', 'rightedge']
 
     @staticmethod
     def valid_saturation_handling():
