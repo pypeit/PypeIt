@@ -809,7 +809,7 @@ class RawImage:
         if self.steps[step] and not force:
             # Spatial flexure already calculated
             log.warning('Spatial flexure shift already calculated.')
-            return
+            return None
         if self.nimg > 1:
             raise PypeItError('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
@@ -820,7 +820,7 @@ class RawImage:
                 log.warning('Manual spatial flexure provided without slits - assuming no spatial flexure.')
             else:
                 log.warning('Cannot calculate spatial flexure without slits - assuming no spatial flexure.')
-            return np.full((slits.nslits, 2), 0.0)
+            return None
 
         # First check for manual flexure
         qa_outfile = None
@@ -866,6 +866,7 @@ class RawImage:
                     )
 
         # Each spectrograph can optionally post-process the spatial flexure values in their own way
+        # TODO : Should we make polyord a parameter in the parset?
         _spat_flexure = self.spectrograph.spatial_flexure(spat_flexure, polyord=1)
 
         # Save QA to file

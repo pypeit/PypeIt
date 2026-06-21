@@ -198,7 +198,7 @@ class CombineImage:
             comb_texp = exptime[0]
 
         # Check if any or all spatial flexure are None
-        comb_spat_flexure = np.zeros((1, 2)) # Default is that we don't know the current number of slits.
+        comb_spat_flexure = None  # Default is no spatial flexure
         if np.all([a is None for a in all_spat_flexure]):
             log.warning('No flexure values found for all images being combined!')
         elif np.any([a is None for a in all_spat_flexure]):
