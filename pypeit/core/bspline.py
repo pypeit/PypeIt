@@ -38,8 +38,6 @@ import numpy as np
 from scipy.linalg import cholesky_banded, cho_solve_banded, LinAlgError
 
 from pypeit.core import basis
-from pypeit.core import pydl
-from pypeit import PypeItError
 
 
 # ---------------------------------------------------------------------------

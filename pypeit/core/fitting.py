@@ -1083,14 +1083,14 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
             data is treated as one-dimensional.
         sset (:class:`~pypeit.core.bspline.BSpline`):
             Object with the results of the fit. (First object
-            returned by :func:`~pypeit.core.fitting.iterative_bspline_fit`).
+            returned by :func:`~pypeit.core.fitting.iterative_bspline_fit`.)
         gpm (`numpy.ndarray`_):
-            Boolean array with the same size as ``xdata``.
-            Measurements rejected during the fit have ``gpm=False``.
-            (Second object returned by :func:`bspline_profile`).
+            Boolean array with the same size as ``xdata``.  Measurements
+            rejected during the fit have ``gpm=False``.  (Second object returned
+            by :func:`~pypeit.core.fitting.iterative_bspline_fit`.)
         yfit (`numpy.ndarray`_):
-            Best-fitting model sampled at ``xdata``. (Third object
-            returned by :func:`bspline_profile`).
+            Best-fitting model sampled at ``xdata``. (Third object returned by
+            :func:`~pypeit.core.fitting.iterative_bspline_fit`.)
         xlabel (:obj:`str`, optional):
             Label for the ordinate.  If None, none given.
         ylabel (:obj:`str`, optional):

@@ -203,14 +203,16 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         kwargs_reject={'groupbadpix': True, 'maxrej': 10}, **_basis_kws
     )
 
-    # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related
-    # to the groupbadpix behavior requested for the djs_reject rejection. It would be good to
-    # better understand what this functionality is doing, but it makes the rejection much more quickly approach a small
-    # chi^2
+    # TODO JFH This is a hack for now to deal with bad fits for which iterations
+    # do not converge. This is related to the groupbadpix behavior requested for
+    # the djs_reject rejection. It would be good to better understand what this
+    # functionality is doing, but it makes the rejection much more quickly
+    # approach a small chi^2.
     if exit_status == 1:
         log.warning(
-            'Maximum iterations reached in bspline_profile global sky-subtraction for '
-            f'npoly={npoly_fit}.\nRedoing sky-subtraction without polynomial degrees of freedom'
+            'Maximum iterations reached in iterative_bspline_fit when performing global '
+            f'sky-subtraction with npoly={npoly_fit}.  Redoing sky-subtraction without polynomial '
+            'degrees of freedom.'
         )
         # Perform the full fit now
         skyset, outmask, yfit, _, exit_status = iterative_bspline_fit(

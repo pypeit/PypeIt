@@ -1036,14 +1036,11 @@ class FlatField:
             # Fit the spectral direction of the blaze.
             # TODO: Figure out how to deal with the fits going crazy at
             #  the edges of the chip in spec direction
-            # TODO: Can we add defaults to bspline_profile so that we
-            #  don't have to instantiate invvar and profile_basis
-            spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
-                    = iterative_bspline_fit(spec_coo_data, spec_flat_data, ivar=spec_ivar_data,
-                                              gpm=spec_gpm_data, nord=4,
-                                              upper=logrej, lower=logrej,
-                                              kwargs_knots={'spacing': spec_samp_fine},
-                                              kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+            spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status = iterative_bspline_fit(
+                spec_coo_data, spec_flat_data, ivar=spec_ivar_data, gpm=spec_gpm_data, nord=4,
+                upper=logrej, lower=logrej, kwargs_knots={'spacing': spec_samp_fine},
+                kwargs_reject={'groupbadpix': True, 'maxrej': 5}
+            )
 
             if exit_status > 1:
                 # TODO -- MAKE A FUNCTION
