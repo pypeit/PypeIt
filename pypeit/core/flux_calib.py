@@ -1023,8 +1023,8 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     # init_breakpoints = fullbkpt
     log.info("Bspline fit on zeropoint. ")
     bset1, bmask, *_ = iterative_bspline_fit(
-        wave, zeropoint_clean, ivar=zeropoint_ivar, gpm=zeropoint_fitmask, upper=upper, lower=lower,
-        kwargs_knots={'full': init_breakpoints}, maxiter=maxiter,
+        wave, zeropoint_clean, ivar=zeropoint_ivar, gpm=zeropoint_fitmask, upper=upper,
+        lower=lower, kwargs_knots={'full': init_breakpoints}, maxiter=maxiter,
         kwargs_reject=kwargs_reject
     )
     zeropoint_bspl, zeropoint_fit_gpm = bset1.value(wave)

@@ -1243,15 +1243,13 @@ class FlatField:
             twod_sigrej = 4.0
 
             # Perform the full 2d fit
-            twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
-                    = iterative_bspline_fit(twod_spec_coo_data, twod_flat_data,
-                                              ivar=twod_ivar_data, basis='poly',
-                                              basis_x=twod_spat_coo_data, npoly=npoly,
-                                              xmin=0.0, xmax=1.0,
-                                              gpm=twod_gpm_data, nord=4,
-                                              upper=twod_sigrej, lower=twod_sigrej,
-                                              kwargs_knots={'spacing': spec_samp_coarse},
-                                              kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+            twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status = iterative_bspline_fit(
+                twod_spec_coo_data, twod_flat_data, ivar=twod_ivar_data, basis='poly',
+                basis_x=twod_spat_coo_data, npoly=npoly, xmin=0.0, xmax=1.0, gpm=twod_gpm_data,
+                nord=4, upper=twod_sigrej, lower=twod_sigrej,
+                kwargs_knots={'spacing': spec_samp_coarse},
+                kwargs_reject={'groupbadpix': True, 'maxrej': 10}
+            )
             if debug:
                 # TODO: Make a plot that shows the residuals in the 2D
                 # image
@@ -1423,14 +1421,15 @@ class FlatField:
         # 1/10th of a pixel, but do not allow a bsp smaller than
         # the typical sampling.
         bsp = np.fmax(1.0 / median_slit_width / 10.0, 1.2 * np.median(np.diff(spat_coo_data)))
-        spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
-            = iterative_bspline_fit(spat_coo_data, spat_flat_data, nord=4,
-                                       upper=5.0, lower=5.0,
-                                       kwargs_knots={'spacing': bsp})
-        spat_bspl = BSplineContainer.from_bspline(spat_bspl)
+        spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status = iterative_bspline_fit(
+            spat_coo_data, spat_flat_data, nord=4, upper=5.0, lower=5.0,
+            kwargs_knots={'spacing': bsp}
+        )
         # Return
-        return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
-               spat_flat_fit, spat_flat_data_raw
+        return (
+            exit_status, spat_coo_data, spat_flat_data, BSplineContainer.from_bspline(spat_bspl),
+            spat_gpm_fit, spat_flat_fit, spat_flat_data_raw
+        )
 
     def spatial_fit_finecorr(self, normed, onslit_tweak, slit_idx, slit_spat, gpm,
                              slit_trim=3, tolerance=0.1, doqa=False):
