@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 from matplotlib import lines, colormaps
 from matplotlib import gridspec
 from matplotlib.lines import Line2D
+from astropy.stats import sigma_clipped_stats
 
 from IPython import embed
 
