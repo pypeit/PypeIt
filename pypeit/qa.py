@@ -13,6 +13,7 @@ import yaml
 from matplotlib import pyplot as plt
 from matplotlib import lines, colormaps
 from matplotlib import gridspec
+from matplotlib.lines import Line2D
 
 from IPython import embed
 
