@@ -966,6 +966,7 @@ class EchelleFindObjects(FindObjects):
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
             fof_link = self.par['reduce']['findobj']['fof_link'],
+            maxshift=self.par['reduce']['findobj']['trace_maxshift'],
             maxdev=self.par['reduce']['findobj']['trace_maxdev'],
             numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
             nperorder=nperorder,
