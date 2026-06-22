@@ -107,6 +107,9 @@ class bspline(datamodel.DataContainer):
         # Instantiate the base class
         datamodel.DataContainer.__init__(self)
 
+        self.xmin = None
+        self.xmax = None
+
         # Instantiate empty if neither fullbkpt or x is set
         if x is None and fullbkpt is None:
             self.nord = None
@@ -115,8 +118,6 @@ class bspline(datamodel.DataContainer):
             self.mask= None
             self.coeff= None
             self.icoeff= None
-            self.xmin= None
-            self.xmax= None
             self.funcname= None
             return
 
@@ -137,8 +138,6 @@ class bspline(datamodel.DataContainer):
         else:
             self.coeff = np.zeros((nc,), dtype=float)
             self.icoeff = np.zeros((nc,), dtype=float)
-        self.xmin = 0.0
-        self.xmax = 1.0
         self.funcname = funcname
 
     @staticmethod
@@ -422,6 +421,19 @@ class bspline(datamodel.DataContainer):
 
         if x2.size != nx:
             raise ValueError('Dimensions of x and x2 do not match.')
+
+        if self.xmin is None:
+            self.xmin = x2.min()
+        if self.xmax is None:
+            self.xmax = x2.max()
+        if self.xmin == self.xmax:
+            self.xmax = self.xmin + 1
+            warnings.warn(
+                'Minimum and maximum value used to rescale the range for x2 are identical.  '
+                'Adjusting xmax but be wary of the output!'
+            )
+        if self.xmin > x2.min() or self.xmax < x2.max():
+            warnings.warn('Rescaled range for x2 will not remap linearly to the range [-1,1]!')
 
         # TODO: Below is unchanged.
         x2norm = 2.0 * (x2 - self.xmin) / (self.xmax - self.xmin) - 1.0
