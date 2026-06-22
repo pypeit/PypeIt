@@ -1118,10 +1118,6 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.05
             par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.05
 
-            # Use this `reid_arxiv` with the `full-template` method:
-            par["calibrations"]["wavelengths"][
-                "reid_arxiv"
-            ] = "ldt_deveny_150_HgCdAr.fits"
             # Because of the wide wavelength range, split DV1 arcs in half for reidentification
             par["calibrations"]["wavelengths"]["nsnippet"] = 2
             # Higher order wavelength fits because of larger span
@@ -1130,7 +1126,14 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             # The approximate resolution of this grating
             par["sensfunc"]["UVIS"]["resolution"] = 400
 
-            par["calibrations"]["wavelengths"]["lamps"] = ["Hg_RIMAS"]
+            if self.useOHCalib:
+                par["calibrations"]["wavelengths"]["lamps"] = ["OH_RIMAS_HK"]
+                par["calibrations"]["wavelengths"]["reid_arxiv"] = "ldt_rimas_HK_30_OH.fits"
+                
+            else:
+                par["calibrations"]["wavelengths"]["lamps"] = ["300HK_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
+                # Use this `reid_arxiv` with the `full-template` method:
+                par["calibrations"]["wavelengths"]["reid_arxiv"] = "ldt_rimas_HK_30_KrHgArXe.fits"
 
         elif grating == "Vph300":
             # Higher order wavelength fits because of larger span
