@@ -11,8 +11,9 @@ def test_fiberflatimages_io():
     nfibers = 40
     nwave = 100
 
-    # Create synthetic fiber flat products
-    normflat = np.random.uniform(0.8, 1.2, (nfibers, nwave)).astype(np.float64)
+    # Create synthetic fiber flat products (fixed seed for determinism)
+    rng = np.random.default_rng(12345)
+    normflat = rng.uniform(0.8, 1.2, (nfibers, nwave)).astype(np.float64)
     normflat_wave = np.linspace(4000.0, 7000.0, nwave).astype(np.float64)
     global_norm = 50000.0
     fiber_ids = np.arange(1, nfibers + 1).astype(np.int64)

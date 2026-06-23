@@ -873,6 +873,69 @@ class Spectrograph:
         """
         return None
 
+    def get_fiber_blocks(self, det):
+        """
+        Return the fiber block structure for a fiber-fed spectrograph.
+
+        Spectrographs using the ``Fiber`` pypeline group their fibers into
+        block-slits and must override this method.  See
+        :meth:`pypeit.spectrographs.mmt_binospec.MMTBINOSPECSpectrograph.get_fiber_blocks`
+        for the expected return structure.
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            1-indexed detector number.
+
+        Returns
+        -------
+        :obj:`list` of :obj:`dict`
+            One dict per fiber block.
+
+        Raises
+        ------
+        NotImplementedError
+            Always, unless overridden by a ``Fiber``-pypeline spectrograph.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} uses pypeline='{self.pypeline}' but "
+            "does not implement get_fiber_blocks(); it is required for the "
+            "Fiber pypeline.")
+
+    def identify_fibers_in_block(self, det, block_idx, detected_positions):
+        """
+        Map detected fiber positions within a block-slit to instrument fiber IDs.
+
+        Spectrographs using the ``Fiber`` pypeline must override this method.
+        See
+        :meth:`pypeit.spectrographs.mmt_binospec.MMTBINOSPECSpectrograph.identify_fibers_in_block`
+        for the expected return structure.
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            1-indexed detector number.
+        block_idx : :obj:`int`
+            0-based block index.
+        detected_positions : `numpy.ndarray`_
+            Detected fiber peak pixel positions within the block-slit.
+
+        Returns
+        -------
+        :obj:`dict`
+            Keys ``'fiber_id'``, ``'fiber_name'``, ``'fiber_type'``, aligned
+            with ``detected_positions``.
+
+        Raises
+        ------
+        NotImplementedError
+            Always, unless overridden by a ``Fiber``-pypeline spectrograph.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} uses pypeline='{self.pypeline}' but "
+            "does not implement identify_fibers_in_block(); it is required for "
+            "the Fiber pypeline.")
+
     def get_arc_extract_center(self, slitcen, slits, det):
         """
         Return adjusted slit centers for arc spectrum extraction.

@@ -51,12 +51,13 @@ def _sky_line_mask(wave: np.ndarray) -> np.ndarray:
 
 
 def _project_to_sky(x_arcsec: np.ndarray, y_arcsec: np.ndarray,
-                    raw_hdr: 'Header') -> tuple[np.ndarray, np.ndarray]:
+                    raw_hdr: 'Header',
+                    spectrograph) -> tuple[np.ndarray, np.ndarray]:
     """Project instrument-frame fiber offsets to sky coordinates.
 
-    Uses the same TAN WCS convention as
-    :class:`~pypeit.scripts.binospec_ifu_cube.BinospecIFUCube` so that the
-    extracted hex view aligns with the matching datacube.
+    Uses the spectrograph's shared TAN/POSANG WCS convention
+    (:meth:`~pypeit.spectrographs.mmt_binospec.MMTBINOSPECSpectrograph.ifu_sky_wcs`)
+    so that the extracted hex view aligns with the matching datacube.
 
     Parameters
     ----------
@@ -65,34 +66,18 @@ def _project_to_sky(x_arcsec: np.ndarray, y_arcsec: np.ndarray,
     raw_hdr : `astropy.io.fits.Header`_
         Primary header from the spec1d file, providing ``RA``, ``DEC``,
         and (optionally) ``POSANG``.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Provides the ``ifu_sky_wcs`` reference-coordinate/CD-matrix helper.
 
     Returns
     -------
     ra, dec : `numpy.ndarray`_
         Fiber RA/Dec in degrees, same shape as the inputs.
     """
-    from astropy import units as u
     from astropy import wcs as astropy_wcs
-    from astropy.coordinates import SkyCoord
 
-    raval = raw_hdr.get('RA', 0.0)
-    decval = raw_hdr.get('DEC', 0.0)
-    try:
-        coord = SkyCoord(raval, decval, unit=(u.hourangle, u.deg))
-    except Exception:
-        coord = SkyCoord(raval, decval, unit=(u.deg, u.deg))
-
-    posang = raw_hdr.get('POSANG', 0.0)
-    crota = np.radians(-posang)
-
-    # 1 deg per pixel: x_arcsec/3600 becomes a "pixel" offset in the WCS.
-    cdelt1 = -1.0 / 3600.0  # RA decreases with +x (east is +RA, +x is east)
-    cdelt2 = 1.0 / 3600.0   # Dec increases with +y
-
-    cd11 = cdelt1 * np.cos(crota)
-    cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)
-    cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
-    cd22 = cdelt2 * np.cos(crota)
+    # 1 arcsec per unit step: the x_arcsec/y_arcsec offsets are the WCS pixels.
+    coord, cd = spectrograph.ifu_sky_wcs(raw_hdr, 1.0)
 
     w = astropy_wcs.WCS(naxis=2)
     w.wcs.ctype = ['RA---TAN', 'DEC--TAN']
@@ -100,7 +85,7 @@ def _project_to_sky(x_arcsec: np.ndarray, y_arcsec: np.ndarray,
     # crpix is FITS 1-indexed; pixel_to_world is 0-indexed.  Setting crpix=1
     # makes pixel (0, 0) == reference pixel == crval.
     w.wcs.crpix = [1.0, 1.0]
-    w.wcs.cd = np.array([[cd11, cd12], [cd21, cd22]])
+    w.wcs.cd = cd
     w.wcs.lonpole = 180.0
     w.wcs.latpole = 0.0
 
@@ -276,6 +261,10 @@ def _load_fibers(sobjs, spectrograph, targetx: np.ndarray,
                                  dtype=float)
         meta = spectrograph.get_fiber_metadata(det_num, spat_ids,
                                                slit_centers=slit_centers)
+        if meta is None:
+            raise PypeItError(
+                f"{spectrograph.name} does not implement get_fiber_metadata(); "
+                "it is required to map fibers to sky positions.")
         fiber_ids = meta['fiber_id']
         fiber_types = np.asarray(meta['fiber_type'])
         layout = spectrograph.get_science_fiber_layout_indices(
@@ -393,7 +382,7 @@ class BinospecIFUExtract(scriptbase.ScriptBase):
         # Project each fiber's instrument-frame x,y to sky.
         x = np.array([f['x'] for f in fibers])
         y = np.array([f['y'] for f in fibers])
-        ra, dec = _project_to_sky(x, y, raw_hdr)
+        ra, dec = _project_to_sky(x, y, raw_hdr, spectrograph)
         for f, r, d in zip(fibers, ra, dec):
             f['ra'] = float(r)
             f['dec'] = float(d)

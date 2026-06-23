@@ -7,6 +7,7 @@ from astropy.io.fits import Header
 
 from pypeit import PypeItError
 from pypeit.onespec import OneSpec
+from pypeit.spectrographs.mmt_binospec import MMTBINOSPECIFUSpectrograph
 from pypeit.scripts.binospec_ifu_extract import (
     BinospecIFUExtract,
     _SKY_LINE_MASK_HALFWIDTH,
@@ -18,6 +19,10 @@ from pypeit.scripts.binospec_ifu_extract import (
     _sky_line_mask,
     _write_onespec,
 )
+
+# Real IFU spectrograph supplies the shared TAN/POSANG WCS convention used by
+# _project_to_sky.
+_IFU_SPEC = MMTBINOSPECIFUSpectrograph()
 
 
 def test_sky_line_mask_marks_each_line():
@@ -54,7 +59,7 @@ def _fake_header(ra=180.0, dec=30.0, posang=0.0):
 def test_project_to_sky_origin():
     """Fiber at offset (0,0) should land on the pointing."""
     hdr = _fake_header(ra=180.0, dec=30.0, posang=0.0)
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([0.0]), hdr)
+    ra, dec = _project_to_sky(np.array([0.0]), np.array([0.0]), hdr, _IFU_SPEC)
     assert ra.shape == (1,)
     assert dec.shape == (1,)
     np.testing.assert_allclose(ra, 180.0, atol=1e-9)
@@ -64,7 +69,7 @@ def test_project_to_sky_origin():
 def test_project_to_sky_posang_zero():
     """With POSANG=0, +y should move Dec north (positive)."""
     hdr = _fake_header(ra=180.0, dec=30.0, posang=0.0)
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([1.0]), hdr)
+    ra, dec = _project_to_sky(np.array([0.0]), np.array([1.0]), hdr, _IFU_SPEC)
     # 1 arcsec north of the pointing
     np.testing.assert_allclose(dec, 30.0 + 1.0 / 3600.0, atol=1e-7)
     np.testing.assert_allclose(ra, 180.0, atol=1e-7)
@@ -73,7 +78,7 @@ def test_project_to_sky_posang_zero():
 def test_project_to_sky_posang_90():
     """POSANG=90 rotates the layout: +y in instrument frame → +RA (east)."""
     hdr = _fake_header(ra=180.0, dec=0.0, posang=90.0)
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([1.0]), hdr)
+    ra, dec = _project_to_sky(np.array([0.0]), np.array([1.0]), hdr, _IFU_SPEC)
     # PA=90 means +y points East; at dec=0, +1 arcsec east → +1/3600 deg in RA.
     np.testing.assert_allclose(ra - 180.0, 1.0 / 3600.0, atol=1e-7)
     np.testing.assert_allclose(dec, 0.0, atol=1e-7)
@@ -85,7 +90,7 @@ def test_project_to_sky_handles_string_ra_dec():
     hdr['RA'] = '12:00:00'   # 180 deg
     hdr['DEC'] = '+30:00:00'
     hdr['POSANG'] = 0.0
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([0.0]), hdr)
+    ra, dec = _project_to_sky(np.array([0.0]), np.array([0.0]), hdr, _IFU_SPEC)
     np.testing.assert_allclose(ra, 180.0, atol=1e-6)
     np.testing.assert_allclose(dec, 30.0, atol=1e-6)
 
@@ -95,7 +100,7 @@ def test_project_to_sky_missing_posang_defaults_to_zero():
     hdr['RA'] = 180.0
     hdr['DEC'] = 30.0
     # No POSANG key.
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([1.0]), hdr)
+    ra, dec = _project_to_sky(np.array([0.0]), np.array([1.0]), hdr, _IFU_SPEC)
     np.testing.assert_allclose(dec, 30.0 + 1.0 / 3600.0, atol=1e-7)
 
 

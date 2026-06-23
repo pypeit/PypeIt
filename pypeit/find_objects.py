@@ -2651,10 +2651,13 @@ class FiberFindObjects(SlicerIFUFindObjects):
                 thisobj.trace_spec = np.arange(nspec)
                 thisobj.SPAT_PIXPOS = float(center_pix)
                 thisobj.SPAT_PIXPOS_ID = int(np.rint(center_pix))
+                # Median slit/block width, floored to 1 px to avoid division
+                # by zero on a degenerate or mis-traced slit (left == right).
+                slit_width = max(float(np.median(right - left)), 1.0)
                 thisobj.SPAT_FRACPOS = (center_pix - np.median(left)) / \
-                    np.median(right - left)
+                    slit_width
                 thisobj.FWHM = 2.0 * half_spacings[j]
-                thisobj.maskwidth = half_spacings[j] / np.median((right - left) / 2.0)
+                thisobj.maskwidth = half_spacings[j] / (slit_width / 2.0)
                 thisobj.BOX_R_PIX = half_spacings[j]
                 thisobj.smash_peakflux = 1.0
                 thisobj.smash_snr = 100.0

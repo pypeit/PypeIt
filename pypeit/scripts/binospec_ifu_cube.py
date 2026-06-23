@@ -135,7 +135,7 @@ def _build_cube_from_spec1d(spec1d_file: str, args: argparse.Namespace,
     import numpy as np
     from astropy.io import fits
 
-    from pypeit import log
+    from pypeit import log, PypeItError
     from pypeit.specobjs import SpecObjs
 
     sobjs = SpecObjs.from_fitsfile(spec1d_file)
@@ -186,6 +186,10 @@ def _build_cube_from_spec1d(spec1d_file: str, args: argparse.Namespace,
         fiber_meta = spectrograph.get_fiber_metadata(
             int(det_name.replace('DET', '')), spat_ids,
             slit_centers=slit_centers)
+        if fiber_meta is None:
+            raise PypeItError(
+                f"{spectrograph.name} does not implement get_fiber_metadata(); "
+                "it is required to map fibers to sky positions.")
 
         det_fiber_data[det_name] = {
             'flux': fiber_flux,
@@ -241,7 +245,6 @@ def _build_cube_common(det_fiber_data: dict, args: argparse.Namespace,
 
     import numpy as np
     from astropy import units
-    from astropy.coordinates import SkyCoord
     from astropy.io import fits
     from astropy import wcs
     from scipy.interpolate import griddata
@@ -453,24 +456,10 @@ def _build_cube_common(det_fiber_data: dict, args: argparse.Namespace,
     # ------------------------------------------------------------------
     # Step 7: Build WCS and write output
     # ------------------------------------------------------------------
-    # Pointing
-    raval = raw_hdr.get('RA', 0.0)
-    decval = raw_hdr.get('DEC', 0.0)
-    try:
-        coord = SkyCoord(raval, decval, unit=(units.hourangle, units.deg))
-    except Exception:
-        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
-
-    posang = raw_hdr.get('POSANG', 0.0)
-    crota = np.radians(-posang)
-
-    cdelt1 = -scl / 3600.0  # RA decreases with x, degrees
-    cdelt2 = scl / 3600.0   # DEC increases with y, degrees
-
-    cd11 = cdelt1 * np.cos(crota)
-    cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)
-    cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
-    cd22 = cdelt2 * np.cos(crota)
+    # Pointing and celestial CD matrix (shared convention with the 1D
+    # fiber extractor; see MMTBINOSPECSpectrograph.ifu_sky_wcs).
+    coord, cd = spectrograph.ifu_sky_wcs(raw_hdr, scl)
+    (cd11, cd12), (cd21, cd22) = cd
 
     w = wcs.WCS(naxis=3)
     w.wcs.equinox = raw_hdr.get('EQUINOX', 2000.0)

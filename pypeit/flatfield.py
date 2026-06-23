@@ -2011,8 +2011,11 @@ class FiberFlatField(FlatField):
                 half_spacings[1:-1] = (
                     np.minimum(spacings[:-1], spacings[1:]) / 2.0)
             else:
+                # Single-fiber block: fall back to half the median block
+                # width (matches FiberFindObjects.find_objects_pypeline).
                 half_spacings[0] = np.median(
-                    self.slits.slit_img(initial=True) != -1) / 2.0
+                    self.slits.right_init[:, slit_idx]
+                    - self.slits.left_init[:, slit_idx]) / 2.0
 
             nspec = rawflat.shape[0]
             for j, center_pix in enumerate(fiber_centers):

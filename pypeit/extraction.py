@@ -1030,13 +1030,22 @@ class FiberExtract(Extract):
         # fiber on a 4k detector (~48 GB for 360 fibers).
         is_fiber = self.spectrograph.pypeline == 'Fiber'
         n_opt = 0
+        # thismask depends only on SLITID, so cache it per slit rather than
+        # rebuilding a full-detector boolean array for every fiber.  Binospec
+        # has ~360 fibers spread over only ~21 block-slits per detector.
+        thismask_cache = {}
         for sobj in self.sobjs:
-            if is_fiber:
-                other_slit = (slitid_img != sobj.SLITID) \
-                    & (slitid_img != -1)
-                thismask = ~other_slit
-            else:
-                thismask = slitid_img == sobj.SLITID
+            thismask = thismask_cache.get(sobj.SLITID)
+            if thismask is None:
+                if is_fiber:
+                    # Fiber apertures may spill into unassigned pixels
+                    # (slitid_img == -1); only pixels owned by another slit
+                    # are excluded.
+                    thismask = ~((slitid_img != sobj.SLITID)
+                                 & (slitid_img != -1))
+                else:
+                    thismask = slitid_img == sobj.SLITID
+                thismask_cache[sobj.SLITID] = thismask
             sobj_inmask = inmask & thismask
 
             sobj.extract_boxcar(
@@ -1080,7 +1089,11 @@ class FiberExtract(Extract):
         if self.spectrograph.pypeline == 'Fiber':
             n_thru = 0
             for sobj in self.sobjs:
-                thru = float(getattr(sobj, 'fiber_throughput', 1.0) or 1.0)
+                thru_raw = getattr(sobj, 'fiber_throughput', None)
+                # Treat only None as "unset" so a genuine zero throughput
+                # falls through to the thru <= 0 guard below rather than
+                # being silently treated as 1.0.
+                thru = float(thru_raw) if thru_raw is not None else 1.0
                 if not np.isfinite(thru) or thru <= 0 or thru == 1.0:
                     continue
                 if sobj.BOX_COUNTS is not None:
@@ -1096,10 +1109,6 @@ class FiberExtract(Extract):
                 n_thru += 1
             log.info(f"Applied per-fiber throughput scalar to {n_thru} fibers")
 
-        if self.spectrograph.pypeline != 'Fiber' and \
-                hasattr(self.spectrograph, 'apply_throughput_corrections'):
-            self.spectrograph.apply_throughput_corrections(self.sobjs, self.det)
-
         # Re-apply the per-fiber wavelength refinement cached by
         # FiberFindObjects._refine_fiber_wavelengths.  extract_boxcar /
         # extract_optimal both reassign BOX_WAVE / OPT_WAVE from the global
@@ -1111,8 +1120,10 @@ class FiberExtract(Extract):
         if self.spectrograph.pypeline == 'Fiber':
             n_shift = 0
             for sobj in self.sobjs:
-                shift = float(getattr(sobj, 'wave_refine_shift_AA', 0.0)
-                              or 0.0)
+                shift_raw = getattr(sobj, 'wave_refine_shift_AA', None)
+                # Treat only None as "unset"; a real 0.0 shift is a no-op
+                # caught by the shift == 0.0 guard below.
+                shift = float(shift_raw) if shift_raw is not None else 0.0
                 if not np.isfinite(shift) or shift == 0.0:
                     continue
                 if sobj.BOX_WAVE is not None:

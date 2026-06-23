@@ -1561,6 +1561,51 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             f_illum = f_illum[::-1].copy()
         return f_illum
 
+    @staticmethod
+    def ifu_sky_wcs(raw_hdr, scale_arcsec):
+        """
+        Build the celestial reference coordinate and CD matrix for the IFU.
+
+        Encapsulates the single TAN/POSANG sign convention shared by the
+        datacube builder and the 1D fiber extractor so the two stay in sync.
+        The returned 2x2 CD matrix maps a (+x east, +y north) instrument
+        offset of ``scale_arcsec`` arcsec per unit step to RA/Dec degrees.
+
+        Parameters
+        ----------
+        raw_hdr : `astropy.io.fits.Header`_
+            Primary header providing ``RA``, ``DEC`` and (optionally)
+            ``POSANG``.
+        scale_arcsec : :obj:`float`
+            Spatial scale in arcsec per unit step along the WCS axes.
+
+        Returns
+        -------
+        coord : `astropy.coordinates.SkyCoord`_
+            Reference pointing (the WCS ``crval``).
+        cd : `numpy.ndarray`_
+            2x2 CD matrix ``[[cd11, cd12], [cd21, cd22]]`` in degrees.
+        """
+        from astropy import units as u
+        from astropy.coordinates import SkyCoord
+
+        raval = raw_hdr.get('RA', 0.0)
+        decval = raw_hdr.get('DEC', 0.0)
+        try:
+            coord = SkyCoord(raval, decval, unit=(u.hourangle, u.deg))
+        except Exception:
+            coord = SkyCoord(raval, decval, unit=(u.deg, u.deg))
+
+        crota = np.radians(-raw_hdr.get('POSANG', 0.0))
+        cdelt1 = -scale_arcsec / 3600.0  # RA decreases with +x (east is +RA)
+        cdelt2 = scale_arcsec / 3600.0   # Dec increases with +y
+
+        cd11 = cdelt1 * np.cos(crota)
+        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
+        cd22 = cdelt2 * np.cos(crota)
+        return coord, np.array([[cd11, cd12], [cd21, cd22]])
+
     def get_block_slit_edges(self, traceimg, det):
         """
         Define block-slit edges from the reference fiber profile.
@@ -2064,56 +2109,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             'sci_avg': sci_avg,
             'bulk_scale': bulk_scale,
         }
-
-    def apply_throughput_corrections(self, sobjs, det):
-        """
-        Apply per-fiber throughput corrections to extracted 1D spectra.
-
-        Divides each fiber's extracted counts (BOX_COUNTS, OPT_COUNTS) and
-        sky counts by its throughput correction from fiber_illumination.fits.
-        Updates inverse variance accordingly.
-
-        Args:
-            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
-                Extracted SpecObjs. Modified in place.
-            det (:obj:`int`):
-                1-indexed detector number.
-        """
-        f_illum = self.load_fiber_illumination(det)
-        ref = self.load_fiber_ref_profile(det)
-        ref_ids = ref['FIB_ID']
-
-        n_corrected = 0
-        for sobj in sobjs:
-            fid = sobj.MASKDEF_ID
-            if fid is None or fid < 0:
-                continue
-            idx = np.where(ref_ids == fid)[0]
-            if len(idx) == 0 or idx[0] >= len(f_illum):
-                continue
-            corr = float(f_illum[idx[0]])
-            if corr < 0.1 or not np.isfinite(corr):
-                continue
-
-            # Correct boxcar
-            if sobj.BOX_COUNTS is not None:
-                sobj.BOX_COUNTS /= corr
-                if sobj.BOX_COUNTS_SKY is not None:
-                    sobj.BOX_COUNTS_SKY /= corr
-                if sobj.BOX_COUNTS_IVAR is not None:
-                    sobj.BOX_COUNTS_IVAR *= corr ** 2
-
-            # Correct optimal
-            if sobj.OPT_COUNTS is not None:
-                sobj.OPT_COUNTS /= corr
-                if sobj.OPT_COUNTS_SKY is not None:
-                    sobj.OPT_COUNTS_SKY /= corr
-                if sobj.OPT_COUNTS_IVAR is not None:
-                    sobj.OPT_COUNTS_IVAR *= corr ** 2
-
-            n_corrected += 1
-
-        log.info(f"Applied fiber illumination corrections to {n_corrected} fibers")
 
     def compute_skyline_illum_1d(self, sobjs, det):
         """
