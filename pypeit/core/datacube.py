@@ -24,6 +24,68 @@ from fast_histogram import histogramdd
 from IPython import embed
 
 
+def resample_spec_to_grid(wave, flux, ivar, wave_grid, min_good=2):
+    """
+    Resample one spectrum's flux and inverse variance onto a wavelength grid.
+
+    Flux is linearly interpolated onto ``wave_grid``.  The *variance*
+    (``1/ivar``) is interpolated and then inverted back to inverse variance,
+    which is the statistically correct propagation -- linearly interpolating
+    the inverse variance directly is not.  Samples that fall outside the
+    spectrum's native wavelength coverage are left at zero.
+
+    Parameters
+    ----------
+    wave, flux, ivar : `numpy.ndarray`_
+        Native wavelength, flux, and inverse-variance arrays for a single
+        spectrum (e.g. one fiber).  ``ivar`` may be ``None``, in which case
+        the returned inverse variance is all zeros.
+    wave_grid : `numpy.ndarray`_
+        Monotonically increasing target wavelength grid.
+    min_good : :obj:`int`, optional
+        Minimum number of finite samples with positive wavelength required
+        for the spectrum to contribute; below this, all-zero arrays are
+        returned.
+
+    Returns
+    -------
+    flux_grid : `numpy.ndarray`_
+        Flux resampled onto ``wave_grid`` (zero outside native coverage).
+    ivar_grid : `numpy.ndarray`_
+        Inverse variance resampled onto ``wave_grid`` (zero outside coverage
+        or where the native inverse variance was non-positive).
+    covered : `numpy.ndarray`_
+        Boolean mask, ``True`` where ``wave_grid`` lies within the
+        spectrum's native wavelength range.
+    """
+    wave_grid = np.asarray(wave_grid, dtype=float)
+    flux_grid = np.zeros(wave_grid.shape, dtype=float)
+    ivar_grid = np.zeros(wave_grid.shape, dtype=float)
+    covered = np.zeros(wave_grid.shape, dtype=bool)
+
+    wave = np.asarray(wave, dtype=float)
+    flux = np.asarray(flux, dtype=float)
+    good = (wave > 0) & np.isfinite(flux)
+    if np.count_nonzero(good) < min_good:
+        return flux_grid, ivar_grid, covered
+
+    srt = np.argsort(wave[good])
+    w_s = wave[good][srt]
+    f_s = flux[good][srt]
+    iv_s = (np.asarray(ivar, dtype=float)[good][srt]
+            if ivar is not None else np.zeros_like(w_s))
+
+    in_range = (wave_grid >= w_s[0]) & (wave_grid <= w_s[-1])
+    covered[in_range] = True
+    flux_grid[in_range] = np.interp(wave_grid[in_range], w_s, f_s)
+
+    # Interpolate variance (not inverse variance), then invert back.
+    var_native = utils.inverse(iv_s)
+    var_grid = np.interp(wave_grid[in_range], w_s, var_native)
+    ivar_grid[in_range] = utils.inverse(var_grid)
+    return flux_grid, ivar_grid, covered
+
+
 def gaussian2D(tup, intflux, xo, yo, sigma_x, sigma_y, theta, offset):
     """
     Fit a 2D Gaussian function to an image.

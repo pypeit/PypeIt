@@ -302,28 +302,19 @@ def _build_cube_common(det_fiber_data: dict, args: argparse.Namespace,
     log.info(f"Wavelength grid: {wave_min:.1f} to {wave_grid[-1]:.1f} A, "
               f"dw={dwv:.3f} A, {n_wave} pixels")
 
-    # Resample each fiber onto common wavelength grid
+    # Resample each fiber onto the common wavelength grid.  Shared with the
+    # 1D fiber extractor: interpolates variance (not inverse variance) so the
+    # propagated uncertainty is statistically correct.
+    from pypeit.core import datacube
     for data in det_fiber_data.values():
         nfibers = data['flux'].shape[0]
         flux_resamp = np.zeros((nfibers, n_wave))
         ivar_resamp = np.zeros((nfibers, n_wave))
 
         for i in range(nfibers):
-            valid = data['wave'][i] > 0
-            if np.sum(valid) < 10:
-                continue
-            w = data['wave'][i, valid]
-            f = data['flux'][i, valid]
-            iv = data['ivar'][i, valid]
-
-            # Sort by wavelength
-            srt = np.argsort(w)
-            w, f, iv = w[srt], f[srt], iv[srt]
-
-            # Linear interpolation onto common grid
-            in_range = (wave_grid >= w[0]) & (wave_grid <= w[-1])
-            flux_resamp[i, in_range] = np.interp(wave_grid[in_range], w, f)
-            ivar_resamp[i, in_range] = np.interp(wave_grid[in_range], w, iv)
+            flux_resamp[i], ivar_resamp[i], _ = datacube.resample_spec_to_grid(
+                data['wave'][i], data['flux'][i], data['ivar'][i], wave_grid,
+                min_good=10)
 
         data['flux_resamp'] = flux_resamp
         data['ivar_resamp'] = ivar_resamp

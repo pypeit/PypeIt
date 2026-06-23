@@ -180,38 +180,27 @@ def _resample_and_combine(waves: list[np.ndarray],
     n_wave = int(round((wave_max - wave_min) / dwv)) + 1
     wave_out = np.linspace(wave_min, wave_max, n_wave)
 
+    from pypeit import utils
+    from pypeit.core import datacube
+
     n_fib = len(valid)
     flux_resamp = np.zeros((n_fib, n_wave))
-    var_resamp = np.zeros((n_fib, n_wave))
+    ivar_resamp = np.zeros((n_fib, n_wave))
     have_flux = np.zeros((n_fib, n_wave), dtype=bool)
-    have_var = np.zeros((n_fib, n_wave), dtype=bool)
 
     for i, (w, f, iv) in enumerate(valid):
-        good = (w > 0) & np.isfinite(f)
-        if good.sum() < 2:
-            continue
-        srt = np.argsort(w[good])
-        w_s = w[good][srt]
-        f_s = f[good][srt]
-        iv_s = iv[good][srt] if iv is not None else np.zeros_like(w_s)
-        in_range = (wave_out >= w_s[0]) & (wave_out <= w_s[-1])
-        flux_resamp[i, in_range] = np.interp(wave_out[in_range], w_s, f_s)
-        have_flux[i, in_range] = True
-        # Variance combine: build var on native grid only where ivar > 0,
-        # then interp onto common grid.
-        var_native = np.where(iv_s > 0, 1.0 / np.maximum(iv_s, 1e-300), 0.0)
-        var_resamp[i, in_range] = np.interp(wave_out[in_range], w_s,
-                                            var_native)
-        have_var[i, in_range] = (var_resamp[i, in_range] > 0)
+        flux_resamp[i], ivar_resamp[i], have_flux[i] = \
+            datacube.resample_spec_to_grid(w, f, iv, wave_out)
 
+    # Coadd: sum flux (rescaling for partial wavelength coverage) and sum the
+    # per-fiber variances (utils.inverse is zero where ivar <= 0, so masked
+    # pixels drop out of the sum automatically).
     n_good = have_flux.sum(axis=0)
-    n_total = n_fib
-    rescale = n_total / np.maximum(n_good, 1)
-    flux_out = np.nansum(np.where(have_flux, flux_resamp, 0.0),
-                         axis=0) * rescale
+    rescale = n_fib / np.maximum(n_good, 1)
+    flux_out = np.sum(np.where(have_flux, flux_resamp, 0.0), axis=0) * rescale
 
-    var_out = np.nansum(np.where(have_var, var_resamp, 0.0), axis=0)
-    ivar_out = np.where(var_out > 0, 1.0 / var_out, 0.0)
+    var_out = np.sum(utils.inverse(ivar_resamp), axis=0)
+    ivar_out = utils.inverse(var_out)
 
     return wave_out, flux_out, ivar_out
 
