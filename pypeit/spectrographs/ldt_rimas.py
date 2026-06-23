@@ -1114,9 +1114,9 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
         # Adjust parameters based on DeVeny grating used
         grating = self.get_meta_value(scifile, "dispname")
         if grating == "Vph30":
-            par["calibrations"]["slitedges"]["edge_thresh"] = 2.0  # Default: 20.0
-            par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.05
-            par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.05
+            par["calibrations"]["slitedges"]["edge_thresh"] = 5.0  # Default: 20.0
+            par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.01
+            par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.01
 
             # Because of the wide wavelength range, split DV1 arcs in half for reidentification
             par["calibrations"]["wavelengths"]["nsnippet"] = 2
@@ -1124,11 +1124,16 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             par["calibrations"]["wavelengths"]["n_first"] = 3  # Default: 2
             par["calibrations"]["wavelengths"]["n_final"] = 5  # Default: 4
             # The approximate resolution of this grating
-            par["sensfunc"]["UVIS"]["resolution"] = 400
+            par["sensfunc"]["UVIS"]["resolution"] = 40
 
+            par["reduce"]["findobj"]["find_fwhm"] = 7
+            par["reduce"]["findobj"]["snr_thresh"] = 10
+
+            
             if self.useOHCalib:
-                par["calibrations"]["wavelengths"]["lamps"] = ["OH_RIMAS_HK"]
+                par["calibrations"]["wavelengths"]["lamps"] = ["OH_RIMAS_HK_30"]
                 par["calibrations"]["wavelengths"]["reid_arxiv"] = "ldt_rimas_HK_30_OH.fits"
+                par["calibrations"]["wavelengths"]["reid_cont_sub"] = False
                 
             else:
                 par["calibrations"]["wavelengths"]["lamps"] = ["300HK_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
