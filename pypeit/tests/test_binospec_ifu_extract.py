@@ -8,26 +8,26 @@ from astropy.io.fits import Header
 from pypeit import PypeItError
 from pypeit.onespec import OneSpec
 from pypeit.spectrographs.mmt_binospec import MMTBINOSPECIFUSpectrograph
-from pypeit.scripts.binospec_ifu_extract import (
-    BinospecIFUExtract,
+from pypeit.scripts.binospec_ifu_extract import BinospecIFUExtract
+from pypeit.core.datacube import (
     _SKY_LINE_MASK_HALFWIDTH,
     _SKY_LINE_WAVELENGTHS,
-    _compute_fiber_fluxes,
-    _load_fibers,
-    _project_to_sky,
-    _resample_and_combine,
-    _sky_line_mask,
-    _write_onespec,
+    compute_fiber_fluxes,
+    load_fibers,
+    project_to_sky,
+    resample_and_combine,
+    sky_line_mask,
+    write_onespec,
 )
 
 # Real IFU spectrograph supplies the shared TAN/POSANG WCS convention used by
-# _project_to_sky.
+# project_to_sky.
 _IFU_SPEC = MMTBINOSPECIFUSpectrograph()
 
 
 def test_sky_line_mask_marks_each_line():
     wave = np.array(_SKY_LINE_WAVELENGTHS, dtype=float)
-    mask = _sky_line_mask(wave)
+    mask = sky_line_mask(wave)
     assert mask.shape == wave.shape
     assert np.all(mask), 'Each sky-line wavelength itself should be masked'
 
@@ -35,7 +35,7 @@ def test_sky_line_mask_marks_each_line():
 def test_sky_line_mask_excludes_far_wavelengths():
     # 5000 Angstrom is well clear of every line in the table
     wave = np.array([5000.0, 5577.34, 5000.0], dtype=float)
-    mask = _sky_line_mask(wave)
+    mask = sky_line_mask(wave)
     assert mask.tolist() == [False, True, False]
 
 
@@ -44,7 +44,7 @@ def test_sky_line_mask_halfwidth_boundary():
     # Just inside ± halfwidth → masked; just outside → not masked.
     inside = line + _SKY_LINE_MASK_HALFWIDTH - 0.01
     outside = line + _SKY_LINE_MASK_HALFWIDTH + 0.01
-    mask = _sky_line_mask(np.array([inside, outside]))
+    mask = sky_line_mask(np.array([inside, outside]))
     assert mask.tolist() == [True, False]
 
 
@@ -59,7 +59,7 @@ def _fake_header(ra=180.0, dec=30.0, posang=0.0):
 def test_project_to_sky_origin():
     """Fiber at offset (0,0) should land on the pointing."""
     hdr = _fake_header(ra=180.0, dec=30.0, posang=0.0)
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([0.0]), hdr, _IFU_SPEC)
+    ra, dec = project_to_sky(np.array([0.0]), np.array([0.0]), hdr, _IFU_SPEC)
     assert ra.shape == (1,)
     assert dec.shape == (1,)
     np.testing.assert_allclose(ra, 180.0, atol=1e-9)
@@ -69,7 +69,7 @@ def test_project_to_sky_origin():
 def test_project_to_sky_posang_zero():
     """With POSANG=0, +y should move Dec north (positive)."""
     hdr = _fake_header(ra=180.0, dec=30.0, posang=0.0)
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([1.0]), hdr, _IFU_SPEC)
+    ra, dec = project_to_sky(np.array([0.0]), np.array([1.0]), hdr, _IFU_SPEC)
     # 1 arcsec north of the pointing
     np.testing.assert_allclose(dec, 30.0 + 1.0 / 3600.0, atol=1e-7)
     np.testing.assert_allclose(ra, 180.0, atol=1e-7)
@@ -78,7 +78,7 @@ def test_project_to_sky_posang_zero():
 def test_project_to_sky_posang_90():
     """POSANG=90 rotates the layout: +y in instrument frame → +RA (east)."""
     hdr = _fake_header(ra=180.0, dec=0.0, posang=90.0)
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([1.0]), hdr, _IFU_SPEC)
+    ra, dec = project_to_sky(np.array([0.0]), np.array([1.0]), hdr, _IFU_SPEC)
     # PA=90 means +y points East; at dec=0, +1 arcsec east → +1/3600 deg in RA.
     np.testing.assert_allclose(ra - 180.0, 1.0 / 3600.0, atol=1e-7)
     np.testing.assert_allclose(dec, 0.0, atol=1e-7)
@@ -90,7 +90,7 @@ def test_project_to_sky_handles_string_ra_dec():
     hdr['RA'] = '12:00:00'   # 180 deg
     hdr['DEC'] = '+30:00:00'
     hdr['POSANG'] = 0.0
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([0.0]), hdr, _IFU_SPEC)
+    ra, dec = project_to_sky(np.array([0.0]), np.array([0.0]), hdr, _IFU_SPEC)
     np.testing.assert_allclose(ra, 180.0, atol=1e-6)
     np.testing.assert_allclose(dec, 30.0, atol=1e-6)
 
@@ -100,7 +100,7 @@ def test_project_to_sky_missing_posang_defaults_to_zero():
     hdr['RA'] = 180.0
     hdr['DEC'] = 30.0
     # No POSANG key.
-    ra, dec = _project_to_sky(np.array([0.0]), np.array([1.0]), hdr, _IFU_SPEC)
+    ra, dec = project_to_sky(np.array([0.0]), np.array([1.0]), hdr, _IFU_SPEC)
     np.testing.assert_allclose(dec, 30.0 + 1.0 / 3600.0, atol=1e-7)
 
 
@@ -113,7 +113,7 @@ def test_compute_fiber_fluxes_basic():
     waves = [wave, wave]
     fluxes = [flux[0], flux[1]]
 
-    out = _compute_fiber_fluxes(waves, fluxes,
+    out = compute_fiber_fluxes(waves, fluxes,
                                 wave_min=4000.0, wave_max=5000.0)
     assert out.shape == (2,)
     # No sky lines fall in 4000-5000 Angstrom, so every pixel is summed.
@@ -128,7 +128,7 @@ def test_compute_fiber_fluxes_excludes_sky_line():
     near_5577 = np.abs(wave - 5577.34) < 0.5
     spiky[near_5577] = 1000.0  # huge sky-line residual
 
-    out = _compute_fiber_fluxes([wave, wave], [flat, spiky],
+    out = compute_fiber_fluxes([wave, wave], [flat, spiky],
                                 wave_min=5500.0, wave_max=5700.0)
     # The masked region knocks out the spike entirely; the two fibers' integrals
     # should be equal (within floating-point) because the spike sits inside the
@@ -141,7 +141,7 @@ def test_compute_fiber_fluxes_handles_nan():
     wave = np.linspace(4000.0, 4100.0, 11)
     flux = np.ones_like(wave)
     flux[5] = np.nan
-    out = _compute_fiber_fluxes([wave], [flux],
+    out = compute_fiber_fluxes([wave], [flux],
                                 wave_min=4000.0, wave_max=4100.0)
     np.testing.assert_allclose(out, [10.0])  # 11 pixels - 1 NaN
 
@@ -154,7 +154,7 @@ def test_compute_fiber_fluxes_per_fiber_wave_grids():
     f1 = np.ones_like(w1) * 2.0
     # Slider range is narrower than both grids; each fiber clips independently
     # to its own pixel positions.
-    out = _compute_fiber_fluxes([w0, w1], [f0, f1],
+    out = compute_fiber_fluxes([w0, w1], [f0, f1],
                                 wave_min=4060.0, wave_max=4090.0)
     # Both fibers fully inside [4060, 4090]: w0 has 4 pixels, w1 has 4 pixels
     # (4060,4070,4080,4090).  Integrals: 4 and 8.
@@ -166,7 +166,7 @@ def test_resample_and_combine_two_identical_fibers():
     wave = np.linspace(4000.0, 5000.0, 101)
     flux = np.ones_like(wave)
     ivar = np.ones_like(wave) * 4.0  # var = 0.25
-    out_w, out_f, out_iv = _resample_and_combine([wave, wave],
+    out_w, out_f, out_iv = resample_and_combine([wave, wave],
                                                   [flux, flux],
                                                   [ivar, ivar])
     np.testing.assert_allclose(out_f, 2.0 * np.ones_like(out_w))
@@ -182,7 +182,7 @@ def test_resample_and_combine_offset_grids():
     f1 = np.ones_like(w1)
     iv0 = np.ones_like(w0)
     iv1 = np.ones_like(w1)
-    out_w, out_f, out_iv = _resample_and_combine([w0, w1], [f0, f1],
+    out_w, out_f, out_iv = resample_and_combine([w0, w1], [f0, f1],
                                                   [iv0, iv1])
     # The output grid is restricted to the overlap [4050, 4100].
     assert out_w[0] >= 4050.0
@@ -197,14 +197,14 @@ def test_resample_and_combine_no_overlap_raises():
     f = np.ones(11)
     iv = np.ones(11)
     with pytest.raises(PypeItError):
-        _resample_and_combine([w0, w1], [f, f], [iv, iv])
+        resample_and_combine([w0, w1], [f, f], [iv, iv])
 
 
 def test_resample_and_combine_single_fiber():
     wave = np.linspace(4000.0, 5000.0, 51)
     flux = 3.0 * np.ones_like(wave)
     ivar = 4.0 * np.ones_like(wave)
-    out_w, out_f, out_iv = _resample_and_combine([wave], [flux], [ivar])
+    out_w, out_f, out_iv = resample_and_combine([wave], [flux], [ivar])
     np.testing.assert_allclose(out_f, flux)
     np.testing.assert_allclose(out_iv, ivar)
 
@@ -216,7 +216,7 @@ def test_resample_and_combine_zero_ivar_pixels():
     iv0 = np.ones_like(wave)
     iv1 = np.ones_like(wave)
     iv1[5] = 0.0  # bad pixel in fiber 1
-    _, out_f, out_iv = _resample_and_combine([wave, wave], [flux, flux],
+    _, out_f, out_iv = resample_and_combine([wave, wave], [flux, flux],
                                               [iv0, iv1])
     # At pixel 5 only fiber 0 contributes ivar.  var_out = 1 → ivar_out = 1.
     np.testing.assert_allclose(out_iv[5], 1.0)
@@ -227,16 +227,16 @@ def test_resample_and_combine_zero_ivar_pixels():
 def test_resample_and_combine_all_zero_wavelengths_raises():
     """Fibers with no valid wavelength data raise PypeItError."""
     with pytest.raises(PypeItError, match="No valid wavelength data"):
-        _resample_and_combine([np.zeros(10)], [np.ones(10)],
+        resample_and_combine([np.zeros(10)], [np.ones(10)],
                               [np.ones(10)])
 
 
 # ---------------------------------------------------------------------------
-# Fixtures for _load_fibers tests
+# Fixtures for load_fibers tests
 # ---------------------------------------------------------------------------
 
 class _FakeSpec(SimpleNamespace):
-    """Just enough of the SpecObj API for _load_fibers to read."""
+    """Just enough of the SpecObj API for load_fibers to read."""
 
 
 class _FakeSpecObjs(list):
@@ -283,7 +283,7 @@ class _FakeSpectrograph:
 
 
 # ---------------------------------------------------------------------------
-# _load_fibers tests
+# load_fibers tests
 # ---------------------------------------------------------------------------
 
 def test_load_fibers_drops_sky_and_returns_native_arrays():
@@ -305,7 +305,7 @@ def test_load_fibers_drops_sky_and_returns_native_arrays():
     targetx[100] = 1.0
     targety[100] = 0.0
 
-    fibers = _load_fibers(sobjs, spec, targetx, targety, prefix='OPT')
+    fibers = load_fibers(sobjs, spec, targetx, targety, prefix='OPT')
     # Two science fibers survive: DET01 #0 and DET02 #0.
     assert len(fibers) == 2
     assert fibers[0]['fiber_type'] != 'SKY'
@@ -326,7 +326,7 @@ def test_load_fibers_boxcar_prefix():
     targetx = np.zeros(200)
     targety = np.zeros(200)
 
-    fibers = _load_fibers(sobjs, spec, targetx, targety, prefix='BOX')
+    fibers = load_fibers(sobjs, spec, targetx, targety, prefix='BOX')
     np.testing.assert_array_equal(fibers[0]['flux'], flux)
 
 
@@ -339,7 +339,7 @@ def test_load_fibers_no_science_raises():
     targety = np.zeros(200)
 
     with pytest.raises(PypeItError):
-        _load_fibers(sobjs, spec, targetx, targety, prefix='OPT')
+        load_fibers(sobjs, spec, targetx, targety, prefix='OPT')
 
 
 def test_load_fibers_drops_unmatched_science_fibers():
@@ -360,7 +360,7 @@ def test_load_fibers_drops_unmatched_science_fibers():
     targety = np.zeros(200)
 
     with pytest.raises(PypeItError):
-        _load_fibers(sobjs, spec, targetx, targety, prefix='OPT')
+        load_fibers(sobjs, spec, targetx, targety, prefix='OPT')
 
 
 def test_write_onespec_round_trip(tmp_path):
@@ -372,7 +372,7 @@ def test_write_onespec_round_trip(tmp_path):
     hdr['DEC'] = 30.0
     hdr['OBJECT'] = 'TEST_OBJ'
     out = tmp_path / 'extract1d.fits'
-    _write_onespec(wave, flux, ivar, hdr, 'mmt_binospec_ifu', str(out))
+    write_onespec(wave, flux, ivar, hdr, 'mmt_binospec_ifu', str(out))
     assert out.exists()
     # Round-trip via OneSpec.from_file
     one = OneSpec.from_file(str(out))

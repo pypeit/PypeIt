@@ -6,6 +6,7 @@ __all__ = [
     # Subclasses
     'arxiv_solution',
     'binospec_ifu_cube',
+    'binospec_ifu_extract',
     'cache_github_data',
     'chk_alignments',
     'chk_edges',
