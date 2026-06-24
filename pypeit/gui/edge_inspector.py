@@ -10,7 +10,7 @@ import numpy as np
 from matplotlib import pyplot, widgets
 
 from pypeit import log
-from pypeit.core.gui import gui_util
+from pypeit.gui import gui_util
 
 
 class EdgeInspectorGUI:

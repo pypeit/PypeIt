@@ -22,10 +22,10 @@ from qtpy.QtCore import QObject, Qt, QThread
 from qtpy.QtGui import QKeySequence
 from qtpy.QtWidgets import QAction, QApplication
 
-from pypeit.setup_gui.view import SetupGUIMainWindow, PypeItFileView, DialogResponses
-from pypeit.setup_gui.text_viewer import TextViewerWindow
-from pypeit.setup_gui.dialog_helpers import prompt_to_save, display_error, FileDialog, FileType
-from pypeit.setup_gui.model import PypeItSetupGUIModel, ModelState, PypeItFileModel
+from pypeit.gui.setup_gui.view import SetupGUIMainWindow, PypeItFileView, DialogResponses
+from pypeit.gui.setup_gui.text_viewer import TextViewerWindow
+from pypeit.gui.setup_gui.dialog_helpers import prompt_to_save, display_error, FileDialog, FileType
+from pypeit.gui.setup_gui.model import PypeItSetupGUIModel, ModelState, PypeItFileModel
 from pypeit import log
 from pypeit.display import display
 from pypeit import io as pypeit_io

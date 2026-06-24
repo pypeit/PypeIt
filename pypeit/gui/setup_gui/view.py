@@ -14,9 +14,9 @@ from qtpy.QtCore import Qt, QUrl, QObject, QEvent, QSize, Signal,QSettings, QStr
 
 from pypeit.spectrographs.util import  available_spectrographs
 
-from pypeit.setup_gui.model import ModelState, PypeItMetadataModel
-from pypeit.setup_gui.text_viewer import LogWindow, TextViewerWindow
-from pypeit.setup_gui.dialog_helpers import DialogResponses, FileDialog, PersistentStringListModel
+from pypeit.gui.setup_gui.model import ModelState, PypeItMetadataModel
+from pypeit.gui.setup_gui.text_viewer import LogWindow, TextViewerWindow
+from pypeit.gui.setup_gui.dialog_helpers import DialogResponses, FileDialog, PersistentStringListModel
 from pypeit import log
 
 def debugSizeStuff(widget:QWidget, name="widget"):

@@ -5,7 +5,6 @@
 
 """
 import copy
-import inspect
 
 from astropy.stats import sigma_clipped_stats
 from IPython import embed
@@ -25,13 +24,12 @@ from pypeit.core import arc
 from pypeit.core import extract
 from pypeit.core import fitting
 from pypeit.core import parse
-from pypeit.core import qa
 from pypeit.core import skyspec
 from pypeit.core import trace
 from pypeit.core.wavecal import autoid
 
 
-def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=False, qa_outfile=None, qa_vrange=None):
+def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=False):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -55,11 +53,6 @@ def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=
             in the collapsed sobel image
         debug (:obj:`bool`, optional):
             Run in debug mode
-        qa_outfile (:obj:`str`, optional):
-            Path to the output file where the QA is saved.  If None, the QA is not generated.
-        qa_vrange (:obj:`tuple`, optional):
-            Tuple with the vmin and vmax values for the imshow plot in the QA. If None, the
-            vmin and vmax values are calculated from the data.
 
     Returns:
         float:  The spatial flexure shift relative to the initial slits
@@ -130,150 +123,8 @@ def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=
         plt.tight_layout()
         plt.show()
 
-        # 2D plot
-        spat_flexure_qa(sciimg, slits, shift, gpm=np.logical_not(bpm), vrange=qa_vrange)
-
-    if qa_outfile is not None:
-        # Generate the QA plot
-        log.info("Generating QA plot for spatial flexure")
-        spat_flexure_qa(sciimg, slits, shift, gpm=np.logical_not(bpm), vrange=qa_vrange, outfile=qa_outfile)
 
     return shift
-
-
-def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
-    """
-    Generate QA for the spatial flexure
-
-    Args:
-        img (`numpy.ndarray`_):
-            Image of the detector
-        slits (:class:`pypeit.slittrace.SlitTraceSet`):
-            Slits object
-        shift (:obj:`float`):
-            Shift in pixels
-        gpm (`numpy.ndarray`_, optional):
-            Good pixel mask (True = Bad)
-        vrange (:obj:`tuple`, optional):
-            Tuple with the min and max values for the imshow plot
-        outfile (:obj:`str`, optional):
-            Path to the output file where the QA is saved.  If None, the QA is
-            shown on screen and not saved.
-
-
-    """
-    debug = True if outfile is None else False
-
-    # check that vrange is a tuple
-    if vrange is not None and not isinstance(vrange, tuple):
-        log.warning('vrange must be a tuple with the min and max values for the imshow plot. Ignoring vrange.')
-        vrange = None
-
-    # TODO: should we use initial or tweaked slits in this plot?
-    left_slits, right_slits, mask_slits = slits.select_edges(initial=True, flexure=None)
-    left_flex, right_flex, mask = slits.select_edges(initial=True, flexure=shift)
-
-    if debug:
-        # where to start and end the plot in the spatial&spectral direction
-        nxsnip = 1
-        spat_starts = [0]
-        spat_ends = [img.shape[1]]
-        upper_ystart = 0
-        upper_yend = img.shape[0]
-
-    else:
-        # where to start and end the plot in the spatial direction
-        xstart = int(np.floor(np.min([left_slits, left_flex]) - 20))
-        xend = int(np.ceil(np.max([right_slits, right_flex]) + 20))
-
-        # how many snippets to plot in the spatial direction
-        if slits.nslits == 1:
-            # if longslit plot 2 snippets, one for the left edge and one for the right edge
-            nxsnip = 2
-            snippet = int((xend - xstart) // nxsnip)
-            spat_starts = [xstart, xstart + snippet]
-            spat_ends = [xend - snippet, xend]
-        elif slits.nslits <= 12:
-            # if 12 or less slits plot 3-4 snippets equally spaced
-            nxsnip = 3 if slits.nslits <= 6 else 4
-            snippet = int((xend - xstart) // nxsnip)
-            spat_starts = [xstart, xstart + snippet, xstart + 2*snippet]
-            spat_ends = [xend - 2*snippet, xend - snippet, xend]
-            if slits.nslits > 6:
-                # add the 4th snippet
-                spat_starts.append(xstart + 3*snippet)
-                spat_ends.insert(0, xend - 3*snippet)
-        else:
-            # if more than 12 slits plot 4 snippets
-            nxsnip = 4
-            # approximately, we want 3 slits in each snippet
-            snippet = int(3 * (xend - xstart)/slits.nslits)
-            # this would give nx many snippets
-            nx = int((xend - xstart) // snippet)
-            # but we want to plot only nxsnip of those snippets
-            spat_starts = [xstart + i * snippet for i in np.linspace(0, nx - 1, nxsnip, dtype=int)]
-            spat_ends = [xstart + i * snippet for i in np.linspace(1, nx, nxsnip, dtype=int)]
-
-        # where to start and end the plot in the spectral direction for both the upper and lower sections
-        lower_ystart = 0
-        lower_yend = int(snippet)
-        upper_ystart = int(img.shape[0] - snippet)
-        upper_yend = img.shape[0]
-
-    # plot the spatial flexure
-    rows = 1 if debug else 2
-    fig = plt.figure(figsize=(9, 8) if debug else (nxsnip*4, 8))
-    gs = gridspec.GridSpec(rows, nxsnip, figure=fig)
-    # spectral vector for plotting the slits
-    spec = np.tile(np.arange(slits.nspec), (slits.nslits, 1)).T
-    thin = 10
-    # legend elements
-    legend_elements = [Line2D([0], [0], color='C3', lw=1, ls='--', label='initial left edges'),
-                       Line2D([0], [0], color='C1', lw=1, ls='--', label='initial right edges'),
-                       Line2D([0], [0], color='C3', lw=1, label='shifted left edges'),
-                       Line2D([0], [0], color='C1', lw=1, label='shifted right edges')]
-    # loop over the 2 rows if we save the plot in the output directory, otherwise plot the whole detector
-    for r in range(rows):
-        _ystar, _yend = (upper_ystart, upper_yend) if r == 0 else (lower_ystart, lower_yend)
-        # loop over the snippets
-        for s in range(nxsnip):
-            ax = fig.add_subplot(gs[r, s])
-            if vrange is None:
-                # get vmin and vmax for imshow
-                _xstart = spat_starts[s] if spat_starts[s] >= 0 else 0
-                _xend = spat_ends[s] if spat_ends[s] <= img.shape[1] else img.shape[1]
-                _img = img[_ystar:_yend, _xstart:_xend]
-                _gpm = gpm[_ystar:_yend, _xstart:_xend] if gpm is not None else np.ones_like(_img, dtype=bool)
-                m, med, sig = sigma_clipped_stats(_img[_gpm], sigma_lower=5.0, sigma_upper=5.0)
-                vmin = m - 1.0 * sig
-                vmax = m + 4.0 * sig
-            else:
-                vmin, vmax = vrange
-            # imshow img instead of _img to show the actual pixel values in each snippet
-            ax.imshow(img, origin='lower', vmin=vmin, vmax=vmax)
-            ax.set_ylim(_ystar, _yend)
-            ax.set_xlim(spat_starts[s], spat_ends[s])
-
-            # plot the slits
-            for i in range(slits.nslits):
-                plt.plot(left_slits[::thin, i], spec[::thin, i], color='C3', lw=1, ls='--', zorder=5)
-                plt.plot(right_slits[::thin, i], spec[::thin, i], color='C1', lw=1, ls='--', zorder=5)
-                plt.plot(left_flex[::thin, i], spec[::thin, i], color='C3', lw=1, zorder=6)
-                plt.plot(right_flex[::thin, i], spec[::thin, i], color='C1', lw=1, zorder=6)
-            ax.tick_params(axis='both', labelsize=6)
-            if r == 0 and s == 0:
-                plt.suptitle(f'Shift={shift:.1f} pixels', fontsize=18)
-                ax.legend(handles=legend_elements, fontsize=7)
-                if not debug:
-                    ax.set_ylabel('Upper snippets', fontsize=18)
-            elif r == 1 and s == 0:
-                ax.set_ylabel('Lower snippets', fontsize=18)
-    plt.tight_layout()
-    if debug:
-        plt.show()
-    else:
-        fig.savefig(outfile, dpi=200)
-        plt.close(fig)
 
 
 def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,
@@ -1159,216 +1010,6 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
         trace_spec=np.arange(slits.nspec)
     )
     return onespec.OneSpec(wave[mask], None, counts_sky[mask], fluxed=False)
-
-
-def spec_flexure_corrQA(ax:plt.Axes, this_flex_dict:dict, cntr:int, name:str):
-    """Spectral Flexure QA Plot
-
-    Creates one panel of the spectral felxure QA plot, with the overall figure
-    container being handled by the calling function.
-
-    Parameters
-    ----------
-    ax
-        Axes onto which to draw the plot
-    this_flex_dict
-        Dictionary of flexure-related information needed for the plot
-    cntr
-        The index into ``this_flex_dict``'s arrays corresponding to the
-        particular object, trace, or location of interest.
-    name
-        Object, trace, or location name to be printed in the plot
-    """
-    # Fit
-    fit = this_flex_dict['polyfit'][cntr]
-    if fit is not None:
-        xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] + this_flex_dict['shift'][cntr]
-        # model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
-        model = fit.eval(xval)
-        # model = utils.func_val(fit, xval, 'polynomial')
-        mxmod = np.max(model)
-        ylim_min = np.min(model / mxmod) if np.isfinite(np.min(model / mxmod)) else 0.0
-        ylim = [ylim_min, 1.3]
-        ax.plot(xval - this_flex_dict['corr_cen'][cntr], model / mxmod, 'k-')
-        # Measurements
-        ax.scatter(this_flex_dict['subpix'][cntr] - this_flex_dict['corr_cen'][cntr],
-                   this_flex_dict['corr'][cntr] / mxmod, marker='o')
-        # Final shift
-        ax.plot([this_flex_dict['shift'][cntr]] * 2, ylim, 'g:')
-        # Label
-        ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
-        ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
-                transform=ax.transAxes, size='large', ha='center')  # , bbox={'facecolor':'white'})
-        # Axes
-        ax.set_ylim(ylim)
-        ax.set_xlabel('Lag')
-    else:
-        ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
-        ax.text(0.5, 0.15, 'flex_shift calculation failed', transform=ax.transAxes, size='large', ha='center')
-        # Axes
-        ax.set_xlabel('Lag')
-
-
-# TODO: With Python 3.14's deferred evaluation of annotations, may be able
-#       to annotate `specobjs`; however, should really remove PypeIt-specific
-#       objects from `core`.
-def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
-                    flex_list:list[dict], specobjs=None,
-                    out_dir:str|None=None):
-    """
-    Generate QA for the spectral flexure calculation
-
-    Args:
-        slitords (`numpy.ndarray`_):
-            Array of slit/order numbers
-        bpm (`numpy.ndarray`_):
-            Boolean mask; True = masked slit
-        basename (str):
-            Used to generate the output file name
-        flex_list (list):
-            list of :obj:`dict` objects containing the flexure information
-        specobjs (:class:`~pypeit.specobjs.SpecObjs`, optional):
-            Spectrally extracted objects
-        out_dir (str, optional):
-            Path to the output directory for the QA plots.  If None, the current
-            is used.
-    """
-    # Extract the mode and detector from the ``basename``
-    *_, mode, det = basename.split("_")
-
-    plt.rcdefaults()
-    plt.rcParams['font.family'] = 'serif'
-
-    # What type of QA are we doing
-    slit_cen = specobjs is None
-
-    # Grab the named of the method
-    method = inspect.stack()[0][3]
-
-    # Mask
-    gdslits = np.where(np.logical_not(bpm))[0]
-
-    # Loop over slits, and then over objects here
-    for islit in gdslits:
-        # Slit/order number
-        slitord = slitords[islit]
-
-        this_flex_dict = flex_list[islit]
-        # Check that the default was overwritten
-        if len(this_flex_dict['shift']) == 0 or \
-                (len(this_flex_dict['shift']) > 0 and np.all([ss is None for ss in this_flex_dict['shift']])):
-            continue
-
-        # Parse and Setup
-        if slit_cen:
-            nobj = 1
-            ncol = 1
-        else:
-            indx = specobjs.slitorder_indices(slitord)
-            this_specobjs = specobjs[indx]
-            nobj = np.sum(indx)
-            if nobj == 0:
-                continue
-            ncol = min(3, nobj)
-
-        nrow = nobj // ncol + ((nobj % ncol) > 0)
-        # Outfile, one QA file per slit
-        outfile = qa.set_qa_filename(
-            basename, method + '_corr', slit=slitord, det=det, mode=mode, out_dir=out_dir
-        )
-        plt.figure(figsize=(8, 5.0))
-        plt.clf()
-        gs = gridspec.GridSpec(nrow, ncol)
-        # Correlation QA
-        if slit_cen:
-            ax = plt.subplot(gs[0, 0])
-            spec_flexure_corrQA(ax, this_flex_dict, 0, 'Slit Center')
-        else:
-            iplt = 0
-            for ss, specobj in enumerate(this_specobjs):
-                if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
-                    continue
-                ax = plt.subplot(gs[iplt//ncol, iplt % ncol])
-                spec_flexure_corrQA(ax, this_flex_dict, ss, '{:s}'.format(specobj.NAME))
-                iplt += 1
-        # Finish
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile)#, dpi=400)
-        plt.close()
-
-        # Sky line QA (just one object)
-        if slit_cen:
-            iobj = 0
-        else:
-            # only show the first object in this slit that does not have None shift
-            iobj = np.where([ss is not None for ss in this_flex_dict['shift']])[0][0]
-            specobj = this_specobjs[iobj]
-
-        # Repackage
-        sky_spec = this_flex_dict['sky_spec'][iobj]
-        arx_spec = this_flex_dict['arx_spec'][iobj]
-        min_wave = max(np.amin(arx_spec.wave), np.amin(sky_spec.wave))
-        max_wave = min(np.amax(arx_spec.wave), np.amax(sky_spec.wave))
-
-        # Sky lines
-        # TODO: Should these be defined / identified somewhere else?  Then they
-        #       could more easily be included in the documentation.
-        sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
-                              7340.885, 7993.332, 8430.174, 8919.610, 9439.660,
-                              10013.99, 10372.88])
-        dwv = 20.
-        gdsky = np.where((sky_lines > min_wave) & (sky_lines < max_wave))[0]
-        if len(gdsky) == 0:
-            log.warning("No sky lines for Flexure QA")
-            continue
-        if len(gdsky) > 6:
-            idx = np.array([0, 1, len(gdsky)//2, len(gdsky)//2+1, -2, -1])
-            gdsky = gdsky[idx]
-
-        # Outfile
-        outfile = qa.set_qa_filename(
-            basename, method+'_sky', slit=slitord, det=det, mode=mode, out_dir=out_dir
-        )
-        # Figure
-        plt.figure(figsize=(8, 5.0))
-        plt.clf()
-        nrow, ncol = 2, 3
-        gs = gridspec.GridSpec(nrow, ncol)
-        if slit_cen:
-            plt.suptitle('Sky Comparison for Slit Center', y=0.99)
-        else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=0.99)
-
-        for ii, igdsky in enumerate(gdsky):
-            skyline = sky_lines[igdsky]
-            ax = plt.subplot(gs[ii//ncol, ii % ncol])
-            # Norm
-            pix1 = np.where(np.abs(sky_spec.wave-skyline) < dwv)[0]
-            pix2 = np.where(np.abs(arx_spec.wave-skyline) < dwv)[0]
-            f1 = np.sum(sky_spec.flux[pix1])
-            f2 = np.sum(arx_spec.flux[pix2])
-            norm = f1/f2
-            # Plot
-            ax.plot(sky_spec.wave[pix1], sky_spec.flux[pix1], 'k-', label='Obj',
-                    drawstyle='steps-mid')
-            ax.plot(arx_spec.wave[pix2], arx_spec.flux[pix2]*norm, 'r-', label='Arx',
-                    drawstyle='steps-mid')
-            # Axes
-            ax.xaxis.set_major_locator(plt.MultipleLocator(dwv))
-            ax.set_xlabel('Wavelength')
-            ax.set_ylabel('Counts')
-
-        # Legend
-        plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
-                   handletextpad=0.3, fontsize='small', numpoints=1)
-
-        # Finish
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile)#, dpi=400)
-        plt.close()
-        log.info("Wrote spectral flexure QA: {}".format(outfile))
-
-    plt.rcdefaults()
 
 
 def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=None):
