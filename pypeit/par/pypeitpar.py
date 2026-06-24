@@ -4594,13 +4594,14 @@ class SkySubPar(ParSet):
                                      'contain real source flux. When False, only fibers whose ' \
                                      'MASKDEF_OBJNAME starts with "SKY" are used.'
 
-        defaults['sci_exclude_radius'] = 0.0
+        defaults['sci_exclude_radius'] = None
         dtypes['sci_exclude_radius'] = [int, float]
-        descr['sci_exclude_radius'] = 'Fiber pypeline only. When > 0 and joint_fit_use_sci is True, ' \
+        descr['sci_exclude_radius'] = 'Fiber pypeline only. When set and joint_fit_use_sci is True, ' \
                                       'exclude from the joint sky fit any science fiber whose on-sky ' \
                                       'position lies within this radius (in arcsec) of the instrument ' \
-                                      'geometric center. Use this when a bright extended object fills ' \
-                                      'the central science fibers.'
+                                      'geometric center. Use this to exclude inner science fibers most ' \
+                                      'likely to contain source flux while retaining fibers away from ' \
+                                      'the source for additional sky background information.'
 
 
         # Instantiate the parameter set

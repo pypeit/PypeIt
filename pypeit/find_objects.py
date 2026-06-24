@@ -1845,11 +1845,13 @@ class FiberFindObjects(SlicerIFUFindObjects):
         * ``joint_fit_use_sci`` (default ``True``) -- when ``False``,
           only fibers whose ``MASKDEF_OBJNAME`` starts with ``SKY`` are
           used (legacy behaviour).
-        * ``sci_exclude_radius`` (default ``0.0`` arcsec) -- when ``> 0``
-          and the joint fit is enabled, any science fiber whose on-sky
-          position lies within this radius of the IFU geometric centre is
-          dropped from the fit.  Useful when a bright extended source
-          fills the central science fibers.
+        * ``sci_exclude_radius`` (default ``None``) -- when set and the
+          joint fit is enabled, any science fiber whose on-sky position
+          lies within this radius (in arcsec) of the IFU geometric centre
+          is dropped from the fit.  Use this to exclude inner science
+          fibers most likely to contain source flux while retaining
+          fibers away from the source for additional sky background
+          information.
 
         Parameters
         ----------

@@ -217,14 +217,14 @@ control which fibers contribute:
    fibers carry significant source flux (e.g. a target that fills much of
    the field), so that source light cannot leak into the sky model.
 
-``sci_exclude_radius`` (:obj:`float`, default ``0.0``, in arcsec)
-   When greater than zero *and* ``joint_fit_use_sci = True``, any science
-   fiber whose on-sky position lies within this radius of the IFU
-   geometric center is dropped from the fit.  This is the middle ground
-   between the two ``joint_fit_use_sci`` extremes: keep the bulk of the
-   science fibers in the joint fit, but exclude the central fibers that a
-   bright, extended target would dominate.  The default of ``0.0`` keeps
-   all science fibers.
+``sci_exclude_radius`` (:obj:`float`, default ``None``, in arcsec)
+   When set *and* ``joint_fit_use_sci = True``, any science fiber whose
+   on-sky position lies within this radius of the IFU geometric center is
+   dropped from the fit.  This is the middle ground between the two
+   ``joint_fit_use_sci`` extremes: use this to exclude inner science
+   fibers most likely to contain source flux while retaining fibers away
+   from the source for additional sky background information.  The default
+   (``None``) keeps all science fibers.
 
 To disable the joint fit and use only the dedicated sky fibers, add the
 following to your ``.pypeit`` file:
