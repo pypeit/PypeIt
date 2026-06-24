@@ -24,15 +24,16 @@ from fast_histogram import histogramdd
 from IPython import embed
 
 
-def resample_spec_to_grid(wave, flux, ivar, wave_grid, min_good=2):
+def resample_spec_to_grid(wave, flux, ivar, wave_grid, min_good=2, min_frac=0.5):
     """
     Resample one spectrum's flux and inverse variance onto a wavelength grid.
 
-    Flux is linearly interpolated onto ``wave_grid``.  The *variance*
-    (``1/ivar``) is interpolated and then inverted back to inverse variance,
-    which is the statistically correct propagation -- linearly interpolating
-    the inverse variance directly is not.  Samples that fall outside the
-    spectrum's native wavelength coverage are left at zero.
+    The flux and error are resampled with :class:`~pypeit.sampling.Resample`,
+    PypeIt's flux-conserving spectral resampler, rather than a plain linear
+    interpolation.  The error (``1/sqrt(ivar)``) is propagated by ``Resample``
+    in quadrature and converted back to inverse variance, and pixels whose
+    native coverage falls short of ``min_frac`` are masked.  Samples that fall
+    outside the spectrum's native wavelength coverage are left at zero.
 
     Parameters
     ----------
@@ -46,6 +47,9 @@ def resample_spec_to_grid(wave, flux, ivar, wave_grid, min_good=2):
         Minimum number of finite samples with positive wavelength required
         for the spectrum to contribute; below this, all-zero arrays are
         returned.
+    min_frac : :obj:`float`, optional
+        Minimum covering fraction (from ``Resample.outf``) for an output
+        pixel to be flagged as covered and retain its resampled values.
 
     Returns
     -------
@@ -55,9 +59,11 @@ def resample_spec_to_grid(wave, flux, ivar, wave_grid, min_good=2):
         Inverse variance resampled onto ``wave_grid`` (zero outside coverage
         or where the native inverse variance was non-positive).
     covered : `numpy.ndarray`_
-        Boolean mask, ``True`` where ``wave_grid`` lies within the
+        Boolean mask, ``True`` where ``wave_grid`` is covered by the
         spectrum's native wavelength range.
     """
+    from pypeit import sampling
+
     wave_grid = np.asarray(wave_grid, dtype=float)
     flux_grid = np.zeros(wave_grid.shape, dtype=float)
     ivar_grid = np.zeros(wave_grid.shape, dtype=float)
@@ -72,17 +78,24 @@ def resample_spec_to_grid(wave, flux, ivar, wave_grid, min_good=2):
     srt = np.argsort(wave[good])
     w_s = wave[good][srt]
     f_s = flux[good][srt]
-    iv_s = (np.asarray(ivar, dtype=float)[good][srt]
-            if ivar is not None else np.zeros_like(w_s))
+    if ivar is not None:
+        iv_s = np.asarray(ivar, dtype=float)[good][srt]
+        err = np.sqrt(utils.inverse(iv_s))
+        # Mask native pixels with no inverse variance so they carry no weight.
+        mask = np.logical_not(iv_s > 0)
+    else:
+        err = None
+        mask = None
 
-    in_range = (wave_grid >= w_s[0]) & (wave_grid <= w_s[-1])
-    covered[in_range] = True
-    flux_grid[in_range] = np.interp(wave_grid[in_range], w_s, f_s)
+    # newLog=False: the wavelength grid is linear, so output pixel borders are
+    # arithmetic (not geometric) midpoints of wave_grid.
+    r = sampling.Resample(f_s, e=err, mask=mask, x=w_s, newx=wave_grid,
+                          inLog=False, newLog=False, conserve=False, ext_value=0.0)
 
-    # Interpolate variance (not inverse variance), then invert back.
-    var_native = utils.inverse(iv_s)
-    var_grid = np.interp(wave_grid[in_range], w_s, var_native)
-    ivar_grid[in_range] = utils.inverse(var_grid)
+    covered = r.outf > min_frac
+    flux_grid = np.where(covered, r.outy, 0.0)
+    if err is not None:
+        ivar_grid = np.where(covered, utils.inverse(r.oute)**2, 0.0)
     return flux_grid, ivar_grid, covered
 
 
