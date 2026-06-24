@@ -382,7 +382,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                cc_shift_range=None, cc_thresh=0.8, cc_local_thresh=0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
                sigdetect=5.0, fwhm=4.0, percent_ceil=50, max_lag_frac=1.0,
-               debug_xcorr=False, debug_reid=False, debug_peaks = False, stretch_func = 'linear'):
+               debug_xcorr=False, debug_reid=False, debug_peaks=False, stretch_func='linear',
+               xcorr_only=False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -463,6 +464,12 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         Choose whether the function stretching the wavelength reference to match the observed arc
         lamp spectrum should be 'quad' (quadratic stretch function) or 'linear' (linear stretch only)
 
+    xcorr_only : bool, default = False
+        If True, stop after the global cross-correlation and transfer the wavelength
+        solution from the archive spectrum with the highest accepted correlation.
+        This mode forces ``stretch_func='linear'`` and does not identify individual
+        arc lines.
+
     percent_ceil (float, optional, default=50.0):
         Upper percentile threshold for thresholding positive and negative values. If set to None, no thresholding
         will be performed.
@@ -488,6 +495,11 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     November 2018 by J.F. Hennawi. Built from an initial version of cross_match code written by Ryan Cooke.
     """
     # TODO -- Break up this morass into multiple methods
+
+    if xcorr_only and stretch_func != 'linear':
+        log.warning("xcorr_only requires stretch_func='linear'; overriding the requested "
+                    f"stretch_func='{stretch_func}'.")
+        stretch_func = 'linear'
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
     # and round that to an integer
@@ -608,6 +620,11 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         # Estimate wcen and disp for this slit based on its shift/stretch relative to the archive slit
         disp[iarxiv] = disp_arxiv[iarxiv] / stretch_vec[iarxiv]
         wcen[iarxiv] = wvc_arxiv[iarxiv] - shift_vec[iarxiv]*disp[iarxiv]
+
+        # Move on if we only want the xcorr
+        if xcorr_only:
+            continue
+
         # For each peak in the arxiv spectrum, identify the corresponding peaks in the input spectrum. Do this by
         # transforming these arxiv slit line pixel locations into the (shifted and stretched) input spectrum frame
         det_arxiv_ss = this_det_arxiv**2*stretch2_vec[iarxiv] + this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
@@ -680,6 +697,49 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
 
     narxiv_used = np.sum(wcen != 0.0)
 
+    # If returning with cross-correlation only, produce a pattern dictionary from
+    #   the shifted and stretched template identifications and return now.
+    #   N.B.: This is template registration, not an independently measured wavelength
+    #         solution.  Its absolute accuracy inherits all template errors and any
+    #         template/science configuration differences.  There is no line-fit RMS.
+    #         The cross-correlation coefficient, overlap fraction, optimizer
+    #         convergence, and agreement between multiple archive templates become
+    #         the QA metrics.
+    if xcorr_only:
+        # Build an empty pattern dictionary
+        patt_dict_slit = patterns.empty_patt_dict(detections.size)
+        patt_dict_slit['sigdetect'] = sigdetect
+        if narxiv_used == 0:
+            return detections, spec_cont_sub, patt_dict_slit
+
+        # Shift and stretch the template identifications
+        accepted = np.where(wcen != 0.0)[0]
+        ibest = accepted[np.argmax(ccorr_vec[accepted])]
+        wave_soln = wvutils.shift_and_stretch(
+            wave_soln_arxiv[:, ibest], shift_vec[ibest], stretch_vec[ibest], 0.0,
+            stretch_func='linear')
+        valid = np.isfinite(wave_soln) & (wave_soln > 1.0)
+        if np.sum(valid) < 2:
+            log.warning('Cross-correlation succeeded, but the transformed archive wavelength '
+                        'solution has insufficient overlap with the input spectrum.')
+            return detections, spec_cont_sub, patt_dict_slit
+
+        # Construct and return the pattern dictionary
+        patt_dict_slit.update(
+            acceptable=True,
+            ibest=int(ibest),
+            bwv=float(np.interp(nspec//2, xrng[valid], wave_soln[valid])),
+            bdisp=float(np.median(np.diff(wave_soln[valid]))),
+            sign=1 if wave_soln[valid][-1] > wave_soln[valid][0] else -1,
+            xcorr_only=True,
+            xcorr_wave=wave_soln,
+            xcorr_valid=valid,
+            xcorr_shift=float(shift_vec[ibest]),
+            xcorr_stretch=float(stretch_vec[ibest]),
+            xcorr_cc=float(ccorr_vec[ibest])
+        )
+        return detections, spec_cont_sub, patt_dict_slit
+
     # Initialise the patterns dictionary, sigdetect not used anywhere
     if (narxiv_used == 0) or (len(np.unique(line_indx)) < 3):
         patt_dict_slit = patterns.empty_patt_dict(detections.size)
@@ -726,6 +786,73 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         patt_dict_slit['acceptable'] = False
 
     return detections, spec_cont_sub, patt_dict_slit
+
+
+def fit_xcorr_wave_solution(spec, patt_dict, func='legendre', order=4):
+    """
+    Package a cross-correlation-transferred wavelength solution as a
+    :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`
+
+    The fitted RMS measures only how accurately the requested polynomial
+    represents the transferred archive wavelength vector; it is not an
+    independent wavelength-calibration uncertainty.
+
+    Parameters
+    ----------
+    spec : `numpy.ndarray`_
+        Input arc spectrum.
+    patt_dict : :obj:`dict`
+        Pattern dictionary returned by :func:`reidentify` with
+        ``xcorr_only=True``.
+    func : :obj:`str`, optional
+        Function used to represent the transferred wavelength vector.
+    order : :obj:`int`, optional
+        Polynomial order.
+
+    Returns
+    -------
+    :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`
+        Wavelength solution packaged for normal downstream use.
+    """
+    wave_soln = patt_dict['xcorr_wave']
+    valid = patt_dict['xcorr_valid']
+    nspec = spec.size
+    xnorm = float(nspec - 1)
+    pixel = np.arange(nspec, dtype=float)
+    fit_order = int(order)
+
+    if np.sum(valid) <= fit_order:
+        log.warning('Insufficient valid pixels to fit the cross-correlation wavelength solution.')
+        return None
+
+    fit_pixel = pixel[valid] / xnorm
+    pypeit_fit = fitting.PypeItFit(
+        xval=fit_pixel, yval=wave_soln[valid], order=np.atleast_1d(fit_order),
+        weights=np.ones(fit_pixel.size), func=func, minx=0.0, maxx=1.0,
+        gpm=np.ones(fit_pixel.size, dtype=int))
+    if pypeit_fit.fit() != 1:
+        return None
+
+    fitted_wave = pypeit_fit.eval(pixel / xnorm)
+    cen = nspec // 2
+    cen_wave = float(fitted_wave[cen])
+    cen_disp = float(fitted_wave[cen] - fitted_wave[cen-1])
+    rms_ang = np.sqrt(np.mean((wave_soln[valid] - fitted_wave[valid])**2))
+    rms_pix = float(rms_ang / np.abs(cen_disp)) if cen_disp != 0.0 else np.inf
+
+    # These are samples of the transferred solution, not independently
+    # identified arc lines. Keeping all valid pixels preserves the solution
+    # if it is later used in an echelle 2D fit.
+    pixel_fit = pixel[valid]
+    wave_fit = wave_soln[valid]
+    ion_bits = np.zeros(pixel_fit.size, dtype=wv_fitting.WaveFit.bitmask.minimum_dtype())
+
+    return wv_fitting.WaveFit(
+        -1, pypeitfit=pypeit_fit, pixel_fit=pixel_fit, wave_fit=wave_fit,
+        ion_bits=ion_bits, xnorm=xnorm, cen_wave=cen_wave, cen_disp=cen_disp,
+        spec=spec, wave_soln=fitted_wave, sigrej=0.0,
+        shift=patt_dict['xcorr_shift'], tcent=None, rms=rms_pix
+    )
 
 
 def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
@@ -1091,6 +1218,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         Array containing the order IDs of the slits if using an Echelle spectrograph. "None" otherwise.
 
     """
+    if par['echelle'] and par['xcorr_only']:
+        raise PypeItError('xcorr_only is not available for echelle wavelength calibration.')
+
     # Load line lists
     line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
 
@@ -1170,7 +1300,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
             tspec = templ_spec_cont_sub
 
         # check if there is an arxived solution for this slit:
-        if lines_pix is not None:
+        if lines_pix is not None and not par['xcorr_only']:
             if lines_pix[slit] is not None:
                 log.info(f'An arxived solution exists! Loading those line IDs for slit {slit+1}/{nslits}')
                 log.info('Checking for possible shifts')
@@ -1265,6 +1395,33 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         else: # Don't pad
             mspec = temp_spec[i0:i0 + nspec]
             mwv = temp_wv[i0:i0 + nspec]
+
+        if par['xcorr_only']:
+            log.info('Using cross-correlation-only wavelength transfer from the full template.')
+            detections, _, patt_dict = reidentify(
+                obs_spec_i, mspec, mwv, line_lists, 1, cont_sub=par['reid_cont_sub'],
+                debug_xcorr=debug_xcorr, sigdetect=sigdetect,
+                nonlinear_counts=nonlinear_counts, debug_reid=debug_reid,
+                match_toler=par['match_toler'], percent_ceil=x_percentile,
+                cc_shift_range=par['cc_shift_range'],
+                cc_thresh=wvutils.parse_param(par, 'cc_thresh', slit), fwhm=fwhm,
+                max_lag_frac=par['cc_offset_minmax'], stretch_func='linear',
+                xcorr_only=True)
+            if not patt_dict['acceptable']:
+                log.warning('Cross-correlation-only wavelength transfer failed.')
+                wvcalib[str(slit)] = None
+                continue
+
+            n_final = wvutils.parse_param(par, 'n_final', slit)
+            final_fit = fit_xcorr_wave_solution(
+                obs_spec_i, patt_dict, func=par['func'], order=n_final)
+            if final_fit is None:
+                log.warning('Unable to represent the transferred wavelength solution.')
+                wvcalib[str(slit)] = None
+                continue
+
+            wvcalib[str(slit)] = copy.deepcopy(final_fit)
+            continue
 
         # Loop on snippets
         nsub = obs_spec_i.size // nsnippet
@@ -1410,6 +1567,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     # Check input
     if not isinstance(par, pypeitpar.WavelengthSolutionPar):
         raise PypeItError('Input parameters must be provided by a WavelengthSolutionPar object.')
+    if par['xcorr_only']:
+        raise PypeItError('xcorr_only is not available for echelle wavelength calibration.')
 
 
     if spec.ndim != 2:
@@ -1577,6 +1736,21 @@ def report_final(nslits, all_patt_dict, detections,
         # Report
         cen_wave = wv_calib[st]['cen_wave']
         cen_disp = wv_calib[st]['cen_disp']
+        if all_patt_dict[st].get('xcorr_only', False):
+            log.info(
+                f'{report_ttl}'
+                f'  Pixels {signtxt} with wavelength\n'
+                f'  Cross-correlation-only solution\n'
+                f'  Best archive spectrum          = {all_patt_dict[st]["ibest"]}\n'
+                f'  Cross-correlation coefficient  = {all_patt_dict[st]["xcorr_cc"]}\n'
+                f'  Shift                           = {all_patt_dict[st]["xcorr_shift"]} pixels\n'
+                f'  Linear stretch                  = {all_patt_dict[st]["xcorr_stretch"]}\n'
+                f'  Number of wavelength samples    = {len(wv_calib[st]["pixel_fit"])}\n'
+                f'  Central wavelength              = {cen_wave}A\n'
+                f'  Central dispersion              = {cen_disp}A/pix\n'
+                f'  Polynomial representation RMS   = {wv_calib[st]["rms"]} pixels\n'
+            )
+            continue
         log.info(
             f'{report_ttl}'
             f'  Pixels {signtxt} with wavelength\n'
@@ -1664,6 +1838,8 @@ class ArchiveReid:
         # Check input
         if not isinstance(par, pypeitpar.WavelengthSolutionPar):
             raise PypeItError('Input parameters must be provided by a WavelengthSolutionPar object.')
+        if par['echelle'] and par['xcorr_only']:
+            raise PypeItError('xcorr_only is not available for echelle wavelength calibration.')
         # TODO: Do we need ech_fix_format if we have
         # spectrograph.pypeline, assuming we keep passing spectrograph?
         if ech_fixed_format and orders is None:
@@ -1787,7 +1963,8 @@ class ArchiveReid:
                            cc_shift_range=self.par['cc_shift_range'], cc_local_thresh=self.cc_local_thresh,
                            nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
                            sigdetect=sigdetect, fwhm=fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
-                           debug_reid=self.debug_reid, stretch_func=self.par['stretch_func'])
+                           debug_reid=self.debug_reid, stretch_func=self.par['stretch_func'],
+                           xcorr_only=self.par['xcorr_only'])
             # str for the reports below
             order_str = '' if orders is None else ', order={}'.format(orders[slit])
             # Check if an acceptable reidentification solution was found
@@ -1804,7 +1981,9 @@ class ArchiveReid:
 
             # Perform the fit
             n_final = wvutils.parse_param(self.par, 'n_final', slit)
-            final_fit = wv_fitting.fit_slit(
+            final_fit = fit_xcorr_wave_solution(
+                self.spec[:, slit], self.all_patt_dict[str(slit)], func=self.func, order=n_final
+            ) if self.par['xcorr_only'] else wv_fitting.fit_slit(
                 self.spec[:, slit], self.all_patt_dict[str(slit)], self.detections[str(slit)],
                 self.tot_line_list, match_toler=self.match_toler, func=self.func,
                 n_first=self.n_first, sigrej_first=self.sigrej_first, n_final=n_final,
@@ -3173,5 +3352,3 @@ def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npi
         dind[x, :] = dindex[residx[x], :]
         lind[x, :] = lindex[res[x], :]
     return dind, lind, wvcent, wvdisp
-
-

@@ -2896,7 +2896,8 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
-                 cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None):
+                 cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None,
+                 xcorr_only=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3071,6 +3072,16 @@ class WavelengthSolutionPar(ParSet):
         dtypes['reid_cont_sub'] = bool
         descr['reid_cont_sub'] = 'If True, continuum subtract the arc and arxiv spectrum before ' \
                                  'the wavelength reidentification. ' \
+
+        defaults['xcorr_only'] = False
+        dtypes['xcorr_only'] = bool
+        descr['xcorr_only'] = 'If True, stop the reidentify method after the global cross-correlation ' \
+                              'and transfer the wavelength solution from the best-matching archive ' \
+                              'spectrum. This forces a linear shift/stretch transformation and does ' \
+                              'not independently identify or fit individual arc lines. This option is ' \
+                              'used by the reidentify and full_template methods, should only be ' \
+                              'considered for very low resolution spectra, and is not available for ' \
+                              'echelle wavelength calibration.'
 
         defaults['wvrng_arxiv'] = None
         dtypes['wvrng_arxiv'] = list
@@ -3254,7 +3265,8 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
+                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func',
+                   'xcorr_only']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3308,7 +3320,8 @@ class WavelengthSolutionPar(ParSet):
         return ['linear', 'quadratic']
 
     def validate(self):
-        pass
+        if self['echelle'] and self['xcorr_only']:
+            raise ValueError('xcorr_only is not available for echelle wavelength calibration.')
 
 
 class EdgeTracePar(ParSet):

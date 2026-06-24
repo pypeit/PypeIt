@@ -1317,6 +1317,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         par["reduce"]["findobj"]["snr_thresh"] = 50.0
 
         if grating == "Vph30":
+            par["calibrations"]["wavelengths"]["xcorr_only"] = True
             par["calibrations"]["wavelengths"][
                 "reid_arxiv"
             ] = "ldt_deveny_150_HgCdAr.fits"
@@ -1378,6 +1379,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         par["reduce"]["findobj"]["snr_thresh"] = 10.0
 
         if grating == "Vph30":
+            par["calibrations"]["wavelengths"]["xcorr_only"] = True
             par["calibrations"]["slitedges"]["edge_thresh"] = 2.0
             par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.05
             par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.05
