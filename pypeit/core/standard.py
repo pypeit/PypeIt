@@ -25,8 +25,7 @@ from pypeit.utils import all_subclasses
 
 def mAB_to_cgs(wave, mAB):
     r"""
-    Convert AB magnitudes to :math:`F_\lambda` in the cgs units :math:`{\rm
-    erg/cm}^2{\rm/s}/\AA`.
+    Convert AB magnitudes to :math:`F_\lambda` in the cgs units :math:`{\rm erg/cm}^2{\rm/s}/\AA`.
 
     Parameters
     ----------
@@ -276,6 +275,26 @@ class CalSpecFluxStandard(ArchivedFluxStandard):
             flux = hdu[1].data['FLUX'] * 1e17
         super().__init__(wave, flux, meta=meta)
 
+class LBTMODSFluxStandard(ArchivedFluxStandard):
+    """
+    Container class for an "lbtmods" standard star spectrum.
+    These are tabulated standard star fluxes in >=10-A bins. 
+
+    For MODS, use calspec, except for Feige66, Feige67, BD+33 2642 and HZ44, 
+    where the calspec spectrum does not cover the full spectral range 3200-10000 angstroms.
+
+    The lbtmods archive also contains tables for standards that used to be observed
+    with MODS and which do not have spectra in calspec.
+    """
+    archive = 'lbtmods'
+    path = dataPaths.standards / archive
+
+    def __init__(self, file, meta=None):
+        self.file = self.path.get_file_path(file)
+        std_spec = table.Table.read(self.file, format='ascii')
+        wave = std_spec['col1']
+        flux = mAB_to_cgs(std_spec['col1'], std_spec['col2']) * 1e17
+        super().__init__(wave, flux, meta=meta)
 
 class ESOFilFluxStandard(ArchivedFluxStandard):
     """
@@ -709,7 +728,7 @@ class PseudoStandard(ModelFluxStandard):
         return super().__init__(_wave, np.ones(_wave.shape, dtype=float), meta=self._init_meta())
 
 
-def get_archive_sets(archives=['xshooter', 'calspec', 'esofil', 'noao', 'ing']):
+def get_archive_sets(archives=['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'lbtmods']):
     """
     Helper function to setup the prioritized list of archive sets to search
     through when matching a set of coordinates to a file containing the flux
@@ -883,8 +902,10 @@ def get_model_standard(spectral_type, V_mag):
             return KuruczModelStandard(V_mag, spectral_type)
 
 
-def get_standard_spectrum(spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None,
-                          archives='default'):
+
+def get_standard_spectrum(
+    archives='default', spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None
+):
     """
     Return a standard spectrum.
 
@@ -896,6 +917,11 @@ def get_standard_spectrum(spectral_type=None, V_mag=None, ra=None, dec=None, tol
 
     Parameters
     ----------
+    archives : str, optional
+        The specific archive to search for the spectrum.  If ``'default'``, the
+        search will proceed through the priortized list provided by
+        :func:`~pypeit.core.standard.get_archive_sets`.  Otherwise, it will only
+        search the single archive provided.
     spectral_type : str, optional
         The spectral type of the star or the signifier of the spectrum to use.
         See :func:`~pypeit.core.standard.get_model_standard`.
