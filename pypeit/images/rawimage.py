@@ -611,6 +611,9 @@ class RawImage:
         if self.par['orient']:
             self.orient()
 
+        # Artificial spatial flexure
+        # self.image = np.roll(self.image, 4, axis=2)
+
         #   - Check the shape of the bpm
         if self.bpm.shape != self.image.shape:
 
@@ -866,8 +869,8 @@ class RawImage:
                     )
 
         # Each spectrograph can optionally post-process the spatial flexure values in their own way
-        # TODO : Should we make polyord a parameter in the parset?
-        _spat_flexure = self.spectrograph.spatial_flexure(spat_flexure, polyord=1)
+        _spat_flexure = spat_flexure if self.par['spat_flexure_polyord'] is None else \
+            self.spectrograph.spatial_flexure(spat_flexure, polyord=self.par['spat_flexure_polyord'])
 
         # Save QA to file
         if qa_outfile is not None:

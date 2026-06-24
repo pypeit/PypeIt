@@ -225,7 +225,7 @@ class ProcessImagesPar(ParSet):
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  skip_write_2d=None,
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
-                 spat_flexure_method=None, spat_flexure_maxlag=None,
+                 spat_flexure_method=None, spat_flexure_polyord=None, spat_flexure_maxlag=None,
                  spat_flexure_sigdetect=None, spat_flexure_vrange=None):
 
         # Grab the parameter names and values from the function
@@ -371,15 +371,20 @@ class ProcessImagesPar(ParSet):
         options['spat_flexure_method'] = ProcessImagesPar.valid_spatial_flexure()
         dtypes['spat_flexure_method'] = str
         descr['spat_flexure_method'] = 'Correct slits, illumination flat, etc. for spatial flexure. ' \
-                                        'Options are: {0}'.format(', '.join(options['spat_flexure_method'])) + \
-                                        '"skip" means no correction is performed. ' \
-                                        '"detector" means that a single shift is applied to all slits. ' \
-                                        '"slit" means that each slit is shifted independently. ' \
-                                        '"edge" means that each slit edge is shifted independently. ' \
-                                        '"leftedge" means that the left slit edge will be used to determine ' \
-                                            'the shift, and this value will be assigned to the right edge. ' \
-                                        '"rightedge" means that the right slit edge will be used to determine ' \
-                                            'the shift, and this value will be assigned to the left edge.'
+                                       'Options are: {0}'.format(', '.join(options['spat_flexure_method'])) + \
+                                       '"skip" means no correction is performed. ' \
+                                       '"detector" means that a single shift is applied to all slits. ' \
+                                       '"slit" means that each slit is shifted independently. ' \
+                                       '"edge" means that each slit edge is shifted independently. ' \
+                                       '"leftedge" means that the left slit edge will be used to determine ' \
+                                           'the shift, and this value will be assigned to the right edge. ' \
+                                       '"rightedge" means that the right slit edge will be used to determine ' \
+                                           'the shift, and this value will be assigned to the left edge.'
+
+        defaults['spat_flexure_polyord'] = None
+        dtypes['spat_flexure_polyord'] = int
+        descr['spat_flexure_polyord'] = 'Polynomial order to use when fitting the spatial flexure values ' \
+                                        'of each slit edge'
 
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
@@ -495,7 +500,7 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum',
                    'subtract_scattlight', 'scattlight', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
-                   'spat_flexure_method', 'spat_flexure_maxlag', 'spat_flexure_sigdetect',
+                   'spat_flexure_method', 'spat_flexure_polyord', 'spat_flexure_maxlag', 'spat_flexure_sigdetect',
                    'spat_flexure_vrange', 'use_illumflat', 'use_specillum', 'skip_write_2d',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
@@ -565,6 +570,11 @@ class ProcessImagesPar(ParSet):
         # Convert param to list
         if isinstance(self.data['overscan_par'], int):
             self.data['overscan_par'] = [self.data['overscan_par']]
+
+        # Check polynomial order is greater than or equal to zero
+        if isinstance(self.data['spat_flexure_polyord'], int):
+            if self.data['spat_flexure_polyord'] < 0:
+                raise ValueError('spat_flexure_polyord must be greater than or equal to zero.')
 
         if self.data['overscan_method'] in ['polynomial', 'chebyshev'] and len(self.data['overscan_par']) != 1:
             raise ValueError('For chebyshev/polynomial overscan method, set overscan_par = order')
