@@ -1561,6 +1561,26 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             f_illum = f_illum[::-1].copy()
         return f_illum
 
+    def get_ifu_datacube_meta(self, raw_hdr):
+        """
+        Return datacube header/WCS metadata for the Binospec fiber IFU.
+
+        Binospec has a single fiber-IFU mode, so the returned label is fixed.
+        See
+        :meth:`pypeit.spectrographs.spectrograph.Spectrograph.get_ifu_datacube_meta`.
+
+        Parameters
+        ----------
+        raw_hdr : `astropy.io.fits.Header`_
+            Primary header of the input file (unused; Binospec has one mode).
+
+        Returns
+        -------
+        :obj:`dict`
+            ``{'name': 'BINOSPEC IFU', 'mode': 'FIBER'}``.
+        """
+        return {'name': f'{self.camera} IFU', 'mode': 'FIBER'}
+
     @staticmethod
     def ifu_sky_wcs(raw_hdr, scale_arcsec):
         """

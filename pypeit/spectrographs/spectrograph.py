@@ -936,6 +936,37 @@ class Spectrograph:
             "does not implement identify_fibers_in_block(); it is required for "
             "the Fiber pypeline.")
 
+    def get_ifu_datacube_meta(self, raw_hdr):
+        """
+        Return descriptive metadata for a fiber-IFU datacube.
+
+        Used by :func:`pypeit.core.datacube.build_cube_common` to label the
+        output WCS and FITS header.  Spectrographs that support more than one
+        IFU mode use ``raw_hdr`` to distinguish them (e.g. by reading a mode
+        or aperture keyword) and return the appropriate label.
+
+        Parameters
+        ----------
+        raw_hdr : `astropy.io.fits.Header`_
+            Primary header of the input file, so multi-mode instruments can
+            select the active IFU mode.
+
+        Returns
+        -------
+        :obj:`dict`
+            Keys ``'name'`` (display/WCS name, e.g. ``'BINOSPEC IFU'``) and
+            ``'mode'`` (short ``IFUMODE`` header label, e.g. ``'FIBER'``).
+
+        Raises
+        ------
+        NotImplementedError
+            Always, unless overridden by a fiber-IFU spectrograph.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} uses pypeline='{self.pypeline}' but "
+            "does not implement get_ifu_datacube_meta(); it is required to "
+            "build a fiber-IFU datacube.")
+
     def get_arc_extract_center(self, slitcen, slits, det):
         """
         Return adjusted slit centers for arc spectrum extraction.
