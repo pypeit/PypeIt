@@ -1153,7 +1153,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
     # Bright sky emission lines for throughput correction (Angstroms).
     # These must be isolated enough to measure reliably with
     # continuum sidebands.  Source: Binospec IDL pipeline
-    # (Chilingarian et al. 2025, arXiv:2501.01528).
+    # (Fabricant et al. 2025, arXiv:2501.01528).
     # Note: 4358.335 (Hg I) omitted -- unreliable at dark sites.
     skyline_list_ang = np.array([
         5577.34, 6300.304, 6863.951, 7340.881,
@@ -1312,7 +1312,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         # Scattered light correction for ALL frames (IDL pipeline approach).
         # Inter-block gaps contain ~3000+ counts of scattered light that must
         # be removed from both flats and science frames for accurate
-        # fiber throughput ratios (Chilingarian et al. 2025, Section 6).
+        # fiber throughput ratios (Fabricant et al. 2025, Section 6).
         par['calibrations']['scattlight_pad'] = 5
         par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
         par['calibrations']['pixelflatframe']['process']['scattlight']['method'] = 'gaps'

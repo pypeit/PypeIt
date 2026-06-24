@@ -1331,7 +1331,7 @@ class FiberFindObjects(SlicerIFUFindObjects):
     fiber within each block-slit, using reference fiber positions from
     the spectrograph.
 
-    Follows the IDL Binospec pipeline approach (Chilingarian et al. 2025,
+    Follows the IDL Binospec pipeline approach (Fabricant et al. 2025,
     Section 6) for sky subtraction: extract all fibers, divide by the
     globally-normalized fiber flat correction, then fit
     a 2D B-spline sky model (wavelength + spatial Legendre polynomial)

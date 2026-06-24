@@ -1900,7 +1900,7 @@ class FiberFlatField(FlatField):
     infrastructure (raw image, wavelength calibration, slit traces, etc.)
     and adds fiber-specific methods.
 
-    Follows the IDL Binospec pipeline approach (Chilingarian et al. 2025,
+    Follows the IDL Binospec pipeline approach (Fabricant et al. 2025,
     Section 6): extract fiber spectra from the flat, then normalize by a
     single global scalar to produce a 2D normalized flat (nfiber x nwave)
     that retains the full spectral shape and fiber-to-fiber throughput
