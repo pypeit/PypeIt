@@ -31,6 +31,9 @@ Functionality/Performance Improvements and Additions
   rejection, controlled by the new ``cr_median_width`` process
   parameter.  Useful for line-rich frames with small tilts; see
   :ref:`image_proc-cr` for details.
+- Adds ability to select the specific archive of standard stars to use when
+  searching for a match to an observed standard.  This is particularly import
+  for LBT/MODS.
 
 Instrument-specific Updates
 ---------------------------
