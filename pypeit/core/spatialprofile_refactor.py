@@ -42,7 +42,8 @@ from pypeit.core.spatialprofile import qa_fit_profile
 # ---------------------------------------------------------------------------
 
 def _bspline2d_to_1d(bset2d):
-    """Convert the first component of a ``BSpline2D`` to a 1-D ``BSpline``.
+    """
+    Convert the first component of a ``BSpline2D`` to a 1-D ``BSpline``.
 
     :func:`~pypeit.core.fitting.iterative_bspline_fit` returns a ``BSpline2D``
     (``coeff`` shape ``(nknots, npoly)``) whenever a ``basis`` array is
@@ -66,7 +67,8 @@ def _bspline2d_to_1d(bset2d):
 
 
 def _findfwhm(model, sig_x):
-    r"""Calculate the FWHM of an object profile with sub-pixel precision.
+    """
+    Calculate the FWHM of an profile with sub-pixel precision.
 
     Locates the half-maximum crossing on each side of the peak by linear
     interpolation between the two bracketing sample points, eliminating the
@@ -76,11 +78,11 @@ def _findfwhm(model, sig_x):
     Parameters
     ----------
     model : `numpy.ndarray`_
-        1-D profile model evaluated at ``sig_x``.  ``sig_x`` must be sorted
-        ascending and ``model`` must be the profile with any background already
-        subtracted.
+        1-D model profile
     sig_x : `numpy.ndarray`_
-        1-D array of normalised spatial coordinates, sorted ascending.
+        Spatial coordinates normalized such that the nominal center is at 0 and
+        the coordinates are in units of a previously estimated 1-sigma width.
+        Shape must match ``model``.
 
     Returns
     -------
@@ -93,39 +95,30 @@ def _findfwhm(model, sig_x):
     rwhm : :obj:`float`
         ``sig_x`` value at the right half-maximum (sub-pixel accuracy).
     """
-    peak = (model * (np.abs(sig_x) < 1.)).max()
-    peak_x = sig_x[(model * (np.abs(sig_x) < 1.)).argmax()]
-
-    # Right half-maximum: first sample to the right of peak_x below 0.5*peak.
-    rind, = np.where((sig_x > peak_x) & (model < 0.5 * peak))
-    if rind.size > 0:
-        rh = rind.min()
-        if rh > 0:
-            x0, x1 = sig_x[rh - 1], sig_x[rh]     # x0 above, x1 below
-            y0, y1 = model[rh - 1], model[rh]
-            rwhm = x0 + (0.5 * peak - y0) * (x1 - x0) / (y1 - y0)
-        else:
-            rwhm = sig_x[rh]
+    # Mask pixels beyond 1 sigma
+    _model = np.ma.MaskedArray(model, mask=np.abs(sig_x)>1.)
+    # Find the peak coordinate and value
+    peak_i = np.ma.argmax(_model)
+    peak = _model.data[peak_i]
+    peak_x = sig_x[peak_i]
+    # Mask all the values less than half of the peak
+    _model[_model < 0.5 * peak] = np.ma.masked
+    # Get the indices of the unmasked pixels that bracket the peak
+    lind, rind = np.ma.flatnotmasked_edges(_model)
+    # Get the left edge of the FWHM range
+    if lind > 0:
+        lwhm = utils.linear_interpolate(
+            model[lind-1], sig_x[lind-1], model[lind], sig_x[lind], 0.5*peak
+        )
     else:
-        rwhm = 0.5 * 2.3548
-
-    # Left half-maximum: work in reversed arrays so the search is identical
-    # in structure to the right-side search.
-    sig_x_rev = sig_x[::-1]
-    model_rev = model[::-1]
-    lind, = np.where(((sig_x < peak_x) & (model < 0.5 * peak))[::-1])
-    if lind.size > 0:
-        lh = lind.min()
-        if lh > 0:
-            # sig_x_rev[lh-1] is closer to peak_x (above half-max)
-            # sig_x_rev[lh]   is farther from peak_x (below half-max)
-            x0, x1 = sig_x_rev[lh - 1], sig_x_rev[lh]
-            y0, y1 = model_rev[lh - 1], model_rev[lh]
-            lwhm = x0 + (0.5 * peak - y0) * (x1 - x0) / (y1 - y0)
-        else:
-            lwhm = sig_x_rev[lh]
+        lwhm = sig_x[0]
+    # Get the right edge of the FWHM range
+    if rind < model.size-1:
+        rwhm = utils.linear_interpolate(
+            model[rind], sig_x[rind], model[rind+1], sig_x[rind+1], 0.5*peak
+        )
     else:
-        lwhm = -0.5 * 2.3548
+        rwhm = sig_x[-1]
 
     return peak, peak_x, lwhm, rwhm
 
