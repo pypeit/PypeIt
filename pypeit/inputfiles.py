@@ -91,8 +91,8 @@ class InputFile:
     """
 
     def __init__(
-        self, 
-        config=None, 
+        self,
+        config=None,
         file_paths:list=None,
         data_table:Table=None,
         setup:dict=None,
@@ -191,7 +191,7 @@ class InputFile:
             data_block_found = True
         else:
             if cls.datablock_required:
-                raise PypeItError("You have not specified the data block!")            
+                raise PypeItError("You have not specified the data block!")
             paths, usrtbl = [], None
             data_block_found = False
 
@@ -248,9 +248,9 @@ class InputFile:
 
         # Instantiate
         return cls(
-            config=list(lines[is_config]), 
-            file_paths=paths, 
-            data_table=usrtbl, 
+            config=list(lines[is_config]),
+            file_paths=paths,
+            data_table=usrtbl,
             setup=sdict,
             vet=vet,
             preserve_comments=preserve_comments
@@ -408,14 +408,14 @@ class InputFile:
 
         ## Recast each as "object" in case the user has mucked with the Table
         ##  e.g. a mix of floats and None
-        ##  Also handle Masked columns -- fill with ''
         for key in tbl.keys():
             # Object
             tbl[key] = tbl[key].data.astype(object)
-            if isinstance(tbl[key], column.MaskedColumn):
+            # RJC -- Not sure why we need to fill masked columns with empty data. Let's just retain the masked values.
+            # if isinstance(tbl[key], column.MaskedColumn):
                 # Fill with empty string
-                tbl[key].fill_value = ''
-                tbl[key] = tbl[key].filled()
+                # tbl[key].fill_value = np.ma.masked
+                # tbl[key] = tbl[key].filled()
 
         # Build the table -- Old code
         #  Because we allow (even encourage!) the users to modify entries by hand, 
@@ -505,7 +505,7 @@ class InputFile:
             List of strings, where each string provides the full path to each
             data file.  None is returned if :attr:`data` is not defined or if
             ``key`` is not one of its columns.
-              
+
         Raises
         ------
         FileNotFoundError:
@@ -517,20 +517,21 @@ class InputFile:
         ## Build full paths to file and set frame types
         data_files = []
         for row in self.data:
+            rowkey = '' if np.ma.is_masked(row[key]) else row[key]
 
             # Skip Empty entries?
-            if skip_blank and row[key].strip() in ['', 'none', 'None']:
+            if skip_blank and rowkey.strip() in ['', 'none', 'None']:
                 continue
 
             # Skip commented out entries
-            if row[key].strip().startswith("#"):
+            if rowkey.strip().startswith("#"):
                 if not include_commented_out:
                     continue
                 # Strip the comment character and any whitespace following it
                 # from the filename
-                name = row[key].strip("# ")
+                name = rowkey.strip("# ")
             else:
-                name = row[key]
+                name = rowkey
 
             # Searching..
             if self.file_paths is not None and len(self.file_paths) > 0:
@@ -804,7 +805,7 @@ class PypeItFile(InputFile):
             parameters.  Note that this *must* be a file name, unlike the type
             options available to the base class.  The behavior of this parameter
             is defined as follows:
-                
+
                 - If None and filenames are present, the file to use is
                   determined as follows:
 
@@ -918,7 +919,7 @@ class PypeItFile(InputFile):
         spec = self.get_spectrograph()
 
         if _config_specific_file is None:
-            spec_par = spec.default_pypeit_par() 
+            spec_par = spec.default_pypeit_par()
         else:
             # Check file extensions
             spec._check_extensions(_config_specific_file)
@@ -936,7 +937,7 @@ class PypeItFile(InputFile):
         par = pypeitpar.PypeItPar.from_cfg_lines(
             cfg_lines=spec_par.to_config(), merge_with=(self.cfg_lines,)
         )
-        return spec, par, _config_specific_file        
+        return spec, par, _config_specific_file
 
 
 class SensFile(InputFile):

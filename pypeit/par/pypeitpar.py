@@ -226,7 +226,7 @@ class ProcessImagesPar(ParSet):
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  skip_write_2d=None,
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
-                 spat_flexure_correct=None, spat_flexure_maxlag=None,
+                 spat_flexure_method=None, spat_flexure_maxlag=None,
                  spat_flexure_sigdetect=None, spat_flexure_vrange=None):
 
         # Grab the parameter names and values from the function
@@ -368,14 +368,20 @@ class ProcessImagesPar(ParSet):
                                  'after ensuring the quality of the resulting reductions.'
 
         # Flexure
-        defaults['spat_flexure_correct'] = False
-        dtypes['spat_flexure_correct'] = bool
-        descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
-        
+        defaults['spat_flexure_method'] = 'skip'
+        options['spat_flexure_method'] = ProcessImagesPar.valid_spatial_flexure()
+        dtypes['spat_flexure_method'] = str
+        descr['spat_flexure_method'] = 'Correct slits, illumination flat, etc. for spatial flexure. ' \
+                                        'Options are: {0}'.format(', '.join(options['spat_flexure_method'])) + \
+                                        '"skip" means no correction is performed. ' \
+                                        '"detector" means that a single shift is applied to all slits. ' \
+                                        '"slit" means that each slit is shifted independently.' \
+                                        '"edge" means that each slit edge is shifted independently.'
+
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
         descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
-        
+
         defaults['spat_flexure_sigdetect'] = 5.
         dtypes['spat_flexure_sigdetect'] = [int, float]
         descr['spat_flexure_sigdetect'] = 'Sigma threshold above fluctuations in the '  \
@@ -497,7 +503,7 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum',
                    'subtract_scattlight', 'scattlight', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
-                   'spat_flexure_correct', 'spat_flexure_maxlag', 'spat_flexure_sigdetect',
+                   'spat_flexure_method', 'spat_flexure_maxlag', 'spat_flexure_sigdetect',
                    'spat_flexure_vrange', 'use_illumflat', 'use_specillum', 'skip_write_2d',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
@@ -529,6 +535,13 @@ class ProcessImagesPar(ParSet):
         Return the valid methods for combining frames.
         """
         return ['median', 'mean' ]
+
+    @staticmethod
+    def valid_spatial_flexure():
+        """
+        Return the valid methods for combining frames.
+        """
+        return ['skip', 'detector', 'slit', 'edge']
 
     @staticmethod
     def valid_saturation_handling():
@@ -3601,7 +3614,7 @@ class EdgeTracePar(ParSet):
         descr['niter_gaussian'] = 'The number of iterations of ' \
                                   ':func:`~pypeit.core.trace.fit_trace` to use when using ' \
                                   'Gaussian weighting.'
-        
+
         defaults['min_edge_side_sep'] = 5.0
         dtypes['min_edge_side_sep'] = [int, float]
         descr['min_edge_side_sep'] = 'Minimum separation between same-side edges (e.g., the ' \

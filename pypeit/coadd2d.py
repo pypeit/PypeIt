@@ -25,7 +25,7 @@ from pypeit import utils
 from pypeit.images import pypeitimage
 from pypeit.core import coadd
 from pypeit.core import findobj_skymask
-from pypeit.core import parse 
+from pypeit.core import parse
 from pypeit.core.wavecal import wvutils
 from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
@@ -213,13 +213,13 @@ class CoAdd2D:
 
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
-                        spec2dfiles, spectrograph, par, det=det, 
+                        spec2dfiles, spectrograph, par, det=det,
                         only_slits=only_slits, exclude_slits=exclude_slits,
                         sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug)
 
-    def __init__(self, spec2d, spectrograph, par, det=1, 
-                 only_slits=None, exclude_slits=None, 
+    def __init__(self, spec2d, spectrograph, par, det=1,
+                 only_slits=None, exclude_slits=None,
                  sn_smooth_npix=None, bkg_redux=False, find_negative=False, show=False,
                  show_peaks=False, debug_offsets=False, debug=False):
         """
@@ -361,11 +361,10 @@ class CoAdd2D:
 
         # effective exposure time
         self.exptime_coadd = self.coadd2d_stack.exptime_coadd
-        
+
         # define the wavelength grid for the 2d coadd
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid()
-        
-        
+
         # Handle the reference object
         self.handle_reference_obj()
 
@@ -988,7 +987,7 @@ class CoAdd2D:
             resampled_pixscale = parse.parse_binning(sciImage.detector.binning)[1]*sciImage.detector.platescale
 
             # Assign slitmask design information to detected objects
-            slits.assign_maskinfo(sobjs_obj, resampled_pixscale, None, TOLER=parcopy['reduce']['slitmask']['obj_toler'])
+            slits.assign_maskinfo(sobjs_obj, resampled_pixscale, None, tolerance=parcopy['reduce']['slitmask']['obj_toler'])
 
             if parcopy['reduce']['slitmask']['extract_missing_objs'] is True:
                 # Set the FWHM for the extraction of missing objects
@@ -1198,7 +1197,7 @@ class CoAdd2D:
             skymodel_stack.append(s2dobj.skymodel)
             sciivar_stack.append(s2dobj.ivarmodel)
             mask_stack.append(s2dobj.bpmmask.mask)
-            slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
+            slitmask_stack.append(s2dobj.slits.slit_img(spat_flexure=s2dobj.sci_spat_flexure))
 
         # check if exptime is consistent for all images
         exptime_coadd = np.percentile(exptime_stack, 50., method='higher')
@@ -1218,7 +1217,7 @@ class CoAdd2D:
                     slitmask_stack=slitmask_stack,
                     sciimg_stack=sciimg_stack,
                     sciivar_stack=sciivar_stack,
-                    skymodel_stack=skymodel_stack, 
+                    skymodel_stack=skymodel_stack,
                     mask_stack=mask_stack,
                     waveimg_stack=waveimg_stack,
                     exptime_stack=exptime_stack,
@@ -1343,7 +1342,7 @@ class CoAdd2D:
                 # TODO maybe better behavior here would be to crash out to force the user to change the weight method explicitly
                 # to 'uniform'. What I don't like here is that we are using uniform weights even though the user requested 'auto'
                 # and they might miss the warning. Its debatable though.
-                
+
                 # warn if the user had put `auto` in the parset
                 log.warning('Weights cannot be computed because no unique reference object '
                           'with the highest S/N was found. Using uniform weights instead.')
@@ -1445,7 +1444,7 @@ class CoAdd2D:
         object identifiers differ between multislit and echelle reductions.
         """
         raise PypeItError('The get_brightest_obj() method should be overloaded by the child class.')
-    
+
     def handle_reference_obj(self):
         """
         Interpret the user-supplied reference-object selection.
@@ -1454,7 +1453,7 @@ class CoAdd2D:
         -----
         This base-class method is overridden by subclasses.
         """
-        
+
         raise PypeItError('The handle_reference_obj() method should be overloaded by the child class.')
 
 
@@ -1543,7 +1542,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
     a reference object or mask-design information. Weights may be user supplied,
     uniform, or determined automatically from the brightest detected object.
     """
-    def __init__(self, spec2d_files, spectrograph, par, det=1, 
+    def __init__(self, spec2d_files, spectrograph, par, det=1,
                  only_slits=None, exclude_slits=None, sn_smooth_npix=None,
                  bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False):
         """
@@ -1590,7 +1589,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # This will be an array of the object spatial pixel positions used for auto weights in each exposure
         self.spat_pixpos_id_weights = None
 
-        super().__init__(spec2d_files, spectrograph, det=det, 
+        super().__init__(spec2d_files, spectrograph, det=det,
                          only_slits=only_slits, exclude_slits=exclude_slits,
                          sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
                          show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
@@ -1613,10 +1612,10 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # If no `user_obj_ids` are passed in, find the brightest object in the stack and obtain the relevant information
         if self.par['coadd2d']['user_obj_ids'] is None:
             self.spat_pixpos_id_bri, self.spat_pixpos_bri, self.spatid_bri, self.snr_bar_bri = self.get_brightest_obj(self.coadd2d_stack.specobjs_list, self.spat_ids)
-            self.obj_id_bri = self.spat_pixpos_id_bri        
+            self.obj_id_bri = self.spat_pixpos_id_bri
             return
-        
-        # The user passed in user_obj_ids that we will use these for the brighest object to 
+
+        # The user passed in user_obj_ids that we will use these for the brighest object to
         # be optionally used for weights.
         if self.par['coadd2d']['weights'] != 'auto':
             raise PypeItError('Parameter `user_obj_ids` can only be used if weights are set to `auto`.')
@@ -1657,9 +1656,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
             raise PypeItError('Not all spatial IDs are within spat_toler of each other')
         self.spatid_bri = int(np.rint(np.mean(spatids)))
         self.spat_pixpos_bri = np.array(spat_pixpos)
-        self.snr_bar_bri, _ = coadd.calc_snr(fluxes, ivars, gpms)                
-        self.obj_id_bri = self.spat_pixpos_id_bri                
-
+        self.snr_bar_bri, _ = coadd.calc_snr(fluxes, ivars, gpms)
+        self.obj_id_bri = self.spat_pixpos_id_bri
 
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
@@ -1714,14 +1712,14 @@ class MultiSlitCoAdd2D(CoAdd2D):
         log.info('Rebinning Images')
         mask_stack = [mask == 0 for mask in self.coadd2d_stack.mask_stack]
         sci_list_rebin, var_list_rebin, norm_rebin_stack, _, obj_list_rebin = coadd.rebin2d(
-            wave_bins, 
-            dspat_bins, 
-            self.coadd2d_stack.waveimg_stack, 
-            dspat_stack, 
-            thismask_stack, 
-            mask_stack, 
-            sci_list, 
-            var_list, 
+            wave_bins,
+            dspat_bins,
+            self.coadd2d_stack.waveimg_stack,
+            dspat_stack,
+            thismask_stack,
+            mask_stack,
+            sci_list,
+            var_list,
             obj_list,
         )
 
@@ -1753,10 +1751,10 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
             # Perform the extraction
             sobjs_exp = findobj_skymask.objs_in_slit(
-                sci_list_rebin[0][iexp,:,:], 
-                utils.inverse(var_list_rebin[0][iexp,:,:]), 
-                thismask, 
-                slit_left, 
+                sci_list_rebin[0][iexp,:,:],
+                utils.inverse(var_list_rebin[0][iexp,:,:]),
+                thismask,
+                slit_left,
                 slit_righ,
                 inmask=inmask[iexp,:,:],
                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
@@ -1766,11 +1764,11 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 numiterfit=self.par['reduce']['findobj']['find_numiterfit'],
                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                 snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
-                nperslit=1 if self.par['coadd2d']['user_obj_ids'] is None else None, 
+                nperslit=1 if self.par['coadd2d']['user_obj_ids'] is None else None,
                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                 spec_min_max=self.par['reduce']['findobj']['trace_min_max'],
                 hand_extract_dict=manual_extract_dict,
-                show_trace=self.debug_offsets, 
+                show_trace=self.debug_offsets,
                 show_peaks=self.debug_offsets)
 
             # Perform QA on the extracted objects
@@ -1791,7 +1789,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 slitidx_orig = \
                     self.coadd2d_stack.slits_list[iexp].spat_id == self.coadd2d_stack.specobjs_list[iexp][idx_orig].SLITID
                 left_edge_orig = self.coadd2d_stack.slits_list[iexp].select_edges(
-                    flexure=self.coadd2d_stack.spat_flexure_list[iexp])[0][:, slitidx_orig][:,0]
+                    spat_flexure=self.coadd2d_stack.spat_flexure_list[iexp])[0][:, slitidx_orig][:,0]
                 # Compute the mean median offset betweeh the original trace and the left edge of the slit
                 dist_to_left = np.median(trace_orig - left_edge_orig)
                 # Identify the trace in the sobjs_exp from the rebinned image that is closest to the original trace taking this offset into account
@@ -1805,7 +1803,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                                 f'to the trace for the user object {self.par["coadd2d"]["user_obj_ids"][iexp]} '
                                 f'in file {iexp+1} within the specified spatial '
                                 f'tolerance ={self.par["coadd2d"]["spat_toler"]}')
-            else: 
+            else:
                 traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
 
         # After looping through all exposures, announce the offsets for user-specified objects
@@ -2041,7 +2039,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 # get maskdef_objpos
                 # find left edge
                 slits_left, _, _ = \
-                    self.coadd2d_stack.slits_list[iexp].select_edges(flexure=self.coadd2d_stack.spat_flexure_list[iexp])
+                    self.coadd2d_stack.slits_list[iexp].select_edges(spat_flexure=self.coadd2d_stack.spat_flexure_list[iexp])
                 # targeted object spat pix
                 maskdef_obj_pixpos = \
                     self.coadd2d_stack.slits_list[iexp].maskdef_objpos[slit_idx] + self.maskdef_offset[iexp] \
@@ -2097,7 +2095,7 @@ class EchelleCoAdd2D(CoAdd2D):
     of a selected reference object. Weights may be user supplied, uniform, or
     derived order-by-order from the brightest reference object.
     """
-    def __init__(self, spec2d_files, spectrograph, par, det=1, 
+    def __init__(self, spec2d_files, spectrograph, par, det=1,
                  only_slits=None, exclude_slits=None, sn_smooth_npix=None,
                  bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False):
         """
@@ -2134,7 +2132,7 @@ class EchelleCoAdd2D(CoAdd2D):
         debug : bool, optional
             If True, enable additional debug output.
         """
-        super().__init__(spec2d_files, spectrograph, det=det, 
+        super().__init__(spec2d_files, spectrograph, det=det,
                          only_slits=only_slits, exclude_slits=exclude_slits,
                          sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
                          par=par, show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
@@ -2176,7 +2174,7 @@ class EchelleCoAdd2D(CoAdd2D):
                         if flux is not None and ivar is not None and mask is not None:
                                 user_obj_exist[iexp, iord] = True
 
-                            
+
                 if not np.all(user_obj_exist):
                     raise PypeItError(
                         'Object provided through `user_obj_ids` does not exist in all the files.'
@@ -2188,8 +2186,6 @@ class EchelleCoAdd2D(CoAdd2D):
         elif len(self.coadd2d_stack.specobjs_list) > 0 and (self.par['coadd2d']['offsets'] == 'auto' or self.par['coadd2d']['weights'] == 'auto'):
             self.obj_id_bri, self.snr_bar_bri = \
                 self.get_brightest_obj(self.coadd2d_stack.specobjs_list, self.coadd2d_stack.slits_list[0].slitord_id)
-        
-        
 
     def compute_offsets(self):
         """

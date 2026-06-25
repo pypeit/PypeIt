@@ -122,7 +122,7 @@ class ScatteredLight(calibframe.CalibFrame):
         wcs_match : :obj:`bool`, optional
             Use a reference image for the WCS and match all image in other channels to it.
         """
-        offslitmask = slits.slit_img(pad=0, flexure=None) == -1 if mask else 1
+        offslitmask = slits.slit_img(pad=0, spat_flexure=None) == -1 if mask else 1
 
         # Prepare the frames
         _data = self.scattlight_raw if image is None else image

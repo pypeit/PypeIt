@@ -66,7 +66,7 @@ class PypeIt:
         self.pypeit_file = pypeit_file
 
         # State
-        #self.run_state = state.RunPypeItState(pypeit_file=pypeit_file, 
+        #self.run_state = state.RunPypeItState(pypeit_file=pypeit_file,
         #                                      current_step='init',
         #                                      current_det=-1,
         #                                      current_calibID=-1)
@@ -99,12 +99,12 @@ class PypeIt:
         log.info('Compiling metadata')
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, 
                                       files=self.pypeItFile.filenames,
-                                      usrdata=self.pypeItFile.data, 
+                                      usrdata=self.pypeItFile.data,
                                       strict=True)
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
         self.fitstbl.finalize_usr_build(
-            self.pypeItFile.frametypes, 
+            self.pypeItFile.frametypes,
             self.pypeItFile.setup_name)
 
         # Other Internals
@@ -166,7 +166,7 @@ class PypeIt:
         """
         Process all calibration frames.
 
-        Provides an avenue to process the calibrations for a dataset 
+        Provides an avenue to process the calibrations for a dataset
         without (or omitting) any science/standard frames.
         """
         self.tstart = time.perf_counter()
@@ -178,7 +178,7 @@ class PypeIt:
             if not any(in_grp):
                 continue
             # Find the detectors to reduce
-            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'] if self.par['rdx']['slitspatnum'] is None 
+            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'] if self.par['rdx']['slitspatnum'] is None
                                               else self.par['rdx']['slitspatnum'])
             log.info(f'Detectors to work on: {detectors}')
 
@@ -188,7 +188,7 @@ class PypeIt:
 
                 caliBrate = pypeit_steps.calib_one(self.spectrograph, self.fitstbl, self.par,
                                        self.det, calib_ID, self.calibrations_path)
-                                       
+
 
         # Finish
         self.print_end_time()
@@ -215,7 +215,7 @@ class PypeIt:
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
                            calib_ID, self.calibrations_path,
                            reduce_standard=True, overwrite=self.overwrite,
-                           show=self.show, 
+                           show=self.show,
                            run_state=self.run_state,
                            reuse_calibs=self.reuse_calibs)
 
@@ -247,7 +247,7 @@ class PypeIt:
         return '<{:s}: pypeit_file={}>'.format(self.__class__.__name__, self.pypeit_file)
 
 
-def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str, 
+def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
                    calibrations_path:str,
                    reduce_standard:bool=False, overwrite:bool=False,
                    show:bool=False,
@@ -354,11 +354,11 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
 
             # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
             #sci_spec2d, sci_sobjs = self.reduce_exposure(
-            #    frames, calib_ID, bg_frames=bg_frames, 
+            #    frames, calib_ID, bg_frames=bg_frames,
             #    std_outfile=std_outfile)
 
             this_spec2d, this_sobjs = exposure.reduce_exposure(
-                spectrograph, fitstbl, par, frames, calib_ID, 
+                spectrograph, fitstbl, par, frames, calib_ID,
                 calibrations_path, bg_frames=bg_frames,
                 reuse_calibs=reuse_calibs, run_state=run_state,
                 show=show,
@@ -368,7 +368,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             # save_exposure for combined files
             if len(this_spec2d.detectors) > 0:
                 exposure.save_exposure(spectrograph,
-                                    fitstbl, par, frames[0], 
+                                    fitstbl, par, frames[0],
                                     this_spec2d, this_sobjs, calibrations_path,
                                     history=history,
                                     skip_write_2d=par['scienceframe']['process']['skip_write_2d'])

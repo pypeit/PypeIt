@@ -866,7 +866,7 @@ class CoAdd3D:
                 scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                                slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                                                model=None, trim=self.flatpar['slit_trim'],
-                                                               flexure=spat_flexure,
+                                                               spat_flexure=spat_flexure,
                                                                smooth_npix=self.flatpar['slit_illum_smooth_npix'])
             else:
                 log.info("Using relative spectral illumination from FlatImages")
@@ -969,7 +969,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             log.info("Using slit edges for astrometric transform")
         # If nothing better was provided, use the slit edges
         if alignments is None:
-            left, right, _ = slits.select_edges(flexure=spat_flexure)
+            left, right, _ = slits.select_edges(spat_flexure=spat_flexure)
             locations = [0.0, 1.0]
             traces = np.append(left[:, None, :], right[:, None, :], axis=1)
         else:
@@ -1034,8 +1034,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Initialise the slit edges
             log.info("Constructing slit image")
             slits = spec2DObj.slits
-            slitid_img = slits.slit_img(pad=0, flexure=spat_flexure)
-            slits_left, slits_right, _ = slits.select_edges(flexure=spat_flexure)
+            slitid_img = slits.slit_img(pad=0, spat_flexure=spat_flexure)
+            slits_left, slits_right, _ = slits.select_edges(spat_flexure=spat_flexure)
 
             # The order of operations below proceeds as follows:
             #  (1) Get science image
@@ -1128,7 +1128,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             crval_wv = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else wave0
             cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
             self.all_wcs.append(self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv))
-            ra_img, dec_img, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts, flexure=spat_flexure)
+            ra_img, dec_img, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts,
+                                                            spat_flexure=spat_flexure)
 
             # Extract wavelength and delta wavelength arrays from the images
             wave_ext = waveimg[onslit_gpm]

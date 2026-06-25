@@ -97,7 +97,7 @@ class SkySubRegions(scriptbase.ScriptBase):
         # Finally, initialise the GUI
         skyreg = SkySubGUI.initialize(det, frame, slits, pypeline, specname, outname=regfile,
                                       overwrite=args.overwrite, runtime=False, printout=True,
-                                      initial=args.initial, flexure=spat_flexure)
+                                      initial=args.initial, spat_flexure=spat_flexure)
 
         # Get the results
         msskyreg = skyreg.get_result()

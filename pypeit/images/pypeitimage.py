@@ -129,21 +129,25 @@ class PypeItImage(datamodel.DataContainer):
                  'exptime': dict(otype=(int, float), descr='Effective exposure time (s)'),
                  'noise_floor': dict(otype=float, descr='Noise floor included in variance'),
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
-                 'spat_flexure': dict(otype=float,
+                 'spat_flexure': dict(otype=np.ndarray, atype=np.floating,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace'), 
-                 'filename': dict(otype=str, descr='Filename for the image'),
-                 'rel_scaleImg': dict(otype=np.ndarray, atype=np.floating,
-                                  descr='Image used to apply a relative scaling to the science '
-                                        'image to correct its spectral illumination. Currently '
-                                        'only used for IFU reductions. This is calculated and '
-                                        'updated during object finding.'),
+                                            'and SlitTrace. Shape is (nslits, 2), where'
+                                            'spat_flexure[i,0] is the spatial shift of the left '
+                                            'edge of slit i and spat_flexure[i,1] is the spatial '
+                                            'shift of the right edge of slit i.'),
+                 # TODO :: This should probably change to spec_flexure for clarity
                  'flex_shift': dict(otype=np.ndarray, atype=np.floating,
                                     descr='Array of global spectral shifts (pixels) of the '
                                           'wavelength array at the center of each slit to '
                                           'correct for spectral flexure. This is calculated '
                                           'using the sky spectrum, therefore, updated during '
                                           'object finding/extraction.')
+                 'rel_scaleImg': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='Image used to apply a relative scaling to the science '
+                                        'image to correct its spectral illumination. Currently '
+                                        'only used for IFU reductions. This is calculated and '
+                                        'updated during object finding.'),
+                 'filename': dict(otype=str, descr='Filename for the image'),
                  }
     """Data model components."""
 
@@ -825,9 +829,16 @@ class PypeItImage(datamodel.DataContainer):
         # Spatial flexure
         spat_flexure = self.spat_flexure
         if other.spat_flexure is not None and spat_flexure is not None \
-                and other.spat_flexure != spat_flexure:
-            log.warning(f'Spatial flexure different for images being subtracted ({spat_flexure} '
-                      f'vs. {other.spat_flexure}).  Adopting {np.max(np.abs([spat_flexure, other.spat_flexure]))}.')
+                and not np.array_equal(other.spat_flexure, spat_flexure):
+            log.warning(f'Spatial flexure different for images being subtracted ({spat_flexure} vs. '
+                        f'{other.spat_flexure}). Adopting the maximum spatial flexure of each individual edge.')
+            # Loop through all slit edges and find the largest flexure
+            for ii in range(spat_flexure.shape[0]):
+                # Assign the largest flexure (irrespective of sign) for each edge
+                if np.abs(other.spat_flexure[ii,0]) > np.abs(spat_flexure[ii,0]):
+                    spat_flexure[ii,0] = other.spat_flexure[ii,0]
+                if np.abs(other.spat_flexure[ii,1]) > np.abs(spat_flexure[ii,1]):
+                    spat_flexure[ii,1] = other.spat_flexure[ii,1]
 
         # Create a copy of the detector, if it is defined, to be used when
         # creating the new pypeit image below

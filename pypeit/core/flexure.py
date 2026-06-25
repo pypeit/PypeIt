@@ -31,7 +31,7 @@ from pypeit.core import trace
 from pypeit.core.wavecal import autoid
 
 
-def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=False, qa_outfile=None, qa_vrange=None):
+def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, sigdetect=10., debug=False, qa_outfile=None, qa_vrange=None):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -45,6 +45,14 @@ def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=
         sciimg (`numpy.ndarray`_):
             Science image
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            Slits object
+        method (:obj:`str`, optional):
+            Method to use to calculate the spatial flexure shift. Options
+            are 'detector' (default), 'slit', and 'edge'. The 'detector'
+            method calculates the shift for all slits simultaneously, the
+            'slit' method calculates the shift for each slit independently,
+            and the 'edge' method calculates the shift for each slit edge
+            independently.
             Slits object
         bpm (`numpy.ndarray`_, optional):
             Bad pixel mask (True = Bad)
@@ -65,6 +73,8 @@ def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=
         float:  The spatial flexure shift relative to the initial slits
 
     """
+    # TODO :: Need to implement different methods
+
     log.info("Measuring spatial flexure")
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
     slitmask = slits.slit_img(initial=True, exclude_flag=slits.bitmask.exclude_for_flexure)
@@ -104,11 +114,11 @@ def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=
             '"spat_flexure_sigdetect" parameter, or use the manual flexure correction.'
         )
 
-        return 0.
+        return np.zeros((slits.nslits, 2), dtype=float)
 
     lag0_max = np.where(lags_max == 0)[0][0]
     shift = round(pix_max[0] - lag0_max, 3)
-    log.info('Spatial flexure measured: {}'.format(shift))
+    log.info('Spatial flexure measured: {} pixels'.format(shift))
 
     if debug:
         # 1D plot of the cross-correlation
@@ -138,13 +148,12 @@ def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=
         log.info("Generating QA plot for spatial flexure")
         spat_flexure_qa(sciimg, slits, shift, gpm=np.logical_not(bpm), vrange=qa_vrange, outfile=qa_outfile)
 
-    return shift
+    return np.full((slits.nslits, 2), shift)
 
 
 def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
     """
     Generate QA for the spatial flexure
-
     Args:
         img (`numpy.ndarray`_):
             Image of the detector
@@ -170,8 +179,8 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
         vrange = None
 
     # TODO: should we use initial or tweaked slits in this plot?
-    left_slits, right_slits, mask_slits = slits.select_edges(initial=True, flexure=None)
-    left_flex, right_flex, mask = slits.select_edges(initial=True, flexure=shift)
+    left_slits, right_slits, mask_slits = slits.select_edges(initial=True, spat_flexure=None)
+    left_flex, right_flex, mask = slits.select_edges(initial=True, spat_flexure=shift)
 
     if debug:
         # where to start and end the plot in the spatial&spectral direction
@@ -358,7 +367,7 @@ def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=N
     # smooth to the same resolution as the object sky spectrum? Yes, if not using a model sky
     if sky_file != 'model':
         # get gaussian sigma (pixels) for smoothing
-        smooth_fwhm_pix = get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, 
+        smooth_fwhm_pix = get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix,
                                                 spec_fwhm_pix=spec_fwhm_pix)
 
         if smooth_fwhm_pix is None:
@@ -808,7 +817,7 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_file, empty_flex_
             # Interpolate
             sky_wave_new = flexure_interp(flex_dict['shift'][obj_idx], this_specobjs[obj_idx].BOX_WAVE)
             flex_dict['sky_spec'].insert(
-                obj_idx, 
+                obj_idx,
                 onespec.OneSpec(sky_wave_new, None, this_specobjs[obj_idx].BOX_COUNTS_SKY)
             )
 
@@ -890,7 +899,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                            arx_spec=[], sky_spec=[], method=[])
 
     # flex dict keys that we need to update through the routine
-    keys_to_update = ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 
+    keys_to_update = ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen',
                       'smooth', 'method', 'arx_spec', 'sky_spec']
 
     # Loop over slits
@@ -997,7 +1006,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
     return flex_list
 
 
-def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, 
+def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask,
                              trace_spat, gd_slits, wv_calib, pypeline, det):
     """Calculate the spectral flexure for every slit
 
