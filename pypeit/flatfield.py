@@ -29,9 +29,11 @@ from pypeit import datamodel
 from pypeit import calibframe
 from pypeit import edgetrace
 from pypeit import io
+from pypeit import qa
 from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.core import qa
+from pypeit.core import bspline
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import fitting
