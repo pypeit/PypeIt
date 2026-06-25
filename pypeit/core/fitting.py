@@ -1235,7 +1235,7 @@ def iterative_bspline_fit(
     if ivar is not None:
         maskwork &= ivar > 0
     if not maskwork.any():
-        raise PypeItError('No valid data points in iterative_bspline_fit.')
+        return None, outmask, np.zeros(y.shape), 0., 4
 
     bspl = bspl_cls(x=x[maskwork], knots=bspline.Knots(**kwargs_knots), nord=nord)
     if maskwork.sum() < bspl.nord:
