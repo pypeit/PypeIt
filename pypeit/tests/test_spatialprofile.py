@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 
 from pypeit.core import spatialprofile
+from pypeit.core import spatialprofile_refactor
 
 
 # ============================================================================
@@ -316,7 +317,7 @@ def test_refactor_regression():
 
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(sn_ratio=20.0, fwhm=4.0)
-    profile_model, xnew, fwhmfit, med_sn2 = spatialprofile.fit_profile(
+    profile_model, xnew, fwhmfit, med_sn2 = spatialprofile_refactor.fit_profile_refactor(
         image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
         spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
         fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
