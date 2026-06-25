@@ -104,6 +104,8 @@ def _findfwhm(model, sig_x):
     # Mask all the values less than half of the peak
     _model[_model < 0.5 * peak] = np.ma.masked
     # Get the indices of the unmasked pixels that bracket the peak
+    # WARNING: This *assumes* there is only one coherent section with values
+    # above 0.5 * peak and within |sig_x| < 1.
     lind, rind = np.ma.flatnotmasked_edges(_model)
     # Get the left edge of the FWHM range
     if lind > 0:
