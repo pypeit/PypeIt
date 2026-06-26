@@ -95,8 +95,8 @@ def _findfwhm(model, sig_x):
     rwhm : :obj:`float`
         ``sig_x`` value at the right half-maximum (sub-pixel accuracy).
     """
-    # Mask pixels beyond 1 sigma
-    _model = np.ma.MaskedArray(model, mask=np.abs(sig_x)>1.)
+    # Mask pixels beyond 2 sigma
+    _model = np.ma.MaskedArray(model, mask=np.abs(sig_x)>2.)
     # Find the peak coordinate and value
     peak_i = np.ma.argmax(_model)
     peak = _model.data[peak_i]
@@ -105,7 +105,7 @@ def _findfwhm(model, sig_x):
     _model[_model < 0.5 * peak] = np.ma.masked
     # Get the indices of the unmasked pixels that bracket the peak
     # WARNING: This *assumes* there is only one coherent section with values
-    # above 0.5 * peak and within |sig_x| < 1.
+    # above 0.5 * peak and within |sig_x| < 2.
     lind, rind = np.ma.flatnotmasked_edges(_model)
     # Get the left edge of the FWHM range
     if lind > 0:
