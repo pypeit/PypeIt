@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    pypeit.core.gui
+   pypeit.core.bspline
    pypeit.core.move_median
    pypeit.core.wavecal
 
@@ -41,7 +42,6 @@ Submodules
    pypeit.core.plot
    pypeit.core.procimg
    pypeit.core.pydl
-   pypeit.core.qa
    pypeit.core.sampling
    pypeit.core.scattlight
    pypeit.core.skyspec
