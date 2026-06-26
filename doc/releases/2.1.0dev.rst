@@ -103,6 +103,7 @@ Under-the-hood Improvements
   and ``pypeit/core/wavecal/spectrographs``) to the dev-suite.  These were
   development-only files, not suited for the released package.
 - Restructuring of :mod:`~pypeit.core`.
+- Increase the breakpoint spacing when fitting the slit illumination profile.
 
 
 Bug Fixes

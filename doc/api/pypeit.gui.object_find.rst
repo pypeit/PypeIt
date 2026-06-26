@@ -1,7 +1,7 @@
-pypeit.setup\_gui.model module
+pypeit.gui.object\_find module
 ==============================
 
-.. automodule:: pypeit.setup_gui.model
+.. automodule:: pypeit.gui.object_find
    :members:
    :private-members:
    :show-inheritance:
