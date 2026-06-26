@@ -34,7 +34,6 @@ arm's focal plane.
 .. include:: ../include/links.rst
 """
 
-# test one two
 
 import astropy.table
 import astropy.time
@@ -1027,6 +1026,7 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
         return par
 
 
+# jump
 class LDTRIMASGrismYJSpectrograph(GRISM_Mode, YJArm):
     """
     Child to handle LDT/RIMAS YJ Arm, echelle-specific code
@@ -1127,7 +1127,7 @@ class LDTRIMASGrismYJSpectrograph(GRISM_Mode, YJArm):
         Number of orders for this spectograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
-        return 16
+        return 15
 
     @property
     def order_spat_pos(self):
@@ -1136,22 +1136,21 @@ class LDTRIMASGrismYJSpectrograph(GRISM_Mode, YJArm):
         """
         return np.array(
             [
-                0.08284662,
-                0.1483813,
-                0.21158701,
-                0.27261607,
-                0.33141317,
-                0.38813936,
-                0.44310197,
-                0.49637422,
-                0.54839496,
-                0.59948157,
-                0.65005956,
-                0.70074477,
-                0.75240745,
-                0.80622583,
-                0.86391259,
-                0.9280528,
+              0.151,
+              0.21075,
+              0.2665,
+              0.319,
+              0.368,
+              0.41525,
+              0.4595,
+              0.50175,
+              0.54225,
+              0.58075,
+              0.61725,
+              0.6525,
+              0.68625,
+              0.71875,
+              0.74975
             ]
         )
 
@@ -1160,7 +1159,7 @@ class LDTRIMASGrismYJSpectrograph(GRISM_Mode, YJArm):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(26, 10, -1, dtype=int)
+        return np.arange(44, 29, -1, dtype=int) # 30-44
 
     @property
     def spec_min_max(self):
@@ -1169,27 +1168,12 @@ class LDTRIMASGrismYJSpectrograph(GRISM_Mode, YJArm):
         spectral range of each order.
         """
         spec_max = np.asarray(
-            [
-                1477,
-                1513,
-                1547,
-                1588,
-                1628,
-                1682,
-                1733,
-                1795,
-                1855,
-                1930,
-                2005,
-                2040,
-                2040,
-                2040,
-                2040,
-                2040,
-            ]
+            [597, 705, 807, 903, 996, 1082, 1165, 1244, 1319, 1390,
+             1459, 1527, 1590, 1652, 1712]
         )
         spec_min = np.asarray(
-            [420, 390, 370, 345, 315, 285, 248, 210, 165, 115, 58, 5, 0, 0, 0, 0]
+            [7, 138, 257, 371, 479, 579, 675, 766, 850, 933, 1010,
+             1085, 1156, 1224, 1289]
         )
         return np.vstack((spec_min, spec_max))
 
@@ -1210,28 +1194,23 @@ class LDTRIMASGrismYJSpectrograph(GRISM_Mode, YJArm):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        # TODO: Figure out the order-dependence of the updated plate scale
-        # From the X-Shooter P113 manual, average over all orders. No order-dependent values given.
-        plate_scale = 0.245 * np.ones_like(order_vec)
+        plate_scale = 0.19
         return plate_scale
 
     @property
     def dloglam(self):
         """
-        Return the logarithmic step in wavelength for output spectra.
+        Return the logarithmic step in wavelength for output spectra (in Angstroms).
         """
-        # This number was computed by taking the mean of the dloglam for all
-        # the X-shooter orders. The specific loglam across the orders deviates
-        # from this value by +-6% from this first to final order
-        return 1.93724e-5
+        return 2.8188583080448797e-5
 
     @property
     def loglam_minmax(self):
         """
         Return the base-10 logarithm of the first and last wavelength for
-        ouput spectra.
+        ouput spectra (in Angstroms).
         """
-        return np.log10(9500.0), np.log10(26000)
+        return np.log10(8597.0), np.log10(14040.0)
 
 
 class LDTRIMASGrismHKSpectrograph(GRISM_Mode, HKArm):
@@ -1334,7 +1313,7 @@ class LDTRIMASGrismHKSpectrograph(GRISM_Mode, HKArm):
         Number of orders for this spectograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
-        return 16
+        return 17
 
     @property
     def order_spat_pos(self):
@@ -1343,22 +1322,23 @@ class LDTRIMASGrismHKSpectrograph(GRISM_Mode, HKArm):
         """
         return np.array(
             [
-                0.08284662,
-                0.1483813,
-                0.21158701,
-                0.27261607,
-                0.33141317,
-                0.38813936,
-                0.44310197,
-                0.49637422,
-                0.54839496,
-                0.59948157,
-                0.65005956,
-                0.70074477,
-                0.75240745,
-                0.80622583,
-                0.86391259,
-                0.9280528,
+                0.2475,
+                0.3135,
+                0.373,
+                0.4285,
+                0.48,
+                0.5275,
+                0.572,
+                0.613,
+                0.652,
+                0.689,
+                0.724,
+                0.756,
+                0.78725,
+                0.8165,
+                0.8445,
+                0.871,
+                0.896
             ]
         )
 
@@ -1367,7 +1347,7 @@ class LDTRIMASGrismHKSpectrograph(GRISM_Mode, HKArm):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(26, 10, -1, dtype=int)
+        return np.arange(39, 22, -1, dtype=int) #23-39
 
     @property
     def spec_min_max(self):
@@ -1376,27 +1356,12 @@ class LDTRIMASGrismHKSpectrograph(GRISM_Mode, HKArm):
         spectral range of each order.
         """
         spec_max = np.asarray(
-            [
-                1477,
-                1513,
-                1547,
-                1588,
-                1628,
-                1682,
-                1733,
-                1795,
-                1855,
-                1930,
-                2005,
-                2040,
-                2040,
-                2040,
-                2040,
-                2040,
-            ]
+            [707, 835, 946, 1049, 1146, 1234, 1317, 1395, 1469, 1539,
+             1603, 1666, 1724, 1780, 1833, 1883, 1932]
         )
         spec_min = np.asarray(
-            [420, 390, 370, 345, 315, 285, 248, 210, 165, 115, 58, 5, 0, 0, 0, 0]
+            [285, 421, 548, 666, 775, 877, 972, 1059, 1143, 1219, 1293,
+             1361, 1427, 1489, 1547, 1602, 1656]
         )
         return np.vstack((spec_min, spec_max))
 
@@ -1417,9 +1382,7 @@ class LDTRIMASGrismHKSpectrograph(GRISM_Mode, HKArm):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        # TODO: Figure out the order-dependence of the updated plate scale
-        # From the X-Shooter P113 manual, average over all orders. No order-dependent values given.
-        plate_scale = 0.245 * np.ones_like(order_vec)
+        plate_scale = 0.19
         return plate_scale
 
     @property
@@ -1427,10 +1390,7 @@ class LDTRIMASGrismHKSpectrograph(GRISM_Mode, HKArm):
         """
         Return the logarithmic step in wavelength for output spectra.
         """
-        # This number was computed by taking the mean of the dloglam for all
-        # the X-shooter orders. The specific loglam across the orders deviates
-        # from this value by +-6% from this first to final order
-        return 1.93724e-5
+        return 2.3904436313733664e-5
 
     @property
     def loglam_minmax(self):
@@ -1438,4 +1398,4 @@ class LDTRIMASGrismHKSpectrograph(GRISM_Mode, HKArm):
         Return the base-10 logarithm of the first and last wavelength for
         ouput spectra.
         """
-        return np.log10(9500.0), np.log10(26000)
+        return np.log10(13423.0), np.log10(25075.0)
