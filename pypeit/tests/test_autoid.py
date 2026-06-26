@@ -70,6 +70,24 @@ def test_fit_xcorr_wave_solution():
     assert np.allclose(wave_fit.pypeitfit.eval(pixel/(nspec-1)), wave)
 
 
+def test_arc_fit_qa_handles_xcorr_only(tmp_path):
+    nspec = 100
+    pixel = np.arange(nspec, dtype=float)
+    wave = 5000.0 + 2.0*pixel + 0.002*pixel**2
+    patt_dict = {
+        'xcorr_wave': wave,
+        'xcorr_valid': np.ones(nspec, dtype=bool),
+        'xcorr_shift': 3.5
+    }
+    wave_fit = autoid.fit_xcorr_wave_solution(
+        np.ones(nspec), patt_dict, func='legendre', order=2)
+    outfile = tmp_path / 'arc_fit_qa.png'
+
+    autoid.arc_fit_qa(wave_fit, outfile=outfile)
+
+    assert outfile.exists()
+
+
 def test_echelle_rejects_xcorr_only():
     par = pypeitpar.WavelengthSolutionPar(echelle=True)
     par['xcorr_only'] = True

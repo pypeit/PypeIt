@@ -62,6 +62,16 @@ def arc_fit_qa(waveFit,
     plt.rcParams['font.family']= 'serif'
 
     arc_spec = waveFit['spec']
+    has_tcent = waveFit.tcent is not None and len(waveFit.tcent) > 0
+    has_fit_samples = waveFit.pixel_fit is not None and waveFit.wave_fit is not None \
+        and len(waveFit.pixel_fit) > 0
+    has_line_ids = False
+    if has_fit_samples and waveFit.ion_bits is not None:
+        ions = waveFit.ions
+        has_line_ids = ions.size == len(waveFit.pixel_fit)
+    else:
+        ions = np.asarray([])
+    xcorr_only = has_fit_samples and not has_line_ids
 
     # Begin
     plt.close('all')
@@ -98,35 +108,41 @@ def arc_fit_qa(waveFit,
     yscl = (1.2, 1.5, 1.7)
 
     # Label all found lines
-    for kk, x in enumerate(waveFit.tcent):
-        ind_left = np.fmax(int(x)-2, 0)
-        ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
-        yline = np.max(arc_spec[ind_left:ind_righ])
-        # Tick mark
-        if log:
-            ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], '-', color='gray')
-        else:
-            ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], '-', color='gray')
+    if has_tcent:
+        for kk, x in enumerate(waveFit.tcent):
+            ind_left = np.fmax(int(x)-2, 0)
+            ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
+            yline = np.max(arc_spec[ind_left:ind_righ])
+            # Tick mark
+            if log:
+                ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], '-', color='gray')
+            else:
+                ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], '-', color='gray')
 
     # Label the ID'd lines
-    for kk, x in enumerate(waveFit.pixel_fit):
-        ind_left = np.fmax(int(x)-2, 0)
-        ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
-        yline = np.max(arc_spec[ind_left:ind_righ])
-        # Tick mark
-        if log:
-            ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], 'g-')
-        else:
-            ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
-        # label
-        if log:
-            ypos = yline*yscl[2]
-        else:
-            ypos = yline+ysep*1.3
-        ax_spec.text(x, ypos, '{:s} {:g}'.format(waveFit.ions[kk],
-                                                          waveFit.wave_fit[kk]),
-                     ha='center', va='bottom',size=idfont,
-                     rotation=90., color='green')
+    if has_line_ids:
+        for kk, x in enumerate(waveFit.pixel_fit):
+            ind_left = np.fmax(int(x)-2, 0)
+            ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
+            yline = np.max(arc_spec[ind_left:ind_righ])
+            # Tick mark
+            if log:
+                ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], 'g-')
+            else:
+                ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
+            # label
+            if log:
+                ypos = yline*yscl[2]
+            else:
+                ypos = yline+ysep*1.3
+            ax_spec.text(x, ypos, '{:s} {:g}'.format(ions[kk],
+                                                              waveFit.wave_fit[kk]),
+                         ha='center', va='bottom',size=idfont,
+                         rotation=90., color='green')
+    elif xcorr_only:
+        ax_spec.text(0.05, 0.95, 'Cross-correlation-only wavelength transfer',
+                     size='small', transform=ax_spec.transAxes, va='top',
+                     bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
 
     # Axes
     ax_spec.set_xlim(0., len(arc_spec))
@@ -155,12 +171,18 @@ def arc_fit_qa(waveFit,
 
     # Arc Fit
     ax_fit = plt.subplot(gs[0, 1])
-    # Points
-    ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
+    # Points. For xcorr-only solutions, these are samples of the transferred
+    # wavelength vector, not individually identified arc lines.
+    if has_fit_samples:
+        if xcorr_only:
+            ax_fit.scatter(waveFit.pixel_fit, waveFit.wave_fit, marker='.',
+                           s=2, color='0.5', alpha=0.4)
+        else:
+            ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
     # Rejections?
     gpm = waveFit.pypeitfit.bool_gpm
     bpm = np.logical_not(gpm)
-    if np.any(bpm):
+    if has_fit_samples and np.any(bpm):
         xrej = waveFit.pixel_fit[bpm]
         yrej = waveFit.wave_fit[bpm]
         ax_fit.scatter(xrej, yrej, marker='o', edgecolor='gray', facecolor='none')
@@ -177,13 +199,27 @@ def arc_fit_qa(waveFit,
     ax_fit.tick_params(axis="y", which='both', right=True)
 
     # Stats
-    wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
+    wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm) \
+        if has_fit_samples else None
     ax_fit.text(0.1, 0.9, r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(waveFit.cen_disp), size='small', transform=ax_fit.transAxes)
     ax_fit.text(0.1, 0.8, 'RMS={:.3f} (pixels)'.format(waveFit.rms), size='small', transform=ax_fit.transAxes)
+    if xcorr_only:
+        ax_fit.text(0.1, 0.7, 'No individual line IDs', size='small',
+                    transform=ax_fit.transAxes)
     # Arc Residuals
     ax_res = plt.subplot(gs[1,1])
-    res = waveFit.wave_fit-wave_soln_fit
-    ax_res.scatter(waveFit.pixel_fit[gpm], res[gpm]/waveFit.cen_disp, marker='x')
+    if has_fit_samples:
+        res = waveFit.wave_fit-wave_soln_fit
+        if xcorr_only:
+            ax_res.scatter(waveFit.pixel_fit[gpm], res[gpm]/waveFit.cen_disp,
+                           marker='.', s=2, color='0.5', alpha=0.4)
+            ax_res.text(0.05, 0.9, 'Transfer-fit residuals', size='small',
+                        transform=ax_res.transAxes)
+        else:
+            ax_res.scatter(waveFit.pixel_fit[gpm], res[gpm]/waveFit.cen_disp, marker='x')
+    else:
+        ax_res.text(0.05, 0.9, 'No fit samples to display', size='small',
+                    transform=ax_res.transAxes)
     ax_res.plot([xmin,xmax], [0.,0], 'k--')
     ax_res.set_xlim(xmin, xmax)
     ax_res.set_xlabel('Pixel')
