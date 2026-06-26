@@ -15,7 +15,7 @@ from IPython import embed
 import numpy as np
 
 from pypeit import inputfiles
-from pypeit.core import qa
+from pypeit import qa
 from pypeit import log
 from pypeit import calibrations
 from pypeit import utils
