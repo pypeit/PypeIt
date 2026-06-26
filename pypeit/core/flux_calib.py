@@ -23,9 +23,10 @@ from astropy import stats
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
-from pypeit import bspline
+
 from pypeit import io
 from pypeit.wavemodel import conv2res
+from pypeit.core import bspline
 from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
 from pypeit import dataPaths
