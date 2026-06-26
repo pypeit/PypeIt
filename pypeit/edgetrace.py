@@ -736,7 +736,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if not self.is_empty:
             # Fit the trace locations with a polynomial
             self.fit_refine(debug=debug > 2)
-            # Use the fits to determine if there are any discontinous
+            # Use the fits to determine if there are any discontinuous
             # trace centroid measurements that are actually components
             # of the same slit edge
             self.merge_traces(debug=debug > 2)
@@ -1817,6 +1817,11 @@ class EdgeTraceSet(calibframe.CalibFrame):
             
             # Get the image relevant to tracing this side
             _sobelsig = self._side_dependent_sobel(side)
+            # gg = np.gradient(self.traceimg.image, axis=1)
+            # if side == 'left':
+            #     _sobelsig = np.clip(gg, 0.0, None)
+            # else:
+            #     _sobelsig = np.clip(-gg, 0.0, None)
 
             # Find the traces to refine, must be on the correct side
             # and must not have been inserted

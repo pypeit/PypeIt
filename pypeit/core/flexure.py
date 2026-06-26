@@ -83,10 +83,13 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
     slitmask = slits.slit_img(initial=initial, exclude_flag=slits.bitmask.exclude_for_flexure)
     onslits = slitmask != -1
 
-    corr_slits = (slitprof*onslits).flatten() if slitprof is not None else onslits.astype(float).flatten()
+    # The factor of 1000 is for the significance of detection below (sigdetect=1).
+    corr_slits = 1000*(slitprof*onslits) if slitprof is not None else 1000*onslits.astype(float)
 
     _sciimg = sciimg if slitmask.shape == sciimg.shape \
                 else arc.resize_mask2arc(slitmask.shape, sciimg)
+    _corr_slits = corr_slits if slitmask.shape == corr_slits.shape \
+                else arc.resize_mask2arc(slitmask.shape, corr_slits)
 
     # mask (as much as possible) the objects on the slits to help the cross-correlation
     # need to copy the bpm to avoid changing the input bpm
@@ -99,9 +102,9 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
             if left_edge[j]+maxlag < right_edge[j]-maxlag:
                 _bpm[j, left_edge[j]+maxlag:right_edge[j]-maxlag] = 1
 
-    # # create sobel images of both slitmask and the science image
+    # Create sobel images of both corr_slits and the science image
     sci_sobel, sci_edges = trace.detect_slit_edges(_sciimg, bpm=_bpm, sigdetect=sigdetect)
-    slits_sobel, slits_edges = trace.detect_slit_edges(slitmask, bpm=bpm, sigdetect=1.)
+    slits_sobel, slits_edges = trace.detect_slit_edges(_corr_slits, bpm=bpm, sigdetect=1)
     corr = signal.fftconvolve(sci_edges, np.fliplr(slits_edges), mode='same', axes=1)
     xcorr = np.sum(corr, axis=0)
     lags = signal.correlation_lags(sci_edges.shape[1], slits_edges.shape[1], mode='same')
@@ -172,7 +175,8 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
                                                # illum_rej=self.flatpar['illum_rej'])
             # Calculate the point where the gradient is the highest
             _, left_shift, _, _, right_shift, _ = \
-                flat.tweak_slit_edges_gradient(left[:,slit_idx], right[:,slit_idx], spat_coo_data, spat_img_data, debug=False)
+                flat.tweak_slit_edges_gradient(left[:,slit_idx], right[:,slit_idx],
+                                               spat_coo_data, spat_img_data, debug=False)
             # These values are the fraction of the slit width, so convert to pixels
             delta_flexure[slit_idx, 0] = left_shift * slit_width
             delta_flexure[slit_idx, 1] = right_shift * slit_width
