@@ -43,6 +43,7 @@ Submodules
    pypeit.spectrographs.shane_kast
    pypeit.spectrographs.slitmask
    pypeit.spectrographs.soar_goodman
+   pypeit.spectrographs.soar_tspec
    pypeit.spectrographs.spectrograph
    pypeit.spectrographs.subaru_focas
    pypeit.spectrographs.tng_dolores

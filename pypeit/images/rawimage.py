@@ -15,13 +15,13 @@ import numpy as np
 from astropy import stats
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import qa
 from pypeit.core import arc
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import flat
 from pypeit.core import flexure
 from pypeit.core import scattlight
-from pypeit.core import qa
 from pypeit.core.mosaic import build_image_mosaic
 from pypeit.images import pypeitimage
 from pypeit import utils
@@ -872,14 +872,19 @@ class RawImage:
         _spat_flexure = spat_flexure if self.par['spat_flexure_polyord'] is None else \
             self.spectrograph.spatial_flexure(spat_flexure, polyord=self.par['spat_flexure_polyord'])
 
+        # 2D plot
+        if debug:
+            # Display QA as a debug plot
+            qa.spat_flexure_qa(self.image[0], slits, _spat_flexure, gpm=np.logical_not(self._bpm[0]), vrange=self.par['spat_flexure_vrange'])
+
         # Save QA to file
         if qa_outfile is not None:
             # Generate the QA plot
             log.info("Generating QA plot for spatial flexure")
-            flexure.spat_flexure_qa(self.image[0], slits, _spat_flexure,
-                                    gpm=np.logical_not(self._bpm[0]),
-                                    vrange=self.par['spat_flexure_vrange'],
-                                    outfile=qa_outfile)
+            qa.spat_flexure_qa(self.image[0], slits, _spat_flexure,
+                               gpm=np.logical_not(self._bpm[0]),
+                               vrange=self.par['spat_flexure_vrange'],
+                               outfile=qa_outfile)
 
         self.steps[step] = True
         # Return

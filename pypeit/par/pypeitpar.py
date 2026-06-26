@@ -219,6 +219,7 @@ class ProcessImagesPar(ParSet):
                  comb_sigrej=None,
 #                 calib_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
+                 cr_median_width=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  dark_expscale=None, correct_nonlinear=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
@@ -478,6 +479,17 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
+        defaults['cr_median_width'] = 0
+        dtypes['cr_median_width'] = int
+        descr['cr_median_width'] = 'Width (in pixels, along axis 1) of the row-local ' \
+                                   'median filter applied by build_crmask before running ' \
+                                   'L.A.Cosmic on the residual.  Useful for line-rich ' \
+                                   'frames with small tilts (e.g. arcs, tilts) where the ' \
+                                   'standard 3x3 Laplacian misses the bodies of extended ' \
+                                   'trails.  Only active when mask_cr=True.  Set to 0 ' \
+                                   '(default) to disable; set to an odd integer (e.g. 31) ' \
+                                   'to enable.'
+
 #        defaults['calib_setup_and_bit'] = None
 #        dtypes['calib_setup_and_bit'] = str
 #        descr['calib_setup_and_bit'] = 'Over-ride the calibration setup and bit, e.g. "A_7".  ' \
@@ -505,7 +517,7 @@ class ProcessImagesPar(ParSet):
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
-                   'sigclip', 'sigfrac', 'objlim']
+                   'sigclip', 'sigfrac', 'objlim', 'cr_median_width']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1993,7 +2005,7 @@ class SensFuncPar(ParSet):
     def __init__(self, use_flat=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None,
                  trim_std_pixs=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
-                 star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
+                 star_dec=None, star_arxiv=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         pars = OrderedDict([(k, values[k]) for k in args[1:]])
@@ -2088,6 +2100,15 @@ class SensFuncPar(ParSet):
         dtypes['star_dec'] = float
         descr['star_dec'] = 'DEC of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)'
 
+        defaults['star_arxiv'] = 'default'
+        dtypes['star_arxiv'] = str
+        descr['star_arxiv'] = (
+            'Specify the name of the archive to search for the standard star flux '
+            'table/spectrum.  When set to ``default``, code will search through the '
+            'prioritized list set by :func:`~pypeit.core.standard.get_archive_sets`.  Note this '
+            'must be a valid, single string identifying the archive to use (e.g. ``lbtmods``).'
+        )
+
         defaults['mask_hydrogen_lines'] = True
         dtypes['mask_hydrogen_lines'] = bool
         descr['mask_hydrogen_lines'] = 'Mask hydrogen Balmer, Paschen, Brackett, and Pfund recombination lines in the sensitivity function fit. ' \
@@ -2118,7 +2139,7 @@ class SensFuncPar(ParSet):
         # Single element parameters
         parkeys = ['use_flat', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det',
                    'trim_std_pixs', 'algorithm', 'polyorder', 'star_type', 'star_mag',
-                   'star_ra', 'star_dec', 'extr',   'mask_hydrogen_lines', 'mask_helium_lines',
+                   'star_ra', 'star_dec', 'star_arxiv', 'extr',   'mask_hydrogen_lines', 'mask_helium_lines',
                    'hydrogen_mask_wid']
 
         # All parameters, including nested ParSets

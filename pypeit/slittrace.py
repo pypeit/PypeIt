@@ -23,7 +23,7 @@ from pypeit import PypeItError
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit import specobj
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 from pypeit.core import parse
 
 
