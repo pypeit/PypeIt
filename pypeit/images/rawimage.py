@@ -611,7 +611,7 @@ class RawImage:
         if self.par['orient']:
             self.orient()
 
-        # Artificial spatial flexure
+        # Artificial spatial flexure for testing - remove before mering
         # self.image = np.roll(self.image, 4, axis=2)
 
         #   - Check the shape of the bpm
