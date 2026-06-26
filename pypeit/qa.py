@@ -802,8 +802,8 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
 
         this_flex_dict = flex_list[islit]
         # Check that the default was overwritten
-        if len(this_flex_dict['shift']) == 0 or \
-                (len(this_flex_dict['shift']) > 0 and np.all([ss is None for ss in this_flex_dict['shift']])):
+        if len(this_flex_dict['spec_flexure']) == 0 or \
+                (len(this_flex_dict['spec_flexure']) > 0 and np.all([ss is None for ss in this_flex_dict['spec_flexure']])):
             continue
 
         # Parse and Setup
@@ -848,7 +848,7 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
             iobj = 0
         else:
             # only show the first object in this slit that does not have None shift
-            iobj = np.where([ss is not None for ss in this_flex_dict['shift']])[0][0]
+            iobj = np.where([ss is not None for ss in this_flex_dict['spec_flexure']])[0][0]
             specobj = this_specobjs[iobj]
 
         # Repackage
@@ -917,6 +917,7 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
 
     plt.rcdefaults()
 
+
 def spec_flexure_corrQA(ax:plt.Axes, this_flex_dict:dict, cntr:int, name:str):
     """Spectral Flexure QA Plot
 
@@ -938,7 +939,7 @@ def spec_flexure_corrQA(ax:plt.Axes, this_flex_dict:dict, cntr:int, name:str):
     # Fit
     fit = this_flex_dict['polyfit'][cntr]
     if fit is not None:
-        xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] + this_flex_dict['shift'][cntr]
+        xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] + this_flex_dict['spec_flexure'][cntr]
         # model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
         model = fit.eval(xval)
         # model = utils.func_val(fit, xval, 'polynomial')
@@ -949,22 +950,23 @@ def spec_flexure_corrQA(ax:plt.Axes, this_flex_dict:dict, cntr:int, name:str):
         # Measurements
         ax.scatter(this_flex_dict['subpix'][cntr] - this_flex_dict['corr_cen'][cntr],
                    this_flex_dict['corr'][cntr] / mxmod, marker='o')
-        # Final shift
-        ax.plot([this_flex_dict['shift'][cntr]] * 2, ylim, 'g:')
+        # Final spectral flexure shift
+        ax.plot([this_flex_dict['spec_flexure'][cntr]] * 2, ylim, 'g:')
         # Label
         ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
-        ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
+        ax.text(0.5, 0.15, 'spec_flexure = {:g}'.format(this_flex_dict['spec_flexure'][cntr]),
                 transform=ax.transAxes, size='large', ha='center')  # , bbox={'facecolor':'white'})
         # Axes
         ax.set_ylim(ylim)
         ax.set_xlabel('Lag')
     else:
         ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
-        ax.text(0.5, 0.15, 'flex_shift calculation failed', transform=ax.transAxes, size='large', ha='center')
+        ax.text(0.5, 0.15, 'spectral flex_shift calculation failed', transform=ax.transAxes, size='large', ha='center')
         # Axes
         ax.set_xlabel('Lag')
 
-def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
+
+def spat_flexure_qa(img, slits, spat_flexure, gpm=None, vrange=None, outfile=None):
     """
     Generate QA for the spatial flexure
 
@@ -973,8 +975,9 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
             Image of the detector
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Slits object
-        shift (:obj:`float`):
-            Shift in pixels
+        spat_flexure (`numpy.ndarray`_):
+            Shift in pixels for each slit edge. Shape is (nslits, 2), where the 2 refers to
+            the left [0] and right[1] slits.
         gpm (`numpy.ndarray`_, optional):
             Good pixel mask (True = Bad)
         vrange (:obj:`tuple`, optional):
@@ -982,19 +985,18 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
         outfile (:obj:`str`, optional):
             Path to the output file where the QA is saved.  If None, the QA is
             shown on screen and not saved.
-
-
     """
     debug = True if outfile is None else False
 
     # check that vrange is a tuple
     if vrange is not None and not isinstance(vrange, tuple):
-        log.warning('vrange must be a tuple with the min and max values for the imshow plot. Ignoring vrange.')
+        #log.warning('vrange must be a tuple with the min and max values for the imshow plot. Ignoring vrange.')
         vrange = None
 
-    # TODO: should we use initial or tweaked slits in this plot?
-    left_slits, right_slits, mask_slits = slits.select_edges(initial=True, flexure=None)
-    left_flex, right_flex, mask = slits.select_edges(initial=True, flexure=shift)
+    # Spatial flexure is *always* relative to the initial slits, otherwise it pushes the tilts
+    # to be out of sync with the slit edges.
+    left_slits, right_slits, mask_slits = slits.select_edges(initial=True, spat_flexure=None)
+    left_flex, right_flex, mask = slits.select_edges(initial=True, spat_flexure=spat_flexure)
 
     if debug:
         # where to start and end the plot in the spatial&spectral direction
@@ -1085,7 +1087,7 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
                 plt.plot(right_flex[::thin, i], spec[::thin, i], color='C1', lw=1, zorder=6)
             ax.tick_params(axis='both', labelsize=6)
             if r == 0 and s == 0:
-                plt.suptitle(f'Shift={shift:.1f} pixels', fontsize=18)
+                plt.suptitle(f'L/R spatial flexure = {spat_flexure[i,0]:.1f}/{spat_flexure[i,1]:.1f} pixels', fontsize=18)
                 ax.legend(handles=legend_elements, fontsize=7)
                 if not debug:
                     ax.set_ylabel('Upper snippets', fontsize=18)
@@ -1097,4 +1099,3 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
     else:
         fig.savefig(outfile, dpi=200)
         plt.close(fig)
-
