@@ -190,7 +190,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                 'are strongly encouraged to re-reduce your data using this (or, better yet, '
                 'the most recent) version of PypeIt.  ' + addendum
             )
-            if check_version:
+            if chk_version:
                 raise PypeItError(message)
             else:
                 log.warning(message)
@@ -326,7 +326,7 @@ class Show2DSpec(scriptbase.ScriptBase):
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_sci = args.prefix+f'sciimg-{detname}'
-                
+
             # Clear all channels at the beginning
             viewer, ch_sci = display.show_image(sciimg, chname=chname_sci, waveimg=waveimg, 
                                                 clear=_clear, cuts=(cut_min, cut_max))

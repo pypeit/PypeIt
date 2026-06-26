@@ -828,6 +828,8 @@ class FlatField:
         # TODO: JFH I wrote all this code and will have to maintain it and I don't want to see it broken up.
         # TODO: JXP This definitely needs breaking up..
 
+        debug = True
+
         # Initialise with a series of bad splines (for when slits go wrong)
         if self.list_of_spat_bsplines is None:
             self.list_of_spat_bsplines = [BSplineContainer(None) for all in self.slits.spat_id]
@@ -1425,6 +1427,12 @@ class FlatField:
             spat_coo_data, spat_flat_data, nord=4, upper=5.0, lower=5.0,
             kwargs_knots={'spacing': bsp}
         )
+
+        fitting.bspline_qa(spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, spat_flat_fit)
+
+        embed(header='after iterative spatial_fit')
+        exit()
+
         # Return
         return (
             exit_status, spat_coo_data, spat_flat_data, BSplineContainer.from_bspline(spat_bspl),
@@ -2315,7 +2323,6 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         if max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
             break
     if debug:
-        embed()
         ricp = rawimg.copy()
         for ss in range(slits.spat_id.size):
             onslit_ref_trim = (slitid_img_trim == slits.spat_id[ss]) & gpm & skymask_now
