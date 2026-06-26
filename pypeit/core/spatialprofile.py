@@ -16,7 +16,7 @@ from IPython import embed
 
 from pypeit import log
 from pypeit import utils
-from pypeit import bspline
+from pypeit.core import bspline
 from pypeit.core import pydl
 from pypeit.core import fitting
 

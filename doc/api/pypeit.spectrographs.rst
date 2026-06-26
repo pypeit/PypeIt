@@ -43,12 +43,14 @@ Submodules
    pypeit.spectrographs.shane_kast
    pypeit.spectrographs.slitmask
    pypeit.spectrographs.soar_goodman
+   pypeit.spectrographs.soar_tspec
    pypeit.spectrographs.spectrograph
    pypeit.spectrographs.subaru_focas
    pypeit.spectrographs.tng_dolores
    pypeit.spectrographs.util
    pypeit.spectrographs.vlt_fors
    pypeit.spectrographs.vlt_sinfoni
+   pypeit.spectrographs.vlt_uves
    pypeit.spectrographs.vlt_xshooter
    pypeit.spectrographs.wht_isis
 

@@ -9,6 +9,7 @@ import inspect
 
 from IPython import embed
 from pathlib import Path
+import gc
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -26,6 +27,7 @@ from pypeit.core import arc
 from pypeit.core import tracewave
 from pypeit.core.wavecal import autoid
 from pypeit.images import buildimage
+from pypeit.qa import arc_tilts_2d_qa, arc_tilts_spat_qa, arc_tilts_spec_qa
 
 
 class WaveTilts(calibframe.CalibFrame):
@@ -145,7 +147,7 @@ class WaveTilts(calibframe.CalibFrame):
         _flexure = 0. if flexure is None else flexure
 
         final_tilts = np.zeros_like(slitmask).astype(float)
-        gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)
+        gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)
         # Loop
         for slit_spat in gdslit_spat:
             slit_idx = self.spatid_to_zero(slit_spat)
@@ -157,6 +159,10 @@ class WaveTilts(calibframe.CalibFrame):
                                          slit_mask=thismask_science)
             # Fill
             final_tilts[thismask_science] = _tilts[thismask_science]
+
+            # This is a work around for the Python memory usage issues
+            _tilts = None
+            gc.collect(2)        
         # Return
         return final_tilts
 
@@ -242,7 +248,7 @@ class WaveTilts(calibframe.CalibFrame):
 
         # Show
         # tilt image
-        tilt_img = tilt_img_dict.image * (slitmask > -1) if slitmask is not None else tilt_img_dict.image
+        tilt_img = tilt_img_dict.image * (slitmask != -1) if slitmask is not None else tilt_img_dict.image
         # set cuts
         zmax = stats.sigma_clip(tilt_img, sigma=10, return_bounds=True)[2]
         zmin = stats.sigma_clip(tilt_img, sigma=5, return_bounds=True)[1] * 2
@@ -363,8 +369,11 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
         # Resize
-        # TODO: Should this be the bpm or *any* flag?
-        gpm = self.mstilt.select_flag(flag='BPM', invert=True) if self.mstilt is not None \
+        # Mask BPM and CR-flagged pixels: when residual CR rejection runs without
+        # filling, CR pixels still carry their original (contaminated) values, so
+        # they must be excluded from tilt centroiding.
+        gpm = self.mstilt.select_flag(flag=['BPM', 'CR'], invert=True) \
+                    if self.mstilt is not None \
                     else np.ones_like(self.slitmask_science, dtype=bool)
         self.shape_science = self.slitmask_science.shape
         self.shape_tilt = self.mstilt.image.shape
@@ -494,10 +503,33 @@ class BuildWaveTilts:
                 = tracewave.fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=spat_order,
                                       spec_order=spec_order,maxdev=self.par['maxdev2d'],
                                       sigrej=self.par['sigrej2d'], func2d=self.par['func2d'],
-                                      doqa=doqa, calib_key=self.mstilt.calib_key,
-                                      slitord_id=self.slits.slitord_id[slit_idx],
-                                      minmax_extrap=self.par['minmax_extrap'],
-                                      show_QA=show_QA, out_dir=self.qa_path)
+                                      minmax_extrap=self.par['minmax_extrap'])
+
+        # Now do some QA
+        if doqa:
+            trc_tilt_dict_out = self.all_trace_dict[slit_idx]
+            calib_key=self.mstilt.calib_key
+            slitord_id=self.slits.slitord_id[slit_idx]
+            tilts_dspat = trc_tilt_dict_out['tilts_dspat']  # spatial offset from the central trace
+            tilts = trc_tilt_dict_out['tilts']  # legendre polynomial fit
+            tilts_2dfit = trc_tilt_dict_out['tilt_2dfit']
+            fwhm = trc_tilt_dict_out['fwhm']
+            tot_mask = trc_tilt_dict_out['tot_mask']
+            tilts_spec = trc_tilt_dict_out['tilts_spec']
+            rms_fit = trc_tilt_dict_out['rms_fit']
+            # Compute a rejection mask that we will use later. These are
+            # locations that were fit but were rejected
+            rej_mask = tot_mask & np.logical_not(trc_tilt_dict_out['fit_mask'])
+
+            # tot mask from the output mask
+            # rej mask and rms_fit not in any output, recompute, or put into output from fit_tilts?
+            arc_tilts_2d_qa(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
+                        rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=self.qa_path)
+            arc_tilts_spat_qa(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
+                        spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA,
+                        out_dir=self.qa_path)
+            arc_tilts_spec_qa(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
+                        slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=self.qa_path)
 
         self.steps.append(inspect.stack()[0][3])
         return self.all_fit_dict[slit_idx]['coeff2']
@@ -839,12 +871,17 @@ class BuildWaveTilts:
             # Save to final image
             self.final_tilts[thismask_science] = self.tilts[thismask_science]
 
+            
+            # This is a work around for the Python memory usage issues
+            self.tilts = None
+            gc.collect(2)
+    
         if show:
-            viewer, ch = display.show_image(self.mstilt.image * (self.slitmask > -1), chname='tilts')
+            viewer, ch = display.show_image(self.mstilt.image * (self.slitmask != -1), chname='tilts')
             display.show_tilts(viewer, ch, self.make_tbl_tilt_traces())
 
         if debug:
-            show_tilts_mpl(self.mstilt.image*(self.slitmask > -1), self.make_tbl_tilt_traces())
+            show_tilts_mpl(self.mstilt.image*(self.slitmask != -1), self.make_tbl_tilt_traces())
 
         # Record the Mask
         bpmtilts = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())

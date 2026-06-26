@@ -38,10 +38,12 @@ __all__ = [
     'p200_tspec',
     'shane_kast',
     'soar_goodman',
+    'soar_tspec',
     'subaru_focas',
     'tng_dolores',
     'vlt_fors',
     'vlt_sinfoni',
+    'vlt_uves',
     'vlt_xshooter',
     'wht_isis',
 ]
