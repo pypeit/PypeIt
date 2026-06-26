@@ -828,8 +828,6 @@ class FlatField:
         # TODO: JFH I wrote all this code and will have to maintain it and I don't want to see it broken up.
         # TODO: JXP This definitely needs breaking up..
 
-        debug = True
-
         # Initialise with a series of bad splines (for when slits go wrong)
         if self.list_of_spat_bsplines is None:
             self.list_of_spat_bsplines = [BSplineContainer(None) for all in self.slits.spat_id]
