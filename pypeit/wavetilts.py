@@ -863,7 +863,7 @@ class BuildWaveTilts:
             # TODO: Need a way to assess the success of fit_tilts and flag the slit if it fails
 
             # Tilts are created with the size of the original slitmask,
-            # which corresonds to the same binning as the science
+            # which corresponds to the same binning as the science
             # images, trace images, and pixelflats etc.
             thismask_science = self.slitmask_science == slit_spat
             # Extract the spectral and spatial coordinates for this slit (NOTE: The relative spat flexure is zero
@@ -875,9 +875,18 @@ class BuildWaveTilts:
                                                                      relative_spat_flexure=None)
             # Calculate the tilts
             self.tilts = tracewave.fit2tilts(coeff_out, self.par['func2d'], spec_eval=_spec_eval, spat_eval=_spat_eval)
-            # Check that the tilts image has values that span a reasonable range
-            # TODO: Is this the right threshold?
-            if np.nanmax(self.tilts) - np.nanmin(self.tilts) < 0.8:
+            # Check that the tilts image has values that span a reasonable range.
+            # Tilts are normalized by (nspec - 1), so a slit/order that covers
+            # the full spectral direction has an expected within-slit range of 1.
+            # For echelle orders that only cover part of the spectral direction
+            # (specmin/specmax from the spectrograph), the expected range is
+            # smaller, so scale the threshold to 80% of that expected range.
+            nspec = self.slitmask_science.shape[0]
+            xnspecmin1 = float(nspec - 1)
+            spec_lo = np.clip(self.slits.specmin[slit_idx], 0.0, xnspecmin1)
+            spec_hi = np.clip(self.slits.specmax[slit_idx], 0.0, xnspecmin1)
+            expected_range = (spec_hi - spec_lo) / xnspecmin1
+            if np.nanmax(self.tilts) - np.nanmin(self.tilts) < 0.8*expected_range:
             ############################
                 log.warning('Tilts image fit not good. This slit/order will not be reduced!')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
