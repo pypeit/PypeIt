@@ -2413,7 +2413,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         """
         ref = self.load_fiber_ref_profile(det)
         ref_ids = ref['FIB_ID']
-        ref_names = np.char.strip(ref['FIB_NAME'])
+        ref_names = [n.strip() for n in ref['FIB_NAME']]
         ref_pix = ref['TR_PIX']
 
         # Identify live science fibers in the reference profile and sort
@@ -2518,7 +2518,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         ref_positions = ref['TR_PIX']
         ref_ids = ref['FIB_ID']
         ref_dead = ref['FIB_DEAD_FLAG'].astype(bool)
-        ref_names = np.char.strip(ref['FIB_NAME'])
+        ref_names = [n.strip() for n in ref['FIB_NAME']]
 
         # Load the reference spatial profile (from ext 3 of the FITS file)
         ref_profile = self._load_ref_spatial_profile(det)
@@ -2712,7 +2712,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         # and derive type from FIB_NAME (SKY* = sky fiber, else science).
         # The FIB_TYPE field in the reference file is unreliable (all SKY).
         ref_ids = ref['FIB_ID']
-        ref_names = np.char.strip(ref['FIB_NAME'])
+        ref_names = [n.strip() for n in ref['FIB_NAME']]
 
         for i in range(nslits):
             if fiber_ids[i] >= 0:
