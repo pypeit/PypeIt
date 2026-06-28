@@ -2291,7 +2291,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
                      f"range {rmin:.3f} - {rmax:.3f}")
 
         # Check we have at least one usable line
-        usable_lines = ~np.all(np.isnan(line_ratios), axis=1)
+        usable_lines = np.logical_not(np.all(np.isnan(line_ratios), axis=1))
         if not np.any(usable_lines):
             log.warning("No sky lines measured successfully; skipping "
                         "skyline illumination correction")
@@ -2304,7 +2304,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         if n_best < line_ratios.shape[0]:
             # Rank lines by number of valid fibers (proxy for brightness
             # and reliability)
-            n_valid_per_line = np.sum(~np.isnan(line_ratios), axis=1)
+            n_valid_per_line = np.sum(np.logical_not(np.isnan(line_ratios)), axis=1)
             best_idx = np.argsort(n_valid_per_line)[-n_best:]
             line_ratios = line_ratios[best_idx]
             log.info(f"Using {n_best} best-measured lines for correction")
@@ -2317,7 +2317,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
                 continue
 
             ratios_i = line_ratios[:, i]
-            good_lines = ~np.isnan(ratios_i)
+            good_lines = np.logical_not(np.isnan(ratios_i))
 
             if not np.any(good_lines):
                 continue
@@ -2626,7 +2626,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
                     is_sky[i] = ref_names[idx[0]].startswith('SKY')
 
         # Dead fibers: reference fibers that were not matched
-        is_dead = ~matched & ~ref_dead
+        is_dead = np.logical_not(matched) & np.logical_not(ref_dead)
 
         n_matched = np.sum(fiber_ids >= 0)
         log.info(f"Fiber matching: {n_matched}/{len(detected_positions)} "
