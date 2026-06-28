@@ -1099,17 +1099,22 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # Prepare the slitmasks for the relative spectral illumination
         slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
         slitmask_trim = self.slits.slit_img(pad=-3, flexure=self.spat_flexure_shift)
-        # Apply spectrograph-specific sky-line illumination correction.
+        # Spectrograph-specific sky-line illumination correction.
         # For fiber-fed spectrographs (e.g. Binospec IFU), this equalizes
         # throughput differences between sky and science fibers that are
-        # not captured by the dome-flat-based illumination correction.
-        # Only sciimg (a copy) is modified here; variance propagation to
-        # self.sciImg is deferred to apply_relative_scale after the loop.
+        # not captured by the dome-flat-based illumination correction.  The
+        # spectrograph method only computes the correction; we apply it here
+        # to the working (convolved) sciimg copy used in the sky fit, and
+        # propagate it to self.sciImg and its variance via
+        # apply_relative_scale after the loop.
         # NOTE: This interacts with the illum_profile_spectral_poly
         # iteration below — both corrections converge together, which is
         # the desired behavior.
-        skyline_corr = self.spectrograph.skyline_illum_correct(
+        skyline_corr = self.spectrograph.skyline_illum_correction(
             sciimg, self.waveimg, self.slits, slitmask)
+        if not np.allclose(skyline_corr, 1.0):
+            good = skyline_corr > 0.1
+            sciimg[good] /= skyline_corr[good]
         # When using dedicated sky fibers, most pixels in thismask are
         # science fibers excluded by skysub_inmask.  Override max_mask_frac
         # so the masking check doesn't reject the fit.

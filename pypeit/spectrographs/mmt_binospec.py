@@ -2328,28 +2328,26 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         # Safety: clip extreme corrections
         return np.clip(corr_2d, 0.3, 3.0)
 
-    def skyline_illum_correct(self, sciimg, waveimg, slits, slitmask):
+    def skyline_illum_correction(self, sciimg, waveimg, slits, slitmask):
         """
-        Apply sky-line-based illumination correction.
+        Compute the sky-line-based illumination correction.
 
         Corrects for throughput differences between sky fibers (bare
         fibers) and science fibers (lenslet-fed) that the dome-flat-based
-        illumination correction cannot capture.  Only modifies ``sciimg``
-        in place; variance is handled by the caller.
+        illumination correction cannot capture.  This method is side-effect
+        free: it returns the 2D correction image and does not modify
+        ``sciimg``; the caller divides the science image (and propagates to
+        the variance) by the returned correction.
 
         See :meth:`compute_skyline_illum` for the algorithm.
         """
         corr = self.compute_skyline_illum(sciimg, waveimg, slitmask,
                                           slits.spat_id)
-        if np.allclose(corr, 1.0):
-            return corr
-
-        # Apply: divide science image only (variance handled by caller)
-        good = corr > 0.1
-        sciimg[good] /= corr[good]
-        log.info("Applied sky-line illumination correction "
-                 f"(range {corr[good].min():.3f} - "
-                 f"{corr[good].max():.3f})")
+        if not np.allclose(corr, 1.0):
+            good = corr > 0.1
+            log.info("Sky-line illumination correction "
+                     f"(range {corr[good].min():.3f} - "
+                     f"{corr[good].max():.3f})")
         return corr
 
     def get_sky_fiber_mask(self, det: int, nslits: int) -> np.ndarray:
