@@ -1508,11 +1508,12 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
                 FIB_DEAD_FLAG, TR_A0, TR_PIX, TR_SIGMA, TR_BGR,
                 TR_H3, TR_H4, TR_H5, TR_H6.
         """
+        if det not in (1, 2):
+            raise PypeItError(f'Detector number must be 1 or 2 for MMT/Binospec, not {det}.')
         ref_file = self._ifu_calib_path() / 'fiber_ref_profile.fits'
         # ext 1 = IFUTRACES_A (side A, det 1), ext 2 = IFUTRACES_B (side B, det 2)
-        ext = 1 if det == 1 else 2
         with fits.open(ref_file) as hdu:
-            return hdu[ext].data.copy()
+            return hdu[det].data.copy()
 
     def load_sky_layout(self) -> tuple[np.ndarray, np.ndarray]:
         """
