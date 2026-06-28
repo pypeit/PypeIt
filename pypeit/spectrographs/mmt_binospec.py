@@ -2326,9 +2326,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             corr_2d[slit_pix] = corr_val
 
         # Safety: clip extreme corrections
-        corr_2d = np.clip(corr_2d, 0.3, 3.0)
-
-        return corr_2d
+        return np.clip(corr_2d, 0.3, 3.0)
 
     def skyline_illum_correct(self, sciimg, waveimg, slits, slitmask):
         """
