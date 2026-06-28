@@ -1035,8 +1035,8 @@ class FiberExtract(Extract):
                 # Fiber apertures may spill into unassigned pixels
                 # (slitid_img == -1); only pixels owned by another slit
                 # are excluded.
-                thismask = ~((slitid_img != sobj.SLITID)
-                             & (slitid_img != -1))
+                thismask = np.logical_not((slitid_img != sobj.SLITID)
+                                          & (slitid_img != -1))
                 thismask_cache[sobj.SLITID] = thismask
             sobj_inmask = inmask & thismask
 
@@ -1214,7 +1214,7 @@ class FiberExtract(Extract):
         # otherwise.  Matches the legacy `good.sum() < max(3, ...)` check.
         flat_min = np.maximum(3, n_aper // 2)
         use_flat = (n_aper > 0) & (n_good >= flat_min)
-        use_uniform = (n_aper > 0) & ~use_flat
+        use_uniform = (n_aper > 0) & np.logical_not(use_flat)
 
         weights = np.zeros_like(flat_vals)
 
