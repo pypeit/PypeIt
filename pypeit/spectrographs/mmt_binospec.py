@@ -18,6 +18,7 @@ import numpy as np
 from astropy.stats import sigma_clipped_stats
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import correlate
+from scipy.special import erf
 
 from pypeit import dataPaths
 from pypeit.pkg.pypeitdata import PypeItDataPath
@@ -1644,14 +1645,19 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         blocks = self.get_fiber_blocks(det)
         nspec, nspat = traceimg.shape
 
-        # Build expected spatial profile from reference fiber positions
-        # (sum of Gaussians at each fiber position)
+        # Build expected spatial profile from reference fiber positions as a
+        # sum of pixelated Gaussians: each fiber contributes the integral of
+        # its Gaussian over the pixel (via erf), not the Gaussian sampled at
+        # the pixel center.  This is only a cross-correlation template for the
+        # bulk shift below, so the absolute normalization is irrelevant.
         all_positions = np.concatenate([b['fiber_positions'] for b in blocks])
-        ref_profile = np.zeros(nspat)
         sigma = 2.5  # typical fiber sigma in pixels
         x = np.arange(nspat)
-        for pos in all_positions:
-            ref_profile += np.exp(-0.5 * ((x - pos) / sigma) ** 2)
+        # Pixel i spans [i-0.5, i+0.5]; integral of a unit-area Gaussian is
+        # 0.5*(erf((hi-pos)/(sigma*sqrt2)) - erf((lo-pos)/(sigma*sqrt2))).
+        edge = (x[None, :] - all_positions[:, None]) / (sigma * np.sqrt(2.0))
+        ref_profile = 0.5 * (erf(edge + 0.5 / (sigma * np.sqrt(2.0)))
+                             - erf(edge - 0.5 / (sigma * np.sqrt(2.0)))).sum(axis=0)
 
         # Collapse trace image to spatial profile (median of central half)
         obs_profile = np.median(traceimg[nspec // 4:3 * nspec // 4, :], axis=0)
