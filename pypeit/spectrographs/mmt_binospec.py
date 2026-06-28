@@ -1550,13 +1550,11 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         row = 0 if det == 1 else 1
         with fits.open(illum_file) as hdu:
             f_illum = hdu[1].data['F_ILLUM'][row].copy()
-        if det == 2:
-            # The IDL flat-fielding code applies this vector directly to the
-            # extracted side-B fiber axis.  PypeIt's DET02 detector image is
-            # mirror-flipped relative to that axis, so map the vector back onto
-            # the reference-profile row order used by MASKDEF_ID lookup.
-            f_illum = f_illum[::-1].copy()
-        return f_illum
+        # The IDL flat-fielding code applies this vector directly to the
+        # extracted side-B fiber axis.  PypeIt's DET02 detector image is
+        # mirror-flipped relative to that axis, so map the vector back onto
+        # the reference-profile row order used by MASKDEF_ID lookup.
+        return f_illum[::-1] if det == 2 else f_illum
 
     def get_ifu_datacube_meta(self, raw_hdr):
         """
