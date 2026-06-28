@@ -2480,8 +2480,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         ref_file = self._ifu_calib_path() / 'fiber_ref_profile.fits'
         side_idx = 0 if det == 1 else 1
         with fits.open(ref_file) as hdu:
-            prof_data = hdu[3].data
-            return prof_data['PROF_REF'][side_idx].copy()
+            return hdu[3].data['PROF_REF'][side_idx].copy()
 
     def match_fibers_to_reference(self, det, detected_positions):
         """
