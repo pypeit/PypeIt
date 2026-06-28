@@ -1735,12 +1735,8 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         `numpy.ndarray`_
             Adjusted slit center traces, same shape as ``slitcen``.
         """
-        blocks = self.get_fiber_blocks(det)
         nslits = slitcen.shape[1]
-        if len(blocks) != nslits:
-            log.warning(f"Block count ({len(blocks)}) != slit count "
-                        f"({nslits}); skipping arc center adjustment")
-            return slitcen
+        blocks = self._require_block_slit_match(det, nslits)
 
         # Bulk shift between reference profile and detected slit positions
         mid = slitcen.shape[0] // 2
@@ -1781,11 +1777,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         Returns:
             :obj:`float`: Bulk spatial shift in detector pixels.
         """
-        blocks = self.get_fiber_blocks(det)
-        if len(blocks) != slits.nslits:
-            log.warning(f"Block count ({len(blocks)}) != slit count "
-                        f"({slits.nslits}); assuming zero fiber shift")
-            return 0.0
+        blocks = self._require_block_slit_match(det, slits.nslits)
 
         mid_row = slits.nspec // 2
         left, right, _ = slits.select_edges()
@@ -1815,11 +1807,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         """
         margin = 7  # pixels beyond outermost fiber center
 
-        blocks = self.get_fiber_blocks(det)
-        if len(blocks) != slits.nslits:
-            log.warning(f"Block count ({len(blocks)}) != slit count "
-                        f"({slits.nslits}); skipping slit edge adjustment")
-            return
+        blocks = self._require_block_slit_match(det, slits.nslits)
 
         # Determine the bulk shift between reference and detected positions.
         mid_row = slits.nspec // 2
@@ -1991,6 +1979,45 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             })
         return blocks
 
+    def _require_block_slit_match(self, det, nslits):
+        """
+        Return the reference fiber blocks for ``det``, requiring that their
+        count matches the number of traced block-slits.
+
+        The block-slits are defined directly from the static reference fiber
+        profile (one block-slit per ``FIB_BLOCK``), so the traced slit count
+        should always equal the reference block count.  Every fiber operation
+        (arc-center snapping, edge adjustment, throughput, sky identification)
+        pairs the i-th reference block with the i-th block-slit positionally.
+        A mismatch means a block-slit was dropped or merged during edge
+        tracing/QA, which breaks that correspondence; continuing would
+        silently misassign fibers, throughputs, and wavelength solutions, so
+        the reduction is faulted instead.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number (1=side A, 2=side B).
+            nslits (:obj:`int`):
+                Number of traced block-slits.
+
+        Returns:
+            :obj:`list`: The fiber blocks from :func:`get_fiber_blocks`.
+
+        Raises:
+            :class:`~pypeit.PypeItError`:
+                If the reference block count does not equal ``nslits``.
+        """
+        blocks = self.get_fiber_blocks(det)
+        if len(blocks) != nslits:
+            raise PypeItError(
+                f"DET{det:02d}: reference fiber-block count ({len(blocks)}) "
+                f"does not match the traced block-slit count ({nslits}).  A "
+                f"block-slit was likely dropped or merged during edge "
+                f"tracing, breaking the block-to-slit correspondence required "
+                f"for fiber assignment.  Check the slit-edge tracing for this "
+                f"detector.")
+        return blocks
+
     def identify_fibers_in_block(self, det, block_idx, detected_positions):
         """
         Identify fibers within a block-slit by matching detected peak positions
@@ -2073,15 +2100,13 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
                 - 'sci_avg': mean flux of science fibers
                 - 'bulk_scale': sci_avg / sky_avg (scalar)
         """
-        blocks = self.get_fiber_blocks(det)
+        blocks = self._require_block_slit_match(det, slits.nslits)
         slitmask = slits.slit_img(pad=0)
 
         all_flux = []
         all_type = []
 
         for block_idx, block in enumerate(blocks):
-            if block_idx >= slits.nslits:
-                break
             slit_spat_id = slits.spat_id[block_idx]
             thismask = slitmask == slit_spat_id
             if not np.any(thismask):
@@ -2349,11 +2374,9 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             `numpy.ndarray`_: Boolean array of shape (nslits,), True for
             sky block-slits.
         """
-        blocks = self.get_fiber_blocks(det)
+        blocks = self._require_block_slit_match(det, nslits)
         sky_mask = np.zeros(nslits, dtype=bool)
         for i, block in enumerate(blocks):
-            if i >= nslits:
-                break
             if block['type'] == 'sky':
                 sky_mask[i] = True
         return sky_mask
