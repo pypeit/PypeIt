@@ -18,6 +18,7 @@ import numpy as np
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import dataPaths
+from pypeit.pkg.pypeitdata import PypeItDataPath
 from pypeit import io
 from pypeit import log
 from pypeit import PypeItError
@@ -1484,9 +1485,9 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         return xbins, ybins, spec_bins
 
     @staticmethod
-    def _ifu_calib_path() -> Path:
+    def _ifu_calib_path() -> PypeItDataPath:
         """Return the path to the IFU calibration data directory."""
-        return Path(__file__).resolve().parent.parent / 'data' / 'spectrographs' / 'mmt_binospec'
+        return dataPaths.spectrographs / 'mmt_binospec'
 
     def load_fiber_ref_profile(self, det: int) -> fits.FITS_rec:
         """
