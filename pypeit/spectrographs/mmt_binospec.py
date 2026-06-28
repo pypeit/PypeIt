@@ -1204,11 +1204,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
-        if meta_key in ('ra', 'dec'):
-            return headarr[0][meta_key.upper()]
-        elif meta_key == 'exptime':
-            return headarr[0]['EXPTIME']
-        elif meta_key == 'slitwid':
+        if meta_key == 'slitwid':
             # IFU fiber pitch on sky, converted to degrees for WCS
             return self.ifu_fiber_pitch / 3600.0
         elif meta_key == 'obstime':
