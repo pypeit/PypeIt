@@ -954,9 +954,6 @@ class FiberExtract(Extract):
 
     See parent doc string for Args and Attributes.
     """
-    def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
-        super().__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
-
     def local_skysub_extract(self, global_sky, sobjs, bkg_redux_global_sky=None,
                              spat_pix=None, model_noise=True,
                              show_resids=False, show_profile=False, show=False):
