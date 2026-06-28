@@ -33,11 +33,17 @@ def test_fiberflatimages_io():
     ffi.to_file(str(ofile), overwrite=True)
     _ffi = FiberFlatImages.from_file(str(ofile))
 
-    assert np.allclose(ffi.normflat, _ffi.normflat)
-    assert np.allclose(ffi.normflat_wave, _ffi.normflat_wave)
-    assert np.isclose(ffi.global_norm, _ffi.global_norm)
-    assert np.array_equal(ffi.fiber_ids, _ffi.fiber_ids)
-    assert _ffi.PYP_SPEC == 'mmt_binospec_ifu'
+    assert np.allclose(ffi.normflat, _ffi.normflat), \
+        "normflat should survive the FITS I/O round-trip unchanged"
+    assert np.allclose(ffi.normflat_wave, _ffi.normflat_wave), \
+        "normflat_wave should survive the FITS I/O round-trip unchanged"
+    assert np.isclose(ffi.global_norm, _ffi.global_norm), \
+        f"global_norm should round-trip; wrote {ffi.global_norm}, " \
+        f"read {_ffi.global_norm}"
+    assert np.array_equal(ffi.fiber_ids, _ffi.fiber_ids), \
+        "fiber_ids should survive the FITS I/O round-trip unchanged"
+    assert _ffi.PYP_SPEC == 'mmt_binospec_ifu', \
+        f"PYP_SPEC should round-trip as 'mmt_binospec_ifu', got {_ffi.PYP_SPEC!r}"
 
     ofile.unlink()
 

@@ -69,7 +69,9 @@ def test_uniform_throughput_gives_unit_correction():
     # Correction should track the random throughput variation (~5%),
     # so individual fibers may deviate from 1.0, but the median
     # correction across all fibers should be ~1.0
-    assert np.abs(np.median(corr[slitmask > 0]) - 1.0) < 0.02
+    assert np.abs(np.median(corr[slitmask > 0]) - 1.0) < 0.02, \
+        "uniform throughput should give a median correction of ~1.0, got " \
+        f"{np.median(corr[slitmask > 0]):.4f}"
 
 
 def test_sky_fibers_get_higher_correction():
@@ -81,7 +83,9 @@ def test_sky_fibers_get_higher_correction():
     # Sky fiber pixels should have correction > 1
     for i in sky_idx:
         sky_pix = slitmask == spat_ids[i]
-        assert np.median(corr[sky_pix]) > 1.1
+        assert np.median(corr[sky_pix]) > 1.1, \
+            f"sky fiber {spat_ids[i]} (30% throughput boost) should get a " \
+            f"correction > 1.1, got {np.median(corr[sky_pix]):.3f}"
 
 
 def test_correction_normalizes_sky_level():
@@ -109,7 +113,9 @@ def test_correction_normalizes_sky_level():
     # After correction, sky and science fibers should have similar
     # flux (within 5%)
     ratio = np.mean(sky_flux) / np.mean(sci_flux)
-    assert abs(ratio - 1.0) < 0.05
+    assert abs(ratio - 1.0) < 0.05, \
+        "after correction, sky/science sky-line flux ratio should be ~1.0 " \
+        f"(within 5%), got {ratio:.4f}"
 
 
 def test_no_lines_in_range():
@@ -118,7 +124,9 @@ def test_no_lines_in_range():
         wmin=3000.0, wmax=4000.0)
     corr = spec.compute_skyline_illum(
         sciimg, waveimg, slitmask, spat_ids)
-    assert np.allclose(corr, 1.0)
+    assert np.allclose(corr, 1.0), \
+        "no sky lines in the wavelength range should yield a unit " \
+        "(all-ones) correction"
 
 
 def test_extreme_corrections_clipped():
@@ -127,5 +135,7 @@ def test_extreme_corrections_clipped():
         sky_fiber_boost=5.0)
     corr = spec.compute_skyline_illum(
         sciimg, waveimg, slitmask, spat_ids)
-    assert np.all(corr >= 0.3)
-    assert np.all(corr <= 3.0)
+    assert np.all(corr >= 0.3), \
+        f"corrections must be clipped to >= 0.3, min was {corr.min():.3f}"
+    assert np.all(corr <= 3.0), \
+        f"corrections must be clipped to <= 3.0, max was {corr.max():.3f}"

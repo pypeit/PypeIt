@@ -28,7 +28,8 @@ _IFU_SPEC = MMTBINOSPECIFUSpectrograph()
 def test_sky_line_mask_marks_each_line():
     wave = np.array(_SKY_LINE_WAVELENGTHS, dtype=float)
     mask = sky_line_mask(wave)
-    assert mask.shape == wave.shape
+    assert mask.shape == wave.shape, \
+        f"mask shape {mask.shape} should match wave shape {wave.shape}"
     assert np.all(mask), 'Each sky-line wavelength itself should be masked'
 
 
@@ -36,7 +37,8 @@ def test_sky_line_mask_excludes_far_wavelengths():
     # 5000 Angstrom is well clear of every line in the table
     wave = np.array([5000.0, 5577.34, 5000.0], dtype=float)
     mask = sky_line_mask(wave)
-    assert mask.tolist() == [False, True, False]
+    assert mask.tolist() == [False, True, False], \
+        f"only the 5577.34 sky line should be masked, got {mask.tolist()}"
 
 
 def test_sky_line_mask_halfwidth_boundary():
@@ -45,7 +47,9 @@ def test_sky_line_mask_halfwidth_boundary():
     inside = line + _SKY_LINE_MASK_HALFWIDTH - 0.01
     outside = line + _SKY_LINE_MASK_HALFWIDTH + 0.01
     mask = sky_line_mask(np.array([inside, outside]))
-    assert mask.tolist() == [True, False]
+    assert mask.tolist() == [True, False], \
+        "point just inside the halfwidth should be masked and just outside " \
+        f"not, got {mask.tolist()}"
 
 
 def _fake_header(ra=180.0, dec=30.0, posang=0.0):
@@ -60,8 +64,8 @@ def test_project_to_sky_origin():
     """Fiber at offset (0,0) should land on the pointing."""
     hdr = _fake_header(ra=180.0, dec=30.0, posang=0.0)
     ra, dec = project_to_sky(np.array([0.0]), np.array([0.0]), hdr, _IFU_SPEC)
-    assert ra.shape == (1,)
-    assert dec.shape == (1,)
+    assert ra.shape == (1,), f"ra should have shape (1,), got {ra.shape}"
+    assert dec.shape == (1,), f"dec should have shape (1,), got {dec.shape}"
     np.testing.assert_allclose(ra, 180.0, atol=1e-9)
     np.testing.assert_allclose(dec, 30.0, atol=1e-9)
 
@@ -115,7 +119,8 @@ def test_compute_fiber_fluxes_basic():
 
     out = compute_fiber_fluxes(waves, fluxes,
                                 wave_min=4000.0, wave_max=5000.0)
-    assert out.shape == (2,)
+    assert out.shape == (2,), \
+        f"expected one summed flux per fiber, shape (2,), got {out.shape}"
     # No sky lines fall in 4000-5000 Angstrom, so every pixel is summed.
     np.testing.assert_allclose(out, [wave.size, wave.size])
 
@@ -185,8 +190,10 @@ def test_resample_and_combine_offset_grids():
     out_w, out_f, out_iv = resample_and_combine([w0, w1], [f0, f1],
                                                   [iv0, iv1])
     # The output grid is restricted to the overlap [4050, 4100].
-    assert out_w[0] >= 4050.0
-    assert out_w[-1] <= 4100.0
+    assert out_w[0] >= 4050.0, \
+        f"output grid should start at the overlap (>= 4050), got {out_w[0]:.2f}"
+    assert out_w[-1] <= 4100.0, \
+        f"output grid should end at the overlap (<= 4100), got {out_w[-1]:.2f}"
     # Both fibers contribute on the overlap → flux ≈ 2
     np.testing.assert_allclose(out_f, 2.0 * np.ones_like(out_w), atol=1e-6)
 
@@ -307,14 +314,17 @@ def test_load_fibers_drops_sky_and_returns_native_arrays():
 
     fibers = load_fibers(sobjs, spec, targetx, targety, prefix='OPT')
     # Two science fibers survive: DET01 #0 and DET02 #0.
-    assert len(fibers) == 2
-    assert fibers[0]['fiber_type'] != 'SKY'
+    assert len(fibers) == 2, \
+        f"two science fibers should survive (sky dropped), got {len(fibers)}"
+    assert fibers[0]['fiber_type'] != 'SKY', \
+        f"surviving fibers must be science, got {fibers[0]['fiber_type']!r}"
     np.testing.assert_array_equal(fibers[0]['wave'], wave)
     np.testing.assert_array_equal(fibers[0]['flux'], flux)
     np.testing.assert_array_equal(fibers[0]['ivar'], ivar)
     # Spatial coords picked up from layout.
     xs = sorted(f['x'] for f in fibers)
-    assert xs == [0.0, 1.0]
+    assert xs == [0.0, 1.0], \
+        f"spatial x coords should be picked up from the layout, got {xs}"
 
 
 def test_load_fibers_boxcar_prefix():
@@ -373,33 +383,44 @@ def test_write_onespec_round_trip(tmp_path):
     hdr['OBJECT'] = 'TEST_OBJ'
     out = tmp_path / 'extract1d.fits'
     write_onespec(wave, flux, ivar, hdr, 'mmt_binospec_ifu', str(out))
-    assert out.exists()
+    assert out.exists(), f"write_onespec should create the output file {out}"
     # Round-trip via OneSpec.from_file
     one = OneSpec.from_file(str(out))
     np.testing.assert_allclose(one.wave, wave)
     np.testing.assert_allclose(one.flux, flux)
     np.testing.assert_allclose(one.ivar, ivar)
-    assert one.PYP_SPEC == 'mmt_binospec_ifu'
+    assert one.PYP_SPEC == 'mmt_binospec_ifu', \
+        f"PYP_SPEC should round-trip, got {one.PYP_SPEC!r}"
     # wave_grid_mid is not populated for a non-coadd write
-    assert one.wave_grid_mid is None
+    assert one.wave_grid_mid is None, \
+        f"wave_grid_mid should be None for a non-coadd write, got {one.wave_grid_mid}"
     # Raw header keys propagate through to the saved primary HDU
-    assert one.head0['RA'] == pytest.approx(180.0)
-    assert one.head0['DEC'] == pytest.approx(30.0)
-    assert one.head0['OBJECT'] == 'TEST_OBJ'
+    assert one.head0['RA'] == pytest.approx(180.0), \
+        f"RA header should propagate to the primary HDU, got {one.head0['RA']}"
+    assert one.head0['DEC'] == pytest.approx(30.0), \
+        f"DEC header should propagate to the primary HDU, got {one.head0['DEC']}"
+    assert one.head0['OBJECT'] == 'TEST_OBJ', \
+        f"OBJECT header should propagate to the primary HDU, got {one.head0['OBJECT']!r}"
 
 
 def test_parser_defaults():
     parser = BinospecIFUExtract.get_parser()
     args = parser.parse_args(['spec1d_xx.fits'])
-    assert args.spec1d_file == 'spec1d_xx.fits'
-    assert args.output is None
-    assert args.boxcar is False
+    assert args.spec1d_file == 'spec1d_xx.fits', \
+        f"positional spec1d_file misparsed: {args.spec1d_file!r}"
+    assert args.output is None, \
+        f"output should default to None, got {args.output!r}"
+    assert args.boxcar is False, \
+        f"boxcar should default to False, got {args.boxcar}"
 
 
 def test_parser_boxcar_and_output():
     parser = BinospecIFUExtract.get_parser()
     args = parser.parse_args(['spec1d_xx.fits', '-o', 'out.fits',
                               '--boxcar'])
-    assert args.spec1d_file == 'spec1d_xx.fits'
-    assert args.output == 'out.fits'
-    assert args.boxcar is True
+    assert args.spec1d_file == 'spec1d_xx.fits', \
+        f"positional spec1d_file misparsed: {args.spec1d_file!r}"
+    assert args.output == 'out.fits', \
+        f"-o should set output to 'out.fits', got {args.output!r}"
+    assert args.boxcar is True, \
+        f"--boxcar should set boxcar True, got {args.boxcar}"
