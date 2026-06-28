@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 import numpy as np
 from astropy.stats import sigma_clipped_stats
+from scipy.ndimage import uniform_filter1d
+from scipy.signal import correlate
 
 from pypeit import dataPaths
 from pypeit.pkg.pypeitdata import PypeItDataPath
@@ -27,6 +29,7 @@ from pypeit import utils
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import procimg
+from pypeit.core.moment import moment1d
 from pypeit.images import detector_container
 from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
@@ -1601,15 +1604,12 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         cd : `numpy.ndarray`_
             2x2 CD matrix ``[[cd11, cd12], [cd21, cd22]]`` in degrees.
         """
-        from astropy import units as u
-        from astropy.coordinates import SkyCoord
-
         raval = raw_hdr.get('RA', 0.0)
         decval = raw_hdr.get('DEC', 0.0)
         try:
-            coord = SkyCoord(raval, decval, unit=(u.hourangle, u.deg))
+            coord = SkyCoord(raval, decval, unit=(units.hourangle, units.deg))
         except Exception:
-            coord = SkyCoord(raval, decval, unit=(u.deg, u.deg))
+            coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
 
         crota = np.radians(-raw_hdr.get('POSANG', 0.0))
         cdelt1 = -scale_arcsec / 3600.0  # RA decreases with +x (east is +RA)
@@ -1641,8 +1641,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             :obj:`tuple`: ``(left_edges, right_edges)`` arrays of shape
                 ``(nspec, nblocks)`` with constant slit edge positions.
         """
-        from scipy.signal import correlate
-
         blocks = self.get_fiber_blocks(det)
         nspec, nspat = traceimg.shape
 
@@ -1870,8 +1868,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         Returns:
             `numpy.ndarray`_: 2D scattered light model, same shape as image.
         """
-        from scipy.ndimage import uniform_filter1d
-
         nspec, nspat = image.shape
         scatt_img = np.zeros_like(image)
 
@@ -2071,8 +2067,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
                 - 'sci_avg': mean flux of science fibers
                 - 'bulk_scale': sci_avg / sky_avg (scalar)
         """
-        from pypeit.core.moment import moment1d
-
         blocks = self.get_fiber_blocks(det)
         slitmask = slits.slit_img(pad=0)
 
