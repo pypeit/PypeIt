@@ -1016,19 +1016,17 @@ class FiberExtract(Extract):
         extract_sky = global_sky if bkg_redux_global_sky is None \
             else bkg_redux_global_sky
 
-        # Extract each fiber.  For the Fiber pypeline the pseudo-slit edges
-        # sit on the outermost fibers, not on a physical edge, so the
-        # extraction aperture is allowed to spill into unassigned pixels
-        # (slitmask == -1, i.e. inter-block gaps and detector edges) to
-        # capture the fiber wings.  Pixels belonging to a different slit
-        # are always excluded.  For non-fiber pypelines the original
-        # in-slit-only mask is preserved.
+        # Extract each fiber.  FiberExtract is only ever dispatched for the
+        # Fiber pypeline, so the pseudo-slit edges sit on the outermost
+        # fibers, not on a physical edge: the extraction aperture is allowed
+        # to spill into unassigned pixels (slitmask == -1, i.e. inter-block
+        # gaps and detector edges) to capture the fiber wings.  Pixels
+        # belonging to a different slit are always excluded.
         #
         # The flat-derived empirical profile for each fiber is built
         # lazily per-iteration and discarded at the end of the iteration:
         # For Binospec IFU, caching all of them at once costs ~134 MB per
         # fiber on a 4k detector (~48 GB for 360 fibers).
-        is_fiber = self.spectrograph.pypeline == 'Fiber'
         n_opt = 0
         # thismask depends only on SLITID, so cache it per slit rather than
         # rebuilding a full-detector boolean array for every fiber.  Binospec
@@ -1037,14 +1035,11 @@ class FiberExtract(Extract):
         for sobj in self.sobjs:
             thismask = thismask_cache.get(sobj.SLITID)
             if thismask is None:
-                if is_fiber:
-                    # Fiber apertures may spill into unassigned pixels
-                    # (slitid_img == -1); only pixels owned by another slit
-                    # are excluded.
-                    thismask = ~((slitid_img != sobj.SLITID)
-                                 & (slitid_img != -1))
-                else:
-                    thismask = slitid_img == sobj.SLITID
+                # Fiber apertures may spill into unassigned pixels
+                # (slitid_img == -1); only pixels owned by another slit
+                # are excluded.
+                thismask = ~((slitid_img != sobj.SLITID)
+                             & (slitid_img != -1))
                 thismask_cache[sobj.SLITID] = thismask
             sobj_inmask = inmask & thismask
 
@@ -1069,16 +1064,11 @@ class FiberExtract(Extract):
                     count_scale=self.sciImg.img_scale,
                     noise_floor=self.sciImg.noise_floor)
                 n_opt += 1
-            elif not is_fiber:
-                # Fallback: per-row Horne extraction with Gaussian profile
-                # (not used for Fiber pypeline — empirical profiles required)
-                self._optimal_extract_fiber(
-                    sobj, slitid_img, inmask, global_sky, None)
             # Explicitly drop the per-fiber profile so peak memory stays
             # constant rather than scaling with fiber count.
             del oprof
 
-        if is_fiber and self.flatimg is not None:
+        if self.flatimg is not None:
             log.info(f"Empirical-profile optimal extraction succeeded for "
                      f"{n_opt}/{len(self.sobjs)} fibers")
 
@@ -1086,28 +1076,27 @@ class FiberExtract(Extract):
         # FiberFindObjects.  No wavelength-dependent flat division is
         # applied; spectral flattening is performed downstream by flux
         # calibration.
-        if self.spectrograph.pypeline == 'Fiber':
-            n_thru = 0
-            for sobj in self.sobjs:
-                thru_raw = getattr(sobj, 'fiber_throughput', None)
-                # Treat only None as "unset" so a genuine zero throughput
-                # falls through to the thru <= 0 guard below rather than
-                # being silently treated as 1.0.
-                thru = float(thru_raw) if thru_raw is not None else 1.0
-                if not np.isfinite(thru) or thru <= 0 or thru == 1.0:
-                    continue
-                if sobj.BOX_COUNTS is not None:
-                    sobj.BOX_COUNTS = sobj.BOX_COUNTS / thru
-                    sobj.BOX_COUNTS_IVAR = sobj.BOX_COUNTS_IVAR * thru**2
-                    if sobj.BOX_COUNTS_SKY is not None:
-                        sobj.BOX_COUNTS_SKY = sobj.BOX_COUNTS_SKY / thru
-                if sobj.OPT_COUNTS is not None:
-                    sobj.OPT_COUNTS = sobj.OPT_COUNTS / thru
-                    sobj.OPT_COUNTS_IVAR = sobj.OPT_COUNTS_IVAR * thru**2
-                    if sobj.OPT_COUNTS_SKY is not None:
-                        sobj.OPT_COUNTS_SKY = sobj.OPT_COUNTS_SKY / thru
-                n_thru += 1
-            log.info(f"Applied per-fiber throughput scalar to {n_thru} fibers")
+        n_thru = 0
+        for sobj in self.sobjs:
+            thru_raw = getattr(sobj, 'fiber_throughput', None)
+            # Treat only None as "unset" so a genuine zero throughput
+            # falls through to the thru <= 0 guard below rather than
+            # being silently treated as 1.0.
+            thru = float(thru_raw) if thru_raw is not None else 1.0
+            if not np.isfinite(thru) or thru <= 0 or thru == 1.0:
+                continue
+            if sobj.BOX_COUNTS is not None:
+                sobj.BOX_COUNTS = sobj.BOX_COUNTS / thru
+                sobj.BOX_COUNTS_IVAR = sobj.BOX_COUNTS_IVAR * thru**2
+                if sobj.BOX_COUNTS_SKY is not None:
+                    sobj.BOX_COUNTS_SKY = sobj.BOX_COUNTS_SKY / thru
+            if sobj.OPT_COUNTS is not None:
+                sobj.OPT_COUNTS = sobj.OPT_COUNTS / thru
+                sobj.OPT_COUNTS_IVAR = sobj.OPT_COUNTS_IVAR * thru**2
+                if sobj.OPT_COUNTS_SKY is not None:
+                    sobj.OPT_COUNTS_SKY = sobj.OPT_COUNTS_SKY / thru
+            n_thru += 1
+        log.info(f"Applied per-fiber throughput scalar to {n_thru} fibers")
 
         # Re-apply the per-fiber wavelength refinement cached by
         # FiberFindObjects._refine_fiber_wavelengths.  extract_boxcar /
@@ -1117,23 +1106,22 @@ class FiberExtract(Extract):
         # model was fit against.  Shift is the same scalar dlam offset for
         # both BOX_WAVE and OPT_WAVE because they share the same fiber
         # trace.
-        if self.spectrograph.pypeline == 'Fiber':
-            n_shift = 0
-            for sobj in self.sobjs:
-                shift_raw = getattr(sobj, 'wave_refine_shift_AA', None)
-                # Treat only None as "unset"; a real 0.0 shift is a no-op
-                # caught by the shift == 0.0 guard below.
-                shift = float(shift_raw) if shift_raw is not None else 0.0
-                if not np.isfinite(shift) or shift == 0.0:
-                    continue
-                if sobj.BOX_WAVE is not None:
-                    sobj.BOX_WAVE = sobj.BOX_WAVE + shift
-                if sobj.OPT_WAVE is not None:
-                    sobj.OPT_WAVE = sobj.OPT_WAVE + shift
-                n_shift += 1
-            if n_shift:
-                log.info(f"Applied cached per-fiber wavelength refinement "
-                         f"to {n_shift} fibers")
+        n_shift = 0
+        for sobj in self.sobjs:
+            shift_raw = getattr(sobj, 'wave_refine_shift_AA', None)
+            # Treat only None as "unset"; a real 0.0 shift is a no-op
+            # caught by the shift == 0.0 guard below.
+            shift = float(shift_raw) if shift_raw is not None else 0.0
+            if not np.isfinite(shift) or shift == 0.0:
+                continue
+            if sobj.BOX_WAVE is not None:
+                sobj.BOX_WAVE = sobj.BOX_WAVE + shift
+            if sobj.OPT_WAVE is not None:
+                sobj.OPT_WAVE = sobj.OPT_WAVE + shift
+            n_shift += 1
+        if n_shift:
+            log.info(f"Applied cached per-fiber wavelength refinement "
+                     f"to {n_shift} fibers")
 
         # Set the bit for pixels masked by extraction
         base_gpm = self.sciImg.select_flag(invert=True)
@@ -1264,96 +1252,3 @@ class FiberExtract(Extract):
         ws = weights.ravel()[mask_flat]
         prof[rs, cs] = ws
         return prof
-
-    def _optimal_extract_fiber(self, sobj, slitid_img, inmask, skymodel,
-                               empirical_profiles):
-        """
-        Perform per-row Horne (1986) optimal extraction for a single fiber.
-
-        Fallback method when flat-derived empirical profiles are not available.
-        Uses a Gaussian profile centered on the fiber trace with sigma derived
-        from the slit width.
-
-        Sets OPT_WAVE, OPT_COUNTS, OPT_COUNTS_IVAR, OPT_MASK,
-        OPT_COUNTS_SKY, OPT_COUNTS_SIG on the SpecObj.
-
-        Parameters
-        ----------
-        sobj : :class:`~pypeit.specobj.SpecObj`
-            The SpecObj for this fiber. Modified in place.
-        slitid_img : `numpy.ndarray`_
-            Slit ID image.
-        inmask : `numpy.ndarray`_
-            Good pixel mask (True = good).
-        skymodel : `numpy.ndarray`_
-            Sky model image.
-        empirical_profiles : :obj:`dict` or None
-            Not used in fallback mode (kept for interface compatibility).
-        """
-        nspec, nspat = self.sciImg.image.shape
-        onslit = slitid_img == sobj.SLITID
-        good = onslit & inmask
-
-        # Use the fiber trace and BOX_R_PIX for Gaussian profile
-        trace_center = sobj.TRACE_SPAT
-        # Sigma ~ half the fiber aperture / 2.3548 (FWHM -> sigma)
-        trace_sigma = np.full(nspec, sobj.BOX_R_PIX / 1.1774)  # half-FWHM -> sigma
-
-        opt_flux = np.zeros(nspec)
-        opt_ivar = np.zeros(nspec)
-        opt_wave = np.zeros(nspec)
-        opt_sky = np.zeros(nspec)
-        opt_mask = np.zeros(nspec, dtype=bool)
-
-        for row in range(nspec):
-            pix = good[row, :]
-            if not np.any(pix):
-                continue
-
-            cols = np.where(pix)[0]
-            # Restrict to pixels within BOX_R_PIX of the fiber trace
-            in_aperture = np.abs(cols - trace_center[row]) <= sobj.BOX_R_PIX
-            cols = cols[in_aperture]
-            if len(cols) == 0:
-                continue
-
-            opt_wave[row] = np.median(self.waveimg[row, cols])
-
-            sig = trace_sigma[row]
-            if sig < 0.1:
-                sig = 1.0
-            cen = trace_center[row]
-            profile = np.exp(-0.5 * ((cols - cen) / sig) ** 2)
-
-            psum = np.sum(profile)
-            if psum <= 0:
-                continue
-            profile = profile / psum
-
-            iv = self.sciImg.ivar[row, cols]
-            good_iv = iv > 0
-            if not np.any(good_iv):
-                continue
-
-            # Horne Eq. 8: flux = sum(P * ivar * data) / sum(P^2 * ivar)
-            denom = np.sum(profile[good_iv] ** 2 * iv[good_iv])
-            if denom <= 0:
-                continue
-
-            imgminsky_row = self.sciImg.image[row, cols] - skymodel[row, cols]
-            opt_flux[row] = np.sum(
-                profile[good_iv] * iv[good_iv]
-                * imgminsky_row[good_iv]) / denom
-            opt_sky[row] = np.sum(
-                profile[good_iv] * iv[good_iv]
-                * skymodel[row, cols[good_iv]]) / denom
-            # Horne Eq. 9: var = sum(P) / sum(P^2 * ivar)
-            opt_ivar[row] = denom / np.sum(profile[good_iv])
-            opt_mask[row] = True
-
-        sobj.OPT_WAVE = opt_wave
-        sobj.OPT_COUNTS = opt_flux
-        sobj.OPT_COUNTS_IVAR = opt_ivar
-        sobj.OPT_COUNTS_SIG = np.sqrt(utils.inverse(opt_ivar))
-        sobj.OPT_MASK = opt_mask
-        sobj.OPT_COUNTS_SKY = opt_sky
