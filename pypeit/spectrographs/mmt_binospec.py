@@ -2564,50 +2564,8 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             nmax = min(nmax, nx - 1)
 
             x_seg[iseg] = (nmax + nmin) / 2.0
-
-            # Cosine apodization window
-            seg_len = nmax - nmin + 1
-            ntaper = 10
-            c_ap = np.ones(seg_len)
-            taper = 0.5 * (1 - np.cos(np.pi * np.arange(ntaper) / ntaper))
-            c_ap[:ntaper] = taper
-            c_ap[-ntaper:] = taper[::-1]
-
-            # Apply apodization to absolute values (like IDL)
-            seg_det = np.abs(det_profile[nmin:nmax + 1]) * c_ap
-            seg_ref = np.abs(ref_profile[nmin:nmax + 1]) * c_ap
-
-            # Cross-correlate and extract +/- M lag range
-            corr = np.correlate(seg_det, seg_ref, mode='full')
-            n = len(seg_det)
-            lag = np.arange(len(corr)) - (n - 1)
-            lag_mask = np.abs(lag) <= M
-            corr_sub = corr[lag_mask]
-            lag_sub = lag[lag_mask]
-
-            # Normalize
-            norm = np.sqrt(np.sum(seg_det ** 2) * np.sum(seg_ref ** 2))
-            if norm > 0:
-                corr_sub = corr_sub / norm
-
-            max_idx = np.argmax(corr_sub)
-            max_val = corr_sub[max_idx]
-
-            # Quality check and sub-pixel peak fit (like IDL)
-            dx_cpeak = 4
-            if (max_val >= 0.3
-                    and max_idx > dx_cpeak
-                    and max_idx < len(corr_sub) - dx_cpeak):
-                # Parabolic sub-pixel interpolation
-                left = corr_sub[max_idx - 1]
-                center = corr_sub[max_idx]
-                right = corr_sub[max_idx + 1]
-                denom = left - 2 * center + right
-                if denom != 0:
-                    delta = 0.5 * (left - right) / denom
-                else:
-                    delta = 0.0
-                c_seg[iseg] = lag_sub[max_idx] + delta
+            c_seg[iseg] = self._segment_xcorr_offset(
+                det_profile, ref_profile, nmin, nmax, M)
 
         # Fit linear polynomial to segment offsets
         valid = np.isfinite(c_seg)
@@ -2677,6 +2635,84 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
                  f"{np.sum(is_dead)} dead fibers)")
 
         return fiber_ids, is_sky, is_dead
+
+    @staticmethod
+    def _segment_xcorr_offset(det_profile, ref_profile, nmin, nmax, max_lag,
+                              ntaper=10, min_corr=0.3, dx_cpeak=4):
+        """
+        Cross-correlate one spatial segment and return its sub-pixel offset.
+
+        Helper for :meth:`match_fibers_to_reference`, invoked once per
+        segment.  The segment ``[nmin, nmax]`` of the detected and reference
+        profiles is cosine-apodized at both ends, the two are cross-correlated
+        over ``+/- max_lag`` pixels and normalized, and the correlation peak
+        is refined by parabolic interpolation.  Mirrors the per-segment logic
+        of the IDL pipeline (``bino_ifu_fiber_id.pro``).
+
+        Args:
+            det_profile (`numpy.ndarray`_):
+                Synthetic spatial profile built from the detected fiber
+                positions.
+            ref_profile (`numpy.ndarray`_):
+                Reference spatial profile.
+            nmin, nmax (:obj:`int`):
+                Inclusive segment boundary columns.
+            max_lag (:obj:`int`):
+                Maximum cross-correlation lag in pixels.
+            ntaper (:obj:`int`, optional):
+                Width of the cosine taper at each segment end.
+            min_corr (:obj:`float`, optional):
+                Minimum normalized correlation peak required to accept the
+                segment.
+            dx_cpeak (:obj:`int`, optional):
+                Required margin (in lag bins) between the peak and the
+                lag-window edge for sub-pixel interpolation.
+
+        Returns:
+            :obj:`float`: Sub-pixel lag offset of the correlation peak, or
+            ``np.nan`` if the segment is rejected (weak correlation or peak
+            too close to the lag-window edge).
+        """
+        # Cosine apodization window
+        seg_len = nmax - nmin + 1
+        c_ap = np.ones(seg_len)
+        taper = 0.5 * (1 - np.cos(np.pi * np.arange(ntaper) / ntaper))
+        c_ap[:ntaper] = taper
+        c_ap[-ntaper:] = taper[::-1]
+
+        # Apply apodization to absolute values (like IDL)
+        seg_det = np.abs(det_profile[nmin:nmax + 1]) * c_ap
+        seg_ref = np.abs(ref_profile[nmin:nmax + 1]) * c_ap
+
+        # Cross-correlate and extract +/- max_lag lag range
+        corr = np.correlate(seg_det, seg_ref, mode='full')
+        n = len(seg_det)
+        lag = np.arange(len(corr)) - (n - 1)
+        lag_mask = np.abs(lag) <= max_lag
+        corr_sub = corr[lag_mask]
+        lag_sub = lag[lag_mask]
+
+        # Normalize
+        norm = np.sqrt(np.sum(seg_det ** 2) * np.sum(seg_ref ** 2))
+        if norm > 0:
+            corr_sub = corr_sub / norm
+
+        max_idx = np.argmax(corr_sub)
+        max_val = corr_sub[max_idx]
+
+        # Quality check and sub-pixel peak fit (like IDL)
+        if not (max_val >= min_corr
+                and max_idx > dx_cpeak
+                and max_idx < len(corr_sub) - dx_cpeak):
+            return np.nan
+
+        # Parabolic sub-pixel interpolation
+        left = corr_sub[max_idx - 1]
+        center = corr_sub[max_idx]
+        right = corr_sub[max_idx + 1]
+        denom = left - 2 * center + right
+        delta = 0.5 * (left - right) / denom if denom != 0 else 0.0
+        return lag_sub[max_idx] + delta
 
     def get_fiber_metadata(self, det, slit_spat_ids, slit_centers=None):
         """
