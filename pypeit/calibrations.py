@@ -1938,9 +1938,6 @@ class IFUCalibrations(Calibrations):
         if self.spectrograph.pypeline != 'Fiber':
             return super().get_flats(force=force)
 
-        # Import fiber-specific classes
-        from pypeit.flatfield import FiberFlatField, FiberFlatImages
-
         # Initialize fiber_flatimages attribute
         self.fiber_flatimages = None
 
@@ -2013,11 +2010,11 @@ class IFUCalibrations(Calibrations):
             self.slits.mask_flats(self.flatimages)
             # Try to load existing FiberFlatImages
             fiber_calib_key = f'{setup}_{CalibFrame.construct_calib_id(calib_id)}'
-            tmp_ffi = FiberFlatImages()
+            tmp_ffi = flatfield.FiberFlatImages()
             tmp_ffi.set_paths(self.calib_dir, fiber_calib_key, detname)
             ffi_path = tmp_ffi.get_path()
             if ffi_path.exists():
-                self.fiber_flatimages = FiberFlatImages.from_file(
+                self.fiber_flatimages = flatfield.FiberFlatImages.from_file(
                     ffi_path, chk_version=self.chk_version)
             return self.flatimages
 
@@ -2060,7 +2057,7 @@ class IFUCalibrations(Calibrations):
             pixel_flat = pixel_flat.sub(lampoff_flat)
 
         # Instantiate FiberFlatField instead of FlatField
-        fiberFlatField = FiberFlatField(
+        fiberFlatField = flatfield.FiberFlatField(
             pixel_flat, self.spectrograph, self.par['flatfield'],
             self.slits, wavetilts=self.wavetilts, wv_calib=self.wv_calib,
             qa_path=self.qa_path, calib_key=calib_key)
