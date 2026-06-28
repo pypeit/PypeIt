@@ -1205,8 +1205,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key in ('ra', 'dec'):
-            hdrstr = 'RA' if meta_key == 'ra' else 'DEC'
-            return headarr[0][hdrstr]
+            return headarr[0][meta_key.upper()]
         elif meta_key == 'exptime':
             return headarr[0]['EXPTIME']
         elif meta_key == 'slitwid':
