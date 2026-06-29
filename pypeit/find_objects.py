@@ -1921,9 +1921,8 @@ class FiberFindObjects(FindObjects):
         # ``sqrt(sig_fiber^2 - sig_ref^2)`` and only applied above a
         # 0.2 px threshold.  Models the IDL pipeline
         # ``bino_sub_sky_ms.pro`` per-row broadening step.
-        fiber_sig = self._measure_fiber_lsf(sobjs, sset, wave_min, wave_max)
-        if fiber_sig:
-            self._broaden_sky_per_fiber(sobjs, fiber_sig)
+        if self._measure_fiber_lsf(sobjs, sset, wave_min, wave_max):
+            self._broaden_sky_per_fiber(sobjs)
 
         # Distribute each fiber's per-row sky total across its aperture using
         # the empirical flat profile (unit sum per row).  Profiles are built
@@ -2089,8 +2088,10 @@ class FiberFindObjects(FindObjects):
 
         Returns
         -------
-        fiber_sig : dict
-            ``id(sobj) -> sigma_pix`` for fibers with a usable value.
+        n_measured : int
+            Number of fibers for which a usable LSF sigma was measured and
+            stored on ``sobj.fiber_lsf_sigma_pix`` (pixels).  Fibers without
+            a usable value are left with ``fiber_lsf_sigma_pix = None``.
         """
 
         n_wave_search = 4000
@@ -2099,23 +2100,23 @@ class FiberFindObjects(FindObjects):
             mdl, _ = sset.value(grid_w, x2=np.full_like(grid_w, 0.5))
         except Exception as e:
             log.warning(f"Could not evaluate bspline for LSF line search: {e}")
-            return {}
+            return 0
         finite = np.isfinite(mdl)
         if not finite.any():
-            return {}
+            return 0
         base = float(np.nanmedian(mdl[finite]))
         noise = 1.4826 * float(np.nanmedian(np.abs(mdl[finite] - base)))
         if not np.isfinite(noise) or noise <= 0:
-            return {}
+            return 0
         peaks, _ = find_peaks(mdl, height=base + 25.0 * noise, distance=20)
         if peaks.size == 0:
             log.warning("No bright lines found in bspline model for LSF "
                         "measurement; skipping per-fiber sky broadening")
-            return {}
+            return 0
         order = np.argsort(mdl[peaks])[::-1]
         line_waves = grid_w[peaks[order][:n_lines]]
 
-        fiber_sig = {}
+        n_measured = 0
         for sobj in sobjs:
             fwhm = getattr(sobj, 'BOX_FWHM', None)
             wave = sobj.BOX_WAVE
@@ -2143,28 +2144,32 @@ class FiberFindObjects(FindObjects):
                 if 0.3 <= sig_px <= 3.0:
                     sigs.append(sig_px)
             if sigs:
-                fiber_sig[id(sobj)] = float(np.median(sigs))
-        return fiber_sig
+                sobj.fiber_lsf_sigma_pix = float(np.median(sigs))
+                n_measured += 1
+        return n_measured
 
-    def _broaden_sky_per_fiber(self, sobjs, fiber_sig, threshold_pix=0.2):
+    def _broaden_sky_per_fiber(self, sobjs, threshold_pix=0.2):
         """
         Gaussian-convolve each fiber's predicted 1D sky to its observed LSF.
 
-        Reference sigma is the median over **science** fibers (the dominant
-        population in the joint bspline fit, so the model sits closest to
-        their LSF).  Each fiber whose own sigma exceeds the reference is
-        broadened by ``sqrt(sig_fiber^2 - sig_ref^2)`` in row-index space
-        (one row = one spectral pixel), only applied above ``threshold_pix``
-        (default 0.2 px, matches the IDL pipeline).
+        Reads the per-fiber LSF sigma stored on ``sobj.fiber_lsf_sigma_pix``
+        by :meth:`_measure_fiber_lsf`.  Reference sigma is the median over
+        **science** fibers (the dominant population in the joint bspline fit,
+        so the model sits closest to their LSF).  Each fiber whose own sigma
+        exceeds the reference is broadened by ``sqrt(sig_fiber^2 - sig_ref^2)``
+        in row-index space (one row = one spectral pixel), only applied above
+        ``threshold_pix`` (default 0.2 px, matches the IDL pipeline).
         ``scipy.ndimage.gaussian_filter1d`` is flux-preserving so per-fiber
         total sky counts are conserved.
         """
 
+        all_sigs = []
         sci_sigs = []
         for sobj in sobjs:
-            sig = fiber_sig.get(id(sobj))
+            sig = getattr(sobj, 'fiber_lsf_sigma_pix', None)
             if sig is None:
                 continue
+            all_sigs.append(sig)
             name = sobj.MASKDEF_OBJNAME
             if name is None or not str(name).upper().startswith('SKY'):
                 sci_sigs.append(sig)
@@ -2172,13 +2177,13 @@ class FiberFindObjects(FindObjects):
             sig_ref = float(np.median(sci_sigs))
             ref_src = f"median of {len(sci_sigs)} sci fibers"
         else:
-            sig_ref = float(np.min(list(fiber_sig.values())))
-            ref_src = f"min of {len(fiber_sig)} fibers (no sci available)"
+            sig_ref = float(np.min(all_sigs))
+            ref_src = f"min of {len(all_sigs)} fibers (no sci available)"
 
         n_broad = 0
         deltas = []
         for sobj in sobjs:
-            sig = fiber_sig.get(id(sobj))
+            sig = getattr(sobj, 'fiber_lsf_sigma_pix', None)
             if sig is None or sobj.BOX_COUNTS_SKY is None:
                 continue
             diff_sq = sig ** 2 - sig_ref ** 2

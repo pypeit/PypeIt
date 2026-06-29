@@ -254,6 +254,10 @@ class SpecObj(datamodel.DataContainer):
                 # applied to OPT_WAVE/BOX_WAVE after extraction so the
                 # extracted spectrum is self-consistent with the sky model.
                 'wave_refine_shift_AA',
+                # Fiber pypeline per-fiber spectral LSF sigma (pixels),
+                # measured from the arc-line FWHM and used to broaden the
+                # predicted 1D sky to each fiber's own LSF.
+                'fiber_lsf_sigma_pix',
                 ]
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
