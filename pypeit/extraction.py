@@ -1140,6 +1140,27 @@ class FiberExtract(Extract):
         """
         Build one fiber's empirical spatial profile from the flat field.
 
+        This is the 2D ``oprof`` image that
+        :func:`~pypeit.core.extract.extract_optimal` requires -- the same
+        ``(nspec, nspat)`` profile interface the MultiSlit/Echelle pypelines
+        use, except it is populated empirically from the flat (each fiber's
+        measured spatial PSF, wings included) rather than from a fitted or
+        analytic Gaussian.
+
+        Algorithm, per spectral row:
+
+          1. Take the spatial aperture of half-width ``BOX_R_PIX`` centered
+             on the fiber trace, keeping only pixels on this fiber's slit
+             (or in the unassigned ``slitmask == -1`` gap; see below).
+          2. Weight each aperture pixel by its flat value and normalize the
+             row to unit sum -- the empirical PSF.  If too few aperture
+             pixels carry a usable flat value, fall back to a uniform
+             ``1 / n_aperture_pixels`` weight (see below).
+
+        The rest of the function is just a vectorized form of that per-row
+        loop (see "Vectorized across rows" below); it is bit-identical to
+        the legacy row-loop implementation.
+
         Returns a fresh ``(nspec, nspat)`` profile each call so callers can
         process and discard one fiber at a time -- caching the dense profile
         for every fiber simultaneously would cost ~134 MB per fiber on a
