@@ -38,7 +38,7 @@ class BinospecIFUExtract(scriptbase.ScriptBase):
 
     @classmethod
     def main(cls, args: argparse.Namespace) -> None:
-        import os
+        from pathlib import Path
 
         import numpy as np
         from astropy.io import fits
@@ -51,10 +51,10 @@ class BinospecIFUExtract(scriptbase.ScriptBase):
 
         cls.init_log(args)
 
-        if not os.path.basename(args.spec1d_file).startswith('spec1d_'):
+        if not Path(args.spec1d_file).name.startswith('spec1d_'):
             raise PypeItError(
                 f"Only spec1d files are supported; got "
-                f"{os.path.basename(args.spec1d_file)}")
+                f"{Path(args.spec1d_file).name}")
 
         log.info(f"Loading {args.spec1d_file}")
         sobjs = SpecObjs.from_fitsfile(args.spec1d_file)
@@ -90,7 +90,7 @@ class BinospecIFUExtract(scriptbase.ScriptBase):
         if args.output is not None:
             outfile = args.output
         else:
-            base = os.path.splitext(os.path.basename(args.spec1d_file))[0]
+            base = Path(args.spec1d_file).stem
             if 'spec1d_' in base:
                 base = base.replace('spec1d_', 'extract1d_')
             outfile = base + '.fits'

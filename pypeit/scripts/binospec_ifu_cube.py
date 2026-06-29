@@ -48,7 +48,7 @@ class BinospecIFUCube(scriptbase.ScriptBase):
 
     @classmethod
     def main(cls, args: argparse.Namespace) -> None:
-        import os
+        from pathlib import Path
 
         from astropy.io import fits
 
@@ -80,9 +80,9 @@ class BinospecIFUCube(scriptbase.ScriptBase):
 
         # Only spec1d files are supported
         for f in input_files:
-            if not os.path.basename(f).startswith('spec1d'):
+            if not Path(f).name.startswith('spec1d'):
                 raise PypeItError(
-                    f"Only spec1d files are supported; got {os.path.basename(f)}")
+                    f"Only spec1d files are supported; got {Path(f).name}")
 
         log.info(f"Processing {len(input_files)} spec1d file(s)")
 
@@ -100,7 +100,7 @@ class BinospecIFUCube(scriptbase.ScriptBase):
         # Process each file into a separate datacube
         # ----------------------------------------------------------------
         for input_file in input_files:
-            log.info(f"Building datacube for {os.path.basename(input_file)}")
+            log.info(f"Building datacube for {Path(input_file).name}")
             datacube.build_cube_from_spec1d(
                 input_file, spectrograph, targetx, targety,
                 boxcar=args.boxcar, spatial_scale=args.spatial_scale,

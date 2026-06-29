@@ -4,7 +4,7 @@ spec1d file and extracting a combined 1D spectrum.
 
 .. include:: ../include/links.rst
 """
-import os
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -432,12 +432,12 @@ class BinospecIFUExtractGUI:
             The first ``..._<NN>.fits`` path (NN starting at ``00``) that does
             not yet exist.
         """
-        root, ext = os.path.splitext(self.outfile)
+        path = Path(self.outfile)
         n = 0
         while True:
-            candidate = f"{root}_{n:02d}{ext}"
-            if not os.path.exists(candidate):
-                return candidate
+            candidate = path.with_name(f"{path.stem}_{n:02d}{path.suffix}")
+            if not candidate.exists():
+                return str(candidate)
             n += 1
 
     def _on_reset(self, event):

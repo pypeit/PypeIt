@@ -19,6 +19,9 @@ astronomical telescopes into calibrated spectra for scientific analysis.
 - Frequently fetch changes to the upstream base branch (`release` or `develop`)
   and rebase, as necessary.
 
+- Use `pathlib` (e.g. `Path(...).name`, `.stem`, `.with_name()`, `.exists()`)
+  for all new filesystem-path handling; prefer it over `os.path` in new code.
+
 - Additional development guidelines is provided in `doc/dev/development.rst`.
 
 ## Key Architectural Components
