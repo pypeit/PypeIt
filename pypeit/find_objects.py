@@ -1401,12 +1401,24 @@ class FiberFindObjects(FindObjects):
 
         Fast path: single :func:`~pypeit.core.moment.moment1d` call per
         boxcar quantity with the per-fiber traces stacked into a
-        ``(nspec, nfib)`` column array, replacing 360 round trips through
-        :func:`~pypeit.core.extract.extract_boxcar`.  Bit-identical to the
-        legacy per-fiber loop, ~30x faster.  Requires uniform
-        ``BOX_R_PIX`` across fibers and that no aperture crosses into a
-        different slit; either guard failure trips a fallback to the
-        legacy loop.
+        ``(nspec, nfib)`` column array, replacing one round trip through
+        :func:`~pypeit.core.extract.extract_boxcar` per fiber.
+        Bit-identical to the legacy per-fiber loop, ~30x faster.
+
+        Two preconditions guard the fast path, with a fallback to the
+        per-fiber loop if either fails:
+
+        * Uniform ``BOX_R_PIX`` across fibers, so a single scalar boxcar
+          width can be used.  ``moment1d`` accepts a per-element ``width``
+          array, but it sizes its integration column grid to the *minimum*
+          aperture width across all elements (``moment.py``, the
+          ``np.amin(i2-i1)`` term), so a varying ``width`` would silently
+          truncate the wider apertures rather than reproduce the per-fiber
+          boxcars.  The loop fallback uses correct per-fiber scalar widths.
+        * No aperture crosses into a different block-slit, which would
+          break the fast path's single global-mask assumption (never
+          happens for Binospec's ~70 px inter-block gaps; see
+          :meth:`_fiber_apertures_within_slit`).
         """
         if len(sobjs) == 0:
             return
@@ -1419,11 +1431,10 @@ class FiberFindObjects(FindObjects):
             return
 
         if not self._fiber_apertures_within_slit(sobjs):
-            log.warning("A fiber aperture crosses a slit boundary; "
+            log.warning("A fiber aperture crosses a block-slit boundary; "
                         "falling back to per-fiber boxcar pre-extract")
             self._preextract_fibers_loop(sobjs)
             return
-
 
         gpm = self.sciImg.select_flag(invert=True)
         trace_2d = np.column_stack(
