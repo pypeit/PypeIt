@@ -41,7 +41,6 @@ class BinospecIFUExtract(scriptbase.ScriptBase):
         from pathlib import Path
 
         import numpy as np
-        from astropy.io import fits
 
         from pypeit import log
         from pypeit.core import datacube
@@ -61,7 +60,9 @@ class BinospecIFUExtract(scriptbase.ScriptBase):
         if sobjs.nobj == 0:
             raise PypeItError(f"No objects in {args.spec1d_file}")
 
-        raw_hdr = fits.getheader(args.spec1d_file)
+        # SpecObjs already carries the primary header it was read from, so
+        # reuse it rather than opening the file a second time.
+        raw_hdr = sobjs.header.copy()
 
         spectrograph = load_spectrograph(raw_hdr['PYP_SPEC'])
         if spectrograph.name != 'mmt_binospec_ifu':
