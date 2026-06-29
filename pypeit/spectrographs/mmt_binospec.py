@@ -1221,7 +1221,8 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
                 return 20.0
         elif meta_key == 'parangle':
             try:
-                return headarr[1]['PA'] * np.pi / 180.0
+                # PypeIt stores parangle in radians (see pypeit.core.meta).
+                return np.deg2rad(headarr[1]['PA'])
             except KeyError:
                 log.warning("Parallactic angle not in header - using default (0)")
                 return 0.0
