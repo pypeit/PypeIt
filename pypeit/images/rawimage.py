@@ -1198,9 +1198,9 @@ class RawImage:
         `numpy.ndarray`_
             A copy of ``modpar`` with element 8 set to 0.
         """
-        modpar = modpar.copy()
-        modpar[8] = 0.0
-        return modpar
+        _modpar = modpar.copy()
+        _modpar[8] = 0.0
+        return _modpar
 
     def subtract_scattlight(self, msscattlight, slits, debug=False):
         """
