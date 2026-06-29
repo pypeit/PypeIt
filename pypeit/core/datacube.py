@@ -16,7 +16,7 @@ from scipy.interpolate import interp1d, griddata
 from scipy.spatial import QhullError
 import numpy as np
 
-from pypeit import log, utils, specobj, specobjs
+from pypeit import log, utils, specobj, specobjs, sampling
 from pypeit import PypeItError
 from pypeit.onespec import OneSpec
 from pypeit.core import coadd, extract, flux_calib
@@ -68,8 +68,6 @@ def resample_spec_to_grid(wave, flux, ivar, wave_grid, min_good=2, min_frac=0.5)
         Boolean mask, ``True`` where ``wave_grid`` is covered by the
         spectrum's native wavelength range.
     """
-    from pypeit import sampling
-
     wave_grid = np.asarray(wave_grid, dtype=float)
     flux_grid = np.zeros(wave_grid.shape, dtype=float)
     ivar_grid = np.zeros(wave_grid.shape, dtype=float)
