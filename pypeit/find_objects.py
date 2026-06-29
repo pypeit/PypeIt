@@ -1896,7 +1896,7 @@ class FiberFindObjects(FindObjects):
         for sobj in sobjs:
             if sobj.BOX_WAVE is None:
                 continue
-            thru = float(getattr(sobj, 'fiber_throughput', 1.0) or 1.0)
+            thru = float(getattr(sobj, 'fiber_throughput', 1.0))
             if not np.isfinite(thru) or thru <= 0:
                 thru = 1.0
             in_range = ((sobj.BOX_WAVE >= wave_min)
@@ -1996,7 +1996,7 @@ class FiberFindObjects(FindObjects):
                         continue
             if sobj.BOX_COUNTS is None or sobj.BOX_WAVE is None:
                 continue
-            thru = float(getattr(sobj, 'fiber_throughput', 1.0) or 1.0)
+            thru = float(getattr(sobj, 'fiber_throughput', 1.0))
             if not np.isfinite(thru) or thru <= 0:
                 thru = 1.0
             good = ((sobj.BOX_WAVE > 0)
@@ -2269,7 +2269,7 @@ class FiberFindObjects(FindObjects):
             if sobj.BOX_WAVE is None or sobj.BOX_COUNTS is None:
                 n_skip_box += 1
                 continue
-            thru = float(getattr(sobj, 'fiber_throughput', 1.0) or 1.0)
+            thru = float(getattr(sobj, 'fiber_throughput', 1.0))
             if not np.isfinite(thru) or thru <= 0:
                 thru = 1.0
             good = ((sobj.BOX_WAVE > wave_min)
