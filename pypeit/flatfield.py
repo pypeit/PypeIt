@@ -2032,8 +2032,7 @@ class FiberFlatField(FlatField):
                 # to derive ``fiber_throughput``) skips it.
                 box_width = 2.0 * box_r
                 min_good = box_width / 3.0
-                with np.errstate(divide='ignore', invalid='ignore'):
-                    scale = np.where(npix > 0, box_width / np.maximum(npix, 1.0), 1.0)
+                scale = np.where(npix > 0, box_width / np.maximum(npix, 1.0), 1.0)
                 heavy = npix < min_good
                 flux = flux * scale
                 flux_ivar = flux_ivar / np.maximum(scale, 1.0) ** 2
