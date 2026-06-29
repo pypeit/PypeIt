@@ -24,7 +24,7 @@ from pypeit.display import display
 from pypeit.core import skysub, qa, parse, flat, flexure
 from pypeit.core import procimg
 from pypeit.core import findobj_skymask
-from pypeit.core import extract as core_extract
+from pypeit.core import extract
 from pypeit.core.moment import moment1d
 from pypeit.core.fitting import iterfit
 from pypeit.flatfield import FiberFlatImages, FlatImages
@@ -1523,7 +1523,7 @@ class FiberFindObjects(FindObjects):
             inmask = gpm & ~other_slit
             try:
                 wave, flux, flux_ivar, _, _, box_gpm, fwhm, _, _, _, _ = \
-                    core_extract.extract_boxcar(
+                    extract.extract_boxcar(
                         sobj.BOX_R_PIX, sobj.TRACE_SPAT,
                         self.sciImg.image, self.sciImg.ivar,
                         inmask, self.waveimg, zero_sky,
