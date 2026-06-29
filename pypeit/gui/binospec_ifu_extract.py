@@ -17,6 +17,76 @@ from pypeit import log, PypeItError
 from pypeit.core import datacube
 
 
+# Bright optical sky lines (vacuum, Angstrom).  Used only for the integrated
+# per-fiber flux shown in the fiber-IFU extractor display, so that residual
+# sky-subtraction errors do not bias the per-fiber flux estimate.  Extraction
+# itself uses the full wavelength range.
+#
+# TODO: Replace this hand-rolled list with PypeIt's built-in sky-line
+#       resources (e.g. ``data/sky_spec/sky_single_mg.dat`` or the
+#       ``OH_*_lines.dat`` line lists; cf. the matching TODO in pypeit/qa.py),
+#       and expose the mask half-width as a GUI control rather than a module
+#       constant.
+_SKY_LINE_WAVELENGTHS = (
+    5577.34,                       # [OI]
+    5890.00, 5896.00,              # Na I D
+    6300.30, 6363.78,              # [OI]
+    7340.0, 7821.0, 8344.0, 8430.0, 8761.0, 8867.0,  # OH band centers (approx)
+)
+_SKY_LINE_MASK_HALFWIDTH = 10.0    # Angstrom
+
+
+def sky_line_mask(wave):
+    """Return a boolean mask that is ``True`` inside any sky-line region.
+
+    Parameters
+    ----------
+    wave : `numpy.ndarray`_
+        1D array of wavelengths in Angstrom.
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        1D boolean array, same shape as ``wave``, ``True`` where the
+        wavelength falls within ``_SKY_LINE_MASK_HALFWIDTH`` of any line
+        in ``_SKY_LINE_WAVELENGTHS``.
+    """
+    mask = np.zeros_like(wave, dtype=bool)
+    for lam in _SKY_LINE_WAVELENGTHS:
+        mask |= np.abs(wave - lam) < _SKY_LINE_MASK_HALFWIDTH
+    return mask
+
+
+def compute_fiber_fluxes(waves, fluxes, wave_min, wave_max):
+    """Per-fiber integrated flux with sky-line masking.
+
+    Each fiber is integrated over its **own** native wavelength grid, with
+    pixels in any sky-line region (see ``_SKY_LINE_WAVELENGTHS``) excluded.
+    Used to colour the fiber-IFU extractor display; the actual extracted
+    spectrum (:func:`pypeit.core.datacube.resample_and_combine`) is
+    unaffected.
+
+    Parameters
+    ----------
+    waves, fluxes : :obj:`list` of `numpy.ndarray`_
+        Per-fiber native wavelengths and fluxes (parallel lists).
+    wave_min, wave_max : :obj:`float`
+        Integration range, Angstrom.
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        1D array of integrated fluxes, one per fiber.
+    """
+    out = np.zeros(len(waves), dtype=float)
+    for i, (w, f) in enumerate(zip(waves, fluxes)):
+        in_range = (w >= wave_min) & (w <= wave_max)
+        sky = sky_line_mask(w)
+        mask = in_range & ~sky
+        out[i] = np.nansum(f[mask])
+    return out
+
+
 class BinospecIFUExtractGUI:
     """Matplotlib widget GUI for selecting fibers and extracting spectra.
 
@@ -63,7 +133,7 @@ class BinospecIFUExtractGUI:
         self.current_wave_min = self.wave_min
         self.current_wave_max = self.wave_max
 
-        self.fiber_fluxes = datacube.compute_fiber_fluxes(
+        self.fiber_fluxes = compute_fiber_fluxes(
             self.waves, self.fluxes, self.wave_min, self.wave_max)
 
         # Selection state
@@ -202,7 +272,7 @@ class BinospecIFUExtractGUI:
         wave_min, wave_max = val
         self.current_wave_min = float(wave_min)
         self.current_wave_max = float(wave_max)
-        self.fiber_fluxes = datacube.compute_fiber_fluxes(
+        self.fiber_fluxes = compute_fiber_fluxes(
             self.waves, self.fluxes,
             self.current_wave_min, self.current_wave_max)
         valid = self.fiber_fluxes[np.isfinite(self.fiber_fluxes)
@@ -224,7 +294,7 @@ class BinospecIFUExtractGUI:
         in_window = ((self.extracted_wave >= lo)
                      & (self.extracted_wave <= hi))
         if self.mask_sky:
-            in_window &= ~datacube.sky_line_mask(self.extracted_wave)
+            in_window &= ~sky_line_mask(self.extracted_wave)
         flux = self.extracted_flux[in_window]
         flux = flux[np.isfinite(flux)]
         if self.y_scale == 'log':
@@ -308,7 +378,7 @@ class BinospecIFUExtractGUI:
         if self.mask_sky:
             # Blank out sky-line regions so residuals there don't clutter
             # the displayed trace.  The saved spectrum is unaffected.
-            sky = datacube.sky_line_mask(wave)
+            sky = sky_line_mask(wave)
             plot_flux = np.where(sky, np.nan, plot_flux)
             lower = np.where(sky, np.nan, lower)
             upper = np.where(sky, np.nan, upper)
@@ -382,7 +452,7 @@ class BinospecIFUExtractGUI:
         self.current_wave_min = self.wave_min
         self.current_wave_max = self.wave_max
         self.wave_slider.set_val((self.wave_min, self.wave_max))
-        self.fiber_fluxes = datacube.compute_fiber_fluxes(
+        self.fiber_fluxes = compute_fiber_fluxes(
             self.waves, self.fluxes, self.wave_min, self.wave_max)
         valid = self.fiber_fluxes[np.isfinite(self.fiber_fluxes)
                                   & (self.fiber_fluxes != 0)]

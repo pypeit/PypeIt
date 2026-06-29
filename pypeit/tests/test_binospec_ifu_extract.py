@@ -10,14 +10,16 @@ from pypeit.onespec import OneSpec
 from pypeit.spectrographs.mmt_binospec import MMTBINOSPECIFUSpectrograph
 from pypeit.scripts.binospec_ifu_extract import BinospecIFUExtract
 from pypeit.core.datacube import (
-    _SKY_LINE_MASK_HALFWIDTH,
-    _SKY_LINE_WAVELENGTHS,
-    compute_fiber_fluxes,
     load_fibers,
     project_to_sky,
     resample_and_combine,
-    sky_line_mask,
     write_onespec,
+)
+from pypeit.gui.binospec_ifu_extract import (
+    _SKY_LINE_MASK_HALFWIDTH,
+    _SKY_LINE_WAVELENGTHS,
+    compute_fiber_fluxes,
+    sky_line_mask,
 )
 
 # Real IFU spectrograph supplies the shared TAN/POSANG WCS convention used by

@@ -505,40 +505,6 @@ def build_cube_common(det_fiber_data, spectrograph, targetx, targety,
     log.info(f"Cube shape: {cube.shape}")
 
 
-# Bright optical sky lines (vacuum, Angstrom).  Used only for the integrated
-# per-fiber flux shown in the fiber-IFU extractor display, so that residual
-# sky-subtraction errors do not bias the per-fiber flux estimate.  Extraction
-# itself uses the full wavelength range.
-_SKY_LINE_WAVELENGTHS = (
-    5577.34,                       # [OI]
-    5890.00, 5896.00,              # Na I D
-    6300.30, 6363.78,              # [OI]
-    7340.0, 7821.0, 8344.0, 8430.0, 8761.0, 8867.0,  # OH band centers (approx)
-)
-_SKY_LINE_MASK_HALFWIDTH = 10.0    # Angstrom
-
-
-def sky_line_mask(wave):
-    """Return a boolean mask that is ``True`` inside any sky-line region.
-
-    Parameters
-    ----------
-    wave : `numpy.ndarray`_
-        1D array of wavelengths in Angstrom.
-
-    Returns
-    -------
-    `numpy.ndarray`_
-        1D boolean array, same shape as ``wave``, ``True`` where the
-        wavelength falls within ``_SKY_LINE_MASK_HALFWIDTH`` of any line
-        in ``_SKY_LINE_WAVELENGTHS``.
-    """
-    mask = np.zeros_like(wave, dtype=bool)
-    for lam in _SKY_LINE_WAVELENGTHS:
-        mask |= np.abs(wave - lam) < _SKY_LINE_MASK_HALFWIDTH
-    return mask
-
-
 def project_to_sky(x_arcsec, y_arcsec, raw_hdr, spectrograph):
     """Project instrument-frame fiber offsets to sky coordinates.
 
@@ -577,35 +543,6 @@ def project_to_sky(x_arcsec, y_arcsec, raw_hdr, spectrograph):
     sky = w.pixel_to_world(np.asarray(x_arcsec, dtype=float),
                            np.asarray(y_arcsec, dtype=float))
     return np.atleast_1d(sky.ra.degree), np.atleast_1d(sky.dec.degree)
-
-
-def compute_fiber_fluxes(waves, fluxes, wave_min, wave_max):
-    """Per-fiber integrated flux with sky-line masking.
-
-    Each fiber is integrated over its **own** native wavelength grid, with
-    pixels in any sky-line region (see ``_SKY_LINE_WAVELENGTHS``) excluded.
-    Used to colour the fiber-IFU extractor display; the actual extracted
-    spectrum (:func:`resample_and_combine`) is unaffected.
-
-    Parameters
-    ----------
-    waves, fluxes : :obj:`list` of `numpy.ndarray`_
-        Per-fiber native wavelengths and fluxes (parallel lists).
-    wave_min, wave_max : :obj:`float`
-        Integration range, Angstrom.
-
-    Returns
-    -------
-    `numpy.ndarray`_
-        1D array of integrated fluxes, one per fiber.
-    """
-    out = np.zeros(len(waves), dtype=float)
-    for i, (w, f) in enumerate(zip(waves, fluxes)):
-        in_range = (w >= wave_min) & (w <= wave_max)
-        sky = sky_line_mask(w)
-        mask = in_range & ~sky
-        out[i] = np.nansum(f[mask])
-    return out
 
 
 def resample_and_combine(waves, fluxes, ivars):
