@@ -1265,7 +1265,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         self.sciImg.ivar = utils.inverse(varImg)
 
 
-class FiberFindObjects(SlicerIFUFindObjects):
+class FiberFindObjects(FindObjects):
     """
     Child of FindObjects for fiber-fed spectrographs.
 
@@ -1284,6 +1284,25 @@ class FiberFindObjects(SlicerIFUFindObjects):
     """
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
+
+    def get_platescale(self, slitord_id=None):
+        """
+        Return the platescale in binned pixels for the current detector.
+
+        Define get_platescale here (rather than inherit it) so the class is
+        self-contained: the base :class:`FindObjects.get_platescale` is an
+        unimplemented stub, and the inherited
+        :meth:`FindObjects.create_skymask` calls this method.
+
+        Args:
+            slitord_id (:obj:`int`, optional):
+                Unused; present for interface compatibility with the parent.
+
+        Returns:
+            :obj:`float`: Plate scale in binned pixels.
+        """
+        _, bin_spat = parse.parse_binning(self.binning)
+        return self.sciImg.detector.platescale * bin_spat
 
     def run(self, std_trace=None, show_peaks=False, show_skysub_fit=False):
         """
