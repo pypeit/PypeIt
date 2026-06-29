@@ -2028,15 +2028,14 @@ class FiberFlatField(FlatField):
                 # to recover an unbiased flat estimate.  When too many
                 # pixels are masked the rescale amplifies noise, so
                 # require at least 1/3 of the aperture to be unmasked;
-                # otherwise mark the bin NaN so the per-fiber median (used
-                # to derive ``fiber_throughput``) skips it.
+                # otherwise zero the inverse variance so the bin is masked
+                # (ivar == 0) when deriving ``fiber_throughput``.
                 box_width = 2.0 * box_r
                 min_good = box_width / 3.0
                 scale = np.where(npix > 0, box_width / np.maximum(npix, 1.0), 1.0)
                 heavy = npix < min_good
                 flux = flux * scale
                 flux_ivar = flux_ivar / np.maximum(scale, 1.0) ** 2
-                flux[heavy] = np.nan
                 flux_ivar[heavy] = 0.0
 
                 all_fiber_spectra.append(flux)
@@ -2062,6 +2061,7 @@ class FiberFlatField(FlatField):
             return flat_images, None
 
         fiber_spectra_arr = np.array(all_fiber_spectra)
+        fiber_ivar_arr = np.array(all_fiber_ivar)
         fiber_waves_arr = np.array(all_fiber_waves)
         fiber_ids = np.array(all_fiber_ids, dtype=np.int64)
         fiber_types = np.array(all_fiber_types)
@@ -2078,14 +2078,22 @@ class FiberFlatField(FlatField):
         # spectral flattening is performed downstream by flux calibration.
         nwave = fiber_spectra_arr.shape[1]
         central_slice = slice(nwave // 10, 9 * nwave // 10)
-        fiber_medians = np.nanmedian(fiber_spectra_arr[:, central_slice], axis=1)
+        # Median over each fiber's good (ivar > 0) bins in the central
+        # region.  Fibers with no good bins get a 0 median and are excluded
+        # below by the ``> 0`` test.
+        central_flux = fiber_spectra_arr[:, central_slice]
+        central_gpm = fiber_ivar_arr[:, central_slice] > 0.0
+        fiber_medians = np.array([
+            np.median(cf[gp]) if np.any(gp) else 0.0
+            for cf, gp in zip(central_flux, central_gpm)])
 
         sky_mask = np.array([t.lower() == 'sky' for t in fiber_types])
-        sci_mask = ~sky_mask & np.isfinite(fiber_medians) & (fiber_medians > 0)
+        sci_mask = ~sky_mask & (fiber_medians > 0)
         if np.any(sci_mask):
-            sci_typical = float(np.nanmedian(fiber_medians[sci_mask]))
+            sci_typical = float(np.median(fiber_medians[sci_mask]))
         else:
-            sci_typical = float(np.nanmedian(fiber_medians[fiber_medians > 0]))
+            sci_typical = float(np.median(fiber_medians[fiber_medians > 0])) \
+                if np.any(fiber_medians > 0) else 0.0
         if not np.isfinite(sci_typical) or sci_typical <= 0:
             log.warning("Could not derive a science-fiber median; "
                         "throughput scalars will be set to unity.")
@@ -2097,10 +2105,10 @@ class FiberFlatField(FlatField):
 
         # Store the raw extracted flat spectra (divided by sci_typical so the
         # values are dimensionless and roughly O(1)) for diagnostic use only.
+        # Masked bins carry zero inverse variance in the extraction; the
+        # values are kept as-is rather than blanked to NaN.
         global_norm = sci_typical
         normflat = fiber_spectra_arr / global_norm
-        bad = ~np.isfinite(normflat) | (normflat <= 0)
-        normflat[bad] = np.nan
         normflat_wave = np.median(fiber_waves_arr, axis=0)
 
         log.info(f"Per-fiber throughput: science median="
