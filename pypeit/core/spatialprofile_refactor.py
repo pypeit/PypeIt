@@ -125,17 +125,14 @@ def _findfwhm(model, sig_x):
     return peak, peak_x, lwhm, rwhm
 
 
-def _return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
-                     ind=None, l_limit=None, r_limit=None, xlim=None, xtrunc=1e6):
-    r"""Return a pixel-integrated Gaussian object profile.
+def _gaussian_profile(x, center, sigma):
+    r"""Construct a pixel-integrated Gaussian spatial profile.
 
-    Unlike :func:`~pypeit.core.spatialprofile.return_gaussian`, this version
-    computes the true photon count in each pixel as the integral of the
-    Gaussian profile across the pixel width via the error function, rather
-    than evaluating the Gaussian density at the pixel centre.  The correction
-    is significant for narrow profiles: for FWHM = 3 px the peak value is
-    underestimated by ~10 % with the point-sampled form; the integrated form
-    reduces this to < 1 %.
+    Computes the fraction of flux in each pixel as the integral of a Gaussian
+    across the pixel width using the error function, rather than evaluating the
+    Gaussian density at the pixel centre.  The correction is significant for
+    narrow profiles: for FWHM = 3 px the peak value is underestimated by ~10 %
+    with the point-sampled form; the integrated form reduces this to < 1 %.
 
     The row sums of the returned profile are approximately 1.0 (the erf
     differences telescope to 1 for wide enough slits), matching the B-spline
@@ -143,13 +140,71 @@ def _return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
     Parameters
     ----------
-    sigma_x : `numpy.ndarray`_
-        Normalised spatial coordinate ``(x - x_trace) / sigma``, shape
+    x : `numpy.ndarray`_
+        Pixel coordinate array.  May be 1-D with shape
+        :math:`(N_{\rm spat},)` or 2-D with shape
+        :math:`(N_{\rm spec}, N_{\rm spat})`.  For the 2-D case, coordinates
+        are expected to vary primarily along the second axis.
+    center : :obj:`float` or `numpy.ndarray`_
+        Profile centre in pixels.  Must be a scalar if ``x`` is 1-D.  If
+        ``x`` is 2-D, may be a scalar or a 1-D array of length
+        :math:`N_{\rm spec}`.
+    sigma : :obj:`float` or `numpy.ndarray`_
+        Profile standard deviation in pixels.  Same shape constraints as
+        ``center``.
+
+    Returns
+    -------
+    profile : `numpy.ndarray`_
+        Pixel-integrated Gaussian profile, same shape as ``x``.
+    """
+    x = np.asarray(x, dtype=float)
+    if x.ndim == 2:
+        _center = np.atleast_1d(center)
+        _sigma = np.atleast_1d(sigma)
+        if _center.size > 1:
+            _center = _center[:, None]
+        if _sigma.size > 1:
+            _sigma = _sigma[:, None]
+    else:
+        _center, _sigma = center, sigma
+    sigma_x = (x - _center) / _sigma
+    delta = 0.5 / _sigma
+    profile = 0.5 * (
+        scipy.special.erf((sigma_x + delta) / np.sqrt(2.0))
+        - scipy.special.erf((sigma_x - delta) / np.sqrt(2.0))
+    )
+    profile[sigma_x ** 2 >= 25.] = 0.0
+    inf = ~np.isfinite(profile)
+    if inf.any():
+        log.warning("Nan pixel values in object profile... setting them to zero")
+        profile[inf] = 0.0
+    return profile
+
+
+def _return_gaussian(spat_img, norm_obj, center, sigma, fwhm, med_sn2, obj_string,
+                     show_profile, ind=None, l_limit=None, r_limit=None, xlim=None,
+                     xtrunc=1e6):
+    r"""Build a Gaussian profile and log fit information and optionally show QA.
+
+    Delegates profile construction to :func:`_gaussian_profile`, then logs the
+    FWHM and S/N and optionally displays the QA plot via
+    :func:`~pypeit.core.spatialprofile.qa_fit_profile`.
+
+    Parameters
+    ----------
+    spat_img : `numpy.ndarray`_
+        Spatial-coordinate image in pixels, shape
         :math:`(N_{\rm spec}, N_{\rm spat})`.
     norm_obj : `numpy.ndarray`_
         Normalised object image, used only for the QA plot.
+    center : :obj:`float` or `numpy.ndarray`_
+        Object centre in pixels; scalar or shape :math:`(N_{\rm spec},)`.
+    sigma : :obj:`float` or `numpy.ndarray`_
+        Profile standard deviation in pixels; same shape constraints as
+        ``center``.
     fwhm : :obj:`float`
-        FWHM of the Gaussian in pixels.
+        FWHM for the log message in pixels.
     med_sn2 : :obj:`float`
         Median (S/N)^2, used only for the QA plot label.
     obj_string : :obj:`str`
@@ -171,22 +226,18 @@ def _return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
         Pixel-integrated Gaussian profile, shape
         :math:`(N_{\rm spec}, N_{\rm spat})`.
     """
-    sigma = fwhm / 2.3548
-    delta = 0.5 / sigma     # half-pixel width in sigma_x units
-    profile_model = 0.5 * (
-        scipy.special.erf((sigma_x + delta) / np.sqrt(2.0))
-        - scipy.special.erf((sigma_x - delta) / np.sqrt(2.0))
-    )
-    profile_model[sigma_x ** 2 >= 25.] = 0.0
-
+    profile_model = _gaussian_profile(spat_img, center, sigma)
     info_string = f"FWHM={fwhm:6.2f}, S/N={np.sqrt(med_sn2):8.3f}"
     title_string = obj_string + ', ' + info_string
     log.info(title_string)
-    inf = ~np.isfinite(profile_model)
-    if inf.any():
-        log.warning("Nan pixel values in object profile... setting them to zero")
-        profile_model[inf] = 0.0
     if show_profile:
+        _center = np.atleast_1d(center)
+        _sigma = np.atleast_1d(sigma)
+        if _center.size > 1:
+            _center = _center[:, None]
+        if _sigma.size > 1:
+            _sigma = _sigma[:, None]
+        sigma_x = (spat_img - _center) / _sigma
         qa_fit_profile(
             sigma_x, norm_obj, profile_model,
             title=title_string, l_limit=l_limit, r_limit=r_limit,
@@ -313,7 +364,8 @@ def fit_profile_refactor(image, ivar, waveimg, thismask, spat_img, trace_in, wav
             'There are no pixels eligible to be fit for the object profile.\nThere is likely an '
             f'issue in local_skysub_extract. Returning a Gaussian with fwhm={thisfwhm:5.3f}'
         )
-        profile_model = _return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
+        profile_model = _return_gaussian(spat_img, None, trace_in, sigma, thisfwhm, 0.0,
+                                         obj_string, False)
         return profile_model, trace_in, fwhmfit, 0.0
 
     b_answer, bmask, *_ = iterative_bspline_fit(
@@ -336,7 +388,8 @@ def fit_profile_refactor(image, ivar, waveimg, thismask, spat_img, trace_in, wav
             'Problem estimating S/N ratio of spectrum\nThere is likely an issue in '
             f'local_skysub_extract. Returning a Gaussian with fwhm={thisfwhm:5.3f}'
         )
-        profile_model = _return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
+        profile_model = _return_gaussian(spat_img, None, trace_in, sigma, thisfwhm, 0.0,
+                                         obj_string, False)
         return profile_model, trace_in, fwhmfit, 0.0
 
     # ------------------------------------------------------------------
@@ -443,7 +496,7 @@ def fit_profile_refactor(image, ivar, waveimg, thismask, spat_img, trace_in, wav
         log.info(f"Too few good pixels or S/N < {sn_gauss:5.1f} or gauss flag set")
         log.info("Returning Gaussian profile")
         profile_model = _return_gaussian(
-            sigma_x, norm_obj, thisfwhm, med_sn2, obj_string, show_profile,
+            spat_img, norm_obj, trace_in, sigma, thisfwhm, med_sn2, obj_string, show_profile,
             ind=good, xtrunc=7.0,
         )
         return profile_model, trace_in, fwhmfit, med_sn2
@@ -537,7 +590,8 @@ def fit_profile_refactor(image, ivar, waveimg, thismask, spat_img, trace_in, wav
         log.info("Too few pixels inside l_limit and r_limit")
         log.info("Returning Gaussian profile")
         profile_model = _return_gaussian(
-            sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string, show_profile,
+            spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
+            med_sn2, obj_string, show_profile,
             ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
         )
         return profile_model, trace_in, fwhmfit, med_sn2
@@ -576,7 +630,8 @@ def fit_profile_refactor(image, ivar, waveimg, thismask, spat_img, trace_in, wav
             log.info(f'B-spline fit to trace correction failed for ninside={ninside}')
             log.info("Returning Gaussian profile")
             profile_model = _return_gaussian(
-                sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string, show_profile,
+                spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
+                med_sn2, obj_string, show_profile,
                 ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
             )
             return profile_model, trace_in, fwhmfit, med_sn2
@@ -602,7 +657,8 @@ def fit_profile_refactor(image, ivar, waveimg, thismask, spat_img, trace_in, wav
             log.info(f'B-spline fit to width correction failed for ninside={ninside}')
             log.info("Returning Gaussian profile")
             profile_model = _return_gaussian(
-                sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string, show_profile,
+                spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
+                med_sn2, obj_string, show_profile,
                 ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
             )
             return profile_model, trace_in, fwhmfit, med_sn2
@@ -644,7 +700,8 @@ def fit_profile_refactor(image, ivar, waveimg, thismask, spat_img, trace_in, wav
                 )
                 log.info("Returning Gaussian profile")
                 profile_model = _return_gaussian(
-                    sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string, show_profile,
+                    spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
+                    med_sn2, obj_string, show_profile,
                     ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
                 )
                 return profile_model, trace_in, fwhmfit, med_sn2
