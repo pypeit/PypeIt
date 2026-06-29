@@ -7,8 +7,6 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   pypeit.core.gui
-   pypeit.core.bspline
    pypeit.core.move_median
    pypeit.core.wavecal
 
