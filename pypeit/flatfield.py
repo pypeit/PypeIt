@@ -1915,14 +1915,27 @@ class FiberFlatField(FlatField):
         det = self.rawflatimg.detector.det
 
         # ------------------------------------------------------------------
-        # Step 1: pixelflat_norm = 1.0 (no 2D pixel correction)
+        # Step 1: build the 2D pixel flat
         # ------------------------------------------------------------------
-        # For fiber spectrographs, spectral response is handled in 1D by
-        # dividing extracted science spectra by the extracted flat.  A 2D
-        # pixel flat would imprint fiber profile structure.
-        log.info("Fiber pypeline: setting pixelflat_norm to unity "
-                 "(no 2D pixel correction)")
-        pixelflat_norm = np.ones_like(rawflat)
+        # Whether a meaningful 2D pixel flat can be measured depends on how
+        # the flats illuminate the detector, which is instrument-specific, so
+        # it is controlled by the ``fiber_pixelflat`` parameter rather than
+        # hard-wired.  When enabled, defer to the standard FlatField pipeline
+        # (e.g. for defocused fiber flats that illuminate the full chip).
+        # When disabled (the default, e.g. MMT Binospec), use a unity pixel
+        # flat: in-focus fiber flats only illuminate a few pixels under each
+        # fiber, so a 2D pixel flat would imprint fiber-profile structure
+        # rather than detector response.
+        parent_flat_images = None
+        if self.flatpar['fiber_pixelflat']:
+            log.info("Fiber pypeline: building 2D pixel flat via the standard "
+                     "FlatField pipeline (fiber_pixelflat=True)")
+            parent_flat_images = super().run(doqa=doqa, debug=debug, show=show)
+            pixelflat_norm = parent_flat_images.pixelflat_norm
+        else:
+            log.info("Fiber pypeline: setting pixelflat_norm to unity "
+                     "(no 2D pixel correction)")
+            pixelflat_norm = np.ones_like(rawflat)
 
         # ------------------------------------------------------------------
         # Step 2: build wavelength image (or pixel-coordinate proxy)
@@ -2095,11 +2108,17 @@ class FiberFlatField(FlatField):
         # ------------------------------------------------------------------
         # Step 5: assemble and return output containers
         # ------------------------------------------------------------------
-        flat_images = FlatImages(
-            pixelflat_raw=rawflat,
-            pixelflat_norm=pixelflat_norm,
-            PYP_SPEC=self.spectrograph.name,
-            spat_id=self.slits.spat_id)
+        # Reuse the FlatImages built by the parent pipeline (which already
+        # holds the real pixel flat) when fiber_pixelflat is enabled;
+        # otherwise wrap the unity pixel flat.
+        if parent_flat_images is not None:
+            flat_images = parent_flat_images
+        else:
+            flat_images = FlatImages(
+                pixelflat_raw=rawflat,
+                pixelflat_norm=pixelflat_norm,
+                PYP_SPEC=self.spectrograph.name,
+                spat_id=self.slits.spat_id)
 
         fiber_flatimages = FiberFlatImages(
             normflat=normflat,

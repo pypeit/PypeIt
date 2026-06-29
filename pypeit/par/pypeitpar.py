@@ -590,7 +590,7 @@ class FlatFieldPar(ParSet):
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
                  slit_illum_relative=None, slit_illum_ref_idx=None, slit_illum_smooth_npix=None,
                  pixelflat_min_wave=None, pixelflat_max_wave=None, slit_illum_finecorr=None,
-                 fit_2d_det_response=None):
+                 fit_2d_det_response=None, fiber_pixelflat=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -763,6 +763,17 @@ class FlatFieldPar(ParSet):
                                        'that have a dedicated response correction implemented. Currently,' \
                                        'this correction is only implemented for Keck+KCWI.'
 
+        defaults['fiber_pixelflat'] = False
+        dtypes['fiber_pixelflat'] = bool
+        descr['fiber_pixelflat'] = 'For the Fiber pypeline only: build a standard 2D pixel flat from ' \
+                                   'the flat frames (via the normal FlatField machinery) instead of ' \
+                                   'using a unity pixel flat.  The default (False) is appropriate for ' \
+                                   'in-focus fiber flats that illuminate only a few pixels under each ' \
+                                   'fiber (e.g. MMT Binospec), where a 2D pixel flat would imprint ' \
+                                   'fiber-profile structure.  Set True for instruments whose flats ' \
+                                   'illuminate the full detector (e.g. defocused fiber flats), so a ' \
+                                   'meaningful detector-response pixel flat can be measured.'
+
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -782,7 +793,8 @@ class FlatFieldPar(ParSet):
                    'tweak_slits', 'tweak_method', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits',
-                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'slit_illum_finecorr', 'fit_2d_det_response']
+                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'slit_illum_finecorr', 'fit_2d_det_response',
+                   'fiber_pixelflat']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
