@@ -5,6 +5,7 @@ Module containing routines used by 3D datacubes.
 """
 
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from astropy import wcs, units
@@ -141,7 +142,7 @@ def build_cube_from_spec1d(spec1d_file, spectrograph, targetx, targety,
     """
     sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     if sobjs.nobj == 0:
-        log.warning(f"No objects in {os.path.basename(spec1d_file)}, skipping")
+        log.warning(f"No objects in {Path(spec1d_file).name}, skipping")
         return
 
     # Choose extraction type
@@ -202,7 +203,7 @@ def build_cube_from_spec1d(spec1d_file, spectrograph, targetx, targety,
 
     if len(det_fiber_data) == 0:
         log.warning(f"No detector data from "
-                    f"{os.path.basename(spec1d_file)}, skipping")
+                    f"{Path(spec1d_file).name}, skipping")
         return
 
     # ------------------------------------------------------------------
@@ -483,7 +484,7 @@ def build_cube_common(det_fiber_data, spectrograph, targetx, targety,
     if output is not None:
         outfile = output
     else:
-        base = os.path.splitext(os.path.basename(input_file))[0]
+        base = Path(input_file).stem
         if 'spec1d_' in base:
             base = base.replace('spec1d_', 'cube_')
         outfile = base + '.fits'
