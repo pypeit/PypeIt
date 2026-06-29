@@ -61,8 +61,7 @@ class BinospecIFUExtract(scriptbase.ScriptBase):
         if sobjs.nobj == 0:
             raise PypeItError(f"No objects in {args.spec1d_file}")
 
-        with fits.open(args.spec1d_file) as hdu:
-            raw_hdr = hdu[0].header.copy()
+        raw_hdr = fits.getheader(args.spec1d_file)
 
         spectrograph = load_spectrograph(raw_hdr['PYP_SPEC'])
         if spectrograph.name != 'mmt_binospec_ifu':
