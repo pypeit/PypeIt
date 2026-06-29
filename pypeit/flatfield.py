@@ -1889,7 +1889,10 @@ class FiberFlatField(FlatField):
 
         Produces:
 
-        1. A unity 2D pixelflat (no 2D pixel correction for fibers)
+        1. A 2D pixelflat: unity by default, or a standard detector-response
+           pixel flat from the parent :class:`FlatField` pipeline when the
+           ``fiber_pixelflat`` parameter is set (see that parameter for when
+           this is appropriate).
         2. A globally-normalized extracted flat (nfiber x nwave) preserving
            spectral shape and fiber-to-fiber throughput differences
 
@@ -1905,7 +1908,8 @@ class FiberFlatField(FlatField):
         Returns
         -------
         flatImages : :class:`FlatImages`
-            Standard flat images with unity ``pixelflat_norm``.
+            Standard flat images.  ``pixelflat_norm`` is unity unless
+            ``fiber_pixelflat`` is set.
         fiber_flatimages : :class:`FiberFlatImages`
             Fiber-specific flat products (normflat, wavelengths, metadata).
         """
