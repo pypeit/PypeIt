@@ -45,7 +45,7 @@ class BinospecIFUExtract(scriptbase.ScriptBase):
 
         from pypeit import log
         from pypeit.core import datacube
-        from pypeit.core.gui.binospec_ifu_extract import BinospecIFUExtractGUI
+        from pypeit.gui.binospec_ifu_extract import BinospecIFUExtractGUI
         from pypeit.specobjs import SpecObjs
         from pypeit.spectrographs.util import load_spectrograph
 

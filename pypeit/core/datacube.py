@@ -17,10 +17,10 @@ from scipy.interpolate import interp1d, griddata
 from scipy.spatial import QhullError
 import numpy as np
 
-from pypeit import log, utils, specobj, specobjs, sampling
+from pypeit import log, utils, specobj, specobjs
 from pypeit import PypeItError
 from pypeit.onespec import OneSpec
-from pypeit.core import coadd, extract, flux_calib
+from pypeit.core import coadd, extract, flux_calib, sampling
 
 # Use a fast histogram for speed!
 from fast_histogram import histogramdd

@@ -35,6 +35,9 @@ Functionality/Performance Improvements and Additions
   rejection, controlled by the new ``cr_median_width`` process
   parameter.  Useful for line-rich frames with small tilts; see
   :ref:`image_proc-cr` for details.
+- Adds ability to select the specific archive of standard stars to use when
+  searching for a match to an observed standard.  This is particularly import
+  for LBT/MODS.
 
 Instrument-specific Updates
 ---------------------------
@@ -133,6 +136,11 @@ Under-the-hood Improvements
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
+- Moved code used to generate templates (``pypeit/core/wavecal/templates.py``
+  and ``pypeit/core/wavecal/spectrographs``) to the dev-suite.  These were
+  development-only files, not suited for the released package.
+- Restructuring of :mod:`~pypeit.core`.
+
 
 Bug Fixes
 ---------

@@ -15,13 +15,13 @@ import numpy as np
 from astropy import stats
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import qa
 from pypeit.core import arc
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import flat
 from pypeit.core import flexure
 from pypeit.core import scattlight
-from pypeit.core import qa
 from pypeit.core.mosaic import build_image_mosaic
 from pypeit.images import pypeitimage
 from pypeit import utils
@@ -802,8 +802,19 @@ class RawImage:
         self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
                                                              maxlag=self.par['spat_flexure_maxlag'],
                                                              sigdetect=self.par['spat_flexure_sigdetect'],
-                                                             debug=debug, qa_outfile=qa_outfile,
-                                                             qa_vrange=self.par['spat_flexure_vrange'])
+                                                             debug=debug)
+
+        # 2D plot
+        if (debug):
+            # Display QA as a debug plot
+            qa.spat_flexure_qa(self.image[0], slits, self.spat_flexure_shift, gpm=np.logical_not(self._bpm[0]), vrange=self.par['spat_flexure_vrange'])
+
+        if qa_outfile is not None:
+            # Generate the QA plot
+            log.info("Generating QA plot for spatial flexure")
+            qa.spat_flexure_qa(self.image[0], slits, self.spat_flexure_shift, gpm=np.logical_not(self._bpm[0]), vrange=self.par['spat_flexure_vrange'], outfile=qa_outfile)
+
+
         self.steps[step] = True
         # Return
         return self.spat_flexure_shift
