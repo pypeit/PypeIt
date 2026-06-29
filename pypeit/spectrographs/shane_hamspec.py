@@ -128,8 +128,11 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['global_sky_std'] = False
         # local sky subtraction operates on entire slit
         par['reduce']['extraction']['model_full_slit'] = True
-        # Mask 3 edges pixels since the slit is short, insted of default (5,5)
-        par['reduce']['findobj']['find_trim_edge'] = [3, 3]
+        # The echelle orders are very short in the spatial direction (~7 px on
+        # the Loral CCD), so trim only 1 edge pixel each side — the default
+        # (5,5), or even (3,3), leaves too few pixels for object finding and no
+        # objects are detected on the standard/science.
+        par['reduce']['findobj']['find_trim_edge'] = [1, 1]
         # Continnum order for determining thresholds
 
         # Sensitivity function parameters
