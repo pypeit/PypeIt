@@ -1358,10 +1358,12 @@ class FiberFindObjects(FindObjects):
         fiber_flatimages = self._load_fiber_flatimages()
 
         self.reduce_bpm = self.reduce_bpm_init.copy()
-        sobjs_obj, self.nobj = self.find_objects(
-            self.sciImg.image, self.sciImg.ivar,
-            std_trace=std_trace, show=self.findobj_show,
-            show_peaks=show_peaks)
+        # Fiber data never needs manual extraction or an A-B negative-image
+        # pass, so skip the base find_objects wrapper (which only adds those)
+        # and create the per-fiber SpecObjs directly.  find_objects_pypeline
+        # ignores std_trace/show_peaks for fiber reductions.
+        sobjs_obj, self.nobj = self.find_objects_pypeline(
+            self.sciImg.image, self.sciImg.ivar, show=self.findobj_show)
 
         if len(sobjs_obj) == 0:
             return np.zeros_like(self.sciImg.image), sobjs_obj
