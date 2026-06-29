@@ -2223,10 +2223,12 @@ class FiberFindObjects(FindObjects):
         wavelengths smears the bspline at sharp OH lines and shows up as
         a dipole residual on each fiber's bright lines.
 
-        For each fiber, locally linearize the bspline in pixel-shift
-        ``Delta-p`` via a one-sided finite difference of width
-        ``probe_pix``: ``dbase/dp = (base(lambda + probe*dlam) - base) /
-        probe``.  Minimizing the weighted chi2
+        For each fiber, let ``base_i`` be the joint bspline evaluated at the
+        fiber's wavelengths and ``r_i = data_i - base_i`` the residual of the
+        throughput-corrected counts against that model.  Locally linearize
+        the bspline in pixel-shift ``Delta-p`` via a one-sided finite
+        difference of width ``probe_pix``: ``dbase/dp = (base(lambda +
+        probe*dlam) - base) / probe``.  Minimizing the weighted chi2
 
             chi2(Delta-p) = sum_i w_i^2 (r_i - Delta-p * dbase/dp_i)^2
 
@@ -2341,15 +2343,20 @@ class FiberFindObjects(FindObjects):
     def _solve_fiber_shift(sset, wave, data, ivar, x2, dlam, probe_pix,
                            center):
         """
-        Closed-form WLS solve for the per-fiber Delta-pixel shift.
+        Closed-form weighted-least-squares solve for the per-fiber pixel
+        shift ``Delta-p``.
 
-        Linearizes the bspline around ``center`` (in pixel units) via a
-        one-sided finite-difference derivative of width ``probe_pix``, then
-        returns the Delta-p that minimizes
-        ``sum w_i^2 (r_i - Delta-p * dbase/dp_i)^2`` with weights
-        ``w_i^2 = (dbase/dp_i)^2 * ivar_i``.  Returns ``None`` if the model
-        has no gradient on this fiber (e.g. continuum-only after masking)
-        or the system is otherwise ill-conditioned.
+        Let ``base_i`` be the reference bspline ``sset`` evaluated at row
+        ``i`` of the fiber's good rows (at pixel offset ``center``),
+        ``dbase/dp_i`` its one-sided finite-difference pixel derivative
+        (step ``probe_pix``), and ``r_i = data_i - base_i`` the model
+        residual.  The solve returns the ``Delta-p`` that minimizes
+        ``sum_i w_i^2 (r_i - Delta-p * dbase/dp_i)^2`` with gradient weights
+        ``w_i^2 = (dbase/dp_i)^2 * ivar_i``, i.e.
+        ``Delta-p = sum_i w_i^2 dbase/dp_i r_i / sum_i w_i^2 (dbase/dp_i)^2``.
+        Returns ``None`` if the model has no gradient on this fiber (e.g.
+        continuum-only after masking) or the system is otherwise
+        ill-conditioned.
 
         Parameters
         ----------
