@@ -480,7 +480,7 @@ class FlatImages(calibframe.CalibFrame):
         show_flats(image_list, wcs_match=wcs_match, slits=slits, waveimg=self.pixelflat_waveimg)
 
 
-class FiberFlatImages(datamodel.DataContainer):
+class FiberFlatImages(calibframe.CalibFrame):
     """
     Container for processed flat-field calibrations specific to fiber-fed
     spectrographs.
@@ -501,6 +501,9 @@ class FiberFlatImages(datamodel.DataContainer):
     """
 
     version = '2.1.0'
+
+    calib_type = 'FiberFlat'
+    """Name for output file naming; see :class:`~pypeit.calibframe.CalibFrame`."""
 
     hdu_prefix = None
 
@@ -526,8 +529,6 @@ class FiberFlatImages(datamodel.DataContainer):
         'fiber_types': dict(otype=np.ndarray, atype=str,
                             descr='Fiber type labels (e.g. sky, science)'),
     }
-
-    internals = ['calib_key', 'calib_dir']
 
     def __init__(self, normflat=None, normflat_wave=None, global_norm=None,
                  fiber_ids=None, fiber_types=None, fiber_throughput=None,
@@ -596,31 +597,6 @@ class FiberFlatImages(datamodel.DataContainer):
         if isinstance(d.get('fiber_types'), Table):
             d['fiber_types'] = np.asarray(d['fiber_types']['fiber_types'])
         return d, version_passed, type_passed, parsed_hdus
-
-    def set_paths(self, calib_dir, calib_key, det_str):
-        """
-        Set the internals needed to construct the I/O path for this file.
-
-        Args:
-            calib_dir (:obj:`str`, `Path`_):
-                Directory where the calibration file will be written.
-            calib_key (:obj:`str`):
-                Calibration key string identifying the setup/configuration.
-            det_str (:obj:`str`):
-                Detector string identifier (e.g. ``'DET01'``).
-        """
-        self.calib_dir = str(Path(calib_dir).absolute())
-        self.calib_key = f'{calib_key}_{det_str}'
-
-    def get_path(self):
-        """
-        Return the full path to the output file based on :attr:`calib_dir` and
-        :attr:`calib_key`.
-
-        Returns:
-            `Path`_: Absolute path to the output FITS file.
-        """
-        return Path(self.calib_dir) / f'FiberFlat_{self.calib_key}.fits'
 
 
 class FlatField:

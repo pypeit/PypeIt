@@ -2009,9 +2009,8 @@ class IFUCalibrations(Calibrations):
             # Update slits
             self.slits.mask_flats(self.flatimages)
             # Try to load existing FiberFlatImages
-            fiber_calib_key = f'{setup}_{CalibFrame.construct_calib_id(calib_id)}'
             tmp_ffi = flatfield.FiberFlatImages()
-            tmp_ffi.set_paths(self.calib_dir, fiber_calib_key, detname)
+            tmp_ffi.set_paths(self.calib_dir, setup, calib_id, detname)
             ffi_path = tmp_ffi.get_path()
             if ffi_path.exists():
                 self.fiber_flatimages = flatfield.FiberFlatImages.from_file(
@@ -2087,12 +2086,9 @@ class IFUCalibrations(Calibrations):
                                         self.flatimages.get_path())
 
         if self.fiber_flatimages is not None:
-            # Build the calib key without detname (set_paths appends it)
-            fiber_calib_key = f'{setup}_{CalibFrame.construct_calib_id(calib_id)}'
-            self.fiber_flatimages.set_paths(self.calib_dir, fiber_calib_key,
+            self.fiber_flatimages.set_paths(self.calib_dir, setup, calib_id,
                                             detname)
-            self.fiber_flatimages.to_file(self.fiber_flatimages.get_path(),
-                                          overwrite=True)
+            self.fiber_flatimages.to_file(overwrite=True)
             log.info(f'Saved FiberFlatImages to '
                      f'{self.fiber_flatimages.get_path()}')
 
