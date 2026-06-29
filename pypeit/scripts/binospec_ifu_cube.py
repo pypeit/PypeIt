@@ -89,6 +89,10 @@ class BinospecIFUCube(scriptbase.ScriptBase):
         # Load spectrograph and fiber layout (shared across all files)
         with fits.open(input_files[0]) as hdu:
             spectrograph = load_spectrograph(hdu[0].header['PYP_SPEC'])
+        if spectrograph.name != 'mmt_binospec_ifu':
+            raise PypeItError(
+                f"This script requires an mmt_binospec_ifu spec1d; "
+                f"got PYP_SPEC={spectrograph.name!r}")
 
         targetx, targety = spectrograph.load_sky_layout()
 
