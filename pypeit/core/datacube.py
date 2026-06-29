@@ -527,7 +527,11 @@ def project_to_sky(x_arcsec, y_arcsec, raw_hdr, spectrograph):
     ra, dec : `numpy.ndarray`_
         Fiber RA/Dec in degrees, same shape as the inputs.
     """
-    # 1 arcsec per unit step: the x_arcsec/y_arcsec offsets are the WCS pixels.
+    # The inputs are already in arcsec and are fed directly to pixel_to_world
+    # below as the WCS pixel coordinates, so the WCS scale is fixed at 1 arcsec
+    # per unit step: a fiber offset of N arcsec maps to N arcsec on sky.  This
+    # is a units identity, not the output sampling (cf. build_cube_common, which
+    # passes the real spatial_scale).
     coord, cd = spectrograph.ifu_sky_wcs(raw_hdr, 1.0)
 
     w = wcs.WCS(naxis=2)
