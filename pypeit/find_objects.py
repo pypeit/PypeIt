@@ -13,6 +13,9 @@ from pathlib import Path
 
 from abc import ABCMeta
 
+from scipy.signal import find_peaks
+from scipy.ndimage import gaussian_filter1d
+
 from pypeit import specobj
 from pypeit import specobjs
 from pypeit import log, utils
@@ -21,6 +24,11 @@ from pypeit.display import display
 from pypeit.core import skysub, qa, parse, flat, flexure
 from pypeit.core import procimg
 from pypeit.core import findobj_skymask
+from pypeit.core import extract as core_extract
+from pypeit.core.moment import moment1d
+from pypeit.core.fitting import iterfit
+from pypeit.flatfield import FiberFlatImages, FlatImages
+from pypeit.extraction import FiberExtract
 
 
 class FindObjects:
@@ -1414,7 +1422,6 @@ class FiberFindObjects(FindObjects):
             self._preextract_fibers_loop(sobjs)
             return
 
-        from pypeit.core.moment import moment1d
 
         gpm = self.sciImg.select_flag(invert=True)
         trace_2d = np.column_stack(
@@ -1468,11 +1475,10 @@ class FiberFindObjects(FindObjects):
             wave_box = np.where(bad, wave_um_fixed, wave_box)
 
         if fwhmimg is not None:
-            from pypeit import utils as putils
             fwhm_m = fwhmimg * gpm
             fwhm_sum = moment1d(fwhm_m, trace_2d, box_width)[0]
             n_good = pixtot - pixmsk
-            fwhm_box = fwhm_sum * putils.inverse(n_good)
+            fwhm_box = fwhm_sum * utils.inverse(n_good)
             for j in range(fwhm_box.shape[1]):
                 fwhm_box[:, j] *= np.gradient(wave_box[:, j])
 
@@ -1499,7 +1505,6 @@ class FiberFindObjects(FindObjects):
         handles non-uniform ``BOX_R_PIX``.  Used when the vectorized fast
         path's preconditions fail.
         """
-        from pypeit.core import extract as core_extract
 
         gpm = self.sciImg.select_flag(invert=True)
         slitmask = self.slits.slit_img(initial=True)
@@ -1598,7 +1603,6 @@ class FiberFindObjects(FindObjects):
             (~3 px on DET02), but small enough to avoid snapping onto a
             neighbouring fiber's peak (inter-fiber spacing ~6.6 px).
         """
-        from scipy.signal import find_peaks
 
         if len(sobjs) == 0:
             return
@@ -1751,7 +1755,6 @@ class FiberFindObjects(FindObjects):
         fiber_flatimages : :class:`~pypeit.flatfield.FiberFlatImages` or None
             Loaded fiber flat calibration, or ``None`` if no file is found.
         """
-        from pypeit.flatfield import FiberFlatImages
 
         calib_dir = getattr(self.slits, 'calib_dir', None)
         if calib_dir is None:
@@ -1826,7 +1829,6 @@ class FiberFindObjects(FindObjects):
         sky_model : `numpy.ndarray`_
             Sky model in detector counts, shape ``self.sciImg.image.shape``.
         """
-        from pypeit.extraction import FiberExtract
 
         nspec, nspat = self.sciImg.image.shape
         sky_model = np.zeros_like(self.sciImg.image)
@@ -1964,7 +1966,6 @@ class FiberFindObjects(FindObjects):
             ``(sset, wave_min, wave_max, outmask)`` on success, or ``None``
             if there are no good fiber inputs or ``iterfit`` raises.
         """
-        from pypeit.core.fitting import iterfit
 
         nspec, nspat = self.sciImg.image.shape
         all_wave, all_flux, all_ivar, all_x2 = [], [], [], []
@@ -2078,7 +2079,6 @@ class FiberFindObjects(FindObjects):
         fiber_sig : dict
             ``id(sobj) -> sigma_pix`` for fibers with a usable value.
         """
-        from scipy.signal import find_peaks
 
         n_wave_search = 4000
         grid_w = np.linspace(wave_min + 5.0, wave_max - 5.0, n_wave_search)
@@ -2146,7 +2146,6 @@ class FiberFindObjects(FindObjects):
         ``scipy.ndimage.gaussian_filter1d`` is flux-preserving so per-fiber
         total sky counts are conserved.
         """
-        from scipy.ndimage import gaussian_filter1d
 
         sci_sigs = []
         for sobj in sobjs:
@@ -2492,7 +2491,6 @@ class FiberFindObjects(FindObjects):
             Processed flat image in detector-pixel space, or ``None`` if no
             matching flat calibration is available.
         """
-        from pypeit.flatfield import FlatImages
 
         calib_dir = getattr(self.slits, 'calib_dir', None)
         if calib_dir is None:
