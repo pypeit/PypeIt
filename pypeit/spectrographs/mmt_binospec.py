@@ -1498,8 +1498,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             raise PypeItError(f'Detector number must be 1 or 2 for MMT/Binospec, not {det}.')
         ref_file = self._ifu_calib_path() / 'fiber_ref_profile.fits'
         # ext 1 = IFUTRACES_A (side A, det 1), ext 2 = IFUTRACES_B (side B, det 2)
-        with fits.open(ref_file) as hdu:
-            return hdu[det].data.copy()
+        return fits.getdata(ref_file, ext=det)
 
     def load_sky_layout(self) -> tuple[np.ndarray, np.ndarray]:
         """
