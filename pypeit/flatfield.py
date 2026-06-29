@@ -33,6 +33,7 @@ from pypeit import io
 from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.core import qa
+from pypeit.core import extract
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
@@ -1908,8 +1909,6 @@ class FiberFlatField(FlatField):
         fiber_flatimages : :class:`FiberFlatImages`
             Fiber-specific flat products (normflat, wavelengths, metadata).
         """
-        from pypeit.core.extract import extract_boxcar
-
         rawflat = self.rawflatimg.image
         ivar = self.rawflatimg.ivar
         gpm = self.rawflatimg.select_flag(invert=True)
@@ -1998,7 +1997,7 @@ class FiberFlatField(FlatField):
                 trace_spat = np.full(nspec, center_pix)
                 box_r = half_spacings[j]
 
-                box_result = extract_boxcar(
+                box_result = extract.extract_boxcar(
                     box_r, trace_spat, rawflat, ivar, gpm,
                     waveimg, skyimg)
                 wave = box_result[0]
