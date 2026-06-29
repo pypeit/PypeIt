@@ -597,7 +597,7 @@ def resample_and_combine(waves, fluxes, ivars):
     if not diffs:
         raise PypeItError("Could not determine wavelength dispersion from "
                           "selected fibers")
-    dwv = float(np.median(diffs))
+    dwv = np.median(diffs)
     n_wave = int(round((wave_max - wave_min) / dwv)) + 1
     wave_out = np.linspace(wave_min, wave_max, n_wave)
 
