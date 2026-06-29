@@ -94,9 +94,6 @@ object — no peak-detection object finding is needed.
   (`fiber_ref_profile.fits`). Sky fibers are identified by `FIB_NAME`
   starting with `'SKY'` (the `FIB_TYPE` field in the reference file is
   unreliable — all fibers are marked as `SKY`).
-- The `sky_fiber_indices_0based` class attribute contains *array position
-  indices*, not physical `FIB_ID` values. Do not use `sky_fiber_ids`
-  (= indices + 1) to match against `FIB_ID` from the reference profile.
 - Header metadata cards: temperature is `TEMP`, humidity is `HUMID`,
   parallactic angle is `PA` (in `headarr[1]`).
 - **Block-slit architecture**: Fibers are grouped into 21 block-slits per
