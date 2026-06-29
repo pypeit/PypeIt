@@ -1282,9 +1282,6 @@ class FiberFindObjects(FindObjects):
 
     See parent doc string for Args and Attributes.
     """
-    def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
-        super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
-
     def get_platescale(self, slitord_id=None):
         """
         Return the platescale in binned pixels for the current detector.
