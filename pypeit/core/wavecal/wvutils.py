@@ -535,7 +535,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, perc
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
 def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
-                do_xcorr_arc=True, lag_range=None, max_lag_frac=1.0,  debug=False):
+                cc_synth_arc=True, lag_range=None, max_lag_frac=1.0, debug=False):
 
     """
     Determine the shift inspec2 relative to inspec1.  This routine computes the
@@ -568,11 +568,12 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
     use_raw_arc : bool, default = False
         If this parameter is True the raw arc will be used rather than the
         continuum subtracted arc
-    do_xcorr_arc : bool, default = True
+    cc_synth_arc : bool, default = True
         If this parameter is True, peak finding will be performed and a
         synthetic arc will be created to be used for the cross-correlations.  If
-        a synthetic arc has already been created by get_xcorr_arc, then set this
-        to False
+        a synthetic arc has already been created by get_xcorr_arc, or if you prefer
+        to cross-correlate the input spectrum and the arc spectrum directly, then
+        set this to False.
     lag_range : tuple, default = None
         A tuple of the form (lag_min, lag_max) which sets the range of lags to
         search over. If None, max_lag_frac will be used to set the range of lags.
@@ -590,7 +591,7 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         the maximum of the cross-correlation coefficient at this shift
     """
 
-    if do_xcorr_arc:
+    if cc_synth_arc:
         y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect, sig_ceil=sig_ceil, fwhm=fwhm)
         y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect, sig_ceil=sig_ceil, fwhm=fwhm)
     else:
@@ -632,10 +633,11 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
-                        shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect=5.0, sig_ceil=10.0,
-                        fwhm = 4.0, max_lag_frac=1.0, lag_range=None, debug=False, toler=1e-5, seed=None,
-                        stretch_func='quadratic'):
-
+                        cc_synth_arc=True, shift_mnmx=(-0.2, 0.2),
+                        stretch_mnmx=(0.95,1.05), sigdetect=5.0,
+                        sig_ceil=10.0, fwhm = 4.0, max_lag_frac=1.0,
+                        lag_range=None, debug=False, toler=1e-5,
+                        seed=None, stretch_func='quadratic'):
     """
     Determine the shift and stretch of inspec2 relative to inspec1.  This
     routine computes an initial guess for the shift via maximimizing the
@@ -681,6 +683,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         have spurious noise spikes that are not the real maximum.
     use_raw_arc: bool, default = False
         If this parameter is True the raw arc will be used rather than the continuum subtracted arc
+    cc_synth_arc: bool, default = True
+        If this parameter is True, peak finding will be performed and a synthetic arc will be created
+        to be used for the cross-correlations.
     lag_range: tuple of floats, default = None
         Range to search for the shift in the cross correlation.  The code will search the window
         [lag_range[0],lag_range[1]].  If None, the code will search the window
@@ -752,19 +757,23 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
     """
 
-
     nspec = inspec1.size
-    y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
-                       sig_ceil=sig_ceil, fwhm=fwhm)
-    y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
-                       sig_ceil=sig_ceil, fwhm=fwhm)
+    if cc_synth_arc:
+        y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
+                           sig_ceil=sig_ceil, fwhm=fwhm)
+        y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
+                           sig_ceil=sig_ceil, fwhm=fwhm)
+    else:
+        y1 = inspec1
+        y2 = inspec2
 
     if np.all(y1 == 0) or np.all(y2 == 0):
         log.warning('No lines detected punting on shift/stretch')
         return 0, None, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil=None, do_xcorr_arc=False, lag_range=lag_range,
+    # NOTE: cc_synth_arc is set to False here since we already created the synthetic arc above.  We don't want to do it again.
+    shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil=None, cc_synth_arc=False, lag_range=lag_range,
                                     sigdetect=sigdetect, fwhm=fwhm, max_lag_frac=max_lag_frac, debug=debug)
 
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values

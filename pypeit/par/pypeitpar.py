@@ -2944,7 +2944,7 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
-                 cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None):
+                 cc_percent_ceil=None, cc_synth_arc=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3156,6 +3156,12 @@ class WavelengthSolutionPar(ParSet):
                                    'reidentified lines to arrive at the final set of good ' \
                                    'reidentifications.'
 
+        defaults['cc_synth_arc'] = True
+        dtypes['cc_synth_arc'] = bool
+        descr['cc_synth_arc'] = 'If True, peak finding will be performed and a synthetic arc will be created ' \
+                                'to be used for the cross-correlations. If False, the raw arc will be ' \
+                                'cross-correlated with the archive spectrum.'
+
         defaults['nlocal_cc'] = 11
         dtypes['nlocal_cc'] = int
         descr['nlocal_cc'] = 'Size of pixel window used for local cross-correlation ' \
@@ -3302,7 +3308,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
+                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'cc_synth_arc', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

@@ -762,7 +762,9 @@ class BuildWaveCalib:
                     angle_fits_file,
                     composite_arc_file,
                     pad=self.par['echelle_pad'],
-                    cc_percent_ceil = self.par['cc_percent_ceil'], debug=False)
+                    cc_percent_ceil=self.par['cc_percent_ceil'],
+                    cc_synth_arc=self.par['cc_synth_arc'],
+                    debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             log.info(f"The observation covers the following orders: {order_vec}")

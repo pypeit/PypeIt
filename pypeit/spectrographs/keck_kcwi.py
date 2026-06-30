@@ -311,6 +311,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
 
         # Templates
+        par['calibrations']['wavelengths']['cc_synth_arc'] = False  # The arcs are pretty stable, just use the templates directly
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
 

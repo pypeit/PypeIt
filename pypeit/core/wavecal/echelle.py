@@ -193,7 +193,7 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
 def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
                         angle_fits_file, 
                         composite_arc_file, debug=False, 
-                        cc_percent_ceil=50.0, pad=3):
+                        cc_percent_ceil=50.0, cc_synth_arc=True, pad=3):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -218,6 +218,12 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Passed to xcorr_shift
     cc_percent_ceil: float, optional
         The percent_ceil value to be used by xcorr_shift to set the percentile to which to normalize the CCF
+    cc_synth_arc: bool, optional
+        If this parameter is True, peak finding will be performed and a
+        synthetic arc will be created to be used for the cross-correlations.  If
+        a synthetic arc has already been created by get_xcorr_arc, or if you prefer
+        to cross-correlate the input spectrum and the arc spectrum directly, then
+        set this to False.
 
     Returns
     -------
@@ -243,8 +249,9 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
-        arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
-        percent_ceil=cc_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
+        arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'),
+        cc_synth_arc=cc_synth_arc, percent_ceil=cc_percent_ceil,
+        sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
 
     if debug:
         log.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')
