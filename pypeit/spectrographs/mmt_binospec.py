@@ -11,7 +11,6 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units
 from astropy.time import Time
-from astropy import wcs
 import matplotlib.pyplot as plt
 from matplotlib import patches
 import numpy as np
@@ -1364,111 +1363,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         par['calibrations']['wavelengths']['n_final'] = 5
 
         return par
-
-    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
-        """
-        Construct a World-Coordinate System for the IFU datacube.
-
-        Args:
-            hdr (`astropy.io.fits.Header`_):
-                The header of the raw frame.
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-                Slit traces.
-            platescale (:obj:`float`):
-                The platescale of an unbinned pixel in arcsec/pixel.
-            wave0 (:obj:`float`):
-                The wavelength zeropoint.
-            dwv (:obj:`float`):
-                Change in wavelength per spectral pixel.
-            spatial_scale (:obj:`float`, optional):
-                User-specified spatial scale in arcsec.
-
-        Returns:
-            `astropy.wcs.WCS`_: The world-coordinate system.
-        """
-        log.info("Calculating the WCS for Binospec IFU")
-
-        # Get binning
-        binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
-
-        # Spatial scales
-        pxscl = platescale * binspat / 3600.0  # arcsec -> degrees
-        slscl = self.get_meta_value([hdr], 'slitwid')  # already in degrees
-
-        if spatial_scale is not None:
-            pxscl = spatial_scale / 3600.0
-
-        # Typical slit length
-        slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
-
-        # Pointing coordinates
-        raval = self.get_meta_value([hdr], 'ra')
-        decval = self.get_meta_value([hdr], 'dec')
-        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
-
-        # Position angle from POSANG header keyword
-        posang = hdr.get('POSANG', 0.0)
-        crota = np.radians(-posang)
-
-        # CD matrix
-        cdelt1 = -slscl
-        cdelt2 = pxscl
-        cd11 = cdelt1 * np.cos(crota)
-        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)
-        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
-        cd22 = cdelt2 * np.cos(crota)
-
-        # Reference pixels (center of FOV)
-        nslits = slits.nslits
-        crpix1 = nslits / 2.0
-        crpix2 = slitlength / 2.0
-        crpix3 = 1.0
-
-        # Create WCS
-        log.info("Generating Binospec IFU WCS")
-        w = wcs.WCS(naxis=3)
-        w.wcs.equinox = hdr.get('EQUINOX', 2000.0)
-        w.wcs.name = 'Binospec IFU'
-        w.wcs.radesys = 'ICRS'
-        w.wcs.cname = ['RA', 'DEC', 'Wavelength']
-        w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
-        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
-        w.wcs.crval = [coord.ra.degree, coord.dec.degree, wave0]
-        w.wcs.crpix = [crpix1, crpix2, crpix3]
-        w.wcs.cd = np.array([[cd11, cd12, 0.0],
-                             [cd21, cd22, 0.0],
-                             [0.0, 0.0, dwv]])
-        w.wcs.lonpole = 180.0
-        w.wcs.latpole = 0.0
-
-        return w
-
-    def get_datacube_bins(self, slitlength, minmax, num_wave):
-        r"""
-        Calculate the bin edges to be used when making a datacube.
-
-        Args:
-            slitlength (:obj:`int`):
-                Length of the slit in pixels.
-            minmax (`numpy.ndarray`_):
-                An array with the minimum and maximum pixel locations on
-                each slit relative to the reference location. Shape must
-                be :math:`(N_{\rm slits},2)`.
-            num_wave (:obj:`int`):
-                Number of wavelength steps.
-
-        Returns:
-            :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the
-            :math:`(x,y,\lambda)` bins for datacube construction.
-        """
-        # Number of fiber traces (slits) is determined from minmax
-        nslits = minmax.shape[0]
-        ref_slit = nslits // 2
-        xbins = np.arange(1 + nslits) - ref_slit - 0.5
-        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]),
-                            1 + slitlength) - 0.5
-        spec_bins = np.arange(1 + num_wave) - 0.5
-        return xbins, ybins, spec_bins
 
     @staticmethod
     def _ifu_calib_path() -> PypeItDataPath:
