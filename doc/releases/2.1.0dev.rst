@@ -128,7 +128,6 @@ Bug Fixes
 - Fix a bug in 2D coaddition where manually identified objects were not being
   used to compute offsets between input frames.  Add description of this failure
   mode to the :ref:`known_issues_coadd2d` documentation for 2D coaddition.
-<<<<<<< HEAD
 - Fix an ``IndexError`` in ``pypeit_run_to_calibstep`` when run with
   ``--calib_group`` (the matched row was indexed as a scalar).
 - ``pypeit_run_to_calibstep`` now writes the reduction state file
@@ -159,10 +158,8 @@ Bug Fixes
   a science step-build reset the calibration statuses to ``undone`` (and a
   calibration build blanked the science entries), since each script only
   populates its own portion of the shared ``*_state.json``.
-=======
 - Fixes a bug in :class:`~pypeit.bspline.bspline.bspline` which was not
   correctly setting ``xmin`` and ``xmax`` when using the ``x2`` option.
 - MMT/Binospec: flat/trace/illumflat frame typing now requires the
   incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
   ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.
->>>>>>> origin/develop
