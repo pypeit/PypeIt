@@ -992,10 +992,6 @@ class Calibrations:
             self.flatimages = illumflatImages
 
         if self.flatimages is not None:
-            # Allow spectrograph-specific modifications (e.g., fiber
-            # illumination correction for fiber-fed spectrographs)
-            self.spectrograph.modify_pixelflat(self.flatimages, self.slits,
-                                               self.det)
             self.flatimages.set_paths(self.calib_dir, setup, calib_id, detname)
             # Save flat images
             self.flatimages.to_file()
@@ -2071,9 +2067,6 @@ class IFUCalibrations(Calibrations):
                                     'types', 'pixelflat')
 
         if self.flatimages is not None:
-            # Allow spectrograph-specific modifications
-            self.spectrograph.modify_pixelflat(self.flatimages, self.slits,
-                                               self.det)
             self.flatimages.set_paths(self.calib_dir, setup, calib_id,
                                       detname)
             self.flatimages.to_file()

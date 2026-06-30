@@ -1942,16 +1942,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
 
         return {'fiber_id': fiber_id, 'fiber_name': fiber_name, 'fiber_type': fiber_type}
 
-    def modify_pixelflat(self, flatimages, slits, det):
-        """
-        Override to skip baking fiber illumination into the pixel flat.
-
-        In the block-slit extraction approach, throughput corrections
-        are applied to extracted 1D spectra via ``FiberFlatImages``, not
-        to the pixel flat.
-        """
-        pass
-
     def measure_fiber_flat_flux(self, flatimg, slits, det):
         """
         Measure integrated flat field flux for each fiber within block-slits.

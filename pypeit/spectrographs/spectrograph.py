@@ -1485,25 +1485,6 @@ class Spectrograph:
             raise PypeItError(f'Provided det must have type tuple or integer, not {type(det)}.')
         return 1, (det,)
 
-    def modify_pixelflat(self, flatimages, slits, det):
-        """
-        Spectrograph-specific modifications to the pixel flat.
-
-        Called after the flat is built but before it is saved to disk.
-        The default implementation does nothing.  Override in subclasses
-        to apply instrument-specific corrections (e.g., fiber-to-fiber
-        throughput for fiber-fed spectrographs).
-
-        Args:
-            flatimages (:class:`~pypeit.flatfield.FlatImages`):
-                Flat-field images to modify (in place).
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-                Slit traces.
-            det (:obj:`int`):
-                1-indexed detector number.
-        """
-        pass
-
     def get_rawimage(self, raw_file, det, sec_includes_binning=False):
         """
         Read raw spectrograph image files and return data and relevant metadata
