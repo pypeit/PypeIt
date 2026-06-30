@@ -60,7 +60,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     ])
     telescope = telescopes.MMTTelescopePar()
     camera = 'BINOSPEC'
-    url = 'https://lweb.cfa.harvard.edu/mmti/binospec.html'
+    url = 'https://www.mmto.org/instrument-suite/binospec/binospec-information-for-users/'
     header_name = 'Binospec'
     supported = True
 
@@ -1137,6 +1137,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
     name = 'mmt_binospec_ifu'
     pypeline = 'Fiber'
     supported = True
+    url = 'https://www.mmto.org/instrument-suite/binospec/binospec-ifu-information/'
 
     # IFU fiber geometry constants
     # On-sky fiber pitch in arcsec (hexagonal lenslet array)
