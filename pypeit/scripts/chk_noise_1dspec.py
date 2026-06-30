@@ -19,10 +19,21 @@ from pypeit import utils
 from pypeit import log
 from pypeit import specobjs
 from pypeit.onespec import OneSpec
-from pypeit.core import plot as pypeit_plot
 
 from IPython import embed
 
+def set_fontsize(ax, fsz):
+    """
+    Set the fontsize throughout an Axis
+
+    Args:
+        ax (Matplotlib Axis):
+        fsz (float): Font size
+
+    """
+    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+                 ax.get_xticklabels() + ax.get_yticklabels()):
+        item.set_fontsize(fsz)
 
 def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
          flux:np.ndarray, err:np.ndarray, mask:np.ndarray, 
@@ -95,7 +106,7 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     ax.set_ylim(ymin, ymax)
     ax.set_xlabel('Wavelength  (Angstrom)')
     ax.set_ylabel(r'Counts')
-    pypeit_plot.set_fontsize(ax, 20)
+    set_fontsize(ax, 20)
     plt.legend(loc=3, fontsize=10)
 
     ax2 = plt.subplot2grid((1, 4), (0, 3), rowspan=1, colspan=1)
@@ -118,7 +129,7 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     ax2.text(0.97, 0.87, r'Chi:  Median = {:.2f}, Std = {:.2f}'.format(np.median(ratio), mad_std(ratio)),
              color='k', fontsize=12, horizontalalignment='right', transform=ax2.transAxes, weight='bold')
     ax2.legend(loc=2, fontsize=10)
-    pypeit_plot.set_fontsize(ax2, 20)
+    set_fontsize(ax2, 20)
 
     plt.tight_layout()
 

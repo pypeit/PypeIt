@@ -41,7 +41,7 @@ class SkySubRegions(scriptbase.ScriptBase):
         from pypeit import log
         from pypeit import PypeItError
         from pypeit import io
-        from pypeit.core.gui.skysub_regions import SkySubGUI
+        from pypeit.gui.skysub_regions import SkySubGUI
         from pypeit.images import buildimage
         from pypeit.images.detector_container import DetectorContainer
         from pypeit.edgetrace import EdgeTraceSet

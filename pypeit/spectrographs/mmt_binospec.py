@@ -138,6 +138,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['lampstat01'] = dict(ext=1, card='HENEAR')
         # used for flatlamp, SCRN is actually telescope status
         self.meta['lampstat02'] = dict(ext=1, card='SCRN')
+        # incandescent (flat-field) lamp; required to be 'on' for flat/trace frames
+        self.meta['lampstat03'] = dict(ext=1, card='INCAN')
         self.meta['instrument'] = dict(ext=1, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
@@ -173,7 +175,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname']
+        return ['dispname', 'decker']
 
     def raw_header_cards(self):
         """
@@ -193,7 +195,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['DISPERS1']
+        return ['DISPERS1', 'MASK']
 
     @classmethod
     def default_pypeit_par(cls):
@@ -406,7 +408,10 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lampstat01'] == 'on')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['lampstat02'] == 'deployed')
+            # Require the incandescent (flat) lamp to be on; INCAN=off frames
+            # are dark/noisy exposures and must not be combined into flats.
+            return good_exp & (fitstbl['lampstat01'] == 'off') \
+                & (fitstbl['lampstat02'] == 'deployed') & (fitstbl['lampstat03'] == 'on')
 
         log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
