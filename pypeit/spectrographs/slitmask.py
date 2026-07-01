@@ -12,7 +12,7 @@ from matplotlib import pyplot
 
 from astropy.stats import sigma_clip
 
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 from pypeit.utils import index_of_x_eq_y
 from pypeit import io
 
