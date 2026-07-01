@@ -228,7 +228,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["dec"] = dict(ext=0, card="DEC")
         self.meta["target"] = dict(ext=0, card="OBJNAME")
         self.meta["dispname"] = dict(card=None, compound=True)
-        self.meta["decker"] = dict(ext=0, card="FILTER4")  # SLIT filter wheel
+        self.meta["decker"] = dict(card=None, compound=True)  # SLIT filter wheel
         self.meta["binning"] = dict(card=None, compound=True)
         self.meta["mjd"] = dict(card=None, compound=True)
         self.meta["airmass"] = dict(ext=0, card="AIRMASS")
@@ -269,6 +269,13 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             # Return FILTER1 (Filter Wheel Name FW YJ) for YJ frames and
             #   FILTER2 (Filter Wheel Name FW HK) for HK frames
             return headarr[0]["FILTER1" if headarr[0]["CAMNAME"] == "YJ" else "FILTER2"]
+
+        if meta_key == "decker":
+            # Older RIMAS headers used alternate names for the 1.2" long slit.
+            decker = headarr[0]["FILTER4"].strip()
+            if decker in ["long", "1.2'''' long"]:
+                return "1.2'' long"
+            return decker
 
         if meta_key == "idname":
             # Force uppercase to match other LDT instruments
@@ -1546,6 +1553,16 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         """
         return {
             # All of the GRISM possible combinations
+            "YJ12l": {
+                "arm": np.str_("YJ"),
+                "dispname": np.str_("Grism"),
+                "decker": np.str_("1.2'' long"),
+            },
+            "HK12l": {
+                "arm": np.str_("HK"),
+                "dispname": np.str_("Grism"),
+                "decker": np.str_("1.2'' long"),
+            },
             "YJ06": {
                 "arm": np.str_("YJ"),
                 "dispname": np.str_("Grism"),
