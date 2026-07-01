@@ -1,6 +1,6 @@
 # pylint: disable=use-dict-literal
 """
-Module for LDT/RIMAS specific methods.
+Module for LDT/RIMAS specific methods. 
 
 The Rapid infrared IMAger Spectrometer (RIMAS) was built at the NASA Goddard
 Space Flight Center in partnership with the Astronomy Department of the
@@ -1411,6 +1411,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         return par
 
 
+# jump
 # GRISM Child Class for LDT/RIMAS ============================================#
 class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
     """
@@ -1425,104 +1426,75 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
     # TODO: Measure these values for RIMAS GRISM spectra!!!
     _grism_geometry = {
         "YJ": EchelleProps(
-            norders=16,
-            orders=np.arange(26, 10, -1, dtype=int),
+            norders=15,
+            orders=np.arange(44, 29, -1, dtype=int),  # orders 30-44
             order_spat_pos=np.array(
                 [
-                    0.08284662,
-                    0.1483813,
-                    0.21158701,
-                    0.27261607,
-                    0.33141317,
-                    0.38813936,
-                    0.44310197,
-                    0.49637422,
-                    0.54839496,
-                    0.59948157,
-                    0.65005956,
-                    0.70074477,
-                    0.75240745,
-                    0.80622583,
-                    0.86391259,
-                    0.9280528,
+                    0.151,
+                    0.21075,
+                    0.2665,
+                    0.319,
+                    0.368,
+                    0.41525,
+                    0.4595,
+                    0.50175,
+                    0.54225,
+                    0.58075,
+                    0.61725,
+                    0.6525,
+                    0.68625,
+                    0.71875,
+                    0.74975
                 ]
             ),
             spec_min=np.array(
-                [420, 390, 370, 345, 315, 285, 248, 210, 165, 115, 58, 5, 0, 0, 0, 0]
+                [7, 138, 257, 371, 479, 579, 675, 766, 850, 933, 1010,
+                1085, 1156, 1224, 1289]
             ),
             spec_max=np.array(
-                [
-                    1477,
-                    1513,
-                    1547,
-                    1588,
-                    1628,
-                    1682,
-                    1733,
-                    1795,
-                    1855,
-                    1930,
-                    2005,
-                    2040,
-                    2040,
-                    2040,
-                    2040,
-                    2040,
-                ]
+                [597, 705, 807, 903, 996, 1082, 1165, 1244, 1319, 1390,
+                1459, 1527, 1590, 1652, 1712]
             ),
             platescale=0.19,
-            dloglam=1.93724e-5,
-            loglam_minmax=(np.log10(9500.0), np.log10(26000)),
+            dloglam=2.8188583080448797e-5,
+            loglam_minmax=(np.log10(8597.0), np.log10(14040.0)),
         ),
+        
         "HK": EchelleProps(
-            norders=16,
-            orders=np.arange(26, 10, -1, dtype=int),
+            norders=17,
+            orders=np.arange(39, 22, -1, dtype=int),  # orders 23-39
             order_spat_pos=np.array(
                 [
-                    0.08284662,
-                    0.1483813,
-                    0.21158701,
-                    0.27261607,
-                    0.33141317,
-                    0.38813936,
-                    0.44310197,
-                    0.49637422,
-                    0.54839496,
-                    0.59948157,
-                    0.65005956,
-                    0.70074477,
-                    0.75240745,
-                    0.80622583,
-                    0.86391259,
-                    0.9280528,
-                ]
+                    0.2475,
+                    0.3135,
+                    0.373,
+                    0.4285,
+                    0.48,
+                    0.5275,
+                    0.572,
+                    0.613,
+                    0.652,
+                    0.689,
+                    0.724,
+                    0.756,
+                    0.78725,
+                    0.8165,
+                    0.8445,
+                    0.871,
+                    0.896
+            ]
             ),
             spec_min=np.array(
-                [420, 390, 370, 345, 315, 285, 248, 210, 165, 115, 58, 5, 0, 0, 0, 0]
+                [285, 421, 548, 666, 775, 877, 972, 1059, 1143, 1219, 1293,
+                1361, 1427, 1489, 1547, 1602, 1656]
             ),
             spec_max=np.array(
-                [
-                    1477,
-                    1513,
-                    1547,
-                    1588,
-                    1628,
-                    1682,
-                    1733,
-                    1795,
-                    1855,
-                    1930,
-                    2005,
-                    2040,
-                    2040,
-                    2040,
-                    2040,
-                    2040,
-                ]
+                [707, 835, 946, 1049, 1146, 1234, 1317, 1395, 1469, 1539,
+                1603, 1666, 1724, 1780, 1833, 1883, 1932]
             ),
             platescale=0.19,
-            dloglam=1.93724e-5,
-            loglam_minmax=(np.log10(9500.0), np.log10(26000)),
+            dloglam=2.3904436313733664e-5,
+            loglam_minmax=(np.log10(13423.0), np.log10(25075.0)),
         ),
     }
 
@@ -1899,7 +1871,7 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
     @property
     def dloglam(self) -> float:
         """
-        Return the logarithmic step in wavelength for output spectra.
+        Return the logarithmic step in wavelength for output spectra (in Angstroms).
         """
         return self._geometry().dloglam
 
@@ -1907,6 +1879,6 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
     def loglam_minmax(self) -> tuple[float, float]:
         """
         Return the base-10 logarithm of the first and last wavelength for
-        output spectra.
+        output spectra (in Angstroms).
         """
         return self._geometry().loglam_minmax
