@@ -1133,7 +1133,8 @@ class LDTRIMASVphHKSpectrograph(VPH_Modes, HKArm):
             if self.useOHCalib:
                 par["calibrations"]["wavelengths"]["lamps"] = ["OH_RIMAS_HK_30"]
                 par["calibrations"]["wavelengths"]["reid_arxiv"] = "ldt_rimas_HK_30_OH.fits"
-                par["calibrations"]["wavelengths"]["reid_cont_sub"] = False
+                par["calibrations"]["wavelengths"]["xcorr_only"] = True
+                
                 
             else:
                 par["calibrations"]["wavelengths"]["lamps"] = ["300HK_Kr"]#["OH_MOSFIRE_H", "OH_MOSFIRE_K"]
