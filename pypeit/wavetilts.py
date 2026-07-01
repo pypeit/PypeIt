@@ -148,7 +148,10 @@ class WaveTilts(calibframe.CalibFrame):
         _flexure = 0. if flexure is None else flexure
 
         final_tilts = np.zeros_like(slitmask, dtype=float)
-        gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)
+        # NOTE: -1 is the only off-slit sentinel used by SlitTraceSet.slit_img;
+        # valid slit IDs can be negative (e.g. Echelle edge orders whose spat_id
+        # extrapolates below zero), so this must test against -1 and NOT `>= 0`.
+        gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)
         # Loop
         for slit_spat in gdslit_spat:
             slit_idx = self.spatid_to_zero(slit_spat)
