@@ -837,18 +837,24 @@ class RawImage:
             qa_outfile = qa.set_qa_filename(basename, 'spat_flexure_qa_corr', out_dir=outdir)
             # Prepare the slit illumination profile to be used in the flexure correction
             slitprof = None
+            initial = True
             if self.par['use_illumflat']:
                 if flatimages is None:
                     log.warning("Spatial flexure correction requested but no flat images provided.  "
                                 "A flexure correction will still be performed, but the slit illumination "
                                 "profile will not be utilised.")
                 else:
-                    slitprof = flatimages.fit2illumflat(slits, finecorr=False)
-                    slitprof *= flatimages.fit2illumflat(slits, finecorr=True)
+                    # Need to use the slit illumination profile based on the tweaked edges, if available.
+                    # This is because the spatial illumination profile is calculated from the tweaked
+                    # edges.
+                    initial = False
+                    slitprof = flatimages.fit2illumflat(slits, initial=initial, finecorr=False)
+                    slitprof *= flatimages.fit2illumflat(slits, initial=initial, finecorr=True)
             # Now compute the spatial flexure shift
             spat_flexure = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
                                                       method=self.par['spat_flexure_method'],
                                                       slitprof=slitprof, maxlag=self.par['spat_flexure_maxlag'],
+                                                      initial=initial,
                                                       sigdetect=self.par['spat_flexure_sigdetect'],
                                                       debug=debug)
 

@@ -92,6 +92,11 @@ class FlatImages(calibframe.CalibFrame):
                                                 'shift of the right edge of slit i.'),
                  'illumflat_raw': dict(otype=np.ndarray, atype=np.floating,
                                        descr='Processed, combined illum flats'),
+                 # TODO : RJC thinks we should store the initial and tweaked slit edges. At the moment, we don't
+                 #  store any knowledge if the spatial b-splines are generated with initial or tweaked edges. This
+                 #  is a concern if we generate the fit2illumflat with initial=True, but the spatial b-splines were
+                 #  generated with tweaked edges. Same is true for the pixelflat_spat_bsplines, but that is not as
+                 #  big an issue.
                  'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
                                                  descr='B-spline models for illum flat; see '
                                                        ':class:`~pypeit.core.bspline.bspline.bspline`'),
