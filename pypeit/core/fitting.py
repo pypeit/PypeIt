@@ -1154,12 +1154,11 @@ def iterative_bspline_fit(
         B-spline order.
     basis : str or :class:`numpy.ndarray` or None, optional
         Polynomial basis specification for the second variable.  When a string,
-        one of ``'legendre'`` (default), ``'chebyshev'``, ``'poly'``, or
-        ``'poly1'``; ``basis_x`` must be provided.  When a
-        :class:`numpy.ndarray`, it is used directly as the pre-built polynomial
-        basis; a 1D array of size ``x.size * npoly`` is reshaped to ``(x.size,
-        npoly)`` automatically.  When ``None`` (default), a 1D
-        :class:`~pypeit.core.bspline.BSpline` fit is performed.
+        must be one of ``'legendre'``, ``'chebyshev'``, ``'poly'``, or
+        ``'poly1'``; ``basis_x``.  When a :class:`numpy.ndarray`, it is used
+        directly as the pre-built polynomial basis; a 1D array of size ``x.size
+        * npoly`` is reshaped to ``(x.size, npoly)`` automatically.  When
+        ``None``, a 1D :class:`~pypeit.core.bspline.BSpline` fit is performed.
     npoly : int, optional
         Number of polynomial terms; forwarded to
         :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when ``basis`` is
