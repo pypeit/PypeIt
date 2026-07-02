@@ -233,7 +233,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     # residuals as a function of spectral and spatial position like in the flat
     # fielding code.
     if show_fit:
-        goodbk = skyset.mask
+        goodbk = skyset.bkpt_gpm
         # This is approximate
         yfit_bkpt = np.interp(skyset.breakpoints[goodbk], pix,yfit)
         plt.clf()

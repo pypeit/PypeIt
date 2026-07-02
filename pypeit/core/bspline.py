@@ -14,9 +14,10 @@ Key design choices vs the original :class:`~pypeit.bspline.bspline.bspline`:
 - ``coeff`` for 2D fits has shape ``(nc, npoly)`` (knot index first) rather than
   the original ``(npoly, nc)`` (Fortran-column order).
 - Matrix multiplications use the ``@`` operator throughout.
-- The banded Cholesky solve is delegated to
-  :func:`scipy.linalg.cholesky_banded` / :func:`scipy.linalg.cho_solve_banded`
-  (LAPACK ``dpbtrf`` / ``dpbtrs``).
+- The banded Cholesky solve is delegated to :func:`_cholesky_banded` (a
+  drop-in replacement for :func:`scipy.linalg.cholesky_banded` that reports
+  the LAPACK ``info`` flag instead of raising an exception) and
+  :func:`scipy.linalg.cho_solve_banded` (LAPACK ``dpbtrf`` / ``dpbtrs``).
 - The design matrix is cached between :meth:`BSpline.fit` calls so that repeated
   calls with the same ``x`` (e.g. sigma-clipping loops) do not recompute it.
 - The ``fit`` and ``workit`` methods of the original are merged into a single
@@ -34,10 +35,53 @@ Original implementation ported from IDL/PYDL:
 
 import warnings
 
+from IPython import embed
 import numpy as np
-from scipy.linalg import cholesky_banded, cho_solve_banded, LinAlgError
+from scipy.linalg import cho_solve_banded, get_lapack_funcs
 
 from pypeit.core import basis
+
+
+def _cholesky_banded(ab, overwrite_ab=False, lower=False, check_finite=True):
+    """
+    Drop-in replacement for :func:`scipy.linalg.cholesky_banded` that returns
+    the LAPACK ``info`` flag instead of raising
+    :class:`~scipy.linalg.LinAlgError` when the matrix is not positive
+    definite.
+
+    ``info`` pinpoints the exact leading-minor order at which the
+    factorization first failed, which is needed to identify the specific
+    degenerate breakpoint; this is lost once
+    :func:`scipy.linalg.cholesky_banded` converts it into a generic
+    exception.
+
+    Parameters
+    ----------
+    ab : :class:`numpy.ndarray`
+        Banded matrix, in the format expected by
+        :func:`scipy.linalg.cholesky_banded`.
+    overwrite_ab : bool, optional
+        Discard data in ``ab`` (may enhance performance).
+    lower : bool, optional
+        Whether ``ab`` is stored in lower- or upper-diagonal ordered form.
+    check_finite : bool, optional
+        Whether to check that the input matrix contains only finite numbers.
+
+    Returns
+    -------
+    c : :class:`numpy.ndarray`
+        Cholesky factorization of ``ab``, in the same banded format as
+        ``ab``.  Only meaningful when ``info == 0``.
+    info : int
+        0 on success; otherwise the 1-indexed order of the leading minor at
+        which the matrix first failed to be positive definite.
+    """
+    _ab = np.asarray_chkfinite(ab) if check_finite else np.asarray(ab)
+    pbtrf, = get_lapack_funcs(('pbtrf',), (_ab,))
+    c, info = pbtrf(_ab, lower=lower, overwrite_ab=overwrite_ab)
+    if info < 0:
+        raise ValueError(f'illegal value in {-info}-th argument of internal pbtrf')
+    return c, info
 
 
 # ---------------------------------------------------------------------------
@@ -752,7 +796,7 @@ class BSpline:
         r"""
         Solve the banded normal equations via LAPACK banded Cholesky.
 
-        Uses :func:`scipy.linalg.cholesky_banded` (LAPACK ``dpbtrf``) and
+        Uses :func:`_cholesky_banded` (LAPACK ``dpbtrf``) and
         :func:`scipy.linalg.cho_solve_banded` (LAPACK ``dpbtrs``).
 
         Before calling LAPACK, a pre-check is made for diagonal entries of
@@ -791,16 +835,14 @@ class BSpline:
         if neg_mask.any():
             return None, None, neg_mask.nonzero()[0]
 
-        try:
-            chol = cholesky_banded(alpha[:, :nfull], lower=True)
-            sol = cho_solve_banded((chol, True), beta[:nfull])
-        except LinAlgError:
-            # Fallback: identify the first zero or negative diagonal
-            bad = (alpha[0, :nfull] <= 0).nonzero()[0]
-            if bad.size == 0:
-                bad = np.array([0])
-            return None, None, bad
+        chol, info = _cholesky_banded(alpha[:, :nfull], lower=True)
+        if info > 0:
+            # `info` is the 1-indexed order of the leading minor where the
+            # factorization first failed; report that column directly rather
+            # than guessing from the (possibly all-positive) diagonal.
+            return None, None, np.array([info - 1])
 
+        sol = cho_solve_banded((chol, True), beta[:nfull])
         return sol, chol, np.array([-1])
 
     def _update_coefficients(self, sol, chol, goodbk_idx):
@@ -1710,6 +1752,7 @@ class BSpline2D(BSpline):
 
         self.yfit = self._evaluate_model(A, lower, upper)
         if bad_cols[0] != -1:
+#            print(bad_cols, np.sum(self.bkpt_gpm))
             return self._mask_breakpoints(bad_cols), self.yfit
 
         goodbk_idx = goodbk.nonzero()[0]

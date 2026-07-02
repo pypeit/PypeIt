@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 
 from pypeit import dataPaths
-from pypeit.core.bspline import BSpline, BSpline2D, Knots
+from pypeit.core.bspline import BSpline, BSpline2D, Knots, _cholesky_banded
 from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.core.fitting import bspline_qa
 from pypeit.core.basis import fchebyshev, flegendre
@@ -402,6 +402,41 @@ def test_assemble_normal_equations_solution_matches_lstsq():
     yfit_lstsq = A_full @ sol_lstsq
 
     np.testing.assert_allclose(yfit_banded, yfit_lstsq, atol=1e-10)
+
+
+# ============================================================================
+# _cholesky_banded
+# ============================================================================
+
+def test_cholesky_banded_success_known_output():
+    """A diagonal (bw=1) SPD matrix has an analytically known Cholesky
+    factor: the element-wise square root of the diagonal."""
+    ab = np.array([[4.0, 9.0, 16.0, 25.0]])
+    chol, info = _cholesky_banded(ab, lower=True)
+    assert info == 0
+    np.testing.assert_allclose(chol[0], [2.0, 3.0, 4.0, 5.0])
+
+
+def test_cholesky_banded_failure_identifies_leading_minor_index():
+    """A tridiagonal matrix with an all-positive diagonal can still be
+    indefinite due to the off-diagonal coupling; `info` must report the
+    1-indexed order of the leading minor that first fails, not merely flag
+    a negative diagonal entry (there is none here).
+
+    A_dense = [[4, -1,  0,  0],
+               [-1, 4, -1,  0],
+               [ 0,-1,  4, -5],
+               [ 0, 0, -5,  4]]
+    has leading-minor determinants 4, 15, 56, -151: positive definiteness
+    first fails at order 4.
+    """
+    ab = np.array([
+        [4.0, 4.0, 4.0, 4.0],
+        [-1.0, -1.0, -5.0, 0.0],
+    ])
+    assert np.all(ab[0] > 0), 'diagonal must be all-positive for this to be a meaningful test'
+    chol, info = _cholesky_banded(ab, lower=True)
+    assert info == 4
 
 
 # ============================================================================
