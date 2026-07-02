@@ -408,6 +408,7 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
     ra_fake = fracpos/1000.0  # Divide all angles by 1000 to make geometry euclidian
     dec_fake = np.zeros_like(fracpos)
     if nfound>1:
+        # TODO: Deprecate spheregroup
         inobj_id, multobj_id, firstobj_id, nextobj_id \
                 = pydl.spheregroup(ra_fake, dec_fake, FOF_frac/1000.0)
         # Modify to 1-based indexing

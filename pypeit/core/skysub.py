@@ -338,7 +338,6 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
         log.warning('All pixels are masked in skyoptimal. Not performing local sky subtraction.')
         return np.zeros_like(piximg), np.zeros_like(piximg), gpm
 
-    log.info('Iter     Chi^2     Rejected Pts')
     sset1, gpm_good1, yfit1, red_chi1, exit_status = iterative_bspline_fit(
         piximg[good], data[good], ivar=ivar[good], basis=profile_basis[good, :],
         kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej, relative=relative,
@@ -359,7 +358,6 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
         return np.zeros_like(piximg), np.zeros_like(piximg), gpm
 
     log.info('2nd round....')
-    log.info('Iter     Chi^2     Rejected Pts')
     sset, gpm_good, yfit, red_chi, exit_status = iterative_bspline_fit(
         piximg[good], data[good], ivar=ivar[good], basis=profile_basis[good, :], gpm=mask1,
         kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej, relative=relative,

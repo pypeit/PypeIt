@@ -1239,6 +1239,10 @@ def iterative_bspline_fit(
 
     bspl = bspl_cls(x=x[maskwork], knots=bspline.Knots(**kwargs_knots), nord=nord)
     if maskwork.sum() < bspl.nord:
+        log.warning(
+            f'B-spline fit failed: Number of good data points ({maskwork.sum()}) fewer than '
+            f'order of the fit ({bspl.nord}).'
+        )
         # TODO: Should this return outmask or maskwork?  Seems odd to return a
         # fully True gpm for a failed fit.
         return bspl, outmask, np.zeros(y.shape), 0., 4
@@ -1251,6 +1255,16 @@ def iterative_bspline_fit(
     relative_factor = 1.0
     nrel = 0 if relative is None else len(relative)
     _gpm = None if gpm is None else gpm.copy()
+
+    termwidth = 80 - 13
+    log.info('B-spline fit:')
+    log.info(f'    npoly = {_npoly} profile basis functions')
+    log.info(f'    ngood = {maskwork.sum()}/{maskwork.size} measurements')
+    log.info(
+        f' {"Iter":>4}  {"Chi^2":>8}  {"N Rej":>7}  {"R. Fac":>6} '.center(termwidth, '*')
+    )
+    log.info(f' {"-"*4}  {"-"*8}  {"-"*7}  {"="*6} '.center(termwidth))
+    nullval = f'  {"--":>8}  {"--":>7}  {"--":>6} '
 
     while (err != 0 or not qdone) and iiter <= maxiter and exit_status == 0:
         if maskwork.sum() <= 1:
@@ -1268,11 +1282,20 @@ def iterative_bspline_fit(
                 x=x, y=y, ivar=_ivar, basis=_basis, basis_x=basis_x,
                 npoly=_npoly, xmin=xmin, xmax=xmax,
             )
+
+        # WARNING: Because we count the iteration here, before assessing err,
+        # loop iterations include fits that are redone because of breakpoints
+        # being masked.
+        # TODO: Consider altering `BSpline(2D).fit` such that it accepts a
+        # number of iterations it is allowed to perform while masking bad
+        # breakpoints.
         iiter += 1
 
         if err == -2:
+            log.warning('B-spline fit failed: All break points lost!')
             return bspl, np.zeros(x.shape, dtype=bool), np.zeros(x.shape), reduced_chi, 3
         if err != 0:
+            log.info(f' {iiter:4d}{nullval}'.center(termwidth))
             continue
 
         ngood = maskwork.sum()
@@ -1293,6 +1316,9 @@ def iterative_bspline_fit(
             **kwargs_reject
         )
         _gpm = np.copy(maskwork)
+        log.info(f' {iiter:4d}  {reduced_chi:8.3f}  {maskwork.sum():7d}  {relative_factor:6.2f} ')
+
+    log.info(f' {"DONE":>4}  {reduced_chi:8.3f}  {maskwork.sum():7d}  {relative_factor:6.2f} ')
 
     if iiter == maxiter + 1:
         exit_status = 1

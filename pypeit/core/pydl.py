@@ -175,117 +175,117 @@ def djs_maskinterp(yval, mask, xval=None, axis=None, const=False):
 
 
 
-def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
-            inputans=None, inputfunc=None):
-    """Fit `x`, `y` positions to a functional form.
-
-    Parameters
-    ----------
-    x : array-like
-        X values (independent variable).
-    y : array-like
-        Y values (dependent variable).
-    ncoeff : :class:`int`
-        Number of coefficients to fit.
-    invvar : array-like, optional
-        Weight values; inverse variance.
-    function_name : :class:`str`, optional
-        Function name, default 'legendre'.
-    ia : array-like, optional
-        An array of bool of length `ncoeff` specifying free (``True``) and
-        fixed (``False``) parameters.
-    inputans : array-like, optional
-        An array of values of length `ncoeff` specifying the values of
-        the fixed parameters.
-    inputfunc : array-like, optional
-        Multiply the function fit by these values.
-
-    Returns
-    -------
-    :func:`tuple` of array-like
-        Fit coefficients, length `ncoeff`; fitted values.
-
-    Raises
-    ------
-    KeyError
-        If an invalid function type is selected.
-    ValueError
-        If input dimensions do not agree.
-    """
-    if x.shape != y.shape:
-        raise ValueError('Dimensions of X and Y do not agree!')
-    if invvar is None:
-        invvar = np.ones(x.shape, dtype=x.dtype)
-    else:
-        if invvar.shape != x.shape:
-            raise ValueError('Dimensions of X and invvar do not agree!')
-    if ia is None:
-        ia = np.ones((ncoeff,), dtype=bool)
-    if not ia.all():
-        if inputans is None:
-            inputans = np.zeros((ncoeff,), dtype=x.dtype)
-    #
-    # Select unmasked points
-    #
-    igood = (invvar > 0).nonzero()[0]
-    ngood = len(igood)
-    res = np.zeros((ncoeff,), dtype=x.dtype)
-    yfit = np.zeros(x.shape, dtype=x.dtype)
-    if ngood == 0:
-        pass
-    elif ngood == 1:
-        res[0] = y[igood[0]]
-        yfit += y[igood[0]]
-    else:
-        ncfit = min(ngood, ncoeff)
-        function_map = {
-            'legendre': basis.flegendre,
-            'flegendre': basis.flegendre,
-            'chebyshev': basis.fchebyshev,
-            'fchebyshev': basis.fchebyshev,
-            'chebyshev_split': basis.fchebyshev_split,
-            'fchebyshev_split': basis.fchebyshev_split,
-            'poly': basis.fpoly,
-            'fpoly': basis.fpoly
-            }
-        try:
-            legarr = function_map[function_name](x, ncfit).T
-        except KeyError:
-            raise KeyError('Unknown function type: {0}'.format(function_name))
-        if inputfunc is not None:
-            if inputfunc.shape != x.shape:
-                raise ValueError('Dimensions of X and inputfunc do not agree!')
-            legarr *= np.tile(inputfunc, ncfit).reshape(ncfit, x.shape[0])
-        yfix = np.zeros(x.shape, dtype=x.dtype)
-        nonfix = ia[0:ncfit].nonzero()[0]
-        nparams = len(nonfix)
-        fixed = (~ia[0:ncfit]).nonzero()[0]
-        if len(fixed) > 0:
-            yfix = np.dot(legarr.T, inputans * (1 - ia))
-            ysub = y - yfix
-            finalarr = legarr[nonfix, :]
-        else:
-            finalarr = legarr
-            ysub = y
-        # extra2 = finalarr * np.outer(np.ones((nparams,), dtype=x.dtype),
-        #                             (invvar > 0))
-        extra2 = finalarr * np.outer(np.ones((nparams,), dtype=x.dtype),
-                                    invvar)
-        alpha = np.dot(finalarr, extra2.T)
-        # assert alpha.dtype == x.dtype
-        if nparams > 1:
-            # beta = np.dot(ysub * (invvar > 0), finalarr.T)
-            beta = np.dot(ysub * invvar, finalarr.T)
-            assert beta.dtype == x.dtype
-            # uu,ww,vv = np.linalg.svd(alpha, full_matrices=False)
-            res[nonfix] = np.linalg.solve(alpha, beta)
-        else:
-            # res[nonfix] = (ysub * (invvar > 0) * finalarr).sum()/alpha
-            res[nonfix] = (ysub * invvar * finalarr).sum()/alpha
-        if len(fixed) > 0:
-            res[fixed] = inputans[fixed]
-        yfit = np.dot(legarr.T, res[0:ncfit])
-    return res, yfit
+# def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
+#             inputans=None, inputfunc=None):
+#     """Fit `x`, `y` positions to a functional form.
+# 
+#     Parameters
+#     ----------
+#     x : array-like
+#         X values (independent variable).
+#     y : array-like
+#         Y values (dependent variable).
+#     ncoeff : :class:`int`
+#         Number of coefficients to fit.
+#     invvar : array-like, optional
+#         Weight values; inverse variance.
+#     function_name : :class:`str`, optional
+#         Function name, default 'legendre'.
+#     ia : array-like, optional
+#         An array of bool of length `ncoeff` specifying free (``True``) and
+#         fixed (``False``) parameters.
+#     inputans : array-like, optional
+#         An array of values of length `ncoeff` specifying the values of
+#         the fixed parameters.
+#     inputfunc : array-like, optional
+#         Multiply the function fit by these values.
+# 
+#     Returns
+#     -------
+#     :func:`tuple` of array-like
+#         Fit coefficients, length `ncoeff`; fitted values.
+# 
+#     Raises
+#     ------
+#     KeyError
+#         If an invalid function type is selected.
+#     ValueError
+#         If input dimensions do not agree.
+#     """
+#     if x.shape != y.shape:
+#         raise ValueError('Dimensions of X and Y do not agree!')
+#     if invvar is None:
+#         invvar = np.ones(x.shape, dtype=x.dtype)
+#     else:
+#         if invvar.shape != x.shape:
+#             raise ValueError('Dimensions of X and invvar do not agree!')
+#     if ia is None:
+#         ia = np.ones((ncoeff,), dtype=bool)
+#     if not ia.all():
+#         if inputans is None:
+#             inputans = np.zeros((ncoeff,), dtype=x.dtype)
+#     #
+#     # Select unmasked points
+#     #
+#     igood = (invvar > 0).nonzero()[0]
+#     ngood = len(igood)
+#     res = np.zeros((ncoeff,), dtype=x.dtype)
+#     yfit = np.zeros(x.shape, dtype=x.dtype)
+#     if ngood == 0:
+#         pass
+#     elif ngood == 1:
+#         res[0] = y[igood[0]]
+#         yfit += y[igood[0]]
+#     else:
+#         ncfit = min(ngood, ncoeff)
+#         function_map = {
+#             'legendre': basis.flegendre,
+#             'flegendre': basis.flegendre,
+#             'chebyshev': basis.fchebyshev,
+#             'fchebyshev': basis.fchebyshev,
+#             'chebyshev_split': basis.fchebyshev_split,
+#             'fchebyshev_split': basis.fchebyshev_split,
+#             'poly': basis.fpoly,
+#             'fpoly': basis.fpoly
+#             }
+#         try:
+#             legarr = function_map[function_name](x, ncfit).T
+#         except KeyError:
+#             raise KeyError('Unknown function type: {0}'.format(function_name))
+#         if inputfunc is not None:
+#             if inputfunc.shape != x.shape:
+#                 raise ValueError('Dimensions of X and inputfunc do not agree!')
+#             legarr *= np.tile(inputfunc, ncfit).reshape(ncfit, x.shape[0])
+#         yfix = np.zeros(x.shape, dtype=x.dtype)
+#         nonfix = ia[0:ncfit].nonzero()[0]
+#         nparams = len(nonfix)
+#         fixed = (~ia[0:ncfit]).nonzero()[0]
+#         if len(fixed) > 0:
+#             yfix = np.dot(legarr.T, inputans * (1 - ia))
+#             ysub = y - yfix
+#             finalarr = legarr[nonfix, :]
+#         else:
+#             finalarr = legarr
+#             ysub = y
+#         # extra2 = finalarr * np.outer(np.ones((nparams,), dtype=x.dtype),
+#         #                             (invvar > 0))
+#         extra2 = finalarr * np.outer(np.ones((nparams,), dtype=x.dtype),
+#                                     invvar)
+#         alpha = np.dot(finalarr, extra2.T)
+#         # assert alpha.dtype == x.dtype
+#         if nparams > 1:
+#             # beta = np.dot(ysub * (invvar > 0), finalarr.T)
+#             beta = np.dot(ysub * invvar, finalarr.T)
+#             assert beta.dtype == x.dtype
+#             # uu,ww,vv = np.linalg.svd(alpha, full_matrices=False)
+#             res[nonfix] = np.linalg.solve(alpha, beta)
+#         else:
+#             # res[nonfix] = (ysub * (invvar > 0) * finalarr).sum()/alpha
+#             res[nonfix] = (ysub * invvar * finalarr).sum()/alpha
+#         if len(fixed) > 0:
+#             res[fixed] = inputans[fixed]
+#         yfit = np.dot(legarr.T, res[0:ncfit])
+#     return res, yfit
 
 
 def djs_reject(data, model, outmask=None, inmask=None,
@@ -1275,110 +1275,110 @@ def spheregroup(ra, dec, linklength, chunksize=None):
     return (ingroup, multgroup, firstgroup, nextgroup)
 
 
-def spherematch(ra1, dec1, ra2, dec2, matchlength, chunksize=None,
-                maxmatch=1):
-    """Match points on a sphere.
-
-    Parameters
-    ----------
-    ra1, dec1, ra2, dec2 : :class:`numpy.ndarray`
-        The sets of coordinates to match.  Assumed to be in decimal degrees
-    matchlength : :class:`float`
-        Two points closer than this separation are matched. Assumed to be in decimal degrees.
-    chunksize : :class:`float`, optional
-        Value to pass to chunk assignment.
-    maxmatch : :class:`int`, optional
-        Allow up to `maxmatch` matches per coordinate.  Default 1. If set to zero,
-        All possible matches will be returned.
-
-    Returns
-    -------
-    :func:`tuple`
-        A tuple containing the indices into the first set of points, the
-        indices into the second set of points and the match distance in
-        decimal degrees.
-
-    Notes
-    -----
-    If you have sets of coordinates that differ in size, call this function
-    with the larger list first.  This exploits the inherent asymmetry in the
-    underlying code to reduce memory use.
-
-    .. warning:: Behavior at the poles is not well tested.
-    """
-    #
-    # Set default values
-    #
-    if chunksize is None:
-        chunksize = max(4.0*matchlength, 0.1)
-    #
-    # Check input size
-    #
-    if ra1.size == 1:
-        raise PypeItError("Change the order of the sets of coordinates!")
-    #
-    # Initialize chunks
-    #
-    chunk = chunks(ra1, dec1, chunksize)
-    chunk.assign(ra2, dec2, matchlength)
-    #
-    # Create return arrays
-    #
-    match1 = list()
-    match2 = list()
-    distance12 = list()
-    for i in range(ra1.size):
-        currra = np.fmod(ra1[i]+chunk.raOffset, 360.0)
-        rachunk, decchunk = chunk.get(currra, dec1[i])
-        jmax = len(chunk.chunkList[decchunk][rachunk])
-        if jmax > 0:
-            for j in range(jmax):
-                k = chunk.chunkList[decchunk][rachunk][j]
-                sep = gcirc(ra1[i], dec1[i], ra2[k], dec2[k], units=2)/3600.0
-                if sep < matchlength:
-                    match1.append(i)
-                    match2.append(k)
-                    distance12.append(sep)
-    #
-    # Sort distances
-    #
-    omatch1 = np.array(match1)
-    omatch2 = np.array(match2)
-    odistance12 = np.array(distance12)
-    s = odistance12.argsort(kind='stable')
-    #
-    # Retain only desired matches
-    #
-    if maxmatch > 0:
-        gotten1 = np.zeros(ra1.size, dtype='i4')
-        gotten2 = np.zeros(ra2.size, dtype='i4')
-        nmatch = 0
-        for i in range(omatch1.size):
-            if (gotten1[omatch1[s[i]]] < maxmatch and
-                    gotten2[omatch2[s[i]]] < maxmatch):
-                gotten1[omatch1[s[i]]] += 1
-                gotten2[omatch2[s[i]]] += 1
-                nmatch += 1
-        match1 = np.zeros(nmatch, dtype='i4')
-        match2 = np.zeros(nmatch, dtype='i4')
-        distance12 = np.zeros(nmatch, dtype='d')
-        gotten1[:] = 0
-        gotten2[:] = 0
-        nmatch = 0
-        for i in range(omatch1.size):
-            if (gotten1[omatch1[s[i]]] < maxmatch and
-                    gotten2[omatch2[s[i]]] < maxmatch):
-                gotten1[omatch1[s[i]]] += 1
-                gotten2[omatch2[s[i]]] += 1
-                match1[nmatch] = omatch1[s[i]]
-                match2[nmatch] = omatch2[s[i]]
-                distance12[nmatch] = odistance12[s[i]]
-                nmatch += 1
-    else:
-        match1 = omatch1[s]
-        match2 = omatch2[s]
-        distance12 = odistance12[s]
-    return (match1, match2, distance12)
+# def spherematch(ra1, dec1, ra2, dec2, matchlength, chunksize=None,
+#                 maxmatch=1):
+#     """Match points on a sphere.
+# 
+#     Parameters
+#     ----------
+#     ra1, dec1, ra2, dec2 : :class:`numpy.ndarray`
+#         The sets of coordinates to match.  Assumed to be in decimal degrees
+#     matchlength : :class:`float`
+#         Two points closer than this separation are matched. Assumed to be in decimal degrees.
+#     chunksize : :class:`float`, optional
+#         Value to pass to chunk assignment.
+#     maxmatch : :class:`int`, optional
+#         Allow up to `maxmatch` matches per coordinate.  Default 1. If set to zero,
+#         All possible matches will be returned.
+# 
+#     Returns
+#     -------
+#     :func:`tuple`
+#         A tuple containing the indices into the first set of points, the
+#         indices into the second set of points and the match distance in
+#         decimal degrees.
+# 
+#     Notes
+#     -----
+#     If you have sets of coordinates that differ in size, call this function
+#     with the larger list first.  This exploits the inherent asymmetry in the
+#     underlying code to reduce memory use.
+# 
+#     .. warning:: Behavior at the poles is not well tested.
+#     """
+#     #
+#     # Set default values
+#     #
+#     if chunksize is None:
+#         chunksize = max(4.0*matchlength, 0.1)
+#     #
+#     # Check input size
+#     #
+#     if ra1.size == 1:
+#         raise PypeItError("Change the order of the sets of coordinates!")
+#     #
+#     # Initialize chunks
+#     #
+#     chunk = chunks(ra1, dec1, chunksize)
+#     chunk.assign(ra2, dec2, matchlength)
+#     #
+#     # Create return arrays
+#     #
+#     match1 = list()
+#     match2 = list()
+#     distance12 = list()
+#     for i in range(ra1.size):
+#         currra = np.fmod(ra1[i]+chunk.raOffset, 360.0)
+#         rachunk, decchunk = chunk.get(currra, dec1[i])
+#         jmax = len(chunk.chunkList[decchunk][rachunk])
+#         if jmax > 0:
+#             for j in range(jmax):
+#                 k = chunk.chunkList[decchunk][rachunk][j]
+#                 sep = gcirc(ra1[i], dec1[i], ra2[k], dec2[k], units=2)/3600.0
+#                 if sep < matchlength:
+#                     match1.append(i)
+#                     match2.append(k)
+#                     distance12.append(sep)
+#     #
+#     # Sort distances
+#     #
+#     omatch1 = np.array(match1)
+#     omatch2 = np.array(match2)
+#     odistance12 = np.array(distance12)
+#     s = odistance12.argsort(kind='stable')
+#     #
+#     # Retain only desired matches
+#     #
+#     if maxmatch > 0:
+#         gotten1 = np.zeros(ra1.size, dtype='i4')
+#         gotten2 = np.zeros(ra2.size, dtype='i4')
+#         nmatch = 0
+#         for i in range(omatch1.size):
+#             if (gotten1[omatch1[s[i]]] < maxmatch and
+#                     gotten2[omatch2[s[i]]] < maxmatch):
+#                 gotten1[omatch1[s[i]]] += 1
+#                 gotten2[omatch2[s[i]]] += 1
+#                 nmatch += 1
+#         match1 = np.zeros(nmatch, dtype='i4')
+#         match2 = np.zeros(nmatch, dtype='i4')
+#         distance12 = np.zeros(nmatch, dtype='d')
+#         gotten1[:] = 0
+#         gotten2[:] = 0
+#         nmatch = 0
+#         for i in range(omatch1.size):
+#             if (gotten1[omatch1[s[i]]] < maxmatch and
+#                     gotten2[omatch2[s[i]]] < maxmatch):
+#                 gotten1[omatch1[s[i]]] += 1
+#                 gotten2[omatch2[s[i]]] += 1
+#                 match1[nmatch] = omatch1[s[i]]
+#                 match2[nmatch] = omatch2[s[i]]
+#                 distance12[nmatch] = odistance12[s[i]]
+#                 nmatch += 1
+#     else:
+#         match1 = omatch1[s]
+#         match2 = omatch2[s]
+#         distance12 = odistance12[s]
+#     return (match1, match2, distance12)
 
 
 def gcirc(ra1, dec1, ra2, dec2, units=2):
