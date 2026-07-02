@@ -61,6 +61,11 @@ Instrument-specific Updates
   Wavelength solution uses ``method='full_template'`` against the
   shipped ``wvarxiv_p200_ngps_{u,g,r,i}_thar_central.fits``
   binspec=1 ThAr archives.  See :ref:`p200_ngps_doc`.
+- Palomar/NGPS: the wavelength-calibration ``match_toler`` is now derived from
+  the spectral binning of the data (held fixed in wavelength rather than in
+  binned pixels via ``config_specific_par``), so binnings other than the
+  binspec=3 commissioning setup (e.g. binspec=1) no longer drop the redder,
+  more widely spaced arc lines.  binspec=3 is unchanged (0.3 px).
 - Added wavelength-calibration template for GRIS_1200R grating in VLT/FORS2
 - Added support for the SOAR/TripleSpec near-IR echelle spectrograph
   (``soar_tspec``), reduced via the Echelle pipeline over all five orders
@@ -131,3 +136,7 @@ Bug Fixes
 - MMT/Binospec: flat/trace/illumflat frame typing now requires the
   incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
   ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.
+- Palomar/NGPS: pixelflat/trace/illumflat frame typing now uses only dome flats
+  (``IMGTYPE`` = ``DOMEFLAT``) and no longer includes the internal continuum
+  (``IMGTYPE`` = ``CONT``) lamp flats, whose different illumination contaminated
+  the combined pixel/illumination flat when both were present in a night.
