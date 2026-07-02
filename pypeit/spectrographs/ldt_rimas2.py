@@ -1393,7 +1393,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
 
         if grating == "Vph30":
             par["calibrations"]["wavelengths"]["xcorr_only"] = True
-            par["calibrations"]["slitedges"]["edge_thresh"] = 2.0
+            par["calibrations"]["slitedges"]["edge_thresh"] = 50.0
             par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.05
             par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.05
             par["calibrations"]["wavelengths"][
@@ -1404,16 +1404,19 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             par["calibrations"]["wavelengths"]["n_first"] = 3
             par["calibrations"]["wavelengths"]["n_final"] = 5
             par["calibrations"]["wavelengths"]["lamps"] = ["Hg_RIMAS"]
-            par["sensfunc"]["UVIS"]["resolution"] = 400
+            par["sensfunc"]["UVIS"]["resolution"] = 40
+
+            par["reduce"]["findobj"]["find_fwhm"] = 5
+            par["reduce"]["findobj"]["snr_thresh"] = 2
 
         elif grating == "Vph300":
             par["calibrations"]["wavelengths"][
                 "reid_arxiv"
-            ] = "ldt_deveny_300_HgCdAr.fits"
+            ] = "ldt_rimas_HK_300_OH.fits"
             par["calibrations"]["wavelengths"]["n_first"] = 3
             par["calibrations"]["wavelengths"]["n_final"] = 5
             par["calibrations"]["wavelengths"]["sigdetect"] = 5
-            par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]
+            par["calibrations"]["wavelengths"]["lamps"] = ["OH_RIMAS_HK"]
             par["reduce"]["findobj"]["find_fwhm"] = 7
             par["reduce"]["findobj"]["snr_thresh"] = 10
             par["sensfunc"]["UVIS"]["resolution"] = 800
