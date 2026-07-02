@@ -1263,7 +1263,7 @@ def iterative_bspline_fit(
     log.info(
         f' {"Iter":>4}  {"Chi^2":>8}  {"N Rej":>7}  {"R. Fac":>6} '.center(termwidth, '*')
     )
-    log.info(f' {"-"*4}  {"-"*8}  {"-"*7}  {"="*6} '.center(termwidth))
+    log.info(f' {"-"*4}  {"-"*8}  {"-"*7}  {"-"*6} '.center(termwidth))
     nullval = f'  {"--":>8}  {"--":>7}  {"--":>6} '
 
     while (err != 0 or not qdone) and iiter <= maxiter and exit_status == 0:
@@ -1316,9 +1316,13 @@ def iterative_bspline_fit(
             **kwargs_reject
         )
         _gpm = np.copy(maskwork)
-        log.info(f' {iiter:4d}  {reduced_chi:8.3f}  {maskwork.sum():7d}  {relative_factor:6.2f} ')
+        log.info((
+            f' {iiter:4d}  {reduced_chi:8.3f}  {maskwork.sum():7d}  {relative_factor:6.2f} '
+        ).center(termwidth))
 
-    log.info(f' {"DONE":>4}  {reduced_chi:8.3f}  {maskwork.sum():7d}  {relative_factor:6.2f} ')
+    log.info((
+        f' {"DONE":>4}  {reduced_chi:8.3f}  {maskwork.sum():7d}  {relative_factor:6.2f} '
+    ).center(termwidth))
 
     if iiter == maxiter + 1:
         exit_status = 1
