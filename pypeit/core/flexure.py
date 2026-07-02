@@ -105,51 +105,31 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
 
     # Create Sobel images of the science image and check edges have been detected
     sci_sobel, sci_edges = trace.detect_slit_edges(_sciimg, bpm=_bpm, sigdetect=sigdetect)
-    exp_edges = 2 * slits.nslits * slits.nspec  # Expected number of pixel edges to detect
-    nspat_edge = np.sum(sci_edges != 0, axis=1)
-    det_edges = np.sum(np.clip(nspat_edge, 0, 2*slits.nslits))  # Number of pixel edges detected
-    # First provide a warning if only half slit edge pixels were detected
-    if det_edges < 0.5 * exp_edges:
+    # Create Sobel images of the slit edges
+    slits_sobel, slits_edges = trace.detect_slit_edges(_corr_slits, bpm=bpm, sigdetect=1)
+    # Perform the cross-correlation to determine the lag
+    corr = signal.fftconvolve(sci_edges, np.fliplr(slits_edges), mode='same', axes=1)
+    xcorr = np.sum(corr, axis=0)
+    lags = signal.correlation_lags(sci_edges.shape[1], slits_edges.shape[1], mode='same')
+    lag0 = np.where(lags == 0)[0][0]
+    xcorr_max = xcorr[lag0 - maxlag:lag0 + maxlag]
+    lags_max = lags[lag0 - maxlag:lag0 + maxlag]
+
+    # detect the highest peak in the cross-correlation
+    _, pix_ampl, pix_max, _, _, _, _, _ = arc.detect_lines(xcorr_max, cont_subtract=False, input_thresh=0., nfind=1, debug=debug)
+    # No significantly detected peak? e.g. data fills the entire detector or slit edge failed for faint science object
+    _, cc_med, cc_disp = sigma_clipped_stats(xcorr_max)
+    if (len(pix_max) == 0) or pix_max[0] == -999.0 or (pix_ampl[0]-cc_med)/cc_disp < 5:
         log.warning(
-            'Only {0:.2f} percent of the expected slit edges were detected in the science image.  '
-            'This may indicate that the slitmask is not aligned with the science image, '
-            'or that the science image is too faint to detect the slit edges. '
-            'The spatial flexure measurement may be unreliable.'.format(100.0*det_edges/exp_edges)
+            'No peak found in the x-correlation between the traced slits and the science/calibration image.\n'
+            'Assuming there is NO GLOBAL SPATIAL FLEXURE.\nIf a flexure is expected, consider either changing:\n'
+            '  (1) The maximum lag for the cross-correlation\n'
+            '  (2) change the "spat_flexure_sigdetect" parameter\n'
+            '  (3) Use the manual flexure correction\n'
+            '  (4) set the "spat_flexure_method" to be "slit" or "edge"'
         )
-    else:
-        log.info('{0:.2f} percent of the expected slit edges were '
-                 'detected in the science image.'.format(100.0*det_edges/exp_edges))
-    # If less than 10% of the edges were detected, do not perform a global spatial flexure measurement.
-    frac_allow = 0.1  # Allow cross-correlation to proceed if 10% of the edges are detected
-    if det_edges < frac_allow * exp_edges:
-        log.warning("Cannot accurately determine spatial flexure. Assuming global spatial "
-                    "flexure is zero.")
         total_flexure = np.zeros((slits.nslits, 2), dtype=float)
     else:
-        # Create Sobel images of the slit edges
-        slits_sobel, slits_edges = trace.detect_slit_edges(_corr_slits, bpm=bpm, sigdetect=1)
-        # Perform the cross-correlation to determine the lag
-        corr = signal.fftconvolve(sci_edges, np.fliplr(slits_edges), mode='same', axes=1)
-        xcorr = np.sum(corr, axis=0)
-        lags = signal.correlation_lags(sci_edges.shape[1], slits_edges.shape[1], mode='same')
-        lag0 = np.where(lags == 0)[0][0]
-        xcorr_max = xcorr[lag0 - maxlag:lag0 + maxlag]
-        lags_max = lags[lag0 - maxlag:lag0 + maxlag]
-
-        # detect the highest peak in the cross-correlation
-        _, _, pix_max, _, _, _, _, _ = arc.detect_lines(xcorr_max, cont_subtract=False, input_thresh=0., nfind=1, debug=debug)
-        # No peak? -- e.g. data fills the entire detector
-        if (len(pix_max) == 0) or pix_max[0] == -999.0:
-            log.warning(
-                'No peak found in the x-correlation between the traced slits and the science/calib '
-                'image.  Assuming there is NO SPATIAL FLEXURE.\nIf a flexure is expected, consider '
-                'either changing the maximum lag for the cross-correlation, or the '
-                '"spat_flexure_sigdetect" parameter, or use the manual flexure correction.'
-            )
-            # TODO : Should we allow slit/edge spatial flexure methods (calculated below) even if
-            #  the global (i.e. method=detector) spatial flexure wasn't successful?
-            return np.zeros((slits.nslits, 2), dtype=float)
-
         lag0_max = np.where(lags_max == 0)[0][0]
         det_spat_flexure = round(pix_max[0] - lag0_max, 3)
         log.info('Detector spatial flexure measured: {0:5.3f} pixels'.format(det_spat_flexure))
