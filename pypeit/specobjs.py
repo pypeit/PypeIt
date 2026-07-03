@@ -6,8 +6,6 @@ Module for the SpecObjs and SpecObj classes
 """
 import os
 from pathlib import Path
-import re
-from typing import List
 
 from IPython import embed
 
@@ -18,14 +16,13 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import specobj
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images.detector_container import DetectorContainer
-# NOTE: Mosaic cannot be found in this module explicitly, but it is used in
-# statements like: dmodcls = eval(hdu.header['DMODCLS'])
 from pypeit.images.mosaic import Mosaic
 from pypeit import utils
 
@@ -44,14 +41,11 @@ class SpecObjs:
           specobjs.
 
     Args:
-        specobjs (`numpy.ndarray`_, list, optional):
+        specobjs (:class:`numpy.ndarray`, :class:`list`, optional):
             One or more :class:`~pypeit.specobj.SpecObj`  objects
-        header (`astropy.io.fits.Header`_, optional):
+        header (:class:`~astropy.io.fits.Header`, optional):
             Baseline header to use
 
-    Attributes:
-        summary (`astropy.table.Table`_):
-            Summary table (?)
     """
     version = '1.0.0'
 
@@ -87,7 +81,7 @@ class SpecObjs:
 
             # Catch common error of trying to read a OneSpec file
             if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
-                msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
+                raise PypeItError('This is a OneSpec file.  You are treating it like a SpecObjs file.')
 
             # Load the calibration association into the instance attribute `calibs`
             if 'CLBS_DIR' in slf.header:
@@ -104,16 +98,23 @@ class SpecObjs:
                 if 'DETECTOR' not in hdu.name:
                     continue
                 if 'DMODCLS' not in hdu.header:
-                    msgs.error('HDUs with DETECTOR in the name must have DMODCLS in their header.')
-                try:
-                    dmodcls = eval(hdu.header['DMODCLS'])
-                except:
-                    msgs.error(f"Unknown detector type datamodel class: {hdu.header['DMODCLS']}")
+                    raise PypeItError(
+                        'HDUs with DETECTOR in the name must have DMODCLS in their header.'
+                    )
+                match hdu.header['DMODCLS']:
+                    case 'DetectorContainer':
+                        dmodcls = DetectorContainer
+                    case 'Mosaic':
+                        dmodcls = Mosaic
+                    case _:
+                        raise PypeItError(
+                            f"Unknown detector datamodel class: {hdu.header['DMODCLS']}"
+                        )
                 # NOTE: This requires that any "detector" datamodel class has a
                 # from_hdu method, and the name of the HDU must have a known format
                 # (e.g., 'DET01-DETECTOR').
                 _det = hdu.name.split('-')[0]
-                detector_hdus[_det] = dmodcls.from_hdu(hdu)
+                detector_hdus[_det] = dmodcls.from_hdu(hdu, chk_version=chk_version)
 
             # Now the objects
             for hdu in hdul[1:]:
@@ -188,7 +189,8 @@ class SpecObjs:
         """
         return len(self.specobjs)
 
-    def unpack_object(self, ret_flam=False, extract_type='OPT'):
+    def unpack_object(self, ret_flam=False, log10blaze=False, min_blaze_value=1e-3, extract_type='OPT',
+                      extract_blaze=False, remove_missing=False):
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
@@ -196,8 +198,19 @@ class SpecObjs:
         the relevant indices for the object.
 
         Args:
-           ret_flam (:obj:`bool`, optional):
-              If True return the FLAM, otherwise return COUNTS.
+            ret_flam (:obj:`bool`, optional):
+               If True return the FLAM, otherwise return COUNTS.
+            log10blaze (:obj:`bool`, optional):
+                If True return the log10 of the blaze function.
+            min_blaze_value (:obj:`float`, optional):
+                Minimum value of the blaze function to consider as good.
+            extract_type (:obj:`str`, optional):
+                Extraction type to use.  Default is 'OPT'.
+            extract_blaze (:obj:`bool`, optional):
+                If True, extract the blaze function.  Default is False.
+            remove_missing (:obj:`bool`, optional):
+                If True, remove any missing data (i.e. where the flux is None).
+                Default is False.
 
         Returns:
             tuple: Returns the following where all numpy arrays
@@ -210,6 +223,7 @@ class SpecObjs:
                   Flambda or counts)
                 - flux_gpm (`numpy.ndarray`_): Good pixel mask.
                   True=Good
+                - blaze (`numpy.ndarray`_, None): Blaze function
                 - meta_spec (dict:) Dictionary containing meta data.
                   The keys are defined by
                   spectrograph.parse_spec_header()
@@ -217,21 +231,46 @@ class SpecObjs:
                   spec1d file
         """
         # Prep
-        norddet = self.nobj
         flux_attr = 'FLAM' if ret_flam else 'COUNTS'
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
-        if getattr(self, flux_key)[0] is None:
-            msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
+        blaze_key = '{}_FLAT'.format(extract_type)
+
+        # Check for missing data
+        none_flux = [f is None for f in getattr(self, flux_key)]
+        other = 'OPT' if extract_type == 'BOX' else 'BOX'
+        if np.any(none_flux):
+            if flux_attr == 'FLAM':
+                msg = f"{flux_key} is not available for all slits/orders." \
+                      "Your data may not have been fluxed, check your input files, or use unfluxed data. "
+            else:
+                msg = f"{extract_type} extracted flux is not available for all slits/orders. " \
+                      f"Consider trying the {other} extraction."
+            if not remove_missing:
+                raise PypeItError(msg)
+            else:
+                msg += f"\n-- The missing data will be removed --"
+                log.warning(msg)
+                # Remove missing data
+                r_indx = np.where(none_flux)[0]
+                self.remove_sobj(r_indx)
+        # check for missing blaze
+        if extract_blaze:
+            none_blaze = [f is None for f in getattr(self, blaze_key)]
+            if np.any(none_blaze):
+                raise PypeItError(f"{extract_type} extracted blaze is not available for all slits/orders. "
+                           f"Consider trying the {other} extraction, or NOT using the flat.")
+
         #
+        norddet = self.nobj
         nspec = getattr(self, flux_key)[0].size
         # Allocate arrays and unpack spectrum
         wave = np.zeros((nspec, norddet))
         flux = np.zeros((nspec, norddet))
         flux_ivar = np.zeros((nspec, norddet))
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
-        trace_spec = np.zeros((nspec, norddet))
-        trace_spat = np.zeros((nspec, norddet))
+        if extract_blaze:
+            blaze = np.zeros((nspec, norddet), dtype=float)
 
         detector = [None]*norddet
         ech_orders = np.zeros(norddet, dtype=int)
@@ -244,8 +283,19 @@ class SpecObjs:
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
             flux[:, iorddet] = getattr(self, flux_key)[iorddet]
             flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet]
-            trace_spat[:, iorddet] = self[iorddet].TRACE_SPAT
-            trace_spec[:, iorddet] = self[iorddet].trace_spec
+            if extract_blaze:
+                blaze[:, iorddet] = getattr(self, blaze_key)[iorddet]
+
+        # Log10 blaze
+        if extract_blaze:
+            blaze_function = np.copy(blaze)
+            if log10blaze:
+                for iorddet in range(norddet):
+                    blaze_function_smooth = utils.fast_running_median(blaze[:, iorddet], 5)
+                    blaze_function_norm = blaze_function_smooth / blaze_function_smooth.max()
+                    blaze_function[:, iorddet] = np.log10(np.clip(blaze_function_norm, min_blaze_value, None))
+        else:
+            blaze_function = None
 
         # Populate meta data
         spectrograph = load_spectrograph(self.header['PYP_SPEC'])
@@ -260,13 +310,14 @@ class SpecObjs:
         # Return
         if self[0].PYPELINE in ['MultiSlit', 'SlicerIFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
+            blaze_ret = blaze_function.reshape(nspec) if blaze_function is not None else None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
-                   flux_gpm.reshape(nspec), trace_spec.reshape(nspec), trace_spat.reshape(nspec), meta_spec, self.header
+                   flux_gpm.reshape(nspec), blaze_ret, meta_spec, self.header
         else:
             meta_spec['ECH_ORDERS'] = ech_orders
-            return wave, flux, flux_ivar, flux_gpm, trace_spec, trace_spat, meta_spec, self.header
+            return wave, flux, flux_ivar, flux_gpm, blaze_function, meta_spec, self.header
 
-    def get_std(self, multi_spec_det=None):
+    def get_std(self, multi_spec_det=None, split_mosaic=False):
         """
         Return the standard star from this :class:`SpecObjs`. For MultiSlit this
         will be a single specobj in SpecObjs container, for Echelle it
@@ -276,22 +327,59 @@ class SpecObjs:
             multi_spec_det (list):
                 If there are multiple detectors arranged in the spectral
                 direction, return the sobjs for the standard on each detector.
+            split_mosaic (:obj:`bool`, optional):
+                If True and the data were reduced as a mosaic, break up the
+                standard star specobj into the different detectors. This is
+                helpful for fluxing when the detectors have different QE.
+                Only applies to MultiSlit data. Default is False.
 
         Returns:
             SpecObj or SpecObjs or None
 
         """
-        # Is this MultiSlit or Echelle
-        pypeline = (self.PYPELINE)[0]
-        if 'MultiSlit' in pypeline or 'SlicerIFU' in pypeline:
-            # Have to do a loop to extract the counts for all objects
-            if self.OPT_COUNTS[0] is not None:
-                SNR = np.median(self.OPT_COUNTS * np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
-            elif self.BOX_COUNTS[0] is not None:
-                SNR = np.median(self.BOX_COUNTS * np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
-            else:
-                return None
+        # Get the pypeline
+        pypeline = self[0].PYPELINE
+        # TODO: Add a check that all of the spectra use the same pypeline?  Why
+        # are we letting the pypeline be SpecObj specific?
+        if pypeline not in ['MultiSlit', 'Echelle', 'SlicerIFU']:
+            raise PypeItError(f'{pypeline} is not a pipeline path known to PypeIt.')
 
+        # Collect the S/N ratios for all spectra.  Try the optimal extractions
+        # first.
+        SNR = [
+            None if cnts is None else np.median(cnts * np.sqrt(ivar))
+            for cnts, ivar in zip(self.OPT_COUNTS, self.OPT_COUNTS_IVAR)
+        ]
+        if all(_snr is None for _snr in SNR):
+            # None of the optimal extractions are valid, so try using the
+            # boxcar extractions
+            SNR = [
+                None if cnts is None else np.median(cnts * np.sqrt(ivar))
+                for cnts, ivar in zip(self.BOX_COUNTS, self.BOX_COUNTS_IVAR)
+            ]
+        if all(_snr is None for _snr in SNR):
+            # They are still not valid so return.
+            log.warning('There are no valid extractions in this spec1d file.')
+            return None
+
+        # Make sure that at least one of the spectra with a measured S/N has
+        # a value that is greater than 0.
+        if all(_snr < 0 for _snr in SNR if _snr is not None):
+            log.warning(
+                'All detected objects in this spec1d file have S/N<0!  Could not identify a '
+                'standard star spectrum.'
+            )
+            return None
+
+        # Set SNR to an array and set any none values to have S/N=0
+        # TODO: We could also set any None values to be either 0 or less
+        # than the smallest value in the list.
+        SNR = np.array([0. if _snr is None else _snr for _snr in SNR])
+
+        # Is this MultiSlit or Echelle
+        if pypeline in ['MultiSlit', 'SlicerIFU']:
+            # initialize sobjs_std
+            sobjs_std = SpecObjs(header=self.header)
             # For multiple detectors grab the requested detectors
             if multi_spec_det is not None:
                 # TODO: This is a hack assuming the integers in multi_spec_det
@@ -301,42 +389,48 @@ class SpecObjs:
                                             for d in multi_spec_det]
                 else:
                     _multi_spec_det = multi_spec_det
-                sobjs_std = SpecObjs(header=self.header)
                 # Now append the maximum S/N object on each detector
                 for idet in _multi_spec_det:
                     this_det = self.DET == idet
                     if not np.any(this_det):
                         unique_det = np.unique(self.DET)
-                        msgs.error(f'No matches for {idet} in spec1d file.  Unique options found'
+                        raise PypeItError(f'No matches for {idet} in spec1d file.  Unique options found'
                                    f"are {', '.join(unique_det)}.  Check usage of multi_spec_det.")
                     istd = SNR[this_det].argmax()
                     sobjs_std.add_sobj(self[this_det][istd])
             else: # For normal multislit take the brightest object
                 istd = SNR.argmax()
-                # Return
-                sobjs_std = SpecObjs(specobjs=[self[istd]], header=self.header)
-            sobjs_std.header = self.header
+                # if not a mosaic reduction, just return the single object
+                if not split_mosaic or (split_mosaic and self[istd].SPEC_DET is None):
+                    sobjs_std.add_sobj(self[istd])
+                # if a mosaic reduction, break up the std spectrum into the different detectors.
+                # This takes into account different QE in different detectors
+                elif self[istd].SPEC_DET is not None:
+                    dets = np.unique(self[istd].SPEC_DET[self[istd].SPEC_DET > 0])
+                    for idet in dets:
+                        not_idet = self[istd].SPEC_DET != idet
+                        this_sobj = self[istd].copy()
+                        this_sobj.DET = DetectorContainer.get_name(idet)
+                        this_sobj.set_name()
+                        for att in this_sobj.keys():
+                            if isinstance(this_sobj[att], np.ndarray) and this_sobj[att].shape == this_sobj['TRACE_SPAT'].shape:
+                                this_sobj[att][not_idet] = 0
+                        sobjs_std.add_sobj(this_sobj)
+            # Return
             return sobjs_std
-        elif 'Echelle' in pypeline:
+        elif pypeline == 'Echelle':
             uni_objid = np.unique(self.ECH_FRACPOS)  # A little risky using floats
             uni_order = np.unique(self.ECH_ORDER)
             nobj = len(uni_objid)
             norders = len(uni_order)
-            # Build up S/N
-            SNR = np.zeros((norders, nobj))
+            # Build up S/N matrix
+            _snr = np.zeros((norders, nobj))
             for iobj in range(nobj):
                 for iord in range(norders):
                     ind = (self.ECH_FRACPOS == uni_objid[iobj]) & (self.ECH_ORDER == uni_order[iord])
-                    spec = self[ind]
-                    # Grab SNR
-                    if spec[0].OPT_COUNTS is not None:
-                        SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
-                    elif spec[0].BOX_COUNTS is not None:
-                        SNR[iord, iobj] = np.median(spec[0].BOX_COUNTS * np.sqrt(spec[0].BOX_COUNTS_IVAR))
-                    else:
-                        return None
+                    _snr[iord,iobj] = SNR[ind][0]
             # Maximize S/N
-            SNR_all = np.sqrt(np.sum(SNR**2,axis=0))
+            SNR_all = np.sqrt(np.sum(_snr**2,axis=0))
             objid_std = uni_objid[SNR_all.argmax()]
             # Finish
             indx = self.ECH_FRACPOS == objid_std
@@ -345,7 +439,9 @@ class SpecObjs:
             sobjs_std.header = self.header
             return sobjs_std
         else:
-            msgs.error('Unknown pypeline')
+            # SHOULD NOT GET HERE!!  The check at the beginning of the function
+            # should catch this.
+            raise PypeItError('Unknown pypeline')
 
     def append_neg(self, sobjs_neg):
         """
@@ -356,7 +452,7 @@ class SpecObjs:
 
         """
         if sobjs_neg.nobj == 0:
-            msgs.warn("No negative objects found...")
+            log.warning("No negative objects found...")
             return
         # Assign the sign and the objids
         sobjs_neg.sign = -1.0
@@ -368,7 +464,7 @@ class SpecObjs:
         elif sobjs_neg[0].PYPELINE == 'SlicerIFU':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
-            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+            raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         self.add_sobj(sobjs_neg)
 
         # Sort objects according to their spatial location. Necessary for the extraction to properly work
@@ -389,7 +485,7 @@ class SpecObjs:
             elif self[0].PYPELINE == 'SlicerIFU':
                 index = self.OBJID < 0
             else:
-                msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+                raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
             self.remove_sobj(index)
 
 
@@ -407,7 +503,7 @@ class SpecObjs:
             elif self[0].PYPELINE == 'SlicerIFU':
                 index = self.OBJID < 0
             else:
-                msgs.error("Should not get here")
+                raise PypeItError("Should not get here")
             try:
                 self[index].OPT_COUNTS *= -1
             except (TypeError,ValueError):
@@ -433,9 +529,11 @@ class SpecObjs:
         elif self[0].PYPELINE == 'SlicerIFU':
             indx = self.SLITID == slitorder
         else:
-            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
-        #
+            raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+
         return indx
+
+        
 
     def name_indices(self, name):
         """
@@ -455,38 +553,38 @@ class SpecObjs:
         elif self[0].PYPELINE == 'SlicerIFU':
             indx = self.NAME == name
         else:
-            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+            raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         return indx
 
-    def slitorder_objid_indices(self, slitorder, objid, toler=5):
+
+    def slitorder_uniq_id_indices(self, uniq_id, order=None):
         """
-        Return the set of indices matching the input slit/order and the input
-        objid
+        Return the set of indices matching the unique object identifier. 
+        For MultiSlit this is the SPAT_PIXPOS_ID, for Echelle it is the ECH_FRACPOS_ID
+        but the order must also be specified.
         
-        Args:
-            slitorder (int):
-                Order/Spatial pixel value for slit of interest.
-            objid (int):
-                ID value for object of interest.
-            toler (int, optional):
-                Tolerance for slit spatial pixel values used for slit
-                identification. Default = 5
-
-        Returns:
-            :obj:`int`: Index value for input slit/order and object ID values
-            for specobjs object.
-
+        Parameters
+        ----------
+        object_id : int
+            The unique object identifier for the slit/order of interest.
+        order : int, optional
+            The order for Echelle data. Required for Echelle data. 
+            
+        Returns
+        -------
+        `numpy.ndarray`_
+            Array of indices with the corresponding object ID. Shape is (nobj,).
+        
         """
-
         if self[0].PYPELINE == 'Echelle':
-            indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
+            indx = (self.ECH_ORDER == order) & (self.ECH_FRACPOS_ID == uniq_id)
         elif self[0].PYPELINE == 'MultiSlit':
-            indx = (np.abs(self.SLITID - slitorder) <= toler) & (self.OBJID == objid)
+            indx = self.SPAT_PIXPOS_ID == uniq_id
         elif self[0].PYPELINE == 'SlicerIFU':
-            indx = (self.SLITID == slitorder) & (self.OBJID == objid)
-        else:
-            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
-        #
+            indx = self.SPAT_PIXPOS_ID == uniq_id
+        else: 
+            raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
+        
         return indx
 
     def set_names(self):
@@ -515,9 +613,9 @@ class SpecObjs:
                 self.specobjs = np.append(self.specobjs, isobj)
             return
         if not isinstance(sobj, (np.ndarray, list)):
-            msgs.error(f'Unable to add {type(sobj)} objects to SpecObjs')
+            raise PypeItError(f'Unable to add {type(sobj)} objects to SpecObjs')
         if any([not isinstance(s, specobj.SpecObj) for s in sobj]):
-            msgs.error('List or arrays of objects to add must all be of type SpecObj.')
+            raise PypeItError('List or arrays of objects to add must all be of type SpecObj.')
         self.specobjs = np.append(self.specobjs, sobj)
 
     def remove_sobj(self, index):
@@ -556,7 +654,7 @@ class SpecObjs:
                 chk &= (sub_box or sub_opt)
         return chk
 
-    def apply_flux_calib(self, par, spectrograph, sens):
+    def apply_flux_calib(self, par, spectrograph, sens, tell=False):
         """
         Flux calibrate the  object spectra (``sobjs``) using the provided
         sensitivity function (``sens``).
@@ -568,6 +666,10 @@ class SpecObjs:
                 PypeIt Spectrograph class
             sens (:class:`~pypeit.sensfunc.SensFunc`):
                 PypeIt Sensitivity function class
+            tell (:obj:`bool`, optional):
+                If True, apply telluric correction as well. The telluric model
+                comes from the sensitivity function. This is generally only
+                used for std fluxed QA plots.
         """
 
         _extinct_correct = (True if sens.algorithm == 'UVIS' else False) \
@@ -577,29 +679,32 @@ class SpecObjs:
         #  (not recommnneded but useful for quick reductions where you don't want to construct cubes and don't care about DAR).
         if spectrograph.pypeline in ['MultiSlit','SlicerIFU']:
             for ii, sci_obj in enumerate(self.specobjs):
+                # PYP_SPEC is needed for each specobj
+                if sci_obj.PYP_SPEC is None:
+                    sci_obj.PYP_SPEC = spectrograph.name
                 if sens.wave.shape[1] == 1:
+                    tellmodel = sens.telluric.model['TELLURIC'][0, :] if tell else None
                     sci_obj.apply_flux_calib(sens.wave[:, 0], sens.zeropoint[:, 0],
                                              self.header['EXPTIME'],
                                              extinct_correct=_extinct_correct,
-                                             longitude=spectrograph.telescope['longitude'],
-                                             latitude=spectrograph.telescope['latitude'],
-                                             extinctfilepar=par['extinct_file'],
+                                             tellmodel=tellmodel,
+                                             extinct_file=par['extinct_file'],
                                              extrap_sens=par['extrap_sens'],
                                              airmass=float(self.header['AIRMASS']))
                 elif sens.wave.shape[1] > 1 and sens.splice_multi_det:
                     # This deals with the multi detector case where the sensitivity function is spliced. Note that
                     # the final sensitivity function written to disk is  the spliced one. This functionality is only
                     # used internal to sensfunc.py for fluxing the standard for the QA plot.
+                    tellmodel = sens.telluric.model['TELLURIC'][ii, :] if tell else None
                     sci_obj.apply_flux_calib(sens.wave[:, ii], sens.zeropoint[:, ii],
                                              self.header['EXPTIME'],
                                              extinct_correct=_extinct_correct,
-                                             longitude=spectrograph.telescope['longitude'],
-                                             latitude=spectrograph.telescope['latitude'],
-                                             extinctfilepar=par['extinct_file'],
+                                             tellmodel=tellmodel,
+                                             extinct_file=par['extinct_file'],
                                              extrap_sens=par['extrap_sens'],
                                              airmass=float(self.header['AIRMASS']))
                 else:
-                    msgs.error('This should not happen, there is a problem with your sensitivity function.')
+                    raise PypeItError('This should not happen, there is a problem with your sensitivity function.')
 
 
         elif spectrograph.pypeline == 'Echelle':
@@ -609,25 +714,28 @@ class SpecObjs:
             # i.e. X-shooter with the K-band blocking filter.
             ech_orders = np.array(sens.sens['ECH_ORDERS']).flatten()
             for sci_obj in self.specobjs:
+                # PYP_SPEC is needed for each specobj
+                if sci_obj.PYP_SPEC is None:
+                    sci_obj.PYP_SPEC = spectrograph.name
                 # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
                 indx = np.where(ech_orders == sci_obj.ECH_ORDER)[0]
                 if indx.size == 1:
+                    tellmodel = sens.telluric.model['TELLURIC'][indx[0], :] if tell else None
                     sci_obj.apply_flux_calib(sens.wave[:, indx[0]], sens.zeropoint[:, indx[0]],
                                              self.header['EXPTIME'],
                                              extinct_correct=_extinct_correct,
+                                             tellmodel=tellmodel,
                                              extrap_sens=par['extrap_sens'],
-                                             longitude=spectrograph.telescope['longitude'],
-                                             latitude=spectrograph.telescope['latitude'],
-                                             extinctfilepar=par['extinct_file'],
+                                             extinct_file=par['extinct_file'],
                                              airmass=float(self.header['AIRMASS']))
                 elif indx.size == 0:
-                    msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
+                    log.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
                               'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))
                 else:
-                    msgs.error('This should not happen')
+                    raise PypeItError('This should not happen')
 
         else:
-            msgs.error('Unrecognized pypeline: {0}'.format(spectrograph.pypeline))
+            raise PypeItError('Unrecognized pypeline: {0}'.format(spectrograph.pypeline))
 
 
     def copy(self):
@@ -737,7 +845,7 @@ class SpecObjs:
                 If True, run in debug mode.
         """
         if os.path.isfile(outfile) and not overwrite:
-            msgs.warn(f'{outfile} exits. Set overwrite=True to overwrite it.')
+            log.warning(f'{outfile} exits. Set overwrite=True to overwrite it.')
             return
 
         # If the file exists and update_det (and slit_spat_num) is provided, use the existing header
@@ -772,6 +880,15 @@ class SpecObjs:
                         header[key.upper()] = line
             else:
                 header[key.upper()] = subheader[key]
+                # Also store the datetime in ISOT format
+                if key.upper() == 'MJD':
+                    if isinstance(subheader[key], (list, tuple)):
+                        mjdval = subheader[key][0]
+                    elif isinstance(subheader[key], float):
+                        mjdval = subheader[key]
+                    else:
+                        raise ValueError('Header card must be a float or a FITS header tuple')
+                    header['DATETIME'] = (Time(mjdval, format='mjd').isot, "Date and time of the observation in ISOT format")
         # Add calibration associations to Header
         if self.calibs is not None:
             for key, val in self.calibs.items():
@@ -802,7 +919,7 @@ class SpecObjs:
                 #exit()
             shdul = sobj.to_hdu()
             if len(shdul) not in [1, 2]:
-                msgs.error('CODING ERROR: SpecObj datamodel changed.  to_hdu should return 1 or 2 '
+                raise PypeItError('CODING ERROR: SpecObj datamodel changed.  to_hdu should return 1 or 2 '
                            'HDUs.  If returned, the 2nd one should be the detector/mosaic.')
             if len(shdul) == 2:
                 detector_hdus[sobj['DET']] = shdul[1]
@@ -811,7 +928,7 @@ class SpecObjs:
                 shdu = shdul
 
             if len(shdu) != 1 or not isinstance(shdu[0], fits.hdu.table.BinTableHDU):
-                msgs.error('CODING ERROR: SpecObj datamodel changed.')
+                raise PypeItError('CODING ERROR: SpecObj datamodel changed.')
 
             # Name
             shdu[0].name = sobj.NAME
@@ -842,7 +959,7 @@ class SpecObjs:
              #embed()
              #exit()
         hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info(f'Wrote 1D spectra to {outfile}')
+        log.info(f'Wrote 1D spectra to {outfile}')
 
     def write_info(self, outfile, pypeline):
         """
@@ -854,49 +971,35 @@ class SpecObjs:
         """
         # TODO -- Deal with update_det
         # Lists for a Table
-        slits, names, maskdef_id, objname, objra, objdec, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
-            [], [], [], [], [], [], [], [], [], [], []
+        slits, names, obj_ids, maskdef_id, objname, objra, objdec, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
+            [], [], [], [], [], [], [], [], [], [], [], []
         wave_rms = []
         maskdef_extract = []
         manual_extract = []
-        # binspectral, binspatial = parse.parse_binning(binning)
         for specobj in self.specobjs:
-            det = specobj.DET
             if specobj is None:
                 continue
-            # Detector items
-            binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
-            platescale = specobj.DETECTOR.platescale
             # Append
             spat_pixpos.append(specobj.SPAT_PIXPOS)
             if pypeline == 'MultiSlit':
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
+                obj_ids.append(specobj.SPAT_PIXPOS_ID)
             elif pypeline == 'SlicerIFU':
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
+                obj_ids.append(specobj.SPAT_PIXPOS_ID)
             elif pypeline == 'Echelle':
                 spat_fracpos.append(specobj.ECH_FRACPOS)
                 slits.append(specobj.ECH_ORDER)
                 names.append(specobj.ECH_NAME)
+                obj_ids.append(specobj.ECH_FRACPOS_ID)
             # Wave RMS
             wave_rms.append(specobj.WAVE_RMS)
             # Boxcar width
-            if specobj.BOX_RADIUS is not None:
-                slit_pix = 2.0 * specobj.BOX_RADIUS
-                # Convert to arcsec
-                binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
-                #binspectral, binspatial = parse.parse_binning(binning)
-                # JFH TODO This should be using the order_platescale for each order. Furthermore, not all detectors
-                # have the same platescale, i.e. with GNIRS it is the same detector but a different camera hence a
-                # different attribute. platescale should be a spectrograph attribute determined on the fly.
-                # boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
-                boxsize.append(slit_pix * binspatial * platescale)
-            else:
-                boxsize.append(0.)
-
+            boxsize.append(2*specobj.BOX_R_ASEC)
             # Optimal profile (FWHM)
             opt_fwhm.append(specobj.SPAT_FWHM)
             # S2N -- default to boxcar
@@ -926,6 +1029,7 @@ class SpecObjs:
                 obj_tbl['order'] = slits
                 obj_tbl['order'].format = 'd'
             obj_tbl['name'] = names
+            obj_tbl['obj_id'] = obj_ids
             if not np.all(np.array(maskdef_id) == None):
                 obj_tbl['maskdef_id'] = maskdef_id
             if not np.all(np.array(objname) == None):
@@ -964,11 +1068,13 @@ class SpecObjs:
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
-    def get_extraction_groups(self, model_full_slit=False) -> List[List[int]]:
+    def get_extraction_groups(self, model_full_slit=False) -> list[list[int]]:
         """
-        Returns:
-            List[List[int]]: A list of extraction groups, each of which is a list of integer
-                object indices that should be extracted together by core.skysub.local_skysub_extract
+        Returns
+        -------
+            A list of extraction groups, each of which is a list of integer
+            object indices that should be extracted together by
+            core.skysub.local_skysub_extract
         """
         nobj = len(self.specobjs)
 
@@ -1008,6 +1114,30 @@ class SpecObjs:
 
         return groups
 
+    def flexure_diagnostics(self):
+        """
+        Print and return the spectral flexure of a spec1d file.
+
+        Returns:
+            :obj:`astropy.table.Table`: Table with the spectral flexure.
+        """    
+        spec_flex = Table()
+        spec_flex['NAME'] = self.NAME
+        spec_flex['global_spec_shift'] = self.FLEX_SHIFT_GLOBAL
+        if np.all(spec_flex['global_spec_shift'] != None):
+            spec_flex['global_spec_shift'].format = '0.3f'
+        spec_flex['local_spec_shift'] = self.FLEX_SHIFT_LOCAL
+        if np.all(spec_flex['local_spec_shift'] != None):
+            spec_flex['local_spec_shift'].format = '0.3f'
+        spec_flex['total_spec_shift'] = self.FLEX_SHIFT_TOTAL
+        if np.all(spec_flex['total_spec_shift'] != None):
+            spec_flex['total_spec_shift'].format = '0.3f'
+        # print the table
+        spec_flex.pprint_all()
+        # return the table
+        return spec_flex
+
+
 #TODO Should this be a classmethod on specobjs??
 def get_std_trace(detname, std_outfile, chk_version=True):
     """
@@ -1020,9 +1150,11 @@ def get_std_trace(detname, std_outfile, chk_version=True):
              Filename with the standard star spec1d file.  Can be None.
 
      Returns:
-         `numpy.ndarray`_: Trace of the standard star on input detector.  Will
-         be None if ``std_outfile`` is None, or if the selected detector/mosaic
-         is not available in the provided spec1d file.
+         `astropy.table.Table`_: Table with the trace of the standard star on the input detector.
+         If this is a MultiSlit reduction, the table will have a single column: `TRACE_SPAT`.
+         If this is an Echelle reduction, the table will have two columns: `ECH_ORDER` and `TRACE_SPAT`.
+         Will be None if ``std_outfile`` is None, or if the selected detector/mosaic
+         is not available in the provided spec1d file, or for SlicerIFU reductions.
      """
 
     sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
@@ -1039,40 +1171,52 @@ def get_std_trace(detname, std_outfile, chk_version=True):
         # No standard extracted on this detector??
         if sobjs_std is None:
             return None
-        std_trace = sobjs_std.TRACE_SPAT
+
+        # create table that contains the trace of the standard
+        std_tab = Table()
         # flatten the array if this multislit
         if 'MultiSlit' in pypeline:
-            std_trace = std_trace.flatten()
+            std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
         elif 'Echelle' in pypeline:
-            std_trace = std_trace.T
+            std_tab['ECH_ORDER'] = sobjs_std.ECH_ORDER
+            std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
         elif 'SlicerIFU' in pypeline:
-            std_trace = None
+            std_tab = None
         else:
-            msgs.error('Unrecognized pypeline')
+            raise PypeItError('Unrecognized pypeline')
     else:
-        std_trace = None
+        std_tab = None
 
-    return std_trace
+    return std_tab
 
-def lst_to_array(lst, mask=None):
+
+def lst_to_array(lst):
     """
     Simple method to convert a list to an array
 
     Allows for a list of Quantity objects
 
     Args:
-        lst : list
+        lst (:obj:`list`):
             Should be number or Quantities
-        mask (`numpy.ndarray`_, optional):
-            Boolean array used to limit to a subset of the list.  True=good
 
     Returns:
         `numpy.ndarray`_, `astropy.units.Quantity`_:  Converted list
     """
-    if mask is None:
-        mask = np.array([True]*len(lst))
+    # Return a Quantity array
     if isinstance(lst[0], units.Quantity):
-        return units.Quantity(lst)[mask]
-    else:
-        return np.array(lst)[mask]
+        return units.Quantity(lst)
+    try:
+        return np.array(lst)
+    except ValueError as e:
+        pass
+    return np.array(lst, dtype=object)
+
+    # NOTE: The dtype="object" is needed for the case where one element of lst
+    # is not a list but None. For example, if trying to unpack SpecObjs OPT fluxes
+    # and for one slit/order the OPT extraction failed (but not the BOX extraction),
+    # OPT_COUNTS is None for that slit/order, and lst would be something like
+    # [array, array, array, None, array], which makes np.array to fail and give the error
+    # "ValueError: setting an array element with a sequence. The requested array has an
+    # inhomogeneous shape after 1 dimensions..."
 

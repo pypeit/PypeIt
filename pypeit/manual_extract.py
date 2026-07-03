@@ -9,7 +9,10 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import datamodel, msgs
+from pypeit import log
+from pypeit import PypeItError
+from pypeit import datamodel
+from pypeit.core import parse
 
 class ManualExtractionObj(datamodel.DataContainer):
     """
@@ -80,43 +83,36 @@ class ManualExtractionObj(datamodel.DataContainer):
         Returns:
             ManualExtractionObj:
         """
-        # Generate a dict
-        idict = dict(spat=[], spec=[], detname=[], fwhm=[], neg=[], boxcar_rad=[])
         m_es = inp.split(';')
-        for m_e in m_es:
-            parse = m_e.split(':')
-            # det_strip will be a list of a single number (no mosaic) or >= 2 numbers (mosaic)
-            det_strip = [int(d) for d in parse[0].strip('()').split(',')]
-            # check if it's negative object (i.e., if the det number is negative)
-            if np.all([item < 0 for item in det_strip]):
-                idict['neg'] += [True]
-                det_strip = [item * -1 for item in det_strip]
-            else:
-                idict['neg'] += [False]
-            if len(det_strip) >= 2 and tuple(det_strip) in spectrograph.allowed_mosaics:
-                # we use detname, which is a string (e.g., 'DET01', 'MSC01')
-                idict['detname'] += [spectrograph.get_det_name(tuple(det_strip))]
-            elif len(det_strip) == 1:
-                idict['detname'] += [spectrograph.get_det_name(det_strip[0])]
-            else:
-                msgs.error(f'Wrong input for detectors in the manual extraction parameters: {parse[0]}')
-            idict['spat'] += [float(parse[1])]
-            idict['spec'] += [float(parse[2])]
-            idict['fwhm'] += [float(parse[3])]
 
-            # Boxcar?
-            if len(parse) >= 5:
-                idict['boxcar_rad'] += [float(parse[4])]
-            else:
-                idict['boxcar_rad'] += [-1.]
+        # Set up the empty arrays
+        n_m = len(m_es)
+        neg = np.empty(n_m, dtype=bool)
+        detname = np.empty(n_m, dtype=np.dtypes.StringDType)
+        spat = np.empty(n_m, dtype=float)
+        spec = np.empty(n_m, dtype=float)
+        fwhm = np.empty(n_m, dtype=float)
+        boxcar_rad = np.empty(n_m, dtype=float)
 
+        # Loop
+        for i, m_e in enumerate(m_es):
+            loc = parse.parse_image_location(m_e, spectrograph)
+            if len(loc) not in [5,6]:
+                raise PypeItError('Definition of manual extraction aperture does not have the correct '
+                           f'number of parameters: {m_e}.')
+
+            # TODO: Why is this spat:spec and not spec:spat like everything else??
+            neg[i] = loc[0]
+            detname[i] = loc[1]
+            spat[i] = loc[2]
+            spec[i] = loc[3]
+            fwhm[i] = loc[4]
+            boxcar_rad[i] = loc[5] if len(loc) == 6 else -1.
+                
         # Build me
-        return cls(frame=frame, spat=np.array(idict['spat']), 
-                   spec=np.array(idict['spec']),
-                   fwhm=np.array(idict['fwhm']),
-                   detname=np.array(idict['detname']),
-                   neg=np.array(idict['neg']),
-                   boxcar_rad=np.array(idict['boxcar_rad']))
+        return cls(
+            frame=frame, spat=spat, spec=spec, fwhm=fwhm, detname=detname, neg=neg, boxcar_rad=boxcar_rad
+        )
 
     def __init__(self, frame=None, spat=None, spec=None, detname=None, 
                  fwhm=None, neg=None, boxcar_rad=None):

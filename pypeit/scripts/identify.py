@@ -13,8 +13,11 @@ class Identify(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Launch PypeIt pypeit_identify tool, display extracted '
-                                                'Arc, and load linelist.', width=width)
+        parser = super().get_parser(
+            description='Launch PypeIt pypeit_identify tool, display extracted Arc, and load '
+                        'linelist.',
+            width=width, default_log_file=True
+        )
         parser.add_argument('arc_file', type=str, default=None, help='PypeIt Arc file')
         parser.add_argument('slits_file', type=str, default=None, help='PypeIt Slits file')
         parser.add_argument("--lamps", type=str,
@@ -45,35 +48,33 @@ class Identify(scriptbase.ScriptBase):
                             help="Save the solutions, despite the RMS")
         parser.add_argument('--rescale_resid', default=False, action='store_true',
                             help="Rescale the residual plot to include all points?")
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename identify_YYYYMMDD-HHMM.log')
         parser.add_argument('--try_old', default=False, action='store_true',
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         import os
         import json
 
         import numpy as np
                 
-        from pypeit import msgs
+        from pypeit import log
+        from pypeit import PypeItError
         from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.core.gui.identify import Identify
+        from pypeit.gui.identify import Identify
         from pypeit.wavecalib import BuildWaveCalib, WaveCalib
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
         from pypeit.core.wavecal import autoid
         from pypeit.utils import jsonify
 
+        # Initialize the log
+        cls.init_log(args)
 
+        # Set whether or not to check datamodel versions
         chk_version = not args.try_old
-
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('identify', args.verbosity)
 
         # Load the Arc file
         msarc = ArcImage.from_file(args.arc_file, chk_version=chk_version)
@@ -86,7 +87,7 @@ class Identify(scriptbase.ScriptBase):
         if args.lamps is None:
             lamps = par['lamps']
             if lamps is None or lamps == ['use_header']:
-                msgs.error('Cannot determine the lamps; use --lamps argument')
+                raise PypeItError('Cannot determine the lamps; use --lamps argument')
         else:
             lamps = args.lamps.split(",")
         par['lamps'] = lamps
@@ -96,7 +97,7 @@ class Identify(scriptbase.ScriptBase):
         # Reset the mask
         slits.mask = slits.mask_init
 
-        msgs.info('Loading in Solution if desired and exists')
+        log.info('Loading in Solution if desired and exists')
         # Check if a solution exists
         solnname = WaveCalib.construct_file_name(msarc.calib_key, calib_dir=msarc.calib_dir)
         wv_calib = WaveCalib.from_file(solnname, chk_version=chk_version) \
@@ -115,7 +116,7 @@ class Identify(scriptbase.ScriptBase):
 
             # print to screen the slit widths if maskdef_designtab is available
             if slits.maskdef_designtab is not None:
-                msgs.info("Slit widths (arcsec): {}".format(np.round(slits.maskdef_designtab['SLITWID'].data, 2)))
+                log.info("Slit widths (arcsec): {}".format(np.round(slits.maskdef_designtab['SLITWID'].data, 2)))
 
             # Generate a map of the instrumental spectral FWHM
             # TODO nsample should be a parameter
@@ -156,9 +157,9 @@ class Identify(scriptbase.ScriptBase):
                 if args.slits == 'all':
                     slits_inds = np.arange(slits.nslits)
                 else:
-                    slits_inds = np.array(list(slits.strip('[]').split(",")), dtype=int)
+                    slits_inds = np.array(list(args.slits.strip('[]').split(",")), dtype=int)
             fits_dicts = []
-            specdata = []
+            specdata_multi = []
             wv_fits_arr = []
             lines_pix_arr = []
             lines_wav_arr = []
@@ -180,12 +181,14 @@ class Identify(scriptbase.ScriptBase):
 
                 arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[slit_val])
 
-                # Launch the identify window
-                # TODO -- REMOVE THIS HACK
-                try:
+                # Get the non-linear count level
+                if msarc.is_mosaic:
+                    # if this is a mosaic we take the maximum value among all the detectors
+                    nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in msarc.detector.detectors])
+                else:
                     nonlinear_counts = msarc.detector.nonlinear_counts()
-                except AttributeError:
-                    nonlinear_counts = None
+
+                # Launch the identify window
                 arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(slit_val), par=par,
                                                 wv_calib_all=wv_calib_slit, wavelim=[args.wmin, args.wmax],
                                                 nonlinear_counts=nonlinear_counts,
@@ -201,7 +204,7 @@ class Identify(scriptbase.ScriptBase):
                     return arcfitter, msarc
                 final_fit = arcfitter.get_results()
                 fits_dicts.append(arcfitter._fitdict)
-                specdata.append(arccen[:,slit_val])
+                specdata_multi.append(arccen[:,slit_val])
                 # Build here to avoid circular import
                 #  Note:  This needs to be duplicated in test_scripts.py
                 # Wavecalib (wanted when dealing with multiple detectors, eg. GMOS)
@@ -266,15 +269,21 @@ class Identify(scriptbase.ScriptBase):
             if args.new_sol:
                 wv_calib.copy_calib_internals(msarc)
 
+            # convert specdata into an array, since it's currently a list
+            specdata_multi = np.array(specdata_multi)
+
         # If we just want the normal one-trace output
         else:
             arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[int(args.slits)])
-            # Launch the identify window
-            # TODO -- REMOVE THIS HACK
-            try:
+            
+            # Get the non-linear count level
+            if msarc.is_mosaic:
+                # if this is a mosaic we take the maximum value among all the detectors
+                nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in msarc.detector.detectors])
+            else:
                 nonlinear_counts = msarc.detector.nonlinear_counts()
-            except AttributeError:
-                nonlinear_counts = None
+
+            # Launch the identify window
             arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slits), par=par,
                                             wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                             nonlinear_counts=nonlinear_counts,
@@ -303,8 +312,7 @@ class Identify(scriptbase.ScriptBase):
                 waveCalib = None
 
             fits_dicts = None
-            specdata = None
-            #slits = None 
+            specdata_multi = None
             lines_pix_arr = None
             lines_wav_arr = None
             lines_fit_ord = None 
@@ -318,7 +326,7 @@ class Identify(scriptbase.ScriptBase):
                                 rmstol=args.rmstol,
                                 force_save=args.force_save, 
                                 multi = args.multi, fits_dicts = fits_dicts,
-                                specdata = specdata,
+                                specdata_multi = specdata_multi,
                                 slits = slits,
                                 lines_pix_arr = lines_pix_arr,
                                 lines_wav_arr = lines_wav_arr,

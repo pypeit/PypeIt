@@ -15,7 +15,8 @@ import scipy.ndimage
 import scipy.optimize
 import scipy.signal
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 
 
@@ -158,15 +159,15 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     # Check input
     if saturation is not None and isinstance(saturation, np.ndarray) \
             and saturation.shape != sciframe.shape:
-        msgs.error('Detector pixel saturation array has incorrect shape.')
+        raise PypeItError('Detector pixel saturation array has incorrect shape.')
     if isinstance(nonlinear, np.ndarray) and nonlinear.shape != sciframe.shape:
-        msgs.error('Detector nonlinear pixel scale array has incorrect shape.')
+        raise PypeItError('Detector nonlinear pixel scale array has incorrect shape.')
     if bpm is not None and bpm.shape != sciframe.shape:
-        msgs.error('Bad-pixel mask must match shape of science frame.')
+        raise PypeItError('Bad-pixel mask must match shape of science frame.')
     if varframe is not None and varframe.shape != sciframe.shape:
-        msgs.error('Variance frame must match shape of science frame.')
+        raise PypeItError('Variance frame must match shape of science frame.')
 
-    msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
+    log.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
 
     # Setup
     # NOTE: We only need a copy of the image if we're performing more than one
@@ -204,7 +205,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     for i in range(maxiter):
 
         if varframe is None:
-            msgs.info("Updating the noise model")
+            log.info("Updating the noise model")
             m5 = scipy.ndimage.median_filter(_sciframe, size=5, mode='mirror')
             noise = np.sqrt(np.absolute(m5))
             # NOTE: Inverting the error avoids division by 0 errors
@@ -214,7 +215,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         # get its S/N.  NOTE: the division by 2 in the S/N calculation is from
         # the 2x2 subsampling.  astropy.convolution.convolve gives the same
         # result as scipy.signal.convolve2d, but is nearly a factor of 2 faster.
-        msgs.info("Convolving image with Laplacian kernel")
+        log.info("Convolving image with Laplacian kernel")
         deriv = convolve(boxcar_replicate(_sciframe, 2), laplkernel, normalize_kernel=False,
                          boundary='extend')
         s = utils.rebinND(np.clip(deriv, 0, None), _sciframe.shape) * _inv_err / 2.0
@@ -225,13 +226,13 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         # Candidate cosmic rays
         cosmics = sp > sigclip
         ncr = np.sum(cosmics)
-        msgs.info(f'Found {ncr} candidate cosmic-ray pixels')
+        log.info(f'Found {ncr} candidate cosmic-ray pixels')
 
         if _bpm is not None:
             # Remove known bad pixels
             cosmics &= np.logical_not(_bpm)
             ncr = np.sum(cosmics)
-            msgs.info(f'Reduced to {ncr} candidates after excluding known bad pixels.')
+            log.info(f'Reduced to {ncr} candidates after excluding known bad pixels.')
 
         if remove_compact_obj:
             # Build the fine structure image
@@ -242,11 +243,11 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
             # Require cosmics to have significant contrast
             cosmics &= sp/f > objlim
             ncr = np.sum(cosmics)
-            msgs.info(f'Reduced to {ncr} candidates after excluding compact objects.')
+            log.info(f'Reduced to {ncr} candidates after excluding compact objects.')
 
         # What follows is a special treatment for neighbors, with more relaxed
         # constraints.
-        msgs.info("Finding neighboring pixels affected by cosmic rays")
+        log.info("Finding neighboring pixels affected by cosmic rays")
         # We grow these cosmics a first time to determine the immediate
         # neighborhod, keeping those that also meet the S/N requirement
         cosmics = scipy.ndimage.binary_dilation(cosmics, structure=growkernel)
@@ -256,18 +257,18 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         cosmics = scipy.ndimage.binary_dilation(cosmics, structure=growkernel)
         cosmics &= sp > sigcliplow
         ncr = np.sum(cosmics)
-        msgs.info(f'Changed to {ncr} candidates after evaluating neighboring pixels.')
+        log.info(f'Changed to {ncr} candidates after evaluating neighboring pixels.')
 
         if _bpm is not None:
             # Remove known bad pixels
             cosmics &= np.logical_not(_bpm)
             ncr = np.sum(cosmics)
-            msgs.info(f'Reduced to {ncr} candidates after excluding known bad pixels.')
+            log.info(f'Reduced to {ncr} candidates after excluding known bad pixels.')
 
         # Determine how many new cosmics were found
         nnew = np.sum(np.logical_not(crmask) & cosmics)
         crmask |= cosmics
-        msgs.info(f'Iteration {i+1}: {np.sum(crmask)} pixels identified as cosmic rays '
+        log.info(f'Iteration {i+1}: {np.sum(crmask)} pixels identified as cosmic rays '
                   f'({nnew} are new)')
         if nnew == 0 or i == maxiter - 1:
             # TODO: Warn the user if the maximum number of iterations was
@@ -275,7 +276,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
             break
 
         # Prepare for the next iteration
-        msgs.info('Preparing for next iteration')
+        log.info('Preparing for next iteration')
         _sciframe = boxcar_fill(_sciframe, 5, bpm=crmask if _bpm is None else crmask | _bpm)
 
     if not rm_false_pos:
@@ -283,7 +284,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
 
     # Additional algorithms (not traditionally implemented by LA cosmic) to
     # remove some false positives.
-    #msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
+    #log.debug("The following algorithm would be better on the rectified, tilts-corrected image")
     filt  = scipy.ndimage.sobel(sciframe, axis=1, mode='constant')
     _inv_mad = utils.inverse(np.sqrt(np.abs(sciframe))) # Avoid divisions by 0
     filty = scipy.ndimage.sobel(filt * _inv_mad, axis=0, mode='constant')
@@ -296,8 +297,88 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     sigsmth[np.isnan(sigsmth)] = 0.0
 
     crmask &= sigsmth > sigclip
-    msgs.info(f'{np.sum(crmask)} pixels identified as cosmic rays after removing false positives')
+    log.info(f'{np.sum(crmask)} pixels identified as cosmic rays after removing false positives')
     return grow_mask(crmask, grow) if grow > 0 else crmask
+
+
+def lacosmic_spatial_median_residual(image, median_width, varframe=None, bpm=None,
+                                     sigclip=5.0, sigfrac=0.3, objlim=5.0,
+                                     remove_compact_obj=True, maxiter=1, grow=1.5):
+    r"""
+    Identify cosmic rays by running L.A.Cosmic on the residual obtained
+    by subtracting a row-local median filter from the input image.
+
+    The image is filtered with a 1D median of width ``median_width`` along
+    axis 1 (i.e., ``size=(1, median_width)``), and L.A.Cosmic is run on
+    ``image - median_image``.  This catches the extended bodies of long,
+    narrow CR trails that the standard 3x3 Laplacian misses, while
+    leaving sharp, line-like calibration signal (arc/tilt lines) intact
+    because the moving median subtracts it.
+
+    Like :func:`cr_screen`, the median is taken along axis 1; unlike
+    :func:`cr_screen`, it is a windowed median rather than a single
+    per-row median, so slowly-varying structure along axis 1 is
+    preserved in the residual.
+
+    This method works best for frames with small tilts, where the lines are
+    nearly horizontal and the row-local median can effectively capture the
+    line signal.  For frames with large tilts, the row-local median will
+    struggle to capture the line signal, and the residual image will be
+    dominated by line residuals rather than CR features, leading to many
+    false positives.  In that case, set ``median_width`` to :math:`\leq 1`
+    to disable the residual path and fall back to the standard L.A.Cosmic
+    approach.
+
+    Where this method is applicable, sensible ``median_width`` values are
+    typically in the range 21--51 pixels: large enough to span individual
+    emission lines (so the row-local median captures the line rather than
+    fighting it), but small enough that long, smooth CR features still stand
+    out against the row-local background.
+
+    Args:
+        image (`numpy.ndarray`_):
+            2D image to process.
+        median_width (:obj:`int`):
+            Width of the 1D median window applied along axis 1.  Values
+            of :math:`\leq 1` disable the filter and the function
+            returns an empty CR mask.
+        varframe (`numpy.ndarray`_, optional):
+            Variance frame to pass through to :func:`lacosmic`.  If
+            None, ``numpy.maximum(numpy.abs(image), 1.0)`` is used,
+            providing a conservative shot-noise floor derived from the
+            input image rather than the residual.
+        bpm (`numpy.ndarray`_, optional):
+            Bad-pixel mask to pass through to :func:`lacosmic`.
+        sigclip (:obj:`float`, optional):
+            See :func:`lacosmic`.
+        sigfrac (:obj:`float`, optional):
+            See :func:`lacosmic`.
+        objlim (:obj:`float`, optional):
+            See :func:`lacosmic`.
+        remove_compact_obj (:obj:`bool`, optional):
+            See :func:`lacosmic`.
+        maxiter (:obj:`int`, optional):
+            See :func:`lacosmic`.
+        grow (:obj:`float`, optional):
+            See :func:`lacosmic`.
+
+    Returns:
+        `numpy.ndarray`_: Boolean array flagging detected cosmic rays
+        (True where a CR was identified).  If ``median_width <= 1`` the
+        returned mask is all False.
+    """
+    if median_width is None or int(median_width) <= 1:
+        return np.zeros(image.shape, dtype=bool)
+    median_image = scipy.ndimage.median_filter(
+        image, size=(1, int(median_width)), mode='nearest')
+    if varframe is None:
+        varframe = np.maximum(np.abs(image), 1.0)
+    return lacosmic(
+        image - median_image, varframe=varframe, bpm=bpm,
+        sigclip=sigclip, sigfrac=sigfrac, objlim=objlim,
+        remove_compact_obj=remove_compact_obj,
+        maxiter=maxiter, grow=grow,
+    )
 
 
 def boxcar_fill(img, width, bpm=None, maxiter=None, fill_value=np.nan):
@@ -397,9 +478,9 @@ def cr_screen(a, mask_value=0.0, spatial_axis=1):
     """
     # Check input
     if len(a.shape) != 2:
-        msgs.error('Input array must be two-dimensional.')
+        raise PypeItError('Input array must be two-dimensional.')
     if spatial_axis not in [0,1]:
-        msgs.error('Spatial axis must be 0 or 1.')
+        raise PypeItError('Spatial axis must be 0 or 1.')
 
     # Mask the pixels equal to mask value: should use np.isclose()
     _a = np.ma.MaskedArray(a, mask=(a==mask_value))
@@ -458,7 +539,7 @@ def gain_frame(amp_img, gain):
         `numpy.ndarray`_: Image with the gain for each pixel.
     """
     # TODO: Remove this or actually do it.
-    # msgs.warn("Should probably be measuring the gain across the amplifier boundary")
+    # log.warning("Should probably be measuring the gain across the amplifier boundary")
     # Build and return the gain image
     gain_img = np.zeros_like(amp_img, dtype=float)
     for i,_gain in enumerate(gain):
@@ -519,15 +600,15 @@ def rn2_frame(datasec_img, ronoise, units='e-', gain=None, digitization=False):
     """
     # Check units
     if units not in ['e-', 'ADU']:
-        msgs.error(f"Unknown units: {units}.  Must be 'e-' or 'ADU'.")
+        raise PypeItError(f"Unknown units: {units}.  Must be 'e-' or 'ADU'.")
     if gain is None and (digitization or units == 'ADU'):
-        msgs.error('If including digitization error or return units in ADU, must provide gain.')
+        raise PypeItError('If including digitization error or return units in ADU, must provide gain.')
 
     # Determine the number of amplifiers from the datasec image
     _datasec_img = datasec_img.astype(int)
     numamplifiers = np.amax(_datasec_img)
     if numamplifiers == 0:
-        msgs.error('Amplifier identification image (datasec_img) does not have any values larger '
+        raise PypeItError('Amplifier identification image (datasec_img) does not have any values larger '
                    'than 0!  The image should indicate the 1-indexed integer of the amplifier '
                    'used to read each pixel.')
 
@@ -535,7 +616,7 @@ def rn2_frame(datasec_img, ronoise, units='e-', gain=None, digitization=False):
     _ronoise = np.atleast_1d(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
                         else np.array([ronoise])
     if len(_ronoise) != numamplifiers:
-        msgs.error('Must provide a read-noise for each amplifier.')
+        raise PypeItError('Must provide a read-noise for each amplifier.')
 
     # Get the amplifier indices
     indx = np.logical_not(_datasec_img == 0)
@@ -552,7 +633,7 @@ def rn2_frame(datasec_img, ronoise, units='e-', gain=None, digitization=False):
     # Check the number of gain values
     _gain = np.atleast_1d(gain) if isinstance(gain, (list, np.ndarray)) else np.array([gain])
     if len(_gain) != numamplifiers:
-        msgs.error('Must provide a gain for each amplifier.')
+        raise PypeItError('Must provide a gain for each amplifier.')
 
     if digitization:
         # Add in the digitization error
@@ -584,6 +665,46 @@ def rect_slice_with_mask(image, mask, mask_val=1):
     pix = np.where(mask == mask_val)
     slices = (slice(np.min(pix[0]), np.max(pix[0])+1), slice(np.min(pix[1]), np.max(pix[1])+1))
     return image[slices], slices
+
+
+def clean_overscan_vector(overscan, w=9, nsig=1.0, rdnoise=4.0):
+    """
+    Clean a 1D overscan vector by median-filtering and interpolating
+    over outliers.
+
+    Replicates the IDL ``clean_overscan_vector`` function from the
+    Binospec ``bino_mosaic.pro`` pipeline.
+
+    Parameters
+    ----------
+    overscan : `numpy.ndarray`_
+        1D overscan vector to clean.
+    w : :obj:`int`, optional
+        Window size for median filtering. Must be >= 3. Default is 9.
+    nsig : :obj:`float`, optional
+        Sigma threshold for outlier rejection. Pixels deviating from
+        the median-filtered vector by more than ``nsig * rdnoise`` are
+        replaced by interpolation. Default is 1.0.
+    rdnoise : :obj:`float`, optional
+        Read noise in ADU, used to set the outlier threshold.
+        Default is 4.0.
+
+    Returns
+    -------
+    clean : `numpy.ndarray`_
+        Cleaned overscan vector with outliers interpolated over.
+    """
+    w = max(w, 3)
+    m_overscan = scipy.ndimage.median_filter(overscan, size=w, mode='reflect')
+    bad = np.abs(overscan - m_overscan) > rdnoise * nsig
+    good = np.logical_not(bad)
+    if np.all(good) or np.all(bad):
+        return overscan.copy()
+    clean = overscan.copy()
+    good_idx = np.where(good)[0]
+    bad_idx = np.where(bad)[0]
+    clean[bad_idx] = np.interp(bad_idx, good_idx, overscan[good_idx])
+    return clean
 
 
 def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', params=[5,65],
@@ -635,15 +756,15 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
     """
     # Check input
     if method.lower() not in ['polynomial', 'chebyshev', 'savgol', 'median', 'odd_even']:
-        msgs.error(f'Unrecognized overscan subtraction method: {method}')
+        raise PypeItError(f'Unrecognized overscan subtraction method: {method}')
     if rawframe.ndim != 2:
-        msgs.error('Input raw frame must be 2D.')
+        raise PypeItError('Input raw frame must be 2D.')
     if datasec_img.shape != rawframe.shape:
-        msgs.error('Datasec image must have the same shape as the raw frame.')
+        raise PypeItError('Datasec image must have the same shape as the raw frame.')
     if oscansec_img.shape != rawframe.shape:
-        msgs.error('Overscan section image must have the same shape as the raw frame.')
+        raise PypeItError('Overscan section image must have the same shape as the raw frame.')
     if var is not None and var.shape != rawframe.shape:
-        msgs.error('Variance image must have the same shape as the raw frame.')
+        raise PypeItError('Variance image must have the same shape as the raw frame.')
 
     # Copy the data so that the subtraction is not done in place
     no_overscan = rawframe.copy()
@@ -656,18 +777,18 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
     for amp in amps:
         # Pull out the overscan data
         if np.sum(oscansec_img == amp) == 0:
-            msgs.error(f'No overscan region for amplifier {amp+1}!')
+            raise PypeItError(f'No overscan region for amplifier {amp+1}!')
         overscan, os_slice = rect_slice_with_mask(rawframe, oscansec_img, amp)
         if var is not None:
             osvar = var[os_slice]
         # Pull out the real data
         if np.sum(datasec_img == amp) == 0:
-            msgs.error(f'No data region for amplifier {amp+1}!')
+            raise PypeItError(f'No data region for amplifier {amp+1}!')
         data, data_slice = rect_slice_with_mask(rawframe, datasec_img, amp)
 
         # Shape along at least one axis must match
         if not np.any([dd == do for dd, do in zip(data.shape, overscan.shape)]):
-            msgs.error('Overscan sections do not match amplifier sections for '
+            raise PypeItError('Overscan sections do not match amplifier sections for '
                        'amplifier {0}'.format(amp))
         compress_axis = 1 if data.shape[0] == overscan.shape[0] else 0
 
@@ -784,7 +905,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     Returns:
         `numpy.ndarray`_: The input frame with the pattern subtracted
     """
-    msgs.info("Analyzing detector pattern")
+    log.info("Analyzing detector pattern")
 
     # Copy the data so that the subtraction is not done in place
     frame_orig = rawframe.copy()
@@ -847,7 +968,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         frq_mod = np.polyval(cc, all_rows) * (overscan.shape[1]-1)
 
         # Convert frequency to the size of the overscan region
-        msgs.info("Subtracting detector pattern from amplifier {0:d} with frequency = {1:f}".format(amp, use_fr))
+        log.info("Subtracting detector pattern from amplifier {0:d} with frequency = {1:f}".format(amp, use_fr))
 
         # Get a first guess of the amplitude and phase information
         xdata, step = np.linspace(0.0, 1.0, overscan.shape[1], retstep=True)
@@ -859,7 +980,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
 
         # STEP 2 - Using the model frequency, calculate how amplitude depends on pixel row (usually constant)
         # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
-        msgs.info("Measuring amplitude-pixel dependence of amplifier {0:d}".format(amp))
+        log.info("Measuring amplitude-pixel dependence of amplifier {0:d}".format(amp))
         nspec = overscan.shape[0]
         model_pattern = np.zeros_like(oscandata)
         cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * xarr + p[1])
@@ -882,10 +1003,10 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
                     bounds=([0, -np.inf],[np.inf, np.inf])
                 )
             except ValueError:
-                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                log.warning("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
             except RuntimeError:
-                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                log.warning("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
             amps_fit[ii] = popt[0]
         # Construct a model of the amplitudes as a fucntion of spectral pixel
@@ -894,7 +1015,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
 
         # STEP 3 - Using the model frequency and amplitude, calculate the phase of every pixel row
         # Now determine the phase, given a prior on the amplitude and frequency
-        msgs.info("Calculating pattern phases of amplifier {0:d}".format(amp))
+        log.info("Calculating pattern phases of amplifier {0:d}".format(amp))
         cosfunc = lambda xarr, *p: np.cos(2.0 * np.pi * xarr + p[0])
         cosfunc_full = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
         for ii in range(nspec):
@@ -912,10 +1033,10 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
                     bounds=([-np.inf], [np.inf])
                 )
             except ValueError:
-                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                log.warning("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
             except RuntimeError:
-                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                log.warning("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
             # Calculate the model pattern, given the amplitude, frequency and phase information
             model_pattern[ii, :] = cosfunc_full(xdata_all, amp_mod[ii], frq_mod[ii], popt[0])
@@ -924,7 +1045,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         full_model[osd_slice] = model_pattern
         old_ron = astropy.stats.sigma_clipped_stats(overscan, sigma=5, stdfunc='mad_std')[-1]
         new_ron = astropy.stats.sigma_clipped_stats(overscan-full_model[os_slice], sigma=5, stdfunc='mad_std')[-1]
-        msgs.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
+        log.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
 
     # Transpose if the input frame if applied along a different axis
     if axis == 0:
@@ -951,7 +1072,7 @@ def pattern_frequency(frame, axis=1):
     if axis == 0:
         arr = frame.T
     elif axis != 1:
-        msgs.error("frame must be a 2D image, and axis must be 0 or 1")
+        raise PypeItError("frame must be a 2D image, and axis must be 0 or 1")
 
     # Calculate the output image dimensions of the model signal
     # Subtract the DC offset
@@ -1005,11 +1126,11 @@ def replace_columns(img, bad_cols, replace_with='mean', copy=False):
     """
     # Check
     if img.ndim != 2:
-        msgs.error('Images must be 2D!')
+        raise PypeItError('Images must be 2D!')
     if bad_cols.size != img.shape[1]:
-        msgs.error('Bad column array has incorrect length!')
+        raise PypeItError('Bad column array has incorrect length!')
     if np.all(bad_cols):
-        msgs.error('All columns are bad!')
+        raise PypeItError('All columns are bad!')
 
     _img = img.copy() if copy else img
 
@@ -1044,7 +1165,7 @@ def replace_columns(img, bad_cols, replace_with='mean', copy=False):
         for l,r in zip(ledges, redges):
             replace_column_linear(_img, l, r)
     else:
-        msgs.error('Unknown replace_columns method.  Must be mean or linear.')
+        raise PypeItError('Unknown replace_columns method.  Must be mean or linear.')
     return _img
 
 
@@ -1127,13 +1248,13 @@ def trim_frame(frame, mask):
         `numpy.ndarray`_: Trimmed image
 
     Raises:
-        :class:`~pypeit.pypmsgs.PypeItError`:
+        :class:`~pypeit.exceptions.PypeItError`:
             Error raised if the trimmed image includes masked values
             because the shape of the valid region is odd.
     """
     # TODO: Should check for this failure mode earlier
     if np.any(mask[np.logical_not(np.all(mask,axis=1)),:][:,np.logical_not(np.all(mask,axis=0))]):
-        msgs.error('Data section is oddly shaped.  Trimming does not exclude all '
+        raise PypeItError('Data section is oddly shaped.  Trimming does not exclude all '
                    'pixels outside the data sections.')
     return frame[np.logical_not(np.all(mask,axis=1)),:][:,np.logical_not(np.all(mask,axis=0))]
 
@@ -1157,7 +1278,9 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
         - :math:`C` is the observed number of sky + object counts,
         - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
           from the (inverse of the) flat-field frames plus the number
-          of frames contributing to the object counts (see ``count_scale``),
+          of frames contributing to the object counts plus a scaling
+          factor applied if the counts of each frame are scaled to the
+          mean counts of all frames (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour** (see
           ``darkcurr``),
         - :math:`t_{\rm exp}` is the effective exposure time in seconds (see
@@ -1229,8 +1352,9 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
             A scale factor that *has already been applied* to the provided
             counts. It accounts for the number of frames contributing to
             the provided counts, and the relative throughput factors that
-            can be measured from flat-field frames. For example, if the image
-            has been flat-field corrected, this is the inverse of the flat-field counts.
+            can be measured from flat-field frames plus a scaling factor applied
+            if the counts of each frame are scaled to the mean counts of all frames.
+            For example, if the image has been flat-field corrected, this is the inverse of the flat-field counts.
             If None, set to 1. If a single float, assumed to be constant across the full image.
             If an array, the shape must match ``rn_var``.  The variance will be 0
             wherever :math:`s \leq 0`, modulo the provided ``noise_floor``.
@@ -1242,13 +1366,13 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
     # Check input
     if count_scale is not None and isinstance(count_scale, np.ndarray) \
             and count_scale.shape != rn_var.shape:
-        msgs.error('Count scale and readnoise variance have different shape.')
+        raise PypeItError('Count scale and readnoise variance have different shape.')
     if proc_var is not None and isinstance(proc_var, np.ndarray) \
             and proc_var.shape != rn_var.shape:
-        msgs.error('Processing variance and readnoise variance have different shape.')
+        raise PypeItError('Processing variance and readnoise variance have different shape.')
     if darkcurr is not None and isinstance(darkcurr, np.ndarray) \
             and darkcurr.shape != rn_var.shape:
-        msgs.error('Dark image and readnoise variance have different shape.')
+        raise PypeItError('Dark image and readnoise variance have different shape.')
 
     # Build the variance
     #   - First term is the read-noise
@@ -1287,7 +1411,9 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
         - :math:`C` is the observed number of sky + object counts,
         - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
           from the (inverse of the) flat-field frames plus the number
-          of frames contributing to the object counts (see ``count_scale``),
+          of frames contributing to the object counts plus a scaling factor
+          applied if the counts of each frame are scaled to the mean counts
+          of all frames (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour**,
         - :math:`t_{\rm exp}` is the effective exposure time in seconds,
         - :math:`V_{\rm rn}` is the detector readnoise variance (i.e.,
@@ -1347,7 +1473,9 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
             A scale factor that *has already been applied* to the provided
             counts; see :math:`s` in the equations above.  It accounts for
             the number of frames contributing to  the provided counts, and
-            the relative throughput factors that  can be measured from flat-field frames.
+            the relative throughput factors that can be measured from flat-field frames
+            plus a scaling factor applied if the counts of each frame are
+            scaled to the mean counts of all frames.
             For example, if the image has been flat-field corrected, this is the inverse
             of the flat-field counts.  If None, no scaling is expected, meaning
             ``counts`` are exactly the observed detector counts.  If a single
@@ -1367,12 +1495,12 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
     """
     # Check input
     if noise_floor is not None and noise_floor > 0. and counts is None:
-        msgs.error('To impose a noise floor, must provide counts.')
+        raise PypeItError('To impose a noise floor, must provide counts.')
     if counts is not None and counts.shape != base.shape:
-        msgs.error('Counts image and base-level variance have different shape.')
+        raise PypeItError('Counts image and base-level variance have different shape.')
     if count_scale is not None and isinstance(count_scale, np.ndarray) \
             and count_scale.shape != base.shape:
-        msgs.error('Count scale and base-level variance have different shape.')
+        raise PypeItError('Count scale and base-level variance have different shape.')
 
     # Clip the counts
     _counts = None if counts is None else np.clip(counts, 0, None)
@@ -1424,10 +1552,10 @@ def nonlinear_counts(counts, ampimage, nonlinearity_coeffs):
     corr_counts :
         Array with the corrected counts.
     """
-    msgs.info('Applying a non-linearity correction to the counts.')
+    log.info('Applying a non-linearity correction to the counts.')
     # Check the input
     if counts.shape != ampimage.shape:
-        msgs.error('Counts and amplifier image have different shapes.')
+        raise PypeItError('Counts and amplifier image have different shapes.')
     _nonlinearity_coeffs = np.asarray(nonlinearity_coeffs)
     # Setup the output array
     corr_counts = counts.copy()

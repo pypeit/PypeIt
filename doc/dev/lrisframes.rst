@@ -13,6 +13,7 @@ Version History
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
 1.0         Debora Pelliccia    6 Sep 2023 1.13.1.dev
+1.1         Debora Pelliccia   10 Aug 2024 1.16.1.dev
 =========   ================   =========== ===========
 
 ----
@@ -40,6 +41,7 @@ The header cards required for the frame-typing and their associated keyword in t
 ===============     ======================================================
 ``exptime``         ``ELAPTIME`` (``TELAPSE`` for ``keck_lris_red_mark4``)
 ``hatch``           ``TRAPDOOR``
+``decker``          ``SLITNAME``
 ``lampstat01``      See below
 ===============     ======================================================
 
@@ -51,32 +53,43 @@ of keywords used to define ``lampstat01`` varies depending on the available head
 
 The criteria used to select each frame type are as follows:
 
-=============   ============   ======================================   ===========================================
-Frame           ``hatch``      ``lampstat01``                           ``exptime``
-=============   ============   ======================================   ===========================================
-``science``     ``'open'``     ``'off'``                                ``>61s``
-``standard``    ``'open'``     ``'off'``                                ``>1s`` & ``<61s``
-``bias``        ``'closed'``   ``'off'``                                ``<0.001s``
-``pixelflat``   ``'closed'``   ``'Halogen' or '2H'``                    ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
-``pixelflat``   ``'open'``     ``'on'``                                 ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
-``trace``       ``'closed'``   ``'Halogen'`` or ``'2H'``                ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
-``trace``       ``'open'``     ``'on'``                                 ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
-``illumflat``   ``'closed'``   ``'Halogen'`` or ``'2H'``                ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
-``illumflat``   ``'open'``     ``'on'``                                 ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
-``arc``         ``'closed'``   ``!= 'Halogen', '2H', 'on', 'off'``      Not used
-``tilt``        ``'closed'``   ``!= 'Halogen', '2H', 'on', 'off'``      Not used
-=============   ============   ======================================   ===========================================
+====================   ============   ======================================   =================   ======================================================
+Frame                  ``hatch``      ``lampstat01``                           ``decker``          ``exptime``
+====================   ============   ======================================   =================   ======================================================
+``science``            ``'open'``     ``'off'``                                ``!= 'GOH_LRIS'``   ``>61s``
+``standard``           ``'open'``     ``'off'``                                ``!= 'GOH_LRIS'``   ``>1s`` & ``<61s`` (LRIS RED) or ``<900s`` (LRIS BLUE)
+``bias``               ``'closed'``   ``'off'``                                ``!= 'GOH_LRIS'``   ``<1s``
+``slitless_pixflat``   ``'open'``     ``'off'``                                ``== 'direct'``     ``<60s``
+``pixelflat``          ``'closed'``   ``'Halogen' or '2H'``                    ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
+``pixelflat``          ``'open'``     ``'on'``                                 ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
+``trace``              ``'closed'``   ``'Halogen'`` or ``'2H'``                ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
+``trace``              ``'open'``     ``'on'``                                 ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
+``illumflat``          ``'closed'``   ``'Halogen'`` or ``'2H'``                ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
+``illumflat``          ``'open'``     ``'on'``                                 ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
+``arc``                ``'closed'``   ``!= 'Halogen', '2H', 'on', 'off'``      ``!= 'GOH_LRIS'``   Not used
+``tilt``               ``'closed'``   ``!= 'Halogen', '2H', 'on', 'off'``      ``!= 'GOH_LRIS'``   Not used
+====================   ============   ======================================   =================   ======================================================
 
 Note that PypeIt employs commonly used value of ``exptime`` to distinguish frame type;
 however, if needed, the user can specify a different value by
 using the ``exprng`` parameter in the :ref:`pypeit_file`; see also :ref:`frame_types`.
 
+The ``science`` and ``standard`` frames have identical selection criteria, except for the
+``exptime`` value. In order to better distinguish between the two types, the ``RA`` and ``DEC`` header
+keywords are also used to assign the ``standard`` type to frames with ``RA`` and ``DEC`` values that are
+within 10 arcmin of one of the standard stars available in PypeIt (see :ref:`standards`).
+
 The criteria used to select ``arc`` and ``tilt`` frames are identical; the same is true for
-``pixelflat``, ``trace``, and ``illumflat`` frames. However, it's important to note that
+``pixelflat``, ``trace``, and ``illumflat`` frames. It's important to note that
 PypeIt is able to correctly assign the ``pixelflat``, ``trace``, and ``illumflat`` types
-to the internal and dome flat frames, but the twilight flats will generally have the
-``science`` or ``standard`` type. Therefore, the user should manually change their frame type
-in the :ref:`pypeit_file`.
+to the internal and dome flat frames, and it tries to do the same for the twilight flats, by selecting
+frames that looks like ``science`` frames and include the following words in the ``OBJECT``
+or ``TARGNAME`` header keywords: 'sky', 'blank', 'twilight', 'twiflat', 'twi flat'. This way of
+identifying twilight flats is not robust, therefore the user should always check the frame types assigned
+and manually change them if needed in the :ref:`pypeit_file`.
+
+Note, also, that if both ``pixelflat`` and ``slitless_pixflat`` frames are identified, the ``pixelflat``
+assignment will be removed so that the ``slitless_pixflat`` frames will be used for the flat fielding.
 
 Finally, note that a LRIS frame is never given a ``pinhole`` or ``dark`` type.
 

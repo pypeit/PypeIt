@@ -22,11 +22,13 @@ from astropy.io import fits
 
 from ginga.util import grc
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import io
 from pypeit import utils
 
-def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=False):
+def connect_to_ginga(host='localhost', port=grc.default_rc_port,
+                     raise_err=False, allow_new=False):
     """
     Connect to a RC Ginga.
 
@@ -34,7 +36,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
         host (:obj:`str`, optional):
             Host name.
         port (:obj:`int`, optional):
-            Probably should remain at 9000
+            Probably should remain at Ginga default
         raise_err (:obj:`bool`, optional):
             Raise an error if no connection is made, otherwise just
             raise a warning and continue
@@ -53,14 +55,15 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
         tmp = sh.get_current_workspace()
     except:
         if allow_new:
-            subprocess.Popen(['ginga', '--modules=RC,SlitWavelength'])
+            subprocess.Popen(['ginga', f'--rcport={port}',
+                              '--modules=RC,SlitWavelength'])
 
             # NOTE: time.sleep(3) is now insufficient. The loop below
             # continues to try to connect with the ginga viewer that
             # was just instantiated for a maximum number of iterations.
             # If the connection is remains unsuccessful, an error is
             # thrown stating that the connection timed out.
-            maxiter = int(1e6)
+            maxiter = int(3e4)
             for i in range(maxiter):
                 try:
                     viewer = grc.RemoteClient(host, port)
@@ -71,16 +74,17 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
                 else:
                     break
             if i == maxiter-1:
-                msgs.error('Timeout waiting for ginga to start.  If window does not appear, type '
-                           '`ginga --modules=RC,SlitWavelength` on the command line.  In either case, wait for '
-                           'the ginga viewer to open and try the pypeit command again.')
+                raise PypeItError('Timeout waiting for ginga to start.  If window does not appear, type '
+                           f'`ginga --rcport={port} --modules=RC,SlitWavelength` on the command line.  In either '
+                           'case, wait for the ginga viewer to open and try the pypeit command '
+                           'again.')
             return viewer
 
         if raise_err:
             raise ValueError
         else:
-            msgs.warn('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
-                      'then continue: \n    ginga --modules=RC,SlitWavelength')
+            log.warning('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
+                      f'then continue: \n    ginga --rcport={port} --modules=RC,SlitWavelength')
 
     # Return
     return viewer
@@ -140,6 +144,9 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     if clear:
         clear_all()
 
+    sh = viewer.shell()
+    sh.get_channel_on_demand(chname)
+
     ch = viewer.channel(chname)
     # Header
     header = {}
@@ -149,7 +156,6 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     # Giddy up
 #    waveimg = None
     if waveimg is not None:
-        sh = viewer.shell()
         args = [chname, chname, grc.Blob(img.tobytes()), img.shape, img.dtype.name, header,
                 grc.Blob(waveimg.tobytes()), waveimg.dtype.name, {}]
         sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})
@@ -348,11 +354,11 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
     _right = right.reshape(-1,1) if right.ndim == 1 else right
     nright = _right.shape[1]
-    
+
     nspec = _left.shape[0]
     if _right.shape[0] != nspec:
         # TODO: Any reason to remove this restriction?
-        msgs.error('Input left and right edges have different spectral lengths.')
+        raise PypeItError('Input left and right edges have different spectral lengths.')
 
     # Spectral pixel location
     if spec_vals is not None:
@@ -363,16 +369,16 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     # Check input
     if synced:
         if left.shape != right.shape:
-            msgs.error('Input left and right traces must have the same shape if they have been '
+            raise PypeItError('Input left and right traces must have the same shape if they have been '
                        'synchronized into slits.')
         if left_ids is not None or right_ids is not None:
-            msgs.warn('For showing synced edges, left and right ID numbers are ignored.')
+            log.warning('For showing synced edges, left and right ID numbers are ignored.')
         nslits = _left.shape[1]
         _left_ids = None
         _right_ids = None
         _slit_ids = np.arange(nslits) if slit_ids is None else np.atleast_1d(slit_ids)
         if len(_slit_ids) != nslits:
-            msgs.error('Incorrect number of slit IDs provided.')
+            raise PypeItError('Incorrect number of slit IDs provided.')
         _slit_id_loc = _left + 0.45*(_right - _left)
         if maskdef_ids is not None and maskdef_ids.size == nslits:
             _maskdef_ids = np.atleast_1d(maskdef_ids)
@@ -381,11 +387,11 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     else:
         _left_ids = -np.arange(nleft) if left_ids is None else np.atleast_1d(left_ids)
         if len(_left_ids) != nleft:
-            msgs.error('Incorrect number of left IDs provided.')
+            raise PypeItError('Incorrect number of left IDs provided.')
         _left_id_loc = _left*1.05
         _right_ids = -np.arange(nright) if right_ids is None else np.atleast_1d(right_ids)
         if len(_right_ids) != nright:
-            msgs.error('Incorrect number of right IDs provided.')
+            raise PypeItError('Incorrect number of right IDs provided.')
         _right_id_loc = _right*(1-0.05)
 
     # Canvas
@@ -485,6 +491,7 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
     ntrace = trace.shape[1]
     _maskdef_extr = ntrace*[False] if maskdef_extr is None else maskdef_extr
     _manual_extr = ntrace*[False] if manual_extr is None else manual_extr
+    _trc_name = ntrace*[''] if trc_name is None else trc_name
 
     # Show
     if yval is None:
@@ -507,8 +514,8 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
         # Text
         ohf = len(trace[:,i])//2
         # Do it
-        canvas_list += [dict(type='text',args=(float(y[ohf,i]), float(trace[ohf,i]), str(trc_name[i])) if rotate
-                             else (float(trace[ohf,i]), float(y[ohf,i]), str(trc_name[i])),
+        canvas_list += [dict(type='text',args=(float(y[ohf,i]), float(trace[ohf,i]), str(_trc_name[i])) if rotate
+                             else (float(trace[ohf,i]), float(y[ohf,i]), str(_trc_name[i])),
                              kwargs=dict(color=_color, fontsize=17., rot_deg=90.))]
 
     canvas.add('constructedcanvas', canvas_list)
@@ -571,7 +578,7 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
 
     """
     if tilt_traces is None:
-        return msgs.error('No tilts have been traced or fitted')
+        raise PypeItError('No tilts have been traced or fitted')
 
     canvas = viewer.canvas(ch._chname)
     if clear_canvas:
@@ -665,3 +672,31 @@ def show_scattered_light(image_list, slits=None, wcs_match=True):
         if clear:
             clear = False
 
+
+def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
+    """
+    Interface to ginga to show a 1dspec and manipulate with Spec1dView plugin.
+
+    Parameters
+    ----------
+    filename : str
+        spec1d FITS file to show in the viewer
+    ext : int
+        extension to show (which spectrum)
+    """
+    viewer = connect_to_ginga(raise_err=True, allow_new=True)
+    sh = viewer.shell()
+    # NOTE: ext may be a numpy integer, which doesn't marshall over the
+    # RPC interface that Ginga currently uses--coerce to a regular Python int
+    ext = int(ext)
+
+    chname, plname = "Spec1d", "Spec1dView"
+    sh.add_channel(chname)
+    ch = viewer.channel(chname)
+    # set up the options as passed
+    kwargs = dict(ext=ext, extraction=extraction, masked=masked, fluxed=fluxed)
+    sh.call_local_plugin_method(chname, plname, 'set_params', [], kwargs)
+    # start the plugin
+    sh.start_local_plugin(chname, plname)
+    # load the file
+    sh.load_file(filename, chname=chname)

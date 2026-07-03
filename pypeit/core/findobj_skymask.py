@@ -3,7 +3,10 @@
 .. include:: ../include/links.rst
 
 """
-import copy
+from IPython import embed
+
+import os 
+from pathlib import Path
 
 import numpy as np
 import scipy.interpolate
@@ -11,8 +14,10 @@ import scipy.ndimage
 import matplotlib.pyplot as plt
 
 import astropy.stats
+from astropy import table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit import specobj
 from pypeit import specobjs
@@ -25,8 +30,6 @@ from pypeit.core import arc
 from pypeit.display import display
 from pypeit.core import pixels
 from pypeit.core import extract
-from pypeit.utils import fast_running_median
-from IPython import embed
 
 
 def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim_edg=(5,5),
@@ -69,7 +72,7 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
     # Number of objects
     nobj = len(sobjs)
     if nobj == 0:
-        msgs.info('No objects were detected. The entire slit will be used for sky subtraction.')
+        log.info('No objects were detected. The entire slit will be used for sky subtraction.')
         return thismask[thismask]
 
     # Compute the object mask
@@ -107,12 +110,12 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
     spat_img = np.tile(np.arange(nspat, dtype=int), (nspec,1))
     # Boxcar radius?
     if box_rad_pix is not None:
-        msgs.info("Using boxcar radius for masking")
+        log.info("Using boxcar radius for masking")
     # Loop me
     for iobj in range(nobj):
         # Create a mask for the pixels that will contribute to the object
         skymask_radius = box_rad_pix if box_rad_pix is not None else sobjs[iobj].FWHM
-        msgs.info(f"Masking around object {iobj+1} within a radius = {skymask_radius} pixels")
+        log.info(f"Masking around object {iobj+1} within a radius = {skymask_radius} pixels")
 #        slit_img = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))  # central trace replicated spatially
         slit_img = np.tile(sobjs[iobj].TRACE_SPAT, (nspat,1)).T
         objmask_now = thismask \
@@ -124,7 +127,7 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
     # TODO: There is this hard-coded check here, and then there is a similar
     # check in skysub.global_skysub.  Do we need both?
     if np.sum(skymask_fwhm)/np.sum(thismask) < 0.10:
-        msgs.warn('More than 90% of  usable area on this slit would be masked and not used by '
+        log.warning('More than 90% of  usable area on this slit would be masked and not used by '
                   'global sky subtraction. Something is probably wrong with object finding for '
                   'this slit. Not masking object for global sky subtraction.')
         skymask_fwhm = np.copy(thismask)
@@ -166,8 +169,8 @@ def ech_findobj_ineach_order(
     order_vec, spec_min_max, plate_scale_ord,
     det='DET01', inmask=None, std_trace=None, ncoeff=5, 
     hand_extract_dict=None,
-    box_radius=2.0, fwhm=3.0,
-    use_user_fwhm=False, maxdev=2.0, nperorder=2,
+    box_radius=2.0, fwhm=3.0,use_user_fwhm=False,
+    maxshift=1.0, maxdev=2.0, nperorder=2, numiterfit=9,
     extract_maskwidth=3.0, snr_thresh=10.0,
     specobj_dict=None, trim_edg=(5,5),
     show_peaks=False, show_single_fits=False,
@@ -229,8 +232,9 @@ def ech_findobj_ineach_order(
             predict the traces. If None, the minimum and maximum values will be
             determined automatically from ``slitmask``.
         plate_scale_ord (`numpy.ndarray`_):
-            An array with shape (norders,) providing the plate 
-            scale of each order in arcsec/pix, 
+            An array with shape (norders,) providing the plate scale of each
+            order in arcsec/pix.  This is typically provided by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.order_platescale`.
         det (:obj:`str`, optional):
             The name of the detector containing the object.  Only used if
             ``specobj_dict`` is None.
@@ -238,10 +242,11 @@ def ech_findobj_ineach_order(
             Good-pixel mask for input image.  Must have the same shape as
             ``image``.  If None, all pixels in ``slitmask`` with non-negative
             values are considered good.
-        std_trace (`numpy.ndarray`_, optional):
-            Vector with the standard star trace, which is used as a crutch for
-            tracing.  Shape must be (nspec,).  If None, the slit boundaries are
-            used as the crutch.
+        std_trace (`astropy.table.Table`_, optional):
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. The table has two columns:
+            `ECH_ORDER` and `TRACE_SPAT`. The shape of each row must be (nspec,).
+            If None, or for missing orders, the slit boundaries are used as the crutch.
         ncoeff (:obj:`int`, optional):
             Order of polynomial fit to traces.
         box_radius (:obj:`float`, optional):
@@ -255,9 +260,14 @@ def ech_findobj_ineach_order(
             If True, ``PypeIt`` will use the spatial profile FWHM input by the
             user (see ``fwhm``) rather than determine the spatial FWHM from the
             smashed spatial profile via the automated algorithm.
+        maxshift (:obj:`float`, optional):
+            Maximum shift [in pixels] allowed between the input and recalculated
+            trace centroid (see :func:`~pypeit.core.trace.fit_trace`).
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
+        numiterfit (:obj:`int`, optional):
+            Number of iterations to use when fitting the object traces.
         nperorder (:obj:`int`, optional):
             Maximum number of objects allowed per order.  If there are more
             detections than this number, the code will select the ``nperorder``
@@ -299,7 +309,7 @@ def ech_findobj_ineach_order(
         specobj_dict = {'SLITID': 999, 'ECH_ORDERINDX': 999,
                         'DET': det, 'OBJTYPE': 'unknown', 'PYPELINE': 'Echelle'}
 
-    allmask = slitmask > -1
+    allmask = slitmask != -1
     if inmask is None:
         inmask = allmask
 
@@ -307,13 +317,16 @@ def ech_findobj_ineach_order(
     sobjs = specobjs.SpecObjs()
     for iord, iorder in enumerate(order_vec):
         qa_title = 'Finding objects on order # {:d}'.format(iorder)
-        msgs.info(qa_title)
+        log.info(qa_title)
         thisslit_gpm = slitmask == slit_spats[iord]
         inmask_iord = inmask & thisslit_gpm
         specobj_dict['SLITID'] = slit_spats[iord]
         specobj_dict['ECH_ORDERINDX'] = iord
         specobj_dict['ECH_ORDER'] = iorder
-        std_in = None if std_trace is None else std_trace[:, iord]
+        std_in = None
+        if std_trace is not None and 'ECH_ORDER' in std_trace.keys() and np.any(std_trace['ECH_ORDER'] == iorder):
+            idx = np.where(std_trace['ECH_ORDER'] == iorder)[0][0]
+            std_in = std_trace[idx]['TRACE_SPAT']
 
         # Get SLTIORD_ID for the objfind QA
         ech_objfindQA_filename = objfindQA_filename.replace('S0999', 'S{:04d}'.format(order_vec[iord])) \
@@ -326,7 +339,8 @@ def ech_findobj_ineach_order(
                 spec_min_max=spec_min_max[:,iord],
                 inmask=inmask_iord,std_trace=std_in, 
                 ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
-                hand_extract_dict=hand_extract_dict,  
+                maxshift=maxshift,
+                numiterfit=numiterfit, hand_extract_dict=hand_extract_dict,
                 nperslit=nperorder, extract_maskwidth=extract_maskwidth,
                 snr_thresh=snr_thresh, trim_edg=trim_edg, 
                 boxcar_rad=box_radius/plate_scale_ord[iord],
@@ -367,8 +381,9 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
             Vector identifying the Echelle orders for each pair of order edges
             found.
         plate_scale_ord (`numpy.ndarray`_):
-            An array with shape (norders,) providing the plate 
-            scale of each order in arcsec/pix, 
+            An array with shape (norders,) providing the plate scale of each
+            order in arcsec/pix.  This is typically provided by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.order_platescale`.
         fof_link (:obj:`float`, optional):
             Friends-of-friends linking length in arcseconds used to link
             together traces across orders. The routine links together at
@@ -400,7 +415,7 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
     elif nfound==1:
         obj_id_init = np.ones(1,dtype='int')
     else:
-        msgs.error('No objects found in ech_fof_sobjs. Should not have called this routine')
+        raise PypeItError('No objects found in ech_fof_sobjs. Should not have called this routine')
 
     uni_obj_id_init, uni_ind_init = np.unique(obj_id_init, return_index=True)
 
@@ -412,8 +427,10 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
         for iord in range(norders):
             on_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDER == order_vec[iord])
             if (np.sum(on_order) > 1):
-                msgs.warn('Found multiple objects in a FOF group on order iord={:d}'.format(order_vec[iord]) + msgs.newline() +
-                          'Spawning new objects to maintain a single object per order.')
+                log.warning(
+                    f'Found multiple objects in a FOF group on order iord={order_vec[iord]}\n'
+                    'Spawning new objects to maintain a single object per order.'
+                )
                 off_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDER != order_vec[iord])
                 ind = np.where(on_order)[0]
                 if np.any(off_order):
@@ -434,7 +451,7 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
     # Finish
     uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)
     nobj = len(uni_obj_id)
-    msgs.info('FOF matching found {:d}'.format(nobj) + ' unique objects')
+    log.info('FOF matching found {:d}'.format(nobj) + ' unique objects')
 
     return obj_id
 
@@ -443,8 +460,9 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                   slit_righ:np.ndarray,
                   slit_spat_id: np.ndarray,
                   order_vec:np.ndarray,
+                  plate_scale_ord:np.ndarray,
                   obj_id:np.ndarray,
-                  std_trace:specobjs.SpecObjs=None,
+                  std_trace:table.Table=None,
                   show:bool=False):
     """
     For objects which were only found on some orders, the standard (or
@@ -482,11 +500,17 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
             objects.  If the orders are not known, this can be 
             ``np.arange(norders)`` (but this is *not* recommended).
+        plate_scale_ord (`numpy.ndarray`_):
+            An array with shape (norders,) providing the plate scale of each
+            order in arcsec/pix.  This is typically provided by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.order_platescale`.
         obj_id (`numpy.ndarray`_):
             Object IDs of the objects linked together.
-        std_trace (:class:`~pypeit.specobjs.SpecObjs`, optional):
-            Standard star objects (including the traces)
-            Defaults to None.
+        std_trace (`astropy.table.Table`_, optional):
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. The table has two columns:
+            `ECH_ORDER` and `TRACE_SPAT`. The shape of each row must be (nspec,).
+            If None, or for missing orders, the slit boundaries are used as the crutch.
         show (bool, optional): 
             Plot diagnostics related to filling the
             missing orders
@@ -506,8 +530,9 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
     slit_width = slit_righ - slit_left
 
     # Check standard star
-    if std_trace is not None and std_trace.shape[1] != norders:
-        msgs.error('Standard star trace does not match the number of orders in the echelle data.')
+    if std_trace is not None and len(std_trace) != norders:
+        log.warning('Standard star trace does not match the number of orders in the echelle data.'
+                  ' Will use the slit edges to trace the object in the missing orders.')
 
     # For traces
     nspec = slit_left.shape[0]
@@ -523,7 +548,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
     uni_frac = gfrac[uni_ind]
 
     # Sort with respect to fractional slit location to guarantee that we have a similarly sorted list of objects later
-    isort_frac = uni_frac.argsort()
+    isort_frac = uni_frac.argsort(kind='stable')
     uni_obj_id = uni_obj_id[isort_frac]
     uni_frac = uni_frac[isort_frac]
 
@@ -534,6 +559,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
         for iord in order_vec:
             on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDER == iord)
             sobjs_align[on_order].ECH_FRACPOS = uni_frac[iobj]
+            sobjs_align[on_order].ECH_FRACPOS_ID = int(np.rint(1000*uni_frac[iobj]))
             sobjs_align[on_order].ECH_OBJID = uni_obj_id[iobj]
             sobjs_align[on_order].OBJID = uni_obj_id[iobj]
             sobjs_align[on_order].ech_frac_was_fit = False
@@ -568,8 +594,8 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                 use_mad= True, sticky=False,
                 minx = order_vec.min(), maxx=order_vec.max())
             # Fill
-            goodorder = np.in1d(order_vec, thisorder)
-            badorder = np.invert(goodorder)
+            goodorder = np.isin(order_vec, thisorder)
+            badorder = np.logical_not(goodorder)
             frac_mean_new = np.zeros(norders)
             frac_mean_new[badorder] = pypeitFit.eval(order_vec[badorder])
             frac_mean_new[goodorder] = frac_mean_good
@@ -577,7 +603,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             if show:
                 frac_mean_fit = pypeitFit.eval(order_vec)
                 plt.plot(order_vec[goodorder][pypeitFit.bool_gpm], frac_mean_new[goodorder][pypeitFit.bool_gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(order_vec[goodorder][np.invert(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
+                plt.plot(order_vec[goodorder][np.logical_not(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.logical_not(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
                 plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
                 plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
                 plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
@@ -597,37 +623,49 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDER == this_order)
             num_on_order = np.sum(on_order)
             if num_on_order == 0:
-                msgs.info(f"Adding object={uni_obj_id[iobj]} to order={this_order}")
+                log.info(f"Adding object={uni_obj_id[iobj]} to order={this_order}")
                 # If it is not, create a new sobjs and add to sobjs_align and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
                                              OBJTYPE=sobjs_align[0].OBJTYPE,
                                              ECH_ORDERINDX=iord,
                                              ECH_ORDER=this_order)
-                #thisobj.ECH_ORDERINDX = iord
-                #thisobj.ech_order = order_vec[iord]
                 thisobj.SPAT_FRACPOS = uni_frac[iobj]
                 # Assign traces using the fractional position fit above
-                if std_trace is not None:
-                    x_trace = np.interp(slit_spec_pos, spec_vec, std_trace[:,iord])
+                if std_trace is not None and 'ECH_ORDER' in std_trace.keys() and \
+                        np.any(std_trace['ECH_ORDER'] == this_order):
+                    idx = np.where(std_trace['ECH_ORDER'] == this_order)[0][0]
+                    # standard star trace in this order
+                    std_in = std_trace[idx]['TRACE_SPAT']
+                    x_trace = np.interp(slit_spec_pos, spec_vec, std_in)
                     shift = np.interp(
                         slit_spec_pos, spec_vec, slit_left[:,iord] + 
                         slit_width[:,iord]*frac_mean_new[iord]) - x_trace
-                    thisobj.TRACE_SPAT = std_trace[:,iord] + shift
+                    thisobj.TRACE_SPAT = std_in + shift
                 else:
                     thisobj.TRACE_SPAT = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
                 thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
+                thisobj.SPAT_PIXPOS_ID = int(np.rint(thisobj.SPAT_PIXPOS))
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
+                this_salign = sobjs_align[this_obj_id]
                 # Assign to the fwhm of the nearest detected order
-                imin = np.argmin(np.abs(sobjs_align[this_obj_id].ECH_ORDER - this_order))
-                thisobj.FWHM = sobjs_align[imin].FWHM
-                thisobj.hand_extract_flag = sobjs_align[imin].hand_extract_flag
-                thisobj.maskwidth = sobjs_align[imin].maskwidth
-                thisobj.smash_peakflux = sobjs_align[imin].smash_peakflux
-                thisobj.smash_snr = sobjs_align[imin].smash_snr
-                thisobj.BOX_RADIUS = sobjs_align[imin].BOX_RADIUS
+                imin = np.argmin(np.abs(this_salign.ECH_ORDER - this_order))
+                # NOTE: when assigning FWHM, maskwidth, and BOX_R_PIX (in pixels) using the values
+                # from the nearest detected order, for spectrographs with different platescale per order,
+                # these values will be different in arcseconds. Therefore, we need to convert these values
+                # using the plate scale of the nearest detected order and the plate scale of the current order.
+                indx = np.where(order_vec == this_salign[imin].ECH_ORDER)[0][0]
+                pscale_conv = plate_scale_ord[indx]/plate_scale_ord[iord]
+                
+                thisobj.FWHM = this_salign[imin].FWHM * pscale_conv
+                thisobj.hand_extract_flag = this_salign[imin].hand_extract_flag
+                thisobj.maskwidth = this_salign[imin].maskwidth * pscale_conv
+                thisobj.smash_peakflux = this_salign[imin].smash_peakflux
+                thisobj.smash_snr = this_salign[imin].smash_snr
+                thisobj.BOX_R_PIX = this_salign[imin].BOX_R_PIX * pscale_conv
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
+                thisobj.ECH_FRACPOS_ID = int(np.rint(1000*uni_frac[iobj]))
                 thisobj.ECH_OBJID = uni_obj_id[iobj]
                 thisobj.OBJID = uni_obj_id[iobj]
                 thisobj.SLITID = slit_spat_id[iord]
@@ -640,7 +678,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                 # Object is already on this order so no need to do anything
                 pass
             elif num_on_order > 1:
-                msgs.error('Problem in echelle object finding. The same objid={:d} appears {:d} times on echelle orderindx ={:d}'
+                raise PypeItError('Problem in echelle object finding. The same objid={:d} appears {:d} times on echelle orderindx ={:d}'
                            ' even after duplicate obj_ids the orders were removed. '
                            'Report this bug to PypeIt developers'.format(uni_obj_id[iobj],num_on_order, iord))    
     # Return
@@ -692,8 +730,9 @@ def ech_cutobj_on_snr(
         order_vec (`numpy.ndarray`_):
             :obj:`int` array of good orders 
         plate_scale_ord (`numpy.ndarray`_):
-            An array with shape (norders,) providing the plate 
-            scale of each order in arcsec/pix, 
+            An array with shape (norders,) providing the plate scale of each
+            order in arcsec/pix.  This is typically provided by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.order_platescale`.
         max_snr (:obj:`float`, optional):
             For an object to be included in the output object, it must have a
             max S/N ratio above this value.
@@ -719,7 +758,7 @@ def ech_cutobj_on_snr(
         :class:`~pypeit.specobjs.SpecObjs`: The final set of objects
     """
 
-    allmask = slitmask > -1
+    allmask = slitmask != -1
     if inmask is None:
         inmask = allmask
     # Prep
@@ -729,7 +768,7 @@ def ech_cutobj_on_snr(
     nobj = uni_obj_id.size
 
     # Loop over the objects and perform a quick and dirty extraction to assess S/N.
-    varimg = utils.calc_ivar(ivar)
+    varimg = utils.inverse(ivar)
     flux_box = np.zeros((nspec, norders, nobj))
     ivar_box = np.zeros((nspec, norders, nobj))
     mask_box = np.zeros((nspec, norders, nobj))
@@ -745,9 +784,7 @@ def ech_cutobj_on_snr(
         # SNR
         for iord in range(norders):
             iorder_vec = order_vec[iord]
-            indx = sobjs_align.slitorder_objid_indices(
-                iorder_vec, uni_obj_id[iobj])
-            #indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
+            indx = (sobjs_align.ECH_ORDER == iorder_vec) & (sobjs_align.ECH_OBJID == uni_obj_id[iobj])
             #spec = sobjs_align[indx][0]
             inmask_iord = inmask & (slitmask == sobjs_align[indx].SLITID)# gdslit_spat[iord])
             # TODO make the snippet below its own function quick_extraction()
@@ -758,7 +795,7 @@ def ech_cutobj_on_snr(
                                  row=sobjs_align[indx][0].trace_spec)[0]
             var_tmp  = moment1d(varimg*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
                                 row=sobjs_align[indx][0].trace_spec)[0]
-            ivar_tmp = utils.calc_ivar(var_tmp)
+            ivar_tmp = utils.inverse(var_tmp)
             pixtot  = moment1d(ivar*0 + 1.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
                                row=sobjs_align[indx][0].trace_spec)[0]
             mask_tmp = moment1d(ivar*inmask_iord == 0.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
@@ -788,7 +825,7 @@ def ech_cutobj_on_snr(
 
     ## Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. Once we hit the maximum number
     # objects requested exit, except keep the hand apertures that were requested.
-    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0))[::-1]
+    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0), kind='stable')[::-1]
     for iobj in isort_SNR_max:
         hand_ap_flag = hand_flag[iobj]
         SNR_constraint = (SNR_arr[:,iobj].max() > max_snr) or (
@@ -800,24 +837,24 @@ def ech_cutobj_on_snr(
             sobjs_keep = sobjs_align[ikeep].copy()
             sobjs_keep.ECH_OBJID = iobj_keep
             sobjs_keep.OBJID = iobj_keep
-            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.SLITID)])
+            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.SLITID, kind='stable')])
             iobj_keep += 1
             if not hand_ap_flag:
                 iobj_keep_not_hand += 1
         else:
             if not nperorder_constraint:
-                msgs.info('Purging object #{:d}'.format(iobj) +
+                log.info('Purging object #{:d}'.format(iobj) +
                           ' since there are already {:d} objects automatically identified '
                           'and you set nperorder={:d}'.format(iobj_keep_not_hand-1, nperorder))
             else:
-                msgs.info('Purging object #{:d}'.format(iobj) + ' which does not satisfy max_snr > {:5.2f} OR min_snr > {:5.2f}'.format(max_snr, min_snr) +
+                log.info('Purging object #{:d}'.format(iobj) + ' which does not satisfy max_snr > {:5.2f} OR min_snr > {:5.2f}'.format(max_snr, min_snr) +
                 ' on at least nabove_min_snr >= {:d}'.format(nabove_min_snr) + ' orders')
 
 
     nobj_trim = np.sum(keep_obj)
 
     if nobj_trim == 0:
-        msgs.warn('No objects found')
+        log.warning('No objects found')
         sobjs_final = specobjs.SpecObjs()
         return sobjs_final
 
@@ -835,7 +872,8 @@ def ech_pca_traces(
     order_vec:np.ndarray, spec_min_max,
     npca:int=None, coeff_npoly:int=None,
     pca_explained_var:float=99.0, 
-    ncoeff:int=5, maxdev:float=2.0, fwhm:float=3.0,
+    ncoeff:int=5, maxshift:float=1.0,
+    maxdev:float=2.0, fwhm:float=3.0,
     show_trace:bool=False, show_fits:bool=False, 
     show_pca:bool=False):
     """
@@ -884,6 +922,11 @@ def ech_pca_traces(
             directly; see :func:`~pypeit.tracepca.pca_trace_object`.
         ncoeff (:obj:`int`, optional):
             Order of polynomial fit to traces.
+        maxshift (:obj:`float`, optional):
+            Maximum shift in pixels allowed between the original trace and the
+            new trace during the iterative flux-weighted centroiding.  This is
+            used to prevent the traces from jumping to nearby objects during
+            the iterative flux-weighted centroiding.  If None, no limit is applied.
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -908,13 +951,13 @@ def ech_pca_traces(
     spec_vec = np.arange(nspec)
     specmid = nspec // 2
 
-    allmask = slitmask > -1
+    allmask = slitmask != -1
     if inmask is None:
         inmask = allmask
 
     # Checks
     if norders != spec_min_max.shape[1]:
-        msgs.error("Number of good orders does not match the number of orders in spec_min_max")
+        raise PypeItError("Number of good orders does not match the number of orders in spec_min_max")
 
     # Loop over the objects one by one and adjust/predict the traces
     pca_fits = np.zeros((nspec, norders, nobj_trim))
@@ -929,7 +972,7 @@ def ech_pca_traces(
     for iobj in range(nobj_trim):
         indx_obj_id = sobjs_final.ECH_OBJID == (iobj + 1)
         # PCA predict all the orders now (where we have used the standard or slit boundary for the bad orders above)
-        msgs.info('Fitting echelle object finding PCA for object {:d}/{:d} with median SNR = {:5.3f}'.format(
+        log.info('Fitting echelle object finding PCA for object {:d}/{:d} with median SNR = {:5.3f}'.format(
             iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:,:,iobj] \
                 = tracepca.pca_trace_object(
@@ -945,15 +988,15 @@ def ech_pca_traces(
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & allmask
-        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask_now),
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 debug=show_fits)[0]
+        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.logical_not(inmask_now),
+                                 trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                 maxshift=maxshift, debug=show_fits)[0]
 
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
-        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask_now),
-                                 trace_bpm=np.invert(trc_inmask), weighting='gaussian', fwhm=fwhm,
-                                 maxdev=maxdev, debug=show_fits)[0]
+        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.logical_not(inmask_now),
+                                 trace_bpm=np.logical_not(trc_inmask), weighting='gaussian', fwhm=fwhm,
+                                 maxdev=maxdev, maxshift=maxshift, debug=show_fits)[0]
 
         #TODO  Assign the new traces. Only assign the orders that were not orginally detected and traced. If this works
         # well, we will avoid doing all of the iter_tracefits above to make the code faster.
@@ -963,6 +1006,7 @@ def ech_pca_traces(
             if spec.ech_frac_was_fit and (spec.ech_snr > 1.0):
                     spec.TRACE_SPAT = xfit_gweight[:,iord]
                     spec.SPAT_PIXPOS = spec.TRACE_SPAT[specmid]
+                    spec.SPAT_PIXPOS_ID = int(np.rint(spec.SPAT_PIXPOS))
 
     #TODO Put in some criterion here that does not let the fractional position change too much during the iterative
     # tracefitting. The problem is spurious apertures identified on one slit can be pulled over to the center of flux
@@ -1013,7 +1057,7 @@ def ech_pca_traces(
     # Vette
     for sobj in sobjs_final:
         if not sobj.ready_for_extraction():
-            msgs.error("Bad SpecObj.  Can't proceed")
+            raise PypeItError("Bad SpecObj.  Can't proceed")
 
     return sobjs_final
 
@@ -1024,9 +1068,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
                 std_trace=None, ncoeff=5, npca=None, 
                 coeff_npoly=None, max_snr=2.0, min_snr=1.0,
                 nabove_min_snr=2, pca_explained_var=99.0, 
-                box_radius=2.0, fwhm=3.0,
-                use_user_fwhm=False, maxdev=2.0, 
-                nperorder=2,
+                box_radius=2.0, fwhm=3.0, use_user_fwhm=False,
+                maxshift=1.0, maxdev=2.0,
+                nperorder=2, numiterfit=9,
                 extract_maskwidth=3.0, snr_thresh=10.0,
                 specobj_dict=None, trim_edg=(5,5),
                 show_peaks=False, show_fits=False, 
@@ -1124,10 +1168,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
             Plate scale in arcsec/pix. This can either be a single float for
             every order, or an array with shape (norders,) providing the plate
             scale of each order.
-        std_trace (`numpy.ndarray`_, optional):
-            Vector with the standard star trace, which is used as a crutch for
-            tracing.  Shape must be (nspec,).  If None, the slit boundaries are
-            used as the crutch.
+        std_trace (`astropy.table.Table`_, optional):
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. The table has two columns:
+            `ECH_ORDER` and `TRACE_SPAT`. The shape of each row must be (nspec,).
+            If None, or for missing orders, the slit boundaries are used as the crutch.
         ncoeff (:obj:`int`, optional):
             Order of polynomial fit to traces.
         npca (:obj:`int`, optional):
@@ -1165,9 +1210,14 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
             If True, ``PypeIt`` will use the spatial profile FWHM input by the
             user (see ``fwhm``) rather than determine the spatial FWHM from the
             smashed spatial profile via the automated algorithm.
+        maxshift (:obj:`float`, optional):
+            Maximum shift [in pixels] allowed between the input and recalculated
+            trace centroid (see :func:`~pypeit.core.trace.fit_trace`).
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
+        numiterfit (:obj:`int`, optional):
+            Number of iterations to perform when building the trace fits.
         hand_extract_dict (:obj:`dict`, optional):
             Dictionary with info on manual extraction; see
             :class:`~pypeit.manual_extract.ManualExtractionObj`.
@@ -1238,16 +1288,16 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
     # Perform some input checking
     norders = slit_left.shape[1]
     # TODO JFH Relaxing this strict requirement on the slitmask image for the time being
-    #gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
+    #gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)  # Unique sorts
     #if gdslit_spat.size != norders:
-    #msgs.error('Number of slitidsin slitmask and the number of left/right slits must be the same.')
+    #raise PypeItError('Number of slitidsin slitmask and the number of left/right slits must be the same.')
 
     if slit_righ.shape[1] != norders:
-        msgs.error('Number of left and right slits must be the same.')
+        raise PypeItError('Number of left and right slits must be the same.')
     if order_vec.size != norders:
-        msgs.error('Number of orders in order_vec and left/right slits must be the same.')
+        raise PypeItError('Number of orders in order_vec and left/right slits must be the same.')
     if spec_min_max.shape[1] != norders:
-        msgs.error('Number of orders in spec_min_max and left/right slits must be the same.')
+        raise PypeItError('Number of orders in spec_min_max and left/right slits must be the same.')
 
     if specobj_dict is None:
         specobj_dict = {'SLITID': 999, 
@@ -1265,6 +1315,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         det=det,
         inmask=inmask, 
         std_trace=std_trace,
+        ncoeff=ncoeff,
         specobj_dict=specobj_dict,
         snr_thresh=snr_thresh,
         show_peaks=show_peaks, 
@@ -1275,7 +1326,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         fwhm=fwhm,
         use_user_fwhm=use_user_fwhm,
         nperorder=nperorder,
+        maxshift=maxshift,
         maxdev=maxdev,
+        numiterfit=numiterfit,
         box_radius=box_radius,
         objfindQA_filename=objfindQA_filename,
         hand_extract_dict=manual_extract_dict)
@@ -1292,7 +1345,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
 
     # Fill in Orders
     sobjs_filled = ech_fill_in_orders(
-        sobjs_in_orders, slit_left, slit_righ, slit_spat_id, order_vec, obj_id, std_trace=std_trace)
+        sobjs_in_orders, slit_left, slit_righ, slit_spat_id, order_vec, plate_scale, obj_id, std_trace=std_trace)
 
     # Cut on SNR and number of objects
     sobjs_pre_final = ech_cutobj_on_snr(
@@ -1318,687 +1371,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         coeff_npoly=coeff_npoly,
         ncoeff=ncoeff, npca=npca,
         pca_explained_var=pca_explained_var,
+        maxshift=maxshift,
         maxdev=maxdev,
         fwhm=fwhm,
         show_trace=show_trace, show_fits=show_fits, 
         show_pca=show_pca)
 
     return sobjs_ech
-
-
-def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det='DET01',
-                inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2,
-                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
-                nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
-                use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperorder=2,
-                extract_maskwidth=3.0, snr_thresh=10.0,
-                specobj_dict=None, trim_edg=(5,5),
-                show_peaks=False, show_fits=False, show_single_fits=False,
-                show_trace=False, show_single_trace=False, show_pca=False,
-                debug_all=False, objfindQA_filename=None):
-    """
-    Object finding routine for Echelle spectrographs.
-    
-    This routine:
-
-        #. Runs object finding on each order individually
-
-        #. Links the objects found together using a friends-of-friends algorithm
-           on fractional order position.
-
-        #. For objects which were only found on some orders, the standard (or
-           the slit boundaries) are placed at the appropriate fractional
-           position along the order.
-
-        #. A PCA fit to the traces is performed using the routine above pca_fit
-
-    Args:
-        image (`numpy.ndarray`_):
-            (Floating-point) Image to use for object search with shape (nspec,
-            nspat).  The first dimension (nspec) is spectral, and second
-            dimension (nspat) is spatial. Note this image can either have the
-            sky background in it, or have already been sky subtracted.  Object
-            finding works best on sky-subtracted images. Ideally, object finding
-            is run in another routine, global sky-subtraction performed, and
-            then this code should be run. However, it is also possible to run
-            this code on non-sky-subtracted images.
-        ivar (`numpy.ndarray`_):
-            Floating-point inverse variance image for the input image.  Shape
-            must match ``image``, (nspec, nspat).
-        slitmask (`numpy.ndarray`_):
-            Integer image indicating the pixels that belong to each order.
-            Pixels that are not on an order have value -1, and those that are on
-            an order have a value equal to the slit number (i.e. 0 to nslits-1
-            from left to right on the image).  Shape must match ``image``,
-            (nspec, nspat).
-        slit_left (`numpy.ndarray`_):
-            Left boundary of orders to be extracted (given as floating point
-            pixels).  Shape is (nspec, norders), where norders is the total
-            number of traced echelle orders.
-        slit_righ (`numpy.ndarray`_):
-            Right boundary of orders to be extracted (given as floating point
-            pixels).  Shape is (nspec, norders), where norders is the total
-            number of traced echelle orders.
-        order_vec (`numpy.ndarray`_):
-            Vector identifying the Echelle orders for each pair of order edges
-            found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
-            objects.  If the orders are not known, this can be 
-            ``np.arange(norders)`` (but this is *not* recommended).
-        maskslits (`numpy.ndarray`_):
-            Boolean array selecting orders that should be ignored (i.e., good
-            orders are False, bad orders are True).  Shape must be (norders,).
-        det (:obj:`str`, optional):
-            The name of the detector containing the object.  Only used if
-            ``specobj_dict`` is None.
-        inmask (`numpy.ndarray`_, optional):
-            Good-pixel mask for input image.  Must have the same shape as
-            ``image``.  If None, all pixels in ``slitmask`` with non-negative
-            values are considered good.
-        spec_min_max (`numpy.ndarray`_, optional):
-            2D array defining the minimum and maximum pixel in the spectral
-            direction with useable data for each order.  Shape must be (2,
-            norders).  This should only be used for echelle spectrographs for
-            which the orders do not entirely cover the detector. PCA tracing
-            will re-map the traces such that they all have the same length,
-            compute the PCA, and then re-map the orders back.  This improves
-            performance for echelle spectrographs by removing the nonlinear
-            shrinking of the orders so that the linear pca operation can better
-            predict the traces. If None, the minimum and maximum values will be
-            determined automatically from ``slitmask``.
-        fof_link (:obj:`float`, optional):
-            Friends-of-friends linking length in arcseconds used to link
-            together traces across orders. The routine links together at
-            the same fractional slit position and links them together
-            with a friends-of-friends algorithm using this linking
-            length.
-        plate_scale (:obj:`float`, `numpy.ndarray`_, optional):
-            Plate scale in arcsec/pix. This can either be a single float for
-            every order, or an array with shape (norders,) providing the plate
-            scale of each order.
-        std_trace (`numpy.ndarray`_, optional):
-            Vector with the standard star trace, which is used as a crutch for
-            tracing.  Shape must be (nspec,).  If None, the slit boundaries are
-            used as the crutch.
-        ncoeff (:obj:`int`, optional):
-            Order of polynomial fit to traces.
-        npca (:obj:`int`, optional):
-            Number of PCA components to keep during PCA decomposition of the
-            object traces.  If None, the number of components set by requiring
-            the PCA accounts for approximately 99% of the variance.
-        coeff_npoly (:obj:`int`, optional):
-            Order of polynomial used for PCA coefficients fitting.  If None,
-            value set automatically, see
-            :func:`~pypeit.tracepca.pca_trace_object`.
-        max_snr (:obj:`float`, optional):
-            For an object to be included in the output object, it must have a
-            max S/N ratio above this value.
-        min_snr (:obj:`float`, optional):
-            For an object to be included in the output object, it must have a
-            a median S/N ratio above this value for at least
-            ``nabove_min_snr`` orders (see below).
-        nabove_min_snr (:obj:`int`, optional):
-            The required number of orders that an object must have with median
-            SNR greater than ``min_snr`` in order to be included in the output
-            object.
-        pca_explained_var (:obj:`float`, optional):
-            The percentage (i.e., not the fraction) of the variance in the data
-            accounted for by the PCA used to truncate the number of PCA
-            coefficients to keep (see ``npca``). Ignored if ``npca`` is provided
-            directly; see :func:`~pypeit.tracepca.pca_trace_object`.
-        box_radius (:obj:`float`, optional):
-            Box_car extraction radius in arcseconds to assign to each detected
-            object and to be used later for boxcar extraction. In this method
-            ``box_radius`` is converted into pixels using ``plate_scale``.
-            ``box_radius`` is also used for SNR calculation and trimming.
-        fwhm (:obj:`float`, optional):
-            Estimated fwhm of the objects in pixels
-        use_user_fwhm (:obj:`bool`, optional):
-            If True, ``PypeIt`` will use the spatial profile FWHM input by the
-            user (see ``fwhm``) rather than determine the spatial FWHM from the
-            smashed spatial profile via the automated algorithm.
-        maxdev (:obj:`float`, optional):
-            Maximum deviation of pixels from polynomial fit to trace
-            used to reject bad pixels in trace fitting.
-        hand_extract_dict (:obj:`dict`, optional):
-            Dictionary with info on manual extraction; see
-            :class:`~pypeit.manual_extract.ManualExtractionObj`.
-        nperorder (:obj:`int`, optional):
-            Maximum number of objects allowed per order.  If there are more
-            detections than this number, the code will select the ``nperorder``
-            most significant detections. However, hand apertures will always be
-            returned and do not count against this budget.
-        extract_maskwidth (:obj:`float`, optional):
-            Determines the initial size of the region in units of FWHM that will
-            be used for local sky subtraction; See :func:`objs_in_slit` and
-            :func:`~pypeit.core.skysub.local_skysub_extract`.
-        snr_thresh (:obj:`float`, optional):
-            SNR threshold for finding objects
-        specobj_dict (:obj:`dict`, optional):
-            Dictionary containing meta-data for the objects that will be
-            propagated into the :class:`~pypeit.specobj.SpecObj` objects.  The
-            expected components are:
-            
-                - SLITID: The slit ID number
-                - DET: The detector identifier
-                - OBJTYPE: The object type
-                - PYPELINE: The class of pipeline algorithms applied
-
-            If None, the dictionary is filled with the following placeholders::
-
-                specobj_dict = {'SLITID': 999, 'DET': 'DET01',
-                                'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
-
-        trim_edg (:obj:`tuple`, optional):
-            A two-tuple of integers or floats used to ignore objects within this
-            many pixels of the left and right slit boundaries, respectively.
-        show_peaks (:obj:`bool`, optional):
-            Plot the QA of the object peak finding in each order.
-        show_fits (:obj:`bool`, optional):
-            Plot trace fitting for final fits using PCA as crutch.
-        show_single_fits (:obj:`bool`, optional):
-            Plot trace fitting for single order fits.
-        show_trace (:obj:`bool`, optional):
-            Display the object traces on top of the image.
-        show_single_trace (:obj:`bool`, optional):
-            Display the object traces on top of the single order.
-        show_pca (:obj:`bool`, optional):
-            Display debugging plots for the PCA decomposition.
-        debug_all (:obj:`bool`, optional):
-            Show all the debugging plots.  If True, this also overrides any
-            provided values for ``show_peaks``, ``show_trace``, and
-            ``show_pca``, setting them to True.
-        objfindQA_filename (:obj:`str`, optional):
-            Full path (directory and filename) for the object profile QA plot.
-            If None, not plot is produced and saved.
-
-    Returns:
-        :class:`~pypeit.specobjs.SpecObjs`: Object containing the objects
-        detected.
-    """
-    raise DeprecationWarning
-    msgs.error("This ginormous method as been Deprecated")
-
-    #debug_all=True
-    if debug_all:
-        show_peaks = True
-        #show_fits = True
-        #show_single_fits = True
-        show_trace = True
-        show_pca = True
-        #show_single_trace = True
-        # TODO: This isn't used, right?
-        debug = True
-
-
-    if specobj_dict is None:
-        specobj_dict = {'SLITID': 999, 'ECH_ORDERINDX': 999,
-                        'DET': det, 'OBJTYPE': 'unknown', 'PYPELINE': 'Echelle'}
-
-    # TODO Update FOF algorithm here with the one from scikit-learn.
-
-    allmask = slitmask > -1
-    if inmask is None:
-        inmask = allmask
-
-    nspec, nspat = image.shape
-    norders = len(order_vec)
-
-    # Find the spat IDs
-    gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
-    if gdslit_spat.size != np.sum(np.invert(maskslits)):
-        msgs.error('Masking of slitmask not in sync with that of maskslits.  This is a bug')
-        #msgs.error('There is a mismatch between the number of valid orders found by PypeIt and '
-        #           'the number expected for this spectrograph.  Unable to continue.  Please '
-        #           'submit an issue on Github: https://github.com/pypeit/PypeIt/issues .')
-
-    if spec_min_max is None:
-        spec_min_max = np.zeros((2,norders), dtype=int)
-        for iord in range(norders):
-            ispec, ispat = np.where(slitmask == gdslit_spat[iord])
-            spec_min_max[:,iord] = ispec.min(), ispec.max()
-
-    # Setup the plate scale
-    if isinstance(plate_scale,(float, int)):
-        plate_scale_ord = np.full(norders, plate_scale)
-    elif isinstance(plate_scale,(np.ndarray, list, tuple)):
-        if len(plate_scale) == norders:
-            plate_scale_ord = plate_scale
-        elif len(plate_scale) == 1:
-            plate_scale_ord = np.full(norders, plate_scale[0])
-        else:
-            msgs.error('Invalid size for plate_scale. It must either have one element or norders elements')
-    else:
-        msgs.error('Invalid type for plate scale')
-
-    specmid = nspec // 2
-    spec_vec = np.arange(nspec)
-    slit_width = slit_righ - slit_left
-    slit_spec_pos = nspec/2.0
-
-    # TODO JFH This hand apertures in echelle needs to be completely refactored.
-    # Hand prep
-    #   Determine the location of the source on *all* of the orders
-    if hand_extract_dict is not None:
-        f_spats = []
-        for ss, spat, spec in zip(range(len(hand_extract_dict['spec'])),
-                                  hand_extract_dict['spat'],
-                                  hand_extract_dict['spec']):
-            # Find the input slit
-            ispec = int(np.clip(np.round(spec),0,nspec-1))
-            ispat = int(np.clip(np.round(spat),0,nspat-1))
-            slit = slitmask[ispec, ispat]
-            if slit == -1:
-                msgs.error('You are requesting a manual extraction at a position ' +
-                           f'(spat, spec)={spat, spec} that is not on one of the echelle orders. Check your pypeit file.')
-            # Fractions
-            iord_hand = gdslit_spat.tolist().index(slit)
-            f_spat = (spat - slit_left[ispec, iord_hand]) / (
-                slit_righ[ispec, iord_hand] - slit_left[ispec, iord_hand])
-            f_spats.append(f_spat)
-
-    # Loop over orders and find objects
-    sobjs = specobjs.SpecObjs()
-    # TODO: replace orderindx with the true order number here? Maybe not. Clean
-    # up SLITID and orderindx!
-    gdorders = np.arange(norders)[np.invert(maskslits)]
-    for iord in gdorders: #range(norders):
-        qa_title = 'Finding objects on order # {:d}'.format(order_vec[iord])
-        msgs.info(qa_title)
-        thisslit_gpm = slitmask == gdslit_spat[iord]
-        inmask_iord = inmask & thisslit_gpm
-        specobj_dict['SLITID'] = gdslit_spat[iord]
-        specobj_dict['ECH_ORDERINDX'] = iord
-        specobj_dict['ECH_ORDER'] = order_vec[iord]
-        std_in = None if std_trace is None else std_trace[:, iord]
-
-        # TODO JFH: Fix this. The way this code works, you should only need to create a single hand object,		
-        # not one at every location on the order            
-        if hand_extract_dict is not None:
-            new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
-            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['spec'])),
-                                              hand_extract_dict['spat'],
-                                              hand_extract_dict['spec'], f_spats):
-                ispec = int(spec)
-                new_hand_extract_dict['spec'][ss] = ispec
-                new_hand_extract_dict['spat'][ss] = slit_left[ispec,iord] + f_spat*(
-                    slit_righ[ispec,iord]-slit_left[ispec,iord])
-        else:
-            new_hand_extract_dict = None
-
-        # Get SLTIORD_ID for the objfind QA
-        ech_objfindQA_filename = objfindQA_filename.replace('S0999', 'S{:04d}'.format(order_vec[iord])) \
-            if objfindQA_filename is not None else None
-        # Run
-        sobjs_slit = \
-            objs_in_slit(image, ivar, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
-                    inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
-                    hand_extract_dict=new_hand_extract_dict,  nperslit=nperorder, extract_maskwidth=extract_maskwidth,
-                    snr_thresh=snr_thresh, trim_edg=trim_edg, boxcar_rad=box_radius/plate_scale_ord[iord],
-                    show_peaks=show_peaks, show_fits=show_single_fits,
-                    show_trace=show_single_trace, qa_title=qa_title, specobj_dict=specobj_dict,
-                    objfindQA_filename=ech_objfindQA_filename)
-        sobjs.add_sobj(sobjs_slit)
-
-    nfound = len(sobjs)
-
-    if nfound == 0:
-        msgs.warn('No objects found')
-        return sobjs
-
-    FOF_frac = fof_link/(np.median(np.median(slit_width,axis=0)*plate_scale_ord))
-    # Run the FOF. We use fake coordinates
-    fracpos = sobjs.SPAT_FRACPOS
-    ra_fake = fracpos/1000.0  # Divide all angles by 1000 to make geometry euclidian
-    dec_fake = np.zeros_like(fracpos)
-    if nfound>1:
-        inobj_id, multobj_id, firstobj_id, nextobj_id \
-                = pydl.spheregroup(ra_fake, dec_fake, FOF_frac/1000.0)
-        # TODO spheregroup returns zero based indices but we use one based. We should probably add 1 to inobj_id here,
-        # i.e. obj_id_init = inobj_id + 1
-        obj_id_init = inobj_id.copy()
-    elif nfound==1:
-        obj_id_init = np.zeros(1,dtype='int')
-
-    uni_obj_id_init, uni_ind_init = np.unique(obj_id_init, return_index=True)
-
-    # Now loop over the unique objects and check that there is only one object per order. If FOF
-    # grouped > 1 objects on the same order, then this will be popped out as its own unique object
-    obj_id = obj_id_init.copy()
-    nobj_init = len(uni_obj_id_init)
-    for iobj in range(nobj_init):
-        for iord in range(norders):
-            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDERINDX == iord)
-            if (np.sum(on_order) > 1):
-                msgs.warn('Found multiple objects in a FOF group on order iord={:d}'.format(iord) + msgs.newline() +
-                          'Spawning new objects to maintain a single object per order.')
-                off_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDERINDX != iord)
-                ind = np.where(on_order)[0]
-                if np.any(off_order):
-                    # Keep the closest object to the location of the rest of the group (on other orders)
-                    # as corresponding to this obj_id, and spawn new obj_ids for the others.
-                    frac_mean = np.mean(fracpos[off_order])
-                    min_dist_ind = np.argmin(np.abs(fracpos[ind] - frac_mean))
-                else:
-                    # If there are no other objects with this obj_id to compare to, then we simply have multiple
-                    # objects grouped together on the same order, so just spawn new object IDs for them to maintain
-                    # one obj_id per order
-                    min_dist_ind = 0
-                ind_rest = np.setdiff1d(ind,ind[min_dist_ind])
-                # JFH OLD LINE with bug
-                #obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id_init.max()
-                obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id.max()
-
-    uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)
-    nobj = len(uni_obj_id)
-    msgs.info('FOF matching found {:d}'.format(nobj) + ' unique objects')
-
-    gfrac = np.zeros(nfound)
-    for jj in range(nobj):
-        this_obj_id = obj_id == uni_obj_id[jj]
-        gfrac[this_obj_id] = np.median(fracpos[this_obj_id])
-
-    uni_frac = gfrac[uni_ind]
-
-    # Sort with respect to fractional slit location to guarantee that we have a similarly sorted list of objects later
-    isort_frac = uni_frac.argsort()
-    uni_obj_id = uni_obj_id[isort_frac]
-    uni_frac = uni_frac[isort_frac]
-
-    sobjs_align = sobjs.copy()
-    # Loop over the orders and assign each specobj a fractional position and a obj_id number
-    for iobj in range(nobj):
-        for iord in range(norders):
-            on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
-            sobjs_align[on_order].ECH_FRACPOS = uni_frac[iobj]
-            sobjs_align[on_order].ECH_OBJID = uni_obj_id[iobj]
-            sobjs_align[on_order].OBJID = uni_obj_id[iobj]
-            sobjs_align[on_order].ech_frac_was_fit = False
-
-    # Reset names (just in case)
-    sobjs_align.set_names()
-    # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
-    # the good orders where an object was found and use that fit to predict the fractional slit position on the bad orders
-    # where no object was found
-    for iobj in range(nobj):
-        # Grab all the members of this obj_id from the object list
-        indx_obj_id = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
-        nthisobj_id = np.sum(indx_obj_id)
-        # Perform the fit if this objects shows up on more than three orders
-        if (nthisobj_id > 3) and (nthisobj_id<norders):
-            thisorderindx = sobjs_align[indx_obj_id].ECH_ORDERINDX
-            goodorder = np.zeros(norders, dtype=bool)
-            goodorder[thisorderindx] = True
-            badorder = np.invert(goodorder)
-            xcen_good = (sobjs_align[indx_obj_id].TRACE_SPAT).T
-            slit_frac_good = (xcen_good-slit_left[:,goodorder])/slit_width[:,goodorder]
-            # Fractional slit position averaged across the spectral direction for each order
-            frac_mean_good = np.mean(slit_frac_good, 0)
-            # Perform a  linear fit to fractional slit position
-            #TODO Do this as a S/N weighted fit similar to what is now in the pca_trace algorithm?
-            #msk_frac, poly_coeff_frac = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
-            pypeitFit = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
-                                           function='polynomial', maxiter=20, lower=2, upper=2,
-                                           use_mad= True, sticky=False,
-                                           minx = order_vec.min(), maxx=order_vec.max())
-            frac_mean_new = np.zeros(norders)
-            frac_mean_new[badorder] = pypeitFit.eval(order_vec[badorder])#, minx = order_vec.min(),maxx=order_vec.max())
-            frac_mean_new[goodorder] = frac_mean_good
-            # TODO This QA needs some work
-            if show_pca:
-                frac_mean_fit = pypeitFit.eval(order_vec)
-                plt.plot(order_vec[goodorder][pypeitFit.bool_gpm], frac_mean_new[goodorder][pypeitFit.bool_gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(order_vec[goodorder][np.invert(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
-                plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
-                plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
-                plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
-                plt.xlabel('Order Index', fontsize=14)
-                plt.ylabel('Fractional Slit Position', fontsize=14)
-                plt.title('Fractional Slit Position Fit')
-                plt.legend()
-                plt.show()
-        else:
-            frac_mean_new = np.full(norders, uni_frac[iobj])
-
-
-        # Now loop over the orders and add objects on the ordrers for which the current object was not found
-        for iord in range(norders):
-            # Is the current object detected on this order?
-            on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
-            num_on_order = np.sum(on_order)
-            if num_on_order == 0:
-                # If it is not, create a new sobjs and add to sobjs_align and assign required tags
-                thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
-                                             OBJTYPE=sobjs_align[0].OBJTYPE,
-                                             ECH_ORDERINDX=iord,
-                                             ECH_ORDER=order_vec[iord])
-                #thisobj.ECH_ORDERINDX = iord
-                #thisobj.ech_order = order_vec[iord]
-                thisobj.SPAT_FRACPOS = uni_frac[iobj]
-                # Assign traces using the fractional position fit above
-                if std_trace is not None:
-                    x_trace = np.interp(slit_spec_pos, spec_vec, std_trace[:,iord])
-                    shift = np.interp(slit_spec_pos, spec_vec,slit_left[:,iord] + slit_width[:,iord]*frac_mean_new[iord]) - x_trace
-                    thisobj.TRACE_SPAT = std_trace[:,iord] + shift
-                else:
-                    thisobj.TRACE_SPAT = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
-                thisobj.trace_spec = spec_vec
-                thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
-                # Use the real detections of this objects for the FWHM
-                this_obj_id = obj_id == uni_obj_id[iobj]
-                # Assign to the fwhm of the nearest detected order
-                imin = np.argmin(np.abs(sobjs_align[this_obj_id].ECH_ORDERINDX - iord))
-                thisobj.FWHM = sobjs_align[imin].FWHM
-                thisobj.maskwidth = sobjs_align[imin].maskwidth
-                thisobj.smash_peakflux = sobjs_align[imin].smash_peakflux
-                thisobj.smash_snr = sobjs_align[imin].smash_snr
-                thisobj.BOX_RADIUS = sobjs_align[imin].BOX_RADIUS
-                thisobj.ECH_FRACPOS = uni_frac[iobj]
-                thisobj.ECH_OBJID = uni_obj_id[iobj]
-                thisobj.OBJID = uni_obj_id[iobj]
-                thisobj.SLITID = gdslit_spat[iord]
-                thisobj.ech_frac_was_fit = True
-                thisobj.set_name()
-                sobjs_align.add_sobj(thisobj)
-                obj_id = np.append(obj_id, uni_obj_id[iobj])
-                gfrac = np.append(gfrac, uni_frac[iobj])
-            elif num_on_order == 1:
-                # Object is already on this order so no need to do anything
-                pass
-            elif num_on_order > 1:
-                msgs.error('Problem in echelle object finding. The same objid={:d} appears {:d} times on echelle orderindx ={:d}'
-                           ' even after duplicate obj_ids the orders were removed. '
-                           'Report this bug to PypeIt developers'.format(uni_obj_id[iobj],num_on_order, iord))
-
-
-
-    # Loop over the objects and perform a quick and dirty extraction to assess S/N.
-    varimg = utils.calc_ivar(ivar)
-    flux_box = np.zeros((nspec, norders, nobj))
-    ivar_box = np.zeros((nspec, norders, nobj))
-    mask_box = np.zeros((nspec, norders, nobj))
-    SNR_arr = np.zeros((norders, nobj))
-    slitfracpos_arr = np.zeros((norders, nobj))
-    for iobj in range(nobj):
-        for iord in range(norders):
-            iorder_vec = order_vec[iord]
-            indx = sobjs_align.slitorder_objid_indices(iorder_vec, uni_obj_id[iobj])
-            #indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
-            #spec = sobjs_align[indx][0]
-            inmask_iord = inmask & (slitmask == gdslit_spat[iord])
-            # TODO make the snippet below its own function quick_extraction()
-            box_rad_pix = box_radius/plate_scale_ord[iord]
-
-            # TODO -- We probably shouldn't be operating on a SpecObjs but instead a SpecObj
-            flux_tmp  = moment1d(image*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
-                                 row=sobjs_align[indx][0].trace_spec)[0]
-            var_tmp  = moment1d(varimg*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
-                                row=sobjs_align[indx][0].trace_spec)[0]
-            ivar_tmp = utils.calc_ivar(var_tmp)
-            pixtot  = moment1d(ivar*0 + 1.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
-                               row=sobjs_align[indx][0].trace_spec)[0]
-            mask_tmp = moment1d(ivar*inmask_iord == 0.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
-                                row=sobjs_align[indx][0].trace_spec)[0] != pixtot
-
-            flux_box[:,iord,iobj] = flux_tmp*mask_tmp
-            ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
-            mask_box[:,iord,iobj] = mask_tmp
-            mean, med_sn, stddev = astropy.stats.sigma_clipped_stats(
-                flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
-                sigma_lower=5.0,sigma_upper=5.0
-            )
-            # ToDO assign this to sobjs_align for use in the extraction
-            SNR_arr[iord,iobj] = med_sn
-            sobjs_align[indx][0].ech_snr = med_sn
-            # For hand extractions
-            slitfracpos_arr[iord,iobj] = sobjs_align[indx][0].SPAT_FRACPOS
-
-    # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
-    # and orderindx
-    keep_obj = np.zeros(nobj,dtype=bool)
-    sobjs_trim = specobjs.SpecObjs()
-    # objids are 1 based so that we can easily asign the negative to negative objects
-    iobj_keep = 1
-    iobj_keep_not_hand = 1
-
-    # TODO JFH: Fix this ugly and dangerous hack that was added to accomodate hand apertures
-    hand_frac = [-1000] if hand_extract_dict is None else [int(np.round(ispat*1000)) for ispat in f_spats]
-
-    ## Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. Once we hit the maximum number
-    # objects requested exit, except keep the hand apertures that were requested.
-    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0))[::-1]
-    for iobj in isort_SNR_max:
-        hand_ap_flag = int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac
-        SNR_constraint = (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr)
-        nperorder_constraint = (iobj_keep-1) < nperorder
-        if (SNR_constraint and nperorder_constraint) or hand_ap_flag:
-            keep_obj[iobj] = True
-            ikeep = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
-            sobjs_keep = sobjs_align[ikeep].copy()
-            sobjs_keep.ECH_OBJID = iobj_keep
-            sobjs_keep.OBJID = iobj_keep
-#            for spec in sobjs_keep:
-#                spec.ECH_OBJID = iobj_keep
-#                #spec.OBJID = iobj_keep
-            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ECH_ORDERINDX)])
-            iobj_keep += 1
-            if not hand_ap_flag:
-                iobj_keep_not_hand += 1
-        else:
-            if not nperorder_constraint:
-                msgs.info('Purging object #{:d}'.format(iobj) +
-                          ' since there are already {:d} objects automatically identified '
-                          'and you set nperorder={:d}'.format(iobj_keep_not_hand-1, nperorder))
-            else:
-                msgs.info('Purging object #{:d}'.format(iobj) + ' which does not satisfy max_snr > {:5.2f} OR min_snr > {:5.2f}'.format(max_snr, min_snr) +
-                ' on at least nabove_min_snr >= {:d}'.format(nabove_min_snr) + ' orders')
-
-
-    nobj_trim = np.sum(keep_obj)
-
-    if nobj_trim == 0:
-        msgs.warn('No objects found')
-        sobjs_final = specobjs.SpecObjs()
-        return sobjs_final
-
-    # TODO JFH: We need to think about how to implement returning a maximum number of objects, where the objects
-    # returned are the highest S/N ones. It is a bit complicated with regards to the individual object finding and then
-    # the linking that is performed above, and also making sure the hand apertures don't get removed.
-    SNR_arr_trim = SNR_arr[:,keep_obj]
-
-
-    sobjs_final = sobjs_trim.copy()
-    # Loop over the objects one by one and adjust/predict the traces
-    pca_fits = np.zeros((nspec, norders, nobj_trim))
-
-    # Create the trc_inmask for iterative fitting below
-    trc_inmask = np.zeros((nspec, norders), dtype=bool)
-    for iord in range(norders):
-        trc_inmask[:,iord] = (spec_vec >= spec_min_max[0,iord]) & (spec_vec <= spec_min_max[1,iord])
-
-    for iobj in range(nobj_trim):
-        indx_obj_id = sobjs_final.ECH_OBJID == (iobj + 1)
-        # PCA predict all the orders now (where we have used the standard or slit boundary for the bad orders above)
-        msgs.info('Fitting echelle object finding PCA for object {:d}/{:d} with median SNR = {:5.3f}'.format(
-            iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
-        pca_fits[:,:,iobj] \
-                = tracepca.pca_trace_object(sobjs_final[indx_obj_id].TRACE_SPAT.T,
-                                            order=coeff_npoly, npca=npca,
-                                            pca_explained_var=pca_explained_var,
-                                            trace_wgt=np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0)**2,
-                                            debug=show_pca)
-
-        # Trial and error shows weighting by S/N instead of S/N^2 performs better
-        # JXP -- Updated to now be S/N**2, i.e. inverse variance, with fitting fit
-
-        # Perform iterative flux weighted centroiding using new PCA predictions
-        xinit_fweight = pca_fits[:,:,iobj].copy()
-        inmask_now = inmask & allmask
-        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask_now),
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 debug=show_fits)[0]
-
-        # Perform iterative Gaussian weighted centroiding
-        xinit_gweight = xfit_fweight.copy()
-        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask_now),
-                                 trace_bpm=np.invert(trc_inmask), weighting='gaussian', fwhm=fwhm,
-                                 maxdev=maxdev, debug=show_fits)[0]
-
-        #TODO  Assign the new traces. Only assign the orders that were not orginally detected and traced. If this works
-        # well, we will avoid doing all of the iter_tracefits above to make the code faster.
-        for iord, spec in enumerate(sobjs_final[indx_obj_id]):
-            # JFH added the condition on ech_frac_was_fit with S/N cut on 7-7-19.
-            # TODO is this robust against half the order being masked?
-            if spec.ech_frac_was_fit & (spec.ech_snr > 1.0):
-                    spec.TRACE_SPAT = xfit_gweight[:,iord]
-                    spec.SPAT_PIXPOS = spec.TRACE_SPAT[specmid]
-
-    #TODO Put in some criterion here that does not let the fractional position change too much during the iterative
-    # tracefitting. The problem is spurious apertures identified on one slit can be pulled over to the center of flux
-    # resulting in a bunch of objects landing on top of each other.
-
-    # Set the IDs
-    sobjs_final[:].ECH_ORDER = order_vec[sobjs_final[:].ECH_ORDERINDX]
-    #for spec in sobjs_final:
-    #    spec.ech_order = order_vec[spec.ECH_ORDERINDX]
-    sobjs_final.set_names()
-
-    if show_trace:
-        viewer, ch = display.show_image(image*allmask)
-
-        for spec in sobjs_trim:
-            color = 'red' if spec.ech_frac_was_fit else 'magenta'
-            ## Showing the final flux weighted centroiding from PCA predictions
-            display.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
-
-        for iobj in range(nobj_trim):
-            for iord in range(norders):
-                ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
-                display.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
-                ## Showing the final traces from this routine
-                display.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.NAME, color='cyan')
-
-        # Labels for the points
-        text_final = [dict(type='text', args=(nspat / 2 -40, nspec / 2, 'final trace'),
-                           kwargs=dict(color='cyan', fontsize=20))]
-
-        text_pca = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 30, 'PCA fit'),kwargs=dict(color='yellow', fontsize=20))]
-
-        text_fit = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 60, 'predicted'),kwargs=dict(color='red', fontsize=20))]
-
-        text_notfit = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 90, 'originally found'),kwargs=dict(color='magenta', fontsize=20))]
-
-        canvas = viewer.canvas(ch._chname)
-        canvas_list = text_final + text_pca + text_fit + text_notfit
-        canvas.add('constructedcanvas', canvas_list)
-    # TODO two things need to be debugged. 1) For objects which were found and traced, i don't think we should be updating the tracing with
-    # the PCA. This just adds a failutre mode. 2) The PCA fit is going wild for X-shooter. Debug that.
-    # Vette
-    for sobj in sobjs_final:
-        if not sobj.ready_for_extraction():
-            msgs.error("Bad SpecObj.  Can't proceed")
-
-    return sobjs_final
-
 
 
 def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_title, peak_gpm,
@@ -2063,13 +1442,184 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
     plt.xlabel('Approximate Spatial Position (pixels)')
     plt.ylabel('SNR')
     plt.title(qa_title)
+    plt.tick_params(axis="both", which="both", direction="in", top=True, right=True)
+    plt.tight_layout()
     #plt.ylim(np.fmax(snr_vector.min(), -20.0), 1.3*snr_vector.max())
     fig = plt.gcf()
     if show:
         plt.show()
+    # Write to disk?
     if objfindQA_filename is not None:
-        fig.savefig(objfindQA_filename, dpi=400)
+        qafile = Path(objfindQA_filename).absolute()
+        qafile.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(qafile, dpi=400)
     plt.close('all')
+
+
+def objtrace_QA(
+    trace_fit: np.ndarray,
+    trace_fit_gpm: np.ndarray,
+    peak_cen: np.ndarray,
+    peak_cen_gpm: np.ndarray,
+    trace_input: np.ndarray,
+    trace_input_bpm: np.ndarray,
+    trace_names: list | None = None,
+    qa_title: str | None = None,
+    objtraceQA_filename: str | None = None,
+    show: bool = False,
+):
+    """Utility routine for making object tracing QA plots.
+
+    This is a slightly adjusted version of the ``debug`` plot from
+    :func:`~pypeit.core.trace.fit_trace`.  This QA figure combines the two
+    rounds of trace-fitting, starting with the slit-edge trace and ending with
+    the gaussian-weighted trace (implicitly or explicitely drawing the flux-
+    weighted trace).
+
+    Parameters
+    ----------
+    trace_fit
+        Gaussian-weighed best-fitting positions of each trace determined by the
+        polynomial fit.  This should be a (npix, ntrace) :obj:`float` array.
+    trace_fit_gpm
+        Good-pixel mask from the trace fitting. This should be a (npix, ntrace)
+        :obj:`bool` array.
+    peak_cen
+        Measured spatial pixel centroids of the trace peak as a function of
+        spectral pixel.  This should be a (npix, ntrace) :obj:`float` array.
+    peak_cen_gpm
+        Good pixel mask resulting from the attempt to fit ``peak_cen`` spatial
+        centroids.  This should be a (npix, ntrace) :obj:`bool` array.
+    trace_input
+        Input trace spatial pixel positions as a function of spectral pixel.
+        This array is used as the starting point for fitting a polynomial to
+        each ``peak_cen`` array.  This should be a (npix, ntrace) :obj:`float`
+        array.
+    trace_input_bpm
+        Tracing input bad picel mask indicating which pixels in ``peak_cen``
+        (in addition to those not in ``peak_cen_gpm``) were not included in the
+        fitting.  This should be a (npix, ntrace) :obj:`bool` array.
+    trace_names
+        List of trace names for plot titles.  This should be ntrace items long.
+    qa_title
+        Title for the QA file plot.
+    objtraceQA_filename
+        Output filename for the QA plot.  If None, plot is not saved.
+    show
+        If True, show the plot as a matplotlib interactive plot.
+    """
+    # Allow for single vectors as input
+    _trace_cen = trace_input.reshape(-1, 1) if trace_input.ndim == 1 else trace_input
+    _trace_bpm = trace_input_bpm.reshape(-1, 1) if trace_input.ndim == 1 else trace_input_bpm
+    nspec, ntrace = _trace_cen.shape
+    trace_coo = np.tile(np.arange(nspec), (ntrace, 1)).astype(float)
+
+    if trace_names is None:
+        trace_names = np.arange(1, ntrace + 1).astype(str)
+
+    # Construct boolean flags
+    inpgpm = np.logical_not(_trace_bpm)
+    bpm_fit = _trace_bpm & trace_fit_gpm
+    bpm_rej = _trace_bpm & np.logical_not(trace_fit_gpm)
+    gpm_bdcen_fit = inpgpm & np.logical_not(peak_cen_gpm) & trace_fit_gpm
+    gpm_bdcen_rej = inpgpm & np.logical_not(peak_cen_gpm) & np.logical_not(trace_fit_gpm)
+    gpm_gdcen_fit = inpgpm & peak_cen_gpm & trace_fit_gpm
+    gpm_gdcen_rej = inpgpm & peak_cen_gpm & np.logical_not(trace_fit_gpm)
+
+    # Line the individual object traces up as rows in the plot
+    fig, axes = plt.subplots(ncols=1, nrows=ntrace, gridspec_kw={"hspace": 0.0})
+
+    tsz = plt.rcParams['font.size']
+
+    # Make possible loop for more than one object
+    for i, axis in enumerate([axes] if ntrace == 1 else axes):
+
+        # Plot data masked on input and included in fit using input
+        # locations and lower weight
+        if np.any(bpm_fit[:, i]):
+            axis.scatter(
+                trace_coo[i, bpm_fit[:, i]], peak_cen[bpm_fit[:, i], i],
+                marker="o", color="cornflowerblue", s=30, label="Input masked, fit",
+            )
+
+        # Plot data masked on input and included in fit using input
+        # locations and lower weight, but rejected by the fit
+        if np.any(bpm_rej[:, i]):
+            axis.scatter(
+                trace_coo[i, bpm_rej[:, i]], peak_cen[bpm_rej[:, i], i],
+                marker="x", color="C6", s=30, label="Input masked, fit, rejected",
+            )
+
+        # *** Plot data with bad recentroid measurements, included in
+        # fit using input locations and lower weight
+        if np.any(gpm_bdcen_fit[:, i]):
+            axis.scatter(
+                trace_coo[i, gpm_bdcen_fit[:, i]], peak_cen[gpm_bdcen_fit[:, i], i],
+                marker="o", color="0.7", s=30, label="Centroid masked, fit",
+            )
+
+        # Plot data with bad recentroid measurements, included in
+        # fit using input locations and lower weight, but rejected
+        # by the fit
+        if np.any(gpm_bdcen_rej[:, i]):
+            axis.scatter(
+                trace_coo[i, gpm_bdcen_rej[:, i]], peak_cen[gpm_bdcen_rej[:, i], i],
+                marker="x", color="C1", s=30, label="Centroid masked, fit, rejected",
+            )
+
+        # *** Plot data with good recentroid measurements and included
+        # in fit
+        if np.any(gpm_gdcen_fit[:, i]):
+            axis.scatter(
+                trace_coo[i, gpm_gdcen_fit[:, i]], peak_cen[gpm_gdcen_fit[:, i], i],
+                marker="o", color="k", s=30, label="Remeasured and fit",
+            )
+
+        # Plot data with good recentroid measurements and included
+        # in fit but rejected
+        if np.any(gpm_gdcen_rej[:, i]):
+            axis.scatter(
+                trace_coo[i, gpm_gdcen_rej[:, i]], peak_cen[gpm_gdcen_rej[:, i], i],
+                marker="x", color="C3", s=30, label="Remeasured, fit, and rejected",
+            )
+
+        # *** Plot all input trace locations as a line
+        axis.plot(
+            trace_coo[i, :], _trace_cen[:, i],
+            color="C2", linewidth=1.5, linestyle="--", label="Input Trace Data",
+        )
+
+        # *** Plot all output fit trace locations as a line
+        axis.plot(
+            trace_coo[i, :], trace_fit[:, i],
+            color="r", linewidth=2.0, linestyle="--", label="Fit",
+        )
+
+        plt.ylim((0.995 * np.amin(trace_fit[:, i]), 1.005 * np.amax(trace_fit[:, i])))
+
+        axis.legend(fontsize=tsz-ntrace)
+        axis.tick_params(axis="both", which="both", direction="in", top=True, right=True)
+
+    try:
+        *_, slit, det = trace_names[0].split('-')
+    except ValueError:
+        slit, det = trace_names[0], ''
+    
+    try:
+        fig.suptitle(qa_title.replace("Finding", "Centroid fit for"))
+    except AttributeError:
+        fig.suptitle(f"Centroid fit for objects on {slit} {det}")
+    fig.supxlabel("Spectral Pixel")
+    fig.supylabel("Spatial Pixel")
+
+    plt.tight_layout()
+    # Display and/or save the plot(s)
+    if show:
+        plt.show()
+    if objtraceQA_filename is not None:
+        fig.savefig(objtraceQA_filename, dpi=400)
+    plt.close("all")
+
 
 def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
     """
@@ -2160,8 +1710,8 @@ def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
 
 def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, 
                  inmask=None, fwhm=3.0,
-                 sigclip_smash=5.0, use_user_fwhm=False, boxcar_rad=7.,
-                 maxdev=2.0, spec_min_max=None, hand_extract_dict=None, std_trace=None,
+                 sigclip_smash=5.0, use_user_fwhm=False, boxcar_rad=7., maxshift=1.0,
+                 maxdev=2.0, numiterfit=9, spec_min_max=None, hand_extract_dict=None, std_trace=None,
                  ncoeff=5, nperslit=None, snr_thresh=10.0, trim_edg=(5,5),
                  extract_maskwidth=4.0, specobj_dict=None, find_min_max=None,
                  show_peaks=False, show_fits=False, show_trace=False,
@@ -2246,9 +1796,14 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         boxcar_rad (:obj:`float`, optional):
             Box_car extraction radius *in pixels* to assign to each detected
             object and to be used later for boxcar extraction. 
+        maxshift (:obj:`float`, optional):
+            Maximum shift [in pixels] allowed between the input and recalculated
+            trace centroid (see :func:`~pypeit.core.trace.fit_trace`).
         maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
+        numiterfit (:obj:`int`, optional):
+            Number of iterations to use in the iterative trace fitting.
         spec_min_max (:obj:`tuple`, optional):
             2-tuple defining the minimum and maximum pixel in the spectral
             direction with useable data for this slit/order.  If None, the
@@ -2328,9 +1883,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         detected.
     """
 
-    #debug_all=True
+    debug_all = False
     if debug_all:
-        show_peaks=True
+        show_peaks = True
         show_fits = True
         show_trace = True
 
@@ -2382,7 +1937,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     else:
         find_min_max_out = np.array(find_min_max).astype(int)
 
-    #totmask = thismask & inmask & np.invert(edgmask)
+    #totmask = thismask & inmask & np.logical_not(edgmask)
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     #nsamp = np.ceil(np.median(xsize)) # JFH Changed 07-07-19
@@ -2425,20 +1980,25 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     flux_sum_smash = np.sum((image_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)
     flux_smash = flux_sum_smash*gpm_smash/(npix_smash + (npix_smash == 0.0))
     flux_smash_mean, flux_smash_med, flux_smash_std = astropy.stats.sigma_clipped_stats(
-        flux_smash, mask=np.logical_not(gpm_smash), sigma_lower=3.0, sigma_upper=3.0
-    )
+        flux_smash, mask=np.logical_not(gpm_smash), sigma_lower=3.0, sigma_upper=3.0)
     flux_smash_recen = flux_smash - flux_smash_med
+
+    # Computing the flux_smash_smth here since it is needed for the case of hand_extract_dict is not None and nobj_reg = 0
+    gauss_smth_sigma = (fwhm/2.3548)
+    flux_smash_smth = scipy.ndimage.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
 
     # Return if none found and no hand extraction
     if not np.any(gpm_smash): 
         sobjs = specobjs.SpecObjs()
         if hand_extract_dict is None:
             # Instantiate a null specobj and return
-            msgs.info('No objects found automatically.  Consider manual extraction.')
+            log.info('No objects found automatically.  Consider manual extraction.')
             return sobjs
         else:
-            msgs.info('No objects found automatically.')
-            
+            nobj_reg = 0
+            # Cannot define the SNR if gpm_smash is all False
+            snr_smash_smth = np.zeros_like(flux_smash_smth)
+            log.info('No objects found automatically.')
     else:
         # Compute the formal corresponding variance over the set of pixels that are not masked by gpm_sigclip
         var_rect = utils.inverse(ivar_rect)
@@ -2448,9 +2008,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         snr_smash = flux_smash_recen*np.sqrt(ivar_smash)
 
         # Smooth this SNR image with a Gaussian set by the input fwhm
-        gauss_smth_sigma = (fwhm/2.3548)
         snr_smash_smth = scipy.ndimage.gaussian_filter1d(snr_smash, gauss_smth_sigma, mode='nearest')
-        flux_smash_smth = scipy.ndimage.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
         # Search for spatial direction peaks in the smoothed snr image
         _, _, x_peaks_out, x_width, x_err, igood, _, _ = arc.detect_lines(
             snr_smash_smth, input_thresh=snr_thresh, fit_frac_fwhm=1.5, fwhm=fwhm, min_pkdist_frac_fwhm=0.75,
@@ -2466,12 +2024,12 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         npeak_not_near_edge = np.sum(np.logical_not(near_edge_bpm))
 
         if np.any(near_edge_bpm):
-            msgs.warn('Discarding {:d}'.format(np.sum(near_edge_bpm)) +
+            log.warning('Discarding {:d}'.format(np.sum(near_edge_bpm)) +
                     ' at spatial pixels spat = {:}'.format(x_peaks_all[near_edge_bpm]) +
                     ' which land within trim_edg = (left, right) = {:}'.format(trim_edg) +
                     ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
-            msgs.warn('You must decrease from the current value of trim_edg in order to keep them')
-            msgs.warn('Such edge objects are often spurious')
+            log.warning('You must decrease from the current value of trim_edg in order to keep them')
+            log.warning('Such edge objects are often spurious')
 
 
         # If the user requested the nperslit most significant peaks have been requested, then only return these
@@ -2487,7 +2045,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             nperslit_bpm = np.zeros(npeaks_all, dtype=bool)
 
         if np.any(nperslit_bpm):
-            msgs.warn('Discarding {:d}'.format(np.sum(nperslit_bpm)) +
+            log.warning('Discarding {:d}'.format(np.sum(nperslit_bpm)) +
                     ' at spatial pixels spat = {:} and SNR = {:}'.format(
                         x_peaks_all[nperslit_bpm], snr_peaks_all[nperslit_bpm]) +
                     ' which are below SNR_thresh={:5.3f} set because the maximum number of objects '.format(snr_thresh_perslit) +
@@ -2528,7 +2086,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             if std_trace is not None:
                 # Print a status message for the first object
                 if iobj == 0:
-                    msgs.info('Using input STANDARD star trace as crutch for object tracing')
+                    log.info('Using input STANDARD star trace as crutch for object tracing')
 
                 x_trace = np.interp(specmid, spec_vec, std_trace)
                 shift = np.interp(specmid, spec_vec,
@@ -2537,10 +2095,14 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 # If no standard trace is provided shift left slit boundary over to be initial trace
             else:
                 # ToDO make this the average left and right boundary instead. That would be more robust.
+                # Print a status message for the first object
+                if iobj == 0:
+                    log.info('Using slit edges as crutch for object tracing')
                 sobjs[iobj].TRACE_SPAT = slit_left + xsize*sobjs[iobj].SPAT_FRACPOS
 
             sobjs[iobj].trace_spec = spec_vec
             sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
+            sobjs[iobj].SPAT_PIXPOS_ID = int(np.rint(sobjs[iobj].SPAT_PIXPOS))
             # Set the idx for any prelminary outputs we print out. These will be updated shortly
             sobjs[iobj].set_name()
 
@@ -2551,37 +2113,47 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 sobjs[iobj].FWHM = get_fwhm(fwhm, nsamp, sobjs[iobj].smash_peakflux, sobjs[iobj].SPAT_FRACPOS, flux_smash_smth)
 
             # assign BOX_RADIUS
-            sobjs[iobj].BOX_RADIUS = boxcar_rad
+            sobjs[iobj].BOX_R_PIX = boxcar_rad
 
         if len(sobjs) == 0 and hand_extract_dict is None:
             # TODO: Why is this not done way above?
             #  It appears possible to have an initial object detection, but then
             #  have it go away..
-            msgs.info('No objects found automatically.  Consider manual extraction.')
+            log.info('No objects found automatically.  Consider manual extraction.')
             return specobjs.SpecObjs()
 
-    msgs.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
+    log.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
 
     # Fit the object traces
     if len(sobjs) > 0:
-        msgs.info('Fitting the object traces')
+        log.info('Fitting the traces')
         # Note the transpose is here to pass in the TRACE_SPAT correctly.
-        xinit_fweight = np.copy(sobjs.TRACE_SPAT.T)
+        xinit_fweight = np.copy(sobjs.TRACE_SPAT.T).astype(float)
         spec_mask = (spec_vec >= spec_min_max_out[0]) & (spec_vec <= spec_min_max_out[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
-        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask), maxshift=1.,
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.logical_not(inmask), maxshift=maxshift, niter=numiterfit,
+                                 trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
                                  idx=sobjs.NAME, debug=show_fits)[0]
+        # Redo the fit with Gaussian weighting
         xinit_gweight = np.copy(xfit_fweight)
-        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask), maxshift=1.,
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
+        xfit_gweight, cen, _, msk, trace_results = fit_trace(
+            image, xinit_gweight, ncoeff, bpm=np.logical_not(inmask), maxshift=maxshift,
+            niter=numiterfit, trace_bpm=np.logical_not(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+            weighting='gaussian', idx=sobjs.NAME, debug=show_fits
+        )
 
         # assign the final trace
         for iobj in range(nobj_reg):
             sobjs[iobj].TRACE_SPAT = xfit_gweight[:, iobj]
             sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
+            sobjs[iobj].SPAT_PIXPOS_ID = int(np.rint(sobjs[iobj].SPAT_PIXPOS))
             sobjs[iobj].set_name()
+
+        # Create a QA plot for the object traces based on plots in ``fit_trace``
+        objtraceQA_filename = None if objfindQA_filename is None else objfindQA_filename.replace("prof","trace")
+        objtrace_QA(xfit_gweight, trace_results.out_gpm.T, cen, np.logical_not(msk.astype(bool)),
+                    xinit_fweight, np.logical_not(trc_inmask), trace_names=sobjs.NAME,
+                    qa_title=qa_title, objtraceQA_filename=objtraceQA_filename)
 
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
@@ -2589,7 +2161,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm, \
             hand_extract_boxcar = [hand_extract_dict[key] for key in [
                 'spec', 'spat', 'detname', 'fwhm', 'boxcar_rad']]
-        msgs.info(f'Checking if the hand apertures at {hand_extract_spec} are in the slit')
+        log.info(f'Checking if the hand apertures at {hand_extract_spat} are in the slit')
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
                                                   np.rint(hand_extract_spat).astype(int)]))
@@ -2599,7 +2171,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         hand_extract_fwhm = hand_extract_fwhm[hand_on_slit]
         hand_extract_boxcar = hand_extract_boxcar[hand_on_slit]
         nobj_hand = len(hand_extract_spec)
-        msgs.info("Implementing hand apertures for {} sources on the slit".format(nobj_hand))
+        log.info("Implementing hand apertures for {} sources on the slit".format(nobj_hand))
 
 
         # Decide how to assign a trace to the hand objects
@@ -2611,7 +2183,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         elif std_trace is not None:   # If no objects found, use the standard?
             trace_model = std_trace
         else:  # If no objects or standard use the slit boundary
-            msgs.warn("No source to use as a trace.  Using the slit boundary")
+            log.warning("No source to use as a trace.  Using the slit boundary")
             trace_model = slit_left
 
         # Loop over hand_extract apertures and create and assign specobj
@@ -2625,7 +2197,11 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             thisobj.hand_extract_flag = True
             # SPAT_FRACPOS
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
-            thisobj.SPAT_FRACPOS = float(f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False)) # interpolate from ximg
+            # NOTE: scipy.interpolate.RectBivariateSpline.__call__ requires
+            # array-like arguments.  Set the inputs to lists and then select the
+            # only entry that is returned.
+            thisobj.SPAT_FRACPOS = f_ximg([thisobj.hand_extract_spec], [thisobj.hand_extract_spat],
+                                          grid=False)[0]
             thisobj.smash_peakflux = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp), flux_smash_smth) # interpolate from fluxconv
             thisobj.smash_snr = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp), snr_smash_smth) # interpolate from fluxconv
             # assign the trace
@@ -2634,6 +2210,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             thisobj.TRACE_SPAT = trace_model + shift
             thisobj.trace_spec = spec_vec
             thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
+            thisobj.SPAT_PIXPOS_ID = int(np.rint(thisobj.SPAT_PIXPOS))
             thisobj.set_name()
             # assign FWHM
             # TODO -- I think FWHM *has* to be input
@@ -2645,9 +2222,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 thisobj.FWHM = fwhm
             # assign BOX_RADIUS (pixels!)
             if hand_extract_boxcar[iobj] > 0.:
-                thisobj.BOX_RADIUS = hand_extract_boxcar[iobj]
+                thisobj.BOX_R_PIX = hand_extract_boxcar[iobj]
             else:
-                thisobj.BOX_RADIUS = boxcar_rad
+                thisobj.BOX_R_PIX = boxcar_rad
             # Finish
             sobjs.add_sobj(thisobj)
 
@@ -2661,7 +2238,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         #spat_pixpos = np.array([spec.SPAT_PIXPOS for spec in specobjs])
         #hand_flag = np.array([spec.hand_extract_flag for spec in specobjs])
         #spec_fwhm = np.array([spec.FWHM for spec in specobjs])
-        reg_ind, = np.where(np.invert(hand_flag))
+        reg_ind, = np.where(np.logical_not(hand_flag))
         hand_ind, = np.where(hand_flag)
         #med_fwhm = np.median(spec_fwhm[~hand_flag])
         #spat_pixpos_hand = spat_pixpos[hand_ind]
@@ -2670,7 +2247,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             close = np.abs(sobjs[reg_ind].SPAT_PIXPOS - spat_pixpos[ihand]) <= 0.6*spec_fwhm[ihand]
             if np.any(close):
                 # Print out a warning
-                msgs.warn('Deleting object(s) {}'.format(sobjs[reg_ind[close]].NAME) +
+                log.warning('Deleting object(s) {}'.format(sobjs[reg_ind[close]].NAME) +
                           ' because it collides with a user specified hand_extract aperture')
                 keep[reg_ind[close]] = False
 
@@ -2678,13 +2255,13 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
 
 
     if len(sobjs) == 0:
-        msgs.info('No hand or normal objects found on this slit. Returning')
+        log.info('No hand or normal objects found on this slit. Returning')
         return specobjs.SpecObjs()
 
     # Sort objects according to their spatial location
     nobj = len(sobjs)
     spat_pixpos = sobjs.SPAT_PIXPOS
-    sobjs = sobjs[spat_pixpos.argsort()]
+    sobjs = sobjs[spat_pixpos.argsort(kind='stable')]
     # Assign integer objids
     sobjs.OBJID = np.arange(nobj) + 1
 
@@ -2703,14 +2280,14 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 color = 'blue'
             display.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].NAME, color=color)
 
-    msgs.info("Successfully traced a total of {0:d} objects".format(len(sobjs)))
+    log.info("Successfully traced a total of {0:d} objects".format(len(sobjs)))
 
     # Finish 
     for sobj in sobjs:
         # Vet
         if not sobj.ready_for_extraction():
             # embed(header=utils.embed_header())
-            msgs.error("Bad SpecObj.  Can't proceed")
+            raise PypeItError("Bad SpecObj.  Can't proceed")
 
     # Return
     return sobjs

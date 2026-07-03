@@ -1,5 +1,5 @@
 """
-Provide basic coordinate tranformation functions.
+Provide basic coordinate transformation functions.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -9,7 +9,8 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 
 
 def affine_transform_matrix(scale=None, rotation=None, translation=None):
@@ -98,7 +99,7 @@ def affine_transform_matrix(scale=None, rotation=None, translation=None):
         elif _s.size == 2:
             sx, sy = scale
         else:
-            msgs.error('Scale must be a single scalar or a two-element array.')
+            raise PypeItError('Scale must be a single scalar or a two-element array.')
         tform[0,0] = float(sx)
         tform[1,1] = float(sy)
     if rotation is not None:
@@ -107,7 +108,7 @@ def affine_transform_matrix(scale=None, rotation=None, translation=None):
     if translation is not None:
         _t = np.atleast_1d(translation)
         if _t.size != 2:
-            msgs.error('Translation must be a two-element array.')
+            raise PypeItError('Translation must be a two-element array.')
         tform[0:2,2] = translation
     return tform
 
@@ -172,9 +173,9 @@ def coordinate_transform_2d(coo, matrix, inverse=False):
     """
     _coo = np.atleast_2d(coo)
     if _coo.ndim != 2:
-        msgs.error('Coordinate array must be 2D.')
+        raise PypeItError('Coordinate array must be 2D.')
     if _coo.shape[1] != 2:
-        msgs.error('Coordinate array must have 2D coordinates along the last axis.')
+        raise PypeItError('Coordinate array must have 2D coordinates along the last axis.')
     ncoo = _coo.shape[0]
     _m = np.linalg.inv(matrix) if inverse else matrix
     return (np.column_stack((_coo, np.ones(ncoo, dtype=_coo.dtype))) @ _m.T)[:,:2]

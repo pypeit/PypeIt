@@ -7,6 +7,8 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   pypeit.spectrographs.aat_uhrf
+   pypeit.spectrographs.apf_levy
    pypeit.spectrographs.bok_bc
    pypeit.spectrographs.gemini_flamingos
    pypeit.spectrographs.gemini_gmos
@@ -36,15 +38,19 @@ Submodules
    pypeit.spectrographs.ntt_efosc2
    pypeit.spectrographs.opticalmodel
    pypeit.spectrographs.p200_dbsp
+   pypeit.spectrographs.p200_ngps
    pypeit.spectrographs.p200_tspec
    pypeit.spectrographs.shane_kast
    pypeit.spectrographs.slitmask
    pypeit.spectrographs.soar_goodman
+   pypeit.spectrographs.soar_tspec
    pypeit.spectrographs.spectrograph
+   pypeit.spectrographs.subaru_focas
    pypeit.spectrographs.tng_dolores
    pypeit.spectrographs.util
    pypeit.spectrographs.vlt_fors
    pypeit.spectrographs.vlt_sinfoni
+   pypeit.spectrographs.vlt_uves
    pypeit.spectrographs.vlt_xshooter
    pypeit.spectrographs.wht_isis
 
@@ -54,5 +60,5 @@ Module contents
 .. automodule:: pypeit.spectrographs
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

@@ -13,6 +13,14 @@ summarizes its workflow.  Links to more detail on specific algorithms and advice
 on adjustments that can/should be made to better reduce your data are included
 throughout.
 
+The docs below describe the standard, end-to-end reduction with 
+PypeIt.  We point users to the :ref:`pypeit-run-to-calibstep` 
+and :doc:`reduce_by_step` documentation for a discussion of how to 
+run individual steps of PypeIt (calibrations and primary reductions).
+We caution, however, that the code was primarily developed to perform 
+end-to-end reductions and we anticipate it will perform best when 
+executed in that fashion.
+
 ----
 
 .. _run-pypeit:
@@ -35,7 +43,7 @@ Before executing ``run_pypeit``, you must have
     #. Edited the :doc:`pypeit_file` in that directory as recommended for a
        successful reduction.
 
-    #. (optional) Removed any calibration files in the ``Calibrations/`` folder.
+    #. (optional) Remove any calibration files in the ``Calibrations/`` folder.
        This is particularly necessary if you're re-reducing data that was
        previously reduced by an older PypeIt version.  However, when in doubt,
        it's good practice to perform a fresh reduction by removing these files
@@ -197,7 +205,11 @@ parameters used by many of the lower-level algorithms is enabled by
 :ref:`parameters` that can be changed via the :ref:`pypeit_file`.
 
 
+See also
+========
 
+ - :ref:`pypeit-run-to-calibstep`: Process the calibration step-by-step
+ - :ref:`step-by-step-reductions`: Process the science frames step-by-step
 
 
 

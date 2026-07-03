@@ -360,7 +360,7 @@ Finally, set the ``QT_QPA_PLATFORM`` environment variable to
 Running in Nautilus
 -------------------
 
-The dev-suite can be run in the `Nautilus cluster <https://ucsd-prp.gitlab.io/>`__.
+The dev-suite can be run in the `Nautilus cluster <https://docs.nationalresearchplatform.org/>`__.
 To generate the YAML for a dev-suite job, use ``gen_kube_devsuite``.  If needed,
 a specific branch of both the PypeIt repository and the Pypeit-development-suite
 repository can be chosen using ``-p`` and ``-d`` respectively.  These default to
@@ -385,6 +385,10 @@ follows:
 
 ``rclone`` can also be used access the Nautilus S3 storage. When
 configuring use ``https://s3-west.nrp-nautilus.io`` as the endpoint.
+
+The default job created by ``gen_kube_devsuite``  runs directly from git. However it can be changed to run
+by building a new PypeIt package and installing from that, simulating what a user would get when 
+installing from PyPi. This is enabled with the ``--from_wheel`` or ``-w`` option.
 
 ``gen_kube_devsuite`` has additional code for generating coverage
 information and the test priority list. If ``--coverage`` and
@@ -419,8 +423,8 @@ To monitor a test in Nautilus as it is running, the logs can be tailed:
 
 Additionally they can be monitored with the `Nautilus Grafana page <https://grafana.nrp-nautilus.io/?orgId=1>`__.
 
-By default ``gen_kube_devsuite`` creates a job using a default container with PypeIt 
-pre-installed. It also supports running with different python versions by
+By default ``gen_kube_devsuite`` creates a job using a the latest Python container 
+available on Docker Hub. It also supports running with different python versions by
 selecting a different container. For example:
 
 .. code-block:: console

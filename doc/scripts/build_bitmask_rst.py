@@ -3,7 +3,6 @@ Dynamically build tables for the bitmasks.
 """
 
 from importlib import resources
-import time
 
 import numpy
 
@@ -28,20 +27,13 @@ def write_bitmask_table(obj, path):
     lines = string_table(data_table, delimeter='rst')
     with open(ofile, 'w') as f:
         f.write(lines)
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 if __name__ == '__main__':
-    t = time.perf_counter()
-
     path = resources.files('pypeit').parent / 'doc' / 'include'
     if not path.is_dir():
         path.mkdir(parents=True)
 
     from pypeit.images.imagebitmask import ImageBitMask
     write_bitmask_table(ImageBitMask, path)
-
-    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
-
-
-

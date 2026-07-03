@@ -16,9 +16,10 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit.datamodel import DataContainer
-from pypeit.bitmask import BitMask
-from pypeit import msgs
-
+from pypeit.core.bitmask import BitMask
+from pypeit import log
+from pypeit import PypeItBitMaskError
+from pypeit import PypeItError
 
 class BitMaskArray(DataContainer):
     """
@@ -31,7 +32,7 @@ class BitMaskArray(DataContainer):
             Shape of the mask to create.
         asuint (:obj:`bool`, optional):
             When setting the data-type for the mask array (see
-            :func:`~pypeit.bitmask.BitMask.minimum_dtype`), use an *unsigned*
+            :func:`~pypeit.core.bitmask.BitMask.minimum_dtype`), use an *unsigned*
             integer instead of a signed integer (e.g., ``uint16`` instead of
             ``int16``).
     """
@@ -50,7 +51,7 @@ class BitMaskArray(DataContainer):
 
     bitmask = None
     """
-    :class:`~pypeit.bitmask.BitMask` object used to interpret the bit array.
+    :class:`~pypeit.core.bitmask.BitMask` object used to interpret the bit array.
     Must be defined by the subclass.  When defining subclasses, note that the
     bitmask flags *must* be case-insensitive strings.
     """
@@ -76,12 +77,12 @@ class BitMaskArray(DataContainer):
         # Check the bitmask
         keys = self.bit_keys()
         if any([not isinstance(k, str) for k in keys]):
-            msgs.error(f'CODING ERROR: {self.bitmask.__class__.__name__} must only contain '
+            raise PypeItError(f'CODING ERROR: {self.bitmask.__class__.__name__} must only contain '
                        'string bit flags.')
 
         self.lower_keys = [k.lower() for k in keys]
         if len(np.unique(self.lower_keys)) != len(keys):
-            msgs.error('CODING ERROR: All bitmask keys must be case-insensitive and unique: '
+            raise PypeItError('CODING ERROR: All bitmask keys must be case-insensitive and unique: '
                        f'{keys}')
 
     def __getattr__(self, item):
@@ -189,9 +190,10 @@ class BitMaskArray(DataContainer):
         hdr = hdu[parsed_hdus[0]].header if isinstance(hdu, fits.HDUList) else hdu.header
         hdr_bitmask = BitMask.from_header(hdr)
         if chk_version and hdr_bitmask.bits != self.bitmask.bits:
-            msgs.error('The bitmask in this fits file appear to be out of date!  Recreate this '
-                       'file by re-running the relevant script or set chk_version=False.',
-                       cls='PypeItBitMaskError')
+            raise PypeItBitMaskError(
+                'The bitmask in this fits file appear to be out of date!  Recreate this file by '
+                're-running the relevant script or set chk_version=False.'
+            )
 
         return self
     

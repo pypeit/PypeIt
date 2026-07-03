@@ -5,30 +5,44 @@ Implements the flat-field class.
 .. include:: ../include/links.rst
 
 """
+from pathlib import Path
+import copy
 import inspect
+import gc
 import numpy as np
 
 from scipy import interpolate, ndimage
+
+from astropy.io import fits
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
 from IPython import embed
 
-from pypeit import msgs
-from pypeit.pypmsgs import PypeItDataModelError
+from pypeit import log
+from pypeit import PypeItError, PypeItDataModelError
 from pypeit import utils
-from pypeit import bspline
+
 
 from pypeit import datamodel
 from pypeit import calibframe
+from pypeit import edgetrace
+from pypeit import io
+from pypeit import qa
 from pypeit.display import display
-from pypeit.core import qa
+from pypeit.images import buildimage
+from pypeit.core import bspline
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
 from pypeit.core import fitting
+from pypeit.core import parse
+from pypeit.core.mosaic import build_image_mosaic
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
+from pypeit import dataPaths
+from pypeit.pkg import cache
 
 
 class FlatImages(calibframe.CalibFrame):
@@ -59,7 +73,7 @@ class FlatImages(calibframe.CalibFrame):
                  'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, descr='Model flat'),
                  'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
                                                  descr='B-spline models for pixel flat; see '
-                                                       ':class:`~pypeit.bspline.bspline.bspline`'),
+                                                       ':class:`~pypeit.core.bspline.bspline.bspline`'),
                  'pixelflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of '
                                              'the spatial illumination profile'),
@@ -73,7 +87,7 @@ class FlatImages(calibframe.CalibFrame):
                                        descr='Processed, combined illum flats'),
                  'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
                                                  descr='B-spline models for illum flat; see '
-                                                       ':class:`~pypeit.bspline.bspline.bspline`'),
+                                                       ':class:`~pypeit.core.bspline.bspline.bspline`'),
                  'illumflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of '
                                              'the spatial illumination profile'),
@@ -98,10 +112,10 @@ class FlatImages(calibframe.CalibFrame):
         """
         if self.pixelflat_spat_bsplines is not None and len(self.pixelflat_spat_bsplines) > 0:
             if len(self.spat_id) != len(self.pixelflat_spat_bsplines):
-                msgs.error("Pixelflat Bsplines are out of sync with the slit IDs")
+                raise PypeItError("Pixelflat Bsplines are out of sync with the slit IDs")
         if self.illumflat_spat_bsplines is not None and len(self.illumflat_spat_bsplines) > 0:
             if len(self.spat_id) != len(self.illumflat_spat_bsplines):
-                msgs.error("Illumflat Bsplines are out of sync with the slit IDs")
+                raise PypeItError("Illumflat Bsplines are out of sync with the slit IDs")
 
     def is_synced(self, slits):
         """
@@ -114,7 +128,7 @@ class FlatImages(calibframe.CalibFrame):
 
         """
         if not np.array_equal(self.spat_id, slits.spat_id):
-            msgs.error('Your flat solutions are out of sync with your slits.  Remove Calibrations'
+            raise PypeItError('Your flat solutions are out of sync with your slits.  Remove Calibrations'
                        'and restart from scratch.')
 
     def _bundle(self):
@@ -189,14 +203,14 @@ class FlatImages(calibframe.CalibFrame):
                         for i in range(nspat)]
             indx = np.isin(ext_bspl, hdunames)
             if np.any(indx) and not np.all(indx):
-                msgs.error('Expected {0} {1} bspline extensions, but only found {2}.'.format(
+                raise PypeItError('Expected {0} {1} bspline extensions, but only found {2}.'.format(
                            nspat, flattype, np.sum(indx)))
             if np.all(indx):
                 key = '{0}_spat_bsplines'.format(flattype)
                 try:
                     d[key] = np.array([bspline.bspline.from_hdu(hdu[k]) for k in ext_bspl])
                 except Exception as e:
-                    msgs.warn('Error in bspline extension read:\n {0}: {1}'.format(
+                    log.warning('Error in bspline extension read:\n {0}: {1}'.format(
                                 e.__class__.__name__, str(e)))
                     # Assume this is because the type failed
                     type_passed = False
@@ -209,7 +223,7 @@ class FlatImages(calibframe.CalibFrame):
                         for i in range(nspat)]
             indx = np.isin(ext_fcor, hdunames)
             if np.any(indx) and not np.all(indx):
-                msgs.error('Expected {0} {1} finecorr extensions, but only found {2}.'.format(
+                raise PypeItError('Expected {0} {1} finecorr extensions, but only found {2}.'.format(
                            nspat, flattype, np.sum(indx)))
             if np.all(indx):
                 key = '{0}_finecorr'.format(flattype)
@@ -222,7 +236,7 @@ class FlatImages(calibframe.CalibFrame):
                             allfit.append(fitting.PypeItFit.from_hdu(hdu[k]))
                     d[key] = np.array(allfit)
                 except Exception as e:
-                    msgs.warn('Error in finecorr extension read:\n {0}: {1}'.format(
+                    log.warning('Error in finecorr extension read:\n {0}: {1}'.format(
                                 e.__class__.__name__, str(e)))
                     # Assume this is because the type failed
                     type_passed = False
@@ -241,7 +255,7 @@ class FlatImages(calibframe.CalibFrame):
             return self.pixelflat_raw.shape
         if self.illumflat_raw is not None:
             return self.illumflat_raw.shape
-        msgs.error("Shape of FlatImages could not be determined")
+        raise PypeItError("Shape of FlatImages could not be determined")
 
     def get_procflat(self, frametype='pixel'):
         """
@@ -274,17 +288,17 @@ class FlatImages(calibframe.CalibFrame):
         """
         # Check if both BPMs are none
         if self.pixelflat_bpm is None and self.illumflat_bpm is None:
-            msgs.warn("FlatImages contains no BPM - trying to generate one")
+            log.warning("FlatImages contains no BPM - trying to generate one")
             return np.zeros(self.shape, dtype=int)
         # Now return the requested case, checking for None
         if frametype == 'illum':
             if self.illumflat_bpm is not None:
                 return self.illumflat_bpm
-            msgs.warn("illumflat has no BPM - using the pixelflat BPM")
+            log.warning("illumflat has no BPM - using the pixelflat BPM")
             return self.pixelflat_bpm
         if self.pixelflat_bpm is not None:
             return self.pixelflat_bpm
-        msgs.warn("pixelflat has no BPM - using the illumflat BPM")
+        log.warning("pixelflat has no BPM - using the illumflat BPM")
         return self.illumflat_bpm
 
     def get_spat_bsplines(self, frametype='illum', finecorr=False):
@@ -319,17 +333,17 @@ class FlatImages(calibframe.CalibFrame):
             illum_bsplines = self.illumflat_spat_bsplines
         # Ensure that at least one has been generated
         if pixel_bsplines is None and illum_bsplines is None:
-            msgs.warn(f'FlatImages contains no {fctxt}spatial bspline fit.')
+            log.warning(f'FlatImages contains no {fctxt}spatial bspline fit.')
             return None
         # Now return the requested case, checking for None
         if frametype == 'illum':
             if illum_bsplines is not None:
                 return illum_bsplines
-            msgs.warn(f'illumflat has no {fctxt}spatial bspline fit - using the pixelflat.')
+            log.warning(f'illumflat has no {fctxt}spatial bspline fit - using the pixelflat.')
             return pixel_bsplines
         if pixel_bsplines is not None:
             return pixel_bsplines
-        msgs.warn(f'pixelflat has no {fctxt}spatial bspline fit - using the illumflat.')
+        log.warning(f'pixelflat has no {fctxt}spatial bspline fit - using the illumflat.')
         return illum_bsplines
 
     def fit2illumflat(self, slits, frametype='illum', finecorr=False, initial=False,
@@ -356,7 +370,7 @@ class FlatImages(calibframe.CalibFrame):
         """
         # Check spatial flexure type
         if spat_flexure is not None and not isinstance(spat_flexure, float):
-            msgs.error('Spatial flexure must be None or float.')
+            raise PypeItError('Spatial flexure must be None or float.')
         # Initialise the returned array
         illumflat = np.ones(self.shape, dtype=float)
         # Load spatial bsplines
@@ -365,7 +379,7 @@ class FlatImages(calibframe.CalibFrame):
         if spat_bsplines is None:
             if finecorr:
                 return np.ones(self.shape, dtype=float)
-            msgs.error('Cannot continue without spatial bsplines.')
+            raise PypeItError('Cannot continue without spatial bsplines.')
 
         # Loop
         for slit_idx in range(slits.nslits):
@@ -420,7 +434,7 @@ class FlatImages(calibframe.CalibFrame):
             try:
                 slits = slittrace.SlitTraceSet.from_file(slits_file, chk_version=chk_version)
             except (FileNotFoundError, PypeItDataModelError):
-                msgs.warn('Could not load slits to include when showing flat-field images.  File '
+                log.warning('Could not load slits to include when showing flat-field images.  File '
                           'was either not provided directly, or it could not be read based on its '
                           f'expected name: {slits_file}.')
 
@@ -483,10 +497,14 @@ class FlatField:
             corrections.  If None, the default parameters are used.
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             The current slit traces.
-        wavetilts (:class:`~pypeit.wavetilts.WaveTilts`):
-            The current wavelength tilt traces; see
-        wv_calib (:class:`~pypeit.wavecalib.WaveCalib`):
-            Wavelength calibration object
+        wavetilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
+            The current fit to the wavelength tilts. I can be None,
+            for example, if slitless is True.
+        wv_calib (:class:`~pypeit.wavecalib.WaveCalib`, optional):
+            Wavelength calibration object. It can be None, for example, if
+            slitless is True.
+        slitless (bool, optional):
+            True if the input rawflatimg is a slitless flat. Default is False.
         spat_illum_only (bool, optional):
             Only perform the spatial illumination calculation, and ignore
             the 2D bspline fit. This should only be set to true if you
@@ -510,8 +528,8 @@ class FlatField:
             Image of the relative spectral illumination for a multislit spectrograph
 
     """
-    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts, wv_calib,
-                 spat_illum_only=False, qa_path=None, calib_key=None):
+    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts=None, wv_calib=None,
+                 slitless=False, spat_illum_only=False, qa_path=None, calib_key=None):
 
         # Defaults
         self.spectrograph = spectrograph
@@ -528,7 +546,8 @@ class FlatField:
         self.wv_calib = wv_calib
 
         # Worth a check
-        self.wavetilts.is_synced(self.slits)
+        if self.wavetilts is not None and not slitless:
+            self.wavetilts.is_synced(self.slits)
 
         # Attributes unique to this Object
         self.rawflatimg = rawflatimg      # Un-normalized pixel flat as a PypeItImage
@@ -540,6 +559,13 @@ class FlatField:
         self.spat_illum_only = spat_illum_only
         self.spec_illum = None      # Relative spectral illumination image
         self.waveimg = None
+        self.slitless = slitless    # is this a slitless flat?
+
+        # get waveimg here if available
+        if self.wavetilts is None or self.wv_calib is None:
+            log.warning("Wavelength calib or tilts are not available.  Wavelength image not generated.")
+        else:
+            self.build_waveimg()   # this set self.waveimg
 
         # Completed steps
         self.steps = []
@@ -578,13 +604,20 @@ class FlatField:
             :class:`FlatImages`: Container with the results of the flat-field
             analysis.
         """
+
+        # check if self.wavetilts is available. It can be None if the flat is slitless, but it's needed otherwise
+        if self.wavetilts is None and not self.slitless:
+            log.warning("Wavelength tilts are not available.  Cannot generate this flat image.")
+            return None
+
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated internally.
         if not self.flatpar['fit_2d_det_response']:
             # This spectrograph does not have a structure correction
             # implemented. Ignore detector structure.
             self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
-        else:  # Iterate on the pixelflat if required by the spectrograph
+        elif self.waveimg is not None:
+            # Iterate on the pixelflat if required by the spectrograph
             # User has requested a structure correction.
             # Note: This will only be performed if it is coded for each individual spectrograph.
             # Make a copy of the original flat
@@ -604,7 +637,7 @@ class FlatField:
                     # has already been divided out by the pixel flat.
                     if self.spat_illum_only:
                         break
-                    msgs.info("Iteration {0:d}/{1:d} of 2D detector response extraction".format(ff+1, niter))
+                    log.info("Iteration {0:d}/{1:d} of 2D detector response extraction".format(ff+1, niter))
                     # Extract a detector response image
                     det_resp = self.extract_structure(rawflat_orig)
                     # Trim the slits to avoid edge effects
@@ -670,12 +703,15 @@ class FlatField:
         """
         Generate an image of the wavelength of each pixel.
         """
-        msgs.info("Generating wavelength image")
-        flex = self.wavetilts.spat_flexure
-        slitmask = self.slits.slit_img(initial=True, flexure=flex)
-        tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
-        # Save to class attribute for inclusion in the Flat calibration frame
-        self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
+        log.info("Generating wavelength image")
+        if self.wavetilts is None or self.wv_calib is None:
+            raise PypeItError("Wavelength calib or tilts are not available.  Cannot generate wavelength image.")
+        else:
+            flex = self.wavetilts.spat_flexure
+            slitmask = self.slits.slit_img(initial=True, flexure=flex)
+            tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+            # Save to class attribute for inclusion in the Flat calibration frame
+            self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
 
     def show(self, wcs_match=True):
         """
@@ -816,9 +852,6 @@ class FlatField:
         npoly = self.flatpar['twod_fit_npoly']
         saturated_slits = self.flatpar['saturated_slits']
 
-        # Build wavelength image -- not always used, but for convenience done here
-        if self.waveimg is None: self.build_waveimg()
-
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
         rawflat = self.rawflatimg.image
@@ -833,14 +866,11 @@ class FlatField:
         ivar_log = gpm_log.astype(float)/0.5**2
 
         # Get the non-linear count level
-        # TODO: This is currently hacked to deal with Mosaics
-        try:
+        if self.rawflatimg.is_mosaic:
+            # if this is a mosaic we take the maximum value among all the detectors
+            nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in self.rawflatimg.detector.detectors])
+        else:
             nonlinear_counts = self.rawflatimg.detector.nonlinear_counts()
-        except:
-            nonlinear_counts = 1e10
-        # Other setup
-#        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
-#        nonlinear_counts = self.rawflatimg.detector.nonlinear_counts()
 
         # TODO -- JFH -- CONFIRM THIS SHOULD BE ON INIT
         # It does need to be *all* of the slits
@@ -881,19 +911,19 @@ class FlatField:
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             # Is this a good slit??
             if self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag=['SHORTSLIT', 'USERIGNORE', 'BADTILTCALIB']):
-                msgs.info('Skipping bad slit: {}'.format(slit_spat))
+                log.info('Skipping bad slit: {}'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 continue
             elif self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag=['BOXSLIT']):
-                msgs.info('Skipping alignment slit: {}'.format(slit_spat))
+                log.info('Skipping alignment slit: {}'.format(slit_spat))
                 continue
             elif self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag=['BADWVCALIB']) and \
                     (self.flatpar['pixelflat_min_wave'] is not None or self.flatpar['pixelflat_max_wave'] is not None):
-                msgs.info('Skipping slit with bad wavecalib: {}'.format(slit_spat))
+                log.info('Skipping slit with bad wavecalib: {}'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 continue
 
-            msgs.info('Modeling the flat-field response for slit spat_id={}: {}/{}'.format(
+            log.info('Modeling the flat-field response for slit spat_id={}: {}/{}'.format(
                         slit_spat, slit_idx+1, self.slits.nslits))
 
             # Find the pixels on the initial slit
@@ -911,20 +941,20 @@ class FlatField:
                                  'You could also choose to use a different flat-field image ' \
                                  'for this calibration group.'
                 if saturated_slits == 'crash':
-                    msgs.error('Only {:4.2f}'.format(100*good_frac)
+                    raise PypeItError('Only {:4.2f}'.format(100*good_frac)
                                + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                                + 'Selected behavior was to crash if this occurred.  '
                                + common_message)
                 elif saturated_slits == 'mask':
                     self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
-                    msgs.warn('Only {:4.2f}'.format(100*good_frac)
+                    log.warning('Only {:4.2f}'.format(100*good_frac)
                                                 + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to mask this slit and continue with the '
                               + 'remainder of the reduction, meaning no science data will be '
                               + 'extracted from this slit.  ' + common_message)
                 elif saturated_slits == 'continue':
                     self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'SKIPFLATCALIB')
-                    msgs.warn('Only {:4.2f}'.format(100*good_frac)
+                    log.warning('Only {:4.2f}'.format(100*good_frac)
                               + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to simply continue, meaning no '
                               + 'field-flatting correction will be applied to this slit but '
@@ -962,10 +992,16 @@ class FlatField:
             # TODO: Put this stuff in a self.spectral_fit method?
 
             # Create the tilts image for this slit
-            # TODO -- JFH Confirm the sign of this shift is correct!
-            _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
-            tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
-                                        self.wavetilts['func2d'], spat_shift=-1*_flexure)
+            if self.slitless:
+                tilts = np.tile(np.arange(rawflat.shape[0]) / rawflat.shape[0], (rawflat.shape[1], 1)).T
+            else:
+                # TODO -- JFH Confirm the sign of this shift is correct!
+                _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
+                tilts = tracewave.fit2tilts(rawflat.shape,
+                                            self.wavetilts['coeffs'][:,:,slit_idx],
+                                            self.wavetilts['func2d'],
+                                            spat_shift=-1*_flexure,
+                                            slit_mask=onslit_padded)
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
@@ -974,13 +1010,13 @@ class FlatField:
             spec_gpm = onslit_trimmed & gpm_log  # & (rawflat < nonlinear_counts)
             spec_nfit = np.sum(spec_gpm)
             spec_ntot = np.sum(onslit_init)
-            msgs.info('Spectral fit of flatfield for {0}/{1} '.format(spec_nfit, spec_ntot)
+            log.info('Spectral fit of flatfield for {0}/{1} '.format(spec_nfit, spec_ntot)
                       + ' pixels in the slit.')
             # Set this to a parameter?
             if spec_nfit/spec_ntot < 0.5:
                 # TODO: Shouldn't this raise an exception or continue to the next slit instead?
-                msgs.warn('Spectral fit includes only {:.1f}'.format(100*spec_nfit/spec_ntot)
-                          + '% of the pixels on this slit.' + msgs.newline()
+                log.warning('Spectral fit includes only {:.1f}'.format(100*spec_nfit/spec_ntot)
+                          + '% of the pixels on this slit.\n'
                           + '          Either the slit has many bad pixels or the number of '
                             'trimmed pixels is too large.')
 
@@ -1013,7 +1049,7 @@ class FlatField:
 
             if exit_status > 1:
                 # TODO -- MAKE A FUNCTION
-                msgs.warn('Flat-field spectral response bspline fit failed!  Not flat-fielding '
+                log.warning('Flat-field spectral response bspline fit failed!  Not flat-fielding '
                           'slit {0} and continuing!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 continue
@@ -1026,7 +1062,7 @@ class FlatField:
 
             if sticky:
                 # Add rejected pixels to gpm
-                gpm[spec_gpm] = (spec_gpm_fit & spec_gpm_data)[np.argsort(spec_srt)]
+                gpm[spec_gpm] = (spec_gpm_fit & spec_gpm_data)[np.argsort(spec_srt, kind='stable')]
 
             # Construct the model of the flat-field spectral shape
             # including padding on either side of the slit.
@@ -1063,18 +1099,18 @@ class FlatField:
             # Report
             spat_nfit = np.sum(spat_gpm)
             spat_ntot = np.sum(onslit_padded)
-            msgs.info('Spatial fit of flatfield for {0}/{1} '.format(spat_nfit, spat_ntot)
+            log.info('Spatial fit of flatfield for {0}/{1} '.format(spat_nfit, spat_ntot)
                       + ' pixels in the slit.')
             if spat_nfit/spat_ntot < 0.5:
                 # TODO: Shouldn't this raise an exception or continue to the next slit instead?
-                msgs.warn('Spatial fit includes only {:.1f}'.format(100*spat_nfit/spat_ntot)
-                          + '% of the pixels on this slit.' + msgs.newline()
+                log.warning('Spatial fit includes only {:.1f}'.format(100*spat_nfit/spat_ntot)
+                          + '% of the pixels on this slit.\n'
                           + '          Either the slit has many bad pixels, the model of the '
                           'spectral shape is poor, or the illumination profile is very irregular.')
 
             # First fit -- With initial slits
             if not np.any(spat_gpm):
-                msgs.warn('Flat-field failed during normalization!  Not flat-fielding '
+                log.warning('Flat-field failed during normalization!  Not flat-fielding '
                           'slit {0} and continuing!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(
                     self.slits.mask[slit_idx], 'BADFLATCALIB')
@@ -1177,14 +1213,14 @@ class FlatField:
                     continue
             else:
                 # Save the nada
-                msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
+                log.warning('Slit illumination profile bspline fit failed!  Spatial profile not '
                           'included in flat-field model for slit {0}!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 continue
 
             # ----------------------------------------------------------
             # Fit the 2D residuals of the 1D spectral and spatial fits.
-            msgs.info('Performing 2D illumination + scattered light flat field fit')
+            log.info('Performing 2D illumination + scattered light flat field fit')
 
             # Construct the spectrally and spatially normalized flat
             norm_spec_spat[...] = 1.
@@ -1225,7 +1261,7 @@ class FlatField:
                 # image
                 resid = twod_flat_data - twod_flat_fit
                 goodpix = twod_gpm_fit & twod_gpm_data
-                badpix = np.invert(twod_gpm_fit) & twod_gpm_data
+                badpix = np.logical_not(twod_gpm_fit) & twod_gpm_data
 
                 plt.clf()
                 ax = plt.gca()
@@ -1269,12 +1305,12 @@ class FlatField:
             # Save the 2D residual model
             twod_model[...] = 1.
             if exit_status > 1:
-                msgs.warn('Two-dimensional fit to flat-field data failed!  No higher order '
+                log.warning('Two-dimensional fit to flat-field data failed!  No higher order '
                           'flat-field corrections included in model of slit {0}!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
             else:
-                twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt)]
-                twod_gpm_out[twod_gpm] = twod_gpm_fit[np.argsort(twod_srt)]
+                twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt, kind='stable')]
+                twod_gpm_out[twod_gpm] = twod_gpm_fit[np.argsort(twod_srt, kind='stable')]
 
 
             # Construct the full flat-field model
@@ -1283,21 +1319,48 @@ class FlatField:
                                         * np.fmax(self.msillumflat[onslit_tweak], 0.05) \
                                         * np.fmax(spec_model[onslit_tweak], 1.0)
 
+            # Check for infinities and NaNs in the flat-field model
+            winfnan = np.where(np.logical_not(np.isfinite(self.flat_model[onslit_tweak])))
+            if winfnan[0].size != 0:
+                log.warning(
+                    f'There are {winfnan[0].size} pixels with non-finite values in the flat-field '
+                    f'model for slit {slit_spat}!\nThese model pixel values will be set to the '
+                    'raw pixel value.'
+                )
+                self.flat_model[np.where(onslit_tweak)[0][winfnan]] = rawflat[np.where(onslit_tweak)[0][winfnan]]
+            # Check for unrealistically high or low values of the model
+            whilo = np.where((self.flat_model[onslit_tweak] >= nonlinear_counts) |
+                             (self.flat_model[onslit_tweak] <= 0.0))
+            if whilo[0].size != 0:
+                log.warning(
+                    f'There are {whilo[0].size} pixels with unrealistically high or low values in '
+                    f'the flat-field model for slit {slit_spat}!\nThese model pixel values will '
+                    'be set to the raw pixel value.'
+                )
+                self.flat_model[np.where(onslit_tweak)[0][whilo]] = rawflat[np.where(onslit_tweak)[0][whilo]]
+
             # Construct the pixel flat
             #trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim, slitidx=slit_idx)
             #onslit_trimmed_anew = trimmed_slitid_img_anew == slit_spat
-            self.mspixelflat[onslit_tweak] = rawflat[onslit_tweak]/self.flat_model[onslit_tweak]
+            self.mspixelflat[onslit_tweak] = rawflat[onslit_tweak] * utils.inverse(self.flat_model[onslit_tweak])
             # TODO: Add some code here to treat the edges and places where fits
             #  go bad?
 
             # Minimum wavelength?
-            if self.flatpar['pixelflat_min_wave'] is not None:
+            if self.flatpar['pixelflat_min_wave'] is not None and self.waveimg is not None:
                 bad_wv = self.waveimg[onslit_tweak] < self.flatpar['pixelflat_min_wave']
                 self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
             # Maximum wavelength?
-            if self.flatpar['pixelflat_max_wave'] is not None:
+            if self.flatpar['pixelflat_max_wave'] is not None and self.waveimg is not None:
                 bad_wv = self.waveimg[onslit_tweak] > self.flatpar['pixelflat_max_wave']
                 self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
+
+            # Cleanup to save on memory usage
+            spec_coo_data = None
+            twod_spec_coo_data = None
+            spec_coo = None
+            tilts = None
+            gc.collect(2)
 
         # No need to continue if we're just doing the spatial illumination
         if spat_illum_only:
@@ -1356,8 +1419,8 @@ class FlatField:
             gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
 
         # Make sure that the normalized and filtered flat is finite!
-        if np.any(np.invert(np.isfinite(spat_flat_data))):
-            msgs.error('Inifinities in slit illumination function computation!')
+        if np.any(np.logical_not(np.isfinite(spat_flat_data))):
+            raise PypeItError('Inifinities in slit illumination function computation!')
 
         # Determine the breakpoint spacing from the sampling of the
         # spatial coordinates. Use breakpoints at a spacing of a
@@ -1378,7 +1441,8 @@ class FlatField:
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
-    def spatial_fit_finecorr(self, normed, onslit_tweak, slit_idx, slit_spat, gpm, slit_trim=3, doqa=False):
+    def spatial_fit_finecorr(self, normed, onslit_tweak, slit_idx, slit_spat, gpm,
+                             slit_trim=3, tolerance=0.1, doqa=False):
         """
         Generate a relative scaling image for a slicer IFU. All
         slits are scaled relative to a reference slit, specified in
@@ -1402,6 +1466,10 @@ class FlatField:
             Trim the slit edges by this number of pixels during the fitting. Note that the
             fit will be evaluated on the pixels indicated by onslit_tweak.
             A positive number trims the slit edges, a negative number pads the slit edges.
+        tolerance : float, optional
+            Tolerance for the relative scaling of the slits. A value of 0.1 means that the
+            relative scaling of the slits must be within 10% of unity. Any data outside of
+            this tolerance will be masked.
         doqa : :obj:`bool`, optional:
             Save the QA?
 
@@ -1410,18 +1478,23 @@ class FlatField:
         illumflat_finecorr: `numpy.ndarray`_
             An image (same shape as normed) containing the fine correction to the spatial illumination profile
         """
+        # check id self.waveimg is available
+        if self.waveimg is None:
+            log.warning("Cannot perform the fine correction to the spatial illumination without the wavelength image.")
+            return
         # TODO :: Include fit_order in the parset??
         fit_order = np.array([3, 6])
         slit_txt = self.slits.slitord_txt
         slit_ordid = self.slits.slitord_id[slit_idx]
-        msgs.info(f"Performing a fine correction to the spatial illumination ({slit_txt} {slit_ordid})")
+        log.info(f"Performing a fine correction to the spatial illumination ({slit_txt} {slit_ordid})")
         # initialise
         illumflat_finecorr = np.ones_like(self.rawflatimg.image)
         # Trim the edges by a few pixels to avoid edge effects
         onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
         # Setup
         slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
-        left, right, msk = self.slits.select_edges(flexure=self.wavetilts.spat_flexure)
+
+        left, right, msk = self.slits.select_edges(flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
         this_left = left[:, slit_idx]
         this_right = right[:, slit_idx]
         slitlen = int(np.median(this_right - this_left))
@@ -1431,7 +1504,7 @@ class FlatField:
         this_wave = self.waveimg[this_slit]
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        slitid_img=slitimg,
-                                                       flexure_shift=self.wavetilts.spat_flexure)
+                                                       flexure_shift=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
         # Generate the trimmed versions for fitting
         this_slit_trim = np.where(onslit_tweak_trim & self.rawflatimg.select_flag(invert=True))
         this_wave_trim = self.waveimg[this_slit_trim]
@@ -1449,6 +1522,10 @@ class FlatField:
         if xfrac * slitlen < slit_trim:
             xfrac = slit_trim/slitlen
         gpmfit[np.where((xpos_fit < xfrac) | (xpos_fit > 1-xfrac))] = False
+        # If the data deviate too much from unity, mask them. We're only interested in a
+        # relative correction that's less than ~10% from unity.
+        gpmfit[np.where((normed[this_slit_trim] < 1-tolerance) | (normed[this_slit_trim] > 1 + tolerance))] = False
+        # Perform the full fit
         fullfit = fitting.robust_fit(xpos_fit, normed[this_slit_trim], fit_order, x2=ypos_fit,
                                      in_gpm=gpmfit, function='legendre2d', upper=2, lower=2, maxdev=1.0,
                                      minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
@@ -1458,8 +1535,11 @@ class FlatField:
             self.list_of_finecorr_fits[slit_idx] = fullfit
             illumflat_finecorr[this_slit] = fullfit.eval(xpos, ypos)
         else:
-            msgs.warn(f"Fine correction to the spatial illumination failed for {slit_txt} {slit_ordid}")
-            return
+            log.warning(f"Fine correction to the spatial illumination failed for {slit_txt} {slit_ordid}")
+            return illumflat_finecorr
+
+        # If corrections exceed the tolerance, then clip them to the level of the tolerance
+        illumflat_finecorr = np.clip(illumflat_finecorr, 1-tolerance, 1+tolerance)
 
         # Prepare QA
         if doqa:
@@ -1495,7 +1575,12 @@ class FlatField:
             An image containing the detector structure (i.e. the raw flatfield image
             divided by the spectral and spatial illumination profile fits).
         """
-        msgs.info("Extracting flatfield structure")
+        log.info("Extracting flatfield structure")
+
+        # check if the waveimg is available
+        if self.waveimg is None:
+            raise PypeItError("Cannot perform the extraction of the flatfield structure without the wavelength image.")
+
         # Build the mask and make a temporary instance of FlatImages
         bpmflats = self.build_mask()
         # Initialise bad splines (for when the fit goes wrong)
@@ -1519,7 +1604,7 @@ class FlatField:
         scale_model = illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                              slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                              model=None, gpmask=gpm, skymask=None, trim=self.flatpar['slit_trim'],
-                                             flexure=self.wavetilts.spat_flexure,
+                                             flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0,
                                              smooth_npix=self.flatpar['slit_illum_smooth_npix'])
         # Trim the edges by a few pixels to avoid edge effects
         onslits_trim = gpm & (self.slits.slit_img(pad=-slit_trim, initial=False) != -1)
@@ -1564,10 +1649,12 @@ class FlatField:
         scale_model: `numpy.ndarray`_
             An image containing the appropriate scaling
         """
-        msgs.info("Deriving spectral illumination profile")
-        # Generate a wavelength image
-        if self.waveimg is None: self.build_waveimg()
-        msgs.info('Performing a joint fit to the flat-field response')
+        log.info("Deriving spectral illumination profile")
+        # check if the waveimg is available
+        if self.waveimg is None:
+            log.warning("Cannot perform the spectral illumination without the wavelength image.")
+            return None
+        log.info('Performing a joint fit to the flat-field response')
         # Grab some parameters
         trim = self.flatpar['slit_trim']
         rawflat = self.rawflatimg.image / (self.msillumflat * self.mspixelflat)
@@ -1580,12 +1667,13 @@ class FlatField:
         return illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                       slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                       model=None, gpmask=gpm, skymask=None, trim=trim,
-                                      flexure=self.wavetilts.spat_flexure,
+                                      flexure=self.wavetilts.spat_flexure  if self.wavetilts is not None else 0.0,
                                       smooth_npix=self.flatpar['slit_illum_smooth_npix'],
                                       debug=debug)
 
-    def tweak_slit_edges(self, left, right, spat_coo, norm_flat, method='threshold', thresh=0.93, maxfrac=0.1, debug=False):
-        """
+    def tweak_slit_edges(self, left, right, spat_coo, norm_flat, method='threshold', thresh=0.93,
+                         maxfrac=0.1, debug=False):
+        r"""
         Tweak the slit edges based on the normalized slit illumination profile.
 
         Args:
@@ -1606,12 +1694,15 @@ class FlatField:
                 profile. Shape is :math:`(N_{\rm flat},)`.
             method (:obj:`str`, optional):
                 Method to use for tweaking the slit edges. Options are:
-                    - 'threshold': Use the threshold to set the slit edge
-                        and then shift it to the left or right based on the
-                        illumination profile.
-                    - 'gradient': Use the gradient of the illumination
-                        profile to set the slit edge and then shift it to
-                        the left or right based on the illumination profile.
+
+                    - ``'threshold'``: Use the threshold to set the slit edge
+                      and then shift it to the left or right based on the
+                      illumination profile.
+
+                    - ``'gradient'``: Use the gradient of the illumination
+                      profile to set the slit edge and then shift it to the left
+                      or right based on the illumination profile.
+
             thresh (:obj:`float`, optional):
                 Threshold of the normalized flat profile at which to
                 place the two slit edges.
@@ -1630,13 +1721,14 @@ class FlatField:
             tuple: Returns six objects:
 
                 - The threshold used to set the left edge
-                - The fraction of the slit that the left edge is shifted to
-                  the right
+                - The fraction of the slit that the left edge is shifted to the
+                  right
                 - The adjusted left edge
                 - The threshold used to set the right edge
-                - The fraction of the slit that the right edge is shifted to
-                  the left
+                - The fraction of the slit that the right edge is shifted to the
+                  left
                 - The adjusted right edge
+
         """
         # TODO :: Since this is just a wrapper, and not really "core", maybe it should be moved to pypeit.flatfield?
         # Tweak the edges via the specified method
@@ -1646,7 +1738,212 @@ class FlatField:
         elif method == "gradient":
             return flat.tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=maxfrac, debug=debug)
         else:
-            msgs.error("Method for tweaking slit edges not recognized: {0}".format(method))
+            raise PypeItError("Method for tweaking slit edges not recognized: {0}".format(method))
+
+
+class SlitlessFlat:
+    """
+    Class to generate a slitless pixel flat-field calibration image.
+
+    Args:
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
+        slitless_rows (`numpy.ndarray`_):
+                Boolean array selecting the rows in the fitstbl that
+                correspond to the slitless frames.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+                The spectrograph object.
+        par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`):
+            Parameter set defining optional parameters of PypeIt's algorithms
+            for Calibrations
+        qa_path (`Path`_):
+            Path for the QA diagnostics.
+
+    """
+
+    def __init__(self, fitstbl, slitless_rows, spectrograph, par, qa_path=None):
+
+        self.fitstbl = fitstbl
+        # Boolean array selecting the rows in the fitstbl that correspond to the slitless frames.
+        self.slitless_rows = slitless_rows
+        self.spectrograph = spectrograph
+        self.par = par
+        self.qa_path = qa_path
+
+    def slitless_pixflat_fname(self):
+        """
+        Generate the name of the slitless pixel flat file.
+
+        Returns:
+            :obj:`str`: The name of the slitless pixel flat
+
+        """
+        if len(self.slitless_rows) == 0:
+            raise PypeItError('No slitless_pixflat frames found. Cannot generate the slitless pixel flat file name.')
+
+        # generate the slitless pixel flat file name
+        spec_name = self.fitstbl.spectrograph.name
+        date = self.fitstbl.construct_obstime(self.slitless_rows[0]).iso.split(' ')[0].replace('-', '') if \
+            self.fitstbl[self.slitless_rows][0]['mjd'] is not None else '00000000'
+        # setup info to add to the filename
+        dispname = '' if 'dispname' not in self.spectrograph.configuration_keys() else \
+            f"_{self.fitstbl[self.slitless_rows[0]]['dispname'].replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '').replace(':', '_').replace('+', '_')}"
+        dichroic = '' if 'dichroic' not in self.spectrograph.configuration_keys() else \
+            f"_d{self.fitstbl[self.slitless_rows[0]]['dichroic']}"
+        binning = self.fitstbl[self.slitless_rows[0]]['binning'].replace(',', 'x')
+        # file name
+        return f'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits'
+
+    def make_slitless_pixflat(self, msbias=None, msdark=None, calib_dir=None, write_qa=False, show=False):
+        """
+        Generate and save to disc a slitless pixel flat-field calibration images.
+        The pixel flat file will have one extension per detector, even in the case of a mosaic.
+        Contrary to the regular calibration flow, the slitless pixel flat is created for all detectors
+        of the current spectrograph at once, and not only the one for the current detector.
+        Since the slitless pixel flat images are saved to disc, this approach helps with the I/O
+        This is a method is used in `~pypeit.calibrations.get_flats()`.
+
+        Note: par['flatfield']['pixelflat_file'] is updated in this method.
+
+        Args:
+            msbias (:class:`~pypeit.images.buildimage.BiasImage`, optional):
+                Bias image for bias subtraction; passed to
+                :func:`~pypeit.images.buildimage.buildimage_fromlist()`
+            msdark (:class:`~pypeit.images.buildimage.DarkImage`, optional):
+                Dark-current image; passed to
+                :func:`~pypeit.images.buildimage.buildimage_fromlist()`
+            calib_dir (`Path`_):
+                Path for the processed calibration files.
+            write_qa (:obj:`bool`, optional):
+                Write QA plots to disk?
+            show (:obj:`bool`, optional):
+                Show the diagnostic plots?
+
+        Returns:
+            :obj:`str`: The name of the slitless pixel flat file that was generated.
+
+        """
+
+        # First thing first, check if the user has provided slitless_pixflat frames
+        if len(self.slitless_rows) == 0:
+            # return unchanged self.par['flatfield']['pixelflat_file']
+            return self.par['flatfield']['pixelflat_file']
+
+        # all detectors of this spectrograph
+        _detectors = np.array(self.spectrograph.select_detectors())
+
+        # Check if a user-provided slitless pixelflat already exists for the current detectors
+        if self.par['flatfield']['pixelflat_file'] is not None:
+            _pixel_flat_file = dataPaths.pixelflat.get_file_path(self.par['flatfield']['pixelflat_file'],
+                                                                 return_none=True)
+
+            if _pixel_flat_file is not None:
+                # get detector names
+                detnames = np.array([self.spectrograph.get_det_name(_det) for _det in _detectors])
+                # open the file
+                with io.fits_open(_pixel_flat_file) as hdu:
+                    # list of available detectors in the pixel flat file
+                    file_detnames = [h.name.split('-')[0] for h in hdu]
+                    # check if the current detnames are in the list
+                    in_file = np.array([d in file_detnames for d in detnames])
+                    # if all detectors are in the file, return
+                    if np.all(in_file):
+                        log.info(f"Both slitless_pixflat frames and user-defined file found. "
+                                  f"The user-defined file will be used: {self.par['flatfield']['pixelflat_file']}")
+                        # return unchanged self.par['flatfield']['pixelflat_file']
+                        return self.par['flatfield']['pixelflat_file']
+                    else:
+                        # get the detectors that are not in the file
+                        _detectors = _detectors[np.logical_not(in_file)]
+                        detnames = detnames[np.logical_not(in_file)]
+                        log.info(f'Both slitless_pixflat frames and user-defined file found, but the '
+                                  f'following detectors are not in the file: {detnames}. Using the '
+                                  f'slitless_pixflat frames to generate the missing detectors.')
+
+        # make the slitless pixel flat
+        pixflat_norm_list = []
+        detname_list = []
+        for _det in _detectors:
+            # Parse the raw slitless pixelflat frames. Note that this is spectrograph dependent.
+            # If the method does not exist in the specific spectrograph class, nothing will happen
+            this_raw_idx = self.spectrograph.parse_raw_files(self.fitstbl[self.slitless_rows], det=_det,
+                                                             ftype='slitless_pixflat')
+            if len(this_raw_idx) == 0:
+                log.warning(f'No raw slitless_pixflat frames found for {self.spectrograph.get_det_name(_det)}. '
+                          f'Continuing...')
+                continue
+            this_raw_files = self.fitstbl.frame_paths(self.slitless_rows[this_raw_idx])
+            log.info(f'Creating slitless pixel-flat calibration frame '
+                      f'for {self.spectrograph.get_det_name(_det)} using files: ')
+            for f in this_raw_files:
+                log.info(f'        {Path(f).name}')
+
+            # Reset the BPM
+            msbpm = self.spectrograph.bpm(this_raw_files[0], _det, msbias=msbias if self.par['bpm_usebias'] else None)
+
+            # trace image
+            traceimg = buildimage.buildimage_fromlist(self.spectrograph, _det, self.par['traceframe'],
+                                                      [this_raw_files[0]], dark=msdark, bias=msbias, bpm=msbpm)
+            # slit edges
+            # we need to change some parameters for the slit edge tracing
+            edges_par = self.par['slitedges'].copy()
+            # no maskdesign info
+            edges_par['use_maskdesign'] = False
+            # lower the threshold for edge detection
+            edges_par['edge_thresh'] = 50.
+            # this is used for longslit (i.e., no pca)
+            edges_par['sync_predict'] = 'nearest'
+            # remove spurious edges by setting a large minimum slit gap (20% of the detector size
+            platescale = parse.parse_binning(traceimg.detector.binning)[1] * traceimg.detector['platescale']
+            edges_par['minimum_slit_gap'] = 0.2 * traceimg.image.shape[1] * platescale
+            # if no slits are found the bound_detector parameter add 2 traces at the detector edges
+            edges_par['bound_detector'] = True
+            # set the buffer to 0
+            edges_par['det_buffer'] = 0
+            _spectrograph = copy.deepcopy(self.spectrograph)
+            # need to treat this as a MultiSlit spectrograph (no echelle parameters used)
+            _spectrograph.pypeline = 'MultiSlit'
+            edges = edgetrace.EdgeTraceSet(traceimg, _spectrograph, edges_par, auto=True)
+            slits = edges.get_slits()
+            if show:
+                edges.show(title='Slitless flat edge tracing')
+            #
+            # flat image
+            slitless_pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, _det, self.par['slitless_pixflatframe'],
+                                                                 this_raw_files, dark=msdark, bias=msbias, bpm=msbpm)
+
+            # increase saturation threshold (some hires slitless flats are very bright)
+            slitless_pixel_flat.detector.saturation *= 1.5
+            # Initialise the pixel flat
+            flatpar = self.par['flatfield'].copy()
+            # do not tweak the slits
+            flatpar['tweak_slits'] = False
+            flatpar['slit_illum_finecorr'] = False
+            pixelFlatField = FlatField(slitless_pixel_flat, self.spectrograph, flatpar, slits, wavetilts=None,
+                                       wv_calib=None, slitless=True, qa_path=self.qa_path)
+
+            # Generate
+            pixelflatImages = pixelFlatField.run(doqa=write_qa, show=show)
+            pixflat_norm_list.append(pixelflatImages.pixelflat_norm)
+            detname_list.append(self.spectrograph.get_det_name(_det))
+
+        if len(detname_list) > 0:
+            # get the pixel flat file name
+            if self.par['flatfield']['pixelflat_file'] is not None and _pixel_flat_file is not None:
+                fname = self.par['flatfield']['pixelflat_file']
+            else:
+                fname = self.slitless_pixflat_fname()
+                # file will be saved in the reduction directory, but also cached in the data/pixelflats folder
+                # therefore we update self.par['flatfield']['pixelflat_file'] to the new file,
+                # so that it can be used for the rest of the reduction and for the other files in the same run
+                self.par['flatfield']['pixelflat_file'] = fname
+
+            # Save the result
+            write_pixflat_to_fits(pixflat_norm_list, detname_list, self.spectrograph.name,
+                                  calib_dir.parent if calib_dir is not None else Path('.').absolute(),
+                                  fname, to_cache=True)
+
+        return self.par['flatfield']['pixelflat_file']
 
 
 def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None, title=None, half_slen=50):
@@ -1678,7 +1975,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'serif'
 
-    msgs.info("Generating QA for spatial illumination fine correction")
+    log.info("Generating QA for spatial illumination fine correction")
     # Setup some plotting variables
     nseg = 10  # Number of segments to plot in QA - needs to be large enough so the fine correction is approximately linear in between adjacent segments
     colors = plt.cm.jet(np.linspace(0, 1, nseg))
@@ -1759,7 +2056,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
         plt.show()
     else:
         plt.savefig(outfile, dpi=400)
-        msgs.info("Saved QA:"+msgs.newline()+outfile)
+        log.info("Saved QA:\n"+outfile)
 
     plt.close()
     plt.rcdefaults()
@@ -1783,7 +2080,7 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     """
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'serif'
-    msgs.info("Generating QA for flat field structure correction")
+    log.info("Generating QA for flat field structure correction")
     # Calculate the scale to be used in the plot
     # med = np.median(det_resp)
     # mad = 1.4826*np.median(np.abs(det_resp-med))
@@ -1827,7 +2124,7 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
         plt.show()
     else:
         plt.savefig(outfile, dpi=400)
-        msgs.info("Saved QA:" + msgs.newline() + outfile)
+        log.info("Saved QA:\n" + outfile)
 
     plt.close()
     plt.rcdefaults()
@@ -1914,11 +2211,11 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     scale_model: `numpy.ndarray`_
         An image containing the appropriate scaling
     """
-    msgs.info("Performing relative spectral sensitivity correction (reference slit = {0:d})".format(slit_illum_ref_idx))
+    log.info("Performing relative spectral sensitivity correction (reference slit = {0:d})".format(slit_illum_ref_idx))
     if polydeg is not None:
-        msgs.info("Using polynomial of degree {0:d} for relative spectral sensitivity".format(polydeg))
+        log.info("Using polynomial of degree {0:d} for relative spectral sensitivity".format(polydeg))
     else:
-        msgs.info("Using 'smooth_weights' algorithm for relative spectral sensitivity")
+        log.info("Using 'smooth_weights' algorithm for relative spectral sensitivity")
     # Setup some helpful parameters
     skymask_now = skymask if (skymask is not None) else np.ones_like(rawimg, dtype=bool)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
@@ -1932,11 +2229,19 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     mnmx_wv = np.zeros((slits.nslits, 2))
     for slit_idx, slit_spat in enumerate(slits.spat_id):
         onslit_init = (slitid_img == slit_spat)
+        # Check if a wavelength calibration exists for this slice
+        if np.all(np.logical_not(onslit_init)):
+            raise PypeItError(
+                f"Slit {slit_idx+1}/{slits.nslits} ({slit_spat}) has no wavelength solution. "
+                "Cannot perform relative spectral sensitivity calculation. You can turn off the "
+                "relative spectral sensitivity correction or check that your wavelength "
+                "calibration is correct for this slit."
+            )
         mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
     wavecen = np.mean(mnmx_wv, axis=1)
     # Sort the central wavelengths by those that are closest to the reference slit
-    wvsrt = np.argsort(np.abs(wavecen - wavecen[slit_illum_ref_idx]))
+    wvsrt = np.argsort(np.abs(wavecen - wavecen[slit_illum_ref_idx]), kind='stable')
 
     # Prepare wavelength array for all spectra
     dwav = np.max((mnmx_wv[:, 1] - mnmx_wv[:, 0])/slits.nspec)
@@ -1976,8 +2281,10 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
                 if (ii == 1) and (slits.spat_id[wvsrt[ss]] == slit_illum_ref_idx):
                     # This must be the first element of the loop by construction, but throw an error just in case
                     if ss != 0:
-                        msgs.error("CODING ERROR - An error has occurred in the relative spectral illumination." +
-                                   msgs.newline() + "Please contact the developers.")
+                        raise PypeItError(
+                            "CODING ERROR - An error has occurred in the relative spectral "
+                            "illumination.\nPlease contact the developers."
+                        )
                     tmp_cntr = cntr * spec_ref
                     tmp_arr = hist * utils.inverse(tmp_cntr)
                     # Calculate a smooth version of the relative response
@@ -2010,7 +2317,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             break
         else:
             lo_prev, hi_prev = 1/minv, maxv
-        msgs.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr + 1, minv, maxv))
+        log.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr + 1, minv, maxv))
         # Store rescaling
         scaleImg *= relscl_model
         #rawimg_copy /= relscl_model
@@ -2095,4 +2402,211 @@ def merge(init_cls, merge_cls):
     return FlatImages(**dd)
 
 
+def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pixelflat_name, to_cache=True):
+    """
+    Write the pixel-to-pixel flat-field images to a FITS file.
+    The FITS file will have an extension for each detector (never a mosaic).
+    The `load_pixflat()` method read this file and transform it into a mosaic if needed.
+    This image is generally used as a user-provided pixel flat-field image and ingested
+    in the reduction using the `pixelflat_file` parameter in the PypeIt file.
+
+    Args:
+        pixflat_norm_list (:obj:`list`):
+            List of 2D `numpy.ndarray`_ arrays containing the pixel-to-pixel flat-field images.
+        detname_list (:obj:`list`):
+            List of detector names.
+        spec_name (:obj:`str`):
+            Name of the spectrograph.
+        outdir (:obj:`pathlib.Path`):
+            Path to the output directory.
+        pixelflat_name (:obj:`str`):
+            Name of the output file to be written.
+        to_cache (:obj:`bool`, optional):
+            If True, the file will be written to the cache directory pypeit/data/pixflats.
+
+    """
+
+    log.info("Writing the pixel-to-pixel flat-field images to a FITS file.")
+
+    # Check that the number of detectors matches the number of pixelflat_norm arrays
+    if len(pixflat_norm_list) != len(detname_list):
+        raise PypeItError("The number of detectors does not match the number of pixelflat_norm arrays. "
+                   "The pixelflat file cannot be written.")
+
+    # local output (reduction directory)
+    pixelflat_file = outdir / pixelflat_name
+
+    # Check if the file already exists
+    old_hdus = []
+    old_detnames = []
+    old_hdr = None
+    if pixelflat_file.exists():
+        log.warning("The pixelflat file already exists. It will be overwritten/updated.")
+        old_hdus = fits.open(pixelflat_file)
+        old_detnames = [h.name.split('-')[0] for h in old_hdus]  # this has also 'PRIMARY'
+        old_hdr = old_hdus[0].header
+
+    # load spectrograph
+    spec = load_spectrograph(spec_name)
+
+    # Create the new HDUList
+    _hdr = io.initialize_header(hdr=old_hdr)
+    prihdu = fits.PrimaryHDU(header=_hdr)
+    prihdu.header['CALIBTYP'] = (FlatImages.calib_type, 'PypeIt: Calibration frame type')
+    new_hdus = [prihdu]
+
+    extnum = 1
+    for d in spec.select_detectors():
+        detname = spec.get_det_name(d)
+        extname = f'{detname}-PIXELFLAT_NORM'
+        # update or add the detectors that we want to save
+        if detname in detname_list:
+            det_idx = detname_list.index(detname)
+            pixflat_norm = pixflat_norm_list[det_idx]
+            hdu = fits.ImageHDU(data=pixflat_norm, name=extname)
+            prihdu.header[f'EXT{extnum:04d}'] = hdu.name
+            new_hdus.append(hdu)
+        # keep the old detectors that were not updated
+        elif detname in old_detnames:
+            old_det_idx = old_detnames.index(detname)
+            hdu = old_hdus[old_det_idx]
+            prihdu.header[f'EXT{extnum:04d}'] = hdu.name
+            new_hdus.append(hdu)
+        extnum += 1
+
+    # Write the new HDUList
+    new_hdulist = fits.HDUList(new_hdus)
+    # Check if the directory exists
+    if not pixelflat_file.parent.is_dir():
+        pixelflat_file.parent.mkdir(parents=True)
+    new_hdulist.writeto(pixelflat_file, overwrite=True)
+    log.info(f'A slitless Pixel Flat file for detectors {detname_list} has been saved to\n'
+              f'{pixelflat_file}')
+
+    # common msg
+    add_log = (
+        f"add the following to your PypeIt Reduction File:\n"
+        f" [calibrations]\n"
+        f"   [[flatfield]]\n"
+        f"     pixelflat_file = {pixelflat_name}\n\n\n"
+        f"Please consider sharing your Pixel Flat file with the PypeIt Developers.\n"
+    )
+
+    if to_cache:
+        # NOTE that the file saved in the cache is gzipped, while the one saved in the outdir is not
+        # This prevents `dataPaths.pixelflat.get_file_path()` from returning the file saved in the outdir
+        cache.write_file_to_cache(pixelflat_file, pixelflat_name+'.gz', f"pixelflats")
+        log.info(
+            f"The slitless Pixel Flat file has also been saved to the PypeIt cache directory\n"
+            f"{str(dataPaths.pixelflat)}\n"
+            f"It will be automatically used in this run. "
+            f"If you want to use this file in future runs, {add_log}")
+    else:
+        log.info(
+            f"To use this file, move it to the PypeIt data directory\n"
+            f"{str(dataPaths.pixelflat)}\n and {add_log}"
+        )
+
+
+def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None, chk_version=False):
+    """
+    Load a pixel flat from a file and add it to the flatimages object.
+    The pixel flat file has one detector per extension, even in the case of a mosaic.
+    Therefore, if this is a mosaic reduction, this script will construct a pixel flat
+    mosaic. The Edges file needs to exist in the Calibration Folder, since the mosaic
+    parameters are pulled from it.
+    This is used in `~pypeit.calibrations.get_flats()`.
+
+    Args:
+        pixel_flat_file (:obj:`str`):
+            Name of the pixel flat file.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph object.
+        det (:obj:`int`, :obj:`tuple`):
+            The single detector or set of detectors in a mosaic to process.
+        flatimages (:class:`~pypeit.flatfield.FlatImages`):
+            The flat field images object.
+        calib_dir (:obj:`str`, optional):
+            The path to the calibration directory.
+        chk_version (:obj:`bool`, optional):
+            Check the version of the file.
+
+    Returns:
+        :class:`~pypeit.flatfield.FlatImages`: The flat images object with the pixel flat added.
+
+    """
+    # Check if the pixel flat file exists
+    if pixel_flat_file is None:
+        raise PypeItError('No pixel flat file defined. Cannot load the pixel flat!')
+
+    # get the path
+    _pixel_flat_file = dataPaths.pixelflat.get_file_path(pixel_flat_file, return_none=True)
+    if _pixel_flat_file is None:
+        raise PypeItError(f'Cannot load the pixel flat file, {pixel_flat_file}. It is not a direct path, '
+                   f'a cached file, or a file that can be downloaded from a PypeIt repository.')
+
+    # If this is a mosaic, we need to construct the pixel flat mosaic
+    if isinstance(det, tuple):
+        # We need to grab mosaic info from another existing calibration frame.
+        # We use EdgeTraceSet image to get `tform` and `msc_ord`. Check if EdgeTraceSet file exists.
+        edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(flatimages.calib_key,
+                                                                     calib_dir=calib_dir)).absolute()
+        if not edges_file.exists():
+            raise PypeItError('Edges file not found in the Calibrations folder. '
+                       'It is needed to grab the mosaic parameters to load and mosaic the input pixel flat!')
+
+        # Load detector info from EdgeTraceSet file
+        traceimg = edgetrace.EdgeTraceSet.from_file(edges_file, chk_version=chk_version).traceimg
+        det_info = traceimg.detector
+        # check that the mosaic parameters are defined
+        if not np.all(np.isin(['tform', 'msc_ord'], list(det_info.keys()))) or  \
+                det_info.tform is None or det_info.msc_ord is None:
+            raise PypeItError('Mosaic parameters are not defined in the Edges frame. Cannot load the pixel flat!')
+
+        # read the file
+        with io.fits_open(_pixel_flat_file) as hdu:
+            # list of available detectors in the pixel flat file
+            file_dets = [int(h.name.split('-')[0].split('DET')[1]) for h in hdu[1:]]
+            # check if all detectors required for the mosaic are in the list
+            if not np.all(np.isin(list(det), file_dets)):
+                raise PypeItError(
+                    f'Not all detectors in the mosaic are in the pixel flat file: '
+                    f'{pixel_flat_file}. Cannot load the pixel flat!'
+                )
+
+            # get the pixel flat images of only the detectors in the mosaic
+            pixflat_images = np.concatenate([hdu[f'DET{d:02d}-PIXELFLAT_NORM'].data[None,:,:] for d in det])
+            # construct the pixel flat mosaic
+            pixflat_msc, _,_,_ = build_image_mosaic(pixflat_images, det_info.tform, order=det_info.msc_ord)
+            # check that the mosaic has the correct shape
+            if pixflat_msc.shape != traceimg.image.shape:
+                raise PypeItError('The constructed pixel flat mosaic does not have the correct shape. '
+                           'Cannot load this pixel flat as a mosaic!')
+            log.info(f'Using pixelflat file: {pixel_flat_file} '
+                      f'for {spectrograph.get_det_name(det)}.')
+            nrm_image = FlatImages(pixelflat_norm=pixflat_msc)
+
+    # If this is not a mosaic, we can simply read the pixel flat for the current detector
+    else:
+        # current detector name
+        detname = spectrograph.get_det_name(det)
+        # read the file
+        with io.fits_open(_pixel_flat_file) as hdu:
+            # list of available detectors in the pixel flat file
+            file_detnames = [h.name.split('-')[0] for h in hdu] # this list has also the 'PRIMARY' extension
+            # check if the current detector is in the list
+            if detname in file_detnames:
+                # get the index of the current detector
+                idx = file_detnames.index(detname)
+                # get the pixel flat image
+                log.info(f'Using pixelflat file: {pixel_flat_file} for {detname}.')
+                nrm_image = FlatImages(pixelflat_norm=hdu[idx].data)
+            else:
+                raise PypeItError(
+                    f'{detname} not found in the pixel flat file: {pixel_flat_file}. Cannot '
+                    'load the pixel flat!'
+                )
+                nrm_image = None
+
+    return merge(flatimages, nrm_image)
 

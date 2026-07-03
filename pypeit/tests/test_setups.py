@@ -63,12 +63,12 @@ def test_run_setup():
     droot = tstutils.data_output_path('b')
     odir = Path(tstutils.data_output_path('')).absolute() / 'shane_kast_blue_A'
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all',
-                              '--extension', 'fits.gz', '--output_path', f'{odir.parent}'])
+                              '--output_path', f'{odir.parent}'])
     Setup.main(pargs)
 
     # Fails because name of spectrograph is wrong
     pargs2 = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blu', '-c', 'all',
-                               '--extension', 'fits.gz', '--output_path', f'{odir.parent}'])
+                               '--output_path', f'{odir.parent}'])
     with pytest.raises(ValueError):
         Setup.main(pargs2)
     

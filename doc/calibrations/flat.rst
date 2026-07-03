@@ -51,7 +51,7 @@ spectrograph that we have not included example
 screen-shots.
 
 Raw Flat
---------
+++++++++
 
 This is the processed and combined ``pixelflat`` image.
 Despite the name, it is not completely raw.
@@ -60,7 +60,7 @@ This image should look like any one of your input
 ``pixelflat`` images.
 
 Pixel Flat
-----------
+++++++++++
 
 This is the normalized to unity image which is used to
 correct for pixel-to-pixel variations across the detector.
@@ -77,16 +77,31 @@ true if there is limited flux at these ends (e.g. the data
 goes below the atmospheric cutoff).
 
 Illumination Flat
------------------
++++++++++++++++++
 
 This image should also have most values near unity, but
 there will be vertical coherence.  And the edges (left/right)
 may fall off well below unity.
 
 Flat Model
-----------
+++++++++++
 
 This image should largely resemble the `Raw Flat`_.
+
+pypeit_show_pixflat
+-------------------
+
+In addition to ``pypeit_chk_flats``, if a custom pixel flat is provided by the user,
+another script ``pypeit_show_pixflat`` is available to inspect it. The script is called as follows:
+
+.. code-block:: console
+
+        pypeit_show_pixflat PYPEIT_LRISb_pixflat_B600_2x2_17sep2009_specflip.fits.gz
+
+The script usage can be displayed by calling the script with the ``-h`` option:
+
+.. include:: ../help/pypeit_show_pixflat.rst
+
 
 Troubleshooting
 ===============

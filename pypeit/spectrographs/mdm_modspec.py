@@ -9,7 +9,8 @@ import numpy as np
 
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -30,6 +31,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
     pypeline = 'MultiSlit'
     supported = True
     comment = 'MDM Modspec spectrometer; Only 1200l/mm disperser (so far)'
+
+    allowed_extensions = ['.fit']
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -71,7 +74,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             binning = self.compound_meta(self.get_headarr(hdu), 'binning')
 
         if binning != '1,1':
-            msgs.error("Not ready for any binning except 1x1;  contact the developers")
+            raise PypeItError("Not ready for any binning except 1x1;  contact the developers")
 
         # Detector 1 continued
         detector_dict = dict(
@@ -217,7 +220,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'cenwave':
             return 5100.0
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -283,7 +286,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         if ftype in ['illumflat', 'trace']:     # Twilight Flats
             return good_exp & (fitstbl['idname'] == 'Flat') & (fitstbl['mirror'] == 'OUT')
         
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
 
         return np.zeros(len(fitstbl), dtype=bool)
     

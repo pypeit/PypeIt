@@ -20,7 +20,8 @@ from pypeit.orderstack import OrderStack
 from pypeit import utils
 from pypeit import sensfunc
 from pypeit import specobjs
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.core import coadd, flux_calib
 from pypeit.history import History
 
@@ -116,7 +117,7 @@ class CoAdd1D:
         """
         Load the arrays we need for performing coadds. Dummy method overloaded by children.
         """
-        msgs.error('This method is undefined in the base classes and should only be called by the subclasses')
+        raise PypeItError('This method is undefined in the base classes and should only be called by the subclasses')
 
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
@@ -135,14 +136,15 @@ class CoAdd1D:
         """
         self.coaddfile = coaddfile
         # Generate the spectrum container object
-        onespec = OneSpec(wave=self.wave_coadd, wave_grid_mid=self.wave_grid_mid, flux=self.flux_coadd,
-                          PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd,
-                          sigma=np.sqrt(utils.inverse(self.ivar_coadd)),
-                          mask=self.gpm_coadd.astype(int),
-                          ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
+        spec = OneSpec(
+            wave=self.wave_coadd, wave_grid_mid=self.wave_grid_mid, flux=self.flux_coadd,
+            PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd,
+            sigma=np.sqrt(utils.inverse(self.ivar_coadd)), mask=self.gpm_coadd.astype(int),
+            ext_mode=self.par['ex_value'], fluxed=self.par['flux_value']
+        )
 
         # TODO This is a hack, not sure how to merge the headers at present
-        onespec.head0 = self.headers[0]
+        spec.head0 = self.headers[0]
 
         # Add history entries for coadding.
         history = History()
@@ -150,9 +152,9 @@ class CoAdd1D:
 
         # Add on others
         if telluric is not None:
-            onespec.telluric = telluric
+            spec.telluric = telluric
         if obj_model is not None:
-            onespec.obj_model = obj_model
+            spec.obj_model = obj_model
 
         #save the order stacks from the echelle reduction
         if self.order_stacks is not None and (fits.getheader(self.spec1dfiles[0])['PYPELINE'] == 'Echelle'):
@@ -180,7 +182,7 @@ class CoAdd1D:
                 orderstack.head0 = self.headers[setup_num]
                 orderstack.to_file(coaddfile.split('.fits')[0] + '_orderstack' + setup_val + '.fits', history=history, overwrite=overwrite)
         # Write
-        onespec.to_file(coaddfile, history=history, overwrite=overwrite)
+        spec.to_file(coaddfile, history=history, overwrite=overwrite)
 
     def coadd(self):
         """
@@ -201,7 +203,6 @@ class MultiSlitCoAdd1D(CoAdd1D):
         """
         super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
                          setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
-
 
     def load(self):
         """
@@ -230,13 +231,13 @@ class MultiSlitCoAdd1D(CoAdd1D):
                                                     chk_version=self.chk_version)
             indx = sobjs.name_indices(self.objids[iexp])
             if not np.any(indx):
-                msgs.error(
+                raise PypeItError(
                     "No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
             if np.sum(indx) > 1:
-                msgs.error("Error in spec1d file for exposure {:d}: "
+                raise PypeItError("Error in spec1d file for exposure {:d}: "
                            "More than one object was identified with the OBJID={:s} in file={:s}".format(
                     iexp, self.objids[iexp], self.spec1dfiles[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, _, _, _, header = \
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, blaze_iexp, _, header = \
                 sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             waves.append(wave_iexp)
             fluxes.append(flux_iexp)
@@ -287,8 +288,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
         # check if there are exposures that are completely masked out, i.e., gpms = False for all spectral pixels
         masked_exps = [np.all(np.logical_not(gpm)) for gpm in _gpms]
         if np.any(masked_exps):
-            msgs.warn(f'The following exposure(s) is/are completely masked out. It/They will not be coadded.')
-            [msgs.warn(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
+            log.warning(f'The following exposure(s) is/are completely masked out. It/They will not be coadded.')
+            [log.warning(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
              for i, (fname, obj, masked_exp) in enumerate(zip(_spec1dfiles, _objids, masked_exps)) if masked_exp]
             # remove masked out exposure
             _waves = [wave for (wave, masked_exp) in zip(_waves, masked_exps) if not masked_exp]
@@ -302,7 +303,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
 
         # check if there is still at least 1 exposure left
         if len(_fluxes) < 1:
-            msgs.error('At least 1 unmasked exposures are required for coadding.')
+            raise PypeItError('At least 1 unmasked exposures are required for coadding.')
 
         # check if there is any bad exposure by comparing the rms_sn with the median rms_sn among all exposures
         if len(_fluxes) > 2:
@@ -319,8 +320,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
                            f'({_sigrej} sigma above the median S/N in the stack).'
                 if self.par['sigrej_exp'] is not None:
                         warn_msg += ' It/They WILL NOT BE COADDED.'
-                msgs.warn(warn_msg)
-                [msgs.warn(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
+                log.warning(warn_msg)
+                [log.warning(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
                  for i, (fname, obj, bad_exp) in enumerate(zip(_spec1dfiles, _objids, bad_exps)) if bad_exp]
                 if self.par['sigrej_exp'] is not None:
                     # remove bad exposure
@@ -384,7 +385,7 @@ class EchelleCoAdd1D(CoAdd1D):
                          chk_version=chk_version)
 
         if sensfuncfile is None:
-            msgs.error('sensfuncfile is a required argument for echelle coadding')
+            raise PypeItError('sensfuncfile is a required argument for echelle coadding')
 
         self.sensfuncfile = self.nexp * [sensfuncfile] if isinstance(sensfuncfile, str) else sensfuncfile
         nsens = len(self.sensfuncfile)
@@ -392,7 +393,7 @@ class EchelleCoAdd1D(CoAdd1D):
             self.sensfuncfile = self.nexp * [self.sensfuncfile[0]]
             nsens = self.nexp
         if nsens != self.nexp:
-            msgs.error('Must enter either one sensfunc file for all exposures or one sensfunc file for '
+            raise PypeItError('Must enter either one sensfunc file for all exposures or one sensfunc file for '
                        f'each exposure.  Entered {nsens} files for {self.nexp} exposures.')
 
         if setup_id is None:
@@ -404,7 +405,7 @@ class EchelleCoAdd1D(CoAdd1D):
             self.setup_id = self.nexp * [self.setup_id[0]]
             nsetup = self.nexp
         if nsetup != self.nexp:
-            msgs.error('Must enter either a single setup_id for all exposures or one setup_id for '
+            raise PypeItError('Must enter either a single setup_id for all exposures or one setup_id for '
                        f'each exposure.  Entered {nsetup} files for {self.nexp} exposures.')
 
 
@@ -461,8 +462,7 @@ class EchelleCoAdd1D(CoAdd1D):
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show, show_exp=self.show)
-        
-        
+
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):
@@ -474,7 +474,7 @@ class EchelleCoAdd1D(CoAdd1D):
                 List of spec1d files for this setup.
             objids (list):
                 List of objids. This is aligned with spec1dfiles
-            sensfuncfile (list):
+            sensfuncfiles (list):
                 List of sensfuncfiles. This is aligned with spec1dfiles and objids
 
         Returns:
@@ -487,8 +487,8 @@ class EchelleCoAdd1D(CoAdd1D):
             sobjs = specobjs.SpecObjs.from_fitsfile(spec1dfiles[iexp], chk_version=self.chk_version)
             indx = sobjs.name_indices(objids[iexp])
             if not np.any(indx):
-                msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, _, _, _, header = \
+                raise PypeItError("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, blaze_iexp, meta_spec, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             # This np.atleast2d hack deals with the situation where we are wave_iexp is actually Multislit data, i.e. we are treating
             # it like an echelle spectrograph with a single order. This usage case arises when we want to use the
@@ -496,6 +496,7 @@ class EchelleCoAdd1D(CoAdd1D):
             if wave_iexp.ndim == 1:
                 wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = np.atleast_2d(wave_iexp).T, np.atleast_2d(flux_iexp).T, np.atleast_2d(ivar_iexp).T, np.atleast_2d(gpm_iexp).T
             weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfiles[iexp], wave_iexp,
+                                                                   ech_order_vec=meta_spec['ECH_ORDERS'],
                                                                    debug=self.debug,
                                                                    chk_version=self.chk_version)
             # Allocate arrays on first iteration
@@ -511,13 +512,17 @@ class EchelleCoAdd1D(CoAdd1D):
                     header_out['RA_OBJ']  = sobjs[indx][0]['RA']
                     header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
 
-            # Store the information
-            waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp], weights_sens[...,iexp] \
-                = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
-
+            # TODO :: The error below can be removed if we refactor to use a list of numpy arrays. But, if we do that,
+            #  we need to make several changes to the ech_combspec function.
+            try:
+                # Store the information
+                waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp], weights_sens[...,iexp] \
+                    = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
+            except ValueError:
+                raise PypeItError('The shape (Nspec,Norder) of spectra is not consistent between exposures. '
+                           'These spec1ds cannot be coadded at this time.')
 
         return waves, fluxes, ivars, gpms, weights_sens, header_out
-
 
     def load(self):
         """
@@ -562,8 +567,6 @@ class EchelleCoAdd1D(CoAdd1D):
             loaded = self.load_ech_arrays(_spec1dfiles[setup_indx], _objids[setup_indx], _sensfuncfiles[setup_indx])
             for c, l in zip(combined, loaded):
                 c.append(l)
-
-
 
         return waves, fluxes, ivars, gpms, weights_sens, headers
 
