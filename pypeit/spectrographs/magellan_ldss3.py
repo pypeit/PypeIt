@@ -131,6 +131,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 6.
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['match_toler'] = 2.5
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['n_final'] = 5
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Tilt and slit parameters
@@ -191,7 +193,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
-        headarr = self.get_headarr(scifile)
+        headarr = scifile
         #print(self.get_meta_value(headarr, 'decker'))
         #print(headarr[0])
 
@@ -202,8 +204,9 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 #                ('Red' in self.get_meta_value(headarr, 'decker')) or \
 #                ('blue' in self.get_meta_value(headarr, 'decker')) or \
 #                ('Blue' in self.get_meta_value(headarr, 'decker')) :
-        if 'longslit' in self.get_meta_value(headarr, 'decker') or \
-            'center' in self.get_meta_value(headarr, 'decker'):
+        # decker is None when this is called on a reduced spec1d/spec2d
+        decker = self.get_meta_value(headarr, 'decker')
+        if decker is not None and ('longslit' in decker or 'center' in decker):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         # Turn on the use of mask design
         else:
