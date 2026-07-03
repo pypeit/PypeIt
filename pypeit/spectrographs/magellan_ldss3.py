@@ -201,8 +201,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 #                ('Red' in self.get_meta_value(headarr, 'decker')) or \
 #                ('blue' in self.get_meta_value(headarr, 'decker')) or \
 #                ('Blue' in self.get_meta_value(headarr, 'decker')) :
-        #if 'longslit' in self.get_meta_value(headarr[0], 'decker'):
-        if 'longslit' in ['longslit']:
+        if 'longslit' in self.get_meta_value(headarr, 'decker') or \
+            'center' in self.get_meta_value(headarr, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         # Turn on the use of mask design
         else:
