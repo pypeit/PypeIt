@@ -3,7 +3,8 @@
 import glob
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import framematch
@@ -314,7 +315,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             return good_exp & (fitstbl['idname'] == 'FlatQH') #& (fitstbl['amp'] == '1')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.warning('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -355,13 +356,13 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
         if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+            raise PypeItError("Found {:d} files matching {:s}".format(len(fil), raw_file))
 
         # Check for file; allow for extra .gz, etc. suffix
         fil2 = glob.glob(raw_file2 + '*')
         if len(fil2) != 1:
-            msgs.warn("Found {:d} files matching {:s}".format(len(fil2), raw_file))
-            msgs.warn("Proceeding without the second amplifier")
+            log.warning("Found {:d} files matching {:s}".format(len(fil2), raw_file))
+            log.warning("Proceeding without the second amplifier")
             have_file2 = False
         else:
             have_file2 = True
@@ -418,7 +419,7 @@ def ldss3_read_amp(fil:str):
         tuple: data, overscan, datasec, biassec, x1, x2, nxb
     """
 
-    msgs.info("Reading LDSS3 file: {:s}".format(fil))
+    log.info("Reading LDSS3 file: {:s}".format(fil))
     hdu = io.fits_open(fil)
     head1 = hdu[0].header
 
