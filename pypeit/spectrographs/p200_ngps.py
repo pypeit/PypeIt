@@ -139,11 +139,16 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         UVIS=dict(polycorrect=False, resolution=4000),
     )
 
-    #: PypeIt's ``full_template`` drops detected arc peaks whose
-    #: nearest catalog line is more than ``match_toler`` *pixels* away.
-    #: 0.3 binned pixels at NGPS' binspec=3 corresponds to a
-    #: ~0.5-0.6 A window across u/g/r/i.
-    _match_toler_pixels = 0.3
+    #: PypeIt's ``full_template`` drops detected arc peaks whose nearest
+    #: catalog line is more than ``match_toler`` *binned* pixels away.  The
+    #: physically meaningful window is in wavelength, not binned pixels, so we
+    #: hold the tolerance fixed in UNBINNED pixels and divide by the spectral
+    #: binning in :func:`config_specific_par`.  The window is then constant in
+    #: wavelength regardless of on-chip binning:
+    #:   - binspec=3 (commissioning) -> 0.30 binned px (~0.5-0.6 A across u/g/r/i)
+    #:   - binspec=1                 -> 0.90 binned px
+    #: 0.30 px at binspec=3 reproduces the original commissioning default.
+    _match_toler_unbinned_pixels = 0.9
     #: Per-channel detector gain (electrons / ADU); set by each subclass.
     _gain = 1.0
     #: Per-channel readnoise (electrons).
@@ -371,8 +376,7 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         elif ftype in ['arc', 'tilt']:
             mask = good_exp & np.isin(fitstbl['idname'], self._arc_idnames)
         elif ftype in ['pixelflat', 'trace', 'illumflat']:
-            mask = ((good_exp & (fitstbl['idname'] == 'DOMEFLAT'))
-                    | (good_exp & (fitstbl['idname'] == 'CONT')))
+            mask = good_exp & (fitstbl['idname'] == 'DOMEFLAT')
         else:
             log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
             return np.zeros(len(fitstbl), dtype=bool)
@@ -818,8 +822,11 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.6
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 1.0
-        # ``match_toler`` in binned pixels; see _match_toler_pixels docs.
-        par['calibrations']['wavelengths']['match_toler'] = cls._match_toler_pixels
+        # ``match_toler`` is binning-dependent (see _match_toler_unbinned_pixels);
+        # config_specific_par() rescales it to the data's spectral binning.  The
+        # default here is the binspec=3 commissioning value (0.9 / 3 = 0.3 px).
+        par['calibrations']['wavelengths']['match_toler'] = \
+            cls._match_toler_unbinned_pixels / 3.
 
         par['sensfunc']['algorithm'] = 'UVIS'
 
@@ -830,6 +837,37 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         # and target brightness; any hardcoded numeric range will
         # bite at some configuration sooner or later.
 
+        return par
+
+    def config_specific_par(self, inp, inp_par=None):
+        """
+        Adjust parameters based on the configuration of the provided data.
+
+        The wavelength-solution ``match_toler`` is set from the spectral binning
+        of the data.  ``match_toler`` is a tolerance in *binned* pixels, but the
+        physically meaningful window is in wavelength, so we hold it fixed in
+        unbinned pixels (:attr:`_match_toler_unbinned_pixels`) and divide by
+        ``binspec``.  This reproduces the binspec=3 commissioning value
+        (0.9 / 3 = 0.3 px) and gives 0.9 px at binspec=1.
+
+        Args:
+            inp (:obj:`str`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, Header, or a row from the metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set to modify.  If None, use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: Configuration-adjusted parameters.
+        """
+        par = super().config_specific_par(inp, inp_par=inp_par)
+        # ``inp`` may be a product (e.g. a spec1d) whose header lacks the binning
+        # cards; only override when the binning can actually be read, otherwise
+        # leave the default_pypeit_par value (the binspec=3 commissioning value).
+        binning = self.get_meta_value(inp, 'binning', required=False)
+        if binning is not None:
+            binspec, _ = parse.parse_binning(binning)
+            par['calibrations']['wavelengths']['match_toler'] = \
+                self._match_toler_unbinned_pixels / binspec
         return par
 
 
