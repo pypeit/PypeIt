@@ -302,7 +302,7 @@ class FindObjects:
         # TODO JFH: This is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
             = self.slits.select_edges(initial=initial, spat_flexure=self.spat_flexure)
-        # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
+        # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
         #bpm = self.slits.mask.astype(bool)
