@@ -858,25 +858,25 @@ class RawImage:
                                                       sigdetect=self.par['spat_flexure_sigdetect'],
                                                       debug=debug)
 
-        # Print the flexure values
-        if np.all(spat_flexure == spat_flexure[0, 0]):
-            log.info(f'Spatial flexure: {spat_flexure[0, 0]} pixels')
-        else:
-            # Print the flexure values for each slit separately
-            for slit in range(spat_flexure.shape[0]):
-                if self.par['spat_flexure_method'] == "slit":
-                    log.info("Spatial flexure (Slit {0:d}): {1:.2f} pixels".format(slits.spat_id[slit],
-                                                                                   spat_flexure[slit, 0]))
-                elif self.par['spat_flexure_method'] == "edge":
-                    log.info(
-                        f'Spatial flexure (Slit {slits.spat_id[slit]}): '
-                        f'left={spat_flexure[slit, 0]:.2f} pixels; '
-                        f'right={spat_flexure[slit, 1]:.2f} pixels'
-                    )
-
         # Each spectrograph can optionally post-process the spatial flexure values in their own way
         _spat_flexure = spat_flexure if self.par['spat_flexure_polyord'] is None else \
             self.spectrograph.spatial_flexure(spat_flexure, polyord=self.par['spat_flexure_polyord'])
+
+        # Print the flexure values
+        if np.all(_spat_flexure == _spat_flexure[0, 0]):
+            log.info(f'Spatial flexure: {_spat_flexure[0, 0]} pixels')
+        else:
+            # Print the flexure values for each slit separately
+            for slit in range(_spat_flexure.shape[0]):
+                if self.par['spat_flexure_method'] == "slit":
+                    log.info("Spatial flexure (Slit {0:d}): {1:.2f} pixels".format(slits.spat_id[slit],
+                                                                                   _spat_flexure[slit, 0]))
+                elif self.par['spat_flexure_method'] == "edge":
+                    log.info(
+                        f'Spatial flexure (Slit {slits.spat_id[slit]}): '
+                        f'left={_spat_flexure[slit, 0]:.2f} pixels; '
+                        f'right={_spat_flexure[slit, 1]:.2f} pixels'
+                    )
 
         # 2D plot
         if debug:
@@ -886,11 +886,11 @@ class RawImage:
         # Save QA to file
         if qa_outfile is not None:
             # Generate the QA plot
-            log.info("Generating QA plot for spatial flexure")
             qa.spat_flexure_qa(self.image[0], slits, _spat_flexure,
                                gpm=np.logical_not(self._bpm[0]),
                                vrange=self.par['spat_flexure_vrange'],
                                outfile=qa_outfile)
+            log.info(f"Generated QA plot for spatial flexure:\n{qa_outfile}")
 
         self.steps[step] = True
         # Return

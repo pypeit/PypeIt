@@ -6,7 +6,6 @@ Provides a simple datamodel for a single spectrum.
 """
 import inspect
 
-import astropy
 from IPython import embed
 import numpy as np
 from scipy.interpolate import interp1d

@@ -1053,10 +1053,10 @@ def spat_flexure_qa(img, slits, spat_flexure, gpm=None, vrange=None, outfile=Non
     spec = np.tile(np.arange(slits.nspec), (slits.nslits, 1)).T
     thin = 10
     # legend elements
-    legend_elements = [Line2D([0], [0], color='C3', lw=1, ls='--', label='initial left edges'),
-                       Line2D([0], [0], color='C1', lw=1, ls='--', label='initial right edges'),
-                       Line2D([0], [0], color='C3', lw=1, label='shifted left edges'),
-                       Line2D([0], [0], color='C1', lw=1, label='shifted right edges')]
+    legend_elements = [Line2D([0], [0], color='C3', lw=1, ls='dashed', dashes=(5,5), label='initial left edges'),
+                       Line2D([0], [0], color='C1', lw=1, ls='dashed', dashes=(5,5), label='initial right edges'),
+                       Line2D([0], [0], color='C3', lw=1, ls='solid', label='shifted left edges'),
+                       Line2D([0], [0], color='C1', lw=1, ls='solid', label='shifted right edges')]
     # loop over the 2 rows if we save the plot in the output directory, otherwise plot the whole detector
     for r in range(rows):
         _ystar, _yend = (upper_ystart, upper_yend) if r == 0 else (lower_ystart, lower_yend)
@@ -1081,10 +1081,10 @@ def spat_flexure_qa(img, slits, spat_flexure, gpm=None, vrange=None, outfile=Non
 
             # plot the slits
             for i in range(slits.nslits):
-                plt.plot(left_slits[::thin, i], spec[::thin, i], color='C3', lw=1, ls='--', zorder=5)
-                plt.plot(right_slits[::thin, i], spec[::thin, i], color='C1', lw=1, ls='--', zorder=5)
-                plt.plot(left_flex[::thin, i], spec[::thin, i], color='C3', lw=1, zorder=6)
-                plt.plot(right_flex[::thin, i], spec[::thin, i], color='C1', lw=1, zorder=6)
+                plt.plot(left_slits[::thin, i], spec[::thin, i], color='C3', lw=1, ls='dashed', dashes=(5,5), zorder=5)
+                plt.plot(right_slits[::thin, i], spec[::thin, i], color='C1', lw=1, ls='dashed', dashes=(5,5), zorder=5)
+                plt.plot(left_flex[::thin, i], spec[::thin, i], color='C3', lw=1, ls='solid', zorder=6)
+                plt.plot(right_flex[::thin, i], spec[::thin, i], color='C1', lw=1, ls='solid', zorder=6)
             ax.tick_params(axis='both', labelsize=6)
             if r == 0 and s == 0:
                 plt.suptitle(f'L/R spatial flexure = {spat_flexure[i,0]:.1f}/{spat_flexure[i,1]:.1f} pixels', fontsize=18)

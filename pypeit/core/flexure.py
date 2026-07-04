@@ -23,7 +23,6 @@ from pypeit import wavemodel
 from pypeit.core import arc
 from pypeit.core import extract
 from pypeit.core import fitting
-from pypeit.core import flat
 from pypeit.core import parse
 from pypeit.core import skyspec
 from pypeit.core import trace
@@ -168,23 +167,12 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
         left, right, _ = slits.select_edges(initial=initial, spat_flexure=total_flexure)
         # Loop through all slits and calculate the flexure of each slit edge.
         for slit_idx in range(slits.nslits):
-            slitmask = slits.slit_img(pad=5, slitidx=slit_idx, initial=initial, spat_flexure=total_flexure)
-            slit_gpm = np.logical_not(_bpm) & (slitmask == slits.spat_id[slit_idx])
-            slit_width = np.median(right[:, slit_idx] - left[:, slit_idx])
-            spat_coo = slits.spatial_coordinate_image(slitidx=slit_idx, full=True, initial=initial, spat_flexure=total_flexure)
-            # Construct the empirical illumination profile
-            _spat_gpm, spat_srt, spat_coo_data, spat_img_data_raw, spat_img_data \
-                = flat.construct_illum_profile(_sciimg, spat_coo, slit_width, spat_gpm=slit_gpm)
-                                               # spat_samp=self.flatpar['spat_samp'],
-                                               # illum_iter=self.flatpar['illum_iter'],
-                                               # illum_rej=self.flatpar['illum_rej'])
-            # Calculate the point where the gradient is the highest
-            _, left_shift, _, _, right_shift, _ = \
-                flat.tweak_slit_edges_gradient(left[:,slit_idx], right[:,slit_idx],
-                                               spat_coo_data, spat_img_data, debug=False)
+            # Calculate the pixel shift that corresponds to the largest flux gradient
+            left_shift = trace.refine_edge(_sciimg, bpm, left[:, slit_idx], "left")
+            right_shift = trace.refine_edge(_sciimg, bpm, right[:, slit_idx], "right")
             # These values are the fraction of the slit width, so convert to pixels
-            delta_flexure[slit_idx, 0] = left_shift * slit_width
-            delta_flexure[slit_idx, 1] = right_shift * slit_width
+            delta_flexure[slit_idx, 0] = left_shift
+            delta_flexure[slit_idx, 1] = right_shift
         # If the method is slit, average the flexure for each edge
         if method == "slit":
             # use the average flexure for each edge as the flexure for the slit
@@ -252,9 +240,6 @@ def spec_flexure_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pi
           - corr_cen= center of the correlation function
           - smooth= Degree of smoothing of input spectrum to match archive
     """
-
-    # TODO None of these routines should have dependencies on XSpectrum1d!
-
     # Check input mode
     if sky_file is None and arx_skyspec is None:
         raise PypeItError("sky_file or arx_skyspec must be provided")
@@ -285,7 +270,7 @@ def spec_flexure_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pi
 
         if smooth_fwhm_pix is None:
             # smooth_fwhm_pix is None if spec_fwhm_pix<0, i.e., the wavelength calibration is bad
-            log.warning('No flexure correction could be computed for this slit/object')
+            log.warning('No spectral flexure correction could be computed for this slit/object')
             return None
 
         if smooth_fwhm_pix > 0:
@@ -335,14 +320,14 @@ def spec_flexure_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pi
     norm = np.sum(obj_skyspec_flux)/obj_skyspec.npix
     norm2 = np.sum(arx_skyspec.flux)/arx_skyspec.npix
     if norm <= 0:
-        log.warning("Bad normalization of object in flexure algorithm")
+        log.warning("Bad normalization of object in spectral flexure algorithm")
         log.warning("Will try the median")
         norm = np.median(obj_skyspec_flux)
         if norm <= 0:
-            log.warning("Improper sky spectrum for flexure.  Is it too faint??")
+            log.warning("Improper sky spectrum for spectral flexure calculation.  Is it too faint??")
             return None
     if norm2 <= 0:
-        log.warning('Bad normalization of archive in flexure. You are probably using wavelengths '
+        log.warning('Bad normalization of archive in spectral flexure. You are probably using wavelengths '
                   'well beyond the archive.')
         return None
     obj_skyspec_flux = obj_skyspec_flux / norm
@@ -393,7 +378,7 @@ def spec_flexure_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pi
 
             if excess_shft == "crash":
                 raise PypeItError(
-                    "Flexure compensation failed for one of your\n"
+                    "Spectral flexure compensation failed for one of your\n"
                     "objects.  Either adjust the \"spec_maxshift\"\n"
                     "FlexurePar Keyword, or see the flexure documentation\n"
                     "for information on how to bypass this error using the\n"
@@ -418,13 +403,13 @@ def spec_flexure_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pi
             else:
                 raise PypeItError(f"FlexurePar Keyword excessive_shift = \"{excess_shft}\" "
                            "not recognized.")
-        log.info(f"Flexure correction of {spec_flexure:.3f} pixels")
+        log.info(f"Spectral flexure correction of {spec_flexure:.3f} pixels")
 
     else:
         fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
                                 func='polynomial', order=np.atleast_1d(2))
         fit.fit()
-        log.warning('Flexure compensation failed for one of your objects')
+        log.warning('Spectral flexure compensation failed for one of your objects')
         return None
 
     return dict(polyfit=fit, spec_flexure=spec_flexure, subpix=subpix_grid,

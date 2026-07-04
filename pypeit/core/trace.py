@@ -16,7 +16,7 @@ from collections import Counter
 from IPython import embed
 
 import numpy as np
-from scipy import ndimage, signal, optimize
+from scipy import ndimage, signal, optimize, interpolate
 from matplotlib import pyplot as plt
 
 from astropy.stats import sigma_clipped_stats, sigma_clip
@@ -1541,6 +1541,68 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             npeak = cen.shape[1]
 
     return fit, cen, err, msk, npeak
+
+
+def refine_edge(trcimg, bpm, edge, l_or_r):
+    """
+    Refine the edge position to be the point of maximum gradient. This is assumed to be
+    the edge of the slit. To determine the maximum gradient, construct a histogram near
+    each edge at the sub-pixel level, then calculate the gradient and fit a quadratic to
+    the peak of the gradient. The maximum of the quadratic is the refined edge position.
+
+    Parameters
+    ----------
+    trcimg : numpy.ndarray
+        The image to use for defining the maximum flux gradient (usually a traceframe).
+    bpm : numpy.ndarray
+        The bad pixel mask for the image. True = bad
+    edge : numpy.ndarray
+        The edge positions to refine. This should be the spatial positions of a single edge
+    l_or_r : str
+        Which edge to refine. Must be one of 'left', 'right', 'l', or 'r'. This is used to
+        determine the sign of the gradient.
+
+    Returns
+    -------
+    shift : float
+        The sub-pixel shift to apply to the edge position to refine it.
+    """
+    if l_or_r not in ["left", "right", "l", "r"]:
+        log.error("l_or_r must be one of 'left', 'right', 'l', or 'r'")
+    # Set the sign for the gradient method
+    lr_sign = 1 if l_or_r in ["l", "left"] else -1
+    # Search +/-2 pixels, and subpixellate by 10 pixels
+    delpix, subpix = 2, 10
+    trc_bins = np.linspace(-delpix, delpix, 2 * delpix * subpix + 1)
+    bin_cen = 0.5 * (trc_bins[1:] + trc_bins[:-1])
+    bin_halfwid = 0.5 * (trc_bins[1] - trc_bins[0])
+    # Linearly interpolate the input trace image and the BPM to subpixel scales
+    spec_arr = np.arange(trcimg.shape[0])
+    spat_arr = np.arange(trcimg.shape[1])
+    trcimg_interp = interpolate.RegularGridInterpolator((spec_arr, spat_arr), trcimg)
+    trcbpm_interp = interpolate.RegularGridInterpolator((spec_arr, spat_arr), bpm.astype(float))
+    # Set up the coordinates to evaluate the subpixellated trace image
+    spat_eval = np.add.outer(edge, trc_bins)
+    spec_eval = np.repeat(np.arange(trcimg.shape[0])[:,None], trc_bins.size, axis=1)
+    # Construct subpixellated trace image, and coordinates
+    new_img = trcimg_interp((spec_eval, spat_eval))
+    new_bpm = trcbpm_interp((spec_eval, spat_eval))
+    this_coo = (spat_eval - edge[:, None]) + bin_halfwid
+    gpm = (new_bpm == 0.0)
+    # Make the edge profile
+    edge_prof, _ = np.histogram(this_coo[gpm], bins=trc_bins, weights=new_img[gpm])
+    edge_norm, _ = np.histogram(this_coo[gpm], bins=trc_bins)
+    edge_prof *= utils.inverse(edge_norm)
+    grad = np.gradient(edge_prof) * lr_sign
+    amax = np.argmax(grad)
+    # Fit a quadratic function to the peak
+    try:
+        coeff = np.polyfit(bin_cen[amax - 3:amax + 3 + 1], grad[amax - 3:amax + 3 + 1], 2)
+        shift = -coeff[1] / (2 * coeff[0])
+    except TypeError:
+        log.warning("Refining the spatial flexure of the edge failed. Returning a shift of 0.")
+        shift = 0.0
+    return shift
 
 
 def parse_user_slits(add_slits, this_det, rm=False):

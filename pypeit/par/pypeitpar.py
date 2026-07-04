@@ -3384,7 +3384,7 @@ class EdgeTracePar(ParSet):
                  trace_rms_tol=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
                  niter_gaussian=None, min_edge_side_sep=None, det_buffer=None, max_nudge=None,
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
-                 bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
+                 refine_edges=None, bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
                  minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
                  minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
                  add_missed_orders=None, order_width_poly=None, order_gap_poly=None,
@@ -3685,6 +3685,11 @@ class EdgeTracePar(ParSet):
         descr['sync_to_edge'] = 'If adding a first left edge or a last right edge, ignore ' \
                                 '`center_mode` for these edges and place them at the edge of ' \
                                 'the detector (with the relevant shape).'
+
+        defaults['refine_edges'] = False  # Maybe set this default to True?
+        dtypes['refine_edges'] = bool
+        descr['refine_edges'] = 'If True, a spatial shift will be applied to the fitted edges to ' \
+                                'ensure the edge is located at the position of steepest flux gradient.' \
 
         defaults['bound_detector'] = False
         dtypes['bound_detector'] = bool
@@ -4006,7 +4011,7 @@ class EdgeTracePar(ParSet):
                    'edge_detect_clip', 'trace_median_frac', 'trace_thresh', 'trace_rms_tol',
                    'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
                    'min_edge_side_sep', 'det_buffer', 'max_nudge', 'sync_predict', 'sync_center',
-                   'gap_offset', 'sync_to_edge', 'bound_detector', 'minimum_slit_dlength',
+                   'gap_offset', 'sync_to_edge', 'refine_edges', 'bound_detector', 'minimum_slit_dlength',
                    'dlength_range', 'minimum_slit_length', 'minimum_slit_length_sci',
                    'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
                    'add_missed_orders', 'order_width_poly', 'order_gap_poly', 'order_fitrej',
