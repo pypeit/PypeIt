@@ -830,7 +830,7 @@ class CoAdd3D:
         # Return the skysub params for this frame
         return this_skysub, skyImg, skyScl
 
-    def add_grating_corr(self, flatfile, waveimg, slits, spat_flexure=None):
+    def add_grating_corr(self, flatfile, waveimg, slits, initial=True, spat_flexure=None):
         """
         Calculate the relative spectral sensitivity correction due to grating
         shifts with the input frames.
@@ -845,8 +845,15 @@ class CoAdd3D:
             of each detector pixel.
         slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Class containing information about the slits
-        spat_flexure : :obj:`float`, optional:
-            Spatial flexure in pixels
+        initial : bool, optional
+            If True, the initial slits will be used.
+        spat_flexure: `numpy.ndarray`_, optional
+            If provided, this is the shift, in spatial pixels, to apply to each slit.
+            This is used to correct for spatial flexure. The shape of the array should
+            be (nslits, 2), where the first column is the shift to apply to the left edge
+            of each slit and the second column is the shift to apply to the right edge of
+            each slit.
+
         """
         # Check if the Flat file exists
         if not os.path.exists(flatfile):
@@ -866,7 +873,7 @@ class CoAdd3D:
                 scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                                slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                                                model=None, trim=self.flatpar['slit_trim'],
-                                                               spat_flexure=spat_flexure,
+                                                               initial=initial, spat_flexure=spat_flexure,
                                                                smooth_npix=self.flatpar['slit_illum_smooth_npix'])
             else:
                 log.info("Using relative spectral illumination from FlatImages")
@@ -933,7 +940,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Loop through all of the frames, load the data, and save datacubes if no combining is required
         self.load()
 
-    def get_alignments(self, spec2DObj, slits, spat_flexure=None):
+    def get_alignments(self, spec2DObj, slits, initial=True, spat_flexure=None):
         """
         Generate and return the spline interpolation fitting functions to be used for
         the alignment frames, as part of the astrometric correction.
@@ -944,8 +951,14 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             2D PypeIt spectra object.
         slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Class containing information about the slits
-        spat_flexure: :obj:`float`, optional
-            Spatial flexure in pixels
+        initial : bool, optional
+            If True, use the initial slit edges (i.e. those that are relative to the maximum flux gradient)
+        spat_flexure: `numpy.ndarray`_, optional
+            If provided, this is the shift, in spatial pixels, to apply to each slit.
+            This is used to correct for spatial flexure. The shape of the array should
+            be (nslits, 2), where the first column is the shift to apply to the left edge
+            of each slit and the second column is the shift to apply to the right edge of
+            each slit.
 
         Returns
         -------
@@ -969,7 +982,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             log.info("Using slit edges for astrometric transform")
         # If nothing better was provided, use the slit edges
         if alignments is None:
-            left, right, _ = slits.select_edges(spat_flexure=spat_flexure)
+            left, right, _ = slits.select_edges(initial=initial, spat_flexure=spat_flexure)
             locations = [0.0, 1.0]
             traces = np.append(left[:, None, :], right[:, None, :], axis=1)
         else:
@@ -1020,7 +1033,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname,
                                                       chk_version=self.chk_version)
             detector = spec2DObj.detector
-            spat_flexure = None  # spec2DObj.sci_spat_flexure
+            spat_flexure = spec2DObj.sci_spat_flexure
+            initial = True  # Always use initial slits for SlicerIFU. Initial slits are relative to maximum flux gradient
 
             # Load the header
             hdr0 = spec2DObj.head0
@@ -1034,8 +1048,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Initialise the slit edges
             log.info("Constructing slit image")
             slits = spec2DObj.slits
-            slitid_img = slits.slit_img(pad=0, spat_flexure=spat_flexure)
-            slits_left, slits_right, _ = slits.select_edges(spat_flexure=spat_flexure)
+            slitid_img = slits.slit_img(pad=0, initial=initial, spat_flexure=spat_flexure)
+            slits_left, slits_right, _ = slits.select_edges(initial=initial, spat_flexure=spat_flexure)
 
             # The order of operations below proceeds as follows:
             #  (1) Get science image
@@ -1120,7 +1134,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Generate the alignment splines, and then retrieve images of the RA and Dec of every pixel,
             # and the number of spatial pixels in each slit
-            alignSplines = self.get_alignments(spec2DObj, slits, spat_flexure=spat_flexure)
+            alignSplines = self.get_alignments(spec2DObj, slits, initial=initial, spat_flexure=spat_flexure)
 
             # Grab the WCS of this frame, and generate the RA and Dec images
             # NOTE :: These RA and Dec images are only used to setup the WCS of the datacube. The actual RA and Dec
@@ -1129,7 +1143,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
             self.all_wcs.append(self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv))
             ra_img, dec_img, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts,
-                                                            spat_flexure=spat_flexure)
+                                                            initial=initial, spat_flexure=spat_flexure)
 
             # Extract wavelength and delta wavelength arrays from the images
             wave_ext = waveimg[onslit_gpm]
@@ -1180,7 +1194,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             if self.grating_corr[ff] is not None:
                 # Setup the grating correction
                 flatfile = self.grating_corr[ff]
-                self.add_grating_corr(flatfile, waveimg, slits, spat_flexure=spat_flexure)
+                self.add_grating_corr(flatfile, waveimg, slits, initial=initial, spat_flexure=spat_flexure)
                 # Calculate the grating correction
                 gratcorr_sort = datacube.correct_grating_shift(wave_sort, self.flat_splines[flatfile + "_wave"],
                                                                self.flat_splines[flatfile],

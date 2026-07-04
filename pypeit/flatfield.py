@@ -2233,8 +2233,9 @@ def show_flats(image_list, wcs_match=True,
 
 
 # TODO :: This could possibly be moved to core.flat
-def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, polydeg=None,
-                           model=None, gpmask=None, skymask=None, trim=3, spat_flexure=None, maxiter=5, debug=False):
+def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None,
+                           polydeg=None, model=None, gpmask=None, skymask=None, trim=3,
+                           initial=True, spat_flexure=None, maxiter=5, debug=False):
     """
     Determine the relative spectral illumination of all slits.
     Currently only used for image slicer IFUs.
@@ -2285,13 +2286,13 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         log.info("Using polynomial of degree {0:d} for relative spectral sensitivity".format(polydeg))
     else:
         log.info("Using 'smooth_weights' algorithm for relative spectral sensitivity")
-    # Setup some helpful parameters
+    # Set up some helpful parameters
     skymask_now = skymask if (skymask is not None) else np.ones_like(rawimg, dtype=bool)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     modelimg = model if (model is not None) else rawimg.copy()
-    # Setup the slits
-    slitid_img = slits.slit_img(pad=0, spat_flexure=spat_flexure)
-    slitid_img_trim = slits.slit_img(pad=-trim, spat_flexure=spat_flexure)
+    # Set up the slits
+    slitid_img = slits.slit_img(pad=0, initial=initial, spat_flexure=spat_flexure)
+    slitid_img_trim = slits.slit_img(pad=-trim, initial=initial, spat_flexure=spat_flexure)
     scaleImg = np.ones_like(rawimg)
     modelimg_copy = modelimg.copy()
     # Obtain the minimum and maximum wavelength of all slits
