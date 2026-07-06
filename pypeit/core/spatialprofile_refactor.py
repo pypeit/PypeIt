@@ -777,12 +777,9 @@ def fit_profile_refactor(
     # ------------------------------------------------------------------
     # Block 7 — Initial profile fit
     # ------------------------------------------------------------------
-    GOOD_PIX = (sn2_img > sn_gauss ** 2) & (norm_ivar > 0)
+    GOOD_PIX = (sn2_img > sn_gauss**2) & (norm_ivar > 0)
     IN_PIX = (sigma_x >= min_sigma) & (sigma_x <= max_sigma) & (norm_ivar > 0)
-    ngoodpix = GOOD_PIX.sum()
-    ninpix = IN_PIX.sum()
-
-    if ngoodpix >= 0.2 * ninpix:
+    if GOOD_PIX.sum() >= 0.2 * IN_PIX.sum():
         inside, = np.where((GOOD_PIX & IN_PIX).flatten())
     else:
         inside, = np.where(IN_PIX.flatten())
@@ -810,8 +807,8 @@ def fit_profile_refactor(
         f'Bspline FWHM: {bspline_fwhm:.4f}, compared to initial object finding FWHM: '
         f'{_thisfwhm:.4f}'
     )
-    sigma = sigma * (rwhm - lwhm) / sig2fwhm
-    limit = limit * (rwhm - lwhm) / sig2fwhm
+    sigma *= (rwhm - lwhm) / sig2fwhm
+    limit *= (rwhm - lwhm) / sig2fwhm
 
     rev_fit = mode_fit[::-1]
     lind, = np.where(
@@ -856,7 +853,7 @@ def fit_profile_refactor(
     pb = np.ones(inside.size)
     area = np.ones(nspec)
 
-    for iiter in range(1, sigma_iter + 1):
+    for iiter in range(sigma_iter):
         mode_zero, _ = bset.value(sigma_x.flat[inside])
         mode_zero = mode_zero * pb
 
@@ -879,8 +876,10 @@ def fit_profile_refactor(
             basis=profile_basis, maxiter=1, kwargs_knots={'count': nbkpts}
         )
         if not np.any(mode_shift_out[1]):
-            log.info(f'B-spline fit to trace correction failed for ninside={ninside}')
-            log.info("Returning Gaussian profile")
+            log.info(
+                'Returning a Gaussian profile because the B-spline fit to trace correction failed '
+                f'for ninside = {ninside}.'
+            )
             profile_model = _return_gaussian(
                 spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
                 obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
@@ -904,8 +903,10 @@ def fit_profile_refactor(
             basis=profile_basis, maxiter=1, kwargs_knots={'full': mode_shift_set.breakpoints}
         )
         if not np.any(mode_stretch_out[1]):
-            log.info(f'B-spline fit to width correction failed for ninside={ninside}')
-            log.info("Returning Gaussian profile")
+            log.info(
+                'Returning a Gaussian profile because the B-spline fit to the width correction '
+                f'failed for ninside = {ninside}.'
+            )
             profile_model = _return_gaussian(
                 spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
                 obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
@@ -925,7 +926,7 @@ def fit_profile_refactor(
         ratio_20 = h2 / (h0 + (h0 == 0.0))
         sigma_factor = 0.3 * ratio_20 / (1.0 + np.abs(ratio_20))
 
-        log.info(f"Iteration # {iiter}")
+        log.info(f"Iteration # {iiter+1}")
         log.info(
             f"Median abs value of trace correction = {np.median(np.abs(delta_trace_corr)):.3f}"
         )
@@ -936,7 +937,11 @@ def fit_profile_refactor(
 
         sigma_x = dspat / sigma[:, None] - trace_corr[:, None]
 
-        if iiter < sigma_iter - 1:
+        # TODO: In the previous version, iiter was iterated from 1 to sigma_iter
+        # and this was check was for if iiter < sigma_iter - 1.  When moving to
+        # a 0-indexed iterator, this makes this if statement sigma_iter - 2.  Is
+        # that the original intention, or was this an index mistake?
+        if iiter < sigma_iter - 2:
             ss = sigma_x.flat[inside].argsort(kind='stable')
             pb = np.repeat(area, nspat)[inside]
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
@@ -949,13 +954,13 @@ def fit_profile_refactor(
             )
             if not np.any(bset_out[1]):
                 log.info(
-                    f'B-spline profile fit in trace/width loop failed for ninside = {ninside}'
+                    'Returning a Gaussian profile because the B-spline profile fit in '
+                    f'trace/width loop failed for ninside = {ninside}'
                 )
-                log.info("Returning Gaussian profile")
                 profile_model = _return_gaussian(
                     spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
-                    med_sn2, obj_string, show_profile,
-                    ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
+                    med_sn2, obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit,
+                    xlim=7.0,
                 )
                 return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -968,7 +973,6 @@ def fit_profile_refactor(
         xnew = trace_corr * sigma + trace_in
     else:
         xnew = trace_in
-
     fwhmfit = sigma * sig2fwhm
 
     # ------------------------------------------------------------------
@@ -1017,13 +1021,15 @@ def fit_profile_refactor(
     log.info("-----------------------------------------------------------------")
 
     if not np.all(np.isfinite(xnew)):
-        log.warning("Nan pixel values in trace correction")
-        log.warning("Returning original trace....")
+        log.warning(
+            'NaN/Inf pixel values exist in the trace correction.  Returning the original trace.'
+        )
         xnew = trace_in
-    inf = np.logical_not(np.isfinite(profile_model))
-    if inf.any():
-        log.warning("Nan pixel values in object profile... setting them to zero")
-        profile_model[inf] = 0.0
+
+    invalid = np.logical_not(np.isfinite(profile_model))
+    if np.any(invalid):
+        log.warning('Setting NaN/Inf pixel values in object profile model to zero.')
+        profile_model[invalid] = 0.0
 
     # Normalise each spectral row to unit sum
     row_sums = profile_model.sum(axis=1)
