@@ -256,6 +256,219 @@ def _return_gaussian(
     return profile_model
 
 
+def _fit_spectrum_and_normalize(
+    wave, flux_sm, fluxivar_sm0, flux, image, ivar, totmask, waveimg,
+    wave_min, wave_max, nspec, nspat, percentile_sn2, _thisfwhm
+):
+    """
+    Fit flux B-splines, estimate S/N, and build the normalised-object image.
+
+    Encapsulates the spectral-fitting and normalisation steps of
+    :func:`fit_profile_refactor` (blocks 2–4).  Returns a success flag; on
+    failure the caller should construct a Gaussian fallback.
+
+    Parameters
+    ----------
+    wave : :class:`numpy.ndarray`
+        Extracted wavelength array, shape :math:`(N_{\rm spec},)`.
+    flux_sm : :class:`numpy.ndarray`
+        Median-smoothed extracted flux, shape :math:`(N_{\rm spec},)`.
+    fluxivar_sm0 : :class:`numpy.ndarray`
+        Median-smoothed inverse variance with zeros where original
+        ``fluxivar <= 0``, shape :math:`(N_{\rm spec},)`.
+    flux : :class:`numpy.ndarray`
+        Unsmoothed extracted flux, shape :math:`(N_{\rm spec},)`.
+    image : :class:`numpy.ndarray`
+        Sky-subtracted science image, shape
+        :math:`(N_{\rm spec}, N_{\rm spat})`.
+    ivar : :class:`numpy.ndarray`
+        Inverse variance of ``image``, same shape.
+    totmask : :class:`numpy.ndarray`
+        Combined boolean mask, same shape as ``image``.
+    waveimg : :class:`numpy.ndarray`
+        Wavelength image, same shape as ``image``.
+    wave_min : :obj:`float`
+        Minimum wavelength within the slit mask.
+    wave_max : :obj:`float`
+        Maximum wavelength within the slit mask.
+    nspec : :obj:`int`
+        Number of spectral pixels.
+    nspat : :obj:`int`
+        Number of spatial pixels.
+    percentile_sn2 : :obj:`float`
+        Upper percentile of :math:`(S/N)^2` used to estimate ``med_sn2``.
+    _thisfwhm : :obj:`float`
+        Current FWHM estimate in pixels, used only in warning messages.
+
+    Returns
+    -------
+    success : :obj:`bool`
+        ``False`` if spectral fitting failed and a Gaussian should be
+        returned; ``True`` otherwise.
+    med_sn2 : :obj:`float`
+        Median :math:`(S/N)^2` of the object; ``0.0`` on failure.
+    norm_obj : :class:`numpy.ndarray` or None
+        Normalised-object image, shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+    norm_ivar : :class:`numpy.ndarray` or None
+        Inverse variance of ``norm_obj``, same shape.
+    good : :class:`numpy.ndarray` or None
+        Boolean flat array of length :math:`N_{\rm spec} N_{\rm spat}`
+        marking pixels with positive ``norm_ivar``.
+    ngood : :obj:`int`
+        Number of ``True`` entries in ``good``; ``0`` on failure.
+    xtemp : :class:`numpy.ndarray` or None
+        Cumulative S/N-weighted spectral coordinate,
+        shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+    area : :class:`numpy.ndarray` or None
+        Unit-vector area array, shape :math:`(N_{\rm spec},)`.
+    sn2_img : :class:`numpy.ndarray` or None
+        :math:`(S/N)^2` image interpolated onto the 2D grid, same shape as
+        ``image``.
+    """
+    sn2_img = np.zeros((nspec, nspat))
+    spline_img = np.zeros((nspec, nspat))
+
+    # ------------------------------------------------------------------
+    # Block 2 — Flux B-spline fitting
+    # ------------------------------------------------------------------
+    sn_cap = 100.0
+    fluxivar_sm = utils.clip_ivar(flux_sm, fluxivar_sm0, sn_cap)
+    indsp = (
+        (wave >= wave_min) & (wave <= wave_max) & np.isfinite(flux_sm) & (flux_sm > -1000.0)
+        & (fluxivar_sm > 0.0)
+    )
+    eligible_pixels = np.sum((wave >= wave_min) & (wave <= wave_max))
+    good_pix_frac = 0.05
+    if np.sum(indsp) < good_pix_frac * eligible_pixels or eligible_pixels == 0:
+        log.warning(
+            'There are no pixels eligible to be fit for the object profile.  There is likely an '
+            f'issue in local_skysub_extract. Returning a Gaussian with fwhm = {_thisfwhm:.3f}'
+        )
+        return False, 0.0, None, None, None, 0, None, None, None
+
+    b_answer, bmask, *_ = iterative_bspline_fit(
+        wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp],
+        kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
+    )
+    b_answer, bmask2, *_ = iterative_bspline_fit(
+        wave[indsp], flux_sm[indsp], ivar=np.where(bmask, fluxivar_sm[indsp], 0.0),
+        kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
+    )
+    c_answer, cmask, *_ = iterative_bspline_fit(
+        wave[indsp], flux_sm[indsp], ivar=np.where(bmask2, fluxivar_sm[indsp], 0.0),
+        kwargs_knots={'stride': 30}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
+    )
+    spline_flux, _ = b_answer.value(wave[indsp])
+    try:
+        cont_flux, _ = c_answer.value(wave[indsp])
+    except Exception:
+        log.warning(
+            'Problem estimating S/N ratio of spectrum\nThere is likely an issue in '
+            f'local_skysub_extract. Returning a Gaussian with fwhm = {_thisfwhm:.3f}'
+        )
+        return False, 0.0, None, None, None, 0, None, None, None
+
+    # ------------------------------------------------------------------
+    # Block 3 — S/N estimation
+    # ------------------------------------------------------------------
+    sqrt_ivar = np.sqrt(np.fmax(fluxivar_sm[indsp], 0))
+    sqrt_ivar[np.logical_not(bmask2)] = 0.0
+    sn2 = np.fmax(spline_flux * sqrt_ivar, 0)**2
+    ind_nonzero = sn2 > 0
+    if ind_nonzero.sum() > 0:
+        sn2_percentile = np.percentile(sn2, percentile_sn2)
+        _, med_sn2, _ = astropy.stats.sigma_clipped_stats(
+            sn2[sn2 > sn2_percentile], sigma_lower=3.0, sigma_upper=5.0
+        )
+    else:
+        med_sn2 = 0.0
+
+    spline_flux1 = np.zeros(nspec)
+    cont_flux1 = np.zeros(nspec)
+    sn2_1 = np.zeros(nspec)
+    ispline = (wave >= wave_min) & (wave <= wave_max)
+    spline_tmp, _ = b_answer.value(wave[ispline])
+    spline_flux1[ispline] = spline_tmp
+    cont_tmp, _ = c_answer.value(wave[ispline])
+    cont_flux1[ispline] = cont_tmp
+    isrt = np.argsort(wave[indsp], kind='stable')
+    s2_interp = scipy.interpolate.interp1d(
+        wave[indsp][isrt], sn2[isrt], assume_sorted=False, bounds_error=False, fill_value=0.0
+    )
+    sn2_1[ispline] = s2_interp(wave[ispline])
+    bmask_1d = np.zeros(nspec, dtype=bool)
+    bmask_1d[indsp] = bmask2
+    spline_flux1 = pydl.djs_maskinterp(spline_flux1, np.logical_not(bmask_1d))
+    cmask2_1d = np.zeros(nspec, dtype=bool)
+    cmask2_1d[indsp] = cmask
+    cont_flux1 = pydl.djs_maskinterp(cont_flux1, np.logical_not(cmask2_1d))
+    _, _, sigma1 = astropy.stats.sigma_clipped_stats(
+        flux[indsp], sigma_lower=3.0, sigma_upper=5.0
+    )
+
+    sn2_med_filt = scipy.ndimage.median_filter(sn2, size=9, mode='reflect')
+    if np.any(totmask):
+        sn2_interp = scipy.interpolate.interp1d(
+            wave[indsp][isrt], sn2_med_filt[isrt], assume_sorted=False, bounds_error=False,
+            fill_value='extrapolate'
+        )
+        sn2_img[totmask] = sn2_interp(waveimg[totmask])
+    else:
+        log.warning('All pixels are masked')
+
+    log.info(f'sqrt(med(S/N)^2) = {np.sqrt(med_sn2):.2f}')
+
+    # ------------------------------------------------------------------
+    # Block 4 — Normalised-object image construction
+    # ------------------------------------------------------------------
+    if med_sn2 <= 2.0:
+        spline_img[totmask] = np.fmax(sigma1, 0)
+    else:
+        if med_sn2 <= 5.0:
+            spline_flux1 = cont_flux1
+        badpix = (spline_flux1 <= 0.5) | np.logical_not(bmask_1d)
+        goodval = (cont_flux1 > 0.0) & (cont_flux1 < 5e5)
+        indbad1 = badpix & goodval
+        if indbad1.sum() > 0:
+            spline_flux1[indbad1] = cont_flux1[indbad1]
+        indbad2 = badpix & np.logical_not(goodval)
+        ngood0 = np.logical_not(badpix).sum()
+        if indbad2.sum() > 0 or ngood0 > 0:
+            spline_flux1[indbad2] = np.median(spline_flux1[np.logical_not(badpix)])
+        spline_flux1 = scipy.ndimage.median_filter(spline_flux1, size=5, mode='reflect')
+
+        if np.any(totmask):
+            igd = (wave >= wave_min) & (wave <= wave_max)
+            isrt1 = np.argsort(wave[igd], kind='stable')
+            spline_img_interp = scipy.interpolate.interp1d(
+                wave[igd][isrt1], spline_flux1[igd][isrt1], assume_sorted=False,
+                bounds_error=False, fill_value='extrapolate'
+            )
+            spline_img[totmask] = spline_img_interp(waveimg[totmask])
+        else:
+            spline_img[totmask] = np.fmax(sigma1, 0)
+
+    norm_obj = np.where(spline_img != 0.0, image / spline_img, 0.0)
+    norm_ivar = ivar * spline_img ** 2
+
+    ivar_mask = (
+        (norm_obj > -0.2) & (norm_obj < 0.7) & totmask & np.isfinite(norm_obj)
+        & np.isfinite(norm_ivar)
+    )
+    norm_ivar[np.logical_not(ivar_mask)] = 0.0
+    good = norm_ivar.flatten() > 0.0
+    ngood = good.sum()
+
+    # xtemp: cumulative S/N-weighted spectral coordinate (used for trace correction)
+    row_weights = 4.0 + np.sqrt(np.fmax(sn2_1, 0.0))
+    xtemp = np.cumsum(np.repeat(row_weights, nspat)).reshape((nspec, nspat))
+    xtemp /= xtemp.max()
+
+    area = np.ones(nspec)
+
+    return True, med_sn2, norm_obj, norm_ivar, good, ngood, xtemp, area, sn2_img
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
@@ -327,6 +540,7 @@ def fit_profile_refactor(
     med_sn2 : :obj:`float`
         Median S/N^2 of the object.
     """
+    sig2fwhm = np.sqrt(8*np.log(2))
 
     # ------------------------------------------------------------------
     # Block 1 — Initialisation
@@ -344,166 +558,37 @@ def fit_profile_refactor(
     # Spatial separation from the trace (broadcasting replaces np.outer)
     dspat = spat_img - trace_in[:, None]
 
-    sn2_img = np.zeros((nspec, nspat))
-    spline_img = np.zeros((nspec, nspat))
-
     flux_sm = scipy.ndimage.median_filter(flux, size=5, mode='reflect')
     fluxivar_sm0 = scipy.ndimage.median_filter(fluxivar, size=5, mode='reflect')
     fluxivar_sm0[fluxivar <= 0.0] = 0.0
     wave_min = waveimg[thismask].min()
     wave_max = waveimg[thismask].max()
 
-    sigma = np.full(nspec, _thisfwhm / 2.3548)
-    fwhmfit = sigma * 2.3548
+    sigma = np.full(nspec, _thisfwhm / sig2fwhm)
+    fwhmfit = sigma * sig2fwhm
     trace_corr = np.zeros(nspec)
     sigma_x = dspat / sigma[:, None] - trace_corr[:, None]
 
     # ------------------------------------------------------------------
-    # Block 2 — Flux B-spline fitting
+    # Blocks 2–4 — Spectral fitting and normalisation
     # ------------------------------------------------------------------
-    sn_cap = 100.0
-    fluxivar_sm = utils.clip_ivar(flux_sm, fluxivar_sm0, sn_cap)
-    indsp = ((wave >= wave_min) & (wave <= wave_max)
-             & np.isfinite(flux_sm) & (flux_sm > -1000.0) & (fluxivar_sm > 0.0))
-    eligible_pixels = np.sum((wave >= wave_min) & (wave <= wave_max))
-    good_pix_frac = 0.05
-    if (np.sum(indsp) < good_pix_frac * eligible_pixels) or (eligible_pixels == 0):
-        log.warning(
-            'There are no pixels eligible to be fit for the object profile.\nThere is likely an '
-            f'issue in local_skysub_extract. Returning a Gaussian with fwhm={_thisfwhm:5.3f}'
+    success, med_sn2, norm_obj, norm_ivar, good, ngood, xtemp, area, sn2_img = \
+        _fit_spectrum_and_normalize(
+            wave, flux_sm, fluxivar_sm0, flux, image, ivar, totmask, waveimg,
+            wave_min, wave_max, nspec, nspat, percentile_sn2, _thisfwhm
         )
-        profile_model = _return_gaussian(spat_img, None, trace_in, sigma, _thisfwhm, 0.0,
-                                         obj_string, False)
+    if not success:
+        profile_model = _return_gaussian(
+            spat_img, None, trace_in, sigma, _thisfwhm, 0.0, obj_string, False
+        )
         return profile_model, trace_in, fwhmfit, 0.0
-
-    b_answer, bmask, *_ = iterative_bspline_fit(
-        wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp],
-        kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
-    )
-    b_answer, bmask2, *_ = iterative_bspline_fit(
-        wave[indsp], flux_sm[indsp], ivar=np.where(bmask, fluxivar_sm[indsp], 0.0),
-        kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
-    )
-    c_answer, cmask, *_ = iterative_bspline_fit(
-        wave[indsp], flux_sm[indsp], ivar=np.where(bmask2, fluxivar_sm[indsp], 0.0),
-        kwargs_knots={'stride': 30}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
-    )
-    spline_flux, _ = b_answer.value(wave[indsp])
-    try:
-        cont_flux, _ = c_answer.value(wave[indsp])
-    except Exception:
-        log.warning(
-            'Problem estimating S/N ratio of spectrum\nThere is likely an issue in '
-            f'local_skysub_extract. Returning a Gaussian with fwhm={_thisfwhm:5.3f}'
-        )
-        profile_model = _return_gaussian(spat_img, None, trace_in, sigma, _thisfwhm, 0.0,
-                                         obj_string, False)
-        return profile_model, trace_in, fwhmfit, 0.0
-
-    # ------------------------------------------------------------------
-    # Block 3 — S/N estimation
-    # ------------------------------------------------------------------
-    sqrt_ivar = np.sqrt(np.fmax(fluxivar_sm[indsp], 0))
-    sqrt_ivar[np.logical_not(bmask2)] = 0.0
-    sn2 = (np.fmax(spline_flux * sqrt_ivar, 0)) ** 2
-    ind_nonzero = sn2 > 0
-    if ind_nonzero.sum() > 0:
-        sn2_percentile = np.percentile(sn2, percentile_sn2)
-        _, med_sn2, _ = astropy.stats.sigma_clipped_stats(
-            sn2[sn2 > sn2_percentile], sigma_lower=3.0, sigma_upper=5.0
-        )
-    else:
-        med_sn2 = 0.0
-
-    spline_flux1 = np.zeros(nspec)
-    cont_flux1 = np.zeros(nspec)
-    sn2_1 = np.zeros(nspec)
-    ispline = (wave >= wave_min) & (wave <= wave_max)
-    spline_tmp, _ = b_answer.value(wave[ispline])
-    spline_flux1[ispline] = spline_tmp
-    cont_tmp, _ = c_answer.value(wave[ispline])
-    cont_flux1[ispline] = cont_tmp
-    isrt = np.argsort(wave[indsp], kind='stable')
-    s2_interp = scipy.interpolate.interp1d(
-        wave[indsp][isrt], sn2[isrt],
-        assume_sorted=False, bounds_error=False, fill_value=0.0
-    )
-    sn2_1[ispline] = s2_interp(wave[ispline])
-    bmask_1d = np.zeros(nspec, dtype=bool)
-    bmask_1d[indsp] = bmask2
-    spline_flux1 = pydl.djs_maskinterp(spline_flux1, np.logical_not(bmask_1d))
-    cmask2_1d = np.zeros(nspec, dtype=bool)
-    cmask2_1d[indsp] = cmask
-    cont_flux1 = pydl.djs_maskinterp(cont_flux1, np.logical_not(cmask2_1d))
-    _, _, sigma1 = astropy.stats.sigma_clipped_stats(
-        flux[indsp], sigma_lower=3.0, sigma_upper=5.0
-    )
-
-    sn2_med_filt = scipy.ndimage.median_filter(sn2, size=9, mode='reflect')
-    if np.any(totmask):
-        sn2_interp = scipy.interpolate.interp1d(
-            wave[indsp][isrt], sn2_med_filt[isrt],
-            assume_sorted=False, bounds_error=False, fill_value='extrapolate'
-        )
-        sn2_img[totmask] = sn2_interp(waveimg[totmask])
-    else:
-        log.warning('All pixels are masked')
-
-    log.info('sqrt(med(S/N)^2) = ' + f'{np.sqrt(med_sn2):5.2f}')
-
-    # ------------------------------------------------------------------
-    # Block 4 — Normalised-object image construction
-    # ------------------------------------------------------------------
-    if med_sn2 <= 2.0:
-        spline_img[totmask] = np.fmax(sigma1, 0)
-    else:
-        if med_sn2 <= 5.0:
-            spline_flux1 = cont_flux1
-        badpix = (spline_flux1 <= 0.5) | np.logical_not(bmask_1d)
-        goodval = (cont_flux1 > 0.0) & (cont_flux1 < 5e5)
-        indbad1 = badpix & goodval
-        if indbad1.sum() > 0:
-            spline_flux1[indbad1] = cont_flux1[indbad1]
-        indbad2 = badpix & np.logical_not(goodval)
-        ngood0 = np.logical_not(badpix).sum()
-        if indbad2.sum() > 0 or ngood0 > 0:
-            spline_flux1[indbad2] = np.median(spline_flux1[np.logical_not(badpix)])
-        spline_flux1 = scipy.ndimage.median_filter(spline_flux1, size=5, mode='reflect')
-
-        if np.any(totmask):
-            igd = (wave >= wave_min) & (wave <= wave_max)
-            isrt1 = np.argsort(wave[igd], kind='stable')
-            spline_img_interp = scipy.interpolate.interp1d(
-                wave[igd][isrt1], spline_flux1[igd][isrt1],
-                assume_sorted=False, bounds_error=False, fill_value='extrapolate'
-            )
-            spline_img[totmask] = spline_img_interp(waveimg[totmask])
-        else:
-            spline_img[totmask] = np.fmax(sigma1, 0)
-
-    norm_obj = np.where(spline_img != 0.0, image / spline_img, 0.0)
-    norm_ivar = ivar * spline_img ** 2
-
-    ivar_mask = ((norm_obj > -0.2) & (norm_obj < 0.7)
-                 & totmask & np.isfinite(norm_obj) & np.isfinite(norm_ivar))
-    norm_ivar[np.logical_not(ivar_mask)] = 0.0
-    good = norm_ivar.flatten() > 0.0
-    ngood = good.sum()
-
-    # xtemp: cumulative S/N-weighted spectral coordinate (used for trace correction)
-    row_weights = 4.0 + np.sqrt(np.fmax(sn2_1, 0.0))
-    xtemp = np.cumsum(np.repeat(row_weights, nspat)).reshape((nspec, nspat))
-    xtemp /= xtemp.max()
-
-    log.info(f"Gaussian vs b-spline of width {_thisfwhm:6.2f} pixels")
-    # area starts as a full vector so broadcasting is consistent throughout
-    area = np.ones(nspec)
+    log.info(f"Gaussian vs b-spline of width {_thisfwhm:.2f} pixels")
 
     # ------------------------------------------------------------------
     # Block 5 — Early returns
     # ------------------------------------------------------------------
     if (ngood < 10) or (med_sn2 < sn_gauss ** 2) or gauss:
-        log.info(f"Too few good pixels or S/N < {sn_gauss:5.1f} or gauss flag set")
+        log.info(f"Too few good pixels or S/N < {sn_gauss:.1f} or gauss flag set")
         log.info("Returning Gaussian profile")
         profile_model = _return_gaussian(
             spat_img, norm_obj, trace_in, sigma, _thisfwhm, med_sn2, obj_string, show_profile,
@@ -524,7 +609,7 @@ def fit_profile_refactor(
         max_sigma = np.fmin(sigma_x.flat[good].max(), abs_sigma)
         nb = (np.arcsinh(abs_sigma) / sinh_space).astype(int) + 1
     else:
-        log.info(f"Using prof_nsigma={prof_nsigma:6.2f} for extended/bright objects")
+        log.info(f"Using prof_nsigma={prof_nsigma:.2f} for extended/bright objects")
         # Bug 1 fix: was np.round(prof_nsigma > 10) which evaluates a boolean.
         nb = max(1, round(prof_nsigma / 10))
         max_sigma = prof_nsigma
@@ -559,7 +644,7 @@ def fit_profile_refactor(
     mode_fit, _ = bset.value(sigma_x.flat[si])
     median_fit = np.median(norm_obj[norm_ivar > 0.0])
     if np.abs(median_fit) > 0.01:
-        log.info(f"Median flux level in profile is not zero: median = {median_fit:7.4f}")
+        log.info(f"Median flux level in profile is not zero: median = {median_fit:.4f}")
     else:
         median_fit = 0.0
 
@@ -567,10 +652,13 @@ def fit_profile_refactor(
     trace_corr = np.full(nspec, peak_x)
     min_level = peak * np.exp(-0.5 * limit ** 2)
 
-    bspline_fwhm = (rwhm - lwhm) * _thisfwhm / 2.3548
-    log.info(f"Bspline FWHM: {bspline_fwhm:7.4f}, compared to initial object finding FWHM: {_thisfwhm:7.4f}")
-    sigma = sigma * (rwhm - lwhm) / 2.3548
-    limit = limit * (rwhm - lwhm) / 2.3548
+    bspline_fwhm = (rwhm - lwhm) * _thisfwhm / sig2fwhm
+    log.info(
+        f'Bspline FWHM: {bspline_fwhm:.4f}, compared to initial object finding FWHM: '
+        f'{_thisfwhm:.4f}'
+    )
+    sigma = sigma * (rwhm - lwhm) / sig2fwhm
+    limit = limit * (rwhm - lwhm) / sig2fwhm
 
     rev_fit = mode_fit[::-1]
     lind, = np.where(
@@ -586,8 +674,8 @@ def fit_profile_refactor(
     r_limit = sigma_x.flat[si[rind.min()]] if rind.size > 0 else max_sigma
 
     log.info(
-        f"Trace limits: limit={limit:7.4f}, min_level={min_level:7.4f}, "
-        f"l_limit={l_limit:7.4f}, r_limit={r_limit:7.4f}"
+        f"Trace limits: limit={limit:.4f}, min_level={min_level:.4f}, l_limit={l_limit:.4f}, "
+        f"r_limit={r_limit:.4f}"
     )
 
     mask[si] = (norm_ivar.flat[si] > 0) & (np.abs(norm_obj.flat[si] - mode_fit) < 0.1)
@@ -600,9 +688,8 @@ def fit_profile_refactor(
         log.info("Too few pixels inside l_limit and r_limit")
         log.info("Returning Gaussian profile")
         profile_model = _return_gaussian(
-            spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
-            med_sn2, obj_string, show_profile,
-            ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
+            spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
+            obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
         )
         return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -622,8 +709,7 @@ def fit_profile_refactor(
         mode_plu05, _ = bset.value(sigma_x.flat[inside] + 0.5)
         mode_shift = (mode_min05 - mode_plu05) * pb
         mode_shift[
-            (sigma_x.flat[inside] <= (l_limit + 0.5))
-            | (sigma_x.flat[inside] >= (r_limit - 0.5))
+            (sigma_x.flat[inside] <= (l_limit + 0.5)) | (sigma_x.flat[inside] >= (r_limit - 0.5))
         ] = 0.0
 
         mode_by13, _ = bset.value(sigma_x.flat[inside] / 1.3)
@@ -641,9 +727,8 @@ def fit_profile_refactor(
             log.info(f'B-spline fit to trace correction failed for ninside={ninside}')
             log.info("Returning Gaussian profile")
             profile_model = _return_gaussian(
-                spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
-                med_sn2, obj_string, show_profile,
-                ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
+                spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
+                obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
             )
             return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -661,21 +746,21 @@ def fit_profile_refactor(
         profile_basis = np.column_stack((mode_zero, mode_stretch))
         mode_stretch_out = iterative_bspline_fit(
             xtemp.flat[inside], norm_obj.flat[inside], ivar=norm_ivar.flat[inside],
-            basis=profile_basis, maxiter=1,
-            kwargs_knots={'full': mode_shift_set.breakpoints}
+            basis=profile_basis, maxiter=1, kwargs_knots={'full': mode_shift_set.breakpoints}
         )
         if not np.any(mode_stretch_out[1]):
             log.info(f'B-spline fit to width correction failed for ninside={ninside}')
             log.info("Returning Gaussian profile")
             profile_model = _return_gaussian(
-                spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
-                med_sn2, obj_string, show_profile,
-                ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
+                spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
+                obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
             )
             return profile_model, trace_in, fwhmfit, med_sn2
 
         mode_stretch_set = mode_stretch_out[0]
-        temp_set = BSpline(knots=Knots(full=mode_stretch_set.breakpoints), nord=mode_stretch_set.nord)
+        temp_set = BSpline(
+            knots=Knots(full=mode_stretch_set.breakpoints), nord=mode_stretch_set.nord
+        )
         temp_set.bkpt_gpm = mode_stretch_set.bkpt_gpm
         temp_set.coeff = mode_stretch_set.coeff[:, 0]
         h0, _ = temp_set.value(xx)
@@ -685,9 +770,11 @@ def fit_profile_refactor(
         ratio_20 = h2 / (h0 + (h0 == 0.0))
         sigma_factor = 0.3 * ratio_20 / (1.0 + np.abs(ratio_20))
 
-        log.info(f"Iteration# {iiter:3d}")
-        log.info(f"Median abs value of trace correction = {np.median(np.abs(delta_trace_corr)):8.3f}")
-        log.info(f"Median abs value of width correction = {np.median(np.abs(sigma_factor)):8.3f}")
+        log.info(f"Iteration # {iiter}")
+        log.info(
+            f"Median abs value of trace correction = {np.median(np.abs(delta_trace_corr)):.3f}"
+        )
+        log.info(f"Median abs value of width correction = {np.median(np.abs(sigma_factor)):.3f}")
 
         sigma = sigma * (1.0 + sigma_factor)
         area = area * h0 / (1.0 + sigma_factor)
@@ -707,7 +794,7 @@ def fit_profile_refactor(
             )
             if not np.any(bset_out[1]):
                 log.info(
-                    f'B-spline profile fit in trace/width loop failed for ninside={ninside}'
+                    f'B-spline profile fit in trace/width loop failed for ninside = {ninside}'
                 )
                 log.info("Returning Gaussian profile")
                 profile_model = _return_gaussian(
@@ -727,18 +814,15 @@ def fit_profile_refactor(
     else:
         xnew = trace_in
 
-    fwhmfit = sigma * 2.3548
+    fwhmfit = sigma * sig2fwhm
 
     # ------------------------------------------------------------------
     # Block 10 — Final profile fit
     # ------------------------------------------------------------------
     ss = sigma_x.flatten().argsort(kind='stable')
     inside, = np.where(
-        (sigma_x.flat[ss] >= min_sigma)
-        & (sigma_x.flat[ss] <= max_sigma)
-        & mask[ss]
-        & np.isfinite(norm_obj.flat[ss])
-        & np.isfinite(norm_ivar.flat[ss])
+        (sigma_x.flat[ss] >= min_sigma) & (sigma_x.flat[ss] <= max_sigma) & mask[ss]
+        & np.isfinite(norm_obj.flat[ss]) & np.isfinite(norm_ivar.flat[ss])
     )
     pb = area[:, None] * np.ones((nspec, nspat))
     bset_out = iterative_bspline_fit(
@@ -846,10 +930,8 @@ def fit_profile_refactor(
 
     log.info("--------------------  Results of Profile Fit --------------------")
     log.info(
-        f" min(fwhmfit)={fwhmfit.min():5.2f}"
-        f" max(fwhmfit)={fwhmfit.max():5.2f}"
-        f" median(chi^2)={chi_med:5.2f}"
-        f" nbkpts={bkpt.size:2d}"
+        f" min(fwhmfit)={fwhmfit.min():.2f}; max(fwhmfit)={fwhmfit.max():.2f};"
+        f" median(chi^2)={chi_med:.2f}; nbkpts={bkpt.size}"
     )
     log.info("-----------------------------------------------------------------")
 
@@ -869,16 +951,13 @@ def fit_profile_refactor(
         profile_model = np.where(row_sums[:, None] > 0.0, profile_model / norm_safe, 0.0)
 
     info_string = (
-        f"FWHM range:{fwhmfit.min():5.2f} - {fwhmfit.max():5.2f}"
-        f", S/N={np.sqrt(med_sn2):8.3f}"
-        f", median(chi^2)={chi_med:8.3f}"
+        f"FWHM range:{fwhmfit.min():.2f} - {fwhmfit.max():.2f}, S/N={np.sqrt(med_sn2):.3f}"
+        f", median(chi^2)={chi_med:.3f}"
     )
-    title_string = obj_string + ' ' + info_string
     if show_profile:
         qa_fit_profile(
-            sigma_x, norm_obj / (pb + (pb == 0.0)), full_bsp,
-            l_limit=l_limit, r_limit=r_limit, ind=ss[inside],
-            xlim=prof_nsigma, title=title_string,
+            sigma_x, norm_obj / (pb + (pb == 0.0)), full_bsp, l_limit=l_limit, r_limit=r_limit,
+            ind=ss[inside], xlim=prof_nsigma, title=f'{obj_string} {info_string}'
         )
 
     return profile_model, xnew, fwhmfit, med_sn2
