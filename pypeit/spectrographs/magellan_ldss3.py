@@ -13,8 +13,6 @@ from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 
-from IPython import embed
-
 class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
     """
     Child to handle Magellan/LDSS3 specific code
@@ -211,13 +209,6 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         # Turn on the use of mask design
         else:
             pass
-            #par['calibrations']['slitedges']['use_maskdesign'] = False
-            # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
-            #par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
-            # Sometime the added missing slits at the edge of the detector are to small to be useful.
-            #par['calibrations']['slitedges']['minimum_slit_length'] = 2.
-            # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
-            #par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == 'VPH-Red':
@@ -231,8 +222,6 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_ldss3_VPH-ALL_7100.fits'
         else:
-            #par['calibrations']['wavelengths']['method'] = 'full_template'
-            #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
             par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
 
         # FWHM
@@ -241,45 +230,6 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 
         # Return
         return par
-
-    def bpm(self, filename, det, shape=None, msbias=None):
-        """
-        Generate a default bad-pixel mask.
-
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
-        Args:
-            filename (:obj:`str` or None):
-                An example file to use to get the image shape.
-            det (:obj:`int`):
-                1-indexed detector number to use when getting the image
-                shape from the example file.
-            shape (tuple, optional):
-                Processed image shape
-                Required if filename is None
-                Ignored if filename is not None
-            msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
-
-        Returns:
-            `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
-        """
-        # Get the empty bpm: force is always True
-        try:
-            bpm_img = self.empty_bpm(filename, det, shape=shape)
-        except:
-            embed(header='259 of magellan_ldss3')
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
-
-        return bpm_img
 
     def configuration_keys(self):
         return ['dispname']
@@ -311,9 +261,6 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] != 'HeNeAr') & (fitstbl['idname'] != 'FlatQH') & (fitstbl['exptime'] < 100.0)
         if ftype in ['arc', 'tilt']:
             arc1 = good_exp & (fitstbl['idname'] == 'HeNeAr')
-            #arc2 = (fitstbl['dispname'] == 'VPH-Red') & (fitstbl['idname'] == 'Object') &  (fitstbl['exptime'] >600)
-            #arc = (fitstbl['dispname'] == 'VPH-Red') & (fitstbl['idname'] == 'Object') &  (fitstbl['exptime'] >600)
-            #return (arc1 | arc2) #& (fitstbl['amp'] == '1')
             return arc1
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             return good_exp & (fitstbl['idname'] == 'FlatQH') #& (fitstbl['amp'] == '1')
