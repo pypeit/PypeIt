@@ -257,8 +257,7 @@ def _return_gaussian(
 
 
 def _fit_spectrum_and_normalize(
-    wave, flux_sm, fluxivar_sm0, flux, image, ivar, totmask, waveimg,
-    wave_min, wave_max, nspec, nspat, percentile_sn2, _thisfwhm
+    wave, flux, fluxivar, waveimg, image, ivar, totmask, percentile_sn2, fwhm
 ):
     """
     Fit flux B-splines, estimate S/N, and build the normalised-object image.
@@ -271,33 +270,21 @@ def _fit_spectrum_and_normalize(
     ----------
     wave : :class:`numpy.ndarray`
         Extracted wavelength array, shape :math:`(N_{\rm spec},)`.
-    flux_sm : :class:`numpy.ndarray`
-        Median-smoothed extracted flux, shape :math:`(N_{\rm spec},)`.
-    fluxivar_sm0 : :class:`numpy.ndarray`
-        Median-smoothed inverse variance with zeros where original
-        ``fluxivar <= 0``, shape :math:`(N_{\rm spec},)`.
     flux : :class:`numpy.ndarray`
-        Unsmoothed extracted flux, shape :math:`(N_{\rm spec},)`.
+        Extracted flux array, shape :math:`(N_{\rm spec},)`.
+    fluxivar : :class:`numpy.ndarray`
+        Inverse variance of ``flux``, shape :math:`(N_{\rm spec},)`.
+    waveimg : :class:`numpy.ndarray`
+        Wavelength image, shape :math:`(N_{\rm spec}, N_{\rm spat})`.
     image : :class:`numpy.ndarray`
-        Sky-subtracted science image, shape
-        :math:`(N_{\rm spec}, N_{\rm spat})`.
+        Sky-subtracted science image, same shape as ``waveimg``.
     ivar : :class:`numpy.ndarray`
         Inverse variance of ``image``, same shape.
     totmask : :class:`numpy.ndarray`
         Combined boolean mask, same shape as ``image``.
-    waveimg : :class:`numpy.ndarray`
-        Wavelength image, same shape as ``image``.
-    wave_min : :obj:`float`
-        Minimum wavelength within the slit mask.
-    wave_max : :obj:`float`
-        Maximum wavelength within the slit mask.
-    nspec : :obj:`int`
-        Number of spectral pixels.
-    nspat : :obj:`int`
-        Number of spatial pixels.
     percentile_sn2 : :obj:`float`
         Upper percentile of :math:`(S/N)^2` used to estimate ``med_sn2``.
-    _thisfwhm : :obj:`float`
+    fwhm : :obj:`float`
         Current FWHM estimate in pixels, used only in warning messages.
 
     Returns
@@ -314,19 +301,22 @@ def _fit_spectrum_and_normalize(
     good : :class:`numpy.ndarray` or None
         Boolean flat array of length :math:`N_{\rm spec} N_{\rm spat}`
         marking pixels with positive ``norm_ivar``.
-    ngood : :obj:`int`
-        Number of ``True`` entries in ``good``; ``0`` on failure.
     xtemp : :class:`numpy.ndarray` or None
         Cumulative S/N-weighted spectral coordinate,
         shape :math:`(N_{\rm spec}, N_{\rm spat})`.
-    area : :class:`numpy.ndarray` or None
-        Unit-vector area array, shape :math:`(N_{\rm spec},)`.
     sn2_img : :class:`numpy.ndarray` or None
         :math:`(S/N)^2` image interpolated onto the 2D grid, same shape as
         ``image``.
     """
+    nspec, nspat = image.shape
     sn2_img = np.zeros((nspec, nspat))
     spline_img = np.zeros((nspec, nspat))
+
+    flux_sm = scipy.ndimage.median_filter(flux, size=5, mode='reflect')
+    fluxivar_sm0 = scipy.ndimage.median_filter(fluxivar, size=5, mode='reflect')
+    fluxivar_sm0[fluxivar <= 0.0] = 0.0
+    wave_min = waveimg[totmask].min()
+    wave_max = waveimg[totmask].max()
 
     # ------------------------------------------------------------------
     # Block 2 — Flux B-spline fitting
@@ -342,9 +332,9 @@ def _fit_spectrum_and_normalize(
     if np.sum(indsp) < good_pix_frac * eligible_pixels or eligible_pixels == 0:
         log.warning(
             'There are no pixels eligible to be fit for the object profile.  There is likely an '
-            f'issue in local_skysub_extract. Returning a Gaussian with fwhm = {_thisfwhm:.3f}'
+            f'issue in local_skysub_extract. Returning a Gaussian with fwhm = {fwhm:.3f}'
         )
-        return False, 0.0, None, None, None, 0, None, None, None
+        return False, 0.0, None, None, None, None, None
 
     b_answer, bmask, *_ = iterative_bspline_fit(
         wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp],
@@ -364,9 +354,9 @@ def _fit_spectrum_and_normalize(
     except Exception:
         log.warning(
             'Problem estimating S/N ratio of spectrum\nThere is likely an issue in '
-            f'local_skysub_extract. Returning a Gaussian with fwhm = {_thisfwhm:.3f}'
+            f'local_skysub_extract. Returning a Gaussian with fwhm = {fwhm:.3f}'
         )
-        return False, 0.0, None, None, None, 0, None, None, None
+        return False, 0.0, None, None, None, None, None
 
     # ------------------------------------------------------------------
     # Block 3 — S/N estimation
@@ -457,16 +447,210 @@ def _fit_spectrum_and_normalize(
     )
     norm_ivar[np.logical_not(ivar_mask)] = 0.0
     good = norm_ivar.flatten() > 0.0
-    ngood = good.sum()
 
     # xtemp: cumulative S/N-weighted spectral coordinate (used for trace correction)
     row_weights = 4.0 + np.sqrt(np.fmax(sn2_1, 0.0))
     xtemp = np.cumsum(np.repeat(row_weights, nspat)).reshape((nspec, nspat))
     xtemp /= xtemp.max()
 
-    area = np.ones(nspec)
+    return True, med_sn2, norm_obj, norm_ivar, good, xtemp, sn2_img
 
-    return True, med_sn2, norm_obj, norm_ivar, good, ngood, xtemp, area, sn2_img
+
+def _compute_bspline_knots(dspat, sigma, med_sn2, prof_nsigma, good):
+    """
+    Initialise spatial-coordinate arrays and B-spline knot grid.
+
+    Encapsulates Block 6 of :func:`fit_profile_refactor`: computes the
+    spatial-separation image ``dspat``, the normalised coordinate ``sigma_x``,
+    the profile half-extent ``limit``, the profile sigma bounds, and the
+    sinh-spaced interior B-spline knot positions.
+
+    Parameters
+    ----------
+    dspat : :class:`numpy.ndarray`
+        Spatial separation from the trace, shape
+        :math:`(N_{\rm spec}, N_{\rm spat})`.
+    sigma : :class:`numpy.ndarray`
+        Current Gaussian sigma estimate per spectral pixel,
+        shape :math:`(N_{\rm spec},)`.
+    med_sn2 : :obj:`float`
+        Median :math:`(S/N)^2` of the object.
+    prof_nsigma : :obj:`float` or None
+        If set, fit the profile out to this many sigma (extended objects);
+        overrides the automatic sigma bounds computed from ``med_sn2``.
+    good : :class:`numpy.ndarray`
+        Boolean flat index array of pixels with positive ``norm_ivar``,
+        used to clip the sigma range to the data extent.
+
+    Returns
+    -------
+    sigma_x : :class:`numpy.ndarray`
+        Normalised spatial coordinate (units of ``sigma``), same shape.
+    limit : :obj:`float`
+        Profile half-extent in units of ``sigma``.
+    min_sigma : :obj:`float`
+        Lower bound on ``sigma_x`` for profile fitting.
+    max_sigma : :obj:`float`
+        Upper bound on ``sigma_x`` for profile fitting.
+    bkpt : :class:`numpy.ndarray`
+        Interior B-spline knot positions in ``sigma_x`` units.
+    """
+    sigma_x = dspat / sigma[:, None]
+    limit = scipy.special.erfcinv(0.1 / np.sqrt(med_sn2)) * np.sqrt(2.0)
+    if prof_nsigma is None:
+        sinh_space = 0.25 * np.log10(np.fmax(1000.0 / np.sqrt(med_sn2), 10.0))
+        abs_sigma = np.fmin((np.abs(sigma_x.flat[good])).max(), 2.0 * limit)
+        min_sigma = np.fmax(sigma_x.flat[good].min(), -abs_sigma)
+        max_sigma = np.fmin(sigma_x.flat[good].max(), abs_sigma)
+        nb = (np.arcsinh(abs_sigma) / sinh_space).astype(int) + 1
+    else:
+        log.info(f"Using prof_nsigma={prof_nsigma:.2f} for extended/bright objects")
+        # Bug 1 fix: was np.round(prof_nsigma > 10) which evaluates a boolean.
+        nb = max(1, round(prof_nsigma / 10))
+        max_sigma = prof_nsigma
+        min_sigma = -prof_nsigma
+        sinh_space = np.arcsinh(prof_nsigma) / nb
+    rb = np.sinh((np.arange(nb) + 0.5) * sinh_space)
+    bkpt = np.concatenate([(-rb)[::-1], rb])
+    keep = (bkpt >= min_sigma) & (bkpt <= max_sigma)
+    bkpt = bkpt[keep]
+    return sigma_x, limit, min_sigma, max_sigma, bkpt
+
+
+def _apodize_profile(
+    bset, sigma_x, min_sigma, max_sigma, ss, median_fit, min_level, limit, prof_nsigma, no_deriv
+):
+    r"""
+    Locate apodization limits and apply exponential tails to the profile.
+
+    Encapsulates Blocks 11-12 of :func:`fit_profile_refactor`.  Evaluates the
+    final B-spline profile over all good pixels, re-locates the profile peak
+    and apodization limits from the logarithmic derivative of the profile,
+    then replaces the profile outside those limits with matched exponential
+    tails.
+
+    Parameters
+    ----------
+    bset : BSpline
+        Final 1-D B-spline profile.
+    sigma_x : :class:`numpy.ndarray`
+        Normalised spatial coordinate image, shape
+        :math:`(N_{\rm spec}, N_{\rm spat})`.
+    min_sigma : :obj:`float`
+        Lower bound on ``sigma_x`` for the good-pixel mask.
+    max_sigma : :obj:`float`
+        Upper bound on ``sigma_x`` for the good-pixel mask.
+    ss : :class:`numpy.ndarray`
+        Flat indices that sort ``sigma_x`` in ascending order.
+    median_fit : :obj:`float`
+        Baseline level of the profile (subtracted before peak-finding).
+    min_level : :obj:`float`
+        Minimum profile level used to walk the initial limit positions.
+    limit : :obj:`float`
+        Profile half-extent in units of ``sigma_x``.
+    prof_nsigma : :obj:`float` or None
+        If set, the fit covers this many sigma (extended objects).  Triggers
+        the JXP kludge that zeros the returned limits so QA does not draw
+        them, and forces ``no_deriv=True``.
+    no_deriv : :obj:`bool`
+        If ``True``, skip exponential apodization entirely.
+
+    Returns
+    -------
+    full_bsp : :class:`numpy.ndarray`
+        Flat profile array of length :math:`N_{\rm spec} N_{\rm spat}` with
+        exponential tails applied outside ``[l_limit, r_limit]``.
+    l_limit : :obj:`float`
+        Final left apodization limit in ``sigma_x`` units (0.0 when
+        ``prof_nsigma`` is set).
+    r_limit : :obj:`float`
+        Final right apodization limit in ``sigma_x`` units (0.0 when
+        ``prof_nsigma`` is set).
+    """
+    # ------------------------------------------------------------------
+    # Block 11 — Apodization limit search (vectorised)
+    # ------------------------------------------------------------------
+    igood = (sigma_x.flatten() > min_sigma) & (sigma_x.flatten() < max_sigma)
+    full_bsp = np.zeros(sigma_x.size)
+    sigma_x_igood = sigma_x.flat[igood]
+    yfit_out, _ = bset.value(sigma_x_igood)
+    full_bsp[igood] = yfit_out
+    isrt2 = sigma_x_igood.argsort(kind='stable')
+    peak, peak_x, lwhm, rwhm = _findfwhm(
+        yfit_out[isrt2] - median_fit, sigma_x_igood[isrt2]
+    )
+
+    left_bool = (
+        ((full_bsp[ss] < min_level + median_fit) & (sigma_x.flat[ss] < peak_x))
+        | (sigma_x.flat[ss] < peak_x - limit)
+    )[::-1]
+    ind_left, = np.where(left_bool)
+    lp = np.fmax(ind_left.min(), 0) if ind_left.size > 0 else 0
+
+    righ_bool = (
+        (full_bsp[ss] < min_level + median_fit) & (sigma_x.flat[ss] > peak_x)
+    ) | (sigma_x.flat[ss] > peak_x + limit)
+    ind_righ, = np.where(righ_bool)
+    rp = np.fmax(ind_righ.min(), 0) if ind_righ.size > 0 else 0
+
+    l_limit = (sigma_x.flat[ss][::-1])[lp] - 0.1
+    r_limit = sigma_x.flat[ss[rp]] + 0.1
+
+    # Logarithmic-derivative vectors (pre-computed for both the apodization
+    # search and the subsequent limit walk)
+    l_lim_vec = np.arange(l_limit + 0.1, -1.0, 0.1)
+    l_lim_vec = np.asarray([-1.1]) if l_lim_vec.size == 0 else l_lim_vec
+    l_fit1, _ = bset.value(l_lim_vec)
+    l_fit2, _ = bset.value(l_lim_vec * 0.9)
+    l_deriv_vec = (np.log(l_fit2) - np.log(l_fit1)) / (0.1 * l_lim_vec)
+    l_deriv_max = np.fmax(l_deriv_vec.min(), -1.0)
+
+    r_lim_vec = np.arange(r_limit - 0.1, 1.0, -0.1)
+    r_lim_vec = np.asarray([1.1]) if r_lim_vec.size == 0 else r_lim_vec
+    r_fit1, _ = bset.value(r_lim_vec)
+    r_fit2, _ = bset.value(r_lim_vec * 0.9)
+    r_deriv_vec = (np.log(r_fit2) - np.log(r_fit1)) / (0.1 * r_lim_vec)
+    r_deriv_max = np.fmin(r_deriv_vec.max(), 1.0)
+
+    # Vectorised limit walk (replaces two while-True loops)
+    l_cross = np.where(l_deriv_vec <= l_deriv_max)[0]
+    if l_cross.size > 0:
+        idx = l_cross[0]
+        l_limit = l_lim_vec[idx]
+        l_deriv = l_deriv_vec[idx]
+        l_fit_val = l_fit1[idx]
+    else:
+        l_limit = -1.0
+        l_deriv = l_deriv_vec[-1]
+        l_fit_val = l_fit1[-1]
+
+    r_cross = np.where(r_deriv_vec >= r_deriv_max)[0]
+    if r_cross.size > 0:
+        idx = r_cross[0]
+        r_limit = r_lim_vec[idx]
+        r_deriv = r_deriv_vec[idx]
+        r_fit_val = r_fit1[idx]
+    else:
+        r_limit = 1.0
+        r_deriv = r_deriv_vec[-1]
+        r_fit_val = r_fit1[-1]
+
+    # ------------------------------------------------------------------
+    # Block 12 — Exponential apodization
+    # ------------------------------------------------------------------
+    # JXP kludge: zero limits for extended-object fits so QA won't draw them
+    if prof_nsigma is not None:
+        l_limit = 0.0
+        r_limit = 0.0
+        no_deriv = True
+
+    if l_deriv < 0 and r_deriv > 0 and not no_deriv:
+        left = sigma_x.flatten() < l_limit
+        full_bsp[left] = np.exp(-(sigma_x.flat[left] - l_limit) * l_deriv) * l_fit_val
+        right = sigma_x.flatten() > r_limit
+        full_bsp[right] = np.exp(-(sigma_x.flat[right] - r_limit) * r_deriv) * r_fit_val
+
+    return full_bsp, l_limit, r_limit
 
 
 # ---------------------------------------------------------------------------
@@ -510,29 +694,29 @@ def fit_profile_refactor(
     inmask : :class:`numpy.ndarray`, optional
         Additional boolean mask; defaults to ``(ivar > 0) & thismask``.
     thisfwhm : :obj:`float`, optional
-        Initial FWHM estimate in pixels.  Default is 4.0.
+        Initial FWHM estimate in pixels.
     max_trace_corr : :obj:`float`, optional
-        Maximum trace correction in pixels.  Default is 2.0.
+        Maximum trace correction in pixels.
     sn_gauss : :obj:`float`, optional
-        S/N threshold below which a Gaussian profile is returned.  Default 4.0.
+        S/N threshold below which a Gaussian profile is returned.
     percentile_sn2 : :obj:`float`, optional
-        Upper percentile of S/N^2 used to estimate ``med_sn2``.  Default 70.0.
+        Upper percentile of S/N^2 used to estimate ``med_sn2``.
     prof_nsigma : :obj:`float`, optional
         If set, fit the profile out to this many sigma (extended objects).
     no_deriv : :obj:`bool`, optional
-        Disable exponential apodization.  Default ``False``.
+        Disable exponential apodization.  If ``prof_nsigma`` is provided, this
+        is always set to True regardless of the input value.
     gauss : :obj:`bool`, optional
-        Force the Gaussian fallback regardless of S/N.  Default ``False``.
+        Force the Gaussian fallback regardless of S/N.
     obj_string : :obj:`str`, optional
         Object label for log messages and QA plots.
     show_profile : :obj:`bool`, optional
-        Display the QA plot.  Default ``False``.
+        Display the QA plot.
 
     Returns
     -------
     profile_model : :class:`numpy.ndarray`
-        2-D normalised spatial profile, shape
-        :math:`(N_{\rm spec}, N_{\rm spat})`.
+        2-D normalised spatial profile, shape :math:`(N_{\rm spec}, N_{\rm spat})`.
     xnew : :class:`numpy.ndarray`
         Corrected trace, shape :math:`(N_{\rm spec},)`.
     fwhmfit : :class:`numpy.ndarray`
@@ -540,7 +724,6 @@ def fit_profile_refactor(
     med_sn2 : :obj:`float`
         Median S/N^2 of the object.
     """
-    sig2fwhm = np.sqrt(8*np.log(2))
 
     # ------------------------------------------------------------------
     # Block 1 — Initialisation
@@ -549,77 +732,47 @@ def fit_profile_refactor(
     if inmask is not None:
         totmask &= inmask
 
-    no_deriv = prof_nsigma is not None
-
-    _thisfwhm = np.fmax(thisfwhm, 1.0)
-
     nspec, nspat = image.shape
-
-    # Spatial separation from the trace (broadcasting replaces np.outer)
-    dspat = spat_img - trace_in[:, None]
-
-    flux_sm = scipy.ndimage.median_filter(flux, size=5, mode='reflect')
-    fluxivar_sm0 = scipy.ndimage.median_filter(fluxivar, size=5, mode='reflect')
-    fluxivar_sm0[fluxivar <= 0.0] = 0.0
-    wave_min = waveimg[thismask].min()
-    wave_max = waveimg[thismask].max()
-
-    sigma = np.full(nspec, _thisfwhm / sig2fwhm)
-    fwhmfit = sigma * sig2fwhm
-    trace_corr = np.zeros(nspec)
-    sigma_x = dspat / sigma[:, None] - trace_corr[:, None]
+    _thisfwhm = np.fmax(thisfwhm, 1.0)
+    fwhmfit = np.full(nspec, _thisfwhm)
+    sig2fwhm = np.sqrt(8*np.log(2))
+    sigma = fwhmfit / sig2fwhm
 
     # ------------------------------------------------------------------
-    # Blocks 2–4 — Spectral fitting and normalisation
+    # Blocks 2–5 — Spectral fitting and normalisation
     # ------------------------------------------------------------------
-    success, med_sn2, norm_obj, norm_ivar, good, ngood, xtemp, area, sn2_img = \
-        _fit_spectrum_and_normalize(
-            wave, flux_sm, fluxivar_sm0, flux, image, ivar, totmask, waveimg,
-            wave_min, wave_max, nspec, nspat, percentile_sn2, _thisfwhm
+    success, med_sn2, norm_obj, norm_ivar, good, xtemp, sn2_img = _fit_spectrum_and_normalize(
+        wave, flux, fluxivar, waveimg, image, ivar, totmask, percentile_sn2, _thisfwhm
+    )
+    if success:
+        gauss_kwargs = {'ind': good, 'xtrunc': 7.0}
+        ngood = good.sum()
+        log.info(f"Gaussian vs b-spline of width {_thisfwhm:.2f} pixels")
+    else:
+        norm_obj = None
+        med_sn2 = 0.0
+        show_profile = False
+        gauss_kwargs = {}
+    if not success or gauss or ngood < 10 or med_sn2 < sn_gauss**2:
+        log.info(
+            'Returning Gaussian profile for one of the following reasons: Determination of the '
+            'S/N failed, a Gaussian profile was specifically requested, there are too few good '
+            f'pixels, or the measured S/N is below the provided limit ({sn_gauss:.1f}).'
         )
-    if not success:
-        profile_model = _return_gaussian(
-            spat_img, None, trace_in, sigma, _thisfwhm, 0.0, obj_string, False
-        )
-        return profile_model, trace_in, fwhmfit, 0.0
-    log.info(f"Gaussian vs b-spline of width {_thisfwhm:.2f} pixels")
-
-    # ------------------------------------------------------------------
-    # Block 5 — Early returns
-    # ------------------------------------------------------------------
-    if (ngood < 10) or (med_sn2 < sn_gauss ** 2) or gauss:
-        log.info(f"Too few good pixels or S/N < {sn_gauss:.1f} or gauss flag set")
-        log.info("Returning Gaussian profile")
         profile_model = _return_gaussian(
             spat_img, norm_obj, trace_in, sigma, _thisfwhm, med_sn2, obj_string, show_profile,
-            ind=good, xtrunc=7.0,
+            **gauss_kwargs
         )
         return profile_model, trace_in, fwhmfit, med_sn2
-
-    mask = np.zeros(nspec * nspat, dtype=bool)
 
     # ------------------------------------------------------------------
     # Block 6 — Knot setup
     # ------------------------------------------------------------------
-    limit = scipy.special.erfcinv(0.1 / np.sqrt(med_sn2)) * np.sqrt(2.0)
-    if prof_nsigma is None:
-        sinh_space = 0.25 * np.log10(np.fmax(1000.0 / np.sqrt(med_sn2), 10.0))
-        abs_sigma = np.fmin((np.abs(sigma_x.flat[good])).max(), 2.0 * limit)
-        min_sigma = np.fmax(sigma_x.flat[good].min(), -abs_sigma)
-        max_sigma = np.fmin(sigma_x.flat[good].max(), abs_sigma)
-        nb = (np.arcsinh(abs_sigma) / sinh_space).astype(int) + 1
-    else:
-        log.info(f"Using prof_nsigma={prof_nsigma:.2f} for extended/bright objects")
-        # Bug 1 fix: was np.round(prof_nsigma > 10) which evaluates a boolean.
-        nb = max(1, round(prof_nsigma / 10))
-        max_sigma = prof_nsigma
-        min_sigma = -prof_nsigma
-        sinh_space = np.arcsinh(prof_nsigma) / nb
-
-    rb = np.sinh((np.arange(nb) + 0.5) * sinh_space)
-    bkpt = np.concatenate([(-rb)[::-1], rb])
-    keep = (bkpt >= min_sigma) & (bkpt <= max_sigma)
-    bkpt = bkpt[keep]
+    dspat = spat_img - trace_in[:, None]
+    sigma_x, limit, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
+        dspat, sigma, med_sn2, prof_nsigma, good
+    )
+    trace_corr = np.zeros(nspec)
 
     # ------------------------------------------------------------------
     # Block 7 — Initial profile fit
@@ -678,6 +831,7 @@ def fit_profile_refactor(
         f"r_limit={r_limit:.4f}"
     )
 
+    mask = np.zeros(nspec * nspat, dtype=bool)
     mask[si] = (norm_ivar.flat[si] > 0) & (np.abs(norm_obj.flat[si] - mode_fit) < 0.1)
     inside, = np.where(
         (sigma_x.flat[si] > l_limit) & (sigma_x.flat[si] < r_limit) & mask[si]
@@ -700,6 +854,7 @@ def fit_profile_refactor(
     isort = xtemp.flat[si[inside]].argsort(kind='stable')
     inside = si[inside[isort]]
     pb = np.ones(inside.size)
+    area = np.ones(nspec)
 
     for iiter in range(1, sigma_iter + 1):
         mode_zero, _ = bset.value(sigma_x.flat[inside])
@@ -834,86 +989,12 @@ def fit_profile_refactor(
     outmask = bset_out[1]
 
     # ------------------------------------------------------------------
-    # Block 11 — Apodization limit search (vectorised)
+    # Blocks 11–12 — Apodization limit search and exponential tails
     # ------------------------------------------------------------------
-    igood = (sigma_x.flatten() > min_sigma) & (sigma_x.flatten() < max_sigma)
-    full_bsp = np.zeros(nspec * nspat)
-    sigma_x_igood = sigma_x.flat[igood]
-    yfit_out, _ = bset.value(sigma_x_igood)
-    full_bsp[igood] = yfit_out
-    isrt2 = sigma_x_igood.argsort(kind='stable')
-    peak, peak_x, lwhm, rwhm = _findfwhm(
-        yfit_out[isrt2] - median_fit, sigma_x_igood[isrt2]
+    full_bsp, l_limit, r_limit = _apodize_profile(
+        bset, sigma_x, min_sigma, max_sigma, ss, median_fit, min_level,
+        limit, prof_nsigma, no_deriv
     )
-
-    left_bool = (
-        ((full_bsp[ss] < (min_level + median_fit)) & (sigma_x.flat[ss] < peak_x))
-        | (sigma_x.flat[ss] < (peak_x - limit))
-    )[::-1]
-    ind_left, = np.where(left_bool)
-    lp = np.fmax(ind_left.min(), 0) if ind_left.size > 0 else 0
-
-    righ_bool = (
-        (full_bsp[ss] < (min_level + median_fit)) & (sigma_x.flat[ss] > peak_x)
-    ) | (sigma_x.flat[ss] > (peak_x + limit))
-    ind_righ, = np.where(righ_bool)
-    rp = np.fmax(ind_righ.min(), 0) if ind_righ.size > 0 else 0
-
-    l_limit = (sigma_x.flat[ss][::-1])[lp] - 0.1
-    r_limit = sigma_x.flat[ss[rp]] + 0.1
-
-    # Logarithmic-derivative vectors (pre-computed for both the apodization
-    # search and the subsequent limit walk)
-    l_lim_vec = np.arange(l_limit + 0.1, -1.0, 0.1)
-    l_lim_vec = np.asarray([-1.1]) if l_lim_vec.size == 0 else l_lim_vec
-    l_fit1, _ = bset.value(l_lim_vec)
-    l_fit2, _ = bset.value(l_lim_vec * 0.9)
-    l_deriv_vec = (np.log(l_fit2) - np.log(l_fit1)) / (0.1 * l_lim_vec)
-    l_deriv_max = np.fmax(l_deriv_vec.min(), -1.0)
-
-    r_lim_vec = np.arange(r_limit - 0.1, 1.0, -0.1)
-    r_lim_vec = np.asarray([1.1]) if r_lim_vec.size == 0 else r_lim_vec
-    r_fit1, _ = bset.value(r_lim_vec)
-    r_fit2, _ = bset.value(r_lim_vec * 0.9)
-    r_deriv_vec = (np.log(r_fit2) - np.log(r_fit1)) / (0.1 * r_lim_vec)
-    r_deriv_max = np.fmin(r_deriv_vec.max(), 1.0)
-
-    # Vectorised limit walk (replaces two while-True loops)
-    l_cross = np.where(l_deriv_vec <= l_deriv_max)[0]
-    if l_cross.size > 0:
-        idx = l_cross[0]
-        l_limit = l_lim_vec[idx]
-        l_deriv = l_deriv_vec[idx]
-        l_fit_val = l_fit1[idx]
-    else:
-        l_limit = -1.0
-        l_deriv = l_deriv_vec[-1]
-        l_fit_val = l_fit1[-1]
-
-    r_cross = np.where(r_deriv_vec >= r_deriv_max)[0]
-    if r_cross.size > 0:
-        idx = r_cross[0]
-        r_limit = r_lim_vec[idx]
-        r_deriv = r_deriv_vec[idx]
-        r_fit_val = r_fit1[idx]
-    else:
-        r_limit = 1.0
-        r_deriv = r_deriv_vec[-1]
-        r_fit_val = r_fit1[-1]
-
-    # JXP kludge: zero limits for extended-object fits so QA won't draw them
-    if prof_nsigma is not None:
-        l_limit = 0.0
-        r_limit = 0.0
-
-    # ------------------------------------------------------------------
-    # Block 12 — Exponential apodization
-    # ------------------------------------------------------------------
-    if (l_deriv < 0) and (r_deriv > 0) and not no_deriv:
-        left = sigma_x.flatten() < l_limit
-        full_bsp[left] = np.exp(-(sigma_x.flat[left] - l_limit) * l_deriv) * l_fit_val
-        right = sigma_x.flatten() > r_limit
-        full_bsp[right] = np.exp(-(sigma_x.flat[right] - r_limit) * r_deriv) * r_fit_val
 
     # ------------------------------------------------------------------
     # Block 13 — Normalisation, logging, QA, return
