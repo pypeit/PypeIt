@@ -404,7 +404,7 @@ def fit_profile_refactor(
     # Block 3 — S/N estimation
     # ------------------------------------------------------------------
     sqrt_ivar = np.sqrt(np.fmax(fluxivar_sm[indsp], 0))
-    sqrt_ivar[~bmask2] = 0.0
+    sqrt_ivar[np.logical_not(bmask2)] = 0.0
     sn2 = (np.fmax(spline_flux * sqrt_ivar, 0)) ** 2
     ind_nonzero = sn2 > 0
     if ind_nonzero.sum() > 0:
@@ -431,10 +431,10 @@ def fit_profile_refactor(
     sn2_1[ispline] = s2_interp(wave[ispline])
     bmask_1d = np.zeros(nspec, dtype=bool)
     bmask_1d[indsp] = bmask2
-    spline_flux1 = pydl.djs_maskinterp(spline_flux1, ~bmask_1d)
+    spline_flux1 = pydl.djs_maskinterp(spline_flux1, np.logical_not(bmask_1d))
     cmask2_1d = np.zeros(nspec, dtype=bool)
     cmask2_1d[indsp] = cmask
-    cont_flux1 = pydl.djs_maskinterp(cont_flux1, ~cmask2_1d)
+    cont_flux1 = pydl.djs_maskinterp(cont_flux1, np.logical_not(cmask2_1d))
     _, _, sigma1 = astropy.stats.sigma_clipped_stats(
         flux[indsp], sigma_lower=3.0, sigma_upper=5.0
     )
@@ -459,15 +459,15 @@ def fit_profile_refactor(
     else:
         if med_sn2 <= 5.0:
             spline_flux1 = cont_flux1
-        badpix = (spline_flux1 <= 0.5) | ~bmask_1d
+        badpix = (spline_flux1 <= 0.5) | np.logical_not(bmask_1d)
         goodval = (cont_flux1 > 0.0) & (cont_flux1 < 5e5)
         indbad1 = badpix & goodval
         if indbad1.sum() > 0:
             spline_flux1[indbad1] = cont_flux1[indbad1]
-        indbad2 = badpix & ~goodval
-        ngood0 = (~badpix).sum()
+        indbad2 = badpix & np.logical_not(goodval)
+        ngood0 = np.logical_not(badpix).sum()
         if indbad2.sum() > 0 or ngood0 > 0:
-            spline_flux1[indbad2] = np.median(spline_flux1[~badpix])
+            spline_flux1[indbad2] = np.median(spline_flux1[np.logical_not(badpix)])
         spline_flux1 = scipy.ndimage.median_filter(spline_flux1, size=5, mode='reflect')
 
         if np.any(totmask):
@@ -486,7 +486,7 @@ def fit_profile_refactor(
 
     ivar_mask = ((norm_obj > -0.2) & (norm_obj < 0.7)
                  & totmask & np.isfinite(norm_obj) & np.isfinite(norm_ivar))
-    norm_ivar[~ivar_mask] = 0.0
+    norm_ivar[np.logical_not(ivar_mask)] = 0.0
     good = norm_ivar.flatten() > 0.0
     ngood = good.sum()
 
@@ -857,7 +857,7 @@ def fit_profile_refactor(
         log.warning("Nan pixel values in trace correction")
         log.warning("Returning original trace....")
         xnew = trace_in
-    inf = ~np.isfinite(profile_model)
+    inf = np.logical_not(np.isfinite(profile_model))
     if inf.any():
         log.warning("Nan pixel values in object profile... setting them to zero")
         profile_model[inf] = 0.0
