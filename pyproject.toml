@@ -66,6 +66,7 @@ test = [
     "pytest-astropy",
     "tox",
     "pytest-cov",
+    "pytest-qt",
     "coverage",
 ]
 docs = [
@@ -79,7 +80,6 @@ docs = [
 ]
 devsuite = [
     "psutil",
-    "pytest-qt",
 ]
 dev = [
     "scikit-image>=0.23",
