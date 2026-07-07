@@ -22,6 +22,14 @@ import pytest
 
 from pypeit.core import spatialprofile
 from pypeit.core import spatialprofile_refactor
+from pypeit.core.fitting import iterative_bspline_fit
+from pypeit.core.spatialprofile_refactor import (
+    _gaussian_profile,
+    _findfwhm,
+    _fit_spectrum_and_normalize,
+    _compute_bspline_knots,
+    _apodize_profile,
+)
 
 
 # ============================================================================
@@ -299,6 +307,113 @@ def test_profile_positivity_and_finite_all_paths(variant, sn_ratio, nan_flux):
         f"finite check failed for {variant}"
 
 
+# ============================================================================
+# fit_profile_refactor tests
+# ============================================================================
+
+@pytest.mark.parametrize("fwhm", [3.0, 4.0, 6.0, 8.0])
+def test_fwhm_recovery_refactor(fwhm):
+    """fit_profile_refactor B-spline path recovers input FWHM within 10%.
+
+    Extends :func:`test_fwhm_recovery` (which is limited to ``fwhm >= 6``) to
+    narrower profiles.  The sub-pixel interpolation in :func:`_findfwhm` (Bug 2
+    fix) is what makes 3 and 4 px profiles recoverable here while the legacy
+    function cannot meet the 10 % tolerance.
+    """
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, _ = make_profile_inputs(sn_ratio=20.0, fwhm=fwhm)
+    profile_model, xnew, fwhmfit, med_sn2 = \
+        spatialprofile_refactor.fit_profile_refactor(
+            image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+            spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
+            fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0
+        )
+    assert med_sn2 > 4.0 ** 2, "Expected B-spline path (high S/N)"
+    np.testing.assert_allclose(np.median(fwhmfit), fwhm, rtol=0.10)
+
+
+def test_gaussian_normalization_refactor():
+    """Gaussian fallback from fit_profile_refactor: row sums are close to 1.0.
+
+    The legacy :func:`~pypeit.core.spatialprofile.fit_profile` uses a
+    point-sampled Gaussian density whose row sums equal approximately ``sigma``
+    pixels.  The refactored function uses the pixel-integrated erf form, so row
+    sums are approximately 1.0, matching the B-spline normalization path.
+    """
+    nspec, nspat = 200, 100
+    fwhm = 4.0
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, _ = make_profile_inputs(
+            nspec=nspec, nspat=nspat, sn_ratio=1.0, fwhm=fwhm)
+    profile_model, xnew, fwhmfit, med_sn2 = \
+        spatialprofile_refactor.fit_profile_refactor(
+            image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+            spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
+            fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0
+        )
+    assert med_sn2 < 4.0 ** 2, "Expected Gaussian fallback (low S/N)"
+    row_sums = profile_model.sum(axis=1)
+    nonzero_rows = row_sums > 0
+    np.testing.assert_allclose(row_sums[nonzero_rows], 1.0, atol=0.01)
+
+
+def test_prof_nsigma_refactor():
+    """fit_profile_refactor with prof_nsigma=10.0 runs without error (Bug 1 fix).
+
+    The legacy formula ``nb = np.round(prof_nsigma > 10)`` evaluates a boolean,
+    giving ``nb=0`` for ``prof_nsigma <= 10``, which causes division by zero in
+    ``sinh_space = arcsinh(prof_nsigma) / nb``.  The Bug 1 fix
+    ``nb = max(1, round(prof_nsigma / 10))`` gives ``nb=1`` and avoids the crash.
+
+    FWHM recovery is *not* asserted here: the prof_nsigma path is designed for
+    genuinely extended objects.  With a narrow synthetic Gaussian (sigma ≈ 3 px)
+    and only 2 B-spline knots over a ±10 sigma fitting range, the FWHM estimate
+    is unreliable (the B-spline fits mostly near-zero background pixels).  The
+    important property is that the function completes and returns valid arrays.
+    """
+    fwhm = 8.0
+    prof_nsigma = 10.0
+    nspat = 150
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, _ = make_profile_inputs(
+            nspat=nspat, sn_ratio=20.0, fwhm=fwhm, flux_level=5000.0)
+    profile_model, xnew, fwhmfit, med_sn2 = \
+        spatialprofile_refactor.fit_profile_refactor(
+            image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+            spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
+            fluxivar=fluxivar, inmask=inmask,
+            thisfwhm=fwhm, prof_nsigma=prof_nsigma, sn_gauss=4.0
+        )
+    assert profile_model.shape == (200, nspat)
+    assert np.all(np.isfinite(profile_model))
+    assert np.all(np.isfinite(fwhmfit))
+    assert med_sn2 > 4.0 ** 2, "Expected B-spline path (high S/N)"
+
+
+def test_trace_correction_small_offset():
+    """fit_profile_refactor shifts xnew toward the true centre for a 0.5 px offset.
+
+    For a 0.5 px offset the trace correction moves in the right direction but
+    overshoots: with the default ``sigma_iter=3`` and the open TODO about the
+    block-8 mid-loop re-fit condition (see the plan document), the correction
+    amplitude is not tightly controlled for sub-pixel offsets.  This test
+    therefore only asserts direction, not convergence accuracy.
+    """
+    trace_offset = 0.5
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, true_trace = make_profile_inputs(
+            sn_ratio=20.0, fwhm=4.0, trace_offset=trace_offset)
+    profile_model, xnew, fwhmfit, med_sn2 = \
+        spatialprofile_refactor.fit_profile_refactor(
+            image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+            spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
+            fluxivar=fluxivar, inmask=inmask, thisfwhm=4.0, sn_gauss=4.0
+        )
+    assert med_sn2 > 4.0 ** 2, "Expected B-spline path"
+    assert np.mean(xnew) > np.mean(trace_in), \
+        "xnew should shift toward the positive offset"
+
+
 def test_refactor_regression():
     """Refactored function output matches the pre-refactor reference arrays."""
     files_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -325,3 +440,350 @@ def test_refactor_regression():
     np.testing.assert_allclose(profile_model, ref_profile, atol=1e-10)
     np.testing.assert_allclose(xnew, ref_xnew, atol=1e-10)
     np.testing.assert_allclose(fwhmfit, ref_fwhmfit, atol=1e-10)
+
+
+# ============================================================================
+# Helper-function unit tests
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# _gaussian_profile
+# ----------------------------------------------------------------------------
+
+@pytest.mark.parametrize("fwhm", [2.0, 3.0, 4.0, 6.0, 10.0])
+def test_gaussian_profile_row_sums(fwhm):
+    r"""_gaussian_profile row sums are within 1 % of 1.0.
+
+    Tests that the pixel-integrated erf form (``\int_{x-0.5}^{x+0.5} G dx``)
+    correctly integrates to 1 per row, unlike the legacy point-sampled form
+    whose row sums equal the per-pixel Gaussian density × nspat.
+    """
+    nspec, nspat = 10, 100
+    sig2fwhm = np.sqrt(8.0 * np.log(2.0))
+    sigma = fwhm / sig2fwhm
+    x = np.ones((nspec, 1)) * np.arange(nspat, dtype=float)
+    center = np.full(nspec, float(nspat // 2))
+    profile = _gaussian_profile(x, center, sigma)
+    np.testing.assert_allclose(profile.sum(axis=1), 1.0, atol=0.01)
+
+
+def test_gaussian_profile_symmetry():
+    r"""_gaussian_profile is symmetric when the centre falls exactly on a pixel.
+
+    Uses an odd-width slit (nspat=101) so that ``center = 50.0`` coincides with
+    a grid point, making the profile analytically symmetric about that pixel.
+    """
+    nspat = 101
+    sig2fwhm = np.sqrt(8.0 * np.log(2.0))
+    sigma = 3.0 / sig2fwhm
+    x = np.arange(nspat, dtype=float)
+    center = float(nspat // 2)   # 50.0 — a pixel centre
+    profile = _gaussian_profile(x, center, sigma)
+    np.testing.assert_allclose(profile, profile[::-1], atol=1e-14)
+
+
+# ----------------------------------------------------------------------------
+# _findfwhm
+# ----------------------------------------------------------------------------
+
+def test_findfwhm_coarse_accuracy():
+    r"""_findfwhm recovers FWHM to < 2 % on a coarse (step = 0.5 sig_x) grid.
+
+    The discrete estimate — distance to the first sample outside the half-max
+    on each side — overestimates by > 15 %, demonstrating the Bug 2 improvement
+    from linear interpolation at the half-max crossing.
+    """
+    sig2fwhm = np.sqrt(8.0 * np.log(2.0))
+    sig_x = np.arange(-5.0, 5.1, 0.5)
+    model = np.exp(-0.5 * sig_x ** 2)
+
+    _, _, lwhm, rwhm = _findfwhm(model, sig_x)
+    interp_fwhm = rwhm - lwhm
+    np.testing.assert_allclose(interp_fwhm, sig2fwhm, rtol=0.02)
+
+    # Discrete estimate: gap between first samples outside the half-max
+    peak = model.max()
+    above = model >= 0.5 * peak
+    first_outside_right = sig_x[(~above) & (sig_x > 0)][0]
+    first_outside_left  = sig_x[(~above) & (sig_x < 0)][-1]
+    discrete_fwhm = first_outside_right - first_outside_left
+    assert discrete_fwhm > interp_fwhm * 1.15, (
+        f"Discrete FWHM ({discrete_fwhm:.3f}) should exceed interpolated "
+        f"({interp_fwhm:.3f}) by > 15 %"
+    )
+
+
+def test_findfwhm_peak_location():
+    """_findfwhm finds peak_x within one grid step of 0 for a centred profile."""
+    step = 0.01
+    sig_x = np.arange(-3.0, 3.0 + step, step)
+    model = np.exp(-0.5 * sig_x ** 2)
+    _, peak_x, _, _ = _findfwhm(model, sig_x)
+    assert abs(peak_x) <= step
+
+
+def test_findfwhm_asymmetric():
+    """_findfwhm recovers peak_x and FWHM for a Gaussian shifted to centre = 0.5."""
+    sig2fwhm = np.sqrt(8.0 * np.log(2.0))
+    center = 0.5
+    step = 0.01
+    sig_x = np.arange(-2.5, 2.5 + step, step)
+    model = np.exp(-0.5 * (sig_x - center) ** 2)
+    _, peak_x, lwhm, rwhm = _findfwhm(model, sig_x)
+    assert abs(peak_x - center) <= step
+    np.testing.assert_allclose(rwhm - lwhm, sig2fwhm, rtol=0.02)
+
+
+# ----------------------------------------------------------------------------
+# _fit_spectrum_and_normalize  (shared input factory)
+# ----------------------------------------------------------------------------
+
+def _make_fsn_inputs(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
+                     sn_ratio=20.0, seed=42):
+    """Return the positional inputs expected by _fit_spectrum_and_normalize."""
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, _ = make_profile_inputs(
+            nspec=nspec, nspat=nspat, fwhm=fwhm,
+            flux_level=flux_level, sn_ratio=sn_ratio, seed=seed)
+    totmask = (ivar > 0.0) & thismask
+    return wave, flux, fluxivar, waveimg, image, ivar, totmask
+
+
+def test_fit_spectrum_success():
+    """_fit_spectrum_and_normalize returns True and valid arrays for high-S/N input."""
+    wave, flux, fluxivar, waveimg, image, ivar, totmask = _make_fsn_inputs(sn_ratio=20.0)
+    success, med_sn2, norm_obj, norm_ivar, good, xtemp, sn2_img = \
+        _fit_spectrum_and_normalize(
+            wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
+            image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=4.0
+        )
+    assert success
+    assert med_sn2 > 4.0 ** 2
+    assert norm_obj.shape == image.shape
+    assert norm_ivar.shape == image.shape
+    assert sn2_img.shape == image.shape
+    assert xtemp.shape == image.shape
+    assert good.shape == (image.size,)
+
+
+def test_fit_spectrum_failure_nan_flux():
+    """_fit_spectrum_and_normalize returns (False, 0.0, None, …) for all-NaN flux."""
+    wave, flux, fluxivar, waveimg, image, ivar, totmask = _make_fsn_inputs()
+    flux = np.full_like(flux, np.nan)
+    success, med_sn2, norm_obj, norm_ivar, good, xtemp, sn2_img = \
+        _fit_spectrum_and_normalize(
+            wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
+            image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=4.0
+        )
+    assert not success
+    assert med_sn2 == 0.0
+    assert norm_obj is None and norm_ivar is None
+    assert good is None and xtemp is None and sn2_img is None
+
+
+def test_fit_spectrum_good_matches_norm_ivar():
+    """good is exactly norm_ivar.flatten() > 0 (internal consistency check)."""
+    wave, flux, fluxivar, waveimg, image, ivar, totmask = _make_fsn_inputs(sn_ratio=20.0)
+    success, _, _, norm_ivar, good, _, _ = _fit_spectrum_and_normalize(
+        wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
+        image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=4.0
+    )
+    assert success
+    np.testing.assert_array_equal(good, norm_ivar.flatten() > 0)
+
+
+def test_fit_spectrum_sn2_img_nonnegative():
+    """sn2_img is non-negative and has the correct shape."""
+    wave, flux, fluxivar, waveimg, image, ivar, totmask = _make_fsn_inputs(sn_ratio=20.0)
+    success, _, _, _, _, _, sn2_img = _fit_spectrum_and_normalize(
+        wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
+        image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=4.0
+    )
+    assert success
+    assert sn2_img.shape == image.shape
+    assert np.all(sn2_img >= 0.0)
+
+
+# ----------------------------------------------------------------------------
+# _compute_bspline_knots  (shared input factory)
+# ----------------------------------------------------------------------------
+
+def _make_knots_inputs(nspec=200, nspat=100, fwhm=4.0, sn_ratio=20.0, seed=42):
+    """Build the (dspat, sigma, med_sn2, good) inputs for _compute_bspline_knots."""
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, _ = make_profile_inputs(
+            nspec=nspec, nspat=nspat, fwhm=fwhm, sn_ratio=sn_ratio, seed=seed)
+    totmask = (ivar > 0.0) & thismask
+    sig2fwhm = np.sqrt(8.0 * np.log(2.0))
+    sigma = np.full(nspec, fwhm / sig2fwhm)
+    dspat = spat_img - trace_in[:, None]
+    success, med_sn2, _, norm_ivar, good, _, _ = _fit_spectrum_and_normalize(
+        wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
+        image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=fwhm
+    )
+    assert success, "_make_knots_inputs: _fit_spectrum_and_normalize failed"
+    return dspat, sigma, med_sn2, good
+
+
+def test_bspline_knots_shapes():
+    """_compute_bspline_knots returns sigma_x with the correct shape and valid bounds."""
+    nspec, nspat = 200, 100
+    dspat, sigma, med_sn2, good = _make_knots_inputs(nspec=nspec, nspat=nspat)
+    sigma_x, limit, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
+        dspat=dspat, sigma=sigma, med_sn2=med_sn2, prof_nsigma=None, good=good
+    )
+    assert sigma_x.shape == (nspec, nspat)
+    assert limit > 0.0
+    assert min_sigma < 0.0 < max_sigma
+    assert bkpt.size >= 2
+    assert np.all(bkpt >= min_sigma)
+    assert np.all(bkpt <= max_sigma)
+
+
+def test_bspline_knots_bug1_fix():
+    r"""_compute_bspline_knots with prof_nsigma=10.0 does not crash (Bug 1 fix).
+
+    The legacy formula ``nb = np.round(prof_nsigma > 10)`` evaluates a boolean
+    comparison; for ``prof_nsigma=10.0`` it gives ``np.round(False) = 0``,
+    causing division by zero in ``sinh_space = arcsinh(prof_nsigma) / nb``.
+    The fix ``nb = max(1, round(prof_nsigma / 10))`` gives ``nb = 1``.
+    """
+    dspat, sigma, med_sn2, good = _make_knots_inputs()
+    sigma_x, limit, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
+        dspat=dspat, sigma=sigma, med_sn2=med_sn2, prof_nsigma=10.0, good=good
+    )
+    assert min_sigma == -10.0
+    assert max_sigma == 10.0
+    assert bkpt.size >= 2
+
+
+@pytest.mark.parametrize("prof_nsigma", [5.0, 10.0, 15.0, 20.0])
+def test_bspline_knots_prof_nsigma_bounds(prof_nsigma):
+    """_compute_bspline_knots sets min/max_sigma to ±prof_nsigma and bkpt within bounds."""
+    dspat, sigma, med_sn2, good = _make_knots_inputs()
+    _, _, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
+        dspat=dspat, sigma=sigma, med_sn2=med_sn2, prof_nsigma=prof_nsigma, good=good
+    )
+    assert min_sigma == -prof_nsigma
+    assert max_sigma == prof_nsigma
+    assert np.all(bkpt >= min_sigma)
+    assert np.all(bkpt <= max_sigma)
+
+
+# ----------------------------------------------------------------------------
+# _apodize_profile  (shared B-spline fixture)
+# ----------------------------------------------------------------------------
+
+@pytest.fixture(scope='module')
+def apodize_bspline():
+    r"""Fit a B-spline to ``exp(-sig_x^2/2)`` for ``_apodize_profile`` tests.
+
+    Uses the no-basis calling convention of Block 7 (returns a 1-D BSpline
+    directly, compatible with ``_apodize_profile``'s ``.value()`` calls).
+    """
+    nspec, nspat = 50, 100
+    sig2fwhm = np.sqrt(8.0 * np.log(2.0))
+    sigma_val = 4.0 / sig2fwhm
+
+    spat_pix = np.ones((nspec, 1)) * np.arange(nspat, dtype=float)
+    trace = np.full(nspec, float(nspat // 2))
+    sigma_x = (spat_pix - trace[:, None]) / sigma_val
+
+    min_sigma, max_sigma = -4.0, 4.0
+
+    # Fit B-spline to a unit Gaussian in sigma_x space (no basis → 1-D BSpline)
+    sig_x_1d = np.linspace(-4.0, 4.0, 300)
+    profile_1d = np.exp(-0.5 * sig_x_1d ** 2)
+    bset, _, *_ = iterative_bspline_fit(
+        sig_x_1d, profile_1d, ivar=np.ones(300), nord=4,
+        kwargs_knots={'interior': np.array([-2.0, -1.0, 0.0, 1.0, 2.0])},
+        upper=10, lower=10
+    )
+
+    ss = sigma_x.flatten().argsort(kind='stable')
+    median_fit = 0.0
+    limit = 3.0
+    peak_val = float(bset.value(np.array([0.0]))[0][0])
+    min_level = peak_val * np.exp(-0.5 * limit ** 2)
+
+    return dict(
+        bset=bset, sigma_x=sigma_x,
+        min_sigma=min_sigma, max_sigma=max_sigma,
+        ss=ss, median_fit=median_fit, min_level=min_level, limit=limit,
+        peak_val=peak_val,
+    )
+
+
+def test_apodize_output_shape(apodize_bspline):
+    """_apodize_profile returns full_bsp with the correct size and finite limits."""
+    f = apodize_bspline
+    full_bsp, l_limit, r_limit = _apodize_profile(
+        f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
+        f['ss'], f['median_fit'], f['min_level'], f['limit'],
+        prof_nsigma=None, no_deriv=False
+    )
+    assert full_bsp.shape == (f['sigma_x'].size,)
+    assert np.isfinite(l_limit) and np.isfinite(r_limit)
+    igood = (
+        (f['sigma_x'].flatten() > f['min_sigma'])
+        & (f['sigma_x'].flatten() < f['max_sigma'])
+    )
+    assert np.all(full_bsp[igood] >= 0.0)
+
+
+def test_apodize_prof_nsigma_zeros_limits(apodize_bspline):
+    """When prof_nsigma is set, _apodize_profile returns l_limit=r_limit=0 (JXP kludge)."""
+    f = apodize_bspline
+    full_bsp, l_limit, r_limit = _apodize_profile(
+        f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
+        f['ss'], f['median_fit'], f['min_level'], f['limit'],
+        prof_nsigma=5.0, no_deriv=False
+    )
+    assert l_limit == 0.0
+    assert r_limit == 0.0
+    assert full_bsp.size == f['sigma_x'].size
+
+
+def test_apodize_no_deriv_skips_tails(apodize_bspline):
+    """When no_deriv=True, pixels outside [min_sigma, max_sigma] remain zero."""
+    f = apodize_bspline
+    full_bsp, _, _ = _apodize_profile(
+        f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
+        f['ss'], f['median_fit'], f['min_level'], f['limit'],
+        prof_nsigma=None, no_deriv=True
+    )
+    sigma_x_flat = f['sigma_x'].flatten()
+    outside = (sigma_x_flat <= f['min_sigma']) | (sigma_x_flat >= f['max_sigma'])
+    assert np.all(full_bsp[outside] == 0.0)
+
+
+def test_apodize_tail_continuity(apodize_bspline):
+    """Exponential tails applied by _apodize_profile are positive and <= profile at limit.
+
+    For a Gaussian B-spline, the left derivative is negative and the right
+    positive, so tails are applied.  Each tail value must be positive and
+    bounded above by the profile value at the corresponding limit (since the
+    exponential decays away from the limit).
+    """
+    f = apodize_bspline
+    full_bsp, l_limit, r_limit = _apodize_profile(
+        f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
+        f['ss'], f['median_fit'], f['min_level'], f['limit'],
+        prof_nsigma=None, no_deriv=False
+    )
+    sigma_x_flat = f['sigma_x'].flatten()
+
+    l_fit_val = float(f['bset'].value(np.array([l_limit]))[0][0])
+    r_fit_val = float(f['bset'].value(np.array([r_limit]))[0][0])
+
+    # Left tail: igood pixels below l_limit (tail overwrote the B-spline there)
+    left_tail = (sigma_x_flat > f['min_sigma']) & (sigma_x_flat < l_limit)
+    if left_tail.any():
+        assert np.all(full_bsp[left_tail] >= 0.0)
+        assert np.all(full_bsp[left_tail] <= l_fit_val + 1e-10)
+
+    # Right tail: igood pixels above r_limit
+    right_tail = (sigma_x_flat > r_limit) & (sigma_x_flat < f['max_sigma'])
+    if right_tail.any():
+        assert np.all(full_bsp[right_tail] >= 0.0)
+        assert np.all(full_bsp[right_tail] <= r_fit_val + 1e-10)
