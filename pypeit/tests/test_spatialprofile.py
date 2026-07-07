@@ -127,6 +127,85 @@ def make_profile_inputs(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
             wave, flux, fluxivar, inmask, true_trace)
 
 
+def make_profile_inputs_1d(nspec=200, nspat=100, fwhm=4.0, sn_ratio=20.0, seed=42):
+    r"""
+    Build pre-extracted 1-D slit-pixel arrays from :func:`make_profile_inputs`.
+
+    Calls :func:`make_profile_inputs` and applies ``totmask`` to return the
+    per-pixel 1-D arrays used by the 1-D slit-pixel implementation of
+    :func:`~pypeit.core.spatialprofile_refactor.fit_profile_refactor`,
+    together with the 1-D spectral arrays that accompany them.
+
+    Parameters
+    ----------
+    nspec : :obj:`int`, optional
+        Number of spectral pixels.  Default is 200.
+    nspat : :obj:`int`, optional
+        Number of spatial pixels.  Default is 100.
+    fwhm : :obj:`float`, optional
+        True FWHM of the Gaussian spatial profile in pixels.  Default is 4.0.
+    sn_ratio : :obj:`float`, optional
+        Desired 1D S/N.  Default is 20.0.
+    seed : :obj:`int`, optional
+        Random seed.  Default is 42.
+
+    Returns
+    -------
+    wave : :class:`numpy.ndarray`
+        Extracted wavelength array, shape ``(nspec,)``.
+    flux : :class:`numpy.ndarray`
+        Extracted 1D flux, shape ``(nspec,)``.
+    fluxivar : :class:`numpy.ndarray`
+        Inverse variance of flux, shape ``(nspec,)``.
+    wave_x : :class:`numpy.ndarray`
+        Wavelength of each valid slit pixel, shape ``(npix,)``.
+    flux_x : :class:`numpy.ndarray`
+        Sky-subtracted value of each valid slit pixel, shape ``(npix,)``.
+    ivar_x : :class:`numpy.ndarray`
+        Inverse variance of each valid slit pixel, shape ``(npix,)``.
+    spec_x : :class:`numpy.ndarray`
+        Spectral row index of each valid slit pixel, shape ``(npix,)`` int.
+    trace_in : :class:`numpy.ndarray`
+        Nominal object trace, shape ``(nspec,)``.
+    nspec : :obj:`int`
+        Number of spectral pixels.
+    nspat : :obj:`int`
+        Number of spatial pixels.
+    """
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, _ = make_profile_inputs(
+            nspec=nspec, nspat=nspat, fwhm=fwhm, sn_ratio=sn_ratio, seed=seed)
+    totmask = (ivar > 0.0) & thismask & inmask
+    spec_x = np.where(totmask)[0]
+    spat_x = spat_img[totmask]                   # noqa: F841 — available to callers via locals
+    wave_x = waveimg[totmask]
+    flux_x = image[totmask]
+    ivar_x = ivar[totmask]
+    return wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, trace_in, nspec, nspat
+
+
+def _make_fsn_inputs_1d(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
+                        sn_ratio=20.0, seed=42):
+    """Return the positional inputs for the 1-D _fit_spectrum_and_normalize signature.
+
+    Mirrors :func:`_make_fsn_inputs` for the 1-D helper-function signature
+    introduced in step 8 of the refactoring plan:
+    ``(wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, nspec, ...)``.
+    The trailing ``percentile_sn2`` and ``fwhm`` arguments are supplied by each
+    test individually.
+    """
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, _ = make_profile_inputs(
+            nspec=nspec, nspat=nspat, fwhm=fwhm,
+            flux_level=flux_level, sn_ratio=sn_ratio, seed=seed)
+    totmask = (ivar > 0.0) & thismask & inmask
+    spec_x = np.where(totmask)[0]
+    wave_x = waveimg[totmask]
+    flux_x = image[totmask]
+    ivar_x = ivar[totmask]
+    return wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, nspec
+
+
 # ============================================================================
 # Tests
 # ============================================================================
@@ -538,70 +617,71 @@ def test_findfwhm_asymmetric():
 # _fit_spectrum_and_normalize  (shared input factory)
 # ----------------------------------------------------------------------------
 
-def _make_fsn_inputs(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
-                     sn_ratio=20.0, seed=42):
-    """Return the positional inputs expected by _fit_spectrum_and_normalize."""
-    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
-        fluxivar, inmask, _ = make_profile_inputs(
-            nspec=nspec, nspat=nspat, fwhm=fwhm,
-            flux_level=flux_level, sn_ratio=sn_ratio, seed=seed)
-    totmask = (ivar > 0.0) & thismask
-    return wave, flux, fluxivar, waveimg, image, ivar, totmask
-
-
 def test_fit_spectrum_success():
-    """_fit_spectrum_and_normalize returns True and valid arrays for high-S/N input."""
-    wave, flux, fluxivar, waveimg, image, ivar, totmask = _make_fsn_inputs(sn_ratio=20.0)
-    success, med_sn2, norm_obj, norm_ivar, good, xtemp, sn2_img = \
+    """_fit_spectrum_and_normalize returns True and valid 1-D arrays for high-S/N input."""
+    wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, nspec = _make_fsn_inputs_1d(
+        sn_ratio=20.0
+    )
+    npix = spec_x.size
+    success, med_sn2, norm_obj_x, norm_ivar_x, good_x, xtemp_x, sn2_x = \
         _fit_spectrum_and_normalize(
-            wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
-            image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=4.0
+            wave=wave, flux=flux, fluxivar=fluxivar,
+            wave_x=wave_x, flux_x=flux_x, ivar_x=ivar_x, spec_x=spec_x, nspec=nspec,
+            percentile_sn2=70.0, fwhm=4.0
         )
     assert success
     assert med_sn2 > 4.0 ** 2
-    assert norm_obj.shape == image.shape
-    assert norm_ivar.shape == image.shape
-    assert sn2_img.shape == image.shape
-    assert xtemp.shape == image.shape
-    assert good.shape == (image.size,)
+    assert norm_obj_x.shape == (npix,)
+    assert norm_ivar_x.shape == (npix,)
+    assert sn2_x.shape == (npix,)
+    assert xtemp_x.shape == (npix,)
+    assert good_x.shape == (npix,)
 
 
 def test_fit_spectrum_failure_nan_flux():
     """_fit_spectrum_and_normalize returns (False, 0.0, None, …) for all-NaN flux."""
-    wave, flux, fluxivar, waveimg, image, ivar, totmask = _make_fsn_inputs()
+    wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, nspec = _make_fsn_inputs_1d()
     flux = np.full_like(flux, np.nan)
-    success, med_sn2, norm_obj, norm_ivar, good, xtemp, sn2_img = \
+    success, med_sn2, norm_obj_x, norm_ivar_x, good_x, xtemp_x, sn2_x = \
         _fit_spectrum_and_normalize(
-            wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
-            image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=4.0
+            wave=wave, flux=flux, fluxivar=fluxivar,
+            wave_x=wave_x, flux_x=flux_x, ivar_x=ivar_x, spec_x=spec_x, nspec=nspec,
+            percentile_sn2=70.0, fwhm=4.0
         )
     assert not success
     assert med_sn2 == 0.0
-    assert norm_obj is None and norm_ivar is None
-    assert good is None and xtemp is None and sn2_img is None
+    assert norm_obj_x is None and norm_ivar_x is None
+    assert good_x is None and xtemp_x is None and sn2_x is None
 
 
 def test_fit_spectrum_good_matches_norm_ivar():
-    """good is exactly norm_ivar.flatten() > 0 (internal consistency check)."""
-    wave, flux, fluxivar, waveimg, image, ivar, totmask = _make_fsn_inputs(sn_ratio=20.0)
-    success, _, _, norm_ivar, good, _, _ = _fit_spectrum_and_normalize(
-        wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
-        image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=4.0
+    """good_x is exactly norm_ivar_x > 0 (internal consistency check)."""
+    wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, nspec = _make_fsn_inputs_1d(
+        sn_ratio=20.0
+    )
+    success, _, _, norm_ivar_x, good_x, _, _ = _fit_spectrum_and_normalize(
+        wave=wave, flux=flux, fluxivar=fluxivar,
+        wave_x=wave_x, flux_x=flux_x, ivar_x=ivar_x, spec_x=spec_x, nspec=nspec,
+        percentile_sn2=70.0, fwhm=4.0
     )
     assert success
-    np.testing.assert_array_equal(good, norm_ivar.flatten() > 0)
+    np.testing.assert_array_equal(good_x, norm_ivar_x > 0)
 
 
 def test_fit_spectrum_sn2_img_nonnegative():
-    """sn2_img is non-negative and has the correct shape."""
-    wave, flux, fluxivar, waveimg, image, ivar, totmask = _make_fsn_inputs(sn_ratio=20.0)
-    success, _, _, _, _, _, sn2_img = _fit_spectrum_and_normalize(
-        wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
-        image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=4.0
+    """sn2_x is non-negative and has the correct shape."""
+    wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, nspec = _make_fsn_inputs_1d(
+        sn_ratio=20.0
+    )
+    npix = spec_x.size
+    success, _, _, _, _, _, sn2_x = _fit_spectrum_and_normalize(
+        wave=wave, flux=flux, fluxivar=fluxivar,
+        wave_x=wave_x, flux_x=flux_x, ivar_x=ivar_x, spec_x=spec_x, nspec=nspec,
+        percentile_sn2=70.0, fwhm=4.0
     )
     assert success
-    assert sn2_img.shape == image.shape
-    assert np.all(sn2_img >= 0.0)
+    assert sn2_x.shape == (npix,)
+    assert np.all(sn2_x >= 0.0)
 
 
 # ----------------------------------------------------------------------------
@@ -609,30 +689,38 @@ def test_fit_spectrum_sn2_img_nonnegative():
 # ----------------------------------------------------------------------------
 
 def _make_knots_inputs(nspec=200, nspat=100, fwhm=4.0, sn_ratio=20.0, seed=42):
-    """Build the (dspat, sigma, med_sn2, good) inputs for _compute_bspline_knots."""
+    """Build the 1-D inputs for _compute_bspline_knots."""
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(
             nspec=nspec, nspat=nspat, fwhm=fwhm, sn_ratio=sn_ratio, seed=seed)
-    totmask = (ivar > 0.0) & thismask
+    totmask = (ivar > 0.0) & thismask & inmask
     sig2fwhm = np.sqrt(8.0 * np.log(2.0))
     sigma = np.full(nspec, fwhm / sig2fwhm)
-    dspat = spat_img - trace_in[:, None]
-    success, med_sn2, _, norm_ivar, good, _, _ = _fit_spectrum_and_normalize(
-        wave=wave, flux=flux, fluxivar=fluxivar, waveimg=waveimg,
-        image=image, ivar=ivar, totmask=totmask, percentile_sn2=70.0, fwhm=fwhm
+    spec_x = np.where(totmask)[0]
+    spat_x = spat_img[totmask]
+    wave_x = waveimg[totmask]
+    flux_x = image[totmask]
+    ivar_x = ivar[totmask]
+    dspat_x = spat_x - trace_in[spec_x]
+    success, med_sn2, _, norm_ivar_x, good_x, _, _ = _fit_spectrum_and_normalize(
+        wave=wave, flux=flux, fluxivar=fluxivar,
+        wave_x=wave_x, flux_x=flux_x, ivar_x=ivar_x, spec_x=spec_x, nspec=nspec,
+        percentile_sn2=70.0, fwhm=fwhm
     )
     assert success, "_make_knots_inputs: _fit_spectrum_and_normalize failed"
-    return dspat, sigma, med_sn2, good
+    return dspat_x, sigma, med_sn2, good_x, spec_x
 
 
 def test_bspline_knots_shapes():
-    """_compute_bspline_knots returns sigma_x with the correct shape and valid bounds."""
+    """_compute_bspline_knots returns 1-D sigma_x with the correct shape and valid bounds."""
     nspec, nspat = 200, 100
-    dspat, sigma, med_sn2, good = _make_knots_inputs(nspec=nspec, nspat=nspat)
+    dspat_x, sigma, med_sn2, good_x, spec_x = _make_knots_inputs(nspec=nspec, nspat=nspat)
+    npix = spec_x.size
     sigma_x, limit, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
-        dspat=dspat, sigma=sigma, med_sn2=med_sn2, prof_nsigma=None, good=good
+        dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2, prof_nsigma=None,
+        good_x=good_x
     )
-    assert sigma_x.shape == (nspec, nspat)
+    assert sigma_x.shape == (npix,)
     assert limit > 0.0
     assert min_sigma < 0.0 < max_sigma
     assert bkpt.size >= 2
@@ -648,9 +736,10 @@ def test_bspline_knots_bug1_fix():
     causing division by zero in ``sinh_space = arcsinh(prof_nsigma) / nb``.
     The fix ``nb = max(1, round(prof_nsigma / 10))`` gives ``nb = 1``.
     """
-    dspat, sigma, med_sn2, good = _make_knots_inputs()
+    dspat_x, sigma, med_sn2, good_x, spec_x = _make_knots_inputs()
     sigma_x, limit, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
-        dspat=dspat, sigma=sigma, med_sn2=med_sn2, prof_nsigma=10.0, good=good
+        dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2, prof_nsigma=10.0,
+        good_x=good_x
     )
     assert min_sigma == -10.0
     assert max_sigma == 10.0
@@ -660,9 +749,10 @@ def test_bspline_knots_bug1_fix():
 @pytest.mark.parametrize("prof_nsigma", [5.0, 10.0, 15.0, 20.0])
 def test_bspline_knots_prof_nsigma_bounds(prof_nsigma):
     """_compute_bspline_knots sets min/max_sigma to ±prof_nsigma and bkpt within bounds."""
-    dspat, sigma, med_sn2, good = _make_knots_inputs()
+    dspat_x, sigma, med_sn2, good_x, spec_x = _make_knots_inputs()
     _, _, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
-        dspat=dspat, sigma=sigma, med_sn2=med_sn2, prof_nsigma=prof_nsigma, good=good
+        dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2,
+        prof_nsigma=prof_nsigma, good_x=good_x
     )
     assert min_sigma == -prof_nsigma
     assert max_sigma == prof_nsigma
@@ -687,7 +777,8 @@ def apodize_bspline():
 
     spat_pix = np.ones((nspec, 1)) * np.arange(nspat, dtype=float)
     trace = np.full(nspec, float(nspat // 2))
-    sigma_x = (spat_pix - trace[:, None]) / sigma_val
+    sigma_x = ((spat_pix - trace[:, None]) / sigma_val).flatten()  # 1-D, shape (npix,)
+    npix = sigma_x.size
 
     min_sigma, max_sigma = -4.0, 4.0
 
@@ -700,14 +791,14 @@ def apodize_bspline():
         upper=10, lower=10
     )
 
-    ss = sigma_x.flatten().argsort(kind='stable')
+    ss = sigma_x.argsort(kind='stable')
     median_fit = 0.0
     limit = 3.0
     peak_val = float(bset.value(np.array([0.0]))[0][0])
     min_level = peak_val * np.exp(-0.5 * limit ** 2)
 
     return dict(
-        bset=bset, sigma_x=sigma_x,
+        bset=bset, sigma_x=sigma_x, npix=npix,
         min_sigma=min_sigma, max_sigma=max_sigma,
         ss=ss, median_fit=median_fit, min_level=min_level, limit=limit,
         peak_val=peak_val,
@@ -722,12 +813,9 @@ def test_apodize_output_shape(apodize_bspline):
         f['ss'], f['median_fit'], f['min_level'], f['limit'],
         prof_nsigma=None, no_deriv=False
     )
-    assert full_bsp.shape == (f['sigma_x'].size,)
+    assert full_bsp.shape == (f['npix'],)
     assert np.isfinite(l_limit) and np.isfinite(r_limit)
-    igood = (
-        (f['sigma_x'].flatten() > f['min_sigma'])
-        & (f['sigma_x'].flatten() < f['max_sigma'])
-    )
+    igood = (f['sigma_x'] > f['min_sigma']) & (f['sigma_x'] < f['max_sigma'])
     assert np.all(full_bsp[igood] >= 0.0)
 
 
@@ -741,7 +829,7 @@ def test_apodize_prof_nsigma_zeros_limits(apodize_bspline):
     )
     assert l_limit == 0.0
     assert r_limit == 0.0
-    assert full_bsp.size == f['sigma_x'].size
+    assert full_bsp.shape == (f['npix'],)
 
 
 def test_apodize_no_deriv_skips_tails(apodize_bspline):
@@ -752,8 +840,7 @@ def test_apodize_no_deriv_skips_tails(apodize_bspline):
         f['ss'], f['median_fit'], f['min_level'], f['limit'],
         prof_nsigma=None, no_deriv=True
     )
-    sigma_x_flat = f['sigma_x'].flatten()
-    outside = (sigma_x_flat <= f['min_sigma']) | (sigma_x_flat >= f['max_sigma'])
+    outside = (f['sigma_x'] <= f['min_sigma']) | (f['sigma_x'] >= f['max_sigma'])
     assert np.all(full_bsp[outside] == 0.0)
 
 
@@ -771,19 +858,180 @@ def test_apodize_tail_continuity(apodize_bspline):
         f['ss'], f['median_fit'], f['min_level'], f['limit'],
         prof_nsigma=None, no_deriv=False
     )
-    sigma_x_flat = f['sigma_x'].flatten()
+    sigma_x = f['sigma_x']
 
     l_fit_val = float(f['bset'].value(np.array([l_limit]))[0][0])
     r_fit_val = float(f['bset'].value(np.array([r_limit]))[0][0])
 
     # Left tail: igood pixels below l_limit (tail overwrote the B-spline there)
-    left_tail = (sigma_x_flat > f['min_sigma']) & (sigma_x_flat < l_limit)
+    left_tail = (sigma_x > f['min_sigma']) & (sigma_x < l_limit)
     if left_tail.any():
         assert np.all(full_bsp[left_tail] >= 0.0)
         assert np.all(full_bsp[left_tail] <= l_fit_val + 1e-10)
 
     # Right tail: igood pixels above r_limit
-    right_tail = (sigma_x_flat > r_limit) & (sigma_x_flat < f['max_sigma'])
+    right_tail = (sigma_x > r_limit) & (sigma_x < f['max_sigma'])
     if right_tail.any():
         assert np.all(full_bsp[right_tail] >= 0.0)
         assert np.all(full_bsp[right_tail] <= r_fit_val + 1e-10)
+
+
+# ============================================================================
+# Cross-implementation comparison tests
+# ============================================================================
+
+def test_1d_roundtrip_matches_2d():
+    r"""profile_model from 1-D path matches the frozen 2-D regression reference.
+
+    Uses the same ``.npy`` files as :func:`test_refactor_regression` but
+    checks shape explicitly and relaxes tolerance to ``atol=1e-8`` to
+    accommodate the minor ``xtemp`` approximation introduced in the 1-D
+    conversion.
+    """
+    files_dir = os.path.join(os.path.dirname(__file__), 'files')
+    ref_paths = {
+        'profile': os.path.join(files_dir, 'spatprof_profile_model_ref.npy'),
+        'xnew':    os.path.join(files_dir, 'spatprof_xnew_ref.npy'),
+        'fwhmfit': os.path.join(files_dir, 'spatprof_fwhmfit_ref.npy'),
+    }
+    if not all(os.path.exists(p) for p in ref_paths.values()):
+        pytest.skip("Reference arrays not found; generate them with "
+                    "pypeit/tests/files/freeze_spatprof.py first")
+
+    ref_profile = np.load(ref_paths['profile'])
+    ref_xnew    = np.load(ref_paths['xnew'])
+    ref_fwhmfit = np.load(ref_paths['fwhmfit'])
+
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, _ = make_profile_inputs(sn_ratio=20.0, fwhm=4.0)
+    profile_model, xnew, fwhmfit, _ = spatialprofile_refactor.fit_profile_refactor(
+        image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+        spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
+        fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
+
+    assert profile_model.shape == ref_profile.shape
+    np.testing.assert_allclose(profile_model, ref_profile, atol=1e-8)
+    np.testing.assert_allclose(xnew, ref_xnew, atol=1e-8)
+    np.testing.assert_allclose(fwhmfit, ref_fwhmfit, atol=1e-8)
+
+
+@pytest.mark.parametrize("fwhm", [6.0, 8.0])
+def test_med_sn2_agreement(fwhm):
+    r"""``med_sn2`` from both implementations agrees within 5 % for wide profiles.
+
+    ``med_sn2`` is produced solely by the spectral B-spline fitting logic
+    (Blocks 2–3), which is identical in both implementations.  For wide profiles
+    (``fwhm >= 6 px``) the ``xtemp`` approximation has negligible effect.
+    """
+    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=fwhm)
+    kwargs = dict(zip(
+        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
+         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
+    ))
+    _, _, _, med_sn2_leg = spatialprofile.fit_profile(
+        **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
+    _, _, _, med_sn2_ref = spatialprofile_refactor.fit_profile_refactor(
+        **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
+    np.testing.assert_allclose(med_sn2_leg, med_sn2_ref, rtol=0.05)
+
+
+def test_forced_gaussian_trace_agreement():
+    r"""With ``gauss=True`` both implementations return identical ``xnew`` and ``fwhmfit``.
+
+    Both skip the B-spline path and return ``xnew = trace_in`` unchanged.
+    ``fwhmfit`` is set to ``thisfwhm`` in both; the two values should be
+    identical regardless of how the Gaussian profile is formed.
+    """
+    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=4.0)
+    kwargs = dict(zip(
+        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
+         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
+    ))
+    _, xnew_leg, fwhm_leg, _ = spatialprofile.fit_profile(
+        **kwargs, gauss=True, thisfwhm=4.0)
+    _, xnew_ref, fwhm_ref, _ = spatialprofile_refactor.fit_profile_refactor(
+        **kwargs, gauss=True, thisfwhm=4.0)
+    np.testing.assert_array_equal(xnew_leg, xnew_ref)
+    np.testing.assert_array_equal(fwhm_leg, fwhm_ref)
+
+
+@pytest.mark.parametrize("func", [
+    spatialprofile.fit_profile,
+    spatialprofile_refactor.fit_profile_refactor,
+])
+def test_bspline_row_normalization_both(func):
+    r"""Both implementations normalise each spectral row of ``profile_model`` to unit sum.
+
+    This invariant must hold for both regardless of which bugs are fixed.
+    """
+    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=6.0)
+    kwargs = dict(zip(
+        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
+         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
+    ))
+    profile_model, _, _, med_sn2 = func(**kwargs, thisfwhm=6.0, sn_gauss=4.0)
+    assert med_sn2 > 4.0 ** 2, "Expected B-spline path"
+    row_sums = profile_model.sum(axis=1)
+    nonzero = row_sums > 0
+    np.testing.assert_allclose(row_sums[nonzero], 1.0, atol=1e-10)
+
+
+@pytest.mark.parametrize("func,sn_ratio", [
+    (spatialprofile.fit_profile, 20.0),
+    (spatialprofile.fit_profile,  1.0),
+    (spatialprofile_refactor.fit_profile_refactor, 20.0),
+    (spatialprofile_refactor.fit_profile_refactor,  1.0),
+])
+def test_profile_positivity_both(func, sn_ratio):
+    r"""``profile_model`` is non-negative and finite on all code paths for both implementations."""
+    inputs = make_profile_inputs(sn_ratio=sn_ratio, fwhm=6.0)
+    kwargs = dict(zip(
+        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
+         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
+    ))
+    profile_model, _, _, _ = func(**kwargs, sn_gauss=4.0)
+    assert np.all(profile_model >= 0)
+    assert np.all(np.isfinite(profile_model))
+
+
+def test_trace_correction_direction_both():
+    r"""Both implementations shift ``xnew`` toward the true object centre for a 1-px offset.
+
+    A 1-pixel offset is large enough that Bug 3 (trace-correction overshoot)
+    does not prevent convergence in either implementation.
+    """
+    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=4.0, trace_offset=1.0)
+    true_trace = inputs[10]
+    trace_in   = inputs[5]
+    kwargs = dict(zip(
+        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
+         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
+    ))
+    for func in [spatialprofile.fit_profile,
+                 spatialprofile_refactor.fit_profile_refactor]:
+        _, xnew, _, med_sn2 = func(**kwargs, thisfwhm=4.0, sn_gauss=4.0)
+        assert med_sn2 > 4.0 ** 2
+        assert np.mean(xnew) > np.mean(trace_in)
+        assert np.abs(np.mean(xnew - true_trace)) < np.abs(np.mean(trace_in - true_trace))
+
+
+def test_bspline_fwhm_improvement_narrow():
+    r"""The refactored function recovers a narrow FWHM (3 px) within 10 %; the legacy overshoots.
+
+    Documents the Bug 2 (Gaussian normalisation) improvement: the legacy
+    implementation overestimates the narrow-profile FWHM by > 15 %, while the
+    refactored implementation recovers within 10 %.
+    """
+    fwhm = 3.0
+    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=fwhm)
+    kwargs = dict(zip(
+        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
+         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
+    ))
+    _, _, fwhm_leg, med_sn2 = spatialprofile.fit_profile(
+        **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
+    _, _, fwhm_ref, _       = spatialprofile_refactor.fit_profile_refactor(
+        **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
+    assert med_sn2 > 4.0 ** 2, "Expected B-spline path"
+    assert np.median(fwhm_leg) > fwhm * 1.15, "Legacy should overestimate FWHM by > 15 %"
+    np.testing.assert_allclose(np.median(fwhm_ref), fwhm, rtol=0.10)

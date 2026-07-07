@@ -257,7 +257,7 @@ def _return_gaussian(
 
 
 def _fit_spectrum_and_normalize(
-    wave, flux, fluxivar, waveimg, image, ivar, totmask, percentile_sn2, fwhm
+    wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, nspec, percentile_sn2, fwhm
 ):
     """
     Fit flux B-splines, estimate S/N, and build the normalised-object image.
@@ -274,14 +274,16 @@ def _fit_spectrum_and_normalize(
         Extracted flux array, shape :math:`(N_{\rm spec},)`.
     fluxivar : :class:`numpy.ndarray`
         Inverse variance of ``flux``, shape :math:`(N_{\rm spec},)`.
-    waveimg : :class:`numpy.ndarray`
-        Wavelength image, shape :math:`(N_{\rm spec}, N_{\rm spat})`.
-    image : :class:`numpy.ndarray`
-        Sky-subtracted science image, same shape as ``waveimg``.
-    ivar : :class:`numpy.ndarray`
-        Inverse variance of ``image``, same shape.
-    totmask : :class:`numpy.ndarray`
-        Combined boolean mask, same shape as ``image``.
+    wave_x : :class:`numpy.ndarray`
+        Wavelength of each valid slit pixel, shape :math:`(N_{\rm pix},)`.
+    flux_x : :class:`numpy.ndarray`
+        Sky-subtracted value of each valid slit pixel, shape :math:`(N_{\rm pix},)`.
+    ivar_x : :class:`numpy.ndarray`
+        Inverse variance of each valid slit pixel, shape :math:`(N_{\rm pix},)`.
+    spec_x : :class:`numpy.ndarray`
+        Spectral row index of each valid slit pixel, shape :math:`(N_{\rm pix},)` int.
+    nspec : :obj:`int`
+        Number of spectral pixels.
     percentile_sn2 : :obj:`float`
         Upper percentile of :math:`(S/N)^2` used to estimate ``med_sn2``.
     fwhm : :obj:`float`
@@ -294,29 +296,27 @@ def _fit_spectrum_and_normalize(
         returned; ``True`` otherwise.
     med_sn2 : :obj:`float`
         Median :math:`(S/N)^2` of the object; ``0.0`` on failure.
-    norm_obj : :class:`numpy.ndarray` or None
-        Normalised-object image, shape :math:`(N_{\rm spec}, N_{\rm spat})`.
-    norm_ivar : :class:`numpy.ndarray` or None
-        Inverse variance of ``norm_obj``, same shape.
-    good : :class:`numpy.ndarray` or None
-        Boolean flat array of length :math:`N_{\rm spec} N_{\rm spat}`
-        marking pixels with positive ``norm_ivar``.
-    xtemp : :class:`numpy.ndarray` or None
-        Cumulative S/N-weighted spectral coordinate,
-        shape :math:`(N_{\rm spec}, N_{\rm spat})`.
-    sn2_img : :class:`numpy.ndarray` or None
-        :math:`(S/N)^2` image interpolated onto the 2D grid, same shape as
-        ``image``.
+    norm_obj_x : :class:`numpy.ndarray` or None
+        Normalised-object values for each valid slit pixel, shape
+        :math:`(N_{\rm pix},)`.
+    norm_ivar_x : :class:`numpy.ndarray` or None
+        Inverse variance of ``norm_obj_x``, same shape.
+    good_x : :class:`numpy.ndarray` or None
+        Boolean array of length :math:`N_{\rm pix}` marking pixels with
+        positive ``norm_ivar_x``.
+    xtemp_x : :class:`numpy.ndarray` or None
+        Cumulative S/N-weighted spectral coordinate for each valid slit pixel,
+        shape :math:`(N_{\rm pix},)`.
+    sn2_x : :class:`numpy.ndarray` or None
+        :math:`(S/N)^2` interpolated onto each valid slit pixel, shape
+        :math:`(N_{\rm pix},)`.
     """
-    nspec, nspat = image.shape
-    sn2_img = np.zeros((nspec, nspat))
-    spline_img = np.zeros((nspec, nspat))
+    wave_min = wave_x.min()
+    wave_max = wave_x.max()
 
     flux_sm = scipy.ndimage.median_filter(flux, size=5, mode='reflect')
     fluxivar_sm0 = scipy.ndimage.median_filter(fluxivar, size=5, mode='reflect')
     fluxivar_sm0[fluxivar <= 0.0] = 0.0
-    wave_min = waveimg[totmask].min()
-    wave_max = waveimg[totmask].max()
 
     # ------------------------------------------------------------------
     # Block 2 — Flux B-spline fitting
@@ -397,22 +397,20 @@ def _fit_spectrum_and_normalize(
     )
 
     sn2_med_filt = scipy.ndimage.median_filter(sn2, size=9, mode='reflect')
-    if np.any(totmask):
-        sn2_interp = scipy.interpolate.interp1d(
-            wave[indsp][isrt], sn2_med_filt[isrt], assume_sorted=False, bounds_error=False,
-            fill_value='extrapolate'
-        )
-        sn2_img[totmask] = sn2_interp(waveimg[totmask])
-    else:
-        log.warning('All pixels are masked')
+    sn2_interp = scipy.interpolate.interp1d(
+        wave[indsp][isrt], sn2_med_filt[isrt], assume_sorted=False, bounds_error=False,
+        fill_value='extrapolate'
+    )
+    sn2_x = sn2_interp(wave_x)
 
     log.info(f'sqrt(med(S/N)^2) = {np.sqrt(med_sn2):.2f}')
 
     # ------------------------------------------------------------------
     # Block 4 — Normalised-object image construction
     # ------------------------------------------------------------------
+    npix = wave_x.size
     if med_sn2 <= 2.0:
-        spline_img[totmask] = np.fmax(sigma1, 0)
+        spline_img_x = np.full(npix, np.fmax(sigma1, 0.0))
     else:
         if med_sn2 <= 5.0:
             spline_flux1 = cont_flux1
@@ -427,65 +425,66 @@ def _fit_spectrum_and_normalize(
             spline_flux1[indbad2] = np.median(spline_flux1[np.logical_not(badpix)])
         spline_flux1 = scipy.ndimage.median_filter(spline_flux1, size=5, mode='reflect')
 
-        if np.any(totmask):
-            igd = (wave >= wave_min) & (wave <= wave_max)
-            isrt1 = np.argsort(wave[igd], kind='stable')
-            spline_img_interp = scipy.interpolate.interp1d(
-                wave[igd][isrt1], spline_flux1[igd][isrt1], assume_sorted=False,
-                bounds_error=False, fill_value='extrapolate'
-            )
-            spline_img[totmask] = spline_img_interp(waveimg[totmask])
-        else:
-            spline_img[totmask] = np.fmax(sigma1, 0)
+        igd = (wave >= wave_min) & (wave <= wave_max)
+        isrt1 = np.argsort(wave[igd], kind='stable')
+        spline_img_interp = scipy.interpolate.interp1d(
+            wave[igd][isrt1], spline_flux1[igd][isrt1], assume_sorted=False,
+            bounds_error=False, fill_value='extrapolate'
+        )
+        spline_img_x = spline_img_interp(wave_x)
 
-    norm_obj = np.where(spline_img != 0.0, image / spline_img, 0.0)
-    norm_ivar = ivar * spline_img ** 2
+    norm_obj_x = np.where(spline_img_x != 0.0, flux_x / spline_img_x, 0.0)
+    norm_ivar_x = ivar_x * spline_img_x ** 2
 
-    ivar_mask = (
-        (norm_obj > -0.2) & (norm_obj < 0.7) & totmask & np.isfinite(norm_obj)
-        & np.isfinite(norm_ivar)
+    ivar_mask_x = (
+        (norm_obj_x > -0.2) & (norm_obj_x < 0.7)
+        & np.isfinite(norm_obj_x) & np.isfinite(norm_ivar_x)
     )
-    norm_ivar[np.logical_not(ivar_mask)] = 0.0
-    good = norm_ivar.flatten() > 0.0
+    norm_ivar_x[~ivar_mask_x] = 0.0
+    good_x = norm_ivar_x > 0.0
 
-    # xtemp: cumulative S/N-weighted spectral coordinate (used for trace correction)
+    # xtemp_x: cumulative S/N-weighted spectral coordinate (1-D, one value per pixel)
     row_weights = 4.0 + np.sqrt(np.fmax(sn2_1, 0.0))
-    xtemp = np.cumsum(np.repeat(row_weights, nspat)).reshape((nspec, nspat))
-    xtemp /= xtemp.max()
+    cumweight = np.cumsum(row_weights)
+    xtemp_x = cumweight[spec_x] / cumweight[-1]
 
-    return True, med_sn2, norm_obj, norm_ivar, good, xtemp, sn2_img
+    return True, med_sn2, norm_obj_x, norm_ivar_x, good_x, xtemp_x, sn2_x
 
 
-def _compute_bspline_knots(dspat, sigma, med_sn2, prof_nsigma, good):
+def _compute_bspline_knots(dspat_x, sigma, spec_x, med_sn2, prof_nsigma, good_x):
     """
     Initialise spatial-coordinate arrays and B-spline knot grid.
 
     Encapsulates Block 6 of :func:`fit_profile_refactor`: computes the
-    spatial-separation image ``dspat``, the normalised coordinate ``sigma_x``,
-    the profile half-extent ``limit``, the profile sigma bounds, and the
-    sinh-spaced interior B-spline knot positions.
+    normalised coordinate ``sigma_x`` for each valid slit pixel, the profile
+    half-extent ``limit``, the profile sigma bounds, and the sinh-spaced
+    interior B-spline knot positions.
 
     Parameters
     ----------
-    dspat : :class:`numpy.ndarray`
-        Spatial separation from the trace, shape
-        :math:`(N_{\rm spec}, N_{\rm spat})`.
+    dspat_x : :class:`numpy.ndarray`
+        Spatial separation from the trace for each valid slit pixel,
+        shape :math:`(N_{\rm pix},)`.
     sigma : :class:`numpy.ndarray`
         Current Gaussian sigma estimate per spectral pixel,
         shape :math:`(N_{\rm spec},)`.
+    spec_x : :class:`numpy.ndarray`
+        Spectral row index of each valid slit pixel, shape
+        :math:`(N_{\rm pix},)` int.
     med_sn2 : :obj:`float`
         Median :math:`(S/N)^2` of the object.
     prof_nsigma : :obj:`float` or None
         If set, fit the profile out to this many sigma (extended objects);
         overrides the automatic sigma bounds computed from ``med_sn2``.
-    good : :class:`numpy.ndarray`
-        Boolean flat index array of pixels with positive ``norm_ivar``,
-        used to clip the sigma range to the data extent.
+    good_x : :class:`numpy.ndarray`
+        Boolean array marking pixels with positive ``norm_ivar_x``,
+        shape :math:`(N_{\rm pix},)`.
 
     Returns
     -------
     sigma_x : :class:`numpy.ndarray`
-        Normalised spatial coordinate (units of ``sigma``), same shape.
+        Normalised spatial coordinate (units of ``sigma``), shape
+        :math:`(N_{\rm pix},)`.
     limit : :obj:`float`
         Profile half-extent in units of ``sigma``.
     min_sigma : :obj:`float`
@@ -495,13 +494,13 @@ def _compute_bspline_knots(dspat, sigma, med_sn2, prof_nsigma, good):
     bkpt : :class:`numpy.ndarray`
         Interior B-spline knot positions in ``sigma_x`` units.
     """
-    sigma_x = dspat / sigma[:, None]
+    sigma_x = dspat_x / sigma[spec_x]
     limit = scipy.special.erfcinv(0.1 / np.sqrt(med_sn2)) * np.sqrt(2.0)
     if prof_nsigma is None:
         sinh_space = 0.25 * np.log10(np.fmax(1000.0 / np.sqrt(med_sn2), 10.0))
-        abs_sigma = np.fmin((np.abs(sigma_x.flat[good])).max(), 2.0 * limit)
-        min_sigma = np.fmax(sigma_x.flat[good].min(), -abs_sigma)
-        max_sigma = np.fmin(sigma_x.flat[good].max(), abs_sigma)
+        abs_sigma = np.fmin((np.abs(sigma_x[good_x])).max(), 2.0 * limit)
+        min_sigma = np.fmax(sigma_x[good_x].min(), -abs_sigma)
+        max_sigma = np.fmin(sigma_x[good_x].max(), abs_sigma)
         nb = (np.arcsinh(abs_sigma) / sinh_space).astype(int) + 1
     else:
         log.info(f"Using prof_nsigma={prof_nsigma:.2f} for extended/bright objects")
@@ -534,14 +533,13 @@ def _apodize_profile(
     bset : BSpline
         Final 1-D B-spline profile.
     sigma_x : :class:`numpy.ndarray`
-        Normalised spatial coordinate image, shape
-        :math:`(N_{\rm spec}, N_{\rm spat})`.
+        Normalised spatial coordinate, shape :math:`(N_{\rm pix},)`.
     min_sigma : :obj:`float`
         Lower bound on ``sigma_x`` for the good-pixel mask.
     max_sigma : :obj:`float`
         Upper bound on ``sigma_x`` for the good-pixel mask.
     ss : :class:`numpy.ndarray`
-        Flat indices that sort ``sigma_x`` in ascending order.
+        Indices that sort ``sigma_x`` in ascending order.
     median_fit : :obj:`float`
         Baseline level of the profile (subtracted before peak-finding).
     min_level : :obj:`float`
@@ -558,8 +556,8 @@ def _apodize_profile(
     Returns
     -------
     full_bsp : :class:`numpy.ndarray`
-        Flat profile array of length :math:`N_{\rm spec} N_{\rm spat}` with
-        exponential tails applied outside ``[l_limit, r_limit]``.
+        Profile array of length :math:`N_{\rm pix}` with exponential tails
+        applied outside ``[l_limit, r_limit]``.
     l_limit : :obj:`float`
         Final left apodization limit in ``sigma_x`` units (0.0 when
         ``prof_nsigma`` is set).
@@ -570,9 +568,9 @@ def _apodize_profile(
     # ------------------------------------------------------------------
     # Block 11 — Apodization limit search (vectorised)
     # ------------------------------------------------------------------
-    igood = (sigma_x.flatten() > min_sigma) & (sigma_x.flatten() < max_sigma)
+    igood = (sigma_x > min_sigma) & (sigma_x < max_sigma)
     full_bsp = np.zeros(sigma_x.size)
-    sigma_x_igood = sigma_x.flat[igood]
+    sigma_x_igood = sigma_x[igood]
     yfit_out, _ = bset.value(sigma_x_igood)
     full_bsp[igood] = yfit_out
     isrt2 = sigma_x_igood.argsort(kind='stable')
@@ -581,20 +579,20 @@ def _apodize_profile(
     )
 
     left_bool = (
-        ((full_bsp[ss] < min_level + median_fit) & (sigma_x.flat[ss] < peak_x))
-        | (sigma_x.flat[ss] < peak_x - limit)
+        ((full_bsp[ss] < min_level + median_fit) & (sigma_x[ss] < peak_x))
+        | (sigma_x[ss] < peak_x - limit)
     )[::-1]
     ind_left, = np.where(left_bool)
     lp = np.fmax(ind_left.min(), 0) if ind_left.size > 0 else 0
 
     righ_bool = (
-        (full_bsp[ss] < min_level + median_fit) & (sigma_x.flat[ss] > peak_x)
-    ) | (sigma_x.flat[ss] > peak_x + limit)
+        (full_bsp[ss] < min_level + median_fit) & (sigma_x[ss] > peak_x)
+    ) | (sigma_x[ss] > peak_x + limit)
     ind_righ, = np.where(righ_bool)
     rp = np.fmax(ind_righ.min(), 0) if ind_righ.size > 0 else 0
 
-    l_limit = (sigma_x.flat[ss][::-1])[lp] - 0.1
-    r_limit = sigma_x.flat[ss[rp]] + 0.1
+    l_limit = (sigma_x[ss][::-1])[lp] - 0.1
+    r_limit = sigma_x[ss[rp]] + 0.1
 
     # Logarithmic-derivative vectors (pre-computed for both the apodization
     # search and the subsequent limit walk)
@@ -645,10 +643,10 @@ def _apodize_profile(
         no_deriv = True
 
     if l_deriv < 0 and r_deriv > 0 and not no_deriv:
-        left = sigma_x.flatten() < l_limit
-        full_bsp[left] = np.exp(-(sigma_x.flat[left] - l_limit) * l_deriv) * l_fit_val
-        right = sigma_x.flatten() > r_limit
-        full_bsp[right] = np.exp(-(sigma_x.flat[right] - r_limit) * r_deriv) * r_fit_val
+        left = sigma_x < l_limit
+        full_bsp[left] = np.exp(-(sigma_x[left] - l_limit) * l_deriv) * l_fit_val
+        right = sigma_x > r_limit
+        full_bsp[right] = np.exp(-(sigma_x[right] - r_limit) * r_deriv) * r_fit_val
 
     return full_bsp, l_limit, r_limit
 
@@ -659,8 +657,8 @@ def _apodize_profile(
 
 def fit_profile_refactor(
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar, inmask=None,
-    thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, percentile_sn2=70.0, prof_nsigma=None,
-    no_deriv=False, gauss=False, obj_string='', show_profile=False
+    spec_img=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, percentile_sn2=70.0,
+    prof_nsigma=None, no_deriv=False, gauss=False, obj_string='', show_profile=False
 ):
     r"""
     Fit a non-parametric object profile to an object spectrum.
@@ -693,6 +691,11 @@ def fit_profile_refactor(
         Inverse variance of ``flux``, shape :math:`(N_{\rm spec},)`.
     inmask : :class:`numpy.ndarray`, optional
         Additional boolean mask; defaults to ``(ivar > 0) & thismask``.
+    spec_img : :class:`numpy.ndarray`, optional
+        Integer image where ``spec_img[i, j] = i``; same shape as ``image``.
+        If ``None`` (default), row indices are derived from ``totmask`` via
+        ``np.where(totmask)[0]``.  Construct as
+        ``np.broadcast_to(np.arange(nspec, dtype=int)[:, None], image.shape)``.
     thisfwhm : :obj:`float`, optional
         Initial FWHM estimate in pixels.
     max_trace_corr : :obj:`float`, optional
@@ -732,6 +735,18 @@ def fit_profile_refactor(
     if inmask is not None:
         totmask &= inmask
 
+    # ------------------------------------------------------------------
+    # Block 0 — Isolate slit pixels into 1-D arrays
+    # ------------------------------------------------------------------
+    if spec_img is None:
+        spec_x = np.where(totmask)[0]
+    else:
+        spec_x = spec_img[totmask]
+    spat_x = spat_img[totmask]
+    wave_x = waveimg[totmask]
+    flux_x = image[totmask]
+    ivar_x = ivar[totmask]
+
     nspec, nspat = image.shape
     _thisfwhm = np.fmax(thisfwhm, 1.0)
     fwhmfit = np.full(nspec, _thisfwhm)
@@ -741,15 +756,17 @@ def fit_profile_refactor(
     # ------------------------------------------------------------------
     # Blocks 2–5 — Spectral fitting and normalisation
     # ------------------------------------------------------------------
-    success, med_sn2, norm_obj, norm_ivar, good, xtemp, sn2_img = _fit_spectrum_and_normalize(
-        wave, flux, fluxivar, waveimg, image, ivar, totmask, percentile_sn2, _thisfwhm
-    )
+    success, med_sn2, norm_obj_x, norm_ivar_x, good_x, xtemp_x, sn2_x = \
+        _fit_spectrum_and_normalize(
+            wave=wave, flux=flux, fluxivar=fluxivar,
+            wave_x=wave_x, flux_x=flux_x, ivar_x=ivar_x, spec_x=spec_x, nspec=nspec,
+            percentile_sn2=percentile_sn2, fwhm=_thisfwhm
+        )
     if success:
-        gauss_kwargs = {'ind': good, 'xtrunc': 7.0}
-        ngood = good.sum()
+        gauss_kwargs = {'ind': good_x, 'xtrunc': 7.0}
+        ngood = good_x.sum()
         log.info(f"Gaussian vs b-spline of width {_thisfwhm:.2f} pixels")
     else:
-        norm_obj = None
         med_sn2 = 0.0
         show_profile = False
         gauss_kwargs = {}
@@ -760,7 +777,7 @@ def fit_profile_refactor(
             f'pixels, or the measured S/N is below the provided limit ({sn_gauss:.1f}).'
         )
         profile_model = _return_gaussian(
-            spat_img, norm_obj, trace_in, sigma, _thisfwhm, med_sn2, obj_string, show_profile,
+            spat_img, norm_obj_x, trace_in, sigma, _thisfwhm, med_sn2, obj_string, show_profile,
             **gauss_kwargs
         )
         return profile_model, trace_in, fwhmfit, med_sn2
@@ -768,37 +785,39 @@ def fit_profile_refactor(
     # ------------------------------------------------------------------
     # Block 6 — Knot setup
     # ------------------------------------------------------------------
-    dspat = spat_img - trace_in[:, None]
+    npix = spec_x.size
+    dspat_x = spat_x - trace_in[spec_x]
     sigma_x, limit, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
-        dspat, sigma, med_sn2, prof_nsigma, good
+        dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2,
+        prof_nsigma=prof_nsigma, good_x=good_x
     )
     trace_corr = np.zeros(nspec)
 
     # ------------------------------------------------------------------
     # Block 7 — Initial profile fit
     # ------------------------------------------------------------------
-    GOOD_PIX = (sn2_img > sn_gauss**2) & (norm_ivar > 0)
-    IN_PIX = (sigma_x >= min_sigma) & (sigma_x <= max_sigma) & (norm_ivar > 0)
-    if GOOD_PIX.sum() >= 0.2 * IN_PIX.sum():
-        inside, = np.where((GOOD_PIX & IN_PIX).flatten())
+    GOOD_PIX_x = (sn2_x > sn_gauss**2) & (norm_ivar_x > 0)
+    IN_PIX_x = (sigma_x >= min_sigma) & (sigma_x <= max_sigma) & (norm_ivar_x > 0)
+    if GOOD_PIX_x.sum() >= 0.2 * IN_PIX_x.sum():
+        inside, = np.where(GOOD_PIX_x & IN_PIX_x)
     else:
-        inside, = np.where(IN_PIX.flatten())
+        inside, = np.where(IN_PIX_x)
 
-    si = inside[np.argsort(sigma_x.flat[inside], kind='stable')]
+    si = inside[np.argsort(sigma_x[inside], kind='stable')]
     sr = si[::-1]
 
     bset, bmask, *_ = iterative_bspline_fit(
-        sigma_x.flat[si], norm_obj.flat[si], ivar=norm_ivar.flat[si],
+        sigma_x[si], norm_obj_x[si], ivar=norm_ivar_x[si],
         nord=4, kwargs_knots={'interior': bkpt}, maxiter=15, upper=1, lower=1
     )
-    mode_fit, _ = bset.value(sigma_x.flat[si])
-    median_fit = np.median(norm_obj[norm_ivar > 0.0])
+    mode_fit, _ = bset.value(sigma_x[si])
+    median_fit = np.median(norm_obj_x[norm_ivar_x > 0.0])
     if np.abs(median_fit) > 0.01:
         log.info(f"Median flux level in profile is not zero: median = {median_fit:.4f}")
     else:
         median_fit = 0.0
 
-    peak, peak_x, lwhm, rwhm = _findfwhm(mode_fit - median_fit, sigma_x.flat[si])
+    peak, peak_x, lwhm, rwhm = _findfwhm(mode_fit - median_fit, sigma_x[si])
     trace_corr = np.full(nspec, peak_x)
     min_level = peak * np.exp(-0.5 * limit ** 2)
 
@@ -812,26 +831,26 @@ def fit_profile_refactor(
 
     rev_fit = mode_fit[::-1]
     lind, = np.where(
-        ((rev_fit < (min_level + median_fit)) & (sigma_x.flat[sr] < peak_x))
-        | (sigma_x.flat[sr] < (peak_x - limit))
+        ((rev_fit < (min_level + median_fit)) & (sigma_x[sr] < peak_x))
+        | (sigma_x[sr] < (peak_x - limit))
     )
-    l_limit = sigma_x.flat[sr[lind.min()]] if lind.size > 0 else min_sigma
+    l_limit = sigma_x[sr[lind.min()]] if lind.size > 0 else min_sigma
 
     rind, = np.where(
-        ((mode_fit < (min_level + median_fit)) & (sigma_x.flat[si] > peak_x))
-        | (sigma_x.flat[si] > (peak_x + limit))
+        ((mode_fit < (min_level + median_fit)) & (sigma_x[si] > peak_x))
+        | (sigma_x[si] > (peak_x + limit))
     )
-    r_limit = sigma_x.flat[si[rind.min()]] if rind.size > 0 else max_sigma
+    r_limit = sigma_x[si[rind.min()]] if rind.size > 0 else max_sigma
 
     log.info(
         f"Trace limits: limit={limit:.4f}, min_level={min_level:.4f}, l_limit={l_limit:.4f}, "
         f"r_limit={r_limit:.4f}"
     )
 
-    mask = np.zeros(nspec * nspat, dtype=bool)
-    mask[si] = (norm_ivar.flat[si] > 0) & (np.abs(norm_obj.flat[si] - mode_fit) < 0.1)
+    mask_x = np.zeros(npix, dtype=bool)
+    mask_x[si] = (norm_ivar_x[si] > 0) & (np.abs(norm_obj_x[si] - mode_fit) < 0.1)
     inside, = np.where(
-        (sigma_x.flat[si] > l_limit) & (sigma_x.flat[si] < r_limit) & mask[si]
+        (sigma_x[si] > l_limit) & (sigma_x[si] < r_limit) & mask_x[si]
     )
     ninside = inside.size
 
@@ -839,8 +858,8 @@ def fit_profile_refactor(
         log.info("Too few pixels inside l_limit and r_limit")
         log.info("Returning Gaussian profile")
         profile_model = _return_gaussian(
-            spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
-            obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
+            spat_img, norm_obj_x, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
+            obj_string, show_profile, ind=good_x, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
         )
         return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -848,31 +867,31 @@ def fit_profile_refactor(
     # Block 8 — Iterative trace and width correction (sigma_iter=3)
     # ------------------------------------------------------------------
     sigma_iter = 3
-    isort = xtemp.flat[si[inside]].argsort(kind='stable')
+    xx = np.bincount(spec_x, weights=xtemp_x, minlength=nspec) / nspat
+    isort = xtemp_x[si[inside]].argsort(kind='stable')
     inside = si[inside[isort]]
     pb = np.ones(inside.size)
     area = np.ones(nspec)
 
     for iiter in range(sigma_iter):
-        mode_zero, _ = bset.value(sigma_x.flat[inside])
+        mode_zero, _ = bset.value(sigma_x[inside])
         mode_zero = mode_zero * pb
 
-        mode_min05, _ = bset.value(sigma_x.flat[inside] - 0.5)
-        mode_plu05, _ = bset.value(sigma_x.flat[inside] + 0.5)
+        mode_min05, _ = bset.value(sigma_x[inside] - 0.5)
+        mode_plu05, _ = bset.value(sigma_x[inside] + 0.5)
         mode_shift = (mode_min05 - mode_plu05) * pb
         mode_shift[
-            (sigma_x.flat[inside] <= (l_limit + 0.5)) | (sigma_x.flat[inside] >= (r_limit - 0.5))
+            (sigma_x[inside] <= (l_limit + 0.5)) | (sigma_x[inside] >= (r_limit - 0.5))
         ] = 0.0
 
-        mode_by13, _ = bset.value(sigma_x.flat[inside] / 1.3)
+        mode_by13, _ = bset.value(sigma_x[inside] / 1.3)
         mode_stretch = mode_by13 * pb / 1.3 - mode_zero
 
         nbkpts = int(np.log10(np.fmax(med_sn2, 11.0)))
-        xx = xtemp.sum(axis=1) / nspat
         profile_basis = np.column_stack((mode_zero, mode_shift))
 
         mode_shift_out = iterative_bspline_fit(
-            xtemp.flat[inside], norm_obj.flat[inside], ivar=norm_ivar.flat[inside],
+            xtemp_x[inside], norm_obj_x[inside], ivar=norm_ivar_x[inside],
             basis=profile_basis, maxiter=1, kwargs_knots={'count': nbkpts}
         )
         if not np.any(mode_shift_out[1]):
@@ -881,8 +900,9 @@ def fit_profile_refactor(
                 f'for ninside = {ninside}.'
             )
             profile_model = _return_gaussian(
-                spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
-                obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
+                spat_img, norm_obj_x, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
+                med_sn2, obj_string, show_profile, ind=good_x, l_limit=l_limit,
+                r_limit=r_limit, xlim=7.0,
             )
             return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -899,7 +919,7 @@ def fit_profile_refactor(
 
         profile_basis = np.column_stack((mode_zero, mode_stretch))
         mode_stretch_out = iterative_bspline_fit(
-            xtemp.flat[inside], norm_obj.flat[inside], ivar=norm_ivar.flat[inside],
+            xtemp_x[inside], norm_obj_x[inside], ivar=norm_ivar_x[inside],
             basis=profile_basis, maxiter=1, kwargs_knots={'full': mode_shift_set.breakpoints}
         )
         if not np.any(mode_stretch_out[1]):
@@ -908,8 +928,9 @@ def fit_profile_refactor(
                 f'failed for ninside = {ninside}.'
             )
             profile_model = _return_gaussian(
-                spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
-                obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
+                spat_img, norm_obj_x, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
+                med_sn2, obj_string, show_profile, ind=good_x, l_limit=l_limit,
+                r_limit=r_limit, xlim=7.0,
             )
             return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -935,21 +956,21 @@ def fit_profile_refactor(
         sigma = sigma * (1.0 + sigma_factor)
         area = area * h0 / (1.0 + sigma_factor)
 
-        sigma_x = dspat / sigma[:, None] - trace_corr[:, None]
+        sigma_x = dspat_x / sigma[spec_x] - trace_corr[spec_x]
 
         # TODO: In the previous version, iiter was iterated from 1 to sigma_iter
         # and this was check was for if iiter < sigma_iter - 1.  When moving to
         # a 0-indexed iterator, this makes this if statement sigma_iter - 2.  Is
         # that the original intention, or was this an index mistake?
         if iiter < sigma_iter - 2:
-            ss = sigma_x.flat[inside].argsort(kind='stable')
-            pb = np.repeat(area, nspat)[inside]
-            keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
+            ss = sigma_x[inside].argsort(kind='stable')
+            pb = area[spec_x[inside]]
+            keep = (bkpt >= sigma_x[inside].min()) & (bkpt <= sigma_x[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, dtype=bool)
             bset_out = iterative_bspline_fit(
-                sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
-                ivar=norm_ivar.flat[inside[ss]], basis=pb[ss], nord=4,
+                sigma_x[inside[ss]], norm_obj_x[inside[ss]],
+                ivar=norm_ivar_x[inside[ss]], basis=pb[ss], nord=4,
                 kwargs_knots={'interior': bkpt[keep]}, maxiter=2
             )
             if not np.any(bset_out[1]):
@@ -958,9 +979,9 @@ def fit_profile_refactor(
                     f'trace/width loop failed for ninside = {ninside}'
                 )
                 profile_model = _return_gaussian(
-                    spat_img, norm_obj, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
-                    med_sn2, obj_string, show_profile, ind=good, l_limit=l_limit, r_limit=r_limit,
-                    xlim=7.0,
+                    spat_img, norm_obj_x, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
+                    med_sn2, obj_string, show_profile, ind=good_x, l_limit=l_limit,
+                    r_limit=r_limit, xlim=7.0,
                 )
                 return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -978,15 +999,15 @@ def fit_profile_refactor(
     # ------------------------------------------------------------------
     # Block 10 — Final profile fit
     # ------------------------------------------------------------------
-    ss = sigma_x.flatten().argsort(kind='stable')
+    ss = sigma_x.argsort(kind='stable')
     inside, = np.where(
-        (sigma_x.flat[ss] >= min_sigma) & (sigma_x.flat[ss] <= max_sigma) & mask[ss]
-        & np.isfinite(norm_obj.flat[ss]) & np.isfinite(norm_ivar.flat[ss])
+        (sigma_x[ss] >= min_sigma) & (sigma_x[ss] <= max_sigma) & mask_x[ss]
+        & np.isfinite(norm_obj_x[ss]) & np.isfinite(norm_ivar_x[ss])
     )
-    pb = area[:, None] * np.ones((nspec, nspat))
+    pb_x = area[spec_x]
     bset_out = iterative_bspline_fit(
-        sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
-        ivar=norm_ivar.flat[ss[inside]], basis=pb.flat[ss[inside]], nord=4,
+        sigma_x[ss[inside]], norm_obj_x[ss[inside]],
+        ivar=norm_ivar_x[ss[inside]], basis=pb_x[ss[inside]], nord=4,
         kwargs_knots={'interior': bkpt}, upper=10, lower=10
     )
     bset = _bspline2d_to_1d(bset_out[0])
@@ -1003,14 +1024,15 @@ def fit_profile_refactor(
     # ------------------------------------------------------------------
     # Block 13 — Normalisation, logging, QA, return
     # ------------------------------------------------------------------
-    full_bsp = full_bsp.reshape(nspec, nspat)
-    profile_model = full_bsp * pb
+    profile_x = full_bsp * pb_x
+    profile_model = np.zeros((nspec, nspat))
+    profile_model[totmask] = profile_x
 
     res_mode = (
-        (norm_obj.flat[ss[inside]] - profile_model.flat[ss[inside]])
-        * np.sqrt(norm_ivar.flat[ss[inside]])
+        (norm_obj_x[ss[inside]] - profile_x[ss[inside]])
+        * np.sqrt(norm_ivar_x[ss[inside]])
     )
-    chi_good = outmask & (norm_ivar.flat[ss[inside]] > 0)
+    chi_good = outmask & (norm_ivar_x[ss[inside]] > 0)
     chi_med = np.median(res_mode[chi_good] ** 2)
 
     log.info("--------------------  Results of Profile Fit --------------------")
@@ -1043,7 +1065,8 @@ def fit_profile_refactor(
     )
     if show_profile:
         qa_fit_profile(
-            sigma_x, norm_obj / (pb + (pb == 0.0)), full_bsp, l_limit=l_limit, r_limit=r_limit,
+            sigma_x, norm_obj_x / (pb_x + (pb_x == 0.0)), full_bsp,
+            l_limit=l_limit, r_limit=r_limit,
             ind=ss[inside], xlim=prof_nsigma, title=f'{obj_string} {info_string}'
         )
 
