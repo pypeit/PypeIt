@@ -862,6 +862,78 @@ def test_value_gap_masking():
     assert not vmask[0], 'x in a masked knot-span gap must be masked by value()'
 
 
+def test_value_coeff_kwarg_additivity():
+    """Partial coeff evaluations sum to the full model (linearity check)."""
+    rng = np.random.default_rng(94)
+    x = np.sort(rng.uniform(0, 5, 200))
+    y = np.sin(x)
+    spl = BSpline(x=x, knots=Knots(count=12), nord=4)
+    spl.fit(x, y)
+
+    # Split the coefficient vector in half; both halves together must reproduce
+    # the full fit because B-spline evaluation is linear in the coefficients.
+    nc = spl.coeff.size
+    half = nc // 2
+    coeff_lo = np.zeros(nc)
+    coeff_lo[:half] = spl.coeff[:half]
+    coeff_hi = np.zeros(nc)
+    coeff_hi[half:] = spl.coeff[half:]
+
+    x_eval = np.sort(rng.uniform(0.5, 4.5, 150))
+    yfit_full, _ = spl.value(x_eval)
+    yfit_lo, _ = spl.value(x_eval, coeff=coeff_lo)
+    yfit_hi, _ = spl.value(x_eval, coeff=coeff_hi)
+    np.testing.assert_allclose(yfit_lo + yfit_hi, yfit_full, atol=1e-12)
+
+
+def test_value_coeff_kwarg_does_not_mutate_instance():
+    """Calling value() with a coeff override must not change the stored coeff."""
+    rng = np.random.default_rng(95)
+    x = np.sort(rng.uniform(0, 5, 150))
+    y = np.cos(x)
+    spl = BSpline(x=x, knots=Knots(count=10), nord=4)
+    spl.fit(x, y)
+
+    coeff_before = spl.coeff.copy()
+    yfit_before, _ = spl.value(x)
+
+    coeff_alt = rng.standard_normal(spl.coeff.size)
+    spl.value(x, coeff=coeff_alt)
+
+    np.testing.assert_array_equal(spl.coeff, coeff_before)
+    yfit_after, _ = spl.value(x)
+    np.testing.assert_array_equal(yfit_after, yfit_before)
+
+
+def test_value_coeff_kwarg_bypasses_training_fast_path():
+    """coeff override must bypass the x-is-self.x fast path and recompute."""
+    rng = np.random.default_rng(96)
+    x = np.sort(rng.uniform(0, 5, 100))
+    y = np.sin(x)
+    spl = BSpline(x=x, knots=Knots(count=8), nord=4)
+    spl.fit(x, y)
+
+    coeff_zero = np.zeros_like(spl.coeff)
+    yfit_zero, _ = spl.value(x, coeff=coeff_zero)
+    np.testing.assert_allclose(yfit_zero, 0.0, atol=1e-14)
+
+
+def test_value_coeff_kwarg_bypasses_interpolate_fast_path():
+    """interpolate=True must be ignored when coeff is provided."""
+    rng = np.random.default_rng(97)
+    x = np.sort(rng.uniform(0, 5, 200))
+    y = np.sin(x)
+    spl = BSpline(x=x, knots=Knots(count=12), nord=4)
+    spl.fit(x, y)
+
+    x_eval = np.sort(rng.uniform(0.5, 4.5, 100))
+    # Full evaluation with coeff override
+    yfit_full, _ = spl.value(x_eval, coeff=spl.coeff)
+    # interpolate=True with coeff override must give the same result (not np.interp)
+    yfit_interp, _ = spl.value(x_eval, interpolate=True, coeff=spl.coeff)
+    np.testing.assert_allclose(yfit_interp, yfit_full, atol=1e-12)
+
+
 # ============================================================================
 # BSpline.copy
 # ============================================================================

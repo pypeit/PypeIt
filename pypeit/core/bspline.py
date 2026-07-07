@@ -751,7 +751,7 @@ class BSpline:
         self.coeff[goodbk_idx] = sol[:nn].astype(self.coeff.dtype)
         self.icoeff[goodbk_idx] = chol[0, :nn].astype(self.icoeff.dtype)
 
-    def _evaluate_model(self, A, lower, upper):
+    def _evaluate_model(self, A, lower, upper, coeff=None):
         r"""
         Evaluate the fitted B-spline model at the points encoded in ``A``.
 
@@ -773,15 +773,20 @@ class BSpline:
             First data index (inclusive) in each span.
         upper : :class:`numpy.ndarray` of int
             Last data index (inclusive) in each span.
+        coeff : :class:`numpy.ndarray` or None, optional
+            Coefficient array of shape ``(nc,)`` used in place of
+            :attr:`coeff` for this evaluation.  When ``None`` (default),
+            :attr:`coeff` is used.
 
         Returns
         -------
         :class:`numpy.ndarray`, shape (N,)
             Fitted model values.
         """
+        _coeff = self.coeff if coeff is None else coeff
         n = self.bkpt_gpm.sum() - self.nord
         coeffbk = self.bkpt_gpm[self.nord:].nonzero()[0]
-        goodcoeff = self.coeff[coeffbk]  # (nn,)
+        goodcoeff = _coeff[coeffbk]  # (nn,)
 
         yfit = np.zeros(A.shape[0], dtype=float)
         for k in range(n - self.nord + 1):
@@ -973,7 +978,7 @@ class BSpline:
         self.yfit = self._evaluate_model(A, lower, upper)
         return 0, self.yfit
 
-    def value(self, x, interpolate=False):
+    def value(self, x, interpolate=False, coeff=None):
         """
         Evaluate the fitted B-spline at arbitrary ``x`` positions.
 
@@ -985,10 +990,17 @@ class BSpline:
         x : :class:`numpy.ndarray`
             Independent variable at which to evaluate the fit.
         interpolate : bool, optional
-            When ``True`` and ``x is not self.x``, linearly interpolate
-            :attr:`yfit` at ``x`` using :func:`numpy.interp` instead of
-            rebuilding the design matrix.  Faster for dense new grids but
-            less accurate than full B-spline evaluation.  Default ``False``.
+            When ``True`` and ``x is not self.x`` and ``coeff is None``,
+            linearly interpolate :attr:`yfit` at ``x`` using
+            :func:`numpy.interp` instead of rebuilding the design matrix.
+            Faster for dense new grids but less accurate than full B-spline
+            evaluation.  Ignored when ``coeff`` is provided.  Default
+            ``False``.
+        coeff : :class:`numpy.ndarray` or None, optional
+            Coefficient array of shape ``(nc,)`` used in place of
+            :attr:`coeff` for this evaluation.  When ``None`` (default),
+            :attr:`coeff` is used and the ``x is self.x`` / ``interpolate``
+            fast paths are available.
 
         Returns
         -------
@@ -1001,15 +1013,15 @@ class BSpline:
         """
         gpm = self._fit_gpm(x)
 
-        if x is self.x:
-            return self.yfit, gpm
-
-        if interpolate:
-            return np.interp(x, self.x, self.yfit), gpm
+        if coeff is None:
+            if x is self.x:
+                return self.yfit, gpm
+            if interpolate:
+                return np.interp(x, self.x, self.yfit), gpm
 
         xsort = x.argsort(kind='stable')
         A, lower, upper = self._build_design_matrix(x[xsort])
-        yfit = self._evaluate_model(A, lower, upper)
+        yfit = self._evaluate_model(A, lower, upper, coeff=coeff)
         return yfit[np.argsort(xsort, kind='stable')], gpm
 
     def reset_knots(self, x, required=False):

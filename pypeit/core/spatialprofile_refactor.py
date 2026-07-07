@@ -914,12 +914,9 @@ def fit_profile_refactor(
             )
             return profile_model, trace_in, fwhmfit, med_sn2
 
-        temp_set = BSpline(knots=Knots(full=mode_shift_bspl.breakpoints), nord=mode_shift_bspl.nord)
-        temp_set.bkpt_gpm = mode_shift_bspl.bkpt_gpm
-        temp_set.coeff = mode_shift_bspl.coeff[:, 0]
+        temp_set = _bspline2d_to_1d(mode_shift_bspl)
         h0, _ = temp_set.value(xx)
-        temp_set.coeff = mode_shift_bspl.coeff[:, 1]
-        h1, _ = temp_set.value(xx)
+        h1, _ = temp_set.value(xx, coeff=mode_shift_bspl.coeff[:, 1])
         ratio_10 = h1 / (h0 + (h0 == 0.0))
         delta_trace_corr = ratio_10 / (1.0 + np.abs(ratio_10) / 0.1)
         trace_corr += delta_trace_corr
@@ -941,14 +938,9 @@ def fit_profile_refactor(
             )
             return profile_model, trace_in, fwhmfit, med_sn2
 
-        temp_set = BSpline(
-            knots=Knots(full=mode_stretch_bspl.breakpoints), nord=mode_stretch_bspl.nord
-        )
-        temp_set.bkpt_gpm = mode_stretch_bspl.bkpt_gpm
-        temp_set.coeff = mode_stretch_bspl.coeff[:, 0]
+        temp_set = _bspline2d_to_1d(mode_stretch_bspl)
         h0, _ = temp_set.value(xx)
-        temp_set.coeff = mode_stretch_bspl.coeff[:, 1]
-        h2, _ = temp_set.value(xx)
+        h2, _ = temp_set.value(xx, coeff=mode_stretch_bspl.coeff[:, 1])
         h0 = np.fmax(h0 + h2 * mode_stretch.sum() / mode_zero.sum(), 0.1)
         ratio_20 = h2 / (h0 + (h0 == 0.0))
         sigma_factor = 0.3 * ratio_20 / (1.0 + np.abs(ratio_20))
