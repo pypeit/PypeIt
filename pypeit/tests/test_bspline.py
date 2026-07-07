@@ -1696,6 +1696,26 @@ def test_bspline2d_value_restores_training_P_after_call():
     np.testing.assert_array_equal(spl.P, P_before)
 
 
+def test_bspline2d_to_1d():
+    """to_1d() extracts coeff[:,0] into a BSpline with the same knots and order."""
+    rng = np.random.default_rng(98)
+    N = 200
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    y = np.sin(x) + 0.3 * basis_x
+
+    spl2d = BSpline2D(x=x, knots=Knots(count=10), nord=4)
+    spl2d.fit(x, y, basis_x=basis_x, basis='legendre', npoly=2, xmin=0.0, xmax=1.0)
+
+    spl1d = spl2d.to_1d()
+
+    assert isinstance(spl1d, BSpline)
+    assert not isinstance(spl1d, BSpline2D)
+    assert spl1d.nord == spl2d.nord
+    np.testing.assert_array_equal(spl1d.coeff, spl2d.coeff[:, 0])
+    np.testing.assert_array_equal(spl1d.bkpt_gpm, spl2d.bkpt_gpm)
+
+
 # ============================================================================
 # BSpline.value / BSpline2D.value — interpolate keyword
 # ============================================================================

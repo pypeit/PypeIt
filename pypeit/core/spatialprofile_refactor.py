@@ -32,7 +32,6 @@ import scipy.special
 
 from pypeit import log
 from pypeit import utils
-from pypeit.core.bspline import BSpline, Knots
 from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.core import pydl
 from pypeit.core.spatialprofile import qa_fit_profile
@@ -41,30 +40,6 @@ from pypeit.core.spatialprofile import qa_fit_profile
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
-
-def _bspline2d_to_1d(bset2d):
-    """
-    Convert the first component of a ``BSpline2D`` to a 1-D ``BSpline``.
-
-    :func:`~pypeit.core.fitting.iterative_bspline_fit` returns a ``BSpline2D``
-    (``coeff`` shape ``(nknots, npoly)``) whenever a ``basis`` array is
-    supplied.  This helper extracts the zeroth coefficient column so that the
-    result can be evaluated at arbitrary sigma_x values with ``.value()``.
-
-    Parameters
-    ----------
-    bset2d : BSpline2D
-        Two-dimensional B-spline returned by ``iterative_bspline_fit``.
-
-    Returns
-    -------
-    BSpline
-        One-dimensional B-spline with ``coeff = bset2d.coeff[:, 0]``.
-    """
-    bset = BSpline(knots=Knots(full=bset2d.breakpoints), nord=bset2d.nord)
-    bset.bkpt_gpm = bset2d.bkpt_gpm.copy()
-    bset.coeff = bset2d.coeff[:, 0]
-    return bset
 
 
 def _findfwhm(model, sig_x):
@@ -914,7 +889,7 @@ def fit_profile_refactor(
             )
             return profile_model, trace_in, fwhmfit, med_sn2
 
-        temp_set = _bspline2d_to_1d(mode_shift_bspl)
+        temp_set = mode_shift_bspl.to_1d()
         h0, _ = temp_set.value(xx)
         h1, _ = temp_set.value(xx, coeff=mode_shift_bspl.coeff[:, 1])
         ratio_10 = h1 / (h0 + (h0 == 0.0))
@@ -938,7 +913,7 @@ def fit_profile_refactor(
             )
             return profile_model, trace_in, fwhmfit, med_sn2
 
-        temp_set = _bspline2d_to_1d(mode_stretch_bspl)
+        temp_set = mode_stretch_bspl.to_1d()
         h0, _ = temp_set.value(xx)
         h2, _ = temp_set.value(xx, coeff=mode_stretch_bspl.coeff[:, 1])
         h0 = np.fmax(h0 + h2 * mode_stretch.sum() / mode_zero.sum(), 0.1)
@@ -983,7 +958,7 @@ def fit_profile_refactor(
                 )
                 return profile_model, trace_in, fwhmfit, med_sn2
 
-            bset = _bspline2d_to_1d(bset)
+            bset = bset.to_1d()
 
     # ------------------------------------------------------------------
     # Block 9 — Final trace
@@ -1008,7 +983,7 @@ def fit_profile_refactor(
         ivar=norm_ivar_x[ss[inside]], basis=pb_x[ss[inside]], nord=4,
         kwargs_knots={'interior': bkpt}, upper=10, lower=10
     )
-    bset = _bspline2d_to_1d(bset)
+    bset = bset.to_1d()
 
     # ------------------------------------------------------------------
     # Blocks 11–12 — Apodization limit search and exponential tails

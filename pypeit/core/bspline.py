@@ -1842,3 +1842,22 @@ class BSpline2D(BSpline):
         new.P = None if self.P is None else np.copy(self.P)
         new._cached_design = None
         return new
+
+    def to_1d(self):
+        """
+        Extract the zeroth polynomial component as a 1-D :class:`BSpline`.
+
+        Returns a :class:`BSpline` whose :attr:`~BSpline.coeff` is
+        ``self.coeff[:, 0]``, sharing the same breakpoints and order.
+        Useful for evaluating a single column of a 2-D model at arbitrary
+        positions via :meth:`BSpline.value`.
+
+        Returns
+        -------
+        BSpline
+            One-dimensional B-spline with ``coeff = self.coeff[:, 0]``.
+        """
+        bset = BSpline(knots=Knots(full=self.breakpoints), nord=self.nord)
+        bset.bkpt_gpm = self.bkpt_gpm.copy()
+        bset.coeff = self.coeff[:, 0]
+        return bset
