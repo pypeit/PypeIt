@@ -1,24 +1,10 @@
 """
-Refactored spatial profile fitting for optimal extraction.
+Spatial profile fitting for optimal extraction.
 
-This module contains :func:`fit_profile_refactor`, a drop-in replacement for
-:func:`~pypeit.core.spatialprofile.fit_profile` with the following improvements:
-
-- **Bug 1 fixed**: ``nb = np.round(prof_nsigma > 10)`` replaced with
-  ``nb = max(1, round(prof_nsigma / 10))``.
-- **Bug 2 fixed**: :func:`_findfwhm` uses linear interpolation for sub-pixel
-  accuracy at the half-maximum crossing (was a discrete-sample overestimate).
-- **Accuracy**: :func:`_return_gaussian` uses the pixel-integrated
-  error-function form instead of a point-sampled Gaussian (important for
-  FWHM < 5 px; row sums of the returned profile are now ~1.0, matching the
-  B-spline path).
-- **Performance**: all ``np.outer(v, np.ones(n))`` replaced with ``v[:, None]``
-  broadcasting; the two apodization-limit ``while True`` loops replaced with
-  vectorised searches over pre-computed derivative arrays.
-
-The legacy :func:`~pypeit.core.spatialprofile.fit_profile` in
-``spatialprofile.py`` is left unchanged so both implementations can be compared
-directly.
+The primary entry point is :func:`fit_profile`, which fits a non-parametric
+B-spline spatial profile to an object spectrum for use in optimal extraction.
+At high S/N the profile is fitted with a B-spline; at low S/N a Gaussian
+fallback is returned.
 
 .. include:: ../include/links.rst
 """
@@ -69,9 +55,9 @@ def _findfwhm(model, sig_x):
     Calculate the FWHM of a profile with sub-pixel precision.
 
     Locates the half-maximum crossing on each side of the peak by linear
-    interpolation between the two bracketing sample points, eliminating the
+    interpolation between the two bracketing sample points, avoiding the
     systematic overestimate that arises when the crossing falls between
-    adjacent discrete samples (see Bug 2 in the refactoring plan).
+    adjacent discrete samples.
 
     Parameters
     ----------
@@ -134,8 +120,7 @@ def _gaussian_profile(x, center, sigma):
     with the point-sampled form; the integrated form reduces this to < 1 %.
 
     The row sums of the returned profile are approximately 1.0 (the erf
-    differences telescope to 1 for wide enough slits), matching the B-spline
-    path.
+    differences telescope to 1 for wide enough slits).
 
     .. important::
 
@@ -257,15 +242,13 @@ def _return_gaussian(
 
 def _fit_spectrum_and_normalize(
     wave, flux, fluxivar, waveimg, image, ivar, totmask, spec_img, percentile_sn2, fwhm,
-    sn_cap=100.0, good_pix_frac=0.05
+    sn_cap=100.0, good_pix_frac=0.05, show=False
 ):
     r"""
     Fit flux B-splines, estimate S/N, and build the normalised-object image.
 
-    Encapsulates the spectral-fitting and normalisation steps of
-    :func:`fit_profile_refactor` (blocks 0 and 2–4).  Constructs the 1-D
-    slit-pixel arrays from ``totmask`` (and optionally ``spec_img``), then fits
-    and returns them together with ``spec_x`` for downstream use.  Returns a
+    Fits the extracted 1-D spectrum with B-splines to construct a 2-D spectral
+    model, then uses that model to normalise the science image.  Returns a
     success flag; on failure the caller should construct a Gaussian fallback.
 
     Parameters
@@ -299,6 +282,8 @@ def _fit_spectrum_and_normalize(
     good_pix_frac : :obj:`float`, optional
         Minimum fraction of in-range spectral pixels that must pass the
         ``indsp`` quality cuts for the fit to proceed.  Default is 0.05.
+    show : :obj:`bool`, optional
+        Show a QA plot
 
     Returns
     -------
@@ -354,7 +339,7 @@ def _fit_spectrum_and_normalize(
         wave, flux_sm, ivar=fluxivar_sm, gpm=indsp,
         kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
-    _, bmask2, spline_flux, *_ = iterative_bspline_fit(
+    b_bspl, bmask2, spline_flux, *_ = iterative_bspline_fit(
         wave, flux_sm, ivar=fluxivar_sm, gpm=bmask,
         kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
@@ -464,13 +449,12 @@ def _fit_spectrum_and_normalize(
 
 def _profile_coordinates_and_model_sampling(dspat_x, sigma, spec_x, med_sn2, prof_nsigma, good_x):
     r"""
-    Initialise spatial-coordinate arrays and B-spline knot grid for modeling the
-    profile.
+    Initialise spatial-coordinate arrays and B-spline knot grid for profile
+    fitting.
 
-    Encapsulates Block 6 of :func:`fit_profile_refactor`: computes the
-    normalised coordinate ``sigma_x`` for each valid slit pixel, the profile
-    half-extent ``limit``, the profile sigma bounds, and the sinh-spaced
-    interior B-spline knot positions.
+    Computes the normalised spatial coordinate ``sigma_x`` for each valid slit
+    pixel, the profile half-extent ``limit``, the fitting bounds on
+    ``sigma_x``, and the sinh-spaced interior B-spline knot positions.
 
     Parameters
     ----------
@@ -516,7 +500,6 @@ def _profile_coordinates_and_model_sampling(dspat_x, sigma, spec_x, med_sn2, pro
         nb = (np.arcsinh(abs_sigma) / sinh_space).astype(int) + 1
     else:
         log.info(f"Using prof_nsigma={prof_nsigma:.2f} for extended/bright objects")
-        # Bug 1 fix: was np.round(prof_nsigma > 10) which evaluates a boolean.
         nb = max(1, round(prof_nsigma / 10))
         max_sigma = prof_nsigma
         min_sigma = -prof_nsigma
@@ -581,13 +564,12 @@ def _build_profile(
     bset, sigma_x, min_sigma, max_sigma, apodize, ss, median_fit, min_level, limit
 ):
     r"""
-    Locate apodization limits and apply exponential tails to the profile.
+    Evaluate the B-spline profile and optionally apply exponential apodization.
 
-    Encapsulates Blocks 11-12 of :func:`fit_profile_refactor`.  Evaluates the
-    final B-spline profile over all good pixels, re-locates the profile peak
-    and apodization limits from the logarithmic derivative of the profile,
-    then replaces the profile outside those limits with matched exponential
-    tails.
+    Evaluates the final B-spline profile over all valid pixels, then
+    optionally locates the apodization limits from the logarithmic derivative
+    of the profile and replaces the profile outside those limits with matched
+    exponential tails.
 
     Parameters
     ----------
@@ -621,11 +603,11 @@ def _build_profile(
         Profile array of length :math:`N_{\rm pix}` with exponential tails
         applied outside ``[l_limit, r_limit]``.
     l_limit : :obj:`float`
-        Final left apodization limit in ``sigma_x`` units (0.0 when
-        ``prof_nsigma`` is set).
+        Final left apodization limit in ``sigma_x`` units; 0.0 when
+        ``apodize`` is ``False``.
     r_limit : :obj:`float`
-        Final right apodization limit in ``sigma_x`` units (0.0 when
-        ``prof_nsigma`` is set).
+        Final right apodization limit in ``sigma_x`` units; 0.0 when
+        ``apodize`` is ``False``.
     """
     # Sample the Bspline profile over the valid coordinates
     igood = (sigma_x > min_sigma) & (sigma_x < max_sigma)
@@ -639,7 +621,7 @@ def _build_profile(
 
     # Find the profile peak
     isrt2 = sigma_x_igood.argsort(kind='stable')
-    peak, peak_x, lwhm, rwhm = _findfwhm(full_bsp_igood[isrt2] - median_fit, sigma_x_igood[isrt2])
+    _, peak_x, *_ = _findfwhm(full_bsp_igood[isrt2] - median_fit, sigma_x_igood[isrt2])
 
     # Determine the left and right edge of the profile
     sorted_sigma = sigma_x[ss]
@@ -690,11 +672,10 @@ def fit_profile_refactor(
     r"""
     Fit a non-parametric object profile to an object spectrum.
 
-    Refactored drop-in replacement for
-    :func:`~pypeit.core.spatialprofile.fit_profile`.  The signature, return
-    values, and overall algorithm are identical; see that function's docstring
-    for full parameter and return-value documentation.  Improvements relative to
-    the legacy implementation are described in the module docstring above.
+    Fits a B-spline spatial profile for use in optimal extraction. At high
+    S/N the profile is determined from the data; at low S/N (or when forced
+    via ``gauss=True``) a Gaussian is returned instead. The trace position
+    and width are iteratively refined as part of the fit.
 
     Parameters
     ----------
@@ -824,7 +805,7 @@ def fit_profile_refactor(
         sorted_sigma, norm_obj_x[si], ivar=norm_ivar_x[si],
         nord=4, kwargs_knots={'interior': bkpt}, maxiter=15, upper=1, lower=1
     )
-    # TODO: I'm not sure what this check is for...
+    # Check for a non-zero baseline in the normalised profile
     median_fit = np.median(norm_obj_x[valid_err])
     if np.abs(median_fit) > 0.01:
         log.info(f"Median flux level in profile is non-zero: median = {median_fit:.4f}")
@@ -954,7 +935,7 @@ def fit_profile_refactor(
         sigma *= (1.0 + sigma_factor)
         area *= h0 / (1.0 + sigma_factor)
 
-        log.info(f"Iteration # {iiter+1}")
+        log.info(f"Iteration # {iiter}")
         log.info(
             f"Median abs value of trace correction = {np.median(np.abs(delta_trace_corr)):.3f}"
         )
@@ -990,22 +971,20 @@ def fit_profile_refactor(
 
             bset = bset.to_1d()
 
-    # Fit the source profile
-    # - Set the pixels to fit
+    # Fit the final source profile
     ss = sigma_x.argsort(kind='stable')
     inside, = np.where(
         (sigma_x[ss] >= min_sigma) & (sigma_x[ss] <= max_sigma) & mask_x[ss]
         & np.isfinite(norm_obj_x[ss]) & np.isfinite(norm_ivar_x[ss])
     )
-    # - Calculate the area
     pb_x = area[spec_x]
-    # - Fit the data
-    bset, outmask, *_ = iterative_bspline_fit(
+    bset, outmask, bset_fit, *_ = iterative_bspline_fit(
         sigma_x[ss[inside]], norm_obj_x[ss[inside]],
         ivar=norm_ivar_x[ss[inside]], basis=pb_x[ss[inside]], nord=4,
         kwargs_knots={'interior': bkpt}, upper=10, lower=10
     )
-    # - Construct the final profile and apodize
+
+    # Construct the final profile and apodize
     apodize = prof_nsigma is None and not no_deriv
     full_bsp, l_limit, r_limit = _build_profile(
         bset.to_1d(), sigma_x, min_sigma, max_sigma, apodize, ss, median_fit, min_level, limit
