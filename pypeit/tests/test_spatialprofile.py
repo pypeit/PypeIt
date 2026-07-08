@@ -28,7 +28,7 @@ from pypeit.core.spatialprofile_refactor import (
     _findfwhm,
     _fit_spectrum_and_normalize,
     _compute_bspline_knots,
-    _apodize_profile,
+    _build_profile,
 )
 
 
@@ -786,12 +786,11 @@ def apodize_bspline():
 
 
 def test_apodize_output_shape(apodize_bspline):
-    """_apodize_profile returns full_bsp with the correct size and finite limits."""
+    """_build_profile returns full_bsp with the correct size and finite limits."""
     f = apodize_bspline
-    full_bsp, l_limit, r_limit = _apodize_profile(
+    full_bsp, l_limit, r_limit = _build_profile(
         f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
-        f['ss'], f['median_fit'], f['min_level'], f['limit'],
-        prof_nsigma=None, no_deriv=False
+        True, f['ss'], f['median_fit'], f['min_level'], f['limit']
     )
     assert full_bsp.shape == (f['npix'],)
     assert np.isfinite(l_limit) and np.isfinite(r_limit)
@@ -799,33 +798,22 @@ def test_apodize_output_shape(apodize_bspline):
     assert np.all(full_bsp[igood] >= 0.0)
 
 
-def test_apodize_prof_nsigma_zeros_limits(apodize_bspline):
-    """When prof_nsigma is set, _apodize_profile returns l_limit=r_limit=0 (JXP kludge)."""
+def test_apodize_no_apodize(apodize_bspline):
+    """When apodize=False, _build_profile returns l_limit=r_limit=0 and no tails."""
     f = apodize_bspline
-    full_bsp, l_limit, r_limit = _apodize_profile(
+    full_bsp, l_limit, r_limit = _build_profile(
         f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
-        f['ss'], f['median_fit'], f['min_level'], f['limit'],
-        prof_nsigma=5.0, no_deriv=False
+        False, f['ss'], f['median_fit'], f['min_level'], f['limit']
     )
     assert l_limit == 0.0
     assert r_limit == 0.0
     assert full_bsp.shape == (f['npix'],)
-
-
-def test_apodize_no_deriv_skips_tails(apodize_bspline):
-    """When no_deriv=True, pixels outside [min_sigma, max_sigma] remain zero."""
-    f = apodize_bspline
-    full_bsp, _, _ = _apodize_profile(
-        f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
-        f['ss'], f['median_fit'], f['min_level'], f['limit'],
-        prof_nsigma=None, no_deriv=True
-    )
     outside = (f['sigma_x'] <= f['min_sigma']) | (f['sigma_x'] >= f['max_sigma'])
     assert np.all(full_bsp[outside] == 0.0)
 
 
 def test_apodize_tail_continuity(apodize_bspline):
-    """Exponential tails applied by _apodize_profile are positive and <= profile at limit.
+    """Exponential tails applied by _build_profile are positive and <= profile at limit.
 
     For a Gaussian B-spline, the left derivative is negative and the right
     positive, so tails are applied.  Each tail value must be positive and
@@ -833,10 +821,9 @@ def test_apodize_tail_continuity(apodize_bspline):
     exponential decays away from the limit).
     """
     f = apodize_bspline
-    full_bsp, l_limit, r_limit = _apodize_profile(
+    full_bsp, l_limit, r_limit = _build_profile(
         f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
-        f['ss'], f['median_fit'], f['min_level'], f['limit'],
-        prof_nsigma=None, no_deriv=False
+        True, f['ss'], f['median_fit'], f['min_level'], f['limit']
     )
     sigma_x = f['sigma_x']
 

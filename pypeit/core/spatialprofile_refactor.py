@@ -543,7 +543,7 @@ def _deriv_walk(bset, init_limit, sign):
     init_limit : :obj:`float`
         Initial apodization limit (left: negative, right: positive) in
         ``sigma_x`` units, as returned by the threshold walk in
-        :func:`_apodize_profile`.
+        :func:`_build_profile`.
     sign : :obj:`int`
         ``-1`` for the left side (negative ``sigma_x``); ``+1`` for the
         right side.
@@ -576,8 +576,8 @@ def _deriv_walk(bset, init_limit, sign):
     return sign * 1.0, deriv_vec[-1], fit1[-1]
 
 
-def _apodize_profile(
-    bset, sigma_x, min_sigma, max_sigma, ss, median_fit, min_level, limit, prof_nsigma, no_deriv
+def _build_profile(
+    bset, sigma_x, min_sigma, max_sigma, apodize, ss, median_fit, min_level, limit
 ):
     r"""
     Locate apodization limits and apply exponential tails to the profile.
@@ -598,20 +598,21 @@ def _apodize_profile(
         Lower bound on ``sigma_x`` for the good-pixel mask.
     max_sigma : :obj:`float`
         Upper bound on ``sigma_x`` for the good-pixel mask.
+    apodize : :obj:`bool`
+        Apply an exponential apodization function to the edges of the profile
+        model.
     ss : :class:`numpy.ndarray`
-        Indices that sort ``sigma_x`` in ascending order.
+        Indices that sort ``sigma_x`` in ascending order.  Ignored if
+        ``apodize`` is False.
     median_fit : :obj:`float`
-        Baseline level of the profile (subtracted before peak-finding).
+        Baseline level of the profile (subtracted before peak-finding).  Ignored
+        if ``apodize`` is False.
     min_level : :obj:`float`
-        Minimum profile level used to walk the initial limit positions.
+        Minimum profile level used to walk the initial limit positions.  Ignored
+        if ``apodize`` is False.
     limit : :obj:`float`
-        Profile half-extent in units of ``sigma_x``.
-    prof_nsigma : :obj:`float` or None
-        If set, the fit covers this many sigma (extended objects).  Triggers
-        the JXP kludge that zeros the returned limits so QA does not draw
-        them, and forces ``no_deriv=True``.
-    no_deriv : :obj:`bool`
-        If ``True``, skip exponential apodization entirely.
+        Profile half-extent in units of ``sigma_x``.  Ignored if ``apodize`` is
+        False.
 
     Returns
     -------
@@ -625,17 +626,21 @@ def _apodize_profile(
         Final right apodization limit in ``sigma_x`` units (0.0 when
         ``prof_nsigma`` is set).
     """
-    # ------------------------------------------------------------------
-    # Block 11 — Apodization limit search (vectorised)
-    # ------------------------------------------------------------------
+    # Sample the Bspline profile over the valid coordinates
     igood = (sigma_x > min_sigma) & (sigma_x < max_sigma)
     sigma_x_igood = sigma_x[igood]
     full_bsp = np.zeros(sigma_x.size)
     full_bsp_igood, _ = bset.value(sigma_x_igood)
     full_bsp[igood] = full_bsp_igood
+
+    if not apodize:
+        return full_bsp, 0.0, 0.0
+
+    # Find the profile peak
     isrt2 = sigma_x_igood.argsort(kind='stable')
     peak, peak_x, lwhm, rwhm = _findfwhm(full_bsp_igood[isrt2] - median_fit, sigma_x_igood[isrt2])
 
+    # Determine the left and right edge of the profile
     sorted_sigma = sigma_x[ss]
     sorted_bsp = full_bsp[ss]
     threshold = min_level + median_fit
@@ -659,20 +664,14 @@ def _apodize_profile(
     l_limit, l_deriv, l_fit_val = _deriv_walk(bset, l_limit, sign=-1)
     r_limit, r_deriv, r_fit_val = _deriv_walk(bset, r_limit, sign=1)
 
-    # ------------------------------------------------------------------
-    # Block 12 — Exponential apodization
-    # ------------------------------------------------------------------
-    # JXP kludge: zero limits for extended-object fits so QA won't draw them
-    if prof_nsigma is not None:
-        l_limit = 0.0
-        r_limit = 0.0
-        no_deriv = True
-
-    if l_deriv < 0 and r_deriv > 0 and not no_deriv:
+    if l_deriv < 0 and r_deriv > 0:
+        # Apply the exponential apodization
         left = sigma_x < l_limit
-        full_bsp[left] = np.exp(-(sigma_x[left] - l_limit) * l_deriv) * l_fit_val
+        full_bsp[left] = l_fit_val * np.exp(-(sigma_x[left] - l_limit) * l_deriv)
         right = sigma_x > r_limit
-        full_bsp[right] = np.exp(-(sigma_x[right] - r_limit) * r_deriv) * r_fit_val
+        full_bsp[right] = r_fit_val * np.exp(-(sigma_x[right] - r_limit) * r_deriv)
+    else:
+        log.warning('Derivative computation failed.  Object profile not apodized.')
 
     return full_bsp, l_limit, r_limit
 
@@ -1020,9 +1019,9 @@ def fit_profile_refactor(
     # ------------------------------------------------------------------
     # Blocks 11–12 — Apodization limit search and exponential tails
     # ------------------------------------------------------------------
-    full_bsp, l_limit, r_limit = _apodize_profile(
-        bset, sigma_x, min_sigma, max_sigma, ss, median_fit, min_level,
-        limit, prof_nsigma, no_deriv
+    full_bsp, l_limit, r_limit = _build_profile(
+        bset, sigma_x, min_sigma, max_sigma, (prof_nsigma is None and not no_deriv),
+        ss, median_fit, min_level, limit
     )
 
     # ------------------------------------------------------------------
