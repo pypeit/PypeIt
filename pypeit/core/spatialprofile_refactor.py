@@ -60,7 +60,7 @@ def _inverse(arr):
         Calculation of ``1/arr`` that controls for where ``arr`` is identically
         0.
     """
-    gpm = arr != 0.
+    gpm = arr != 0.0
     return gpm / (arr + np.logical_not(gpm))
 
 
@@ -238,18 +238,20 @@ def _return_gaussian(
     profile_model = _gaussian_profile(spat_img, center, sigma)
     title_string = f'{obj_string}, FWHM={fwhm:.2f}, S/N={np.sqrt(med_sn2):.3f}'
     log.info(title_string)
-    if show_profile:
-        _center = np.atleast_1d(center)
-        _sigma = np.atleast_1d(sigma)
-        if _center.size > 1:
-            _center = _center[:, None]
-        if _sigma.size > 1:
-            _sigma = _sigma[:, None]
-        sigma_x = (spat_img - _center) / _sigma
-        qa_fit_profile(
-            sigma_x, norm_obj, profile_model, title=title_string, l_limit=l_limit, r_limit=r_limit,
-            ind=ind, xlim=xlim, xtrunc=xtrunc,
-        )
+    if not show_profile:
+        return profile_model
+
+    _center = np.atleast_1d(center)
+    _sigma = np.atleast_1d(sigma)
+    if _center.size > 1:
+        _center = _center[:, None]
+    if _sigma.size > 1:
+        _sigma = _sigma[:, None]
+    sigma_x = (spat_img - _center) / _sigma
+    qa_fit_profile(
+        sigma_x, norm_obj, profile_model, title=title_string, l_limit=l_limit, r_limit=r_limit,
+        ind=ind, xlim=xlim, xtrunc=xtrunc,
+    )
     return profile_model
 
 
@@ -334,23 +336,20 @@ def _fit_spectrum_and_normalize(
     flux_x = image[totmask]
     ivar_x = ivar[totmask]
 
-    wave_min = wave_x.min()
-    wave_max = wave_x.max()
-
     flux_sm = scipy.ndimage.median_filter(flux, size=5, mode='reflect')
-    fluxivar_sm0 = scipy.ndimage.median_filter(fluxivar, size=5, mode='reflect')
-    fluxivar_sm0[fluxivar <= 0.0] = 0.0
+    fluxivar_sm = scipy.ndimage.median_filter(fluxivar, size=5, mode='reflect')
+    fluxivar_sm[fluxivar <= 0.0] = 0.0
 
     # ------------------------------------------------------------------
     # Block 2 — Flux B-spline fitting
     # ------------------------------------------------------------------
-    fluxivar_sm = utils.clip_ivar(flux_sm, fluxivar_sm0, sn_cap)
-    indsp = (
-        (wave >= wave_min) & (wave <= wave_max) & np.isfinite(flux_sm) & (flux_sm > -1000.0)
-        & (fluxivar_sm > 0.0)
-    )
-    eligible_pixels = np.sum((wave >= wave_min) & (wave <= wave_max))
-    if np.sum(indsp) < good_pix_frac * eligible_pixels or eligible_pixels == 0:
+    fluxivar_sm = utils.clip_ivar(flux_sm, fluxivar_sm, sn_cap)
+    wave_min = wave_x.min()
+    wave_max = wave_x.max()
+    good_wave = (wave >= wave_min) & (wave <= wave_max)
+    indsp = good_wave & np.isfinite(flux_sm) & (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
+    eligible_pixels = np.sum(good_wave)
+    if eligible_pixels == 0 or np.sum(indsp) < good_pix_frac * eligible_pixels:
         log.warning(
             'There are no pixels eligible to be fit for the object profile.  There is likely an '
             f'issue in local_skysub_extract. Returning a Gaussian with fwhm = {fwhm:.3f}'
@@ -382,11 +381,11 @@ def _fit_spectrum_and_normalize(
     # ------------------------------------------------------------------
     # Block 3 — S/N estimation
     # ------------------------------------------------------------------
-    sqrt_ivar = np.sqrt(np.fmax(fluxivar_sm, 0))
-    sqrt_ivar[np.logical_not(bmask2)] = 0.0
-    sn2 = np.fmax(spline_flux * sqrt_ivar, 0)**2
+    fluxivar_sm = np.fmax(fluxivar_sm, 0)
+    fluxivar_sm[np.logical_not(bmask2)] = 0.0
+    sn2 = np.fmax(spline_flux**2 * fluxivar_sm, 0)
     sn2_indsp = sn2[indsp]
-    if (sn2_indsp > 0).any():
+    if np.any(sn2_indsp > 0):
         sn2_percentile = np.percentile(sn2_indsp, percentile_sn2)
         _, med_sn2, _ = astropy.stats.sigma_clipped_stats(
             sn2_indsp[sn2_indsp > sn2_percentile], sigma_lower=3.0, sigma_upper=5.0
@@ -395,10 +394,6 @@ def _fit_spectrum_and_normalize(
         med_sn2 = 0.0
 
     nspec = wave.size
-    good_wave = (wave >= wave_min) & (wave <= wave_max)
-
-    spline_flux1 = np.where(good_wave, spline_flux, 0.0)
-    cont_flux1 = np.where(good_wave, cont_flux, 0.0)
 
     isrt = np.argsort(wave[indsp], kind='stable')
     s2_interp = scipy.interpolate.interp1d(
@@ -406,11 +401,6 @@ def _fit_spectrum_and_normalize(
     )
     sn2_1 = np.zeros(nspec)
     sn2_1[good_wave] = s2_interp(wave[good_wave])
-
-    spline_flux1 = pydl.djs_maskinterp(spline_flux1, np.logical_not(bmask2))
-    cont_flux1 = pydl.djs_maskinterp(cont_flux1, np.logical_not(cmask))
-
-    _, _, sigma1 = astropy.stats.sigma_clipped_stats(flux[indsp], sigma_lower=3.0, sigma_upper=5.0)
 
     sn2_med_filt = scipy.ndimage.median_filter(sn2_indsp, size=9, mode='reflect')
     sn2_interp = scipy.interpolate.interp1d(
@@ -426,23 +416,30 @@ def _fit_spectrum_and_normalize(
     # ------------------------------------------------------------------
     npix = wave_x.size
     if med_sn2 <= 2.0:
+        _, _, sigma1 = astropy.stats.sigma_clipped_stats(
+            flux[indsp], sigma_lower=3.0, sigma_upper=5.0
+        )
         spline_img_x = np.full(npix, np.fmax(sigma1, 0.0))
     else:
+        spline_flux = np.where(good_wave, spline_flux, 0.0)
+        spline_flux = pydl.djs_maskinterp(spline_flux, np.logical_not(bmask2))
+        cont_flux = np.where(good_wave, cont_flux, 0.0)
+        cont_flux = pydl.djs_maskinterp(cont_flux, np.logical_not(cmask))
         if med_sn2 <= 5.0:
-            spline_flux1 = cont_flux1
-        badpix = (spline_flux1 <= 0.5) | np.logical_not(bmask2)
-        goodval = (cont_flux1 > 0.0) & (cont_flux1 < 5e5)
+            spline_flux = cont_flux
+        badpix = (spline_flux <= 0.5) | np.logical_not(bmask2)
+        goodval = (cont_flux > 0.0) & (cont_flux < 5e5)
         indbad1 = badpix & goodval
         if np.any(indbad1):
-            spline_flux1[indbad1] = cont_flux1[indbad1]
+            spline_flux[indbad1] = cont_flux[indbad1]
         indbad2 = badpix & np.logical_not(goodval)
         if np.any(indbad2) or np.any(np.logical_not(badpix)) > 0:
-            spline_flux1[indbad2] = np.median(spline_flux1[np.logical_not(badpix)])
-        spline_flux1 = scipy.ndimage.median_filter(spline_flux1, size=5, mode='reflect')
+            spline_flux[indbad2] = np.median(spline_flux[np.logical_not(badpix)])
+        spline_flux = scipy.ndimage.median_filter(spline_flux, size=5, mode='reflect')
 
         isrt1 = np.argsort(wave[good_wave], kind='stable')
         spline_img_interp = scipy.interpolate.interp1d(
-            wave[good_wave][isrt1], spline_flux1[good_wave][isrt1], assume_sorted=False,
+            wave[good_wave][isrt1], spline_flux[good_wave][isrt1], assume_sorted=False,
             bounds_error=False, fill_value='extrapolate'
         )
         spline_img_x = spline_img_interp(wave_x)
@@ -823,7 +820,6 @@ def fit_profile_refactor(
         inside = np.where(good_pos)[0]
 
     si = inside[np.argsort(sigma_x[inside], kind='stable')]
-    sr = si[::-1]
 
     bset, *_ = iterative_bspline_fit(
         sigma_x[si], norm_obj_x[si], ivar=norm_ivar_x[si],
@@ -836,9 +832,11 @@ def fit_profile_refactor(
     else:
         median_fit = 0.0
 
-    peak, peak_x, lwhm, rwhm = _findfwhm(mode_fit - median_fit, sigma_x[si])
+    sorted_sigma = sigma_x[si]
+    peak, peak_x, lwhm, rwhm = _findfwhm(mode_fit - median_fit, sorted_sigma)
     trace_corr = np.full(nspec, peak_x)
     min_level = peak * np.exp(-0.5 * limit**2)
+    threshold = min_level + median_fit
 
     bspline_fwhm = (rwhm - lwhm) * _thisfwhm / sig2fwhm
     log.info(
@@ -848,18 +846,19 @@ def fit_profile_refactor(
     sigma *= (rwhm - lwhm) / sig2fwhm
     limit *= (rwhm - lwhm) / sig2fwhm
 
-    rev_fit = mode_fit[::-1]
-    lind, = np.where(
-        ((rev_fit < min_level + median_fit) & (sigma_x[sr] < peak_x))
-        | (sigma_x[sr] < peak_x - limit)
-    )
-    l_limit = sigma_x[sr[lind.min()]] if lind.size > 0 else min_sigma
+    left_cond = (
+        (mode_fit < threshold) & (sorted_sigma < peak_x)
+    ) | (sorted_sigma < peak_x - limit)
+    m_left = np.ma.array(sorted_sigma, mask=~left_cond)
+    edges_l = np.ma.flatnotmasked_edges(m_left)
+    l_limit = sorted_sigma[edges_l[1]] if edges_l is not None else min_sigma
 
-    rind, = np.where(
-        ((mode_fit < min_level + median_fit) & (sigma_x[si] > peak_x))
-        | (sigma_x[si] > peak_x + limit)
-    )
-    r_limit = sigma_x[si[rind.min()]] if rind.size > 0 else max_sigma
+    right_cond = (
+        (mode_fit < threshold) & (sorted_sigma > peak_x)
+    ) | (sorted_sigma > peak_x + limit)
+    m_right = np.ma.array(sorted_sigma, mask=~right_cond)
+    edges_r = np.ma.flatnotmasked_edges(m_right)
+    r_limit = sorted_sigma[edges_r[0]] if edges_r is not None else max_sigma
 
     log.info(
         f"Trace limits: limit={limit:.4f}, min_level={min_level:.4f}, l_limit={l_limit:.4f}, "
@@ -868,9 +867,7 @@ def fit_profile_refactor(
 
     mask_x = np.zeros(npix, dtype=bool)
     mask_x[si] = (norm_ivar_x[si] > 0) & (np.abs(norm_obj_x[si] - mode_fit) < 0.1)
-    inside, = np.where(
-        (sigma_x[si] > l_limit) & (sigma_x[si] < r_limit) & mask_x[si]
-    )
+    inside, = np.where((sorted_sigma > l_limit) & (sorted_sigma < r_limit) & mask_x[si])
     ninside = inside.size
 
     if ninside < 10:
@@ -1038,8 +1035,7 @@ def fit_profile_refactor(
         (norm_obj_x[ss[inside]] - profile_x[ss[inside]])
         * np.sqrt(norm_ivar_x[ss[inside]])
     )
-    chi_good = outmask & (norm_ivar_x[ss[inside]] > 0)
-    chi_med = np.median(res_mode[chi_good] ** 2)
+    chi_med = np.median(res_mode[outmask & (norm_ivar_x[ss[inside]] > 0)] ** 2)
 
     log.info("--------------------  Results of Profile Fit --------------------")
     log.info(
