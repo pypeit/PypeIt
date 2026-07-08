@@ -312,9 +312,6 @@ def _fit_spectrum_and_normalize(
         :math:`(N_{\rm pix},)`.
     norm_ivar_x : :class:`numpy.ndarray` or None
         Inverse variance of ``norm_obj_x``, same shape.
-    good_x : :class:`numpy.ndarray` or None
-        Boolean array of length :math:`N_{\rm pix}` marking pixels with
-        positive ``norm_ivar_x``.
     xtemp_x : :class:`numpy.ndarray` or None
         Cumulative S/N-weighted spectral coordinate for each valid slit pixel,
         shape :math:`(N_{\rm pix},)`.
@@ -325,28 +322,22 @@ def _fit_spectrum_and_normalize(
         Spectral row index of each valid slit pixel, shape :math:`(N_{\rm pix},)`
         int.  ``None`` on failure.
     """
-    # ------------------------------------------------------------------
-    # Block 0 — Isolate slit pixels into 1-D arrays
-    # ------------------------------------------------------------------
-    if spec_img is None:
-        spec_x = np.where(totmask)[0]
-    else:
-        spec_x = spec_img[totmask]
+    # Extract the wavelength image data into a 1D vector and get the valid
+    # wavelength range of the 2D image
     wave_x = waveimg[totmask]
-    flux_x = image[totmask]
-    ivar_x = ivar[totmask]
+    wave_min = wave_x.min()
+    wave_max = wave_x.max()
+    good_wave = (wave >= wave_min) & (wave <= wave_max)
 
+    # Smooth the 1D spectrum and its errors
     flux_sm = scipy.ndimage.median_filter(flux, size=5, mode='reflect')
     fluxivar_sm = scipy.ndimage.median_filter(fluxivar, size=5, mode='reflect')
     fluxivar_sm[fluxivar <= 0.0] = 0.0
 
-    # ------------------------------------------------------------------
-    # Block 2 — Flux B-spline fitting
-    # ------------------------------------------------------------------
+    # Impose a maximum S/N
     fluxivar_sm = utils.clip_ivar(flux_sm, fluxivar_sm, sn_cap)
-    wave_min = wave_x.min()
-    wave_max = wave_x.max()
-    good_wave = (wave >= wave_min) & (wave <= wave_max)
+
+    # Determine if there are enough pixels to model the 1D spectrum
     indsp = good_wave & np.isfinite(flux_sm) & (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
     eligible_pixels = np.sum(good_wave)
     if eligible_pixels == 0 or np.sum(indsp) < good_pix_frac * eligible_pixels:
@@ -354,33 +345,34 @@ def _fit_spectrum_and_normalize(
             'There are no pixels eligible to be fit for the object profile.  There is likely an '
             f'issue in local_skysub_extract. Returning a Gaussian with fwhm = {fwhm:.3f}'
         )
-        return False, 0.0, None, None, None, None, None, None
+        return False, 0.0, None, None, None, None, None
 
-    b_answer, bmask, *_ = iterative_bspline_fit(
+    # Construct a high-order model of the spectrum.  The 2nd fit is used to
+    # identify outlier pixels (bmask2) that are ignored through the rest of the
+    # calculation.
+    _, bmask, spline_flux, *_ = iterative_bspline_fit(
         wave, flux_sm, ivar=fluxivar_sm, gpm=indsp,
         kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
-    b_answer, bmask2, *_ = iterative_bspline_fit(
+    _, bmask2, spline_flux, *_ = iterative_bspline_fit(
         wave, flux_sm, ivar=fluxivar_sm, gpm=bmask,
         kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
-    c_answer, cmask, *_ = iterative_bspline_fit(
-        wave, flux_sm, ivar=fluxivar_sm, gpm=bmask2,
-        kwargs_knots={'stride': 30}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
-    )
-    spline_flux, _ = b_answer.value(wave)
     try:
-        cont_flux, _ = c_answer.value(wave)
+        # Construct a relatively low-order model to fall back on when the S/N is
+        # low.
+        _, cmask, cont_flux, *_ = iterative_bspline_fit(
+            wave, flux_sm, ivar=fluxivar_sm, gpm=bmask2,
+            kwargs_knots={'stride': 30}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
+        )
     except Exception:
         log.warning(
             'Problem estimating S/N ratio of spectrum.  There is likely an issue in '
             f'local_skysub_extract. Returning a Gaussian with fwhm = {fwhm:.3f}.'
         )
-        return False, 0.0, None, None, None, None, None, None
+        return False, 0.0, None, None, None, None, None
 
-    # ------------------------------------------------------------------
-    # Block 3 — S/N estimation
-    # ------------------------------------------------------------------
+    # Compute the S/N over the set of good pixels
     fluxivar_sm = np.fmax(fluxivar_sm, 0)
     fluxivar_sm[np.logical_not(bmask2)] = 0.0
     sn2 = np.fmax(spline_flux**2 * fluxivar_sm, 0)
@@ -392,16 +384,28 @@ def _fit_spectrum_and_normalize(
         )
     else:
         med_sn2 = 0.0
+    log.info(f'sqrt(med(S/N)^2) = {np.sqrt(med_sn2):.2f}')
 
-    nspec = wave.size
-
+    # Ensure the wavelengths are sorted for interpolation
     isrt = np.argsort(wave[indsp], kind='stable')
+
+    # Build the cumulative, S/N-weighted spectral coordinates
+    nspec = wave.size
+    sn2_1 = np.zeros(nspec)
     s2_interp = scipy.interpolate.interp1d(
         wave[indsp][isrt], sn2_indsp[isrt], assume_sorted=False, bounds_error=False, fill_value=0.0
     )
-    sn2_1 = np.zeros(nspec)
     sn2_1[good_wave] = s2_interp(wave[good_wave])
+    cumweight = np.cumsum(4.0 + np.sqrt(np.fmax(sn2_1, 0.0)))
 
+    # Sample the spectral coordinates onto the 2D subsample
+    if spec_img is None:
+        spec_x = np.where(totmask)[0]
+    else:
+        spec_x = spec_img[totmask]
+    xtemp_x = cumweight[spec_x] / cumweight[-1]
+
+    # Assign an S/N^2 value for each image pixel
     sn2_med_filt = scipy.ndimage.median_filter(sn2_indsp, size=9, mode='reflect')
     sn2_interp = scipy.interpolate.interp1d(
         wave[indsp][isrt], sn2_med_filt[isrt], assume_sorted=False, bounds_error=False,
@@ -409,11 +413,7 @@ def _fit_spectrum_and_normalize(
     )
     sn2_x = sn2_interp(wave_x)
 
-    log.info(f'sqrt(med(S/N)^2) = {np.sqrt(med_sn2):.2f}')
-
-    # ------------------------------------------------------------------
-    # Block 4 — Normalised-object image construction
-    # ------------------------------------------------------------------
+    # Construct the model spectrum sampled over the 2D subsample
     npix = wave_x.size
     if med_sn2 <= 2.0:
         _, _, sigma1 = astropy.stats.sigma_clipped_stats(
@@ -421,22 +421,28 @@ def _fit_spectrum_and_normalize(
         )
         spline_img_x = np.full(npix, np.fmax(sigma1, 0.0))
     else:
+        # Fill masked regions
         spline_flux = np.where(good_wave, spline_flux, 0.0)
         spline_flux = pydl.djs_maskinterp(spline_flux, np.logical_not(bmask2))
         cont_flux = np.where(good_wave, cont_flux, 0.0)
         cont_flux = pydl.djs_maskinterp(cont_flux, np.logical_not(cmask))
         if med_sn2 <= 5.0:
             spline_flux = cont_flux
+
+        # Identify more bad pixels and replace them
         badpix = (spline_flux <= 0.5) | np.logical_not(bmask2)
         goodval = (cont_flux > 0.0) & (cont_flux < 5e5)
         indbad1 = badpix & goodval
         if np.any(indbad1):
             spline_flux[indbad1] = cont_flux[indbad1]
         indbad2 = badpix & np.logical_not(goodval)
-        if np.any(indbad2) or np.any(np.logical_not(badpix)) > 0:
+        if np.any(indbad2) or np.any(np.logical_not(badpix)):
             spline_flux[indbad2] = np.median(spline_flux[np.logical_not(badpix)])
+
+        # Median filter
         spline_flux = scipy.ndimage.median_filter(spline_flux, size=5, mode='reflect')
 
+        # Interpolate onto the flattened 2D grid
         isrt1 = np.argsort(wave[good_wave], kind='stable')
         spline_img_interp = scipy.interpolate.interp1d(
             wave[good_wave][isrt1], spline_flux[good_wave][isrt1], assume_sorted=False,
@@ -444,22 +450,16 @@ def _fit_spectrum_and_normalize(
         )
         spline_img_x = spline_img_interp(wave_x)
 
-    norm_obj_x = np.where(spline_img_x != 0.0, flux_x / spline_img_x, 0.0)
-    norm_ivar_x = ivar_x * spline_img_x**2
-
+    # Normalize the 2D data to remove the spectral variations
+    norm_obj_x = np.where(spline_img_x != 0.0, image[totmask] / spline_img_x, 0.0)
+    norm_ivar_x = ivar[totmask] * spline_img_x**2
     ivar_mask_x = (
         (norm_obj_x > -0.2) & (norm_obj_x < 0.7) & np.isfinite(norm_obj_x)
         & np.isfinite(norm_ivar_x)
     )
     norm_ivar_x[np.logical_not(ivar_mask_x)] = 0.0
-    good_x = norm_ivar_x > 0.0
 
-    # xtemp_x: cumulative S/N-weighted spectral coordinate (1-D, one value per pixel)
-    row_weights = 4.0 + np.sqrt(np.fmax(sn2_1, 0.0))
-    cumweight = np.cumsum(row_weights)
-    xtemp_x = cumweight[spec_x] / cumweight[-1]
-
-    return True, med_sn2, norm_obj_x, norm_ivar_x, good_x, xtemp_x, sn2_x, spec_x
+    return True, med_sn2, norm_obj_x, norm_ivar_x, xtemp_x, sn2_x, spec_x
 
 
 def _compute_bspline_knots(dspat_x, sigma, spec_x, med_sn2, prof_nsigma, good_x):
@@ -772,13 +772,14 @@ def fit_profile_refactor(
     # Blocks 0 and 2–5 — Slit-pixel extraction, spectral fitting, normalisation
     # ------------------------------------------------------------------
     (
-        success, med_sn2, norm_obj_x, norm_ivar_x, good_x, xtemp_x, sn2_x, spec_x
+        success, med_sn2, norm_obj_x, norm_ivar_x, xtemp_x, sn2_x, spec_x
     ) = _fit_spectrum_and_normalize(
         wave=wave, flux=flux, fluxivar=fluxivar,
         waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=spec_img,
         percentile_sn2=percentile_sn2, fwhm=_thisfwhm
     )
     if success:
+        good_x = norm_ivar_x > 0
         gauss_kwargs = {'ind': good_x, 'xtrunc': 7.0}
         ngood = good_x.sum()
         log.info(f"Gaussian vs b-spline of width {_thisfwhm:.2f} pixels")

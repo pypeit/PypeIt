@@ -621,7 +621,7 @@ def test_fit_spectrum_success():
         sn_ratio=20.0
     )
     npix = totmask.sum()
-    success, med_sn2, norm_obj_x, norm_ivar_x, good_x, xtemp_x, sn2_x, spec_x = \
+    success, med_sn2, norm_obj_x, norm_ivar_x, xtemp_x, sn2_x, spec_x = \
         _fit_spectrum_and_normalize(
             wave=wave, flux=flux, fluxivar=fluxivar,
             waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
@@ -633,7 +633,6 @@ def test_fit_spectrum_success():
     assert norm_ivar_x.shape == (npix,)
     assert sn2_x.shape == (npix,)
     assert xtemp_x.shape == (npix,)
-    assert good_x.shape == (npix,)
     assert spec_x.shape == (npix,)
 
 
@@ -641,7 +640,7 @@ def test_fit_spectrum_failure_nan_flux():
     """_fit_spectrum_and_normalize returns (False, 0.0, None, …) for all-NaN flux."""
     wave, flux, fluxivar, waveimg, image, ivar, totmask, nspec = _make_fsn_inputs_1d()
     flux = np.full_like(flux, np.nan)
-    success, med_sn2, norm_obj_x, norm_ivar_x, good_x, xtemp_x, sn2_x, spec_x = \
+    success, med_sn2, norm_obj_x, norm_ivar_x, xtemp_x, sn2_x, spec_x = \
         _fit_spectrum_and_normalize(
             wave=wave, flux=flux, fluxivar=fluxivar,
             waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
@@ -650,21 +649,7 @@ def test_fit_spectrum_failure_nan_flux():
     assert not success
     assert med_sn2 == 0.0
     assert norm_obj_x is None and norm_ivar_x is None
-    assert good_x is None and xtemp_x is None and sn2_x is None and spec_x is None
-
-
-def test_fit_spectrum_good_matches_norm_ivar():
-    """good_x is exactly norm_ivar_x > 0 (internal consistency check)."""
-    wave, flux, fluxivar, waveimg, image, ivar, totmask, nspec = _make_fsn_inputs_1d(
-        sn_ratio=20.0
-    )
-    success, _, _, norm_ivar_x, good_x, _, _, _ = _fit_spectrum_and_normalize(
-        wave=wave, flux=flux, fluxivar=fluxivar,
-        waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
-        percentile_sn2=70.0, fwhm=4.0
-    )
-    assert success
-    np.testing.assert_array_equal(good_x, norm_ivar_x > 0)
+    assert xtemp_x is None and sn2_x is None and spec_x is None
 
 
 def test_fit_spectrum_sn2_img_nonnegative():
@@ -673,7 +658,7 @@ def test_fit_spectrum_sn2_img_nonnegative():
         sn_ratio=20.0
     )
     npix = totmask.sum()
-    success, _, _, _, _, _, sn2_x, spec_x = _fit_spectrum_and_normalize(
+    success, _, _, _, _, sn2_x, spec_x = _fit_spectrum_and_normalize(
         wave=wave, flux=flux, fluxivar=fluxivar,
         waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
         percentile_sn2=70.0, fwhm=4.0
@@ -695,7 +680,7 @@ def _make_knots_inputs(nspec=200, nspat=100, fwhm=4.0, sn_ratio=20.0, seed=42):
     totmask = (ivar > 0.0) & thismask & inmask
     sig2fwhm = np.sqrt(8.0 * np.log(2.0))
     sigma = np.full(nspec, fwhm / sig2fwhm)
-    success, med_sn2, _, _, good_x, _, _, spec_x = _fit_spectrum_and_normalize(
+    success, med_sn2, _, norm_ivar_x, _, _, spec_x = _fit_spectrum_and_normalize(
         wave=wave, flux=flux, fluxivar=fluxivar,
         waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
         percentile_sn2=70.0, fwhm=fwhm
@@ -703,7 +688,7 @@ def _make_knots_inputs(nspec=200, nspat=100, fwhm=4.0, sn_ratio=20.0, seed=42):
     assert success, "_make_knots_inputs: _fit_spectrum_and_normalize failed"
     spat_x = spat_img[totmask]
     dspat_x = spat_x - trace_in[spec_x]
-    return dspat_x, sigma, med_sn2, good_x, spec_x
+    return dspat_x, sigma, med_sn2, norm_ivar_x > 0, spec_x
 
 
 def test_bspline_knots_shapes():
