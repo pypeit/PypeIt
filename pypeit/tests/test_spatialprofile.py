@@ -27,7 +27,7 @@ from pypeit.core.spatialprofile_refactor import (
     _gaussian_profile,
     _findfwhm,
     _fit_spectrum_and_normalize,
-    _compute_bspline_knots,
+    _profile_coordinates_and_model_sampling,
     _build_profile,
 )
 
@@ -669,11 +669,11 @@ def test_fit_spectrum_sn2_img_nonnegative():
 
 
 # ----------------------------------------------------------------------------
-# _compute_bspline_knots  (shared input factory)
+# _profile_coordinates_and_model_sampling  (shared input factory)
 # ----------------------------------------------------------------------------
 
 def _make_knots_inputs(nspec=200, nspat=100, fwhm=4.0, sn_ratio=20.0, seed=42):
-    """Build the 1-D inputs for _compute_bspline_knots."""
+    """Build the 1-D inputs for _profile_coordinates_and_model_sampling."""
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(
             nspec=nspec, nspat=nspat, fwhm=fwhm, sn_ratio=sn_ratio, seed=seed)
@@ -692,11 +692,11 @@ def _make_knots_inputs(nspec=200, nspat=100, fwhm=4.0, sn_ratio=20.0, seed=42):
 
 
 def test_bspline_knots_shapes():
-    """_compute_bspline_knots returns 1-D sigma_x with the correct shape and valid bounds."""
+    """_profile_coordinates_and_model_sampling returns 1-D sigma_x with the correct shape and valid bounds."""
     nspec, nspat = 200, 100
     dspat_x, sigma, med_sn2, good_x, spec_x = _make_knots_inputs(nspec=nspec, nspat=nspat)
     npix = spec_x.size
-    sigma_x, limit, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
+    sigma_x, limit, min_sigma, max_sigma, bkpt = _profile_coordinates_and_model_sampling(
         dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2, prof_nsigma=None,
         good_x=good_x
     )
@@ -709,7 +709,7 @@ def test_bspline_knots_shapes():
 
 
 def test_bspline_knots_bug1_fix():
-    r"""_compute_bspline_knots with prof_nsigma=10.0 does not crash (Bug 1 fix).
+    r"""_profile_coordinates_and_model_sampling with prof_nsigma=10.0 does not crash (Bug 1 fix).
 
     The legacy formula ``nb = np.round(prof_nsigma > 10)`` evaluates a boolean
     comparison; for ``prof_nsigma=10.0`` it gives ``np.round(False) = 0``,
@@ -717,7 +717,7 @@ def test_bspline_knots_bug1_fix():
     The fix ``nb = max(1, round(prof_nsigma / 10))`` gives ``nb = 1``.
     """
     dspat_x, sigma, med_sn2, good_x, spec_x = _make_knots_inputs()
-    sigma_x, limit, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
+    sigma_x, limit, min_sigma, max_sigma, bkpt = _profile_coordinates_and_model_sampling(
         dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2, prof_nsigma=10.0,
         good_x=good_x
     )
@@ -728,9 +728,9 @@ def test_bspline_knots_bug1_fix():
 
 @pytest.mark.parametrize("prof_nsigma", [5.0, 10.0, 15.0, 20.0])
 def test_bspline_knots_prof_nsigma_bounds(prof_nsigma):
-    """_compute_bspline_knots sets min/max_sigma to ±prof_nsigma and bkpt within bounds."""
+    """_profile_coordinates_and_model_sampling sets min/max_sigma to ±prof_nsigma and bkpt within bounds."""
     dspat_x, sigma, med_sn2, good_x, spec_x = _make_knots_inputs()
-    _, _, min_sigma, max_sigma, bkpt = _compute_bspline_knots(
+    _, _, min_sigma, max_sigma, bkpt = _profile_coordinates_and_model_sampling(
         dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2,
         prof_nsigma=prof_nsigma, good_x=good_x
     )
@@ -741,15 +741,15 @@ def test_bspline_knots_prof_nsigma_bounds(prof_nsigma):
 
 
 # ----------------------------------------------------------------------------
-# _apodize_profile  (shared B-spline fixture)
+# _build_profile  (shared B-spline fixture)
 # ----------------------------------------------------------------------------
 
 @pytest.fixture(scope='module')
 def apodize_bspline():
-    r"""Fit a B-spline to ``exp(-sig_x^2/2)`` for ``_apodize_profile`` tests.
+    r"""Fit a B-spline to ``exp(-sig_x^2/2)`` for ``_build_profile`` tests.
 
     Uses the no-basis calling convention of Block 7 (returns a 1-D BSpline
-    directly, compatible with ``_apodize_profile``'s ``.value()`` calls).
+    directly, compatible with ``_build_profile``'s ``.value()`` calls).
     """
     nspec, nspat = 50, 100
     sig2fwhm = np.sqrt(8.0 * np.log(2.0))
