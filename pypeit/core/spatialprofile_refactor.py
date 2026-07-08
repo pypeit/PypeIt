@@ -42,9 +42,31 @@ from pypeit.core.spatialprofile import qa_fit_profile
 # ---------------------------------------------------------------------------
 
 
+def _inverse(arr):
+    """
+    Calculate the inverse of the provided array.
+
+    This is virtually identical to :func:`~pypeit.utils.inverse`, except that it
+    does not force the result to be positive.
+
+    Parameters
+    ----------
+    arr : :class:`numpy.ndarray`
+        Input array
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Calculation of ``1/arr`` that controls for where ``arr`` is identically
+        0.
+    """
+    gpm = arr != 0.
+    return gpm / (arr + np.logical_not(gpm))
+
+
 def _findfwhm(model, sig_x):
     """
-    Calculate the FWHM of an profile with sub-pixel precision.
+    Calculate the FWHM of a profile with sub-pixel precision.
 
     Locates the half-maximum crossing on each side of the peak by linear
     interpolation between the two bracketing sample points, eliminating the
@@ -152,8 +174,9 @@ def _gaussian_profile(x, center, sigma):
             _sigma = _sigma[:, None]
     else:
         _center, _sigma = center, sigma
-    sigma_x = (_x - _center) / _sigma / np.sqrt(2.0)
-    delta = 0.5 / _sigma / np.sqrt(2.0)
+    s = _inverse(_sigma * np.sqrt(2.0))
+    sigma_x = (_x - _center) * s
+    delta = 0.5 * s
     profile = 0.5 * (
         scipy.special.erf(sigma_x + delta) - scipy.special.erf(sigma_x - delta)
     )
@@ -231,9 +254,10 @@ def _return_gaussian(
 
 
 def _fit_spectrum_and_normalize(
-    wave, flux, fluxivar, waveimg, image, ivar, totmask, spec_img, percentile_sn2, fwhm
+    wave, flux, fluxivar, waveimg, image, ivar, totmask, spec_img, percentile_sn2, fwhm,
+    sn_cap=100.0, good_pix_frac=0.05
 ):
-    """
+    r"""
     Fit flux B-splines, estimate S/N, and build the normalised-object image.
 
     Encapsulates the spectral-fitting and normalisation steps of
@@ -267,6 +291,12 @@ def _fit_spectrum_and_normalize(
         Upper percentile of :math:`(S/N)^2` used to estimate ``med_sn2``.
     fwhm : :obj:`float`
         Current FWHM estimate in pixels, used only in warning messages.
+    sn_cap : :obj:`float`, optional
+        Maximum S/N per pixel used when clipping ``fluxivar`` via
+        :func:`~pypeit.utils.clip_ivar`.  Default is 100.0.
+    good_pix_frac : :obj:`float`, optional
+        Minimum fraction of in-range spectral pixels that must pass the
+        ``indsp`` quality cuts for the fit to proceed.  Default is 0.05.
 
     Returns
     -------
@@ -314,14 +344,12 @@ def _fit_spectrum_and_normalize(
     # ------------------------------------------------------------------
     # Block 2 — Flux B-spline fitting
     # ------------------------------------------------------------------
-    sn_cap = 100.0
     fluxivar_sm = utils.clip_ivar(flux_sm, fluxivar_sm0, sn_cap)
     indsp = (
         (wave >= wave_min) & (wave <= wave_max) & np.isfinite(flux_sm) & (flux_sm > -1000.0)
         & (fluxivar_sm > 0.0)
     )
     eligible_pixels = np.sum((wave >= wave_min) & (wave <= wave_max))
-    good_pix_frac = 0.05
     if np.sum(indsp) < good_pix_frac * eligible_pixels or eligible_pixels == 0:
         log.warning(
             'There are no pixels eligible to be fit for the object profile.  There is likely an '
@@ -330,70 +358,61 @@ def _fit_spectrum_and_normalize(
         return False, 0.0, None, None, None, None, None, None
 
     b_answer, bmask, *_ = iterative_bspline_fit(
-        wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp],
+        wave, flux_sm, ivar=fluxivar_sm, gpm=indsp,
         kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
     b_answer, bmask2, *_ = iterative_bspline_fit(
-        wave[indsp], flux_sm[indsp], ivar=np.where(bmask, fluxivar_sm[indsp], 0.0),
+        wave, flux_sm, ivar=fluxivar_sm, gpm=bmask,
         kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
     c_answer, cmask, *_ = iterative_bspline_fit(
-        wave[indsp], flux_sm[indsp], ivar=np.where(bmask2, fluxivar_sm[indsp], 0.0),
+        wave, flux_sm, ivar=fluxivar_sm, gpm=bmask2,
         kwargs_knots={'stride': 30}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
-    spline_flux, _ = b_answer.value(wave[indsp])
+    spline_flux, _ = b_answer.value(wave)
     try:
-        cont_flux, _ = c_answer.value(wave[indsp])
+        cont_flux, _ = c_answer.value(wave)
     except Exception:
         log.warning(
-            'Problem estimating S/N ratio of spectrum\nThere is likely an issue in '
-            f'local_skysub_extract. Returning a Gaussian with fwhm = {fwhm:.3f}'
+            'Problem estimating S/N ratio of spectrum.  There is likely an issue in '
+            f'local_skysub_extract. Returning a Gaussian with fwhm = {fwhm:.3f}.'
         )
         return False, 0.0, None, None, None, None, None, None
 
     # ------------------------------------------------------------------
     # Block 3 — S/N estimation
     # ------------------------------------------------------------------
-    sqrt_ivar = np.sqrt(np.fmax(fluxivar_sm[indsp], 0))
+    sqrt_ivar = np.sqrt(np.fmax(fluxivar_sm, 0))
     sqrt_ivar[np.logical_not(bmask2)] = 0.0
     sn2 = np.fmax(spline_flux * sqrt_ivar, 0)**2
-    ind_nonzero = sn2 > 0
-    if ind_nonzero.sum() > 0:
-        sn2_percentile = np.percentile(sn2, percentile_sn2)
+    sn2_indsp = sn2[indsp]
+    if (sn2_indsp > 0).any():
+        sn2_percentile = np.percentile(sn2_indsp, percentile_sn2)
         _, med_sn2, _ = astropy.stats.sigma_clipped_stats(
-            sn2[sn2 > sn2_percentile], sigma_lower=3.0, sigma_upper=5.0
+            sn2_indsp[sn2_indsp > sn2_percentile], sigma_lower=3.0, sigma_upper=5.0
         )
     else:
         med_sn2 = 0.0
 
     nspec = wave.size
-    ispline = (wave >= wave_min) & (wave <= wave_max)
+    good_wave = (wave >= wave_min) & (wave <= wave_max)
 
-    spline_flux1 = np.zeros(nspec)
-    spline_flux1[ispline], _ = b_answer.value(wave[ispline])
-    cont_flux1 = np.zeros(nspec)
-    cont_flux1[ispline], _ = c_answer.value(wave[ispline])
+    spline_flux1 = np.where(good_wave, spline_flux, 0.0)
+    cont_flux1 = np.where(good_wave, cont_flux, 0.0)
 
     isrt = np.argsort(wave[indsp], kind='stable')
     s2_interp = scipy.interpolate.interp1d(
-        wave[indsp][isrt], sn2[isrt], assume_sorted=False, bounds_error=False, fill_value=0.0
+        wave[indsp][isrt], sn2_indsp[isrt], assume_sorted=False, bounds_error=False, fill_value=0.0
     )
     sn2_1 = np.zeros(nspec)
-    sn2_1[ispline] = s2_interp(wave[ispline])
+    sn2_1[good_wave] = s2_interp(wave[good_wave])
 
-    bmask_1d = np.zeros(nspec, dtype=bool)
-    bmask_1d[indsp] = bmask2
-    spline_flux1 = pydl.djs_maskinterp(spline_flux1, np.logical_not(bmask_1d))
+    spline_flux1 = pydl.djs_maskinterp(spline_flux1, np.logical_not(bmask2))
+    cont_flux1 = pydl.djs_maskinterp(cont_flux1, np.logical_not(cmask))
 
-    cmask2_1d = np.zeros(nspec, dtype=bool)
-    cmask2_1d[indsp] = cmask
-    cont_flux1 = pydl.djs_maskinterp(cont_flux1, np.logical_not(cmask2_1d))
+    _, _, sigma1 = astropy.stats.sigma_clipped_stats(flux[indsp], sigma_lower=3.0, sigma_upper=5.0)
 
-    _, _, sigma1 = astropy.stats.sigma_clipped_stats(
-        flux[indsp], sigma_lower=3.0, sigma_upper=5.0
-    )
-
-    sn2_med_filt = scipy.ndimage.median_filter(sn2, size=9, mode='reflect')
+    sn2_med_filt = scipy.ndimage.median_filter(sn2_indsp, size=9, mode='reflect')
     sn2_interp = scipy.interpolate.interp1d(
         wave[indsp][isrt], sn2_med_filt[isrt], assume_sorted=False, bounds_error=False,
         fill_value='extrapolate'
@@ -411,21 +430,19 @@ def _fit_spectrum_and_normalize(
     else:
         if med_sn2 <= 5.0:
             spline_flux1 = cont_flux1
-        badpix = (spline_flux1 <= 0.5) | np.logical_not(bmask_1d)
+        badpix = (spline_flux1 <= 0.5) | np.logical_not(bmask2)
         goodval = (cont_flux1 > 0.0) & (cont_flux1 < 5e5)
         indbad1 = badpix & goodval
-        if indbad1.sum() > 0:
+        if np.any(indbad1):
             spline_flux1[indbad1] = cont_flux1[indbad1]
         indbad2 = badpix & np.logical_not(goodval)
-        ngood0 = np.logical_not(badpix).sum()
-        if indbad2.sum() > 0 or ngood0 > 0:
+        if np.any(indbad2) or np.any(np.logical_not(badpix)) > 0:
             spline_flux1[indbad2] = np.median(spline_flux1[np.logical_not(badpix)])
         spline_flux1 = scipy.ndimage.median_filter(spline_flux1, size=5, mode='reflect')
 
-        igd = (wave >= wave_min) & (wave <= wave_max)
-        isrt1 = np.argsort(wave[igd], kind='stable')
+        isrt1 = np.argsort(wave[good_wave], kind='stable')
         spline_img_interp = scipy.interpolate.interp1d(
-            wave[igd][isrt1], spline_flux1[igd][isrt1], assume_sorted=False,
+            wave[good_wave][isrt1], spline_flux1[good_wave][isrt1], assume_sorted=False,
             bounds_error=False, fill_value='extrapolate'
         )
         spline_img_x = spline_img_interp(wave_x)
@@ -512,6 +529,56 @@ def _compute_bspline_knots(dspat_x, sigma, spec_x, med_sn2, prof_nsigma, good_x)
     return sigma_x, limit, min_sigma, max_sigma, bkpt[keep] 
 
 
+def _deriv_walk(bset, init_limit, sign):
+    r"""
+    Evaluate the log-derivative B-spline walk for one apodization side.
+
+    Builds a vector of candidate limit positions stepping inward from
+    ``init_limit``, evaluates the logarithmic derivative
+    :math:`d(\ln P)/d(\ln |\sigma_x|)` of the profile at each position via
+    finite differences, then returns the position where that derivative first
+    reaches its extreme value (capped at ±1).
+
+    Parameters
+    ----------
+    bset : :class:`~pypeit.core.bspline.BSpline`
+        Final 1-D B-spline profile.
+    init_limit : :obj:`float`
+        Initial apodization limit (left: negative, right: positive) in
+        ``sigma_x`` units, as returned by the threshold walk in
+        :func:`_apodize_profile`.
+    sign : :obj:`int`
+        ``-1`` for the left side (negative ``sigma_x``); ``+1`` for the
+        right side.
+
+    Returns
+    -------
+    limit : :obj:`float`
+        Refined apodization limit in ``sigma_x`` units.
+    deriv : :obj:`float`
+        Log-derivative at ``limit``.
+    fit_val : :obj:`float`
+        Profile value at ``limit``, used to match the exponential tail.
+    """
+    step = -sign * 0.1
+    lim_vec = np.arange(init_limit + step, sign * 1.0, step)
+    if lim_vec.size == 0:
+        lim_vec = np.asarray([sign * 1.1])
+    fit1, _ = bset.value(lim_vec)
+    fit2, _ = bset.value(lim_vec * 0.9)
+    deriv_vec = ((np.ma.log(fit2) - np.ma.log(fit1)) / (0.1 * lim_vec)).filled(0.0)
+    if sign < 0:
+        extreme = np.fmax(deriv_vec.min(), -1.0)
+        cross = np.where(deriv_vec <= extreme)[0]
+    else:
+        extreme = np.fmin(deriv_vec.max(), 1.0)
+        cross = np.where(deriv_vec >= extreme)[0]
+    if cross.size > 0:
+        idx = cross[0]
+        return lim_vec[idx], deriv_vec[idx], fit1[idx]
+    return sign * 1.0, deriv_vec[-1], fit1[-1]
+
+
 def _apodize_profile(
     bset, sigma_x, min_sigma, max_sigma, ss, median_fit, min_level, limit, prof_nsigma, no_deriv
 ):
@@ -565,69 +632,35 @@ def _apodize_profile(
     # Block 11 — Apodization limit search (vectorised)
     # ------------------------------------------------------------------
     igood = (sigma_x > min_sigma) & (sigma_x < max_sigma)
-    full_bsp = np.zeros(sigma_x.size)
     sigma_x_igood = sigma_x[igood]
-    yfit_out, _ = bset.value(sigma_x_igood)
-    full_bsp[igood] = yfit_out
+    full_bsp = np.zeros(sigma_x.size)
+    full_bsp_igood, _ = bset.value(sigma_x_igood)
+    full_bsp[igood] = full_bsp_igood
     isrt2 = sigma_x_igood.argsort(kind='stable')
-    peak, peak_x, lwhm, rwhm = _findfwhm(
-        yfit_out[isrt2] - median_fit, sigma_x_igood[isrt2]
+    peak, peak_x, lwhm, rwhm = _findfwhm(full_bsp_igood[isrt2] - median_fit, sigma_x_igood[isrt2])
+
+    sorted_sigma = sigma_x[ss]
+    sorted_bsp = full_bsp[ss]
+    threshold = min_level + median_fit
+
+    left_cond = (
+        (sorted_bsp < threshold) & (sorted_sigma < peak_x)
+    ) | (sorted_sigma < peak_x - limit)
+    edges_l = np.ma.flatnotmasked_edges(
+        np.ma.array(sorted_sigma, mask=np.logical_not(left_cond))
     )
+    l_limit = (sorted_sigma[edges_l[1]] if edges_l is not None else sorted_sigma[0]) - 0.1
 
-    left_bool = (
-        ((full_bsp[ss] < min_level + median_fit) & (sigma_x[ss] < peak_x))
-        | (sigma_x[ss] < peak_x - limit)
-    )[::-1]
-    ind_left, = np.where(left_bool)
-    lp = np.fmax(ind_left.min(), 0) if ind_left.size > 0 else 0
+    right_cond = (
+        (sorted_bsp < threshold) & (sorted_sigma > peak_x)
+    ) | (sorted_sigma > peak_x + limit)
+    edges_r = np.ma.flatnotmasked_edges(
+        np.ma.array(sorted_sigma, mask=np.logical_not(right_cond))
+    )
+    r_limit = (sorted_sigma[edges_r[0]] if edges_r is not None else sorted_sigma[-1]) + 0.1
 
-    righ_bool = (
-        (full_bsp[ss] < min_level + median_fit) & (sigma_x[ss] > peak_x)
-    ) | (sigma_x[ss] > peak_x + limit)
-    ind_righ, = np.where(righ_bool)
-    rp = np.fmax(ind_righ.min(), 0) if ind_righ.size > 0 else 0
-
-    l_limit = (sigma_x[ss][::-1])[lp] - 0.1
-    r_limit = sigma_x[ss[rp]] + 0.1
-
-    # Logarithmic-derivative vectors (pre-computed for both the apodization
-    # search and the subsequent limit walk)
-    l_lim_vec = np.arange(l_limit + 0.1, -1.0, 0.1)
-    l_lim_vec = np.asarray([-1.1]) if l_lim_vec.size == 0 else l_lim_vec
-    l_fit1, _ = bset.value(l_lim_vec)
-    l_fit2, _ = bset.value(l_lim_vec * 0.9)
-    l_deriv_vec = (np.log(l_fit2) - np.log(l_fit1)) / (0.1 * l_lim_vec)
-    l_deriv_max = np.fmax(l_deriv_vec.min(), -1.0)
-
-    r_lim_vec = np.arange(r_limit - 0.1, 1.0, -0.1)
-    r_lim_vec = np.asarray([1.1]) if r_lim_vec.size == 0 else r_lim_vec
-    r_fit1, _ = bset.value(r_lim_vec)
-    r_fit2, _ = bset.value(r_lim_vec * 0.9)
-    r_deriv_vec = (np.log(r_fit2) - np.log(r_fit1)) / (0.1 * r_lim_vec)
-    r_deriv_max = np.fmin(r_deriv_vec.max(), 1.0)
-
-    # Vectorised limit walk (replaces two while-True loops)
-    l_cross = np.where(l_deriv_vec <= l_deriv_max)[0]
-    if l_cross.size > 0:
-        idx = l_cross[0]
-        l_limit = l_lim_vec[idx]
-        l_deriv = l_deriv_vec[idx]
-        l_fit_val = l_fit1[idx]
-    else:
-        l_limit = -1.0
-        l_deriv = l_deriv_vec[-1]
-        l_fit_val = l_fit1[-1]
-
-    r_cross = np.where(r_deriv_vec >= r_deriv_max)[0]
-    if r_cross.size > 0:
-        idx = r_cross[0]
-        r_limit = r_lim_vec[idx]
-        r_deriv = r_deriv_vec[idx]
-        r_fit_val = r_fit1[idx]
-    else:
-        r_limit = 1.0
-        r_deriv = r_deriv_vec[-1]
-        r_fit_val = r_fit1[-1]
+    l_limit, l_deriv, l_fit_val = _deriv_walk(bset, l_limit, sign=-1)
+    r_limit, r_deriv, r_fit_val = _deriv_walk(bset, r_limit, sign=1)
 
     # ------------------------------------------------------------------
     # Block 12 — Exponential apodization
@@ -650,6 +683,7 @@ def _apodize_profile(
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 def fit_profile_refactor(
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar, inmask=None,
@@ -686,7 +720,7 @@ def fit_profile_refactor(
     fluxivar : :class:`numpy.ndarray`
         Inverse variance of ``flux``, shape :math:`(N_{\rm spec},)`.
     inmask : :class:`numpy.ndarray`, optional
-        Additional boolean mask; defaults to ``(ivar > 0) & thismask``.
+        Additional boolean mask.
     spec_img : :class:`numpy.ndarray`, optional
         Integer image where ``spec_img[i, j] = i``; same shape as ``image``.
         If ``None`` (default), row indices are derived from ``totmask`` via
@@ -892,7 +926,7 @@ def fit_profile_refactor(
         temp_set = mode_shift_bspl.to_1d()
         h0, _ = temp_set.value(xx)
         h1, _ = temp_set.value(xx, coeff=mode_shift_bspl.coeff[:, 1])
-        ratio_10 = h1 / (h0 + (h0 == 0.0))
+        ratio_10 = h1 * _inverse(h0)
         delta_trace_corr = ratio_10 / (1.0 + np.abs(ratio_10) / 0.1)
         trace_corr += delta_trace_corr
 
@@ -917,7 +951,7 @@ def fit_profile_refactor(
         h0, _ = temp_set.value(xx)
         h2, _ = temp_set.value(xx, coeff=mode_stretch_bspl.coeff[:, 1])
         h0 = np.fmax(h0 + h2 * mode_stretch.sum() / mode_zero.sum(), 0.1)
-        ratio_20 = h2 / (h0 + (h0 == 0.0))
+        ratio_20 = h2 * _inverse(h0)
         sigma_factor = 0.3 * ratio_20 / (1.0 + np.abs(ratio_20))
 
         log.info(f"Iteration # {iiter+1}")
@@ -1027,9 +1061,10 @@ def fit_profile_refactor(
 
     # Normalise each spectral row to unit sum
     row_sums = profile_model.sum(axis=1)
-    if row_sums.sum() > 0.0:
-        norm_safe = np.where(row_sums[:, None] > 0.0, row_sums[:, None], 1.0)
-        profile_model = np.where(row_sums[:, None] > 0.0, profile_model / norm_safe, 0.0)
+    indx = row_sums > 0.0
+    if np.any(indx):
+        profile_model[indx,:] /= row_sums[:,None]
+        profile_model[np.logical_not(indx),:] = 0.
 
     info_string = (
         f"FWHM range:{fwhmfit.min():.2f} - {fwhmfit.max():.2f}, S/N={np.sqrt(med_sn2):.3f}"
@@ -1037,7 +1072,7 @@ def fit_profile_refactor(
     )
     if show_profile:
         qa_fit_profile(
-            sigma_x, norm_obj_x / (pb_x + (pb_x == 0.0)), full_bsp,
+            sigma_x, norm_obj_x * _inverse(pb_x), full_bsp,
             l_limit=l_limit, r_limit=r_limit,
             ind=ss[inside], xlim=prof_nsigma, title=f'{obj_string} {info_string}'
         )
