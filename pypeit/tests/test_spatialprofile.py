@@ -29,6 +29,7 @@ from pypeit.core.spatialprofile_refactor import (
     _fit_spectrum_and_normalize,
     _profile_coordinates_and_model_sampling,
     _build_profile,
+    qa_fit_profile_refactor,
 )
 
 
@@ -38,9 +39,8 @@ from pypeit.core.spatialprofile_refactor import (
 
 # TODO:
 #   - allow the synthetic data to have curvature in the object trace
-#   - allow for a non-uniform spectrum (flux)
 def make_profile_inputs(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
-                        sn_ratio=20.0, trace_offset=0.0, seed=42):
+                        sn_ratio=20.0, trace_offset=0.0, seed=42, return_1d=False):
     r"""
     Build a self-consistent set of synthetic inputs for
     :func:`~pypeit.core.spatialprofile.fit_profile`.
@@ -57,20 +57,29 @@ def make_profile_inputs(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
         Number of spatial pixels. Default is 100.
     fwhm : :obj:`float`, optional
         True FWHM of the Gaussian spatial profile in pixels. Default is 4.0.
-    flux_level : :obj:`float`, optional
-        Total counts per spectral row. Default is 1000.0.
+    flux_level : :obj:`float` or `numpy.ndarray`_, optional
+        Total counts per spectral row.  A scalar applies the same level to all
+        rows; a 1-D array of length ``nspec`` sets a per-row flux, enabling
+        spectral flux variations to be modelled.  Default is 1000.0.
     sn_ratio : :obj:`float`, optional
         Desired S/N of the extracted 1D spectrum.  Values ``>= 20`` exercise
         the B-spline path; values ``<= 1`` trigger the Gaussian fallback.
         Default is 20.0.
-    trace_offset : :obj:`float`, optional
+    trace_offset : :obj:`float` or `numpy.ndarray`_, optional
         Shift of the true object centre relative to ``trace_in`` in pixels.
-        Default is 0.0.
+        A scalar applies the same shift to all rows; a 1-D array of length
+        ``nspec`` produces a curved trace.  Default is 0.0.
     seed : :obj:`int`, optional
         Random seed. Default is 42.
+    return_1d : :obj:`bool`, optional
+        If False (default), return full 2-D arrays.  If True, apply
+        ``totmask`` and return the pre-extracted 1-D slit-pixel arrays used
+        by :func:`~pypeit.core.spatialprofile_refactor.fit_profile_refactor`.
 
     Returns
     -------
+    When ``return_1d=False`` (default):
+
     image : `numpy.ndarray`_
         Sky-subtracted 2D image, shape ``(nspec, nspat)``.
     ivar : `numpy.ndarray`_
@@ -94,6 +103,29 @@ def make_profile_inputs(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
     true_trace : `numpy.ndarray`_
         True object centre ``trace_in + trace_offset``, shape ``(nspec,)``.
         Returned so tests can assess trace-correction accuracy.
+
+    When ``return_1d=True``:
+
+    wave : `numpy.ndarray`_
+        Extracted wavelength array, shape ``(nspec,)``.
+    flux : `numpy.ndarray`_
+        Extracted 1D flux, shape ``(nspec,)``.
+    fluxivar : `numpy.ndarray`_
+        Inverse variance of extracted flux, shape ``(nspec,)``.
+    wave_x : `numpy.ndarray`_
+        Wavelength of each valid slit pixel, shape ``(npix,)``.
+    flux_x : `numpy.ndarray`_
+        Sky-subtracted value of each valid slit pixel, shape ``(npix,)``.
+    ivar_x : `numpy.ndarray`_
+        Inverse variance of each valid slit pixel, shape ``(npix,)``.
+    spec_x : `numpy.ndarray`_
+        Spectral row index of each valid slit pixel, shape ``(npix,)`` int.
+    trace_in : `numpy.ndarray`_
+        Nominal object trace, shape ``(nspec,)``.
+    nspec : :obj:`int`
+        Number of spectral pixels.
+    nspat : :obj:`int`
+        Number of spatial pixels.
     """
     rng = np.random.default_rng(seed)
 
@@ -104,104 +136,117 @@ def make_profile_inputs(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
 
     # Step 2 — object trace
     trace_in = np.full(nspec, float(nspat // 2))
-    true_trace = trace_in + trace_offset
+    trace_offset_arr = np.broadcast_to(
+        np.asarray(trace_offset, dtype=float), (nspec,)
+    ).copy()
+    true_trace = trace_in + trace_offset_arr
 
-    # Step 3 — noiseless 2D image: Gaussian profile scaled by a flat spectrum
+    flux_level_arr = np.broadcast_to(
+        np.asarray(flux_level, dtype=float), (nspec,)
+    ).copy()
+
+    # Step 3 — noiseless 2D image: Gaussian profile scaled by spectrum
     sigma = fwhm / 2.3548
     dspat_true = spat_img - true_trace[:, np.newaxis]
     profile_gauss = np.exp(-0.5 * (dspat_true / sigma) ** 2)
     profile_norm = profile_gauss / profile_gauss.sum(axis=1, keepdims=True)
-    true_image = flux_level * profile_norm
+    true_image = flux_level_arr[:, None] * profile_norm
 
     # Step 4 — noise and inverse variance (uniform background model)
-    # noise_sigma_2d is set so that the extracted 1D S/N equals sn_ratio
-    noise_sigma_2d = flux_level / (sn_ratio * np.sqrt(nspat))
-    image = true_image + rng.normal(scale=noise_sigma_2d, size=(nspec, nspat))
-    ivar = np.full((nspec, nspat), 1.0 / noise_sigma_2d ** 2)
+    # noise_sigma is set so that the extracted 1D S/N equals sn_ratio
+    noise_sigma = flux_level_arr / (sn_ratio * np.sqrt(nspat))
+    image = true_image + rng.normal(scale=noise_sigma[:, None], size=(nspec, nspat))
+    ivar = np.broadcast_to((1.0 / noise_sigma ** 2)[:, None], (nspec, nspat)).copy()
     thismask = np.ones((nspec, nspat), dtype=bool)
     inmask = thismask.copy()
 
     # Step 5 — 1D extracted spectrum (noiseless true spectrum + ivar)
-    flux = np.full(nspec, flux_level)
-    noise_sigma_1d = flux_level / sn_ratio
-    fluxivar = np.full(nspec, 1.0 / noise_sigma_1d ** 2)
+    flux = flux_level_arr.copy()
+    noise_sigma_1d = flux_level_arr / sn_ratio
+    fluxivar = 1.0 / noise_sigma_1d ** 2
+
+    if return_1d:
+        totmask = (ivar > 0.0) & thismask & inmask
+        spec_x = np.where(totmask)[0]
+        wave_x = waveimg[totmask]
+        flux_x = image[totmask]
+        ivar_x = ivar[totmask]
+        return wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, trace_in, nspec, nspat
 
     return (image, ivar, waveimg, thismask, spat_img, trace_in,
             wave, flux, fluxivar, inmask, true_trace)
 
 
-# TODO:
-#   - Consolidate with the above function by adding a flag that sets the output type
-def make_profile_inputs_1d(nspec=200, nspat=100, fwhm=4.0, sn_ratio=20.0, seed=42):
+def make_fourier_spectrum(nspec, nmodes, mean=0.0, std=1.0, seed=42):
     r"""
-    Build pre-extracted 1-D slit-pixel arrays from :func:`make_profile_inputs`.
+    Build a synthetic spectrum from randomly selected Fourier modes.
 
-    Calls :func:`make_profile_inputs` and applies ``totmask`` to return the
-    per-pixel 1-D arrays used by the 1-D slit-pixel implementation of
-    :func:`~pypeit.core.spatialprofile_refactor.fit_profile_refactor`,
-    together with the 1-D spectral arrays that accompany them.
+    A discrete set of ``nmodes`` mode indices is drawn at random from the
+    valid range; each mode receives a random complex amplitude and phase.
+    Hermitian symmetry is then imposed so that the inverse DFT is
+    real-valued.  The output is normalised to zero mean and unit RMS and
+    then shifted and scaled to the requested ``mean`` and ``std``.
+
+    Modes with frequencies below 1/3 cycles per pixel (periods longer than
+    3 pixels) are excluded.  For a spectrum of length ``nspec`` the
+    permissible indices satisfy :math:`k \in [\lceil nspec/3 \rceil,
+    \lfloor nspec/2 \rfloor]`, giving roughly ``nspec//6`` distinct modes.
 
     Parameters
     ----------
-    nspec : :obj:`int`, optional
-        Number of spectral pixels.  Default is 200.
-    nspat : :obj:`int`, optional
-        Number of spatial pixels.  Default is 100.
-    fwhm : :obj:`float`, optional
-        True FWHM of the Gaussian spatial profile in pixels.  Default is 4.0.
-    sn_ratio : :obj:`float`, optional
-        Desired 1D S/N.  Default is 20.0.
+    nspec : :obj:`int`
+        Number of spectral pixels (length of the output spectrum).
+    nmodes : :obj:`int`
+        Number of Fourier modes to include.  Must not exceed the
+        approximately ``nspec//6`` available modes.
+    mean : :obj:`float`, optional
+        Mean of the output spectrum.  Default is 0.0.
+    std : :obj:`float`, optional
+        Standard deviation of the output spectrum.  Default is 1.0.
     seed : :obj:`int`, optional
-        Random seed.  Default is 42.
+        Random seed for reproducibility.  Default is 42.
 
     Returns
     -------
-    wave : :class:`numpy.ndarray`
-        Extracted wavelength array, shape ``(nspec,)``.
-    flux : :class:`numpy.ndarray`
-        Extracted 1D flux, shape ``(nspec,)``.
-    fluxivar : :class:`numpy.ndarray`
-        Inverse variance of flux, shape ``(nspec,)``.
-    wave_x : :class:`numpy.ndarray`
-        Wavelength of each valid slit pixel, shape ``(npix,)``.
-    flux_x : :class:`numpy.ndarray`
-        Sky-subtracted value of each valid slit pixel, shape ``(npix,)``.
-    ivar_x : :class:`numpy.ndarray`
-        Inverse variance of each valid slit pixel, shape ``(npix,)``.
-    spec_x : :class:`numpy.ndarray`
-        Spectral row index of each valid slit pixel, shape ``(npix,)`` int.
-    trace_in : :class:`numpy.ndarray`
-        Nominal object trace, shape ``(nspec,)``.
-    nspec : :obj:`int`
-        Number of spectral pixels.
-    nspat : :obj:`int`
-        Number of spatial pixels.
+    spectrum : `numpy.ndarray`_
+        Synthetic spectrum with the requested mean and standard deviation,
+        shape ``(nspec,)``.
+
+    Raises
+    ------
+    ValueError
+        If ``nmodes`` exceeds the number of available modes.
     """
-    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
-        fluxivar, inmask, _ = make_profile_inputs(
-            nspec=nspec, nspat=nspat, fwhm=fwhm, sn_ratio=sn_ratio, seed=seed)
-    totmask = (ivar > 0.0) & thismask & inmask
-    spec_x = np.where(totmask)[0]
-    spat_x = spat_img[totmask]                   # noqa: F841 — available to callers via locals
-    wave_x = waveimg[totmask]
-    flux_x = image[totmask]
-    ivar_x = ivar[totmask]
-    return wave, flux, fluxivar, wave_x, flux_x, ivar_x, spec_x, trace_in, nspec, nspat
+    rng = np.random.default_rng(seed)
 
+    k_min = int(np.ceil(nspec / 3.0))
+    k_max = nspec // 2
+    n_available = k_max - k_min + 1
+    if nmodes > n_available:
+        raise ValueError(
+            f"nmodes={nmodes} exceeds the {n_available} modes available "
+            f"for nspec={nspec} above the 1/3 cycles/pixel floor"
+        )
 
-def _make_fsn_inputs_1d(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
-                        sn_ratio=20.0, seed=42):
-    """Return the 2-D inputs for _fit_spectrum_and_normalize.
+    modes = rng.choice(np.arange(k_min, k_max + 1), size=nmodes, replace=False)
 
-    The trailing ``percentile_sn2`` and ``fwhm`` arguments are supplied by
-    each test individually.
-    """
-    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
-        fluxivar, inmask, _ = make_profile_inputs(
-            nspec=nspec, nspat=nspat, fwhm=fwhm,
-            flux_level=flux_level, sn_ratio=sn_ratio, seed=seed)
-    totmask = (ivar > 0.0) & thismask & inmask
-    return wave, flux, fluxivar, waveimg, image, ivar, totmask, nspec
+    coeffs = np.zeros(nspec, dtype=complex)
+    for k in modes:
+        if nspec % 2 == 0 and k == nspec // 2:
+            # Nyquist mode: coefficient must be real for real-valued output
+            coeffs[k] = rng.standard_normal()
+        else:
+            a = rng.standard_normal() + 1j * rng.standard_normal()
+            coeffs[k] = a
+            coeffs[nspec - k] = np.conj(a)
+
+    spectrum = np.real(np.fft.ifft(coeffs))
+    spectrum -= spectrum.mean()
+    rms = spectrum.std()
+    if rms > 0.0:
+        spectrum /= rms
+
+    return mean + std * spectrum
 
 
 # ============================================================================
@@ -491,6 +536,109 @@ def test_trace_correction_small_offset():
         "xnew should shift toward the positive offset"
 
 
+def test_curved_trace_profile_recovery():
+    r"""fit_profile_refactor correctly fits a profile along a quadratic trace.
+
+    A quadratic ``trace_offset`` curving ±10 px over ``nspec`` rows is used
+    to construct the true object centre, which is then passed as ``trace_in``.
+    Because ``sigma_x`` is computed relative to ``trace_in``, the curvature
+    must be transparent to the B-spline profile fit: the row normalization and
+    FWHM recovery should be unaffected, and ``xnew`` must track the curved
+    trace to within 1 px at each spectral row.  The quadratic coefficient of a
+    polynomial fit to ``xnew`` is also compared to that of ``true_trace`` to
+    verify that the curvature itself is preserved.
+    """
+    nspec, nspat = 200, 100
+    fwhm = 4.0
+    t = np.linspace(-1.0, 1.0, nspec)
+    # Quadratic: -10 px at midpoint, +10 px at both ends
+    trace_offset = 10.0 * (2.0 * t ** 2 - 1.0)
+
+    image, ivar, waveimg, thismask, spat_img, _, wave, flux, \
+        fluxivar, inmask, true_trace = make_profile_inputs(
+            nspec=nspec, nspat=nspat, fwhm=fwhm, sn_ratio=20.0,
+            trace_offset=trace_offset
+        )
+
+    profile_model, xnew, fwhmfit, med_sn2 = \
+        spatialprofile_refactor.fit_profile_refactor(
+            image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+            spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
+            fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0
+        )
+
+    assert med_sn2 > 4.0 ** 2, "Expected B-spline path (high S/N)"
+
+    # Profile normalization: each non-zero row sums to 1
+    row_sums = profile_model.sum(axis=1)
+    nonzero = row_sums > 0
+    np.testing.assert_allclose(row_sums[nonzero], 1.0, atol=1e-10)
+
+    # FWHM recovery within 10%
+    np.testing.assert_allclose(np.median(fwhmfit), fwhm, rtol=0.10)
+
+    # xnew must follow the curved trace to within 1 px at every spectral row
+    np.testing.assert_allclose(xnew, true_trace, atol=1.0)
+
+    # The quadratic curvature of xnew should match true_trace within 20%
+    coeffs_true = np.polyfit(t, true_trace, 2)
+    coeffs_xnew = np.polyfit(t, xnew, 2)
+    np.testing.assert_allclose(coeffs_xnew[0], coeffs_true[0], rtol=0.20)
+
+
+def test_fourier_flux_and_curved_trace():
+    r"""fit_profile_refactor recovers profile and trace with Fourier flux and curved trace.
+
+    Simultaneously exercises three aspects tested individually elsewhere:
+
+    - **Spectrum**: a Fourier-generated ``flux_level`` with 5 % RMS rapid
+      variations (period 2–3 px, 5 modes).  Recovery is assessed through
+      ``med_sn2``, which the spectral B-spline should estimate within 30 %
+      of ``sn_ratio**2`` regardless of the rapidly-varying shape.
+    - **Profile**: same quadratic ``trace_offset`` (±10 px) as
+      :func:`test_curved_trace_profile_recovery`.  The profile must be
+      row-normalised and recover ``fwhm`` within 10 %.
+    - **Trace**: ``xnew`` must track ``true_trace`` to within 1 px at every
+      row and reproduce its quadratic curvature within 20 %.
+    """
+    nspec, nspat = 200, 100
+    fwhm = 4.0
+    sn_ratio = 20.0
+
+    flux_level = make_fourier_spectrum(nspec, nmodes=5, mean=1000.0, std=50.0)
+
+    t = np.linspace(-1.0, 1.0, nspec)
+    trace_offset = 10.0 * (2.0 * t ** 2 - 1.0)
+
+    image, ivar, waveimg, thismask, spat_img, _, wave, flux, \
+        fluxivar, inmask, true_trace = make_profile_inputs(
+            nspec=nspec, nspat=nspat, fwhm=fwhm, sn_ratio=sn_ratio,
+            flux_level=flux_level, trace_offset=trace_offset
+        )
+
+    profile_model, xnew, fwhmfit, med_sn2 = \
+        spatialprofile_refactor.fit_profile_refactor(
+            image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+            spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
+            fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0
+        )
+
+    # Spectrum recovery: med_sn2 should be within 30% of sn_ratio**2 = 400
+    np.testing.assert_allclose(med_sn2, sn_ratio ** 2, rtol=0.30)
+
+    # Profile recovery: row normalization and FWHM
+    row_sums = profile_model.sum(axis=1)
+    nonzero = row_sums > 0
+    np.testing.assert_allclose(row_sums[nonzero], 1.0, atol=1e-10)
+    np.testing.assert_allclose(np.median(fwhmfit), fwhm, rtol=0.10)
+
+    # Trace recovery: xnew tracks the curved true_trace
+    np.testing.assert_allclose(xnew, true_trace, atol=1.0)
+    coeffs_true = np.polyfit(t, true_trace, 2)
+    coeffs_xnew = np.polyfit(t, xnew, 2)
+    np.testing.assert_allclose(coeffs_xnew[0], coeffs_true[0], rtol=0.20)
+
+
 def test_refactor_regression():
     """Refactored function output matches the pre-refactor reference arrays."""
     files_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -617,9 +765,9 @@ def test_findfwhm_asymmetric():
 
 def test_fit_spectrum_success():
     """_fit_spectrum_and_normalize returns True and valid 1-D arrays for high-S/N input."""
-    wave, flux, fluxivar, waveimg, image, ivar, totmask, nspec = _make_fsn_inputs_1d(
-        sn_ratio=20.0
-    )
+    image, ivar, waveimg, thismask, _, _, wave, flux, fluxivar, inmask, _ = \
+        make_profile_inputs(sn_ratio=20.0)
+    totmask = (ivar > 0.0) & thismask & inmask
     npix = totmask.sum()
     success, med_sn2, norm_obj_x, norm_ivar_x, xtemp_x, sn2_x, spec_x = \
         _fit_spectrum_and_normalize(
@@ -638,7 +786,9 @@ def test_fit_spectrum_success():
 
 def test_fit_spectrum_failure_nan_flux():
     """_fit_spectrum_and_normalize returns (False, 0.0, None, …) for all-NaN flux."""
-    wave, flux, fluxivar, waveimg, image, ivar, totmask, nspec = _make_fsn_inputs_1d()
+    image, ivar, waveimg, thismask, _, _, wave, flux, fluxivar, inmask, _ = \
+        make_profile_inputs()
+    totmask = (ivar > 0.0) & thismask & inmask
     flux = np.full_like(flux, np.nan)
     success, med_sn2, norm_obj_x, norm_ivar_x, xtemp_x, sn2_x, spec_x = \
         _fit_spectrum_and_normalize(
@@ -654,9 +804,9 @@ def test_fit_spectrum_failure_nan_flux():
 
 def test_fit_spectrum_sn2_img_nonnegative():
     """sn2_x is non-negative and has the correct shape."""
-    wave, flux, fluxivar, waveimg, image, ivar, totmask, nspec = _make_fsn_inputs_1d(
-        sn_ratio=20.0
-    )
+    image, ivar, waveimg, thismask, _, _, wave, flux, fluxivar, inmask, _ = \
+        make_profile_inputs(sn_ratio=20.0)
+    totmask = (ivar > 0.0) & thismask & inmask
     npix = totmask.sum()
     success, _, _, _, _, sn2_x, spec_x = _fit_spectrum_and_normalize(
         wave=wave, flux=flux, fluxivar=fluxivar,
@@ -666,6 +816,50 @@ def test_fit_spectrum_sn2_img_nonnegative():
     assert success
     assert sn2_x.shape == (npix,)
     assert np.all(sn2_x >= 0.0)
+
+
+def test_fit_spectrum_suppresses_polynomial_flux():
+    r"""_fit_spectrum_and_normalize suppresses a quadratic spectral flux signature.
+
+    A quadratic ``flux_level`` (linear + quadratic terms, ~53 % peak-to-peak
+    variation) is injected into the synthetic 2-D image.  A 2nd-degree
+    polynomial is fitted to the per-spectral-row means of ``norm_obj_x`` and
+    its peak-to-peak amplitude (as a fraction of the mean) must be less than
+    10 %, compared with > 30 % in the raw image before normalization.
+    """
+    nspec, nspat = 200, 100
+    fwhm = 4.0
+    t = np.linspace(-1.0, 1.0, nspec)
+    flux_level = 1000.0 * (1.0 + 0.3 * t + 0.2 * t ** 2)
+
+    image, ivar, waveimg, thismask, _, _, wave, flux, fluxivar, inmask, _ = \
+        make_profile_inputs(nspec=nspec, nspat=nspat, fwhm=fwhm,
+                            flux_level=flux_level, sn_ratio=20.0)
+    totmask = (ivar > 0.0) & thismask & inmask
+
+    success, _, norm_obj_x, _, _, _, spec_x = _fit_spectrum_and_normalize(
+        wave=wave, flux=flux, fluxivar=fluxivar,
+        waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
+        percentile_sn2=70.0, fwhm=fwhm
+    )
+    assert success
+
+    # The input polynomial varies by ~53% peak-to-peak
+    raw_ptp = (flux_level.max() - flux_level.min()) / flux_level.mean()
+    assert raw_ptp > 0.30
+
+    # Per-row means of norm_obj_x
+    n_per_row = np.bincount(spec_x, minlength=nspec)
+    sum_per_row = np.bincount(spec_x, weights=norm_obj_x, minlength=nspec)
+    valid = n_per_row > 0
+    norm_means = sum_per_row[valid] / n_per_row[valid]
+
+    # Fit a 2nd-degree polynomial to the per-row means and measure its amplitude
+    t_valid = np.linspace(-1.0, 1.0, norm_means.size)
+    trend = np.polyval(np.polyfit(t_valid, norm_means, 2), t_valid)
+    trend_ptp = (trend.max() - trend.min()) / norm_means.mean()
+    assert trend_ptp < 0.10, \
+        f"Spectral signature not suppressed: {trend_ptp:.1%} peak-to-peak in norm_means"
 
 
 # ----------------------------------------------------------------------------
@@ -1002,3 +1196,41 @@ def test_bspline_fwhm_improvement_narrow():
     assert med_sn2 > 4.0 ** 2, "Expected B-spline path"
     assert np.median(fwhm_leg) > fwhm * 1.15, "Legacy should overestimate FWHM by > 15 %"
     np.testing.assert_allclose(np.median(fwhm_ref), fwhm, rtol=0.10)
+
+
+# ============================================================================
+# QA plot
+# ============================================================================
+
+def test_qa_fit_profile_refactor(tmp_path):
+    """qa_fit_profile_refactor produces an output file without raising."""
+    nspec, nspat = 200, 100
+    fwhm     = 4.0
+    sn_ratio = 20.0
+
+    flux_level   = make_fourier_spectrum(nspec, nmodes=5, mean=1000.0, std=50.0)
+    t            = np.linspace(-1.0, 1.0, nspec)
+    trace_offset = 10.0 * (2.0 * t ** 2 - 1.0)
+
+    image, ivar, waveimg, thismask, spat_img, _, wave, flux, fluxivar, inmask, true_trace = \
+        make_profile_inputs(
+            nspec=nspec, nspat=nspat, fwhm=fwhm, sn_ratio=sn_ratio,
+            flux_level=flux_level, trace_offset=trace_offset,
+        )
+
+    profile_model, xnew, fwhmfit, med_sn2 = spatialprofile_refactor.fit_profile_refactor(
+        image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+        spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
+        fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0,
+    )
+
+    outfile = str(tmp_path / 'qa_spatprof.png')
+    qa_fit_profile_refactor(
+        image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+        spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
+        fluxivar=fluxivar, inmask=inmask,
+        profile_model=profile_model, xnew=xnew, fwhmfit=fwhmfit, med_sn2=med_sn2,
+        thisfwhm=fwhm, obj_string='Fourier flux + curved trace',
+        outfile=outfile,
+    )
+    assert (tmp_path / 'qa_spatprof.png').exists()
