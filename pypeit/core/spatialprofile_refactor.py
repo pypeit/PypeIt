@@ -11,9 +11,9 @@ fallback is returned.
 
 import astropy.stats
 from math import gcd
-from IPython import embed
 import matplotlib.pyplot as plt
 import numpy as np
+from types import SimpleNamespace
 import scipy.interpolate
 import scipy.ndimage
 import scipy.special
@@ -734,6 +734,13 @@ def fit_profile_refactor(
         FWHM estimate per spectral pixel, shape :math:`(N_{\rm spec},)`.
     med_sn2 : :obj:`float`
         Median S/N^2 of the object.
+    diagnostics : :class:`types.SimpleNamespace`
+        Per-pixel intermediate arrays needed for QA.  Attributes:
+        ``norm_obj_x``, ``norm_ivar_x``, ``sigma_x`` (all shape
+        :math:`(N_{\rm pix},)`, or ``None`` when the spectral fit failed);
+        ``totmask`` (shape :math:`(N_{\rm spec}, N_{\rm spat})`);
+        ``l_limit``, ``r_limit`` (float, apodization limits in
+        :math:`\sigma_x` units, ``0.0`` when not applicable).
     """
     # Collect the full mask
     totmask = (ivar > 0.) & thismask
@@ -779,7 +786,16 @@ def fit_profile_refactor(
             spat_img, norm_obj_x, trace_in, sigma, _thisfwhm, med_sn2, obj_string, show_profile,
             **gauss_kwargs
         )
-        return profile_model, trace_in, fwhmfit, med_sn2
+        if success:
+            _dspat_x = spat_img[totmask] - trace_in[spec_x]
+            _sigma_x = _dspat_x / sigma[spec_x]
+        else:
+            _sigma_x = None
+        diagnostics = SimpleNamespace(
+            norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
+            sigma_x=_sigma_x, totmask=totmask, l_limit=0.0, r_limit=0.0,
+        )
+        return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
 
     # Setup the profile coordinate data and the Bspline breakpoints
     npix = spec_x.size
@@ -860,7 +876,11 @@ def fit_profile_refactor(
             spat_img, norm_obj_x, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
             obj_string, show_profile, ind=good_x, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
         )
-        return profile_model, trace_in, fwhmfit, med_sn2
+        diagnostics = SimpleNamespace(
+            norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
+            sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
+        )
+        return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
 
     # Iteratively update the trace center and width, and the spatial profile
     sigma_iter = 3
@@ -899,7 +919,11 @@ def fit_profile_refactor(
                 med_sn2, obj_string, show_profile, ind=good_x, l_limit=l_limit,
                 r_limit=r_limit, xlim=7.0,
             )
-            return profile_model, trace_in, fwhmfit, med_sn2
+            diagnostics = SimpleNamespace(
+                norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
+                sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
+            )
+            return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
         # Update the trace center
         temp_set = mode_shift_bspl.to_1d()
         h0, _ = temp_set.value(xx)
@@ -924,7 +948,11 @@ def fit_profile_refactor(
                 med_sn2, obj_string, show_profile, ind=good_x, l_limit=l_limit,
                 r_limit=r_limit, xlim=7.0,
             )
-            return profile_model, trace_in, fwhmfit, med_sn2
+            diagnostics = SimpleNamespace(
+                norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
+                sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
+            )
+            return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
         # Update the profile width
         temp_set = mode_stretch_bspl.to_1d()
         h0, _ = temp_set.value(xx)
@@ -967,7 +995,11 @@ def fit_profile_refactor(
                     med_sn2, obj_string, show_profile, ind=good_x, l_limit=l_limit,
                     r_limit=r_limit, xlim=7.0,
                 )
-                return profile_model, trace_in, fwhmfit, med_sn2
+                diagnostics = SimpleNamespace(
+                    norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
+                    sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
+                )
+                return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
 
             bset = bset.to_1d()
 
@@ -1046,7 +1078,11 @@ def fit_profile_refactor(
             ind=ss[inside], xlim=prof_nsigma, title=f'{obj_string} {info_string}'
         )
 
-    return profile_model, xnew, fwhmfit, med_sn2
+    diagnostics = SimpleNamespace(
+        norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
+        sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
+    )
+    return profile_model, xnew, fwhmfit, med_sn2, diagnostics
 
 
 # ---------------------------------------------------------------------------
@@ -1105,11 +1141,10 @@ def _bin_profile(sigma_x, norm_obj, model_vals, xmin=-7.0, xmax=7.0, nsamp=80):
 
 
 def qa_fit_profile_refactor(
-    image, ivar, waveimg, thismask, spat_img, trace_in,
-    wave, flux, fluxivar, inmask,
-    profile_model, xnew, fwhmfit, med_sn2,
-    spec_img=None, percentile_sn2=70.0, thisfwhm=4.0,
-    obj_string='', outfile=None, l_limit=0.0, r_limit=0.0,
+    image, ivar, thismask, trace_in,
+    flux,
+    profile_model, xnew, fwhmfit, med_sn2, diagnostics,
+    obj_string='', outfile=None,
 ):
     r"""
     QA diagnostic plot for :func:`fit_profile_refactor`.
@@ -1138,22 +1173,12 @@ def qa_fit_profile_refactor(
         Sky-subtracted science image, shape :math:`(N_{\rm spec}, N_{\rm spat})`.
     ivar : :class:`numpy.ndarray`
         Inverse variance of ``image``, same shape.
-    waveimg : :class:`numpy.ndarray`
-        Wavelength image, same shape.
     thismask : :class:`numpy.ndarray`
         Boolean slit mask, same shape.
-    spat_img : :class:`numpy.ndarray`
-        Spatial-coordinate image, same shape.
     trace_in : :class:`numpy.ndarray`
         Input object trace, shape :math:`(N_{\rm spec},)`.
-    wave : :class:`numpy.ndarray`
-        Extracted wavelength array, shape :math:`(N_{\rm spec},)`.
     flux : :class:`numpy.ndarray`
         Extracted flux array, shape :math:`(N_{\rm spec},)`.
-    fluxivar : :class:`numpy.ndarray`
-        Inverse variance of ``flux``, shape :math:`(N_{\rm spec},)`.
-    inmask : :class:`numpy.ndarray`, optional
-        Additional boolean pixel mask, same shape as ``image``.
     profile_model : :class:`numpy.ndarray`
         Normalised spatial profile returned by :func:`fit_profile_refactor`,
         shape :math:`(N_{\rm spec}, N_{\rm spat})`.
@@ -1164,25 +1189,17 @@ def qa_fit_profile_refactor(
         Fitted FWHM per spectral pixel, shape :math:`(N_{\rm spec},)`.
     med_sn2 : :obj:`float`
         Median (S/N)^2 returned by :func:`fit_profile_refactor`.
-    spec_img : :class:`numpy.ndarray`, optional
-        Integer spectral-row image forwarded to
-        :func:`_fit_spectrum_and_normalize`.  Default is ``None``.
-    percentile_sn2 : :obj:`float`, optional
-        Upper percentile used to estimate ``med_sn2``.  Default is 70.
-    thisfwhm : :obj:`float`, optional
-        Initial FWHM estimate in pixels.  Default is 4.0.
+    diagnostics : :class:`types.SimpleNamespace`
+        Diagnostic arrays from :func:`fit_profile_refactor`.  Must contain:
+        ``norm_obj_x``, ``norm_ivar_x``, ``sigma_x`` (shape
+        :math:`(N_{\rm pix},)` or ``None``); ``totmask`` (shape
+        :math:`(N_{\rm spec}, N_{\rm spat})`); ``l_limit``, ``r_limit``
+        (float).
     obj_string : :obj:`str`, optional
         Object label for the figure title.  Default is ``''``.
     outfile : :obj:`str`, optional
         If provided, save the figure to this path instead of displaying it.
         Default is ``None``.
-    l_limit : :obj:`float`, optional
-        Left apodization limit in :math:`\sigma_x` units returned by
-        :func:`fit_profile_refactor`.  When non-zero, drawn as a dashed
-        vertical line on the spatial-profile panel and used to set the x-axis
-        range.  Default is 0.0.
-    r_limit : :obj:`float`, optional
-        Right apodization limit in :math:`\sigma_x` units.  Default is 0.0.
 
     Returns
     -------
@@ -1190,11 +1207,16 @@ def qa_fit_profile_refactor(
         The matplotlib figure object.
     """
     # -----------------------------------------------------------------------
-    # Setup
+    # Unpack diagnostics and derive setup quantities
     # -----------------------------------------------------------------------
-    totmask = (ivar > 0.) & thismask
-    if inmask is not None:
-        totmask &= inmask
+    norm_obj_x  = diagnostics.norm_obj_x
+    norm_ivar_x = diagnostics.norm_ivar_x
+    sigma_x     = diagnostics.sigma_x
+    totmask     = diagnostics.totmask
+    l_limit     = diagnostics.l_limit
+    r_limit     = diagnostics.r_limit
+    success     = norm_obj_x is not None
+
     nspec, nspat = image.shape
     row_idx  = np.arange(nspec)
     sig2fwhm = np.sqrt(8.0 * np.log(2.0))
@@ -1210,15 +1232,6 @@ def qa_fit_profile_refactor(
         prof_half_w = 2.5 * sig2fwhm   # total width = 5 × FWHM in sigma_x
     prof_xlim_lo = prof_center - prof_half_w
     prof_xlim_hi = prof_center + prof_half_w
-
-    # -----------------------------------------------------------------------
-    # Re-run spectral fitting to obtain norm_obj_x and sigma_x
-    # -----------------------------------------------------------------------
-    success, _, norm_obj_x, norm_ivar_x, _, _, spec_x = _fit_spectrum_and_normalize(
-        wave=wave, flux=flux, fluxivar=fluxivar,
-        waveimg=waveimg, image=image, ivar=ivar, totmask=totmask,
-        spec_img=spec_img, percentile_sn2=percentile_sn2, fwhm=thisfwhm,
-    )
 
     # -----------------------------------------------------------------------
     # S/N-optimal extraction using the fitted profile
@@ -1240,12 +1253,10 @@ def qa_fit_profile_refactor(
     vres = np.nanpercentile(np.abs(resid_2d[np.isfinite(resid_2d)]), 97)
 
     # -----------------------------------------------------------------------
-    # Spatial coordinate and collapsed profile
+    # Collapsed spatial profile data
     # -----------------------------------------------------------------------
     if success:
         good_x    = norm_ivar_x > 0
-        dspat_x   = spat_img[totmask] - trace_in[spec_x]
-        sigma_x   = dspat_x / sigma[spec_x]
         profile_x = profile_model[totmask]
         cx, y20, y50, y80, ym = _bin_profile(
             sigma_x[good_x], norm_obj_x[good_x], profile_x[good_x],
