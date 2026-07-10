@@ -43,6 +43,7 @@ __all__ = [
     'soar_tspec',
     'subaru_focas',
     'tng_dolores',
+    'vlt_eris',
     'vlt_fors',
     'vlt_sinfoni',
     'vlt_uves',
