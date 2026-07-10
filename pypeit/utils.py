@@ -614,7 +614,7 @@ def nan_mad_std(data, axis=None, func=None):
     return stats.mad_std(data, axis=axis, func=func, ignore_nan=True)
 
 
-def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
+def growth_lim(a, lim, fac=1.0, midpoint='median', default=[0., 1.]):
     """
     Calculate bounding limits for an array based on its growth.
 
@@ -627,9 +627,12 @@ def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
         fac (:obj:`float`, optional):
             Factor to increase the range based on the growth limits.
             Default is no increase.
-        midpoint (:obj:`float`, optional):
-            Force the midpoint of the range to be centered on this
-            value. Default is the sample median.
+        midpoint (:obj:`float`, :obj:`str`, optional):
+            Force the midpoint of the range to be centered on this value.  If
+            ``'median'``, the midpoint is set by the median of the unmasked
+            values in ``a``.  If ``'center'``, the center of the *range* of the
+            unmasked values of ``a`` is used.  Otherwise, the provided float
+            value used.
         default (:obj:`list`, optional):
             Default limits to return if `a` has no data.
 
@@ -654,7 +657,14 @@ def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
     Da = (_a[srt[end]] - _a[srt[start]]) * fac
 
     # Set the midpoint
-    mid = _a[srt[len(_a) // 2]] if midpoint is None else midpoint
+    if midpoint == 'median':
+        mid = _a[srt[len(_a) // 2]]
+    elif midpoint == 'center':
+        mid = (_a[srt[end]] + _a[srt[start]]) / 2
+    else:
+        mid = midpoint
+    if not isinstance(mid, (float, np.floating)):
+        raise PypeItError('midpoint must be a floating point value, "median", or "center".')
 
     # Return the range centered on the midpoint
     return [mid - Da / 2, mid + Da / 2]

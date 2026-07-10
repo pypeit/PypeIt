@@ -15,8 +15,6 @@ Run from the repo root after installing pypeit in development mode::
 from importlib import resources
 import os
 
-import matplotlib
-matplotlib.use('Agg')
 import numpy as np
 
 from pypeit.core import spatialprofile

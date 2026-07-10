@@ -1298,7 +1298,6 @@ def _fit_profile_qa(
     ax_data.plot(trace_in, row_idx, '--', color='C0', lw=1.0, alpha=0.85)
     ax_data.plot(xnew,     row_idx, '-',  color='C3',  lw=1.5, alpha=0.90)
     ax_model.plot(xnew, row_idx, '-', color='C3', lw=1.5, alpha=0.90)
-    ax_resid.plot(xnew, row_idx, '-', color='k',   lw=0.8, alpha=0.50)
 
     ax_model.plot(xnew - fwhmfit / 2, row_idx, '--', color='black', lw=0.8, alpha=0.7)
     ax_model.plot(xnew + fwhmfit / 2, row_idx, '--', color='black', lw=0.8, alpha=0.7)
@@ -1307,13 +1306,14 @@ def _fit_profile_qa(
     # Spectrum panel
     # -----------------------------------------------------------------------
     ax_spec = fig.add_axes([spec_l, img_bot, spec_w, img_h], sharey=ax_data)
-    ax_spec.step(flux,     row_idx, color='k',   lw=0.8, where='mid', zorder=2)
-    ax_spec.step(opt_flux, row_idx, color='C3', lw=1.5, where='mid', zorder=3)
+    ax_spec.step(flux,     row_idx, color='k',   lw=0.8, where='mid', zorder=2, label='Measured')
+    ax_spec.step(opt_flux, row_idx, color='C3', lw=1.5, where='mid', zorder=3, label='Model')
     ax_spec.set_xlabel('Counts / row', fontsize=8)
     ax_spec.set_title(f'Spectrum  ({sn_str})', fontsize=9)
     ax_spec.tick_params(labelsize=7, labelleft=False)
     ax_spec.set_axisbelow(True)
     ax_spec.grid(True, color='lightgray', lw=0.5)
+    ax_spec.legend(fontsize=8, loc='upper right')
 
     # -----------------------------------------------------------------------
     # Spectrum residual panel
@@ -1343,19 +1343,25 @@ def _fit_profile_qa(
                          ms=2.5, zorder=4, label='data 20/50/80 %ile')
             ax_prof.plot(cx[finite], ym[finite], '-', color='C3',
                          lw=1.8, zorder=5, label='profile model')
+            prof_ylim = utils.growth_lim(np.append(ym[finite], y50[finite]), 0.99, fac=1.7,
+                midpoint='center'
+            )
+        else:
+            prof_ylim = utils.growth_lim(profile_x, 0.99, fac=1.7, midpoint='center')
 
     ax_prof.axhline(0, color='0.50', lw=0.5)
     if limits_set:
         ax_prof.axvline(l_limit, color='0.40', lw=1.0, ls='--', alpha=0.8)
         ax_prof.axvline(r_limit, color='0.40', lw=1.0, ls='--', alpha=0.8)
     ax_prof.set_xlim(prof_xlim_lo, prof_xlim_hi)
+    ax_prof.set_ylim(prof_ylim)
     ax_prof.set_ylabel('Normalized flux', fontsize=9)
     ax_prof.set_title('Spatial profile (spectrally collapsed)', fontsize=9)
     ax_prof.tick_params(labelsize=8, labelbottom=False)
     ax_prof.set_axisbelow(True)
     ax_prof.grid(True, color='lightgray', lw=0.5)
     if success:
-        ax_prof.legend(fontsize=8)
+        ax_prof.legend(fontsize=8, loc='lower center')
 
     # -----------------------------------------------------------------------
     # Profile residual panel
