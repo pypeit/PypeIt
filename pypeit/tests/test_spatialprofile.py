@@ -66,13 +66,13 @@ def make_profile_inputs(
     flux_level : :obj:`float` or `numpy.ndarray`_, optional
         Total counts per spectral row.  A scalar applies the same level to all
         rows; a 1-D array of length ``nspec`` sets a per-row flux, enabling
-        spectral flux variations to be modelled.  Default is 1000.0.
+        spectral flux variations to be modeled.  Default is 1000.0.
     sn_ratio : :obj:`float`, optional
         Desired S/N of the extracted 1D spectrum.  Values ``>= 20`` exercise
         the B-spline path; values ``<= 1`` trigger the Gaussian fallback.
         Default is 20.0.
     trace_offset : :obj:`float` or `numpy.ndarray`_, optional
-        Shift of the true object centre relative to ``trace_in`` in pixels.
+        Shift of the true object center relative to ``trace_in`` in pixels.
         A scalar applies the same shift to all rows; a 1-D array of length
         ``nspec`` produces a curved trace.  Default is 0.0.
     seed : :obj:`int`, optional
@@ -107,7 +107,7 @@ def make_profile_inputs(
     inmask : `numpy.ndarray`_
         Boolean pixel mask, shape ``(nspec, nspat)``.
     true_trace : `numpy.ndarray`_
-        True object centre ``trace_in + trace_offset``, shape ``(nspec,)``.
+        True object center ``trace_in + trace_offset``, shape ``(nspec,)``.
         Returned so tests can assess trace-correction accuracy.
 
     When ``return_1d=True``:
@@ -183,34 +183,47 @@ def make_profile_inputs(
             wave, flux, fluxivar, inmask, true_trace)
 
 
-def make_fourier_spectrum(nspec, nmodes, mean=0.0, std=1.0, seed=42):
+def make_fourier_spectrum(nspec, nmodes, mean=0.0, std=1.0, seed=42, power=1.0,
+                          min_period=3.0):
     r"""
     Build a synthetic spectrum from randomly selected Fourier modes.
 
     A discrete set of ``nmodes`` mode indices is drawn at random from the
-    valid range; each mode receives a random complex amplitude and phase.
-    Hermitian symmetry is then imposed so that the inverse DFT is
-    real-valued.  The output is normalised to zero mean and unit RMS and
+    valid range using log-uniform weighting (:math:`p_k \propto 1/k`), which
+    preferentially selects lower-frequency modes.  Each selected mode then
+    receives a random complex amplitude and phase, further scaled by
+    :math:`k^{-\text{power}}` so that lower frequencies carry proportionally
+    more power.  Hermitian symmetry is then imposed so that the inverse DFT
+    is real-valued.  The output is normalized to zero mean and unit RMS and
     then shifted and scaled to the requested ``mean`` and ``std``.
 
-    Modes with frequencies below 1/3 cycles per pixel (periods longer than
-    3 pixels) are excluded.  For a spectrum of length ``nspec`` the
-    permissible indices satisfy :math:`k \in [\lceil nspec/3 \rceil,
-    \lfloor nspec/2 \rfloor]`, giving roughly ``nspec//6`` distinct modes.
+    Modes with periods longer than ``min_period`` pixels are excluded.  For
+    a spectrum of length ``nspec`` the permissible indices satisfy
+    :math:`k \in [\lceil nspec/\text{min\_period} \rceil, \lfloor nspec/2
+    \rfloor]`, giving roughly ``nspec * (1/2 - 1/min_period)`` distinct modes.
 
     Parameters
     ----------
     nspec : :obj:`int`
         Number of spectral pixels (length of the output spectrum).
     nmodes : :obj:`int`
-        Number of Fourier modes to include.  Must not exceed the
-        approximately ``nspec//6`` available modes.
+        Number of Fourier modes to include.  Must not exceed the number of
+        available modes determined by ``min_period``.
     mean : :obj:`float`, optional
         Mean of the output spectrum.  Default is 0.0.
     std : :obj:`float`, optional
         Standard deviation of the output spectrum.  Default is 1.0.
     seed : :obj:`int`, optional
         Random seed for reproducibility.  Default is 42.
+    power : :obj:`float`, optional
+        Spectral slope.  Each mode ``k`` is weighted by :math:`k^{-\text{power}}`
+        before normalization, so larger values give proportionally more
+        power to lower frequencies.  ``power=0`` recovers flat (white-noise)
+        weighting.  Default is 1.0.
+    min_period : :obj:`float`, optional
+        Minimum allowed period in pixels.  Modes with periods longer than
+        this value (i.e. ``k < nspec / min_period``) are excluded.
+        Default is 3.0.
 
     Returns
     -------
@@ -225,24 +238,28 @@ def make_fourier_spectrum(nspec, nmodes, mean=0.0, std=1.0, seed=42):
     """
     rng = np.random.default_rng(seed)
 
-    k_min = int(np.ceil(nspec / 3.0))
+    k_min = int(np.ceil(nspec / min_period))
     k_max = nspec // 2
     n_available = k_max - k_min + 1
     if nmodes > n_available:
         raise ValueError(
             f"nmodes={nmodes} exceeds the {n_available} modes available "
-            f"for nspec={nspec} above the 1/3 cycles/pixel floor"
+            f"for nspec={nspec} above the 1/min_period cycles/pixel floor"
         )
 
-    modes = rng.choice(np.arange(k_min, k_max + 1), size=nmodes, replace=False)
+    k_range = np.arange(k_min, k_max + 1)
+    log_weights = 1.0 / k_range
+    log_weights /= log_weights.sum()
+    modes = rng.choice(k_range, size=nmodes, replace=False, p=log_weights)
 
     coeffs = np.zeros(nspec, dtype=complex)
     for k in modes:
+        weight = float(k) ** (-power)
         if nspec % 2 == 0 and k == nspec // 2:
             # Nyquist mode: coefficient must be real for real-valued output
-            coeffs[k] = rng.standard_normal()
+            coeffs[k] = weight * rng.standard_normal()
         else:
-            a = rng.standard_normal() + 1j * rng.standard_normal()
+            a = weight * (rng.standard_normal() + 1j * rng.standard_normal())
             coeffs[k] = a
             coeffs[nspec - k] = np.conj(a)
 
@@ -307,10 +324,10 @@ def test_profile_normalization_gaussian():
     assert med_sn2 < 4.0 ** 2, "Expected Gaussian path (low S/N)"
     assert np.all(profile_model >= 0)
     assert np.all(np.isfinite(profile_model))
-    # Peak column of each row must be at the trace centre (±1 px)
+    # Peak column of each row must be at the trace center (±1 px)
     peak_cols = profile_model.argmax(axis=1)
     np.testing.assert_allclose(peak_cols, nspat // 2, atol=1)
-    # Profile drops to < 10% of its peak beyond ±3 sigma from the centre
+    # Profile drops to < 10% of its peak beyond ±3 sigma from the center
     sigma = fwhm / 2.3548
     spat_pix = np.arange(nspat)
     far = np.abs(spat_pix - nspat // 2) > 3 * sigma
@@ -357,7 +374,7 @@ def test_fwhm_recovery(fwhm):
 
 
 def test_trace_correction_direction():
-    """When the true object centre is offset from trace_in, xnew moves toward it.
+    """When the true object center is offset from trace_in, xnew moves toward it.
 
     A 0.5 px offset is too small — the iterative correction overshoots because
     the discrete sigma_x sampling causes findfwhm to overestimate the shift.
@@ -426,7 +443,7 @@ def test_profile_positivity_and_finite_all_paths(variant, sn_ratio, nan_flux):
 
 
 # ============================================================================
-# fit_profile tests — behaviour improvements relative to legacy implementation
+# fit_profile tests — behavior improvements relative to legacy implementation
 # ============================================================================
 
 @pytest.mark.parametrize("fwhm", [3.0, 4.0, 6.0, 8.0])
@@ -452,7 +469,7 @@ def test_fwhm_recovery_refactor(fwhm):
 def test_gaussian_normalization_refactor():
     """Gaussian fallback: row sums are close to 1.0.
 
-    The pixel-integrated erf form used by :func:`_gaussian_profile` normalises
+    The pixel-integrated erf form used by :func:`_gaussian_profile` normalizes
     each row to approximately 1.0, matching the B-spline path.
     """
     nspec, nspat = 200, 100
@@ -500,7 +517,7 @@ def test_prof_nsigma_refactor():
 
 
 def test_trace_correction_small_offset():
-    """fit_profile shifts xnew toward the true centre for a 0.5 px offset.
+    """fit_profile shifts xnew toward the true center for a 0.5 px offset.
 
     For a 0.5 px offset the correction moves in the right direction but
     may overshoot; this test only asserts direction, not convergence accuracy.
@@ -524,7 +541,7 @@ def test_curved_trace_profile_recovery():
     r"""fit_profile correctly fits a profile along a quadratic trace.
 
     A quadratic ``trace_offset`` curving ±10 px over ``nspec`` rows is used
-    to construct the true object centre, which is then passed as ``trace_in``.
+    to construct the true object center, which is then passed as ``trace_in``.
     Because ``sigma_x`` is computed relative to ``trace_in``, the curvature
     must be transparent to the B-spline profile fit: the row normalization and
     FWHM recovery should be unaffected, and ``xnew`` must track the curved
@@ -581,7 +598,7 @@ def test_fourier_flux_and_curved_trace():
       of ``sn_ratio**2`` regardless of the rapidly-varying shape.
     - **Profile**: same quadratic ``trace_offset`` (±10 px) as
       :func:`test_curved_trace_profile_recovery`.  The profile must be
-      row-normalised and recover ``fwhm`` within 10 %.
+      row-normalized and recover ``fwhm`` within 10 %.
     - **Trace**: ``xnew`` must track ``true_trace`` to within 1 px at every
       row and reproduce its quadratic curvature within 20 %.
     """
@@ -677,7 +694,7 @@ def test_gaussian_profile_row_sums(fwhm):
 
 
 def test_gaussian_profile_symmetry():
-    r"""_gaussian_profile is symmetric when the centre falls exactly on a pixel.
+    r"""_gaussian_profile is symmetric when the center falls exactly on a pixel.
 
     Uses an odd-width slit (nspat=101) so that ``center = 50.0`` coincides with
     a grid point, making the profile analytically symmetric about that pixel.
@@ -686,7 +703,7 @@ def test_gaussian_profile_symmetry():
     sig2fwhm = np.sqrt(8.0 * np.log(2.0))
     sigma = 3.0 / sig2fwhm
     x = np.arange(nspat, dtype=float)
-    center = float(nspat // 2)   # 50.0 — a pixel centre
+    center = float(nspat // 2)   # 50.0 — a pixel center
     profile = _gaussian_profile(x, center, sigma)
     np.testing.assert_allclose(profile, profile[::-1], atol=1e-14)
 
@@ -723,7 +740,7 @@ def test_findfwhm_coarse_accuracy():
 
 
 def test_findfwhm_peak_location():
-    """_findfwhm finds peak_x within one grid step of 0 for a centred profile."""
+    """_findfwhm finds peak_x within one grid step of 0 for a centered profile."""
     step = 0.01
     sig_x = np.arange(-3.0, 3.0 + step, step)
     model = np.exp(-0.5 * sig_x ** 2)
@@ -732,7 +749,7 @@ def test_findfwhm_peak_location():
 
 
 def test_findfwhm_asymmetric():
-    """_findfwhm recovers peak_x and FWHM for a Gaussian shifted to centre = 0.5."""
+    """_findfwhm recovers peak_x and FWHM for a Gaussian shifted to center = 0.5."""
     sig2fwhm = np.sqrt(8.0 * np.log(2.0))
     center = 0.5
     step = 0.01

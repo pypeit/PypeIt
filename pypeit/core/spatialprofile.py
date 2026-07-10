@@ -115,7 +115,7 @@ def _gaussian_profile(x, center, sigma):
 
     Computes the fraction of flux in each pixel as the integral of a Gaussian
     across the pixel width using the error function, rather than evaluating the
-    Gaussian density at the pixel centre.  The correction is significant for
+    Gaussian density at the pixel center.  The correction is significant for
     narrow profiles: for FWHM = 3 px the peak value is underestimated by ~10 %
     with the point-sampled form; the integrated form reduces this to < 1 %.
 
@@ -137,7 +137,7 @@ def _gaussian_profile(x, center, sigma):
         :math:`(N_{\rm spec}, N_{\rm spat})`.  For the 2-D case, coordinates
         are expected to vary primarily along the second axis.
     center : :obj:`float`, array-like
-        Profile centre in pixels.  Must be a scalar if ``x`` is 1-D.  If
+        Profile center in pixels.  Must be a scalar if ``x`` is 1-D.  If
         ``x`` is 2-D, may be a scalar or a 1-D array of length
         :math:`N_{\rm spec}`.
     sigma : :obj:`float`, array-like
@@ -179,10 +179,10 @@ def _fit_spectrum_and_normalize(
     sn_cap=100.0, good_pix_frac=0.05,
 ):
     r"""
-    Fit flux B-splines, estimate S/N, and build the normalised-object image.
+    Fit flux B-splines, estimate S/N, and build the normalized-object image.
 
     Fits the extracted 1-D spectrum with B-splines to construct a 2-D spectral
-    model, then uses that model to normalise the science image.  Returns a
+    model, then uses that model to normalize the science image.  Returns a
     success flag; on failure the caller should construct a Gaussian fallback.
 
     Parameters
@@ -225,7 +225,7 @@ def _fit_spectrum_and_normalize(
     med_sn2 : :obj:`float`
         Median :math:`(S/N)^2` of the object; ``0.0`` on failure.
     norm_obj_x : :class:`numpy.ndarray` or None
-        Normalised-object values for each valid slit pixel, shape
+        Normalized-object values for each valid slit pixel, shape
         :math:`(N_{\rm pix},)`.
     norm_ivar_x : :class:`numpy.ndarray` or None
         Inverse variance of ``norm_obj_x``, same shape.
@@ -381,10 +381,10 @@ def _fit_spectrum_and_normalize(
 
 def _profile_coordinates_and_model_sampling(dspat_x, sigma, spec_x, med_sn2, prof_nsigma, good_x):
     r"""
-    Initialise spatial-coordinate arrays and B-spline knot grid for profile
+    Initialize spatial-coordinate arrays and B-spline knot grid for profile
     fitting.
 
-    Computes the normalised spatial coordinate ``sigma_x`` for each valid slit
+    Computes the normalized spatial coordinate ``sigma_x`` for each valid slit
     pixel, the profile half-extent ``limit``, the fitting bounds on
     ``sigma_x``, and the sinh-spaced interior B-spline knot positions.
 
@@ -411,7 +411,7 @@ def _profile_coordinates_and_model_sampling(dspat_x, sigma, spec_x, med_sn2, pro
     Returns
     -------
     sigma_x : :class:`numpy.ndarray`
-        Normalised spatial coordinate (units of ``sigma``), shape
+        Normalized spatial coordinate (units of ``sigma``), shape
         :math:`(N_{\rm pix},)`.
     limit : :obj:`float`
         Profile half-extent in units of ``sigma``.
@@ -508,7 +508,7 @@ def _build_profile(
     bset : BSpline
         Final 1-D B-spline profile.
     sigma_x : :class:`numpy.ndarray`
-        Normalised spatial coordinate, shape :math:`(N_{\rm pix},)`.
+        Normalized spatial coordinate, shape :math:`(N_{\rm pix},)`.
     min_sigma : :obj:`float`
         Lower bound on ``sigma_x`` for the good-pixel mask.
     max_sigma : :obj:`float`
@@ -661,7 +661,7 @@ def fit_profile(
     Returns
     -------
     profile_model : :class:`numpy.ndarray`
-        2-D normalised spatial profile, shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+        2-D normalized spatial profile, shape :math:`(N_{\rm spec}, N_{\rm spat})`.
     xnew : :class:`numpy.ndarray`
         Corrected trace, shape :math:`(N_{\rm spec},)`.
     fwhmfit : :class:`numpy.ndarray`
@@ -745,7 +745,7 @@ def fit_profile(
         sorted_sigma, norm_obj_x[si], ivar=norm_ivar_x[si],
         nord=4, kwargs_knots={'interior': bkpt}, maxiter=15, upper=1, lower=1
     )
-    # Check for a non-zero baseline in the normalised profile
+    # Check for a non-zero baseline in the normalized profile
     median_fit = np.median(norm_obj_x[valid_err])
     if np.abs(median_fit) > 0.01:
         log.info(f"Median flux level in profile is non-zero: median = {median_fit:.4f}")
@@ -951,7 +951,7 @@ def fit_profile(
     if np.any(invalid):
         log.warning('Setting NaN/Inf pixel values in object profile model to zero.')
         profile_model[invalid] = 0.0
-    # Normalise each spectral row to unit sum
+    # Normalize each spectral row to unit sum
     row_sums = profile_model.sum(axis=1)
     indx = row_sums > 0.0
     if np.any(indx):
@@ -1009,14 +1009,14 @@ def fit_profile(
 
 def _bin_profile(sigma_x, norm_obj, model_vals, xmin=-7.0, xmax=7.0, nsamp=80):
     """
-    Bin normalised-object pixel values and profile-model values in sigma_x space.
+    Bin normalized-object pixel values and profile-model values in sigma_x space.
 
     Parameters
     ----------
     sigma_x : :class:`numpy.ndarray`
         Per-pixel spatial coordinate in units of the local sigma, shape ``(N,)``.
     norm_obj : :class:`numpy.ndarray`
-        Per-pixel normalised-object values (image / spectral model), shape ``(N,)``.
+        Per-pixel normalized-object values (image / spectral model), shape ``(N,)``.
     model_vals : :class:`numpy.ndarray`
         Per-pixel profile-model values evaluated at ``sigma_x``, shape ``(N,)``.
     xmin : :obj:`float`, optional
@@ -1029,7 +1029,7 @@ def _bin_profile(sigma_x, norm_obj, model_vals, xmin=-7.0, xmax=7.0, nsamp=80):
     Returns
     -------
     centers : :class:`numpy.ndarray`
-        Bin-centre coordinates, shape ``(nsamp,)``.
+        Bin-center coordinates, shape ``(nsamp,)``.
     y20 : :class:`numpy.ndarray`
         20th-percentile of ``norm_obj`` in each bin, shape ``(nsamp,)``.
     y50 : :class:`numpy.ndarray`
@@ -1096,7 +1096,7 @@ def _fit_profile_qa(
     flux : :class:`numpy.ndarray`
         Extracted flux array, shape :math:`(N_{\rm spec},)`.
     profile_model : :class:`numpy.ndarray`
-        Normalised spatial profile returned by :func:`fit_profile`,
+        Normalized spatial profile returned by :func:`fit_profile`,
         shape :math:`(N_{\rm spec}, N_{\rm spat})`.
     xnew : :class:`numpy.ndarray`
         Corrected trace returned by :func:`fit_profile`, shape
@@ -1106,7 +1106,7 @@ def _fit_profile_qa(
     med_sn2 : :obj:`float`
         Median (S/N)^2 returned by :func:`fit_profile`.
     norm_obj_x : :class:`numpy.ndarray` or None
-        Normalised-object pixel values at in-mask pixels, shape
+        Normalized-object pixel values at in-mask pixels, shape
         :math:`(N_{\rm pix},)`.  ``None`` when the spectral fit failed.
     norm_ivar_x : :class:`numpy.ndarray` or None
         Corresponding inverse variances, same shape as ``norm_obj_x``.
@@ -1282,9 +1282,9 @@ def _fit_profile_qa(
         ax.set_xlabel('Spatial pixel', fontsize=8)
     ax_data.set_ylabel('Spectral row', fontsize=8)
 
-    ax_data.plot(trace_in, row_idx, '--', color='lime', lw=1.0, alpha=0.85)
-    ax_data.plot(xnew,     row_idx, '-',  color='red',  lw=1.5, alpha=0.90)
-    ax_model.plot(xnew, row_idx, '-', color='red', lw=1.5, alpha=0.90)
+    ax_data.plot(trace_in, row_idx, '--', color='C0', lw=1.0, alpha=0.85)
+    ax_data.plot(xnew,     row_idx, '-',  color='C3',  lw=1.5, alpha=0.90)
+    ax_model.plot(xnew, row_idx, '-', color='C3', lw=1.5, alpha=0.90)
     ax_resid.plot(xnew, row_idx, '-', color='k',   lw=0.8, alpha=0.50)
 
     ax_model.plot(xnew - fwhmfit / 2, row_idx, '--', color='black', lw=0.8, alpha=0.7)
@@ -1294,8 +1294,8 @@ def _fit_profile_qa(
     # Spectrum panel
     # -----------------------------------------------------------------------
     ax_spec = fig.add_axes([spec_l, img_bot, spec_w, img_h], sharey=ax_data)
-    ax_spec.step(flux,     row_idx, color='0.60',   lw=0.8, where='mid', zorder=2)
-    ax_spec.step(opt_flux, row_idx, color='tomato', lw=1.5, where='mid', zorder=3)
+    ax_spec.step(flux,     row_idx, color='k',   lw=0.8, where='mid', zorder=2)
+    ax_spec.step(opt_flux, row_idx, color='C3', lw=1.5, where='mid', zorder=3)
     ax_spec.set_xlabel('Counts / row', fontsize=8)
     ax_spec.set_title(f'Spectrum  ({sn_str})', fontsize=9)
     ax_spec.tick_params(labelsize=7, labelleft=False)
@@ -1320,20 +1320,15 @@ def _fit_profile_qa(
     ax_prof = fig.add_axes([prof_l, prof_bot, prof_w, prof_h])
 
     if success:
-        rng_sub  = np.random.default_rng(0)
-        in10     = good_x & (sigma_x >= prof_xlim_lo) & (sigma_x <= prof_xlim_hi)
-        idx_in10 = np.where(in10)[0]
-        sub      = rng_sub.choice(idx_in10, size=min(len(idx_in10), 8000),
-                                  replace=False)
-        ax_prof.scatter(sigma_x[sub], norm_obj_x[sub],
+        ax_prof.scatter(sigma_x, norm_obj_x,
                         s=0.4, c='k', alpha=0.12, rasterized=True, zorder=2)
         finite = np.isfinite(y50)
         if finite.any():
             ax_prof.vlines(cx[finite], y20[finite], y80[finite],
-                           color='orange', lw=1.0, alpha=0.6, zorder=3)
-            ax_prof.plot(cx[finite], y50[finite], 'o', color='lime',
+                           color='C1', lw=1.0, alpha=0.6, zorder=3)
+            ax_prof.plot(cx[finite], y50[finite], 'o', color='C0',
                          ms=2.5, zorder=4, label='data 20/50/80 %ile')
-            ax_prof.plot(cx[finite], ym[finite], '-', color='red',
+            ax_prof.plot(cx[finite], ym[finite], '-', color='C3',
                          lw=1.8, zorder=5, label='profile model')
 
     ax_prof.axhline(0, color='0.50', lw=0.5)
@@ -1341,7 +1336,7 @@ def _fit_profile_qa(
         ax_prof.axvline(l_limit, color='0.40', lw=1.0, ls='--', alpha=0.8)
         ax_prof.axvline(r_limit, color='0.40', lw=1.0, ls='--', alpha=0.8)
     ax_prof.set_xlim(prof_xlim_lo, prof_xlim_hi)
-    ax_prof.set_ylabel('Normalised flux', fontsize=9)
+    ax_prof.set_ylabel('Normalized flux', fontsize=9)
     ax_prof.set_title('Spatial profile (spectrally collapsed)', fontsize=9)
     ax_prof.tick_params(labelsize=8, labelbottom=False)
     ax_prof.set_axisbelow(True)
@@ -1355,14 +1350,16 @@ def _fit_profile_qa(
     ax_pres = fig.add_axes([prof_l, resid_prof_bot, prof_w, resid_prof_h],
                            sharex=ax_prof)
     if success:
-        res_all = norm_obj_x[idx_in10] - profile_x[idx_in10]
-        res_sub = norm_obj_x[sub]       - profile_x[sub]
-        ax_pres.scatter(sigma_x[sub], res_sub,
+        resid = norm_obj_x - profile_x
+        ax_pres.scatter(sigma_x, resid,
                         s=0.4, c='k', alpha=0.12, rasterized=True, zorder=2)
+        if finite.any():
+            ax_pres.plot(cx[finite], (y50-ym)[finite], 'o', color='C0',
+                         ms=2.5, zorder=4)
         ax_pres.axhline(0, color='0.50', lw=0.5, ls='--')
-        if len(res_all) >= 2:
-            p005   = np.nanpercentile(res_all, 0.5)
-            p995   = np.nanpercentile(res_all, 99.5)
+        if len(resid) >= 2:
+            p005   = np.nanpercentile(resid, 0.5)
+            p995   = np.nanpercentile(resid, 99.5)
             half   = p995 - p005
             center = 0.5 * (p005 + p995)
             ax_pres.set_ylim(center - half, center + half)

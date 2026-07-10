@@ -32,13 +32,14 @@ Algorithm
 S/N Decision
 ------------
 
-The first step after fitting a B-spline model to the extracted 1D spectrum is
-to compute the median signal-to-noise squared, :math:`\overline{(S/N)^2}`.
-This single number controls all subsequent branching:
+The first step after fitting a B-spline model to the extracted 1D spectrum is to
+compute the median signal-to-noise squared, :math:`\overline{(S/N)^2}`.  This
+single number controls all subsequent branching (see the definition of
+``sn_gauss`` in :ref:`spatprof-parameters`):
 
-- :math:`\sqrt{\overline{(S/N)^2}} < \texttt{sn\_gauss}` (default 4.0) →
+- :math:`\sqrt{\overline{(S/N)^2}} < \texttt{sn_gauss}` →
   :ref:`Gaussian fallback <spatprof-gaussian>`.
-- :math:`\sqrt{\overline{(S/N)^2}} \ge \texttt{sn\_gauss}` →
+- :math:`\sqrt{\overline{(S/N)^2}} \ge \texttt{sn_gauss}` →
   :ref:`B-spline profile fit <spatprof-bspline>`.
 
 .. _spatprof-bspline:
@@ -46,8 +47,8 @@ This single number controls all subsequent branching:
 B-Spline Profile Fitting
 ------------------------
 
-For objects with sufficient S/N the profile is modelled as a non-parametric
-fourth-order B-spline in the normalised spatial coordinate
+For objects with sufficient S/N, the profile is modeled as a non-parametric
+fourth-order B-spline in the normalized spatial coordinate
 
 .. math::
 
@@ -58,8 +59,8 @@ is the current trace estimate, :math:`\sigma = \texttt{FWHM}/2.3548` is the
 object width, and :math:`\delta_{\rm trace}` is a running trace-correction
 offset.
 
-**Normalised object image.** The 2D science image is divided by a spectral
-flux model :math:`F(\lambda)` to produce a normalised object image
+**Normalized object image.** The 2D science image is divided by a spectral
+flux model :math:`F(\lambda)` to produce a normalized object image
 :math:`\hat{I}(\sigma_x)` that is nearly independent of wavelength.  The
 flux model is built from two B-splines: a fine-knot fit for high S/N pixels
 and a coarse continuum fit to fill gaps.
@@ -100,9 +101,9 @@ After the correction loop the trace correction is applied only if
 .. math::
 
     \operatorname{median}(|\delta_{\rm trace}| \cdot \sigma) <
-    \texttt{max\_trace\_corr}
+    \texttt{max_trace_corr},
 
-(default 2.0 pixels), preventing runaway corrections on noisy data.
+preventing runaway corrections on noisy data.
 
 .. _spatprof-apodization:
 
@@ -131,7 +132,7 @@ Gaussian Fallback
 -----------------
 
 When S/N is below the threshold, or when fitting fails, or when
-``gauss=True``, the profile is set to a unit-normalised Gaussian evaluated
+``gauss=True``, the profile is set to a unit-normalized Gaussian evaluated
 from the pixel-integrated complementary error function:
 
 .. math::
@@ -167,7 +168,7 @@ Outputs
 :func:`~pypeit.core.spatialprofile.fit_profile` returns four arrays:
 
 ``profile_model`` : :class:`numpy.ndarray`, shape (nspec, nspat)
-    The normalised spatial profile.  Each row sums to 1 (or 0 for rows
+    The normalized spatial profile.  Each row sums to 1 (or 0 for rows
     with no valid pixels).
 
 ``xnew`` : :class:`numpy.ndarray`, shape (nspec,)
@@ -184,18 +185,12 @@ Outputs
 QA Output
 =========
 
-When running :ref:`run-pypeit`, a diagnostic figure is written to
-``QA/PNGs/`` at the end of the final profile-fitting iteration.  The
-filename follows the pattern::
+When running :ref:`run-pypeit`, a diagnostic figure is provided at the end of
+the final profile-fitting iteration.  The filename follows the pattern::
 
     {basename}_{det}_S{slit:04d}_O{obj:03d}_spat_prof.png
 
-The figure has two halves.  The left half shows three 2D image panels (sky-
-subtracted data, profile model, and residual) at the same colour scale.  The
-right half shows four 1D panels: the extracted spectrum, the spectrum residual,
-the normalised-object scatter in :math:`\sigma_x` space with 20/50/80th
-percentile bands and the profile model overplotted, and the per-pixel profile
-residual.
+Example figures are shown below.
 
 To display the figure interactively during a reduction (for debugging),
 add the following to your :ref:`pypeit_file`:
@@ -208,7 +203,7 @@ add the following to your :ref:`pypeit_file`:
 
 .. note::
 
-    ``show_profile = True`` opens a matplotlib window after *every*
+    ``show_profile = True`` opens a ``matplotlib`` window after *every*
     profile-fitting iteration for every object and blocks execution
     until the window is closed.  It is intended for debugging only.
 
@@ -217,26 +212,31 @@ add the following to your :ref:`pypeit_file`:
 Example: B-Spline Path (S/N = 20)
 ----------------------------------
 
-The following figure is generated from a synthetic 200-row × 100-pixel
-image with a Gaussian spatial profile (FWHM = 4 px), flat spectrum, and
-S/N = 20.  The B-spline fit recovers the profile accurately.
+The QA plot generated using a synthetic (200, 100)-pixel image with a Gaussian
+spatial profile (FWHM = 4 pix) and S/N = 20.  The spectrum is generated from a
+Fourier series just for illustration.  The B-spline fit recovers the profile
+accurately.
 
 .. figure:: figures/spatprof_example_bspline.png
    :width: 100%
    :alt: QA figure for the B-spline profile fitting path
 
-   QA figure for the B-spline path.  **Left**: sky-subtracted data (top),
-   profile model (middle), and residual (bottom).  **Right**: extracted
-   spectrum (top-left), spectrum residual (top-right), normalised spatial
-   profile vs. :math:`\sigma_x` with binned percentiles and the B-spline
-   model (bottom-left), and profile residuals (bottom-right).
+   Example QA figure for the spatial profile fit.  From left to right the panels
+   provide (1) the data, (2) the best fit model, (3) the model residuals, (4)
+   the 1D spectral extraction provided to the algorithm (black) and the
+   best-fitting B-spline model (red), (5) the residuals between the spectrum and
+   model, and (6) a plot of the spatial profile fit.  The latter is broken into
+   two panels, the top showing the best-fit model (red) against the data (black)
+   --- the green points and orange error bars show the 20/50/80 percentile range
+   of the normalized measurements --- and the bottom shows the residuals of the
+   spatial profile fit.
 
 .. _spatprof-qa-gaussian:
 
 Example: Gaussian Fallback (S/N = 2)
 --------------------------------------
 
-At S/N = 2, :math:`\sqrt{\overline{(S/N)^2}} < \texttt{sn\_gauss} = 4.0`,
+At S/N = 2, :math:`\sqrt{\overline{(S/N)^2}} < \texttt{sn_gauss} = 4.0`,
 so the Gaussian fallback path is taken.  No trace or width correction is
 performed.
 
@@ -244,18 +244,18 @@ performed.
    :width: 100%
    :alt: QA figure for the Gaussian fallback path
 
-   QA figure for the Gaussian fallback path.  The right panels show
-   significantly more scatter than the B-spline case because the low S/N
-   makes the individual pixel measurements unreliable.
+   QA figure for the Gaussian fallback path.
 
 .. _spatprof-parameters:
 
 Key Parameters
 ==============
 
+For more detail, see :func:`~pypeit.core.spatialprofile.fit_profile`.
+
 ``sn_gauss`` : float
     S/N threshold (applied to :math:`\sqrt{\overline{(S/N)^2}}`) below which
-    the Gaussian fallback is used.  Default is 4.0.
+    the Gaussian fallback is used.
 
 ``thisfwhm`` : float
     Initial FWHM estimate in pixels, taken from the object-finding step.
@@ -264,21 +264,23 @@ Key Parameters
 ``prof_nsigma`` : float or None
     If set, forces the profile fitting region to extend to
     ``prof_nsigma`` :math:`\times \sigma` on each side of the trace.
-    Useful for extended-object spectroscopy.  Default is None (uses
-    the profile-derived extent).
+    Useful for extended-object spectroscopy.
 
 ``gauss`` : bool
     If True, always use the Gaussian fallback regardless of S/N.
-    Default is False.
 
 ``max_trace_corr`` : float
     Maximum allowed median trace correction in pixels.  Larger corrections
-    are discarded.  Default is 2.0.
+    are discarded.
 
 ``no_deriv`` : bool
     If True, skip the trace-shift and width-stretch correction iterations
     and go directly to the final profile fit.  Implied by ``prof_nsigma``.
-    Default is False.
 
 These parameters are exposed at the user level through the PypeIt parameter
 system; see :ref:`extractionpar` for the full list.
+
+---
+
+This file was originally generated by Claude Code and edited by the PypeIt
+developers.
