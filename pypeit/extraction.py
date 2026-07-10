@@ -786,6 +786,8 @@ class MultiSlitExtract(Extract):
             # prof_nsigma = self.par['reduce']['extraction']['std_prof_nsigma'] if IS_STANDARD else None
 
             # Local sky subtraction and extraction
+            _qa_outdir = (os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+                          if self.par['rdx']['redux_path'] is not None else None)
             self.skymodel[thismask], _this_bkg_redux_skymodel, self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] \
                 = skysub.local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                               self.tilts, self.waveimg, self.global_sky,
@@ -799,6 +801,9 @@ class MultiSlitExtract(Extract):
                                               std=self.std_redux, bsp=bsp,
                                               force_gauss=force_gauss, sn_gauss=sn_gauss,
                                               show_profile=show_profile,
+                                              qa_outdir=_qa_outdir,
+                                              qa_basename=self.basename,
+                                              qa_detname=self.spectrograph.get_det_name(self.det),
                                               # prof_nsigma=prof_nsigma,
                                               use_2dmodel_mask=use_2dmodel_mask,
                                               no_local_sky=no_local_sky,
@@ -899,6 +904,8 @@ class EchelleExtract(Extract):
         no_local_sky = self.par['reduce']['skysub']['no_local_sky']
         min_frac_prof = self.par['reduce']['extraction']['min_frac_prof']
 
+        _qa_outdir = (os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+                      if self.par['rdx']['redux_path'] is not None else None)
         self.skymodel, self.bkg_redux_skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
             = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                               self.sciImg.fullmask, self.tilts, self.waveimg,
@@ -915,6 +922,9 @@ class EchelleExtract(Extract):
                                               model_full_slit=model_full_slit,
                                               model_noise=model_noise,
                                               show_profile=show_profile,
+                                              qa_outdir=_qa_outdir,
+                                              qa_basename=self.basename,
+                                              qa_detname=self.spectrograph.get_det_name(self.det),
                                               show_resids=show_resids, show_fwhm=show_fwhm,
                                               no_local_sky=no_local_sky,
                                               base_var=self.sciImg.base_var,

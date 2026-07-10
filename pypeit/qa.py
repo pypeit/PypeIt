@@ -25,8 +25,8 @@ from IPython import embed
 # TODO: Move these names to the appropriate class.  This always writes
 # to QA directory, even if the user sets something else...
 def set_qa_filename(
-    root:str, method:str, det:str|None=None, slit:int|None=None, 
-    prefix:str|None=None, mode:str|None=None, out_dir:str|None=None
+    root:str, method:str, det:str|None=None, slit:int|None=None,
+    obj:int|None=None, prefix:str|None=None, mode:str|None=None, out_dir:str|None=None
 ) -> str:
     """
     Generate the filename for the QA file from the input parameters.
@@ -41,6 +41,8 @@ def set_qa_filename(
         The name of the detector or mosaic (e.g., DET01)
     slit
         Name of the slit / order being plotted
+    obj
+        Object ID within the slit (used when multiple objects share a slit)
     prefix
         Start the name of the QA file (used for multiple-PNG PCA plots)
     mode
@@ -113,6 +115,9 @@ def set_qa_filename(
 
         case 'obj_profile_qa':
             outfile = 'PNGs/{:s}_{:s}_S{:04d}_obj_prof.png'.format(root, det, slit)
+
+        case 'spat_profile_qa':
+            outfile = 'PNGs/{:s}_{:s}_S{:04d}_O{:03d}_spat_prof.png'.format(root, det, slit, obj)
 
         case 'spat_flexure_qa_corr':
             outfile = 'QA/PNGs/{:s}_spat_flex_corr.png'.format(root)

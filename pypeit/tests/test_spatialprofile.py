@@ -21,9 +21,8 @@ import numpy as np
 import pytest
 
 from pypeit.core import spatialprofile
-from pypeit.core import spatialprofile_refactor
 from pypeit.core.fitting import iterative_bspline_fit
-from pypeit.core.spatialprofile_refactor import (
+from pypeit.core.spatialprofile import (
     _gaussian_profile,
     _findfwhm,
     _fit_spectrum_and_normalize,
@@ -48,6 +47,13 @@ def make_profile_inputs(
     The 2D image is a noiseless Gaussian spatial profile scaled by a flat 1D
     spectrum, plus uniform Gaussian background noise.  The noise amplitude is
     chosen so that the extracted 1D S/N equals ``sn_ratio``.
+
+    .. note::
+
+        The profile is built from discrete Gaussian samples rather than the
+        pixel-integrated erf form used by :func:`~pypeit.core.spatialprofile._gaussian_profile`.
+        This is intentional: coupling the fixture to the code under test would
+        make the comparison tests circular.
 
     Parameters
     ----------
@@ -74,7 +80,7 @@ def make_profile_inputs(
     return_1d : :obj:`bool`, optional
         If False (default), return full 2-D arrays.  If True, apply
         ``totmask`` and return the pre-extracted 1-D slit-pixel arrays used
-        by :func:`~pypeit.core.spatialprofile_refactor.fit_profile_refactor`.
+        by :func:`~pypeit.core.spatialprofile.fit_profile`.
 
     Returns
     -------
@@ -148,10 +154,6 @@ def make_profile_inputs(
     # Step 3 — noiseless 2D image: Gaussian profile scaled by spectrum
     sigma = fwhm / 2.3548
     dspat_true = spat_img - true_trace[:, np.newaxis]
-    # TODO: Note this is using discrete samples of the Gaussian, not a
-    # pixel-integrated (erf) version.  This is okay for the test, but
-    # inconsistent with the more-accurate construction of the method used by
-    # _gaussian_profile().
     profile_gauss = np.exp(-0.5 * (dspat_true / sigma) ** 2)
     profile_norm = profile_gauss / profile_gauss.sum(axis=1, keepdims=True)
     true_image = flux_level_arr[:, None] * profile_norm
@@ -379,19 +381,9 @@ def test_trace_correction_direction():
 
 
 def test_prof_nsigma_extended():
-    """prof_nsigma code path runs and returns valid arrays.
-
-    The formula ``nb = np.round(prof_nsigma > 10)`` on line 532 of
-    spatialprofile.py evaluates a boolean comparison (giving nb=0 for
-    prof_nsigma<=10, division by zero; nb=1 for prof_nsigma>10, only 2
-    knots).  This is a pre-existing bug: the knot count is incorrectly
-    computed and the recovered FWHM is unreliable.  This test only verifies
-    that the function returns finite, non-negative arrays without raising.
-    FWHM recovery for the prof_nsigma path is not asserted here; it should
-    be tested once the knot-count formula is corrected during refactoring.
-    """
+    """prof_nsigma code path runs and returns valid arrays for prof_nsigma=12.0."""
     fwhm = 8.0
-    prof_nsigma = 12.0  # > 10 so nb=1 (avoids division-by-zero at nb=0)
+    prof_nsigma = 12.0
     nspat = 150  # wider slit to contain the broad profile
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(
@@ -434,22 +426,21 @@ def test_profile_positivity_and_finite_all_paths(variant, sn_ratio, nan_flux):
 
 
 # ============================================================================
-# fit_profile_refactor tests
+# fit_profile tests — behaviour improvements relative to legacy implementation
 # ============================================================================
 
 @pytest.mark.parametrize("fwhm", [3.0, 4.0, 6.0, 8.0])
 def test_fwhm_recovery_refactor(fwhm):
-    """fit_profile_refactor B-spline path recovers input FWHM within 10%.
+    """B-spline path recovers input FWHM within 10 % for narrow profiles.
 
-    Extends :func:`test_fwhm_recovery` (which is limited to ``fwhm >= 6``) to
-    narrower profiles.  The sub-pixel interpolation in :func:`_findfwhm` (Bug 2
-    fix) is what makes 3 and 4 px profiles recoverable here while the legacy
-    function cannot meet the 10 % tolerance.
+    Extends :func:`test_fwhm_recovery` (limited to ``fwhm >= 6``) to narrower
+    profiles.  Sub-pixel interpolation in :func:`_findfwhm` at the half-max
+    crossing is what makes 3 and 4 px profiles recoverable within tolerance.
     """
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(sn_ratio=20.0, fwhm=fwhm)
     profile_model, xnew, fwhmfit, med_sn2 = \
-        spatialprofile_refactor.fit_profile_refactor(
+        spatialprofile.fit_profile(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
             fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0
@@ -459,12 +450,10 @@ def test_fwhm_recovery_refactor(fwhm):
 
 
 def test_gaussian_normalization_refactor():
-    """Gaussian fallback from fit_profile_refactor: row sums are close to 1.0.
+    """Gaussian fallback: row sums are close to 1.0.
 
-    The legacy :func:`~pypeit.core.spatialprofile.fit_profile` uses a
-    point-sampled Gaussian density whose row sums equal approximately ``sigma``
-    pixels.  The refactored function uses the pixel-integrated erf form, so row
-    sums are approximately 1.0, matching the B-spline normalization path.
+    The pixel-integrated erf form used by :func:`_gaussian_profile` normalises
+    each row to approximately 1.0, matching the B-spline path.
     """
     nspec, nspat = 200, 100
     fwhm = 4.0
@@ -472,7 +461,7 @@ def test_gaussian_normalization_refactor():
         fluxivar, inmask, _ = make_profile_inputs(
             nspec=nspec, nspat=nspat, sn_ratio=1.0, fwhm=fwhm)
     profile_model, xnew, fwhmfit, med_sn2 = \
-        spatialprofile_refactor.fit_profile_refactor(
+        spatialprofile.fit_profile(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
             fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0
@@ -484,18 +473,12 @@ def test_gaussian_normalization_refactor():
 
 
 def test_prof_nsigma_refactor():
-    """fit_profile_refactor with prof_nsigma=10.0 runs without error (Bug 1 fix).
+    """prof_nsigma=10.0 runs without division-by-zero.
 
-    The legacy formula ``nb = np.round(prof_nsigma > 10)`` evaluates a boolean,
-    giving ``nb=0`` for ``prof_nsigma <= 10``, which causes division by zero in
-    ``sinh_space = arcsinh(prof_nsigma) / nb``.  The Bug 1 fix
-    ``nb = max(1, round(prof_nsigma / 10))`` gives ``nb=1`` and avoids the crash.
-
-    FWHM recovery is *not* asserted here: the prof_nsigma path is designed for
-    genuinely extended objects.  With a narrow synthetic Gaussian (sigma ≈ 3 px)
-    and only 2 B-spline knots over a ±10 sigma fitting range, the FWHM estimate
-    is unreliable (the B-spline fits mostly near-zero background pixels).  The
-    important property is that the function completes and returns valid arrays.
+    ``nb = max(1, round(prof_nsigma / 10))`` gives ``nb=1`` for
+    ``prof_nsigma=10.0``.  FWHM recovery is not asserted: with only 2 knots
+    over a ±10 sigma range the estimate is unreliable for a narrow synthetic
+    Gaussian.
     """
     fwhm = 8.0
     prof_nsigma = 10.0
@@ -504,7 +487,7 @@ def test_prof_nsigma_refactor():
         fluxivar, inmask, _ = make_profile_inputs(
             nspat=nspat, sn_ratio=20.0, fwhm=fwhm, flux_level=5000.0)
     profile_model, xnew, fwhmfit, med_sn2 = \
-        spatialprofile_refactor.fit_profile_refactor(
+        spatialprofile.fit_profile(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
             fluxivar=fluxivar, inmask=inmask,
@@ -517,20 +500,17 @@ def test_prof_nsigma_refactor():
 
 
 def test_trace_correction_small_offset():
-    """fit_profile_refactor shifts xnew toward the true centre for a 0.5 px offset.
+    """fit_profile shifts xnew toward the true centre for a 0.5 px offset.
 
-    For a 0.5 px offset the trace correction moves in the right direction but
-    overshoots: with the default ``sigma_iter=3`` and the open TODO about the
-    block-8 mid-loop re-fit condition (see the plan document), the correction
-    amplitude is not tightly controlled for sub-pixel offsets.  This test
-    therefore only asserts direction, not convergence accuracy.
+    For a 0.5 px offset the correction moves in the right direction but
+    may overshoot; this test only asserts direction, not convergence accuracy.
     """
     trace_offset = 0.5
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, true_trace = make_profile_inputs(
             sn_ratio=20.0, fwhm=4.0, trace_offset=trace_offset)
     profile_model, xnew, fwhmfit, med_sn2 = \
-        spatialprofile_refactor.fit_profile_refactor(
+        spatialprofile.fit_profile(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
             fluxivar=fluxivar, inmask=inmask, thisfwhm=4.0, sn_gauss=4.0
@@ -541,7 +521,7 @@ def test_trace_correction_small_offset():
 
 
 def test_curved_trace_profile_recovery():
-    r"""fit_profile_refactor correctly fits a profile along a quadratic trace.
+    r"""fit_profile correctly fits a profile along a quadratic trace.
 
     A quadratic ``trace_offset`` curving ±10 px over ``nspec`` rows is used
     to construct the true object centre, which is then passed as ``trace_in``.
@@ -565,7 +545,7 @@ def test_curved_trace_profile_recovery():
         )
 
     profile_model, xnew, fwhmfit, med_sn2 = \
-        spatialprofile_refactor.fit_profile_refactor(
+        spatialprofile.fit_profile(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
             fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0
@@ -591,7 +571,7 @@ def test_curved_trace_profile_recovery():
 
 
 def test_fourier_flux_and_curved_trace():
-    r"""fit_profile_refactor recovers profile and trace with Fourier flux and curved trace.
+    r"""fit_profile recovers profile and trace with Fourier flux and curved trace.
 
     Simultaneously exercises three aspects tested individually elsewhere:
 
@@ -621,7 +601,7 @@ def test_fourier_flux_and_curved_trace():
         )
 
     profile_model, xnew, fwhmfit, med_sn2 = \
-        spatialprofile_refactor.fit_profile_refactor(
+        spatialprofile.fit_profile(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
             fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0
@@ -661,7 +641,7 @@ def test_refactor_regression():
 
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(sn_ratio=20.0, fwhm=4.0)
-    profile_model, xnew, fwhmfit, med_sn2 = spatialprofile_refactor.fit_profile_refactor(
+    profile_model, xnew, fwhmfit, med_sn2 = spatialprofile.fit_profile(
         image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
         spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
         fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
@@ -1041,173 +1021,13 @@ def test_apodize_tail_continuity(apodize_bspline):
         assert np.all(full_bsp[right_tail] <= r_fit_val + 1e-10)
 
 
-# ============================================================================
-# Cross-implementation comparison tests
-# ============================================================================
-
-def test_1d_roundtrip_matches_2d():
-    r"""profile_model from 1-D path matches the frozen 2-D regression reference.
-
-    Uses the same ``.npy`` files as :func:`test_refactor_regression` but
-    checks shape explicitly and relaxes tolerance to ``atol=1e-8`` to
-    accommodate the minor ``xtemp`` approximation introduced in the 1-D
-    conversion.
-    """
-    files_dir = os.path.join(os.path.dirname(__file__), 'files')
-    ref_paths = {
-        'profile': os.path.join(files_dir, 'spatprof_profile_model_ref.npy'),
-        'xnew':    os.path.join(files_dir, 'spatprof_xnew_ref.npy'),
-        'fwhmfit': os.path.join(files_dir, 'spatprof_fwhmfit_ref.npy'),
-    }
-    if not all(os.path.exists(p) for p in ref_paths.values()):
-        pytest.skip("Reference arrays not found; generate them with "
-                    "pypeit/tests/files/freeze_spatprof.py first")
-
-    ref_profile = np.load(ref_paths['profile'])
-    ref_xnew    = np.load(ref_paths['xnew'])
-    ref_fwhmfit = np.load(ref_paths['fwhmfit'])
-
-    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
-        fluxivar, inmask, _ = make_profile_inputs(sn_ratio=20.0, fwhm=4.0)
-    profile_model, xnew, fwhmfit, _ = spatialprofile_refactor.fit_profile_refactor(
-        image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
-        spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
-        fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
-
-    assert profile_model.shape == ref_profile.shape
-    np.testing.assert_allclose(profile_model, ref_profile, atol=1e-8)
-    np.testing.assert_allclose(xnew, ref_xnew, atol=1e-8)
-    np.testing.assert_allclose(fwhmfit, ref_fwhmfit, atol=1e-8)
-
-
-@pytest.mark.parametrize("fwhm", [6.0, 8.0])
-def test_med_sn2_agreement(fwhm):
-    r"""``med_sn2`` from both implementations agrees within 5 % for wide profiles.
-
-    ``med_sn2`` is produced solely by the spectral B-spline fitting logic
-    (Blocks 2–3), which is identical in both implementations.  For wide profiles
-    (``fwhm >= 6 px``) the ``xtemp`` approximation has negligible effect.
-    """
-    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=fwhm)
-    kwargs = dict(zip(
-        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
-         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
-    ))
-    _, _, _, med_sn2_leg = spatialprofile.fit_profile(
-        **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
-    _, _, _, med_sn2_ref = spatialprofile_refactor.fit_profile_refactor(
-        **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
-    np.testing.assert_allclose(med_sn2_leg, med_sn2_ref, rtol=0.05)
-
-
-def test_forced_gaussian_trace_agreement():
-    r"""With ``gauss=True`` both implementations return identical ``xnew`` and ``fwhmfit``.
-
-    Both skip the B-spline path and return ``xnew = trace_in`` unchanged.
-    ``fwhmfit`` is set to ``thisfwhm`` in both; the two values should be
-    identical regardless of how the Gaussian profile is formed.
-    """
-    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=4.0)
-    kwargs = dict(zip(
-        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
-         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
-    ))
-    _, xnew_leg, fwhm_leg, _ = spatialprofile.fit_profile(
-        **kwargs, gauss=True, thisfwhm=4.0)
-    _, xnew_ref, fwhm_ref, _ = spatialprofile_refactor.fit_profile_refactor(
-        **kwargs, gauss=True, thisfwhm=4.0)
-    np.testing.assert_array_equal(xnew_leg, xnew_ref)
-    np.testing.assert_array_equal(fwhm_leg, fwhm_ref)
-
-
-@pytest.mark.parametrize("func", [
-    spatialprofile.fit_profile,
-    spatialprofile_refactor.fit_profile_refactor,
-])
-def test_bspline_row_normalization_both(func):
-    r"""Both implementations normalise each spectral row of ``profile_model`` to unit sum.
-
-    This invariant must hold for both regardless of which bugs are fixed.
-    """
-    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=6.0)
-    kwargs = dict(zip(
-        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
-         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
-    ))
-    profile_model, _, _, med_sn2 = func(**kwargs, thisfwhm=6.0, sn_gauss=4.0)
-    assert med_sn2 > 4.0 ** 2, "Expected B-spline path"
-    row_sums = profile_model.sum(axis=1)
-    nonzero = row_sums > 0
-    np.testing.assert_allclose(row_sums[nonzero], 1.0, atol=1e-10)
-
-
-@pytest.mark.parametrize("func,sn_ratio", [
-    (spatialprofile.fit_profile, 20.0),
-    (spatialprofile.fit_profile,  1.0),
-    (spatialprofile_refactor.fit_profile_refactor, 20.0),
-    (spatialprofile_refactor.fit_profile_refactor,  1.0),
-])
-def test_profile_positivity_both(func, sn_ratio):
-    r"""``profile_model`` is non-negative and finite on all code paths for both implementations."""
-    inputs = make_profile_inputs(sn_ratio=sn_ratio, fwhm=6.0)
-    kwargs = dict(zip(
-        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
-         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
-    ))
-    profile_model, *_ = func(**kwargs, sn_gauss=4.0)
-    assert np.all(profile_model >= 0)
-    assert np.all(np.isfinite(profile_model))
-
-
-def test_trace_correction_direction_both():
-    r"""Both implementations shift ``xnew`` toward the true object centre for a 1-px offset.
-
-    A 1-pixel offset is large enough that Bug 3 (trace-correction overshoot)
-    does not prevent convergence in either implementation.
-    """
-    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=4.0, trace_offset=1.0)
-    true_trace = inputs[10]
-    trace_in   = inputs[5]
-    kwargs = dict(zip(
-        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
-         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
-    ))
-    for func in [spatialprofile.fit_profile,
-                 spatialprofile_refactor.fit_profile_refactor]:
-        _, xnew, _, med_sn2 = func(**kwargs, thisfwhm=4.0, sn_gauss=4.0)
-        assert med_sn2 > 4.0 ** 2
-        assert np.mean(xnew) > np.mean(trace_in)
-        assert np.abs(np.mean(xnew - true_trace)) < np.abs(np.mean(trace_in - true_trace))
-
-
-def test_bspline_fwhm_improvement_narrow():
-    r"""The refactored function recovers a narrow FWHM (3 px) within 10 %; the legacy overshoots.
-
-    Documents the Bug 2 (Gaussian normalisation) improvement: the legacy
-    implementation overestimates the narrow-profile FWHM by > 15 %, while the
-    refactored implementation recovers within 10 %.
-    """
-    fwhm = 3.0
-    inputs = make_profile_inputs(sn_ratio=20.0, fwhm=fwhm)
-    kwargs = dict(zip(
-        ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
-         'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
-    ))
-    _, _, fwhm_leg, med_sn2 = spatialprofile.fit_profile(
-        **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
-    _, _, fwhm_ref, _       = spatialprofile_refactor.fit_profile_refactor(
-        **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
-    assert med_sn2 > 4.0 ** 2, "Expected B-spline path"
-    assert np.median(fwhm_leg) > fwhm * 1.15, "Legacy should overestimate FWHM by > 15 %"
-    np.testing.assert_allclose(np.median(fwhm_ref), fwhm, rtol=0.10)
-
 
 # ============================================================================
 # QA plot
 # ============================================================================
 
-def test_qa_fit_profile_refactor(tmp_path):
-    """fit_profile_refactor with generate_qa saves a file without raising."""
+def test_qa_fit_profile(tmp_path):
+    """fit_profile with generate_qa saves a PNG without raising."""
     nspec, nspat = 200, 100
     fwhm     = 4.0
     sn_ratio = 20.0
@@ -1223,7 +1043,7 @@ def test_qa_fit_profile_refactor(tmp_path):
         )
 
     outfile = str(tmp_path / 'qa_spatprof.png')
-    spatialprofile_refactor.fit_profile_refactor(
+    spatialprofile.fit_profile(
         image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
         spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
         fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0,

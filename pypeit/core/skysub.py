@@ -4,6 +4,7 @@
 .. include:: ../include/links.rst
 """
 from IPython import embed
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage
@@ -12,6 +13,7 @@ from scipy.interpolate import RegularGridInterpolator
 
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import qa
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.core import basis
@@ -533,9 +535,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                          trim_edg=(3,3), std=False, prof_nsigma=None, niter=4,
                          extract_good_frac=0.005, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False,
-                         model_noise=True, show_profile=False, show_resids=False,
-                         use_2dmodel_mask=True, no_local_sky=False, base_var=None,
-                         count_scale=None):
+                         model_noise=True, show_profile=False,
+                         qa_outdir=None, qa_basename=None, qa_detname=None,
+                         show_resids=False, use_2dmodel_mask=True, no_local_sky=False,
+                         base_var=None, count_scale=None):
     r"""
     Perform local sky subtraction and  extraction
 
@@ -681,6 +684,15 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         Show QA for the object profile fitting to the screen. Note
         that this will show interactive matplotlib plots which will
         block the execution of the code until the window is closed.
+    qa_outdir : str, optional
+        Path to the ``QA/`` directory.  Together with ``qa_basename`` and
+        ``qa_detname``, used to construct the output filename via
+        :func:`~pypeit.qa.set_qa_filename`.  Default is None (no file written).
+    qa_basename : str, optional
+        Root filename for the QA output (e.g. the reduction basename).
+        Default is None.
+    qa_detname : str, optional
+        Detector name string (e.g. ``'DET01'``).  Default is None.
     show_resids : bool, optional
         Show the model fits and residuals.
     use_2dmodel_mask : bool, optional
@@ -826,6 +838,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         spat_vec = np.arange(min_spat, min_spat + nc, dtype=int) #np.intp)
         ipix = np.ix_(spec_vec, spat_vec)
         obj_profiles = np.zeros((nspec, nspat, objwork), dtype=float)
+        if qa_outdir is not None:
+            Path(qa_outdir, 'PNGs').mkdir(parents=True, exist_ok=True)
         sigrej_eff = sigrej
         for iiter in range(1, niter + 1):
             log.info('--------------------------REDUCING: Iteration # ' + '{:2d}'.format(iiter) + ' of ' +
@@ -878,12 +892,23 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                 obj_string = 'obj # {:}'.format(sobjs[iobj].OBJID) + ' on slit # {:}'.format(sobjs[iobj].slit_order) + ', iter # {:}'.format(iiter) + ':'
                 if wave.any():
                     sign = sobjs[iobj].sign
+                    if iiter == niter and qa_outdir is not None:
+                        _qa_outfile = qa.set_qa_filename(
+                            qa_basename, 'spat_profile_qa',
+                            slit=sobjs[iobj].slit_order,
+                            obj=sobjs[iobj].OBJID,
+                            det=qa_detname,
+                            out_dir=qa_outdir)
+                    elif show_profile:
+                        _qa_outfile = True
+                    else:
+                        _qa_outfile = False
                     # TODO This is "sticky" masking. Do we want it to be?
                     profile_model, trace_new, fwhmfit, med_sn2 = spatialprofile.fit_profile(
                         sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
                         thisfwhm=sobjs[iobj].FWHM, prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
-                        show_profile=show_profile)
+                        generate_qa=_qa_outfile)
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
                     sobjs[iobj].TRACE_SPAT = trace_new
@@ -1063,8 +1088,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              niter=4, sigrej=3.5, bkpts_optimal=True,
                              force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                              model_noise=True, debug_bkpts=False, show_profile=False,
-                             show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
-                             count_scale=None, no_local_sky:bool=False):
+                             qa_outdir=None, qa_basename=None, qa_detname=None,
+                             show_resids=False, show_fwhm=False, adderr=0.01,
+                             base_var=None, count_scale=None, no_local_sky:bool=False):
     r"""
     Perform local sky subtraction, profile fitting, and optimal extraction slit
     by slit. Objects are sky/subtracted extracted in order of the highest
@@ -1221,6 +1247,13 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         Show QA for the object profile fitting to the screen. Note
         that this will show interactive matplotlib plots which will
         block the execution of the code until the window is closed.
+    qa_outdir : str, optional
+        Path to the ``QA/`` directory.  Passed through to
+        :func:`local_skysub_extract` for each order.  Default is None.
+    qa_basename : str, optional
+        Root filename for the QA output.  Default is None.
+    qa_detname : str, optional
+        Detector name string (e.g. ``'DET01'``).  Default is None.
     show_resids : bool, optional
         Show the model fits and residuals.
     show_fwhm : bool, optional
@@ -1440,7 +1473,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                                    sn_gauss=sn_gauss, model_full_slit=model_full_slit,
                                    model_noise=model_noise, debug_bkpts=debug_bkpts,
                                    show_resids=show_resids, show_profile=show_profile,
-                                   adderr=adderr, base_var=base_var, count_scale=count_scale)
+                                   qa_outdir=qa_outdir, qa_basename=qa_basename,
+                                   qa_detname=qa_detname, adderr=adderr, base_var=base_var,
+                                   count_scale=count_scale)
         if bkg_redux_skymodel is not None:
             bkg_redux_skymodel[thismask] = _this_bkg_redux_skymodel
         # update the FWHM fitting vector for the brighest object
