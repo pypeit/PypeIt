@@ -903,10 +903,15 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                         _qa_outfile = True
                     else:
                         _qa_outfile = False
+                    spec_img_sub = np.broadcast_to(
+                        np.arange(nspec, dtype=int)[:, None],
+                        (nspec, nc)
+                    )
                     # TODO This is "sticky" masking. Do we want it to be?
                     profile_model, trace_new, fwhmfit, med_sn2 = spatialprofile.fit_profile(
                         sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
+                        spec_img=spec_img_sub,
                         thisfwhm=sobjs[iobj].FWHM, prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
                         generate_qa=_qa_outfile)
                     # Update the object profile and the fwhm and mask parameters
