@@ -83,6 +83,7 @@ PypeIt BibTeX Entries
    2d_combine
    object_finding
    skysub
+   spatprof
    extraction
    A-B_differencing
 

@@ -57,6 +57,10 @@ The local sky subtraction is performed by ``local_skysub_extract`` (for
 multi-slit spectrographs) and ``ech_local_skysub_extract`` (for echelle
 spectrographs).
 
+For a detailed description of the spatial profile fitting step, including
+the B-spline algorithm, iterative trace and width corrections, apodization,
+and Gaussian fallback, see :ref:`spatprof`.
+
 Core Algorithm
 --------------
 
