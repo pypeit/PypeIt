@@ -148,6 +148,10 @@ def make_profile_inputs(
     # Step 3 — noiseless 2D image: Gaussian profile scaled by spectrum
     sigma = fwhm / 2.3548
     dspat_true = spat_img - true_trace[:, np.newaxis]
+    # TODO: Note this is using discrete samples of the Gaussian, not a
+    # pixel-integrated (erf) version.  This is okay for the test, but
+    # inconsistent with the more-accurate construction of the method used by
+    # _gaussian_profile().
     profile_gauss = np.exp(-0.5 * (dspat_true / sigma) ** 2)
     profile_norm = profile_gauss / profile_gauss.sum(axis=1, keepdims=True)
     true_image = flux_level_arr[:, None] * profile_norm
