@@ -13,7 +13,6 @@ import astropy.stats
 from math import gcd
 import matplotlib.pyplot as plt
 import numpy as np
-from types import SimpleNamespace
 import scipy.interpolate
 import scipy.ndimage
 import scipy.special
@@ -22,7 +21,6 @@ from pypeit import log
 from pypeit import utils
 from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.core import pydl
-from pypeit.core.spatialprofile import qa_fit_profile
 
 
 # ---------------------------------------------------------------------------
@@ -174,72 +172,6 @@ def _gaussian_profile(x, center, sigma):
         log.warning('Setting NaN/Inf pixel values in object profile to zero.')
         profile[invalid] = 0.0
     return profile
-
-
-def _return_gaussian(
-    spat_img, norm_obj, center, sigma, fwhm, med_sn2, obj_string, show_profile, ind=None,
-    l_limit=None, r_limit=None, xlim=None, xtrunc=1e6
-):
-    r"""
-    Build a Gaussian profile and log fit information and optionally show QA.
-
-    Delegates profile construction to :func:`_gaussian_profile`, then logs the
-    FWHM and S/N and optionally displays the QA plot via
-    :func:`~pypeit.core.spatialprofile.qa_fit_profile`.
-
-    Parameters
-    ----------
-    spat_img : :class:`numpy.ndarray`
-        Spatial-coordinate image in pixels, shape
-        :math:`(N_{\rm spec}, N_{\rm spat})`.
-    norm_obj : :class:`numpy.ndarray`
-        Normalised object image, used only for the QA plot.
-    center : :obj:`float` or :class:`numpy.ndarray`
-        Object centre in pixels; scalar or shape :math:`(N_{\rm spec},)`.
-    sigma : :obj:`float` or :class:`numpy.ndarray`
-        Profile standard deviation in pixels; same shape constraints as
-        ``center``.
-    fwhm : :obj:`float`
-        FWHM for the log message in pixels.
-    med_sn2 : :obj:`float`
-        Median (S/N)^2, used only for the QA plot label.
-    obj_string : :obj:`str`
-        Object identifier for the QA plot title.
-    show_profile : :obj:`bool`
-        If ``True``, display the QA plot.
-    ind : :class:`numpy.ndarray`, optional
-        Flat indices of the good pixels for the QA plot.
-    l_limit, r_limit : :obj:`float`, optional
-        Profile limits drawn on the QA plot.
-    xlim : :obj:`float`, optional
-        x-axis half-range for the QA plot.
-    xtrunc : :obj:`float`, optional
-        Truncation radius in sigma for the QA plot.
-
-    Returns
-    -------
-    profile_model : :class:`numpy.ndarray`
-        Pixel-integrated Gaussian profile, shape
-        :math:`(N_{\rm spec}, N_{\rm spat})`.
-    """
-    profile_model = _gaussian_profile(spat_img, center, sigma)
-    title_string = f'{obj_string}, FWHM={fwhm:.2f}, S/N={np.sqrt(med_sn2):.3f}'
-    log.info(title_string)
-    if not show_profile:
-        return profile_model
-
-    _center = np.atleast_1d(center)
-    _sigma = np.atleast_1d(sigma)
-    if _center.size > 1:
-        _center = _center[:, None]
-    if _sigma.size > 1:
-        _sigma = _sigma[:, None]
-    sigma_x = (spat_img - _center) / _sigma
-    qa_fit_profile(
-        sigma_x, norm_obj, profile_model, title=title_string, l_limit=l_limit, r_limit=r_limit,
-        ind=ind, xlim=xlim, xtrunc=xtrunc,
-    )
-    return profile_model
 
 
 def _fit_spectrum_and_normalize(
@@ -667,7 +599,7 @@ def _build_profile(
 def fit_profile_refactor(
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar, inmask=None,
     spec_img=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, percentile_sn2=70.0,
-    prof_nsigma=None, no_deriv=False, gauss=False, obj_string='', show_profile=False
+    prof_nsigma=None, no_deriv=False, gauss=False, obj_string='', generate_qa=False
 ):
     r"""
     Fit a non-parametric object profile to an object spectrum.
@@ -720,9 +652,11 @@ def fit_profile_refactor(
     gauss : :obj:`bool`, optional
         Force the Gaussian fallback regardless of S/N.
     obj_string : :obj:`str`, optional
-        Object label for log messages and QA plots.
-    show_profile : :obj:`bool`, optional
-        Display the QA plot.
+        Object label for log messages and QA output.
+    generate_qa : :obj:`bool`, :obj:`str`, or :class:`pathlib.Path`, optional
+        Controls QA output.  ``False`` (default) generates no QA.  ``True``
+        displays the QA figure interactively (blocking).  A string or
+        :class:`pathlib.Path` saves the figure to that file path.
 
     Returns
     -------
@@ -734,13 +668,6 @@ def fit_profile_refactor(
         FWHM estimate per spectral pixel, shape :math:`(N_{\rm spec},)`.
     med_sn2 : :obj:`float`
         Median S/N^2 of the object.
-    diagnostics : :class:`types.SimpleNamespace`
-        Per-pixel intermediate arrays needed for QA.  Attributes:
-        ``norm_obj_x``, ``norm_ivar_x``, ``sigma_x`` (all shape
-        :math:`(N_{\rm pix},)`, or ``None`` when the spectral fit failed);
-        ``totmask`` (shape :math:`(N_{\rm spec}, N_{\rm spat})`);
-        ``l_limit``, ``r_limit`` (float, apodization limits in
-        :math:`\sigma_x` units, ``0.0`` when not applicable).
     """
     # Collect the full mask
     totmask = (ivar > 0.) & thismask
@@ -766,14 +693,11 @@ def fit_profile_refactor(
         # The fit was successful, but perform setup in case other computations
         # fail and we revert to a Gaussian profile.
         good_x = norm_ivar_x > 0
-        gauss_kwargs = {'ind': good_x, 'xtrunc': 7.0}
         ngood = good_x.sum()
         log.info(f"Gaussian vs b-spline of width {_thisfwhm:.2f} pixels")
     else:
         # Fit failed, so set for a basic Gaussian profile to be returned
         med_sn2 = 0.0
-        show_profile = False
-        gauss_kwargs = {}
     if not success or gauss or ngood < 10 or med_sn2 < sn_gauss**2:
         # TODO: This is redundant wrt messages issued in
         # _fit_spectrum_and_normalize.  Consolidate?
@@ -782,20 +706,20 @@ def fit_profile_refactor(
             'S/N failed, a Gaussian profile was specifically requested, there are too few good '
             f'pixels, or the measured S/N is below the provided limit ({sn_gauss:.1f}).'
         )
-        profile_model = _return_gaussian(
-            spat_img, norm_obj_x, trace_in, sigma, _thisfwhm, med_sn2, obj_string, show_profile,
-            **gauss_kwargs
-        )
-        if success:
-            _dspat_x = spat_img[totmask] - trace_in[spec_x]
-            _sigma_x = _dspat_x / sigma[spec_x]
-        else:
-            _sigma_x = None
-        diagnostics = SimpleNamespace(
-            norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
-            sigma_x=_sigma_x, totmask=totmask, l_limit=0.0, r_limit=0.0,
-        )
-        return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
+        profile_model = _gaussian_profile(spat_img, trace_in, sigma)
+        log.info(f'{obj_string}, FWHM={_thisfwhm:.2f}, S/N={np.sqrt(med_sn2):.3f}')
+        if generate_qa is not False:
+            if success:
+                _dspat_x = spat_img[totmask] - trace_in[spec_x]
+                _sigma_x = _dspat_x / sigma[spec_x]
+            else:
+                _sigma_x = None
+            _fit_profile_refactor_qa(
+                image, ivar, thismask, trace_in, flux, profile_model, trace_in, fwhmfit, med_sn2,
+                norm_obj_x, norm_ivar_x, _sigma_x, totmask, 0.0, 0.0, obj_string=obj_string,
+                outfile=None if generate_qa is True else generate_qa,
+            )
+        return profile_model, trace_in, fwhmfit, med_sn2
 
     # Setup the profile coordinate data and the Bspline breakpoints
     npix = spec_x.size
@@ -872,15 +796,15 @@ def fit_profile_refactor(
             'Returning Gaussian profile because there are too few pixels inside l_limit and '
             'r_limit.'
         )
-        profile_model = _return_gaussian(
-            spat_img, norm_obj_x, trace_in + trace_corr * sigma, sigma, bspline_fwhm, med_sn2,
-            obj_string, show_profile, ind=good_x, l_limit=l_limit, r_limit=r_limit, xlim=7.0,
-        )
-        diagnostics = SimpleNamespace(
-            norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
-            sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
-        )
-        return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
+        profile_model = _gaussian_profile(spat_img, trace_in + trace_corr * sigma, sigma)
+        log.info(f'{obj_string}, FWHM={bspline_fwhm:.2f}, S/N={np.sqrt(med_sn2):.3f}')
+        if generate_qa is not False:
+            _fit_profile_refactor_qa(
+                image, ivar, thismask, trace_in, flux, profile_model, trace_in, fwhmfit, med_sn2,
+                norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit, obj_string=obj_string,
+                outfile=None if generate_qa is True else generate_qa,
+            )
+        return profile_model, trace_in, fwhmfit, med_sn2
 
     # Iteratively update the trace center and width, and the spatial profile
     sigma_iter = 3
@@ -914,16 +838,15 @@ def fit_profile_refactor(
                 'Returning a Gaussian profile because the B-spline fit to trace correction failed '
                 f'for ninside = {ninside}.'
             )
-            profile_model = _return_gaussian(
-                spat_img, norm_obj_x, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
-                med_sn2, obj_string, show_profile, ind=good_x, l_limit=l_limit,
-                r_limit=r_limit, xlim=7.0,
-            )
-            diagnostics = SimpleNamespace(
-                norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
-                sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
-            )
-            return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
+            profile_model = _gaussian_profile(spat_img, trace_in + trace_corr * sigma, sigma)
+            log.info(f'{obj_string}, FWHM={bspline_fwhm:.2f}, S/N={np.sqrt(med_sn2):.3f}')
+            if generate_qa is not False:
+                _fit_profile_refactor_qa(
+                    image, ivar, thismask, trace_in, flux, profile_model, trace_in, fwhmfit,
+                    med_sn2, norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit,
+                    obj_string=obj_string, outfile=None if generate_qa is True else generate_qa,
+                )
+            return profile_model, trace_in, fwhmfit, med_sn2
         # Update the trace center
         temp_set = mode_shift_bspl.to_1d()
         h0, _ = temp_set.value(xx)
@@ -943,16 +866,15 @@ def fit_profile_refactor(
                 'Returning a Gaussian profile because the B-spline fit to the width correction '
                 f'failed for ninside = {ninside}.'
             )
-            profile_model = _return_gaussian(
-                spat_img, norm_obj_x, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
-                med_sn2, obj_string, show_profile, ind=good_x, l_limit=l_limit,
-                r_limit=r_limit, xlim=7.0,
-            )
-            diagnostics = SimpleNamespace(
-                norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
-                sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
-            )
-            return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
+            profile_model = _gaussian_profile(spat_img, trace_in + trace_corr * sigma, sigma)
+            log.info(f'{obj_string}, FWHM={bspline_fwhm:.2f}, S/N={np.sqrt(med_sn2):.3f}')
+            if generate_qa is not False:
+                _fit_profile_refactor_qa(
+                    image, ivar, thismask, trace_in, flux, profile_model, trace_in, fwhmfit,
+                    med_sn2, norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit,
+                    obj_string=obj_string, outfile=None if generate_qa is True else generate_qa,
+                )
+            return profile_model, trace_in, fwhmfit, med_sn2
         # Update the profile width
         temp_set = mode_stretch_bspl.to_1d()
         h0, _ = temp_set.value(xx)
@@ -990,16 +912,16 @@ def fit_profile_refactor(
                     'Returning a Gaussian profile because the B-spline profile fit in '
                     f'trace/width loop failed for ninside = {ninside}'
                 )
-                profile_model = _return_gaussian(
-                    spat_img, norm_obj_x, trace_in + trace_corr * sigma, sigma, bspline_fwhm,
-                    med_sn2, obj_string, show_profile, ind=good_x, l_limit=l_limit,
-                    r_limit=r_limit, xlim=7.0,
-                )
-                diagnostics = SimpleNamespace(
-                    norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
-                    sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
-                )
-                return profile_model, trace_in, fwhmfit, med_sn2, diagnostics
+                profile_model = _gaussian_profile(spat_img, trace_in + trace_corr * sigma, sigma)
+                log.info(f'{obj_string}, FWHM={bspline_fwhm:.2f}, S/N={np.sqrt(med_sn2):.3f}')
+                if generate_qa is not False:
+                    _fit_profile_refactor_qa(
+                        image, ivar, thismask, trace_in, flux, profile_model, trace_in, fwhmfit,
+                        med_sn2, norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit,
+                        obj_string=obj_string,
+                        outfile=None if generate_qa is True else generate_qa,
+                    )
+                return profile_model, trace_in, fwhmfit, med_sn2
 
             bset = bset.to_1d()
 
@@ -1071,18 +993,13 @@ def fit_profile_refactor(
     log.info(info_string)
     log.info("-----------------------------------------------------------------")
 
-    if show_profile:
-        # Plot the profile
-        qa_fit_profile(
-            sigma_x, norm_obj_x, full_bsp, l_limit=l_limit, r_limit=r_limit,
-            ind=ss[inside], xlim=prof_nsigma, title=f'{obj_string} {info_string}'
+    if generate_qa is not False:
+        _fit_profile_refactor_qa(
+            image, ivar, thismask, trace_in, flux, profile_model, xnew, fwhmfit, med_sn2,
+            norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit, obj_string=obj_string,
+            outfile=None if generate_qa is True else generate_qa,
         )
-
-    diagnostics = SimpleNamespace(
-        norm_obj_x=norm_obj_x, norm_ivar_x=norm_ivar_x,
-        sigma_x=sigma_x, totmask=totmask, l_limit=l_limit, r_limit=r_limit,
-    )
-    return profile_model, xnew, fwhmfit, med_sn2, diagnostics
+    return profile_model, xnew, fwhmfit, med_sn2
 
 
 # ---------------------------------------------------------------------------
@@ -1140,16 +1057,15 @@ def _bin_profile(sigma_x, norm_obj, model_vals, xmin=-7.0, xmax=7.0, nsamp=80):
     return centers, y20, y50, y80, ym
 
 
-def qa_fit_profile_refactor(
-    image, ivar, thismask, trace_in,
-    flux,
-    profile_model, xnew, fwhmfit, med_sn2, diagnostics,
-    obj_string='', outfile=None,
+def _fit_profile_refactor_qa(
+    image, ivar, thismask, trace_in, flux, profile_model, xnew, fwhmfit, med_sn2, norm_obj_x,
+    norm_ivar_x, sigma_x, totmask, l_limit, r_limit, obj_string='', outfile=None,
 ):
     r"""
     QA diagnostic plot for :func:`fit_profile_refactor`.
 
-    The figure is divided into two halves.
+    Called internally by :func:`fit_profile_refactor` when ``generate_qa`` is
+    not ``False``.  The figure is divided into two halves.
 
     **Left half** — three 2-D image panels (Data, Model, Residual) sharing a
     common y-axis, each with a horizontal colorbar above it.  The image aspect
@@ -1189,33 +1105,30 @@ def qa_fit_profile_refactor(
         Fitted FWHM per spectral pixel, shape :math:`(N_{\rm spec},)`.
     med_sn2 : :obj:`float`
         Median (S/N)^2 returned by :func:`fit_profile_refactor`.
-    diagnostics : :class:`types.SimpleNamespace`
-        Diagnostic arrays from :func:`fit_profile_refactor`.  Must contain:
-        ``norm_obj_x``, ``norm_ivar_x``, ``sigma_x`` (shape
-        :math:`(N_{\rm pix},)` or ``None``); ``totmask`` (shape
-        :math:`(N_{\rm spec}, N_{\rm spat})`); ``l_limit``, ``r_limit``
-        (float).
+    norm_obj_x : :class:`numpy.ndarray` or None
+        Normalised-object pixel values at in-mask pixels, shape
+        :math:`(N_{\rm pix},)`.  ``None`` when the spectral fit failed.
+    norm_ivar_x : :class:`numpy.ndarray` or None
+        Corresponding inverse variances, same shape as ``norm_obj_x``.
+    sigma_x : :class:`numpy.ndarray` or None
+        Spatial coordinate in units of the object sigma, same shape as
+        ``norm_obj_x``.
+    totmask : :class:`numpy.ndarray`
+        Combined pixel mask, shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+    l_limit : :obj:`float`
+        Left profile apodisation limit in sigma units; ``0.0`` when not set.
+    r_limit : :obj:`float`
+        Right profile apodisation limit in sigma units; ``0.0`` when not set.
     obj_string : :obj:`str`, optional
         Object label for the figure title.  Default is ``''``.
-    outfile : :obj:`str`, optional
+    outfile : :obj:`str` or :class:`pathlib.Path`, optional
         If provided, save the figure to this path instead of displaying it.
         Default is ``None``.
-
-    Returns
-    -------
-    fig : :class:`matplotlib.figure.Figure`
-        The matplotlib figure object.
     """
     # -----------------------------------------------------------------------
-    # Unpack diagnostics and derive setup quantities
+    # Derive setup quantities
     # -----------------------------------------------------------------------
-    norm_obj_x  = diagnostics.norm_obj_x
-    norm_ivar_x = diagnostics.norm_ivar_x
-    sigma_x     = diagnostics.sigma_x
-    totmask     = diagnostics.totmask
-    l_limit     = diagnostics.l_limit
-    r_limit     = diagnostics.r_limit
-    success     = norm_obj_x is not None
+    success = norm_obj_x is not None
 
     nspec, nspat = image.shape
     row_idx  = np.arange(nspec)
@@ -1466,10 +1379,10 @@ def qa_fit_profile_refactor(
     # -----------------------------------------------------------------------
     # Save or display
     # -----------------------------------------------------------------------
-    if outfile is not None:
-        fig.canvas.print_figure(outfile, dpi=140, bbox_inches='tight')
-        plt.close(fig)
-    else:
+    if outfile is None:
         plt.show()
+    else:
+        fig.canvas.print_figure(outfile, dpi=140, bbox_inches='tight')
 
-    return fig
+    fig.clear()
+    plt.close(fig)

@@ -29,7 +29,6 @@ from pypeit.core.spatialprofile_refactor import (
     _fit_spectrum_and_normalize,
     _profile_coordinates_and_model_sampling,
     _build_profile,
-    qa_fit_profile_refactor,
 )
 
 
@@ -37,10 +36,11 @@ from pypeit.core.spatialprofile_refactor import (
 # Synthetic data factory
 # ============================================================================
 
-# TODO:
-#   - allow the synthetic data to have curvature in the object trace
-def make_profile_inputs(nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0,
-                        sn_ratio=20.0, trace_offset=0.0, seed=42, return_1d=False):
+
+def make_profile_inputs(
+    nspec=200, nspat=100, fwhm=4.0, flux_level=1000.0, sn_ratio=20.0, trace_offset=0.0,
+    seed=42, return_1d=False
+):
     r"""
     Build a self-consistent set of synthetic inputs for
     :func:`~pypeit.core.spatialprofile.fit_profile`.
@@ -444,7 +444,7 @@ def test_fwhm_recovery_refactor(fwhm):
     """
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(sn_ratio=20.0, fwhm=fwhm)
-    profile_model, xnew, fwhmfit, med_sn2, _ = \
+    profile_model, xnew, fwhmfit, med_sn2 = \
         spatialprofile_refactor.fit_profile_refactor(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
@@ -467,7 +467,7 @@ def test_gaussian_normalization_refactor():
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(
             nspec=nspec, nspat=nspat, sn_ratio=1.0, fwhm=fwhm)
-    profile_model, xnew, fwhmfit, med_sn2, _ = \
+    profile_model, xnew, fwhmfit, med_sn2 = \
         spatialprofile_refactor.fit_profile_refactor(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
@@ -499,7 +499,7 @@ def test_prof_nsigma_refactor():
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(
             nspat=nspat, sn_ratio=20.0, fwhm=fwhm, flux_level=5000.0)
-    profile_model, xnew, fwhmfit, med_sn2, _ = \
+    profile_model, xnew, fwhmfit, med_sn2 = \
         spatialprofile_refactor.fit_profile_refactor(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
@@ -525,7 +525,7 @@ def test_trace_correction_small_offset():
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, true_trace = make_profile_inputs(
             sn_ratio=20.0, fwhm=4.0, trace_offset=trace_offset)
-    profile_model, xnew, fwhmfit, med_sn2, _ = \
+    profile_model, xnew, fwhmfit, med_sn2 = \
         spatialprofile_refactor.fit_profile_refactor(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
@@ -560,7 +560,7 @@ def test_curved_trace_profile_recovery():
             trace_offset=trace_offset
         )
 
-    profile_model, xnew, fwhmfit, med_sn2, _ = \
+    profile_model, xnew, fwhmfit, med_sn2 = \
         spatialprofile_refactor.fit_profile_refactor(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
@@ -616,7 +616,7 @@ def test_fourier_flux_and_curved_trace():
             flux_level=flux_level, trace_offset=trace_offset
         )
 
-    profile_model, xnew, fwhmfit, med_sn2, _ = \
+    profile_model, xnew, fwhmfit, med_sn2 = \
         spatialprofile_refactor.fit_profile_refactor(
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
@@ -657,7 +657,7 @@ def test_refactor_regression():
 
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(sn_ratio=20.0, fwhm=4.0)
-    profile_model, xnew, fwhmfit, med_sn2, _ = spatialprofile_refactor.fit_profile_refactor(
+    profile_model, xnew, fwhmfit, med_sn2 = spatialprofile_refactor.fit_profile_refactor(
         image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
         spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
         fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
@@ -1065,7 +1065,7 @@ def test_1d_roundtrip_matches_2d():
 
     image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
         fluxivar, inmask, _ = make_profile_inputs(sn_ratio=20.0, fwhm=4.0)
-    profile_model, xnew, fwhmfit, _, _ = spatialprofile_refactor.fit_profile_refactor(
+    profile_model, xnew, fwhmfit, _ = spatialprofile_refactor.fit_profile_refactor(
         image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
         spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
         fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
@@ -1091,7 +1091,7 @@ def test_med_sn2_agreement(fwhm):
     ))
     _, _, _, med_sn2_leg = spatialprofile.fit_profile(
         **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
-    _, _, _, med_sn2_ref, _ = spatialprofile_refactor.fit_profile_refactor(
+    _, _, _, med_sn2_ref = spatialprofile_refactor.fit_profile_refactor(
         **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
     np.testing.assert_allclose(med_sn2_leg, med_sn2_ref, rtol=0.05)
 
@@ -1110,7 +1110,7 @@ def test_forced_gaussian_trace_agreement():
     ))
     _, xnew_leg, fwhm_leg, _ = spatialprofile.fit_profile(
         **kwargs, gauss=True, thisfwhm=4.0)
-    _, xnew_ref, fwhm_ref, _, _ = spatialprofile_refactor.fit_profile_refactor(
+    _, xnew_ref, fwhm_ref, _ = spatialprofile_refactor.fit_profile_refactor(
         **kwargs, gauss=True, thisfwhm=4.0)
     np.testing.assert_array_equal(xnew_leg, xnew_ref)
     np.testing.assert_array_equal(fwhm_leg, fwhm_ref)
@@ -1130,7 +1130,7 @@ def test_bspline_row_normalization_both(func):
         ['image', 'ivar', 'waveimg', 'thismask', 'spat_img', 'trace_in',
          'wave', 'flux', 'fluxivar', 'inmask'], inputs[:10]
     ))
-    profile_model, _, _, med_sn2, *_ = func(**kwargs, thisfwhm=6.0, sn_gauss=4.0)
+    profile_model, _, _, med_sn2 = func(**kwargs, thisfwhm=6.0, sn_gauss=4.0)
     assert med_sn2 > 4.0 ** 2, "Expected B-spline path"
     row_sums = profile_model.sum(axis=1)
     nonzero = row_sums > 0
@@ -1170,7 +1170,7 @@ def test_trace_correction_direction_both():
     ))
     for func in [spatialprofile.fit_profile,
                  spatialprofile_refactor.fit_profile_refactor]:
-        _, xnew, _, med_sn2, *_ = func(**kwargs, thisfwhm=4.0, sn_gauss=4.0)
+        _, xnew, _, med_sn2 = func(**kwargs, thisfwhm=4.0, sn_gauss=4.0)
         assert med_sn2 > 4.0 ** 2
         assert np.mean(xnew) > np.mean(trace_in)
         assert np.abs(np.mean(xnew - true_trace)) < np.abs(np.mean(trace_in - true_trace))
@@ -1191,7 +1191,7 @@ def test_bspline_fwhm_improvement_narrow():
     ))
     _, _, fwhm_leg, med_sn2 = spatialprofile.fit_profile(
         **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
-    _, _, fwhm_ref, _, _    = spatialprofile_refactor.fit_profile_refactor(
+    _, _, fwhm_ref, _       = spatialprofile_refactor.fit_profile_refactor(
         **kwargs, thisfwhm=fwhm, sn_gauss=4.0)
     assert med_sn2 > 4.0 ** 2, "Expected B-spline path"
     assert np.median(fwhm_leg) > fwhm * 1.15, "Legacy should overestimate FWHM by > 15 %"
@@ -1203,7 +1203,7 @@ def test_bspline_fwhm_improvement_narrow():
 # ============================================================================
 
 def test_qa_fit_profile_refactor(tmp_path):
-    """qa_fit_profile_refactor produces an output file without raising."""
+    """fit_profile_refactor with generate_qa saves a file without raising."""
     nspec, nspat = 200, 100
     fwhm     = 4.0
     sn_ratio = 20.0
@@ -1218,20 +1218,11 @@ def test_qa_fit_profile_refactor(tmp_path):
             flux_level=flux_level, trace_offset=trace_offset,
         )
 
-    profile_model, xnew, fwhmfit, med_sn2, diagnostics = \
-        spatialprofile_refactor.fit_profile_refactor(
-            image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
-            spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
-            fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0,
-        )
-
     outfile = str(tmp_path / 'qa_spatprof.png')
-    qa_fit_profile_refactor(
-        image=image, ivar=ivar, thismask=thismask,
-        trace_in=true_trace, flux=flux,
-        profile_model=profile_model, xnew=xnew, fwhmfit=fwhmfit, med_sn2=med_sn2,
-        diagnostics=diagnostics,
-        obj_string='Fourier flux + curved trace',
-        outfile=outfile,
+    spatialprofile_refactor.fit_profile_refactor(
+        image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+        spat_img=spat_img, trace_in=true_trace, wave=wave, flux=flux,
+        fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0,
+        generate_qa=outfile,
     )
     assert (tmp_path / 'qa_spatprof.png').exists()
