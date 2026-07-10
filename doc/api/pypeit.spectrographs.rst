@@ -9,6 +9,9 @@ Submodules
 
    pypeit.spectrographs.aat_uhrf
    pypeit.spectrographs.apf_levy
+   pypeit.spectrographs.arc_arces
+   pypeit.spectrographs.arc_kosmos
+   pypeit.spectrographs.arc_tspec
    pypeit.spectrographs.bok_bc
    pypeit.spectrographs.gemini_flamingos
    pypeit.spectrographs.gemini_gmos

@@ -27,7 +27,8 @@
                             console stream log. (default: None)
       -s, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: aat_uhrf, apf_levy,
-                            bok_bc, gemini_flamingos1, gemini_flamingos2,
+                            arc_arces, arc_kosmos, arc_tspec, bok_bc,
+                            gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
                             gemini_gnirs_echelle, gemini_gnirs_ifu, gtc_maat,

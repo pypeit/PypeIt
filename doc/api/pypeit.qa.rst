@@ -1,7 +1,7 @@
-pypeit.core.qa module
-=====================
+pypeit.qa module
+================
 
-.. automodule:: pypeit.core.qa
+.. automodule:: pypeit.qa
    :members:
    :private-members:
    :show-inheritance:

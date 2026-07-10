@@ -1,7 +1,7 @@
-pypeit.core.gui.skysub\_regions module
+pypeit.spectrographs.arc\_tspec module
 ======================================
 
-.. automodule:: pypeit.core.gui.skysub_regions
+.. automodule:: pypeit.spectrographs.arc_tspec
    :members:
    :private-members:
    :show-inheritance:

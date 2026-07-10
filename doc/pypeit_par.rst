@@ -1306,6 +1306,379 @@ Alterations to the default parameters are:
       [[extraction]]
           boxcar_radius = 1.728
 
+.. _instr_par-arc_arces:
+
+APO ARCARCES (``arc_arces``)
+----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = arc_arces
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None,
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None,
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[flatfield]]
+          spat_samp = 1
+          tweak_slits = False
+          slit_trim = 1
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_norder_coeff = 6
+          ech_sigrej = 3.0
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 3.0
+          fwhm = 3.5
+          fwhm_fromlines = False
+          reid_arxiv = arc_arces.fits
+          cc_thresh = 0.4
+          rms_thresh_frac_fwhm = 0.5
+      [[slitedges]]
+          edge_thresh = 15.0
+          smash_range = 0.3, 0.7,
+          fwhm_uniform = 1.5
+          fwhm_gaussian = 1.5
+          sync_predict = nearest
+          order_match = 0.005
+          pad = 5
+      [[tilts]]
+          tracethresh = 10.0
+  [scienceframe]
+      exprng = 1, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 0, 0,
+          skip_skysub = True
+      [[skysub]]
+          global_sky_std = False
+          mask_by_boxcar = True
+          no_local_sky = True
+      [[extraction]]
+          boxcar_radius = 1.56
+          sn_gauss = 4000
+          model_full_slit = True
+
+.. _instr_par-arc_kosmos:
+
+APO ARCKOSMOS (``arc_kosmos``)
+------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = arc_kosmos
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None,
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None,
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          method = full_template
+          lamps = HeI, NeI, ArI,
+          sigdetect = 10.0
+          nsnippet = 3
+      [[slitedges]]
+          sync_predict = nearest
+          minimum_slit_length_sci = 5
+  [scienceframe]
+      exprng = 90, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+
+.. _instr_par-arc_tspec:
+
+APO ARCTSPEC (``arc_tspec``)
+----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = arc_tspec
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 0, None,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = 100, None,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          exprng = 100, None,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[standardframe]]
+          exprng = None, 60,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_norder_coeff = 6
+          ech_sigrej = 3.0
+          lamps = OH_NIRES,
+          fwhm = 2.9
+          reid_arxiv = arc_tspec.fits
+          cc_thresh = 0.4, 0.7, 0.7, 0.7, 0.7,
+          n_final = 3, 4, 4, 4, 4,
+      [[slitedges]]
+          fit_min_spec_length = 0.3
+          left_right_pca = True
+          trace_thresh = 5.0
+          fwhm_gaussian = 4.0
+      [[tilts]]
+          tracethresh = 10.0
+  [scienceframe]
+      exprng = 60, None,
+      [[process]]
+          satpix = nothing
+          sigclip = 20.0
+          use_biasimage = False
+          use_overscan = False
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          bspline_spacing = 0.8
+      [[extraction]]
+          boxcar_radius = 2.0
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+  [sensfunc]
+      algorithm = IR
+      polyorder = 8
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
+
 .. _instr_par-bok_bc:
 
 BOK BC (``bok_bc``)

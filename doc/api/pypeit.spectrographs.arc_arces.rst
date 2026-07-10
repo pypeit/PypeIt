@@ -1,7 +1,7 @@
-pypeit.core.gui.edge\_inspector module
+pypeit.spectrographs.arc\_arces module
 ======================================
 
-.. automodule:: pypeit.core.gui.edge_inspector
+.. automodule:: pypeit.spectrographs.arc_arces
    :members:
    :private-members:
    :show-inheritance:
