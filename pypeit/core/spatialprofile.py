@@ -676,6 +676,7 @@ def fit_profile(
 
     # Setup the initial sigma vector
     nspec, nspat = image.shape
+    spat_offset = float(spat_img[0, 0])
     _thisfwhm = np.fmax(thisfwhm, 1.0)
     fwhmfit = np.full(nspec, _thisfwhm)
     sig2fwhm = np.sqrt(8*np.log(2))
@@ -718,6 +719,7 @@ def fit_profile(
                 image, ivar, thismask, trace_in, flux, profile_model, trace_in, fwhmfit, med_sn2,
                 norm_obj_x, norm_ivar_x, _sigma_x, totmask, 0.0, 0.0, obj_string=obj_string,
                 outfile=None if generate_qa is True else generate_qa,
+                spat_offset=spat_offset,
             )
         return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -803,6 +805,7 @@ def fit_profile(
                 image, ivar, thismask, trace_in, flux, profile_model, trace_in, fwhmfit, med_sn2,
                 norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit, obj_string=obj_string,
                 outfile=None if generate_qa is True else generate_qa,
+                spat_offset=spat_offset,
             )
         return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -845,6 +848,7 @@ def fit_profile(
                     image, ivar, thismask, trace_in, flux, profile_model, trace_in, fwhmfit,
                     med_sn2, norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit,
                     obj_string=obj_string, outfile=None if generate_qa is True else generate_qa,
+                    spat_offset=spat_offset,
                 )
             return profile_model, trace_in, fwhmfit, med_sn2
         # Update the trace center
@@ -873,6 +877,7 @@ def fit_profile(
                     image, ivar, thismask, trace_in, flux, profile_model, trace_in, fwhmfit,
                     med_sn2, norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit,
                     obj_string=obj_string, outfile=None if generate_qa is True else generate_qa,
+                    spat_offset=spat_offset,
                 )
             return profile_model, trace_in, fwhmfit, med_sn2
         # Update the profile width
@@ -920,6 +925,7 @@ def fit_profile(
                         med_sn2, norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit,
                         obj_string=obj_string,
                         outfile=None if generate_qa is True else generate_qa,
+                        spat_offset=spat_offset,
                     )
                 return profile_model, trace_in, fwhmfit, med_sn2
 
@@ -998,6 +1004,7 @@ def fit_profile(
             image, ivar, thismask, trace_in, flux, profile_model, xnew, fwhmfit, med_sn2,
             norm_obj_x, norm_ivar_x, sigma_x, totmask, l_limit, r_limit, obj_string=obj_string,
             outfile=None if generate_qa is True else generate_qa,
+            spat_offset=spat_offset,
         )
     return profile_model, xnew, fwhmfit, med_sn2
 
@@ -1060,6 +1067,7 @@ def _bin_profile(sigma_x, norm_obj, model_vals, xmin=-7.0, xmax=7.0, nsamp=80):
 def _fit_profile_qa(
     image, ivar, thismask, trace_in, flux, profile_model, xnew, fwhmfit, med_sn2, norm_obj_x,
     norm_ivar_x, sigma_x, totmask, l_limit, r_limit, obj_string='', outfile=None,
+    spat_offset=0.0,
 ):
     r"""
     QA diagnostic plot for :func:`fit_profile`.
@@ -1124,6 +1132,11 @@ def _fit_profile_qa(
     outfile : :obj:`str` or :class:`pathlib.Path`, optional
         If provided, save the figure to this path instead of displaying it.
         Default is ``None``.
+    spat_offset : :obj:`float`, optional
+        Absolute spatial pixel coordinate of the left edge of ``image``
+        (i.e., ``spat_img[0, 0]`` from the calling context).  Used to align
+        the image display axes with the absolute trace coordinates.
+        Default is ``0.0``.
     """
     # -----------------------------------------------------------------------
     # Derive setup quantities
@@ -1253,7 +1266,7 @@ def _fit_profile_qa(
     cax_model = fig.add_axes([img_l[1] + cbar_off, cbar_bot, cbar_w, cbar_h])
     cax_resid = fig.add_axes([img_l[2] + cbar_off, cbar_bot, cbar_w, cbar_h])
 
-    extent   = [0, nspat, 0, nspec]
+    extent   = [spat_offset, spat_offset + nspat, 0, nspec]
     im_data  = ax_data.imshow(display_img, origin='lower', aspect='auto',
                                vmin=vlo,   vmax=vhi,  cmap='viridis', extent=extent)
     im_model = ax_model.imshow(display_mod, origin='lower', aspect='auto',
