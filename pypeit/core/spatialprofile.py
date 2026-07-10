@@ -87,10 +87,15 @@ def _findfwhm(model, sig_x):
     peak_x = sig_x[peak_i]
     # Mask all the values less than half of the peak
     _model[_model < 0.5 * peak] = np.ma.masked
-    # Get the indices of the unmasked pixels that bracket the peak
+    # Get the indices of the unmasked pixels that bracket the peak.
     # WARNING: This *assumes* there is only one coherent section with values
     # above 0.5 * peak and within |sig_x| < 2.
-    lind, rind = np.ma.flatnotmasked_edges(_model)
+    # flatnotmasked_edges returns None when the array is entirely masked,
+    # which happens when peak < 0 (all values fall below 0.5 * peak).
+    edges = np.ma.flatnotmasked_edges(_model)
+    if edges is None:
+        return peak, peak_x, sig_x[0], sig_x[-1]
+    lind, rind = edges
     # Get the left edge of the FWHM range
     if lind > 0:
         lwhm = utils.linear_interpolate(
@@ -961,7 +966,7 @@ def fit_profile(
     row_sums = profile_model.sum(axis=1)
     indx = row_sums > 0.0
     if np.any(indx):
-        profile_model[indx,:] /= row_sums[:,None]
+        profile_model[indx,:] /= row_sums[indx][:,None]
         profile_model[np.logical_not(indx),:] = 0.
 
     # Return and report the final results

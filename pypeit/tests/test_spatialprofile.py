@@ -310,6 +310,38 @@ def test_profile_normalization_bspline():
     np.testing.assert_allclose(row_sums[nonzero_rows], 1.0, atol=1e-10)
 
 
+def test_profile_normalization_partial_slit():
+    """B-spline path: row normalization is correct when the slit mask is a strict row subset.
+
+    Restricting ``thismask`` to the middle half of spectral rows leaves the
+    outer rows with zero profile sums (``row_sums == 0``), making ``indx`` a
+    strict Boolean subset of all rows.  This exposed a shape-broadcast bug
+    where ``profile_model[indx,:] /= row_sums[:,None]`` used the full
+    ``(nspec, 1)`` row-sum array instead of the ``(sum(indx), 1)`` subset,
+    causing a ``ValueError`` when ``indx`` was not all-True.
+    """
+    nspec, nspat = 200, 100
+    image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, \
+        fluxivar, inmask, _ = make_profile_inputs(
+            nspec=nspec, nspat=nspat, sn_ratio=20.0, fwhm=4.0)
+    # Restrict the slit mask to the middle 100 spectral rows only
+    thismask[:nspec // 4] = False
+    thismask[3 * nspec // 4:] = False
+    profile_model, xnew, fwhmfit, med_sn2 = spatialprofile.fit_profile(
+        image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
+        spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
+        fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
+    assert np.all(profile_model >= 0)
+    assert np.all(np.isfinite(profile_model))
+    # Masked-out rows must have zero profile
+    assert np.all(profile_model[:nspec // 4] == 0.0)
+    assert np.all(profile_model[3 * nspec // 4:] == 0.0)
+    # Active rows that received non-zero profile must each sum to 1
+    row_sums = profile_model.sum(axis=1)
+    nonzero = row_sums > 0
+    np.testing.assert_allclose(row_sums[nonzero], 1.0, atol=1e-10)
+
+
 def test_profile_normalization_gaussian():
     """Gaussian fallback: profile is non-negative, finite, and bell-shaped."""
     nspec, nspat = 200, 100
@@ -758,6 +790,26 @@ def test_findfwhm_asymmetric():
     _, peak_x, lwhm, rwhm = _findfwhm(model, sig_x)
     assert abs(peak_x - center) <= step
     np.testing.assert_allclose(rwhm - lwhm, sig2fwhm, rtol=0.02)
+
+
+def test_findfwhm_all_negative_profile():
+    """_findfwhm returns a valid 4-tuple when the profile is entirely negative.
+
+    When the fitted B-spline profile (after median subtraction) is entirely
+    negative within |sig_x| <= 2 — which can happen for noisy, low-S/N objects
+    with an implausibly large initial FWHM estimate — ``peak < 0``.  Because
+    ``0.5 * peak`` is then more negative than ``peak``, the half-peak masking
+    step removes every element, including the peak itself, causing
+    ``np.ma.flatnotmasked_edges`` to return ``None`` and a crash on unpack.
+    The fix returns ``(peak, peak_x, sig_x[0], sig_x[-1])`` as a fallback.
+    """
+    sig_x = np.linspace(-1.0, 1.0, 41)
+    model = -0.05 * np.ones_like(sig_x)   # all negative: triggers the crash path
+    peak, peak_x, lwhm, rwhm = _findfwhm(model, sig_x)
+    assert np.isfinite(peak)
+    assert np.isfinite(peak_x)
+    assert lwhm == sig_x[0]
+    assert rwhm == sig_x[-1]
 
 
 # ----------------------------------------------------------------------------
