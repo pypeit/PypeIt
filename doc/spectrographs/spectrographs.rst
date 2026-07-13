@@ -49,6 +49,7 @@ instrument-specific details for running PypeIt.
    ldt_deveny
    mage
    magellan_fire
+   magellan_ldss3
    mdm_osmos
    mmt_binospec
    mmt_bluechannel
