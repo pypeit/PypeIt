@@ -1144,8 +1144,9 @@ class FlatField:
 
             # Sort the pixels by their spectral coordinate.
             # TODO: Include ivar and sorted gpm in outputs?
-            spec_gpm, spec_srt, spec_coo_data, spec_flat_data \
-                    = flat.sorted_flat_data(flat_log, spec_coo, gpm=spec_gpm)
+            spec_srt, spec_coo_data, spec_flat_data = flat.sorted_flat_data(
+                flat_log, spec_coo, gpm=spec_gpm
+            )
             # NOTE: By default np.argsort sorts the data over the last
             # axis. Just to avoid the possibility (however unlikely) of
             # spec_coo[spec_gpm] returning an array, all the arrays are
@@ -1351,8 +1352,10 @@ class FlatField:
 
             # Sort the pixels by their spectral coordinate. The mask
             # uses the nominal padding defined by the slits object.
-            twod_gpm, twod_srt, twod_spec_coo_data, twod_flat_data \
-                    = flat.sorted_flat_data(norm_spec_spat, spec_coo, gpm=onslit_tweak)
+            twod_srt, twod_spec_coo_data, twod_flat_data = flat.sorted_flat_data(
+                norm_spec_spat, spec_coo, gpm=onslit_tweak
+            )
+            twod_gpm = onslit_tweak.copy()
             # Also apply the sorting to the spatial coordinates
             twod_spat_coo_data = spat_coo_final[twod_gpm].ravel()[twod_srt]
             # TODO: Reset back to origin gpm if sticky is true?
@@ -1549,16 +1552,23 @@ class FlatField:
 
         # Make sure that the normalized and filtered flat is finite!
         if np.any(np.logical_not(np.isfinite(spat_flat_data))):
-            raise PypeItError('Inifinities in slit illumination function computation!')
+            raise PypeItError('Infinities in slit illumination function computation!')
 
         # Determine the breakpoint spacing from the sampling of the
         # spatial coordinates. Use breakpoints at a spacing of a
         # 1/10th of a pixel, but do not allow a bsp smaller than
         # the typical sampling. Use the bspline class to determine
         # the breakpoints:
-        spat_bspl = bspline.bspline(spat_coo_data, nord=4,
-                                    bkspace=np.fmax(1.0 / median_slit_width / 10.0,
-                                                    1.2 * np.median(np.diff(spat_coo_data))))
+#        bkspace = np.fmax(1.0 / median_slit_width / 10.0, 1.2 * np.median(np.diff(spat_coo_data))))
+        # UPDATE: For some datasets where a long-slit fills the detector, the
+        # spat_coo array is effectively identical for each row because the slit
+        # edges are exactly aligned with the pixel coordinates.  Choosing a
+        # sampling following the original approach above was causing the bspline
+        # fitting to mask nearly all of the breakpoints.  This is fixed by
+        # increasing the bspline spacing.
+        bkspace = np.fmax(1.0 / median_slit_width, 1.2 * np.median(np.diff(spat_coo, axis=1)))
+        spat_bspl = bspline.bspline(spat_coo_data, nord=4, bkspace=bkspace)
+
         # TODO: Can we add defaults to bspline_profile so that we
         #  don't have to instantiate invvar and profile_basis
         spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
@@ -1566,6 +1576,10 @@ class FlatField:
                                     np.ones_like(spat_flat_data),
                                     np.ones_like(spat_flat_data), nord=4, upper=5.0,
                                     lower=5.0, fullbkpt=spat_bspl.breakpoints)
+
+        # TODO: Add a QA plot that shows the illum_profile fit
+#        fitting.bspline_qa(spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, spat_flat_fit)
+
         # Return
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
