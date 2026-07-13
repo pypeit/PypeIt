@@ -2155,7 +2155,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             sobjs[iobj].set_name()
 
         # Create a QA plot for the object traces based on plots in ``fit_trace``
-        objtraceQA_filename = None if objfindQA_filename is None else objfindQA_filename.replace("prof","trace")
+        objtraceQA_filename = None if objfindQA_filename is None else objfindQA_filename.replace("_obj_prof.png", "_obj_trace.png")
         objtrace_QA(xfit_gweight, trace_results.out_gpm.T, cen, np.logical_not(msk.astype(bool)),
                     xinit_fweight, np.logical_not(trc_inmask), trace_names=sobjs.NAME,
                     qa_title=qa_title, objtraceQA_filename=objtraceQA_filename)
