@@ -892,6 +892,7 @@ Key                         Type                                              Op
 ``comb_sigrej``             float                                             ..                                                                   ..                             Sigma-clipping level for when clip=True; Use None for automatic limit (recommended).                                                                                                                                                                                                                                                                                                    
 ``combine``                 str                                               ``median``, ``mean``                                                 ``mean``                       Method used to combine multiple frames.  Options are: median, mean                                                                                                                                                                                                                                                                                                                      
 ``correct_nonlinear``       list                                              ..                                                                   ..                             Correct for non-linear response of the detector.  If None, no correction is performed. If a list, then the list should be the non-linear correction parameter (alpha), where the functional form is given by Ct = Cm (1 + alpha x Cm), with Ct and Cm the true and measured counts. This parameter is usually hard-coded for a given spectrograph, and should otherwise be left as None.
+``cr_median_width``         int                                               ..                                                                   0                              Width (in pixels, along axis 1) of the row-local median filter applied by build_crmask before running L.A.Cosmic on the residual.  Useful for line-rich frames with small tilts (e.g. arcs, tilts) where the standard 3x3 Laplacian misses the bodies of extended trails.  Only active when mask_cr=True.  Set to 0 (default) to disable; set to an odd integer (e.g. 31) to enable.    
 ``dark_expscale``           bool                                              ..                                                                   False                          If designated dark frames are used and have a different exposure time than the science frames, scale the counts by the by the ratio in the exposure times to adjust the dark counts for the difference in exposure time.  WARNING: You should always take dark frames that have the same exposure time as your science frames, so use this option with care!                            
 ``empirical_rn``            bool                                              ..                                                                   False                          If True, use the standard deviation in the overscan region to measure an empirical readnoise to use in the noise model.                                                                                                                                                                                                                                                                 
 ``grow``                    int, float                                        ..                                                                   1.5                            Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                                                                                                                                                                  
@@ -972,6 +973,7 @@ Key                      Type                                            Options
 ``multi_spec_det``       list                                            ..                ..                           List of detectors (identified by their string name, like DET01) to splice together for multi-detector instruments (e.g. DEIMOS). It is assumed that there is *no* overlap in wavelength across detectors (might be ok if there is).  If entered as a list of integers, they should be converted to the detector name.  **Cannot be used with detector mosaics.**                            
 ``polyorder``            int, list                                       ..                5                            Polynomial order for sensitivity function fitting                                                                                                                                                                                                                                                                                                                                           
 ``samp_fact``            float                                           ..                1.5                          Sampling factor to make the wavelength grid for sensitivity function finer or coarser. samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).                                                                                                                                                                                                                         
+``star_arxiv``           str                                             ..                ``default``                  Specify the name of the archive to search for the standard star flux table/spectrum.  When set to ``default``, code will search through the prioritized list set by :func:`~pypeit.core.standard.get_archive_sets`.  Note this must be a valid, single string identifying the archive to use (e.g. ``lbtmods``).                                                                            
 ``star_dec``             float                                           ..                ..                           DEC of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)                                                                                                                                                                                                                                                                                     
 ``star_mag``             float                                           ..                ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                                         
 ``star_ra``              float                                           ..                ..                           RA of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)                                                                                                                                                                                                                                                                                      
@@ -8326,43 +8328,46 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 
-.. _instr_par-p200_ngps_i:
+.. _instr_par-p200_ngps_g:
 
-P200 NGPS_i (``p200_ngps_i``)
+P200 NGPS_g (``p200_ngps_g``)
 -----------------------------
 Alterations to the default parameters are:
 
 .. code-block:: ini
 
   [rdx]
-      spectrograph = p200_ngps_i
+      spectrograph = p200_ngps_g
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
+              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = None, 120,
           [[[process]]]
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
@@ -8372,11 +8377,13 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[lampoffflatsframe]]
@@ -8400,29 +8407,196 @@ Alterations to the default parameters are:
               mask_cr = True
               noise_floor = 0.01
       [[standardframe]]
-          exprng = None, 120,
           [[[process]]]
               combine = median
-              mask_cr = True
+              use_overscan = False
               noise_floor = 0.01
+              spat_flexure_correct = True
+      [[flatfield]]
+          spec_samp_fine = 1.0
+          spec_samp_coarse = 1.0
+          spat_samp = 1.0
+          slit_illum_pad = 1
+          illum_iter = 3
+          illum_rej = 4.0
+          slit_illum_smooth_npix = 1
+          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
           lamps = ThAr,
-          reid_arxiv = wvarxiv_p200_ngps_20250131T1354.fits
+          fwhm_fromlines = False
+          reid_arxiv = wvarxiv_p200_ngps_g_thar_central.fits
+          cc_thresh = 0.6
+          cc_local_thresh = 0.6
           rms_thresh_frac_fwhm = 1.0
+          match_toler = 0.3
+          n_first = 4
       [[slitedges]]
-          edge_thresh = 50.0
+          filt_iter = 3
+          fit_order = 3
+          trace_thresh = 10.0
           min_edge_side_sep = 1.0
           sync_predict = nearest
-          minimum_slit_length = 100
+          minimum_slit_length = 30
   [scienceframe]
-      exprng = 90, None,
       [[process]]
           combine = median
           mask_cr = True
           sigclip = 4.0
           objlim = 5.0
+          use_overscan = False
           noise_floor = 0.01
+          spat_flexure_correct = True
+  [reduce]
+      [[findobj]]
+          snr_thresh = 3.0
+          maxnumber_sci = 1
+          maxnumber_std = 1
+      [[skysub]]
+          bspline_spacing = 0.5
+          no_local_sky = True
+      [[extraction]]
+          boxcar_radius = 1.87
+  [sensfunc]
+      [[UVIS]]
+          polycorrect = False
+          resolution = 4000
+
+.. _instr_par-p200_ngps_i:
+
+P200 NGPS_i (``p200_ngps_i``)
+-----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = p200_ngps_i
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          [[[process]]]
+              combine = median
+              use_overscan = False
+              noise_floor = 0.01
+              spat_flexure_correct = True
+      [[flatfield]]
+          spec_samp_fine = 1.0
+          spec_samp_coarse = 5.0
+          spat_samp = 1.0
+          slit_illum_pad = 1
+          illum_iter = 3
+          illum_rej = 4.0
+          slit_illum_smooth_npix = 1
+          pixelflat_min_wave = 7800.0
+          pixelflat_max_wave = 10100.0
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = full_template
+          lamps = ThAr,
+          fwhm_fromlines = False
+          reid_arxiv = wvarxiv_p200_ngps_i_thar_central.fits
+          cc_thresh = 0.6
+          cc_local_thresh = 0.6
+          rms_thresh_frac_fwhm = 1.0
+          match_toler = 0.3
+          n_first = 4
+      [[slitedges]]
+          filt_iter = 3
+          fit_order = 3
+          trace_thresh = 10.0
+          min_edge_side_sep = 1.0
+          sync_predict = nearest
+          minimum_slit_length = 30
+  [scienceframe]
+      [[process]]
+          combine = median
+          mask_cr = True
+          sigclip = 4.0
+          objlim = 5.0
+          use_overscan = False
+          noise_floor = 0.01
+          spat_flexure_correct = True
+  [reduce]
+      [[findobj]]
+          snr_thresh = 3.0
+          maxnumber_sci = 1
+          maxnumber_std = 1
+      [[skysub]]
+          bspline_spacing = 0.5
+          no_local_sky = True
+      [[extraction]]
+          boxcar_radius = 1.87
+  [sensfunc]
+      [[UVIS]]
+          polycorrect = False
+          resolution = 4000
 
 .. _instr_par-p200_ngps_r:
 
@@ -8437,31 +8611,34 @@ Alterations to the default parameters are:
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
-          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
+              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = None, 120,
           [[[process]]]
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
@@ -8471,11 +8648,13 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[lampoffflatsframe]]
@@ -8499,29 +8678,198 @@ Alterations to the default parameters are:
               mask_cr = True
               noise_floor = 0.01
       [[standardframe]]
-          exprng = None, 120,
           [[[process]]]
               combine = median
-              mask_cr = True
+              use_overscan = False
               noise_floor = 0.01
+              spat_flexure_correct = True
+      [[flatfield]]
+          spec_samp_fine = 1.0
+          spec_samp_coarse = 5.0
+          spat_samp = 1.0
+          slit_illum_pad = 1
+          illum_iter = 3
+          illum_rej = 4.0
+          slit_illum_smooth_npix = 1
+          pixelflat_min_wave = 5850.0
+          pixelflat_max_wave = 7800.0
+          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
           lamps = ThAr,
-          reid_arxiv = wvarxiv_p200_ngps_20250131T1227.fits
+          fwhm_fromlines = False
+          reid_arxiv = wvarxiv_p200_ngps_r_thar_central.fits
+          cc_thresh = 0.6
+          cc_local_thresh = 0.6
           rms_thresh_frac_fwhm = 1.0
+          match_toler = 0.3
+          n_first = 4
       [[slitedges]]
-          edge_thresh = 50.0
+          filt_iter = 3
+          fit_order = 3
+          trace_thresh = 10.0
           min_edge_side_sep = 1.0
           sync_predict = nearest
-          minimum_slit_length = 100
+          minimum_slit_length = 30
   [scienceframe]
-      exprng = 90, None,
       [[process]]
           combine = median
           mask_cr = True
           sigclip = 4.0
           objlim = 5.0
+          use_overscan = False
           noise_floor = 0.01
+          spat_flexure_correct = True
+  [reduce]
+      [[findobj]]
+          snr_thresh = 3.0
+          maxnumber_sci = 1
+          maxnumber_std = 1
+      [[skysub]]
+          bspline_spacing = 0.5
+          no_local_sky = True
+      [[extraction]]
+          boxcar_radius = 1.87
+  [sensfunc]
+      [[UVIS]]
+          polycorrect = False
+          resolution = 4000
+
+.. _instr_par-p200_ngps_u:
+
+P200 NGPS_u (``p200_ngps_u``)
+-----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = p200_ngps_u
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          [[[process]]]
+              combine = median
+              use_overscan = False
+              noise_floor = 0.01
+              spat_flexure_correct = True
+      [[flatfield]]
+          spec_samp_fine = 1.0
+          spec_samp_coarse = 2.0
+          spat_samp = 1.0
+          slit_illum_pad = 1
+          illum_iter = 3
+          illum_rej = 4.0
+          slit_illum_smooth_npix = 1
+          pixelflat_min_wave = 3400.0
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = full_template
+          lamps = ThAr,
+          fwhm_fromlines = False
+          reid_arxiv = wvarxiv_p200_ngps_u_thar_central.fits
+          cc_thresh = 0.6
+          cc_local_thresh = 0.6
+          rms_thresh_frac_fwhm = 1.0
+          match_toler = 0.3
+          n_first = 4
+      [[slitedges]]
+          filt_iter = 3
+          fit_order = 3
+          fit_min_spec_length = 0.2
+          trace_thresh = 10.0
+          min_edge_side_sep = 1.0
+          sync_predict = nearest
+          minimum_slit_length = 30
+  [scienceframe]
+      [[process]]
+          combine = median
+          mask_cr = True
+          sigclip = 4.0
+          objlim = 5.0
+          use_overscan = False
+          noise_floor = 0.01
+          spat_flexure_correct = True
+  [reduce]
+      [[findobj]]
+          snr_thresh = 3.0
+          maxnumber_sci = 1
+          maxnumber_std = 1
+      [[skysub]]
+          bspline_spacing = 0.5
+          no_local_sky = True
+      [[extraction]]
+          boxcar_radius = 1.87
+  [sensfunc]
+      [[UVIS]]
+          polycorrect = False
+          resolution = 4000
 
 .. _instr_par-p200_tspec:
 

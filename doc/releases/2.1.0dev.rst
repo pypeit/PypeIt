@@ -31,6 +31,9 @@ Functionality/Performance Improvements and Additions
   rejection, controlled by the new ``cr_median_width`` process
   parameter.  Useful for line-rich frames with small tilts; see
   :ref:`image_proc-cr` for details.
+- Adds ability to select the specific archive of standard stars to use when
+  searching for a match to an observed standard.  This is particularly import
+  for LBT/MODS.
 
 Instrument-specific Updates
 ---------------------------
@@ -51,6 +54,7 @@ Instrument-specific Updates
   :func:`~pypeit.core.wavecal.templates.build_template` with continuum
   subtraction on the new segment.
 - Implemented support for VLT/UVES data reduction.
+- Implemented support for Magellan/LDSS3 VPH-ALL data reduction.
 - Added Palomar / NGPS (Next Generation Spectrograph) support.  Four
   channels ``p200_ngps_{u,g,r,i}`` covering 3050--10400 Å at
   R ~ 4000, fed by a 3-slice image slicer; raw frames carry all
@@ -58,6 +62,11 @@ Instrument-specific Updates
   Wavelength solution uses ``method='full_template'`` against the
   shipped ``wvarxiv_p200_ngps_{u,g,r,i}_thar_central.fits``
   binspec=1 ThAr archives.  See :ref:`p200_ngps_doc`.
+- Palomar/NGPS: the wavelength-calibration ``match_toler`` is now derived from
+  the spectral binning of the data (held fixed in wavelength rather than in
+  binned pixels via ``config_specific_par``), so binnings other than the
+  binspec=3 commissioning setup (e.g. binspec=1) no longer drop the redder,
+  more widely spaced arc lines.  binspec=3 is unchanged (0.3 px).
 - Added wavelength-calibration template for GRIS_1200R grating in VLT/FORS2
 - Added support for the SOAR/TripleSpec near-IR echelle spectrograph
   (``soar_tspec``), reduced via the Echelle pipeline over all five orders
@@ -96,11 +105,17 @@ Under-the-hood Improvements
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
+- Moved code used to generate templates (``pypeit/core/wavecal/templates.py``
+  and ``pypeit/core/wavecal/spectrographs``) to the dev-suite.  These were
+  development-only files, not suited for the released package.
+- Restructuring of :mod:`~pypeit.core`.
+- Increase the breakpoint spacing when fitting the slit illumination profile.
 - Resolved issue with the wavelength calibration code not detecting lines in the
   ``'keck_deimos_830G.fits'`` template when the FWHM of the lines observed in
   the data are significantly narrower than the template.  A loop has been added
   that iteratively increments the FWHM until the number of good template lines
   reaches some minimum fraction of all lines detected in the template spectrum.
+
 
 Bug Fixes
 ---------
@@ -127,3 +142,7 @@ Bug Fixes
 - MMT/Binospec: flat/trace/illumflat frame typing now requires the
   incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
   ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.
+- Palomar/NGPS: pixelflat/trace/illumflat frame typing now uses only dome flats
+  (``IMGTYPE`` = ``DOMEFLAT``) and no longer includes the internal continuum
+  (``IMGTYPE`` = ``CONT``) lamp flats, whose different illumination contaminated
+  the combined pixel/illumination flat when both were present in a night.
