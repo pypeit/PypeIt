@@ -4728,10 +4728,14 @@ class ExtractionPar(ParSet):
 
         defaults['use_user_fwhm'] = False
         dtypes['use_user_fwhm'] = bool
-        descr['use_user_fwhm'] = 'Boolean indicating if PypeIt should use the FWHM provided by the user ' \
-                                 '(``find_fwhm`` in `FindObjPar`) for the optimal extraction. ' \
-                                 'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each ' \
-                                 'detected object, and uses ``find_fwhm`` as initial guess.'
+        descr['use_user_fwhm'] = (
+            'Boolean indicating if PypeIt should use the FWHM provided by the user '
+            '(``find_fwhm`` in `FindObjPar`) for the optimal extraction.  This also forces the '
+            'source spatial profile to follow a Gaussian with this FWHM. If this parameter is '
+            '``False`` (default), PypeIt estimates the FWHM for each detected object, and uses '
+            '``find_fwhm`` as initial guess.'
+        )
+
         defaults['return_negative'] = False
         dtypes['return_negative'] = bool
         descr['return_negative'] = 'If ``True`` the negative traces will be extracted and saved to disk'

@@ -18,6 +18,7 @@ import scipy.ndimage
 import scipy.special
 
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.core import pydl
@@ -705,13 +706,19 @@ def fit_profile(
         # Fit failed, so set for a basic Gaussian profile to be returned
         med_sn2 = 0.0
     if not success or gauss or ngood < 10 or med_sn2 < sn_gauss**2:
+        if gauss:
+            reason = 'a Gaussian profile was specfically requested'
+        elif not success:
+            reason = 'the determination of the S/N and normalization of the central spectrum failed'
+        elif ngood < 10:
+            reason = 'there are too few good pixels'
+        elif med_sn2 < sn_gauss**2:
+            reason = f'the measured S/N is below the provided limit ({sn_gauss})'
+        else:
+            raise PypeItError('CODING ERROR: In what is supposed to be an unreachable code block.')
         # TODO: This is redundant wrt messages issued in
         # _fit_spectrum_and_normalize.  Consolidate?
-        log.info(
-            'Returning Gaussian profile for one of the following reasons: Determination of the '
-            'S/N failed, a Gaussian profile was specifically requested, there are too few good '
-            f'pixels, or the measured S/N is below the provided limit ({sn_gauss:.1f}).'
-        )
+        log.info(f'Returning Gaussian profile because {reason}.')
         profile_model = _gaussian_profile(spat_img, trace_in, sigma)
         log.info(f'{obj_string}, FWHM={_thisfwhm:.2f}, S/N={np.sqrt(med_sn2):.3f}')
         if generate_qa is not False:
