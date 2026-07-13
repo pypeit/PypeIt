@@ -544,7 +544,14 @@ in the ``Science_coadd/`` folder. Here is an example:
     |  416 | SPAT0401-SLIT0416-DET01 |         10 |   TARG6 | 345.02304 | 33.01136 |       401.2 |        0.437 |      3.00 |    0.640 | 18.35 |           False |
     |  710 | SPAT0669-SLIT0710-DET01 |         11 |   TARG2 | 345.04113 | 33.01283 |       668.7 |        0.373 |      3.00 |    0.656 | 28.52 |           False |
 
+.. note::
 
+    The ``maskdef_id``, ``objname``, ``objra``, ``objdec``, and ``maskdef_extract`` columns are
+    only included if they are populated for at least one object. They will be missing if
+    ``offsets = maskdef_offsets`` was not set in the ``coadd2d`` file (e.g., if it was left at
+    the default ``offsets = auto``), since that is what tells :ref:`pypeit-coadd-2dspec` to
+    propagate the slitmask design information to the coadded output. See the ``offsets``
+    description above and :ref:`coadd2dpar`.
 
 The spec1d can also be inspected with the script ``pypeit_chk_noise_1dspec``, which show the spec1D for
 visual inspection and a noise diagnostic plot. See example in :ref:`inspecting_spec1d`.
