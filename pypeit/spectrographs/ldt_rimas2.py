@@ -435,25 +435,29 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         # Get the PypeIt default parameters
         par = super().default_pypeit_par()
 
-        # No bias or overscan for IRFPAs -- no dark frames for cals
+        # No bias or overscan for IRFPAs.  Also disable flat-fielding globally;
+        # only science/standard frames should apply the RIMAS flat products.
         turn_off = {
             "use_illumflat": False,
             "use_biasimage": False,
             "use_overscan": False,
             "use_darkimage": False,
+            "use_pixelflat": False,
         }
         par.reset_all_processimages_par(**turn_off)
 
-        # Use dark frames for ARC and TILT
+        # Use dark frames for ARC and TILT, which are commonly also science frames.
         par["calibrations"]["arcframe"]["process"]["use_darkimage"] = True
         par["calibrations"]["tiltframe"]["process"]["use_darkimage"] = True
-        # Use dark frames for SCIENCE and STANDARD frames
+        # Use dark frames and flats for SCIENCE and STANDARD frames.
         par["scienceframe"]["process"]["use_darkimage"] = True
         par["calibrations"]["standardframe"]["process"]["use_darkimage"] = True
+        par["scienceframe"]["process"]["use_pixelflat"] = True
+        par["scienceframe"]["process"]["use_illumflat"] = True
+        par["calibrations"]["standardframe"]["process"]["use_pixelflat"] = True
+        par["calibrations"]["standardframe"]["process"]["use_illumflat"] = True
         # Do not mask CRs in dark frames -- it actually removes the hot pixels!
         par["calibrations"]["darkframe"]["process"]["mask_cr"] = False
-        # Science frames should use illumflat
-        par["scienceframe"]["process"]["use_illumflat"] = True
 
         # Everybody is going to use OH lines
         par["calibrations"]["wavelengths"]["lamps"] = ["OH_GNIRS"]
