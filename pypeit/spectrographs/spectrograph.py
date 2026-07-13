@@ -902,19 +902,22 @@ class Spectrograph:
         the generated configurations to always be in the same order.
 
         The returned dictionary is nested and of the form:
-        {
-            "A": {
-                "configuration_key1": np.str_("configuration_key1_valueA"),
-                "configuration_key2": np.str_("configuration_key2_valueA"),
+
+        ..code-block ::
+        
+            {
+                "A": {
+                    "configuration_key1": np.str_("configuration_key1_valueA"),
+                    "configuration_key2": np.str_("configuration_key2_valueA"),
+                    ...
+                },
+                "B:, {
+                    "configuration_key1": np.str_("configuration_key1_valueB"),
+                    "configuration_key2": np.str_("configuration_key2_valueB"),
+                    ...
+                },
                 ...
-            },
-            "B:, {
-                "configuration_key1": np.str_("configuration_key1_valueB"),
-                "configuration_key2": np.str_("configuration_key2_valueB"),
-                ...
-            },
-            ...
-        }
+            }
 
         The advantage of this scheme is that instead of using alpha designations
         ("A", "B", etc.), the developer can optioanlly give descriptive names to
