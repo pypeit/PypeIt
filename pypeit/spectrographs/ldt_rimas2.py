@@ -230,6 +230,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["dispname"] = dict(card=None, compound=True)
         self.meta["decker"] = dict(card=None, compound=True)  # SLIT filter wheel
         self.meta["binning"] = dict(card=None, compound=True)
+        self.meta["rawshape"] = dict(card=None, compound=True)
         self.meta["mjd"] = dict(card=None, compound=True)
         self.meta["airmass"] = dict(ext=0, card="AIRMASS")
         self.meta["exptime"] = dict(card=None, compound=True)
@@ -285,6 +286,10 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             # Binning in RIMAS headers given as separate values
             return parse.binning2string(headarr[0]["BINX"], headarr[0]["BINY"])
 
+        if meta_key == "rawshape":
+            # Shape of the raw image written to disk, formatted as rows,columns.
+            return parse.binning2string(headarr[0]["NAXIS2"], headarr[0]["NAXIS1"])
+
         if meta_key == "mjd":
             # Use custom scrubber + AstroPy to convert 'DATE-OBS' into a mjd.
             ttime = self.scrub_isot_dateobs(headarr[0]["DATE-BEG"])
@@ -335,7 +340,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         log.error("Not ready for compound meta %s for LDT/DeVeny", meta_key)
 
-    def config_independent_frames(self) -> dict[str, str]:
+    def config_independent_frames(self) -> dict[str, str | list[str] | None]:
         """
         Define frame types that are independent of the fully defined
         instrument configuration.
@@ -354,7 +359,9 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             configuration-independent and the values are the metadata keywords
             that can be used to assign the frames to a configuration group.
         """
-        return {"bias": "binning"}
+        # Dark frames are independent of the optical configuration, but they
+        # must match the detector arm and raw readout geometry.
+        return {"dark": ["arm", "rawshape"]}
 
     def configuration_keys(self) -> list[str]:
         """
@@ -411,6 +418,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             "slitwid",
             "lampstat01",
             "filter1",
+            "rawshape",
             "dither",
             "dithpat",
             "dithpos",
@@ -992,8 +1000,12 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         vph_idx = (
             (fitstbl["dispname"] == "Vph300") | (fitstbl["dispname"] == "Vph30")
         ) & (fitstbl["decker"] != "open")
+
+        # Dark frames are universal, so always include them
+        dark_idx = fitstbl["filter1"] == "blank"
+
         # Return the corrected table
-        return fitstbl[vph_idx]
+        return fitstbl[vph_idx | dark_idx]
 
     @staticmethod
     def configuration_list() -> dict[str, dict[str, np.str_]]:
@@ -1614,8 +1626,12 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         """
         # Only keep frames with the echelle grism -- no IFU mode!
         grism_idx = (fitstbl["dispname"] == "Grism") & (fitstbl["decker"] != "open")
+
+        # Dark frames are universal, so always include them
+        dark_idx = fitstbl["filter1"] == "blank"
+
         # Return the corrected table
-        return fitstbl[grism_idx]
+        return fitstbl[grism_idx | dark_idx]
 
     @staticmethod
     def configuration_list() -> dict[str, dict[str, np.str_]]:

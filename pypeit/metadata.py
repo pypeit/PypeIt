@@ -823,7 +823,7 @@ class PypeItMetaData:
         ignore_frames, ignore_indx = self.ignore_frames()
         # define the column 'setup' in self.table
         nrows = len(self)
-        col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
+        col = table.Column(data=['None'] * nrows, name='setup', dtype='U256')
         self.table.add_column(col)
         is_science = self.find_frames('science')    # Science frames can only have one configuration
         for i in range(nrows):
@@ -860,6 +860,8 @@ class PypeItMetaData:
         # the ignored frame types should be assigned to it:
         for cfg_key in _configs.keys():
             in_cfg = np.array([cfg_key in _setup.split(',') for _setup in self.table['setup']])
+            if not np.any(in_cfg):
+                continue
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
