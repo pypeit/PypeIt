@@ -7358,6 +7358,129 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 
+.. _instr_par-magellan_ldss3:
+
+MMT LDSS3 (``magellan_ldss3``)
+------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = magellan_ldss3
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 0, None,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = 0, 10,
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          exprng = 0, 10,
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 10, 500,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[wavelengths]]
+          sigdetect = 6.0
+          fwhm = 5.0
+          rms_thresh_frac_fwhm = 0.5
+          match_toler = 2.5
+          n_first = 3
+          n_final = 5
+      [[tilts]]
+          spat_order = 6
+          spec_order = 6
+  [scienceframe]
+      exprng = 200, None,
+      [[process]]
+          mask_cr = True
+          sigclip = 5.0
+          objlim = 2.0
+          use_biasimage = False
+          noise_floor = 0.01
+  [reduce]
+      [[skysub]]
+          bspline_spacing = 0.8
+          global_sky_std = False
+  [flexure]
+      spec_method = boxcar
+  [sensfunc]
+      algorithm = IR
+      polyorder = 7
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R15000.fits
+
 .. _instr_par-magellan_mage:
 
 MAGELLAN MagE (``magellan_mage``)
