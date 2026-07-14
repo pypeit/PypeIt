@@ -29,6 +29,7 @@ __all__ = [
     'ldt_rimas',
     'ldt_rimas2',
     'magellan_fire',
+    'magellan_ldss3',
     'magellan_mage',
     'mdm_modspec',
     'mdm_osmos',

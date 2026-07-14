@@ -54,6 +54,7 @@ Instrument-specific Updates
   :func:`~pypeit.core.wavecal.templates.build_template` with continuum
   subtraction on the new segment.
 - Implemented support for VLT/UVES data reduction.
+- Implemented support for Magellan/LDSS3 VPH-ALL data reduction.
 - Added Palomar / NGPS (Next Generation Spectrograph) support.  Four
   channels ``p200_ngps_{u,g,r,i}`` covering 3050--10400 Å at
   R ~ 4000, fed by a 3-slice image slicer; raw frames carry all
@@ -108,6 +109,7 @@ Under-the-hood Improvements
   and ``pypeit/core/wavecal/spectrographs``) to the dev-suite.  These were
   development-only files, not suited for the released package.
 - Restructuring of :mod:`~pypeit.core`.
+- Increase the breakpoint spacing when fitting the slit illumination profile.
 
 
 Bug Fixes
