@@ -9,10 +9,9 @@ B-Spline Fitting
 PypeIt uses weighted least-squares B-spline fitting throughout its reduction
 pipeline, primarily for flat-field modelling and sky subtraction.  This page
 describes the underlying algorithm, the public API of
-:class:`~pypeit.bspline.refactor.BSpline` and
-:class:`~pypeit.bspline.refactor.BSpline2D`, and how to migrate from the
-legacy :class:`~pypeit.bspline.bspline.bspline` class and
-:func:`~pypeit.core.fitting.bspline_profile` function.
+:class:`~pypeit.core.bspline.BSpline` and
+:class:`~pypeit.core.bspline.BSpline2D`, and how to migrate from the
+legacy ``bspline.bspline`` class and ``bspline_profile`` function.
 
 .. note::
 
@@ -66,7 +65,7 @@ via :func:`scipy.linalg.cholesky_banded` and
 Quasi-2D Extension
 ------------------
 
-:class:`~pypeit.bspline.refactor.BSpline2D` extends the 1D model by
+:class:`~pypeit.core.bspline.BSpline2D` extends the 1D model by
 introducing a polynomial modulation in a second variable :math:`u`:
 
 .. math::
@@ -92,7 +91,7 @@ half-bandwidth :math:`np` and are again solved via
 Iterative Sigma-Clipping
 ------------------------
 
-:func:`~pypeit.bspline.refactor.bspline_profile_refactor` wraps either class
+:func:`~pypeit.core.fitting.iterative_bspline_fit` wraps either class
 in an iterative outlier-rejection loop.  After each fit the normalised
 residuals
 
@@ -115,16 +114,16 @@ Usage
 BSpline (1D)
 ------------
 
-Construct a :class:`~pypeit.bspline.refactor.BSpline` with a
-:class:`~pypeit.bspline.refactor.Knots` specification and call
-:meth:`~pypeit.bspline.refactor.BSpline.fit`.  The knot spacing is controlled
+Construct a :class:`~pypeit.core.bspline.BSpline` with a
+:class:`~pypeit.core.bspline.Knots` specification and call
+:meth:`~pypeit.core.bspline.BSpline.fit`.  The knot spacing is controlled
 by the ``spacing``, ``count``, or ``stride`` arguments to
-:class:`~pypeit.bspline.refactor.Knots`.
+:class:`~pypeit.core.bspline.Knots`.
 
 .. code-block:: python
 
     import numpy as np
-    from pypeit.bspline.refactor import BSpline, Knots
+    from pypeit.core.bspline import BSpline, Knots
 
     rng  = np.random.default_rng(0)
     x    = np.sort(rng.uniform(0, 10, 500))
@@ -147,12 +146,12 @@ BSpline2D (quasi-2D)
 --------------------
 
 Pass ``basis`` (a polynomial family name) and ``basis_x`` (the second
-variable array) to :meth:`~pypeit.bspline.refactor.BSpline2D.fit`.
+variable array) to :meth:`~pypeit.core.bspline.BSpline2D.fit`.
 
 .. code-block:: python
 
     import numpy as np
-    from pypeit.bspline.refactor import BSpline2D, Knots
+    from pypeit.core.bspline import BSpline2D, Knots
 
     rng     = np.random.default_rng(1)
     x       = np.sort(rng.uniform(0, 10, 500))
@@ -173,7 +172,7 @@ variable array) to :meth:`~pypeit.bspline.refactor.BSpline2D.fit`.
     y_new, _ = bspl.value(x_new, basis_x=u_new)
 
 When the fit was performed with a **pre-built array** rather than a string
-family name, :meth:`~pypeit.bspline.refactor.BSpline2D.value` cannot
+family name, :meth:`~pypeit.core.bspline.BSpline2D.value` cannot
 reconstruct the polynomial basis from ``basis_x`` alone (no family name is
 stored).  In that case a corresponding evaluation basis of shape
 ``(M, npoly)`` must be passed explicitly as the ``basis`` argument:
@@ -190,24 +189,24 @@ stored).  In that case a corresponding evaluation basis of shape
     P_eval = flegendre(u_new, npoly)      # shape (200, npoly)
     y_new, _ = bspl.value(x_new, basis=P_eval)
 
-.. _bspline-profile-refactor:
+.. _bspline-iterative-fit:
 
-bspline_profile_refactor
-------------------------
+iterative_bspline_fit
+---------------------
 
-:func:`~pypeit.bspline.refactor.bspline_profile_refactor` provides the
+:func:`~pypeit.core.fitting.iterative_bspline_fit` provides the
 iterative sigma-clipping loop around either class.  The fitting class is
 selected automatically: omitting ``basis`` (or passing ``None``) uses the 1D
-:class:`~pypeit.bspline.refactor.BSpline`; providing ``basis`` uses the
-quasi-2D :class:`~pypeit.bspline.refactor.BSpline2D`.
+:class:`~pypeit.core.bspline.BSpline`; providing ``basis`` uses the
+quasi-2D :class:`~pypeit.core.bspline.BSpline2D`.
 
 **1D fit:**
 
 .. code-block:: python
 
-    from pypeit.bspline.refactor import bspline_profile_refactor
+    from pypeit.core.fitting import iterative_bspline_fit
 
-    bspl, outmask, yfit, reduced_chi, exit_status = bspline_profile_refactor(
+    bspl, outmask, yfit, reduced_chi, exit_status = iterative_bspline_fit(
         x, y, ivar=ivar,
         nord=4, upper=5.0, lower=5.0,
         kwargs_knots={'spacing': 0.5},
@@ -217,7 +216,7 @@ quasi-2D :class:`~pypeit.bspline.refactor.BSpline2D`.
 
 .. code-block:: python
 
-    bspl, outmask, yfit, reduced_chi, exit_status = bspline_profile_refactor(
+    bspl, outmask, yfit, reduced_chi, exit_status = iterative_bspline_fit(
         x, y, ivar=ivar, gpm=gpm,
         nord=4, basis='legendre', basis_x=basis_x, npoly=3,
         upper=5.0, lower=5.0,
@@ -232,7 +231,7 @@ quasi-2D :class:`~pypeit.bspline.refactor.BSpline2D`.
     from pypeit.core.basis import flegendre
 
     profile_basis = flegendre(basis_x, npoly)   # shape (N, npoly)
-    bspl, outmask, yfit, reduced_chi, exit_status = bspline_profile_refactor(
+    bspl, outmask, yfit, reduced_chi, exit_status = iterative_bspline_fit(
         x, y, ivar=ivar,
         nord=4, basis=profile_basis,
         upper=5.0, lower=5.0,
@@ -241,8 +240,8 @@ quasi-2D :class:`~pypeit.bspline.refactor.BSpline2D`.
 
 The five return values are:
 
-- ``bspl`` — the fitted :class:`~pypeit.bspline.refactor.BSpline` or
-  :class:`~pypeit.bspline.refactor.BSpline2D` object.
+- ``bspl`` — the fitted :class:`~pypeit.core.bspline.BSpline` or
+  :class:`~pypeit.core.bspline.BSpline2D` object.
 - ``outmask`` — boolean array indicating the final good-pixel mask.
 - ``yfit`` — best-fit model values at the input ``x``.
 - ``reduced_chi`` — reduced :math:`\chi^2` of the final fit.
@@ -256,10 +255,8 @@ The five return values are:
 Migration from Legacy Code
 ==========================
 
-The sections below map the legacy
-:class:`~pypeit.bspline.bspline.bspline` /
-:func:`~pypeit.core.fitting.bspline_profile` API to the new classes and
-function.
+The sections below map the legacy ``bspline.bspline`` /
+``bspline_profile`` API to the new classes and function.
 
 Class Instantiation
 -------------------
@@ -283,7 +280,7 @@ Fitting
 -------
 
 The legacy ``bspline.fit`` accepts the raw second variable as ``x2``.  The
-new :meth:`~pypeit.bspline.refactor.BSpline2D.fit` accepts either a string
+new :meth:`~pypeit.core.bspline.BSpline2D.fit` accepts either a string
 family name (and ``basis_x``) or a pre-built polynomial basis matrix.
 
 .. list-table::
@@ -314,12 +311,12 @@ Evaluation
 Profile Fitting Function
 ------------------------
 
-The legacy :func:`~pypeit.core.fitting.bspline_profile` requires positional
-arguments for both the inverse variance and the polynomial basis (``invvar`` and
-``profile_basis``); it also uses ``kwargs_bspline={'bkspace': s}`` for knot
-spacing.  The new :func:`~pypeit.bspline.refactor.bspline_profile_refactor`
-makes both optional (omit it for a 1D fit), renames ``invvar`` to ``ivar``
-and ``ingpm`` to ``gpm``, and uses ``kwargs_knots={'spacing': s}``.
+The legacy ``bspline_profile`` requires positional arguments for both the
+inverse variance and the polynomial basis (``invvar`` and ``profile_basis``);
+it also uses ``kwargs_bspline={'bkspace': s}`` for knot spacing.  The new
+:func:`~pypeit.core.fitting.iterative_bspline_fit` makes both optional
+(omit ``basis`` for a 1D fit), renames ``invvar`` to ``ivar`` and ``ingpm``
+to ``gpm``, and uses ``kwargs_knots={'spacing': s}``.
 
 .. code-block:: python
 
@@ -332,7 +329,7 @@ and ``ingpm`` to ``gpm``, and uses ``kwargs_knots={'spacing': s}``.
     )
 
     # New — 2D case
-    bspl, outmask, yfit, rchi, status = bspline_profile_refactor(
+    bspl, outmask, yfit, rchi, status = iterative_bspline_fit(
         xdata, ydata, ivar=invvar, gpm=gpm,
         basis=profile_basis,
         upper=5, lower=5, nord=4,
@@ -341,24 +338,24 @@ and ``ingpm`` to ``gpm``, and uses ``kwargs_knots={'spacing': s}``.
     )
 
     # New — 1D case (legacy passed profile_basis=np.ones((N, 1)))
-    bspl, outmask, yfit, rchi, status = bspline_profile_refactor(
+    bspl, outmask, yfit, rchi, status = iterative_bspline_fit(
         xdata, ydata, ivar=invvar, gpm=gpm,
         upper=5, lower=5, nord=4,
         kwargs_knots={'spacing': s},
         kwargs_reject=kw,
     )
 
-The ``quiet`` parameter of :func:`~pypeit.core.fitting.bspline_profile` has
-no equivalent; :func:`~pypeit.bspline.refactor.bspline_profile_refactor`
-never prints to standard output.
+The ``quiet`` parameter of ``bspline_profile`` has no equivalent;
+:func:`~pypeit.core.fitting.iterative_bspline_fit` never prints to
+standard output.
 
 API Reference
 -------------
 
-- :class:`pypeit.bspline.refactor.BSpline`
-- :class:`pypeit.bspline.refactor.BSpline2D`
-- :class:`pypeit.bspline.refactor.Knots`
-- :func:`pypeit.bspline.refactor.bspline_profile_refactor`
+- :class:`pypeit.core.bspline.BSpline`
+- :class:`pypeit.core.bspline.BSpline2D`
+- :class:`pypeit.core.bspline.Knots`
+- :func:`pypeit.core.fitting.iterative_bspline_fit`
 
 References
 ==========
