@@ -514,7 +514,7 @@ class Calibrations:
         self.raw_files, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
-        if len(raw_files) == 0 and cal_file is None:
+        if len(self.raw_files) == 0 and cal_file is None:
             log.warning(f'No raw {frame["type"]} frames found and unable to identify a relevant '
                       'processed calibration frame.  Continuing...')
             self.alignments = None
@@ -530,15 +530,15 @@ class Calibrations:
             return self.alignments
 
         # Reset the BPM
-        self.get_bpm(frame=raw_files[0])
+        self.get_bpm(frame=self.raw_files[0])
 
         # Perform a check on the files
-        self.check_calibrations(raw_files)
+        self.check_calibrations(self.raw_files)
 
         # Otherwise, create the processed file.
         log.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                 self.par['alignframe'], raw_files,
+                                                 self.par['alignframe'], self.raw_files,
                                                  bias=self.msbias, bpm=self.msbpm,
                                                  dark=self.msdark, calib_dir=self.calib_dir,
                                                  setup=setup, calib_id=calib_id)
@@ -674,11 +674,11 @@ class Calibrations:
         # or can we change the order?
 
         # Perform a check on the files
-        self.check_calibrations(raw_files)
+        self.check_calibrations(self.raw_files)
 
         # Otherwise, create the processed file.
         self.msdark = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                     self.par['darkframe'], raw_files,
+                                                     self.par['darkframe'], self.raw_files,
                                                      bias=self.msbias, calib_dir=self.calib_dir,
                                                      setup=setup, calib_id=calib_id)
         # Save the result
