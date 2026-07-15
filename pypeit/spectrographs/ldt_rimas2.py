@@ -1402,6 +1402,9 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
 
             par["reduce"]["findobj"]["find_fwhm"] = 5
             par["reduce"]["findobj"]["snr_thresh"] = 2
+            par["reduce"]["findobj"]["find_min_max"] = [60,140]
+
+            par["reduce"]["skysub"]["mask_by_boxcar"] = True
 
         elif grating == "Vph300":
             par["calibrations"]["wavelengths"][
