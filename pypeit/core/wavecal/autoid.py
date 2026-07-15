@@ -1108,6 +1108,18 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             this_cent = np.append(this_cent, cent[best])
             this_fwhm = np.append(this_fwhm, scale*wdth[best])  # Scale convert sig to spectral FWHM
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
+        if this_cent.size == 0:
+            log.warning(
+                f"No arc lines found for FWHM map in slit {sl+1}/{nslits}; "
+                f"using a constant FWHM of {fwhm:.1f} pixels."
+            )
+            this_cent = np.array([0.0, image.shape[0]/2.0, image.shape[0]-1.0])
+            this_samp = np.full(3, 0.5)
+            this_fwhm = np.full(3, fwhm)
+            resmap[sl] = fitting.robust_fit(
+                this_cent, this_fwhm, (0, 0), x2=this_samp, lower=3, upper=3,
+                function='polynomial2d')
+            continue
         # Perform a 2D robust fit on the measures for this slit
         resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp, lower=3, upper=3, function='polynomial2d')
 
@@ -1289,6 +1301,12 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         temp_wv = arc.resize_spec(temp_wv, new_npix)
         temp_spec = arc.resize_spec(temp_spec, new_npix)
 
+    # Cross-correlating against the full template uses a single vector.  Echelle
+    # templates are often stored as 2D order stacks, so flatten the working
+    # copies while leaving the originals intact for the archived-solution branch.
+    temp_wv_1d = temp_wv.reshape(-1)
+    temp_spec_1d = temp_spec.reshape(-1)
+
     # Dimensions
     if spec.ndim == 2:
         nspec, nslits = spec.shape
@@ -1315,12 +1333,12 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit], verbose=True)
         
         # Find the shift
-        ncomb = temp_spec.size
+        ncomb = temp_spec_1d.size
         # Remove the continuum before adding the padding to obs_spec_i
         _, _, _, _, obs_spec_cont_sub = wvutils.arc_lines_from_spec(obs_spec_i)
-        _, _, _, _, templ_spec_cont_sub = wvutils.arc_lines_from_spec(temp_spec.reshape(-1))
+        _, _, _, _, templ_spec_cont_sub = wvutils.arc_lines_from_spec(temp_spec_1d)
         # Pad
-        pad_spec = np.zeros_like(temp_spec)
+        pad_spec = np.zeros_like(temp_spec_1d)
         nspec = len(obs_spec_i)
         npad = ncomb - nspec
         if npad > 0:    # Pad the input spectrum
@@ -1423,14 +1441,14 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
 
         # Generate the template snippet
         if i0 < 0: # Pad?
-            mspec = np.concatenate([np.zeros(-1*i0), temp_spec[0:i0+nspec]])
-            mwv = np.concatenate([np.zeros(-1*i0), temp_wv[0:i0+nspec]])
-        elif (i0+nspec) > temp_spec.size: # Pad?
-            mspec = np.concatenate([temp_spec[i0:], np.zeros(nspec-temp_spec.size+i0)])
-            mwv = np.concatenate([temp_wv[i0:], np.zeros(nspec-temp_spec.size+i0)])
+            mspec = np.concatenate([np.zeros(-1*i0), temp_spec_1d[0:i0+nspec]])
+            mwv = np.concatenate([np.zeros(-1*i0), temp_wv_1d[0:i0+nspec]])
+        elif (i0+nspec) > temp_spec_1d.size: # Pad?
+            mspec = np.concatenate([temp_spec_1d[i0:], np.zeros(nspec-temp_spec_1d.size+i0)])
+            mwv = np.concatenate([temp_wv_1d[i0:], np.zeros(nspec-temp_spec_1d.size+i0)])
         else: # Don't pad
-            mspec = temp_spec[i0:i0 + nspec]
-            mwv = temp_wv[i0:i0 + nspec]
+            mspec = temp_spec_1d[i0:i0 + nspec]
+            mwv = temp_wv_1d[i0:i0 + nspec]
 
         if par['xcorr_only']:
             log.info('Using cross-correlation-only wavelength transfer from the full template.')
@@ -2342,7 +2360,7 @@ class HolyGrail:
                 self._det_stro[str(slit)] = [None,None]
                 # Remove from ok mask
                 oklist = self._ok_mask.tolist()
-                oklist.pop(slit)
+                oklist.remove(slit)
                 self._ok_mask = np.array(oklist)
                 self._all_final_fit[str(slit)] = None
                 continue

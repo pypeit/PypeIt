@@ -122,7 +122,8 @@ class Identify(scriptbase.ScriptBase):
             # TODO nsample should be a parameter
             fwhm_map = autoid.map_fwhm(wavecal.msarc.image, wavecal.gpm, wavecal.slits_left, wavecal.slits_right, wavecal.slitmask,
                                     nsample=10, slit_bpm=wavecal.wvc_bpm, specord=wavecal.par['fwhm_spec_order'],
-                                    spatord=wavecal.par['fwhm_spat_order'])
+                                    spatord=wavecal.par['fwhm_spat_order'],
+                                    sigdetect=wavecal.par['sigdetect'], fwhm=wavecal.par['fwhm'])
             # Calculate the typical spectral FWHM down the centre of the slit
             measured_fwhms = np.zeros(slits.nslits, dtype=object)
             for islit in range(slits.nslits):
@@ -334,5 +335,4 @@ class Identify(scriptbase.ScriptBase):
                                 custom_wav = np.array(custom_wav),
                                 custom_wav_ind = np.array(custom_wav_ind) )
             
-
 

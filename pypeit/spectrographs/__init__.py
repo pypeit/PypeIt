@@ -1,4 +1,3 @@
-
 __all__ = [
     # Base class module
     'spectrograph',
@@ -6,6 +5,9 @@ __all__ = [
     # All the subclass modules
     'aat_uhrf',
     'apf_levy',
+    'arc_kosmos',
+    'arc_arces',
+    'arc_tspec',
     'bok_bc',
     'gemini_flamingos',
     'gemini_gmos',
@@ -27,6 +29,7 @@ __all__ = [
     'ldt_rimas',
     'ldt_rimas2',
     'magellan_fire',
+    'magellan_ldss3',
     'magellan_mage',
     'mdm_modspec',
     'mdm_osmos',
@@ -49,5 +52,4 @@ __all__ = [
     'vlt_xshooter',
     'wht_isis',
 ]
-
 

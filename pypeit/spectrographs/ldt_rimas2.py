@@ -1,6 +1,6 @@
 # pylint: disable=use-dict-literal
 """
-Module for LDT/RIMAS specific methods. 
+Module for LDT/RIMAS specific methods.
 
 The Rapid infrared IMAger Spectrometer (RIMAS) was built at the NASA Goddard
 Space Flight Center in partnership with the Astronomy Department of the
@@ -230,6 +230,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         self.meta["dispname"] = dict(card=None, compound=True)
         self.meta["decker"] = dict(card=None, compound=True)  # SLIT filter wheel
         self.meta["binning"] = dict(card=None, compound=True)
+        self.meta["rawshape"] = dict(card=None, compound=True)
         self.meta["mjd"] = dict(card=None, compound=True)
         self.meta["airmass"] = dict(ext=0, card="AIRMASS")
         self.meta["exptime"] = dict(card=None, compound=True)
@@ -285,6 +286,10 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             # Binning in RIMAS headers given as separate values
             return parse.binning2string(headarr[0]["BINX"], headarr[0]["BINY"])
 
+        if meta_key == "rawshape":
+            # Shape of the raw image written to disk, formatted as rows,columns.
+            return parse.binning2string(headarr[0]["NAXIS2"], headarr[0]["NAXIS1"])
+
         if meta_key == "mjd":
             # Use custom scrubber + AstroPy to convert 'DATE-OBS' into a mjd.
             ttime = self.scrub_isot_dateobs(headarr[0]["DATE-BEG"])
@@ -292,7 +297,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         if meta_key == "exptime":
             # If older than mid-March 2026, fix bug by computing effective exptime
-            if self.scrub_isot_dateobs(headarr[0]["DATE-BEG"]).mjd > 61114.0:
+            if self.scrub_isot_dateobs(headarr[0]["DATE-BEG"]).mjd < 61114.0:
                 # Total exposure time minus the time for the "pedestal" initial frame
                 return np.round(headarr[0]["EXPTIME"] - headarr[0]["FRTIME"], 2)
 
@@ -335,7 +340,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         log.error("Not ready for compound meta %s for LDT/DeVeny", meta_key)
 
-    def config_independent_frames(self) -> dict[str, str]:
+    def config_independent_frames(self) -> dict[str, str | list[str] | None]:
         """
         Define frame types that are independent of the fully defined
         instrument configuration.
@@ -354,7 +359,9 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             configuration-independent and the values are the metadata keywords
             that can be used to assign the frames to a configuration group.
         """
-        return {"bias": "binning"}
+        # Dark frames are independent of the optical configuration, but they
+        # must match the detector arm and raw readout geometry.
+        return {"dark": ["arm", "rawshape"]}
 
     def configuration_keys(self) -> list[str]:
         """
@@ -411,6 +418,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             "slitwid",
             "lampstat01",
             "filter1",
+            "rawshape",
             "dither",
             "dithpat",
             "dithpos",
@@ -435,31 +443,75 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         # Get the PypeIt default parameters
         par = super().default_pypeit_par()
 
-        # No bias or overscan for IRFPAs -- no dark frames for cals
+        # No bias or overscan for IRFPAs.  Also disable flat-fielding globally;
+        # only science/standard frames should apply the RIMAS flat products.
         turn_off = {
             "use_illumflat": False,
             "use_biasimage": False,
             "use_overscan": False,
             "use_darkimage": False,
+            "use_pixelflat": False,
         }
         par.reset_all_processimages_par(**turn_off)
 
-        # Use dark frames for ARC and TILT
+        # Use dark frames for ARC and TILT, which are commonly also science frames.
         par["calibrations"]["arcframe"]["process"]["use_darkimage"] = True
         par["calibrations"]["tiltframe"]["process"]["use_darkimage"] = True
-        # Use dark frames for SCIENCE and STANDARD frames
+        # Use dark frames and flats for SCIENCE and STANDARD frames.
         par["scienceframe"]["process"]["use_darkimage"] = True
         par["calibrations"]["standardframe"]["process"]["use_darkimage"] = True
+        par["scienceframe"]["process"]["use_pixelflat"] = True
+        par["scienceframe"]["process"]["use_illumflat"] = True
+        par["calibrations"]["standardframe"]["process"]["use_pixelflat"] = True
+        par["calibrations"]["standardframe"]["process"]["use_illumflat"] = True
         # Do not mask CRs in dark frames -- it actually removes the hot pixels!
         par["calibrations"]["darkframe"]["process"]["mask_cr"] = False
-        # Science frames should use illumflat
-        par["scienceframe"]["process"]["use_illumflat"] = True
 
         # Everybody is going to use OH lines
         par["calibrations"]["wavelengths"]["lamps"] = ["OH_GNIRS"]
-        # Is this needed below?
-        par["scienceframe"]["process"]["sigclip"] = 20.0
+
+        # Shared RIMAS spectral reduction defaults.
+        par["calibrations"]["slitedges"]["edge_thresh"] = 50.0
+        par["calibrations"]["slitedges"]["fit_order"] = 2
+        par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
+        par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
+        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.5
+        par["calibrations"]["slitedges"]["left_right_pca"] = True
+        par["calibrations"]["slitedges"]["length_range"] = 0.3
+
+        par["calibrations"]["arcframe"]["process"]["clip"] = False
+        par["calibrations"]["arcframe"]["process"]["combine"] = "mean"
+        par["calibrations"]["tiltframe"]["process"]["clip"] = False
+        par["calibrations"]["tiltframe"]["process"]["combine"] = "mean"
+
+        par["calibrations"]["flatfield"]["slit_illum_finecorr"] = False
+        par["calibrations"]["flatfield"]["spec_samp_fine"] = 30
+        par["calibrations"]["flatfield"]["tweak_slits"] = False
+
+        par["scienceframe"]["process"]["sigclip"] = 5.0
+        par["scienceframe"]["process"]["objlim"] = 2.0
         par["scienceframe"]["process"]["satpix"] = "nothing"
+
+        assumed_seeing = 1.5  # arcsec
+        par["reduce"]["findobj"]["trace_npoly"] = 3
+        par["reduce"]["findobj"]["maxnumber_std"] = 1
+        par["reduce"]["findobj"]["maxnumber_sci"] = 5
+        par["reduce"]["findobj"]["find_fwhm"] = np.round(assumed_seeing / 0.34, 1)
+        par["reduce"]["findobj"]["find_trim_edge"] = [0, 0]
+        par["reduce"]["extraction"]["boxcar_radius"] = np.round(
+            assumed_seeing * 1.28, 1
+        )
+        par["reduce"]["extraction"]["use_2dmodel_mask"] = False
+        par["reduce"]["skysub"]["sky_sigrej"] = 4.0
+
+        par["flexure"]["spec_method"] = "boxcar"
+        par["flexure"]["spec_maxshift"] = 30
+
+        par["sensfunc"]["algorithm"] = "IR"
+        par["sensfunc"]["polyorder"] = 8
+        par["sensfunc"]["IR"]["telgridfile"] = "TellPCA_3000_26000_R25000.fits"
+        par["sensfunc"]["UVIS"]["nresln"] = 15
+        par["sensfunc"]["UVIS"]["polycorrect"] = False
 
         # TODO tune up LA COSMICS parameters here for X-shooter as tellurics
         # are being excessively masked
@@ -510,6 +562,39 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         # Set the detector number based on the arm
         par["rdx"]["detnum"] = 1 if self.arm == "YJ" else 2
+
+        return par
+
+    @staticmethod
+    def adjust_config_specific_binning(
+        par: parset.ParSet, binning: str
+    ) -> parset.ParSet:
+        """Adjust RIMAS parameters that are specified in binned pixels.
+
+        Parameters
+        ----------
+        par : :class:`~pypeit.par.parset.ParSet`
+            Parameter set to modify.
+        binning : str
+            Spectral and spatial binning string.
+
+        Returns
+        -------
+        :class:`~pypeit.par.parset.ParSet`
+            Modified parameter set.
+        """
+        binspec, binspat = parse.parse_binning(binning)
+        par["reduce"]["findobj"][
+            "find_fwhm"
+        ] /= binspat  # Specified in pixels and not arcsec
+        par["flexure"]["spec_maxshift"] //= binspec  # Must be an integer
+        par["sensfunc"]["UVIS"]["resolution"] /= binspec
+
+        # SlitEdges Exclusion Regions (30 pixels at each edge) -- adjust based on binning
+        excl_l, excl_r, last = np.array([30, 485, 515], dtype=int) // binspat
+        par["calibrations"]["slitedges"][
+            "exclude_regions"
+        ] = f"1:0:{excl_l},1:{excl_r}:{last}"
 
         return par
 
@@ -915,8 +1000,12 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         vph_idx = (
             (fitstbl["dispname"] == "Vph300") | (fitstbl["dispname"] == "Vph30")
         ) & (fitstbl["decker"] != "open")
+
+        # Dark frames are universal, so always include them
+        dark_idx = fitstbl["filter1"] == "blank"
+
         # Return the corrected table
-        return fitstbl[vph_idx]
+        return fitstbl[vph_idx | dark_idx]
 
     @staticmethod
     def configuration_list() -> dict[str, dict[str, np.str_]]:
@@ -1026,15 +1115,6 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         # Get the PypeIt and RIMAS-wide default parameters
         par = super().default_pypeit_par()
 
-        # Adjustments to slit and tilts for NIR
-        par["calibrations"]["slitedges"]["edge_thresh"] = 50.0  # Default: 20.0
-        par["calibrations"]["slitedges"]["fit_order"] = 2  # Default: 5
-        par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
-        par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
-        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.5
-        par["calibrations"]["slitedges"]["left_right_pca"] = True
-        par["calibrations"]["slitedges"]["length_range"] = 0.3
-
         # For processing the arc frame, these settings allow for the combination of
         #   of frames from different lamps into a comprehensible Master
         par["calibrations"]["arcframe"]["process"]["subtract_continuum"] = False
@@ -1061,10 +1141,6 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         par["calibrations"]["tilts"]["sig_neigh"] = 5.0
         par["calibrations"]["tilts"]["nfwhm_neigh"] = 2.0
 
-        # Sensitivity function parameters
-        par["sensfunc"]["algorithm"] = "IR"
-        par["sensfunc"]["polyorder"] = 8
-        par["sensfunc"]["IR"]["telgridfile"] = "TellPCA_3000_26000_R25000.fits"
         par["sensfunc"]["IR"]["pix_shift_bounds"] = (-8.0, 8.0)
 
         # # Wavelength Calibration Parameters
@@ -1075,39 +1151,6 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         # # The DeVeny arc line FWHM varies based on slitwidth used
         # par["calibrations"]["wavelengths"]["fwhm"] = 3.0  # Default: 4.0
         # par["calibrations"]["wavelengths"]["nsnippet"] = 1  # Default: 2
-
-        # # Flat-field parameter modification
-        # par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0  # Default: None
-        par["calibrations"]["flatfield"]["slit_illum_finecorr"] = False  # Default: True
-        # par["calibrations"]["flatfield"]["spec_samp_fine"] = 30  # Default: 1.2
-        # par["calibrations"]["flatfield"]["tweak_slits"] = False  # Default: True
-
-        # Common VPH processing defaults from the split YJ/HK RIMAS classes.
-        par["calibrations"]["arcframe"]["process"]["clip"] = False
-        par["calibrations"]["arcframe"]["process"]["combine"] = "mean"
-        par["calibrations"]["tiltframe"]["process"]["clip"] = False
-        par["calibrations"]["tiltframe"]["process"]["combine"] = "mean"
-        par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0
-        par["calibrations"]["flatfield"]["spec_samp_fine"] = 30
-        par["calibrations"]["flatfield"]["tweak_slits"] = False
-        par["scienceframe"]["process"]["sigclip"] = 5.0
-        par["scienceframe"]["process"]["objlim"] = 2.0
-
-        assumed_seeing = 1.5  # arcsec
-        par["reduce"]["findobj"]["trace_npoly"] = 3
-        par["reduce"]["findobj"]["maxnumber_std"] = 1
-        par["reduce"]["findobj"]["maxnumber_sci"] = 5
-        par["reduce"]["findobj"]["find_fwhm"] = np.round(assumed_seeing / 0.34, 1)
-        par["reduce"]["findobj"]["find_trim_edge"] = [0, 0]
-        par["reduce"]["extraction"]["boxcar_radius"] = np.round(
-            assumed_seeing * 1.28, 1
-        )
-        par["reduce"]["extraction"]["use_2dmodel_mask"] = False
-        par["reduce"]["skysub"]["sky_sigrej"] = 4.0
-        par["flexure"]["spec_method"] = "boxcar"
-        par["flexure"]["spec_maxshift"] = 30
-        par["sensfunc"]["UVIS"]["nresln"] = 15
-        par["sensfunc"]["UVIS"]["polycorrect"] = False
 
         # # For the tilts, our lines are not as well-behaved as others',
         # #   possibly due to the Wynne version E camera.
@@ -1275,21 +1318,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         else:
             par = self.config_specific_par_vph_hk(par, grating, self.decker)
 
-        # Adjust parameters based on CCD binning
-        binspec, binspat = parse.parse_binning(binning)
-        par["reduce"]["findobj"][
-            "find_fwhm"
-        ] /= binspat  # Specified in pixels and not arcsec
-        par["flexure"]["spec_maxshift"] //= binspec  # Must be an integer
-        par["sensfunc"]["UVIS"]["resolution"] /= binspec
-
-        # SlitEdges Exclusion Regions (30 pixels at each edge) -- adjust based on binning
-        excl_l, excl_r, last = np.array([30, 485, 515], dtype=int) // binspat
-        par["calibrations"]["slitedges"][
-            "exclude_regions"
-        ] = f"1:0:{excl_l},1:{excl_r}:{last}"
-
-        return par
+        return self.adjust_config_specific_binning(par, binning)
 
     def config_specific_par_vph_yj(
         self, par: parset.ParSet, grating: str, decker: str
@@ -1311,8 +1340,6 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             Modified parameter set for the YJ arm / Vph gratings.
         """
         par["calibrations"]["slitedges"]["edge_thresh"] = 20.0
-        par["calibrations"]["slitedges"]["fit_order"] = 2
-        par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
         par["calibrations"]["slitedges"]["trace_thresh"] = 20.0
         par["calibrations"]["slitedges"]["sobel_enhance"] = 3
         par["calibrations"]["slitedges"]["trim_spec"] = [1024, 1024]
@@ -1367,12 +1394,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             Modified parameter set for the HK arm / Vph gratings.
         """
         par["calibrations"]["slitedges"]["edge_thresh"] = 20.0
-        par["calibrations"]["slitedges"]["fit_order"] = 2
-        par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
-        par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
         par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.4
-        par["calibrations"]["slitedges"]["left_right_pca"] = True
-        par["calibrations"]["slitedges"]["length_range"] = 0.3
         par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.4
         par["calibrations"]["slitedges"]["sync_predict"] = "nearest"
         par["calibrations"]["bpm_usebias"] = True
@@ -1457,22 +1479,51 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
                     0.6525,
                     0.68625,
                     0.71875,
-                    0.74975
+                    0.74975,
                 ]
             ),
             spec_min=np.array(
-                [7, 138, 257, 371, 479, 579, 675, 766, 850, 933, 1010,
-                1085, 1156, 1224, 1289]
+                [
+                    7,
+                    138,
+                    257,
+                    371,
+                    479,
+                    579,
+                    675,
+                    766,
+                    850,
+                    933,
+                    1010,
+                    1085,
+                    1156,
+                    1224,
+                    1289,
+                ]
             ),
             spec_max=np.array(
-                [597, 705, 807, 903, 996, 1082, 1165, 1244, 1319, 1390,
-                1459, 1527, 1590, 1652, 1712]
+                [
+                    597,
+                    705,
+                    807,
+                    903,
+                    996,
+                    1082,
+                    1165,
+                    1244,
+                    1319,
+                    1390,
+                    1459,
+                    1527,
+                    1590,
+                    1652,
+                    1712,
+                ]
             ),
             platescale=0.19,
             dloglam=2.8188583080448797e-5,
             loglam_minmax=(np.log10(8597.0), np.log10(14040.0)),
         ),
-        
         "HK": EchelleProps(
             norders=17,
             orders=np.arange(39, 22, -1, dtype=int),  # orders 23-39
@@ -1494,16 +1545,50 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
                     0.8165,
                     0.8445,
                     0.871,
-                    0.896
-            ]
+                    0.896,
+                ]
             ),
             spec_min=np.array(
-                [285, 421, 548, 666, 775, 877, 972, 1059, 1143, 1219, 1293,
-                1361, 1427, 1489, 1547, 1602, 1656]
+                [
+                    285,
+                    421,
+                    548,
+                    666,
+                    775,
+                    877,
+                    972,
+                    1059,
+                    1143,
+                    1219,
+                    1293,
+                    1361,
+                    1427,
+                    1489,
+                    1547,
+                    1602,
+                    1656,
+                ]
             ),
             spec_max=np.array(
-                [707, 835, 946, 1049, 1146, 1234, 1317, 1395, 1469, 1539,
-                1603, 1666, 1724, 1780, 1833, 1883, 1932]
+                [
+                    707,
+                    835,
+                    946,
+                    1049,
+                    1146,
+                    1234,
+                    1317,
+                    1395,
+                    1469,
+                    1539,
+                    1603,
+                    1666,
+                    1724,
+                    1780,
+                    1833,
+                    1883,
+                    1932,
+                ]
             ),
             platescale=0.19,
             dloglam=2.3904436313733664e-5,
@@ -1544,8 +1629,12 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         """
         # Only keep frames with the echelle grism -- no IFU mode!
         grism_idx = (fitstbl["dispname"] == "Grism") & (fitstbl["decker"] != "open")
+
+        # Dark frames are universal, so always include them
+        dark_idx = fitstbl["filter1"] == "blank"
+
         # Return the corrected table
-        return fitstbl[grism_idx]
+        return fitstbl[grism_idx | dark_idx]
 
     @staticmethod
     def configuration_list() -> dict[str, dict[str, np.str_]]:
@@ -1614,57 +1703,22 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         # Get the PypeIt and RIMAS-wide default parameters
         par = super().default_pypeit_par()
 
-        # Adjustments to slit and tilts for NIR
-        par["calibrations"]["slitedges"]["edge_thresh"] = 50.0
-        par["calibrations"]["slitedges"]["fit_order"] = 2
-        par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
-        par["calibrations"]["slitedges"]["trace_thresh"] = 10.0
-        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.5
-        par["calibrations"]["slitedges"]["left_right_pca"] = True
-        par["calibrations"]["slitedges"]["length_range"] = 0.3
-
-        # Combine the IR calibration frames without clipping lamp/hot pixels.
-        par["calibrations"]["arcframe"]["process"]["clip"] = False
-        par["calibrations"]["arcframe"]["process"]["combine"] = "mean"
-        par["calibrations"]["tiltframe"]["process"]["clip"] = False
-        par["calibrations"]["tiltframe"]["process"]["combine"] = "mean"
+        # Grism-specific slit tracing parameters.
+        par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.10
+        par["calibrations"]["slitedges"]["sync_predict"] = "nearest"
+        par["calibrations"]["slitedges"]["add_missed_orders"] = False
 
         # Make a bad pixel mask
         par["calibrations"]["bpm_usebias"] = True
 
-        # Flat-field parameter modification
-        par["calibrations"]["flatfield"]["pixelflat_min_wave"] = 3000.0
-        par["calibrations"]["flatfield"]["slit_illum_finecorr"] = False
-        par["calibrations"]["flatfield"]["spec_samp_fine"] = 30
-        par["calibrations"]["flatfield"]["tweak_slits"] = False
-
-        # Cosmic ray rejection parameters for science frames
-        par["scienceframe"]["process"]["sigclip"] = 5.0
-        par["scienceframe"]["process"]["objlim"] = 2.0
-
-        # Object finding, extraction, and sky subtraction parameters
-        assumed_seeing = 1.5  # arcsec
-        par["reduce"]["findobj"]["find_fwhm"] = np.round(assumed_seeing / 0.34, 1)
-        par["reduce"]["findobj"]["find_trim_edge"] = [0, 0]
-        par["reduce"]["extraction"]["boxcar_radius"] = np.round(
-            assumed_seeing * 1.28, 1
-        )
-        par["reduce"]["extraction"]["use_2dmodel_mask"] = False
-        par["reduce"]["skysub"]["sky_sigrej"] = 4.0
-
-        # Flexure correction parameters
-        par["flexure"]["spec_method"] = "boxcar"
-        par["flexure"]["spec_maxshift"] = 30
-
         # 1D wavelength solution
-        par["calibrations"]["wavelengths"]["lamps"] = ["RIMAS_Kr"]
         par["calibrations"]["wavelengths"]["rms_thresh_frac_fwhm"] = 0.15
-        par["calibrations"]["wavelengths"]["sigdetect"] = 5
+        par["calibrations"]["wavelengths"]["sigdetect"] = 2
         par["calibrations"]["wavelengths"]["fwhm"] = 4.0
         par["calibrations"]["wavelengths"]["n_final"] = 4
-        # Reidentification parameters
-        par["calibrations"]["wavelengths"]["method"] = "reidentify"
-        par["calibrations"]["wavelengths"]["reid_arxiv"] = "vlt_xshooter_nir.fits"
+        # Wavelength-identification parameters
+        par["calibrations"]["wavelengths"]["method"] = "holy-grail"
+        par["calibrations"]["wavelengths"]["reid_arxiv"] = None
         par["calibrations"]["wavelengths"]["cc_thresh"] = 0.50
         par["calibrations"]["wavelengths"]["cc_local_thresh"] = 0.50
         # # Echelle parameters
@@ -1700,18 +1754,6 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         par["reduce"]["extraction"][
             "model_full_slit"
         ] = True  # local sky subtraction operates on entire slit
-        par["reduce"]["findobj"]["trace_npoly"] = 10
-        par["reduce"]["findobj"][
-            "maxnumber_sci"
-        ] = 2  # Assume that there is only one object on the slit.
-        par["reduce"]["findobj"][
-            "maxnumber_std"
-        ] = 1  # Assume that there is only one object on the slit.
-
-        # Sensitivity function parameters
-        par["sensfunc"]["algorithm"] = "IR"
-        par["sensfunc"]["polyorder"] = 8
-        par["sensfunc"]["IR"]["telgridfile"] = "TellPCA_3000_26000_R25000.fits"
         par["sensfunc"]["IR"]["pix_shift_bounds"] = (-10.0, 10.0)
 
         # Telluric parameters
@@ -1724,17 +1766,11 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         # Split-arm grism defaults from the original RIMAS classes. These
         # intentionally follow the broad echelle defaults above so that the
         # original child-class overrides are preserved in the consolidated class.
-        par["calibrations"]["wavelengths"]["lamps"] = ["use_header"]
-        par["calibrations"]["wavelengths"]["method"] = "full_template"
         par["calibrations"]["wavelengths"]["fwhm"] = 3.0
         par["calibrations"]["wavelengths"]["nsnippet"] = 1
         par["calibrations"]["tilts"]["spat_order"] = 4
         par["calibrations"]["tilts"]["spec_order"] = 5
-        par["reduce"]["findobj"]["trace_npoly"] = 3
         par["reduce"]["findobj"]["snr_thresh"] = 50.0
-        par["reduce"]["findobj"]["maxnumber_sci"] = 5
-        par["sensfunc"]["UVIS"]["nresln"] = 15
-        par["sensfunc"]["UVIS"]["polycorrect"] = False
 
         return par
 
@@ -1767,33 +1803,18 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         par = super().config_specific_par(inp, inp_par=inp_par)
 
         # Adjust parameters based on instrument settings
-        grating = self.get_meta_value(inp, "dispname")
         binning = self.get_meta_value(inp, "binning")
 
         # Get the arm-specific parameters based on grating and decker
         if self.arm == "YJ":
-            par = self.config_specific_par_grism_yj(par, grating, self.decker)
+            par = self.config_specific_par_grism_yj(par, self.decker)
         else:
-            par = self.config_specific_par_grism_hk(par, grating, self.decker)
+            par = self.config_specific_par_grism_hk(par, self.decker)
 
-        # Adjust parameters based on CCD binning
-        binspec, binspat = parse.parse_binning(binning)
-        par["reduce"]["findobj"][
-            "find_fwhm"
-        ] /= binspat  # Specified in pixels and not arcsec
-        par["flexure"]["spec_maxshift"] //= binspec  # Must be an integer
-        par["sensfunc"]["UVIS"]["resolution"] /= binspec
-
-        # SlitEdges Exclusion Regions (30 pixels at each edge) -- adjust based on binning
-        excl_l, excl_r, last = np.array([30, 485, 515], dtype=int) // binspat
-        par["calibrations"]["slitedges"][
-            "exclude_regions"
-        ] = f"1:0:{excl_l},1:{excl_r}:{last}"
-
-        return par
+        return self.adjust_config_specific_binning(par, binning)
 
     def config_specific_par_grism_yj(
-        self, par: parset.ParSet, grating: str, decker: str
+        self, par: parset.ParSet, decker: str
     ) -> parset.ParSet:
         """Set YJ arm configuration-specific parameters for grism
 
@@ -1801,8 +1822,6 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         ----------
         par : :class:`~pypeit.par.parset.ParSet`
             The instrument-wide parameter set to be modified.
-        grating : str
-            The grating used (from :meth:`get_meta_value`).
         decker : str
             The slit / decker used (from :meth:`get_meta_value`).
 
@@ -1811,10 +1830,35 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         :class:`~pypeit.par.parset.ParSet`
             Modified parameter set for the YJ arm / grism.
         """
+        # The YJ detector is noisy and makes tracing challenging.  Use the
+        #   following "process" settings for tracing only.
+        flat_process = {
+            "mask_cr": True,
+            "rmcompact": True,
+            "sigclip": 4.5,
+            "objlim": 3.0,
+        }
+        for frame in ["traceframe"]:  # , "pixelflatframe", "illumflatframe"]:
+            for key, value in flat_process.items():
+                par["calibrations"][frame]["process"][key] = value
+
+        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.15
+        par["calibrations"]["slitedges"]["smash_range"] = [0.35, 0.70]
+
+        match decker:
+            case "0.6''":
+                pass
+            case "1.0''":
+                pass
+            case "2.0''":
+                pass
+            case _:
+                raise PypeItError("Long Slits are not compatible with the grism!")
+
         return par
 
     def config_specific_par_grism_hk(
-        self, par: parset.ParSet, grating: str, decker: str
+        self, par: parset.ParSet, decker: str
     ) -> parset.ParSet:
         """Set HK arm configuration-specific parameters for grism
 
@@ -1822,8 +1866,6 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         ----------
         par : :class:`~pypeit.par.parset.ParSet`
             The instrument-wide parameter set to be modified.
-        grating : str
-            The grating used (from :meth:`get_meta_value`).
         decker : str
             The slit / decker used (from :meth:`get_meta_value`).
 
@@ -1832,6 +1874,19 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         :class:`~pypeit.par.parset.ParSet`
             Modified parameter set for the HK arm / grism.
         """
+        par["calibrations"]["slitedges"]["fit_min_spec_length"] = 0.20
+        par["calibrations"]["slitedges"]["smash_range"] = [0.25, 0.98]
+
+        match decker:
+            case "0.6''":
+                pass
+            case "1.0''":
+                pass
+            case "2.0''":
+                pass
+            case _:
+                raise PypeItError("Long Slits are not compatible with the grism!")
+
         return par
 
     # Fixed-format Echelle properties consumed by the larger PypeIt code =====#

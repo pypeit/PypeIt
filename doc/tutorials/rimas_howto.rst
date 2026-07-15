@@ -28,6 +28,7 @@ direct your attention to the appropriate section for your data.
 Setup -- Single-Order Spectra (VPH Gratings)
 ============================================
 
+This example uses the HK arm of the instrument with the Vph300 grating.
 Before reducing your data with PypeIt, you first have to prepare a
 :ref:`pypeit_file` by running :ref:`pypeit_setup`:
 
@@ -39,15 +40,15 @@ where the ``-r`` argument should be replaced by your local directory.  RIMAS
 has both single-order and echelle modes, which use different parts of the PypeIt
 codebase.  For the single-order modes, use the spectrograph ``ldt_rimas_vph``
 with the ``-s`` argument.  This directory only has one instrument configuration,
-but RIMAS is configured to name setups descriptively rather than with "A", "B",
-etc. -- setting ``-c all`` means you don't have to know the descriptive names
-ahead of time.
+but the RIMAS reductions are configured to name setups descriptively rather than
+with "A", "B", etc. -- setting ``-c all`` means you don't have to know the
+descriptive names ahead of time.
 
-This will make a directory called ``ldt_rimas_vph_300HK12l``.  The "``300HK12l``"
-is the descriptive setup name for this data set, where ``300`` refers to the
-Vph300 grating, ``HK`` is the arm, and ``12l`` refers to the 1.2" long slit.
-Inside this directory is a pypeit file called ``ldt_rimas_vph_300HK12l.pypeit``
-that should look like this:
+Running the setup script on this set of example data will create a subdirectory
+called ``ldt_rimas_vph_300HK12l``.  The "``300HK12l``" is the descriptive setup
+name for this data set, where ``300`` refers to the Vph300 grating, ``HK`` is
+the arm, and ``12l`` refers to the 1.2" long slit.  Inside this directory is a
+pypeit file called ``ldt_rimas_vph_300HK12l.pypeit`` that should look like this:
 
 .. code-block::
 
@@ -183,14 +184,14 @@ for many, more complicated dithering scenarios; see :ref:`a-b_differencing`.
 
 ----
 
-.. Core Processing
-.. ===============
+Core Processing -- Single-Order Spectra (VPH Gratings)
+======================================================
 
-.. To perform the core processing of the NIRES data, use :ref:`run-pypeit`:
+To perform the core processing of the RIMAS data, use :ref:`run-pypeit`:
 
-.. .. code-block:: bash
+.. code-block:: bash
 
-..     run_pypeit keck_nires_A.pypeit
+    run_pypeit ldt_rimas_vph_300HK12l.pypeit
 
 .. The code will run uninterrupted until the basic data-reduction procedures
 .. (wavelength calibration, field flattening, object finding, sky subtraction, and
@@ -397,14 +398,14 @@ for many, more complicated dithering scenarios; see :ref:`a-b_differencing`.
 
 .. ----
 
-.. Core Processing Outputs
-.. =======================
+Core Processing Outputs
+=======================
 
-.. The primary science output from :ref:`run-pypeit` are 2D spectral images and 1D
-.. spectral extractions; see :ref:`outputs`.
+The primary science output from :ref:`run-pypeit` are 2D spectral images and 1D
+spectral extractions; see :ref:`outputs`.
 
-.. 2D Spectral Images
-.. ------------------
+2D Spectral Images
+------------------
 
 .. Each "combination group" will produce a calibrated 2D spectral image; see
 .. :ref:`spec-2d-output` for more information about these images.  In this example,
@@ -483,12 +484,40 @@ for many, more complicated dithering scenarios; see :ref:`a-b_differencing`.
 .. .. TODO: Include more "follow-up" scripts: telluric correction, fluxing,
 ..    coadding, etc.
 
-.. 2D Coadding
-.. ===========
+2D Coadding
+===========
 
 .. The main reduction of this Keck/NIRES dataset produces two output spectra, one
 .. for the ``A-B`` frame and one for the ``B-A`` frame. To combine these 2D
 .. spectra, we suggest using :ref:`pypeit-coadd-2dspec`. See :ref:`coadd2d` for
 .. more information and :ref:`coadd2d_howto` for usage examples.
 
+
+
+
+Setup -- Echelle Spectra (Grism)
+================================
+
+
+Core Processing -- Echelle Spectra (Grism)
+==========================================
+
+To perform the core processing of the RIMAS data, use :ref:`run-pypeit`:
+
+.. code-block:: bash
+
+    run_pypeit ldt_rimas_vph_300HK12l.pypeit
+
+
+Core Processing Outputs
+=======================
+
+The primary science output from :ref:`run-pypeit` are 2D spectral images and 1D
+spectral extractions; see :ref:`outputs`.
+
+2D Spectral Images
+------------------
+
+2D Coadding
+===========
 
