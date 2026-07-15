@@ -1,35 +1,38 @@
 """
-Refactored B-spline classes with C-order memory layout and scipy-based linear
-algebra.
+1D and quasi-2D weighted least-squares B-spline fitting.
 
-This module provides :class:`BSpline` (1D) and :class:`BSpline2D` (quasi-2D with
-a polynomial second-variable dependence) as self-contained classes with no
-dependency on PypeIt infrastructure.  FITS serialisation will be provided by
-thin wrapper classes in a separate follow-on module.
+This module provides three classes:
 
-Key design choices vs the original :class:`~pypeit.bspline.bspline.bspline`:
+- :class:`Knots` — constructs and stores the fully padded knot vector using one
+  of several placement strategies (fixed spacing, fixed count, index stride, or a
+  pre-built vector).
+- :class:`BSpline` — fits a 1D B-spline by weighted least squares.
+- :class:`BSpline2D` — extends :class:`BSpline` with a polynomial dependence on a
+  second variable, enabling quasi-2D fitting.
 
-- All arrays use native C (row-major) memory order.  No ``order='F'``
-  allocations, ``flatten('F')``, or ``reshape(..., order='F')`` appear anywhere.
-- ``coeff`` for 2D fits has shape ``(nc, npoly)`` (knot index first) rather than
-  the original ``(npoly, nc)`` (Fortran-column order).
-- Matrix multiplications use the ``@`` operator throughout.
-- The banded Cholesky solve is delegated to :func:`_cholesky_banded` (a
-  drop-in replacement for :func:`scipy.linalg.cholesky_banded` that reports
-  the LAPACK ``info`` flag instead of raising an exception) and
-  :func:`scipy.linalg.cho_solve_banded` (LAPACK ``dpbtrf`` / ``dpbtrs``).
-- The design matrix is cached between :meth:`BSpline.fit` calls so that repeated
-  calls with the same ``x`` (e.g. sigma-clipping loops) do not recompute it.
-- The ``fit`` and ``workit`` methods of the original are merged into a single
-  :meth:`BSpline.fit`.
-- The quasi-2D behaviour (polynomial basis in a second variable) is isolated in
-  :class:`BSpline2D`, which subclasses :class:`BSpline`.
-- ``flatten()`` is not used anywhere; ``reshape()`` is used only where it
-  produces a view (i.e. the array is contiguous).
+All classes are self-contained with no dependency on PypeIt infrastructure.  FITS
+serialization for use within PypeIt is provided by
+:class:`~pypeit.containers.bspline.BSplineContainer` and
+:class:`~pypeit.containers.bspline.BSpline2DContainer` in
+:mod:`pypeit.containers.bspline`.
+
+Key design properties:
+
+- All arrays use native C (row-major) memory order.
+- The banded normal equations are assembled span-by-span and solved via
+  :func:`_cholesky_banded` (LAPACK ``dpbtrf``) and
+  :func:`scipy.linalg.cho_solve_banded` (LAPACK ``dpbtrs``).
+- :func:`_cholesky_banded` returns the LAPACK ``info`` flag on failure instead of
+  raising an exception, allowing degenerate breakpoints to be identified and masked
+  without losing the failure location.
+- The design matrix is cached between :meth:`BSpline.fit` calls, so repeated fits
+  at the same ``x`` positions (e.g., within sigma-clipping loops) reuse it.
+- The 2D coefficient array :attr:`BSpline2D.coeff` has shape ``(nc, npoly)``
+  (knot index first), stored in C order.
 
 References
 ----------
-Original implementation ported from IDL/PYDL:
+Algorithms adapted from IDL/PYDL bspline utilities:
   https://doi.org/10.5281/zenodo.1095150
 """
 
@@ -96,10 +99,10 @@ class Knots:
     then cached in :attr:`breakpoints`.
 
     When building the knots for any given fit, the parameters of this class are
-    with respect to to the independent coordinate (``x``) and the order
-    (``nord``).  Note that ``x`` and ``nord`` to not need to be provided at
+    defined with respect to the independent coordinate (``x``) and the order
+    (``nord``).  Note that ``x`` and ``nord`` do not need to be provided at
     instantiation; the breakpoints can be (re)constructed later using
-    :meth:`build`
+    :meth:`build`.
 
     Parameters
     ----------
@@ -198,7 +201,7 @@ class Knots:
         Raises
         ------
         ValueError
-            If :attr:`full` and ``x`` ar both ``None``, the breakpoints cannot
+            If :attr:`full` and ``x`` are both ``None``, the breakpoints cannot
             be defined.
         """
         if self.full is not None:
@@ -324,9 +327,8 @@ class BSpline:
     ``nord``.
 
     The normal equations :math:`(A^\top W A) c = A^\top W y` are assembled in
-    banded storage and solved via LAPACK's banded Cholesky routines
-    (:func:`scipy.linalg.cholesky_banded` /
-    :func:`scipy.linalg.cho_solve_banded`).
+    banded storage and solved via banded Cholesky factorization
+    (:func:`_cholesky_banded` and :func:`scipy.linalg.cho_solve_banded`).
 
     All arrays use native C (row-major) memory order.
 
@@ -538,13 +540,6 @@ class BSpline:
         """
         n = breakpoints.size - nord
         return np.clip(np.searchsorted(breakpoints, x, side='right') - 1, nord - 1, n - 1)
-        # indx = np.zeros(x.size, dtype=int)
-        # ileft = nord - 1
-        # for i in range(x.size):
-        #     while x[i] > breakpoints[ileft + 1] and ileft < n - 1:
-        #         ileft += 1
-        #     indx[i] = ileft
-        # return indx
 
     # ------------------------------------------------------------------
     # Static helper — unique run-end indices
@@ -556,8 +551,7 @@ class BSpline:
         Return the index of the last occurrence of each unique value
         in a sorted array.
 
-        Replicates the IDL ``UNIQ()`` behaviour used internally for
-        building the design-matrix span boundaries.
+        Used internally to identify the span boundaries of the design matrix.
 
         Parameters
         ----------
@@ -757,8 +751,9 @@ class BSpline:
         Returns
         -------
         alpha : :class:`numpy.ndarray`, shape (bw, nfull + bw)
-            Banded normal-equations matrix (padded by ``bw`` zero columns for
-            compatibility with the original banded Cholesky routine).
+            Banded normal-equations matrix.  The extra ``bw`` trailing columns
+            absorb out-of-bounds scatter during the span-by-span assembly loop;
+            only the first ``nfull`` columns are passed to the Cholesky solver.
         beta : :class:`numpy.ndarray`, shape (nfull + bw,)
             Right-hand side vector (padded by ``bw`` zeros).
         """
@@ -799,11 +794,10 @@ class BSpline:
         Uses :func:`_cholesky_banded` (LAPACK ``dpbtrf``) and
         :func:`scipy.linalg.cho_solve_banded` (LAPACK ``dpbtrs``).
 
-        Before calling LAPACK, a pre-check is made for diagonal entries of
-        ``alpha`` that are :math:`\leq \mathrm{mininf}` or non-finite.  If any
-        are found, the bad column indices are returned immediately without
-        attempting a decomposition.  This replicates the pre-check in the
-        original ``cholesky_band`` implementation.
+        Before calling LAPACK, each diagonal entry of ``alpha`` is checked
+        against ``mininf`` and for finiteness.  If any fail, the corresponding
+        column indices are returned immediately without attempting a
+        decomposition.
 
         Parameters
         ----------
@@ -1182,15 +1176,12 @@ class BSpline2D(BSpline):
 
     Notes
     -----
+    The attributes listed above are **in addition** to those inherited from
+    :class:`BSpline`.
 
-    - The attributes listed above are **in addition** to those alread in the
-      base class.
-
-    - The polynomial-basis parameters ``npoly``, ``xmin``, ``xmax``, and
-      ``basis`` (formerly ``funcname``) are now arguments of :meth:`fit` and
-      :meth:`value` rather than constructor parameters.  They are stored on the
-      instance after the first :meth:`fit` call.
-
+    The polynomial-basis parameters ``npoly``, ``xmin``, ``xmax``, and
+    ``funcname`` are set as instance attributes by :meth:`fit`, not by the
+    constructor, and so are ``None`` until the first :meth:`fit` call.
     """
 
     def __init__(self, x=None, knots=None, nord=4):
@@ -1752,7 +1743,6 @@ class BSpline2D(BSpline):
 
         self.yfit = self._evaluate_model(A, lower, upper)
         if bad_cols[0] != -1:
-#            print(bad_cols, np.sum(self.bkpt_gpm))
             return self._mask_breakpoints(bad_cols), self.yfit
 
         goodbk_idx = goodbk.nonzero()[0]
