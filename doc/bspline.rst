@@ -7,11 +7,11 @@ B-Spline Fitting
 ================
 
 PypeIt uses weighted least-squares B-spline fitting throughout its reduction
-pipeline, primarily for flat-field modelling and sky subtraction.  This page
-describes the underlying algorithm, the public API of
+pipeline.  This page describes the underlying algorithm and the public API of
 :class:`~pypeit.core.bspline.BSpline` and
-:class:`~pypeit.core.bspline.BSpline2D`, and how to migrate from the
-legacy ``bspline.bspline`` class and ``bspline_profile`` function.
+:class:`~pypeit.core.bspline.BSpline2D`.  At the end, we also summarize how to
+migrate from the legacy ``bspline.bspline`` class and ``bspline_profile``
+function.
 
 .. note::
 
@@ -74,7 +74,7 @@ introducing a polynomial modulation in a second variable :math:`u`:
                     B_k(x)\, P_j(u),
 
 where :math:`P_j` are orthogonal polynomial basis functions (Legendre,
-Chebyshev, or simple power-law) evaluated at :math:`u` after normalisation to
+Chebyshev, or simple power-law) evaluated at :math:`u` after normalization to
 :math:`[-1, 1]`, and :math:`p` is the number of polynomial terms.  The
 combined design matrix is
 
@@ -92,7 +92,7 @@ Iterative Sigma-Clipping
 ------------------------
 
 :func:`~pypeit.core.fitting.iterative_bspline_fit` wraps either class
-in an iterative outlier-rejection loop.  After each fit the normalised
+in an iterative outlier-rejection loop.  After each fit the normalized
 residuals
 
 .. math::
@@ -137,8 +137,25 @@ by the ``spacing``, ``count``, or ``stride`` arguments to
     x_new          = np.linspace(0, 10, 200)
     y_new, gpm_new = bspl.value(x_new)
 
-The return code ``err`` is 0 on success, -1 if breakpoints were masked
-(requiring another call), and -2 on failure.
+The return code ``err`` is 0 on success, -2 on failure, and -1 when
+degenerate breakpoints were masked (the solver removed a singular span from
+the active set).  On a ``-1`` return, call ``fit()`` again with the same
+arguments; repeat until ``err`` is no longer ``-1``:
+
+.. code-block:: python
+
+    err, yfit = bspl.fit(x, y, ivar=ivar)
+    while err == -1:
+        err, yfit = bspl.fit(x, y, ivar=ivar)
+
+Pass ``interpolate=True`` to :meth:`~pypeit.core.bspline.BSpline.value` to
+linearly interpolate the stored ``yfit`` using :func:`numpy.interp` instead
+of rebuilding the design matrix — faster for dense evaluation grids at the
+cost of accuracy:
+
+.. code-block:: python
+
+    y_new, gpm_new = bspl.value(x_new, interpolate=True)
 
 .. _bspline-2d:
 
@@ -171,6 +188,18 @@ variable array) to :meth:`~pypeit.core.bspline.BSpline2D.fit`.
     u_new    = np.linspace(-1, 1, 200)
     y_new, _ = bspl.value(x_new, basis_x=u_new)
 
+The ``basis`` argument accepts four polynomial families: ``'legendre'``
+(default, recommended), ``'chebyshev'``, ``'poly'`` (power-law with a
+constant term), and ``'poly1'`` (power-law without a constant term).
+``'poly1'`` can be ill-conditioned and triggers a :class:`UserWarning`.
+
+.. warning::
+
+    ``basis_x`` must be statistically independent of ``x``.  If it is a
+    smooth monotonic function of ``x``, the polynomial--B-spline column
+    products become nearly linearly dependent within each span, making the
+    normal equations ill-conditioned.
+
 When the fit was performed with a **pre-built array** rather than a string
 family name, :meth:`~pypeit.core.bspline.BSpline2D.value` cannot
 reconstruct the polynomial basis from ``basis_x`` alone (no family name is
@@ -188,6 +217,25 @@ stored).  In that case a corresponding evaluation basis of shape
     u_new  = np.linspace(-1, 1, 200)
     P_eval = flegendre(u_new, npoly)      # shape (200, npoly)
     y_new, _ = bspl.value(x_new, basis=P_eval)
+
+When the fit used a named polynomial family, the ``basis`` argument to
+:meth:`~pypeit.core.bspline.BSpline2D.value` may be omitted (uses the
+stored family name and normalization bounds), a different string, or an
+array.  The ``xmin`` and ``xmax`` keyword arguments override the stored
+normalization bounds at evaluation time:
+
+.. code-block:: python
+
+    # Evaluate with different normalization bounds
+    y_new, _ = bspl.value(x_new, basis_x=u_new, xmin=-2.0, xmax=2.0)
+
+Pass ``coeff`` to substitute a custom coefficient array in place of the
+fitted :attr:`~pypeit.core.bspline.BSpline2D.coeff`.  The column count of
+``coeff`` must match the second dimension of the basis being used:
+
+.. code-block:: python
+
+    y_new, _ = bspl.value(x_new, basis_x=u_new, coeff=my_coeff)
 
 .. _bspline-iterative-fit:
 
