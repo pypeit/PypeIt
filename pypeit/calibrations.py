@@ -769,7 +769,7 @@ class Calibrations:
         self.get_bpm(frame=self.raw_files[0])
 
         # Perform a check on the files
-        self.check_calibrations(raw_scattlight_files)
+        self.check_calibrations(self.raw_files)
 
         binning = self.fitstbl[scatt_idx[0]]['binning']
         dispname = self.fitstbl[scatt_idx[0]]['dispname']
