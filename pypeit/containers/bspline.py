@@ -1,5 +1,5 @@
 """
-FITS-serialisable wrappers for the :class:`~pypeit.core.bspline.BSpline` and
+FITS-serializable wrappers for the :class:`~pypeit.core.bspline.BSpline` and
 :class:`~pypeit.core.bspline.BSpline2D` classes.
 
 Each container inherits from both :class:`~pypeit.datamodel.DataContainer` (for FITS
@@ -30,7 +30,7 @@ from pypeit.core.bspline import BSpline, BSpline2D, Knots
 
 class BSplineContainer(datamodel.DataContainer, BSpline):
     """
-    FITS-serialisable wrapper for :class:`~pypeit.core.bspline.BSpline`.
+    FITS-serializable wrapper for :class:`~pypeit.core.bspline.BSpline`.
 
     Inherits all fitting and evaluation methods from
     :class:`~pypeit.core.bspline.BSpline` and adds FITS I/O via
@@ -50,7 +50,7 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
         Knot specification.  Passed directly to
         :class:`~pypeit.core.bspline.BSpline`.
     nord : int, optional
-        Order of the b-spline (default 4).
+        Order of the B-spline (default 4).
 
     See Also
     --------
@@ -62,12 +62,12 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
     datamodel = {
         'nord': dict(
             otype=int,
-            descr='Order of the b-spline.'
+            descr='Order of the B-spline.'
         ),
         'bkpt_full': dict(
             otype=np.ndarray,
             atype=np.floating,
-            descr='Full padded knot vector stored for serialisation.'
+            descr='Full padded knot vector stored for serialization.'
         ),
         'bkpt_gpm': dict(
             otype=np.ndarray,
@@ -77,7 +77,7 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
         'coeff': dict(
             otype=np.ndarray,
             atype=np.floating,
-            descr='Fitted b-spline coefficients, shape (nc,).'
+            descr='Fitted B-spline coefficients, shape (nc,).'
         ),
         'icoeff': dict(
             otype=np.ndarray,
@@ -128,7 +128,7 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
         Return a deep copy as a new :class:`BSplineContainer`.
 
         The design-matrix cache is not copied (the copy starts with a cold
-        cache), matching the behaviour of
+        cache), matching the behavior of
         :meth:`pypeit.core.bspline.BSpline.copy`.
 
         Returns
@@ -154,12 +154,33 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
         return result
 
     def _validate(self):
+        """
+        Rebuild :attr:`knots` from :attr:`bkpt_full` when knots were not set
+        by the constructor.
+
+        :attr:`knots` is an ``internal`` (not stored in the datamodel), so it
+        is ``None`` after any dict-based instantiation (e.g.
+        :meth:`~pypeit.datamodel.DataContainer.from_file`,
+        :meth:`from_bspline`).  This override rebuilds it from the stored
+        :attr:`bkpt_full` array so that all fitting and evaluation methods
+        work without further intervention.  :attr:`bkpt_gpm` is initialized
+        to all-``True`` when it is absent from the source data.
+        """
         if self.bkpt_full is not None and self.knots is None:
             self.knots = Knots(full=self.bkpt_full, nord=self.nord)
             if self.bkpt_gpm is None:
                 self.bkpt_gpm = np.ones(self.knots.breakpoints.size, dtype=bool)
 
     def _bundle(self):
+        """
+        Sync :attr:`bkpt_full` from the live knot vector, then bundle all
+        datamodel attributes into a single FITS extension named ``'BSPLINE'``.
+
+        Ensures that any in-place changes to ``knots.breakpoints`` (e.g. from
+        a :meth:`fit` call with ``reset_knots=True``) are captured in
+        :attr:`bkpt_full` before the datamodel attributes are packaged for
+        writing.
+        """
         if self.knots is not None and self.knots.breakpoints is not None:
             self.bkpt_full = self.knots.breakpoints
         return super()._bundle(ext='BSPLINE')
@@ -167,7 +188,7 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
 
 class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
     """
-    FITS-serialisable wrapper for :class:`~pypeit.core.bspline.BSpline2D`.
+    FITS-serializable wrapper for :class:`~pypeit.core.bspline.BSpline2D`.
 
     Inherits all fitting and evaluation methods from
     :class:`~pypeit.core.bspline.BSpline2D` and adds FITS I/O via
@@ -194,7 +215,7 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
     knots : :class:`~pypeit.core.bspline.Knots` or :class:`numpy.ndarray` or None, optional
         Knot specification.
     nord : int, optional
-        Order of the b-spline (default 4).
+        Order of the B-spline (default 4).
 
     See Also
     --------
@@ -206,12 +227,12 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
     datamodel = {
         'nord': dict(
             otype=int,
-            descr='Order of the b-spline.'
+            descr='Order of the B-spline.'
         ),
         'bkpt_full': dict(
             otype=np.ndarray,
             atype=np.floating,
-            descr='Full padded knot vector stored for serialisation.'
+            descr='Full padded knot vector stored for serialization.'
         ),
         'bkpt_gpm': dict(
             otype=np.ndarray,
@@ -221,7 +242,7 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
         'coeff': dict(
             otype=np.ndarray,
             atype=np.floating,
-            descr='Fitted 2D b-spline coefficients, shape (nc, npoly).'
+            descr='Fitted 2D B-spline coefficients, shape (nc, npoly).'
         ),
         'icoeff': dict(
             otype=np.ndarray,
@@ -340,6 +361,18 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
         return result
 
     def _validate(self):
+        """
+        Rebuild :attr:`knots` from :attr:`bkpt_full` and restore :attr:`P`
+        from :attr:`basis` when they were not set by the constructor.
+
+        Extends the :class:`BSplineContainer` logic with an additional step
+        for array-basis fits: when :attr:`basis` is populated but :attr:`P`
+        is ``None``, :attr:`P` is restored from :attr:`basis` so that
+        :meth:`~pypeit.core.bspline.BSpline2D.value` can be called
+        immediately after any dict-based instantiation (e.g.
+        :meth:`~pypeit.datamodel.DataContainer.from_file`,
+        :meth:`from_bspline2d`) without re-supplying the basis array.
+        """
         if self.bkpt_full is not None and self.knots is None:
             self.knots = Knots(full=self.bkpt_full, nord=self.nord)
             if self.bkpt_gpm is None:
@@ -348,6 +381,16 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
             self.P = self.basis
 
     def _bundle(self):
+        """
+        Sync :attr:`bkpt_full` and :attr:`basis` from live state, then bundle
+        all datamodel attributes into a single FITS extension named
+        ``'BSPLINE2D'``.
+
+        Captures any in-place changes to ``knots.breakpoints`` in
+        :attr:`bkpt_full` and, for array-basis fits (``funcname is None``),
+        copies :attr:`P` to :attr:`basis` so that the polynomial basis matrix
+        can be recovered on load via :meth:`_validate`.
+        """
         if self.knots is not None and self.knots.breakpoints is not None:
             self.bkpt_full = self.knots.breakpoints
         if self.funcname is None and self.P is not None:
