@@ -155,8 +155,10 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
 
     def _validate(self):
         """
-        Rebuild :attr:`knots` from :attr:`bkpt_full` when knots were not set
-        by the constructor.
+        Overrides the base class validation method called during instantiation.
+
+        Specifically, this method rebuilds :attr:`knots` from :attr:`bkpt_full`
+        when knots were not set by the constructor.
 
         :attr:`knots` is an ``internal`` (not stored in the datamodel), so it
         is ``None`` after any dict-based instantiation (e.g.
@@ -173,13 +175,16 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
 
     def _bundle(self):
         """
-        Sync :attr:`bkpt_full` from the live knot vector, then bundle all
-        datamodel attributes into a single FITS extension named ``'BSPLINE'``.
+        Overrides the base class method used to bundle the datamodel for FITS
+        serialization.
 
-        Ensures that any in-place changes to ``knots.breakpoints`` (e.g. from
+        The method ensures any in-place changes to ``knots.breakpoints`` (e.g. from
         a :meth:`fit` call with ``reset_knots=True``) are captured in
         :attr:`bkpt_full` before the datamodel attributes are packaged for
         writing.
+
+        Beyond that, the method uses the base class method and sets the FITS
+        extension name to ``'BSPLINE'``.
         """
         if self.knots is not None and self.knots.breakpoints is not None:
             self.bkpt_full = self.knots.breakpoints
@@ -362,14 +367,17 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
 
     def _validate(self):
         """
-        Rebuild :attr:`knots` from :attr:`bkpt_full` and restore :attr:`P`
-        from :attr:`basis` when they were not set by the constructor.
+        Overrides the base class validation method called during instantiation.
 
-        Extends the :class:`BSplineContainer` logic with an additional step
-        for array-basis fits: when :attr:`basis` is populated but :attr:`P`
-        is ``None``, :attr:`P` is restored from :attr:`basis` so that
-        :meth:`~pypeit.core.bspline.BSpline2D.value` can be called
-        immediately after any dict-based instantiation (e.g.
+        Specifically, this method rebuilds :attr:`knots` from :attr:`bkpt_full`
+        and restore :attr:`P` from :attr:`basis` when they are not set by the
+        constructor.
+
+        This extends the :class:`BSplineContainer` logic with an additional step
+        for array-basis fits: when :attr:`basis` is populated but :attr:`P` is
+        ``None``, :attr:`P` is restored from :attr:`basis` so that
+        :meth:`~pypeit.core.bspline.BSpline2D.value` can be called immediately
+        after any dict-based instantiation (e.g.
         :meth:`~pypeit.datamodel.DataContainer.from_file`,
         :meth:`from_bspline2d`) without re-supplying the basis array.
         """
@@ -382,14 +390,16 @@ class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
 
     def _bundle(self):
         """
-        Sync :attr:`bkpt_full` and :attr:`basis` from live state, then bundle
-        all datamodel attributes into a single FITS extension named
-        ``'BSPLINE2D'``.
+        Overrides the base class method used to bundle the datamodel for FITS
+        serialization.
 
         Captures any in-place changes to ``knots.breakpoints`` in
         :attr:`bkpt_full` and, for array-basis fits (``funcname is None``),
         copies :attr:`P` to :attr:`basis` so that the polynomial basis matrix
         can be recovered on load via :meth:`_validate`.
+
+        Beyond that, the method uses the base class method and sets the FITS
+        extension name to ``'BSPLINE2D'``.
         """
         if self.knots is not None and self.knots.breakpoints is not None:
             self.bkpt_full = self.knots.breakpoints

@@ -166,6 +166,33 @@ class Knots:
                     f'{e}'
                 )
 
+    @staticmethod
+    def _pad(knots, nord, spread):
+        """
+        Pad a knot vector with ``nord - 1`` phantom knots at each end.
+
+        The phantom spacing is ``(knots[1] - knots[0]) * spread``.
+
+        Parameters
+        ----------
+        knots : :class:`numpy.ndarray`
+            Interior knots (at least 2 elements).
+        nord : int
+            B-spline order.
+        spread : float
+            Scale factor for phantom-knot spacing.
+
+        Returns
+        -------
+        :class:`numpy.ndarray`
+            Full padded knot vector of length ``len(knots) + 2 * (nord - 1)``.
+        """
+        spacing = (knots[1] - knots[0]) * spread
+        indx = np.arange(1, nord)
+        return np.concatenate((
+            knots[0] - spacing * indx[::-1], knots, knots[-1] + spacing * indx
+        ))
+
     @property
     def breakpoints(self):
         """
@@ -207,7 +234,7 @@ class Knots:
         if self.full is not None:
             _full = np.sort(self.full, kind='heapsort').astype(float)
             if _full.size < 2 * nord:
-                _full = Knots._pad(_full, nord, self.spread)
+                _full = type(self)._pad(_full, nord, self.spread)
             self._breakpoints = _full
             return
 
@@ -249,34 +276,7 @@ class Knots:
         if _interior[-1] < ex:
             _interior[-1] = ex
 
-        self._breakpoints = Knots._pad(_interior, nord, self.spread).astype(float)
-
-    @staticmethod
-    def _pad(knots, nord, spread):
-        """
-        Pad a knot vector with ``nord - 1`` phantom knots at each end.
-
-        The phantom spacing is ``(knots[1] - knots[0]) * spread``.
-
-        Parameters
-        ----------
-        knots : :class:`numpy.ndarray`
-            Interior knots (at least 2 elements).
-        nord : int
-            B-spline order.
-        spread : float
-            Scale factor for phantom-knot spacing.
-
-        Returns
-        -------
-        :class:`numpy.ndarray`
-            Full padded knot vector of length ``len(knots) + 2 * (nord - 1)``.
-        """
-        spacing = (knots[1] - knots[0]) * spread
-        indx = np.arange(1, nord)
-        return np.concatenate((
-            knots[0] - spacing * indx[::-1], knots, knots[-1] + spacing * indx
-        ))
+        self._breakpoints = type(self)._pad(_interior, nord, self.spread).astype(float)
 
     def copy(self):
         """
@@ -417,104 +417,6 @@ class BSpline:
             # the breakpoints.
             self.reset_knots(x)
 
-    def reset_knots(self, x, required=False):
-        """
-        Reset the breakpoints provided a set of independent coordinates.
-
-        This is essentially a wrapper for :meth:`Knots.build` with some
-        additional setup of the attributes of this class.
-
-        .. warning::
-
-            Regardless of the outcome of this function, the coefficent arrays
-            (:attr:`coeff` and :attr:`icoeff`) are reset to None.  Use
-            :meth:`reset_coeff` to reset them.
-
-        Parameters
-        ----------
-        x : :class:`numpy.ndarray`
-            Independent variable used to set breakpoints, which is passed
-            directly to :meth:`Knots.build`.
-        required : bool, optional
-            If True, this function must yield a viable set of breakpoints for
-            the code to continue; if :meth:`Knots.build` fails, this function
-            re-raises the exception.  If False, any failures are caught and
-            quietly handled.
-        """
-        # Reset all of the coefficient and all caching attributes when the
-        # breakpoints are reset.
-        self.coeff = None
-        self.icoeff = None
-        self._cached_design = None
-
-        try:
-            self.knots.build(x, self.nord)
-        except ValueError:
-            self.bkpt_gpm = None
-            if required:
-                raise   # Re-raise the exception
-        else:
-            self.bkpt_gpm = np.ones(self.breakpoints.size, dtype=bool)
-
-    def reset_coeff(self):
-        """
-        Reset coefficient arrays to zero.
-
-        Does *not* reset the breakpoints or mask.  Does *not* invalidate the
-        design matrix cache (breakpoints have not changed).
-        """
-        if self.breakpoints is None:
-            raise ValueError(
-                'Cannot instantiate the coefficient arrays before the breakpoints have been '
-                'established.  First run reset_knots().'
-            )
-        nc = self.breakpoints.size - self.nord
-        self.coeff = np.zeros(nc, dtype=float)
-        self.icoeff = np.zeros(nc, dtype=float)
-
-    def copy(self):
-        """
-        Return a deep copy of this instance.
-
-        The design matrix cache is *not* copied (the copy starts with a
-        cold cache).
-
-        Returns
-        -------
-        BSpline
-            A new instance with copies of all stored arrays.
-        """
-        new = BSpline.__new__(BSpline)
-        new.nord = self.nord
-        new.knots = self.knots.copy()
-        new.bkpt_gpm = np.copy(self.bkpt_gpm)
-        new.coeff = np.copy(self.coeff)
-        new.icoeff = np.copy(self.icoeff)
-        new.x = self.x
-        new.yfit = None if self.yfit is None else np.copy(self.yfit)
-        new._cached_design = None
-        return new
-
-    # ------------------------------------------------------------------
-    # Breakpoints property
-    # ------------------------------------------------------------------
-
-    @property
-    def breakpoints(self):
-        """
-        Full padded knot vector.
-
-        Returns
-        -------
-        :class:`numpy.ndarray`
-            Delegates to :attr:`knots.breakpoints <Knots.breakpoints>`.
-        """
-        return self.knots.breakpoints
-
-    # ------------------------------------------------------------------
-    # Static helper — span index lookup
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _find_spans(x, breakpoints, nord):
         """
@@ -540,10 +442,6 @@ class BSpline:
         """
         n = breakpoints.size - nord
         return np.clip(np.searchsorted(breakpoints, x, side='right') - 1, nord - 1, n - 1)
-
-    # ------------------------------------------------------------------
-    # Static helper — unique run-end indices
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _uniq(x):
@@ -573,10 +471,6 @@ class BSpline:
         return np.flatnonzero(
             np.concatenate(([True], x[1:] != x[:-1], [True]))
         )[1:] - 1
-
-    # ------------------------------------------------------------------
-    # Private algorithmic methods
-    # ------------------------------------------------------------------
 
     def _poly_scale(self, n):
         """
@@ -951,9 +845,55 @@ class BSpline:
         self._cached_design = None  # Mask changed — invalidate design cache
         return -1
 
+    def _fit_gpm(self, x):
+        """
+        Compute the good-pixel mask for evaluation points ``x``.
+
+        Returns ``True`` for points within the valid fitting range and
+        ``False`` for points outside the outermost active breakpoints or
+        within gaps created by masked breakpoints.
+
+        Parameters
+        ----------
+        x : :class:`numpy.ndarray`
+            Independent variable at the evaluation points.
+
+        Returns
+        -------
+        :class:`numpy.ndarray` of bool
+            Boolean mask with the same shape as ``x``.
+        """
+        n = self.bkpt_gpm.sum() - self.nord
+        goodbk = self.bkpt_gpm.nonzero()[0]
+        gb = self.breakpoints[goodbk]
+
+        gpm = np.ones(x.shape, dtype=bool)
+        gpm[(x < gb[self.nord - 1]) | (x > gb[n])] = False
+        hmm = (np.diff(goodbk) > 2).nonzero()[0]
+        if hmm.size > 0:
+            for jj in range(hmm.size):
+                gpm[
+                    (x >= self.breakpoints[goodbk[hmm[jj]]])
+                    & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])
+                ] = False
+
+        return gpm
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    @property
+    def breakpoints(self):
+        """
+        Full padded knot vector.
+
+        Returns
+        -------
+        :class:`numpy.ndarray`
+            Delegates to :attr:`knots.breakpoints <Knots.breakpoints>`.
+        """
+        return self.knots.breakpoints
 
     def fit(self, x, y, ivar=None, reset_knots=False):
         """
@@ -1033,40 +973,6 @@ class BSpline:
         self.yfit = self._evaluate_model(A, lower, upper)
         return 0, self.yfit
 
-    def _fit_gpm(self, x):
-        """
-        Compute the good-pixel mask for evaluation points ``x``.
-
-        Returns ``True`` for points within the valid fitting range and
-        ``False`` for points outside the outermost active breakpoints or
-        within gaps created by masked breakpoints.
-
-        Parameters
-        ----------
-        x : :class:`numpy.ndarray`
-            Independent variable at the evaluation points.
-
-        Returns
-        -------
-        :class:`numpy.ndarray` of bool
-            Boolean mask with the same shape as ``x``.
-        """
-        n = self.bkpt_gpm.sum() - self.nord
-        goodbk = self.bkpt_gpm.nonzero()[0]
-        gb = self.breakpoints[goodbk]
-
-        gpm = np.ones(x.shape, dtype=bool)
-        gpm[(x < gb[self.nord - 1]) | (x > gb[n])] = False
-        hmm = (np.diff(goodbk) > 2).nonzero()[0]
-        if hmm.size > 0:
-            for jj in range(hmm.size):
-                gpm[
-                    (x >= self.breakpoints[goodbk[hmm[jj]]])
-                    & (x <= self.breakpoints[goodbk[hmm[jj] + 1] - 1])
-                ] = False
-
-        return gpm
-
     def value(self, x, interpolate=False):
         """
         Evaluate the fitted B-spline at arbitrary ``x`` positions.
@@ -1105,6 +1011,84 @@ class BSpline:
         A, lower, upper = self._build_design_matrix(x[xsort])
         yfit = self._evaluate_model(A, lower, upper)
         return yfit[np.argsort(xsort, kind='stable')], gpm
+
+    def reset_knots(self, x, required=False):
+        """
+        Reset the breakpoints provided a set of independent coordinates.
+
+        This is essentially a wrapper for :meth:`Knots.build` with some
+        additional setup of the attributes of this class.
+
+        .. warning::
+
+            Regardless of the outcome of this function, the coefficent arrays
+            (:attr:`coeff` and :attr:`icoeff`) are reset to None.  Use
+            :meth:`reset_coeff` to reset them.
+
+        Parameters
+        ----------
+        x : :class:`numpy.ndarray`
+            Independent variable used to set breakpoints, which is passed
+            directly to :meth:`Knots.build`.
+        required : bool, optional
+            If True, this function must yield a viable set of breakpoints for
+            the code to continue; if :meth:`Knots.build` fails, this function
+            re-raises the exception.  If False, any failures are caught and
+            quietly handled.
+        """
+        # Reset all of the coefficient and all caching attributes when the
+        # breakpoints are reset.
+        self.coeff = None
+        self.icoeff = None
+        self._cached_design = None
+
+        try:
+            self.knots.build(x, self.nord)
+        except ValueError:
+            self.bkpt_gpm = None
+            if required:
+                raise   # Re-raise the exception
+        else:
+            self.bkpt_gpm = np.ones(self.breakpoints.size, dtype=bool)
+
+    def reset_coeff(self):
+        """
+        Reset coefficient arrays to zero.
+
+        Does *not* reset the breakpoints or mask.  Does *not* invalidate the
+        design matrix cache (breakpoints have not changed).
+        """
+        if self.breakpoints is None:
+            raise ValueError(
+                'Cannot instantiate the coefficient arrays before the breakpoints have been '
+                'established.  First run reset_knots().'
+            )
+        nc = self.breakpoints.size - self.nord
+        self.coeff = np.zeros(nc, dtype=float)
+        self.icoeff = np.zeros(nc, dtype=float)
+
+    def copy(self):
+        """
+        Return a deep copy of this instance.
+
+        The design matrix cache is *not* copied (the copy starts with a
+        cold cache).
+
+        Returns
+        -------
+        BSpline
+            A new instance with copies of all stored arrays.
+        """
+        new = BSpline.__new__(BSpline)
+        new.nord = self.nord
+        new.knots = self.knots.copy()
+        new.bkpt_gpm = np.copy(self.bkpt_gpm)
+        new.coeff = np.copy(self.coeff)
+        new.icoeff = np.copy(self.icoeff)
+        new.x = self.x
+        new.yfit = None if self.yfit is None else np.copy(self.yfit)
+        new._cached_design = None
+        return new
 
 
 # ---------------------------------------------------------------------------
@@ -1183,7 +1167,6 @@ class BSpline2D(BSpline):
     ``funcname`` are set as instance attributes by :meth:`fit`, not by the
     constructor, and so are ``None`` until the first :meth:`fit` call.
     """
-
     def __init__(self, x=None, knots=None, nord=4):
         super().__init__(x=x, knots=knots, nord=nord)
 
@@ -1193,59 +1176,6 @@ class BSpline2D(BSpline):
         self.funcname = None
         self.P = None
         self.basis_x = None
-
-    def reset_coeff(self):
-        """
-        Reset coefficient arrays to zero.
-
-        Does *not* reset the breakpoints or mask.  Does *not* invalidate the
-        design matrix cache (breakpoints have not changed).
-        """
-        if self.npoly is None:
-            raise ValueError(
-                'npoly is not set; call fit() before calling reset_coeff() directly.'
-            )
-        nc = self.breakpoints.size - self.nord
-        self.coeff = np.zeros((nc, self.npoly), dtype=float)
-        self.icoeff = np.zeros((nc, self.npoly), dtype=float)
-
-    def copy(self):
-        """
-        Return a deep copy of this :class:`BSpline2D` instance.
-
-        Returns
-        -------
-        BSpline2D
-            A new instance with copies of all stored arrays.
-
-        Notes
-        -----
-        :attr:`P` is deep-copied, so the copy's :attr:`P` is a distinct object
-        from both the original's :attr:`P` and any ``basis`` array previously
-        passed to :meth:`fit`.  The first :meth:`fit` call on the copy that
-        supplies an array ``basis`` will therefore always rebuild the design
-        matrix, regardless of whether that array was used with the original.
-        """
-        new = BSpline2D.__new__(BSpline2D)
-        new.nord = self.nord
-        new.npoly = self.npoly
-        new.knots = self.knots.copy()
-        new.bkpt_gpm = np.copy(self.bkpt_gpm)
-        new.coeff = np.copy(self.coeff)
-        new.icoeff = np.copy(self.icoeff)
-        new.x = self.x
-        new.basis_x = self.basis_x
-        new.yfit = None if self.yfit is None else np.copy(self.yfit)
-        new.xmin = self.xmin
-        new.xmax = self.xmax
-        new.funcname = self.funcname
-        new.P = None if self.P is None else np.copy(self.P)
-        new._cached_design = None
-        return new
-
-    # ------------------------------------------------------------------
-    # Private methods — 2D-specific
-    # ------------------------------------------------------------------
 
     def _poly_scale(self, n):
         """
@@ -1535,10 +1465,6 @@ class BSpline2D(BSpline):
         self.icoeff[goodbk_idx, :] = chol[0, :nfull].reshape(nn, self.npoly).astype(
             self.icoeff.dtype
         )
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     def _resolve_basis(self, basis, npoly, xmin, xmax, x, basis_x):
         """
@@ -1855,3 +1781,52 @@ class BSpline2D(BSpline):
         yfit = self._evaluate_model(A, lower, upper, coeff=coeff, npoly=eval_npoly)
 
         return yfit[np.argsort(xsort, kind='stable')], gpm
+
+    def reset_coeff(self):
+        """
+        Reset coefficient arrays to zero.
+
+        Does *not* reset the breakpoints or mask.  Does *not* invalidate the
+        design matrix cache (breakpoints have not changed).
+        """
+        if self.npoly is None:
+            raise ValueError(
+                'npoly is not set; call fit() before calling reset_coeff() directly.'
+            )
+        nc = self.breakpoints.size - self.nord
+        self.coeff = np.zeros((nc, self.npoly), dtype=float)
+        self.icoeff = np.zeros((nc, self.npoly), dtype=float)
+
+    def copy(self):
+        """
+        Return a deep copy of this :class:`BSpline2D` instance.
+
+        Returns
+        -------
+        BSpline2D
+            A new instance with copies of all stored arrays.
+
+        Notes
+        -----
+        :attr:`P` is deep-copied, so the copy's :attr:`P` is a distinct object
+        from both the original's :attr:`P` and any ``basis`` array previously
+        passed to :meth:`fit`.  The first :meth:`fit` call on the copy that
+        supplies an array ``basis`` will therefore always rebuild the design
+        matrix, regardless of whether that array was used with the original.
+        """
+        new = BSpline2D.__new__(BSpline2D)
+        new.nord = self.nord
+        new.npoly = self.npoly
+        new.knots = self.knots.copy()
+        new.bkpt_gpm = np.copy(self.bkpt_gpm)
+        new.coeff = np.copy(self.coeff)
+        new.icoeff = np.copy(self.icoeff)
+        new.x = self.x
+        new.basis_x = self.basis_x
+        new.yfit = None if self.yfit is None else np.copy(self.yfit)
+        new.xmin = self.xmin
+        new.xmax = self.xmax
+        new.funcname = self.funcname
+        new.P = None if self.P is None else np.copy(self.P)
+        new._cached_design = None
+        return new

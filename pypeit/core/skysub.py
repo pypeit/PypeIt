@@ -364,15 +364,13 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
         kwargs_reject={'groupbadpix': True, 'maxrej': 1}
     )
 
-    # Get the sky-only model
-    sky_bmodel, _ = sset.value(
-        piximg, basis=profile_basis[:, nobj:], coeff=sset.coeff[:, nobj:]
-    )
-
+    # When constructing the `profile_basis` functions above, the object profiles
+    # are the first `nobj` columns and the sky polynomials are all the remaining
+    # columns.  This allows us to construct the two models separately.
+    # - Get the sky-only model
+    sky_bmodel, _ = sset.value(piximg, basis=profile_basis[:, nobj:], coeff=sset.coeff[:, nobj:])
     # Get the source-only model
-    obj_bmodel, _ = sset.value(
-        piximg, basis=profile_basis[:, :nobj], coeff=sset.coeff[:, :nobj]
-    )
+    obj_bmodel, _ = sset.value(piximg, basis=profile_basis[:, :nobj], coeff=sset.coeff[:, :nobj])
 
     gpm[good] = gpm_good
 
