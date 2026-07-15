@@ -1072,39 +1072,49 @@ def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 
 def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=None, show=True):
     """
-    Construct a QA plot of the bspline fit.
+    Construct a QA plot of the B-spline fit.
 
-    Args:
-        xdata (`numpy.ndarray`_):
-            Array with the independent variable. Regardless of shape,
-            data is treated as one-dimensional.
-        ydata (`numpy.ndarray`_):
-            Array with the dependent variable. Regardless of shape,
-            data is treated as one-dimensional.
-        sset (:class:`~pypeit.core.bspline.BSpline`):
-            Object with the results of the fit. (First object
-            returned by :func:`~pypeit.core.fitting.iterative_bspline_fit`.)
-        gpm (`numpy.ndarray`_):
-            Boolean array with the same size as ``xdata``.  Measurements
-            rejected during the fit have ``gpm=False``.  (Second object returned
-            by :func:`~pypeit.core.fitting.iterative_bspline_fit`.)
-        yfit (`numpy.ndarray`_):
-            Best-fitting model sampled at ``xdata``. (Third object returned by
-            :func:`~pypeit.core.fitting.iterative_bspline_fit`.)
-        xlabel (:obj:`str`, optional):
-            Label for the ordinate.  If None, none given.
-        ylabel (:obj:`str`, optional):
-            Label for the abcissa.  If None, none given.
-        title (:obj:`str`, optional):
-            Label for the plot.  If None, none given.
-        show (:obj:`bool`, optional):
-            Plot the result. If False, the axis instance is returned.
-            This is done before any labels or legends are added to
-            the plot.
+    .. warning::
 
-    Returns:
-        `matplotlib.axes.Axes`_: Axes instance with the data, model,
-        and breakpoints.  Only returned if ``show`` is False.
+        This function has not been tested with
+        :class:`~pypeit.core.bspline.BSpline2D` fits.  The call to
+        :meth:`~pypeit.core.bspline.BSpline.value` at the breakpoints
+        may fail or produce unexpected results for 2D fits.
+
+    Parameters
+    ----------
+    xdata : :class:`numpy.ndarray`
+        Independent variable.  Regardless of shape, data is treated as
+        one-dimensional.
+    ydata : :class:`numpy.ndarray`
+        Dependent variable.  Regardless of shape, data is treated as
+        one-dimensional.
+    sset : :class:`~pypeit.core.bspline.BSpline`
+        Fitted B-spline object, as returned by
+        :func:`~pypeit.core.fitting.iterative_bspline_fit`.
+    gpm : :class:`numpy.ndarray`
+        Boolean array with the same size as ``xdata``.  Points
+        rejected during the fit have ``gpm=False``.
+    yfit : :class:`numpy.ndarray`
+        Best-fitting model sampled at ``xdata``, as returned by
+        :func:`~pypeit.core.fitting.iterative_bspline_fit`.
+    xlabel : str, optional
+        Label for the abscissa.  If None, no label is added.
+    ylabel : str, optional
+        Label for the ordinate.  If None, no label is added.
+    title : str, optional
+        Title for the plot.  If None, no title is added.
+    show : bool, optional
+        If True, display the plot with the legend, axis labels, and
+        title applied.  If False, return the
+        :class:`~matplotlib.axes.Axes` instance immediately, before
+        the legend, axis labels, or title are added.
+
+    Returns
+    -------
+    ax : :class:`matplotlib.axes.Axes`
+        Axes instance with the data, model, and breakpoints plotted.
+        Only returned when ``show`` is False.
     """
     goodbk = sset.bkpt_gpm
     bkpt, _ = sset.value(sset.breakpoints[goodbk])
@@ -1143,41 +1153,50 @@ def iterative_bspline_fit(
     Parameters
     ----------
     x : :class:`numpy.ndarray`
-        Independent variable, sorted ascending.
+        Independent variable.  Should be sorted in ascending order;
+        :meth:`~pypeit.core.bspline.BSpline.fit` sorts internally, but
+        the default ``stride`` knot strategy places breakpoints at
+        evenly-spaced indices of ``x``, which is only meaningful when
+        ``x`` is sorted.
     y : :class:`numpy.ndarray`
         Dependent variable.
     ivar : :class:`numpy.ndarray`, optional
-        Inverse variance of ``y``.  Zero entries are masked.
+        Inverse variance of ``y``.  Points with ``ivar <= 0`` are
+        excluded from the fit regardless of ``gpm``.
     gpm : :class:`numpy.ndarray` of bool, optional
-        Input good-pixel mask.  Defaults to ``ivar > 0``.
+        Additional input mask; True for pixels to include in the fit.
+        When None (default), all pixels with positive ``ivar`` are
+        used; if ``ivar`` is also None, all pixels are used.
     nord : int, optional
         B-spline order.
     basis : str or :class:`numpy.ndarray` or None, optional
-        Polynomial basis specification for the second variable.  When a string,
-        must be one of ``'legendre'``, ``'chebyshev'``, ``'poly'``, or
-        ``'poly1'``; ``basis_x``.  When a :class:`numpy.ndarray`, it is used
-        directly as the pre-built polynomial basis; a 1D array of size ``x.size
-        * npoly`` is reshaped to ``(x.size, npoly)`` automatically.  When
-        ``None``, a 1D :class:`~pypeit.core.bspline.BSpline` fit is performed.
+        Polynomial basis specification for the second variable.  When a
+        string, it must be one of ``'legendre'``, ``'chebyshev'``,
+        ``'poly'``, or ``'poly1'``; ``basis_x`` must also be provided.
+        When a :class:`numpy.ndarray`, it is used directly as the
+        pre-built polynomial basis matrix; a 1D array of size
+        ``x.size * npoly`` is reshaped to ``(x.size, npoly)``
+        automatically.  When ``None`` (default), a 1D
+        :class:`~pypeit.core.bspline.BSpline` fit is performed.
     npoly : int, optional
         Number of polynomial terms; forwarded to
-        :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when ``basis`` is
-        an array or ``None``.
+        :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when
+        ``basis`` is an array or ``None``.
     basis_x : :class:`numpy.ndarray` or None, optional
         Second variable.  Required when ``basis`` is a string; ignored
         when ``basis`` is ``None`` or a pre-built array.
     xmin : float, optional
         Minimum value of ``basis_x`` for normalisation; forwarded to
-        :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when ``basis`` is
-        an array or ``None``.
+        :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when
+        ``basis`` is an array or ``None``.
     xmax : float, optional
         Maximum value of ``basis_x`` for normalisation; forwarded to
-        :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when ``basis`` is
-        an array or ``None``.
+        :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when
+        ``basis`` is an array or ``None``.
     kwargs_knots : dict, optional
-        Keyword arguments forwarded to :class:`~pypeit.core.bspline.Knots` to
-        control knot placement.  An empty dict (default) uses the default
-        :class:`~pypeit.core.bspline.Knots` strategy.
+        Keyword arguments forwarded to :class:`~pypeit.core.bspline.Knots`
+        to control knot placement.  See :class:`~pypeit.core.bspline.Knots`
+        for the available strategies and their default values.
     relative : array-like or None, optional
         Index array for computing the relative chi-squared used to
         rescale the rejection thresholds.  When ``None`` (default) the
@@ -1190,13 +1209,17 @@ def iterative_bspline_fit(
         Maximum number of fit-reject iterations.
     kwargs_reject : dict, optional
         Additional keyword arguments forwarded to
-        :func:`pypeit.core.pydl.djs_reject`.
+        :func:`~pypeit.core.pydl.djs_reject`.
 
     Returns
     -------
-    bspl : :class:`~pypeit.core.bspline.BSpline2D` or :class:`~pypeit.core.bspline.BSpline`
-        Fitted spline object.  :class:`~pypeit.core.bspline.BSpline2D` when
-        ``basis`` is provided; :class:`~pypeit.core.bspline.BSpline` otherwise.
+    bspl : :class:`~pypeit.core.bspline.BSpline`, :class:`~pypeit.core.bspline.BSpline2D`
+        Fitted spline object.  A
+        :class:`~pypeit.core.bspline.BSpline2D` is returned when
+        ``basis`` is provided; a
+        :class:`~pypeit.core.bspline.BSpline` is returned otherwise.
+        ``None`` is returned on catastrophic failure (exit status 4
+        with no valid input points).
     outmask : :class:`numpy.ndarray` of bool
         Final good-pixel mask after all rejection iterations.
     yfit : :class:`numpy.ndarray`
@@ -1204,9 +1227,14 @@ def iterative_bspline_fit(
     reduced_chi : float
         Reduced chi-squared of the final fit.
     exit_status : int
-        0 — converged normally; 1 — reached ``maxiter``; 2 — too few
-        good points; 3 — singular / degenerate fit; 4 — fewer good
-        points than ``nord`` on entry.
+        Convergence status code that will be one of the following:
+
+            - 0 — converged normally
+            - 1 — maximum iterations reached
+            - 2 — too few good points during iteration
+            - 3 — singular or degenerate fit (all breakpoints lost)
+            - 4 — fewer good points than ``nord`` on entry
+
     """
     _basis = basis
     if basis is None:
