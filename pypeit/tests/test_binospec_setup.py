@@ -12,7 +12,8 @@ def test_configuration_keys_includes_decker():
     """Setups must be split by slit mask (decker), not just grating."""
     spec = MMTBINOSPECSpectrograph()
     keys = spec.configuration_keys()
-    assert 'dispname' in keys
+    assert 'dispname' in keys, \
+        f"dispname (grating) must be a configuration key; got {keys}"
     assert 'decker' in keys, \
         "decker (MASK) must be a configuration key so different slit masks " \
         "get separate setups"
