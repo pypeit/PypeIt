@@ -518,7 +518,7 @@ class Spectrograph:
 
         # The following are added for SlicerIFU spectrographs, as they are
         #   needed by the coadd3d routine
-        if self.pypeline == "SlicerIFU":
+        if self.pypeline in ["SlicerIFU", "Fiber"]:
             slicer_keys = [
                 "slitwid", "airmass", "parangle", "pressure", "temperature", "humidity"
             ]
@@ -869,6 +869,160 @@ class Spectrograph:
         """
         raise PypeItError('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
+
+    def get_fiber_metadata(self, det, slit_spat_ids, slit_centers=None):
+        """
+        Return fiber identification metadata for a fiber-fed spectrograph.
+
+        Spectrographs that use the ``Fiber`` pypeline should override this
+        method to map detected slit/fiber positions to instrument-defined
+        fiber identifiers (IDs, names, types, etc.).
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            1-indexed detector number.
+        slit_spat_ids : `numpy.ndarray`_
+            Array of ``spat_id`` values for each detected slit/fiber,
+            shape ``(nslits,)``.
+        slit_centers : `numpy.ndarray`_, optional
+            Float-valued slit center positions at the spectral midpoint.
+            If provided, subclasses may use these for more accurate
+            fiber matching than the integer ``slit_spat_ids``.
+
+        Returns
+        -------
+        :obj:`dict` or None
+            None if not implemented. Otherwise a dict with keys:
+
+            - ``'fiber_id'``: `numpy.ndarray`_ of int, instrument fiber
+              IDs for each slit. -1 for unmatched.
+            - ``'fiber_name'``: `numpy.ndarray`_ of str, human-readable
+              fiber names (e.g. ``'A42'``, ``'SKY6-1'``).
+            - ``'fiber_type'``: `numpy.ndarray`_ of str, fiber type
+              (e.g. ``'SCI'``, ``'SKY'``).
+
+            All arrays have shape ``(nslits,)``.
+        """
+        return None
+
+    def get_fiber_blocks(self, det):
+        """
+        Return the fiber block structure for a fiber-fed spectrograph.
+
+        Spectrographs using the ``Fiber`` pypeline group their fibers into
+        block-slits and must override this method.  See
+        :meth:`pypeit.spectrographs.mmt_binospec.MMTBINOSPECSpectrograph.get_fiber_blocks`
+        for the expected return structure.
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            1-indexed detector number.
+
+        Returns
+        -------
+        :obj:`list` of :obj:`dict`
+            One dict per fiber block.
+
+        Raises
+        ------
+        NotImplementedError
+            Always, unless overridden by a ``Fiber``-pypeline spectrograph.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} uses pypeline='{self.pypeline}' but "
+            "does not implement get_fiber_blocks(); it is required for the "
+            "Fiber pypeline.")
+
+    def identify_fibers_in_block(self, det, block_idx, detected_positions):
+        """
+        Map detected fiber positions within a block-slit to instrument fiber IDs.
+
+        Spectrographs using the ``Fiber`` pypeline must override this method.
+        See
+        :meth:`pypeit.spectrographs.mmt_binospec.MMTBINOSPECSpectrograph.identify_fibers_in_block`
+        for the expected return structure.
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            1-indexed detector number.
+        block_idx : :obj:`int`
+            0-based block index.
+        detected_positions : `numpy.ndarray`_
+            Detected fiber peak pixel positions within the block-slit.
+
+        Returns
+        -------
+        :obj:`dict`
+            Keys ``'fiber_id'``, ``'fiber_name'``, ``'fiber_type'``, aligned
+            with ``detected_positions``.
+
+        Raises
+        ------
+        NotImplementedError
+            Always, unless overridden by a ``Fiber``-pypeline spectrograph.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} uses pypeline='{self.pypeline}' but "
+            "does not implement identify_fibers_in_block(); it is required for "
+            "the Fiber pypeline.")
+
+    def get_ifu_datacube_meta(self, raw_hdr):
+        """
+        Return descriptive metadata for a fiber-IFU datacube.
+
+        Used by :func:`pypeit.core.datacube.build_cube_common` to label the
+        output WCS and FITS header.  Spectrographs that support more than one
+        IFU mode use ``raw_hdr`` to distinguish them (e.g. by reading a mode
+        or aperture keyword) and return the appropriate label.
+
+        Parameters
+        ----------
+        raw_hdr : `astropy.io.fits.Header`_
+            Primary header of the input file, so multi-mode instruments can
+            select the active IFU mode.
+
+        Returns
+        -------
+        :obj:`dict`
+            Keys ``'name'`` (display/WCS name, e.g. ``'BINOSPEC IFU'``) and
+            ``'mode'`` (short ``IFUMODE`` header label, e.g. ``'FIBER'``).
+
+        Raises
+        ------
+        NotImplementedError
+            Always, unless overridden by a fiber-IFU spectrograph.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} uses pypeline='{self.pypeline}' but "
+            "does not implement get_ifu_datacube_meta(); it is required to "
+            "build a fiber-IFU datacube.")
+
+    def get_arc_extract_center(self, slitcen, slits, det):
+        """
+        Return adjusted slit centers for arc spectrum extraction.
+
+        For most spectrographs, the arc is extracted at the geometric center
+        of each slit.  Fiber-fed spectrographs may override this to place
+        the extraction center on a fiber rather than in an inter-fiber gap.
+
+        Parameters
+        ----------
+        slitcen : `numpy.ndarray`_
+            Slit center traces, shape ``(nspec, nslits)``.
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
+            Slit traces.
+        det : :obj:`int`
+            1-indexed detector number.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Adjusted slit center traces, same shape as ``slitcen``.
+        """
+        return slitcen
 
     @staticmethod
     def maskdef_spec_minmax(maskfile=None, maskdef_ids=None, nspec=None, shift=150):
@@ -2330,4 +2484,3 @@ class Spectrograph:
         txt += ' pypeline={:s},'.format(self.pypeline)
         txt += '>'
         return txt
-

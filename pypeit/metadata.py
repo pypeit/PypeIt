@@ -23,9 +23,9 @@ from pypeit import inputfiles
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import meta
+from pypeit.core.bitmask import BitMask
 from pypeit.io import dict_to_lines
 from pypeit.par import PypeItPar
-from pypeit.bitmask import BitMask
 
 
 # TODO: Turn this into a DataContainer
@@ -87,7 +87,7 @@ class PypeItMetaData:
             A dictionary of the unique configurations identified.
         type_bitmask (:class:`~pypeit.core.framematch.FrameTypeBitMask`):
             The bitmask used to set the frame type of each fits file.
-        calib_bitmask (:class:`~pypeit.bitmask.BitMask`):
+        calib_bitmask (:class:`~pypeit.core.bitmask.BitMask`):
             The bitmask used to keep track of the calibration group bits.
         table (`astropy.table.Table`_):
             The table with the relevant metadata for each fits file to

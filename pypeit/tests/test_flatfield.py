@@ -8,7 +8,7 @@ from IPython import embed
 import numpy as np
 
 from pypeit import flatfield
-from pypeit import bspline
+from pypeit.core import bspline
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import data_output_path
 

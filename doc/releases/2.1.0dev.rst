@@ -13,6 +13,8 @@ Documentation Updates
 - Updated the Setup GUI tutorial to reflect the new look of the GUI.
 - Modified the ``update_docs`` script to allow the docs to be built without
   access to ``$PYPEIT_DEV/RAW_DATA``.
+- Added a :ref:`spectrograph page <soar_triplespec>` and a worked-example
+  :ref:`tutorial <soar_triplespec_howto>` for SOAR/TripleSpec.
 
 Dependency Changes
 ------------------
@@ -21,22 +23,58 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- Added a new ``Fiber`` pypeline for fiber-fed spectrographs, where each fiber
+  is treated as a distinct object without peak-detection object finding.  The
+  pypeline dispatch system (``FiberFindObjects``, ``FiberExtract``) follows the
+  existing class-name convention.
 
-- Setup GUI now uses a standard button bar that can be moved. 
+- Setup GUI now uses a standard button bar that can be moved.
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
 - Increased default font size for Setup GUI.
+- Added an optional residual-CR path to L.A.Cosmic-based cosmic-ray
+  rejection, controlled by the new ``cr_median_width`` process
+  parameter.  Useful for line-rich frames with small tilts; see
+  :ref:`image_proc-cr` for details.
+- Adds ability to select the specific archive of standard stars to use when
+  searching for a match to an observed standard.  This is particularly import
+  for LBT/MODS.
 
 Instrument-specific Updates
 ---------------------------
+
+- Added support for the MMT Binospec IFU (``mmt_binospec_ifu``), a fiber-fed
+  integral field unit with ~360 fibers per detector side.  This introduces the
+  new ``Fiber`` pypeline for fiber-fed spectrographs, with dedicated
+  :class:`~pypeit.find_objects.FiberFindObjects` and
+  :class:`~pypeit.extraction.FiberExtract` classes.  Key features include:
+
+  - Joint sky subtraction across all fibers using dedicated sky fibers
+  - Sky-line-based per-fiber throughput correction to account for the
+    different optical paths of bare sky fibers vs. lenslet-fed science fibers
+  - Fiber identification via cross-correlation against a reference profile
+  - Boxcar and optimal (Horne 1986) extraction with empirical spatial
+    profiles from the flat field
+  - A dedicated ``pypeit_binospec_ifu_cube`` script for building datacubes
+    from fiber spectra
+
+  See the :ref:`mmt_binospec` documentation for details.
 
 - Rewrote MMT Binospec overscan subtraction in ``binospec_read_amp()`` to match
   the IDL pipeline (``bino_mosaic.pro``): Y-axis postscan first, then X-axis
   prescan+postscan, using sigma-clipped mean with outlier cleaning.  Added
   per-amplifier nonlinearity correction using degree-4 polynomial coefficients
   from the IDL calibration file.
+
+- Enabled scattered light correction for MMT Binospec IFU mode using PypeIt's
+  parametric kernel model, fitting to inter-fiber gap pixels.
+
 - Updated the MMT Binospec bad pixel mask to match the IDL pipeline, adding
   ~12,500 individual bad pixels, additional bad columns, and detector trap
   region masking from static calibration files.
+- Enabled the new residual-CR path (``cr_median_width=31``) by default
+  for MMT/Binospec arc and tilt frames.  See :ref:`image_proc-cr` for
+  details.
+
 - MMT/Binospec: extended the ``mmt_binospec_1000`` reid_arxiv template redward
   from 6760 Å to 7211 Å to support central wavelengths around 6450 Å.  The
   red extension was wavelength-calibrated from a calibration arc centered at
@@ -45,17 +83,49 @@ Instrument-specific Updates
   :func:`~pypeit.core.wavecal.templates.build_template` with continuum
   subtraction on the new segment.
 - Implemented support for VLT/UVES data reduction.
+- Implemented support for Magellan/LDSS3 VPH-ALL data reduction.
+- Added Palomar / NGPS (Next Generation Spectrograph) support.  Four
+  channels ``p200_ngps_{u,g,r,i}`` covering 3050--10400 Å at
+  R ~ 4000, fed by a 3-slice image slicer; raw frames carry all
+  four channels as image extensions in one multi-extension FITS.
+  Wavelength solution uses ``method='full_template'`` against the
+  shipped ``wvarxiv_p200_ngps_{u,g,r,i}_thar_central.fits``
+  binspec=1 ThAr archives.  See :ref:`p200_ngps_doc`.
+- Palomar/NGPS: the wavelength-calibration ``match_toler`` is now derived from
+  the spectral binning of the data (held fixed in wavelength rather than in
+  binned pixels via ``config_specific_par``), so binnings other than the
+  binspec=3 commissioning setup (e.g. binspec=1) no longer drop the redder,
+  more widely spaced arc lines.  binspec=3 is unchanged (0.3 px).
+- Added wavelength-calibration template for GRIS_1200R grating in VLT/FORS2
+- Added support for the SOAR/TripleSpec near-IR echelle spectrograph
+  (``soar_tspec``), reduced via the Echelle pipeline over all five orders
+  (orders 7--3, ~0.8--2.47 microns).  Wavelength calibration uses OH sky lines
+  from the science frames and a new native ``soar_triplespec.fits`` reid
+  archive.
+- MMT/Binospec: ``pypeit_setup`` now splits setups by slit mask in addition to
+  grating (``decker`` added to ``configuration_keys``), so frames taken with
+  different masks no longer share calibrations.
 
 Script Changes
 --------------
+- Added ``pypeit_binospec_ifu_cube`` for building datacubes from Binospec IFU
+  spec1d files.  Combines both detector sides and produces FITS datacubes
+  with 3-axis WCS.
 
 - Removed -G/--gui option from pypeit_obslog.
+
+- Added ``pypeit_binospec_ifu_extract`` for interactive selection of
+  Binospec IFU fibers and extraction of combined 1D spectra from spec1d
+  files. Output is a :class:`~pypeit.onespec.OneSpec` FITS file. See the
+  :ref:`mmt_binospec` documentation for details.
 
 Testing
 -------
 
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
+- Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
+  typing.
 
 Under-the-hood Improvements
 ---------------------------
@@ -72,6 +142,12 @@ Under-the-hood Improvements
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
+- Moved code used to generate templates (``pypeit/core/wavecal/templates.py``
+  and ``pypeit/core/wavecal/spectrographs``) to the dev-suite.  These were
+  development-only files, not suited for the released package.
+- Restructuring of :mod:`~pypeit.core`.
+- Increase the breakpoint spacing when fitting the slit illumination profile.
+
 
 Bug Fixes
 ---------
@@ -93,3 +169,12 @@ Bug Fixes
 - Fix a bug in 2D coaddition where manually identified objects were not being
   used to compute offsets between input frames.  Add description of this failure
   mode to the :ref:`known_issues_coadd2d` documentation for 2D coaddition.
+- Fixes a bug in :class:`~pypeit.bspline.bspline.bspline` which was not
+  correctly setting ``xmin`` and ``xmax`` when using the ``x2`` option.
+- MMT/Binospec: flat/trace/illumflat frame typing now requires the
+  incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
+  ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.
+- Palomar/NGPS: pixelflat/trace/illumflat frame typing now uses only dome flats
+  (``IMGTYPE`` = ``DOMEFLAT``) and no longer includes the internal continuum
+  (``IMGTYPE`` = ``CONT``) lamp flats, whose different illumination contaminated
+  the combined pixel/illumination flat when both were present in a night.
