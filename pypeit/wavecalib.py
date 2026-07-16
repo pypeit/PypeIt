@@ -1097,9 +1097,13 @@ class BuildWaveCalib:
             boolean array containing a mask indicating which slits are good. True
             = masked (bad).
         """
+        # Allow the spectrograph to adjust extraction centers (e.g. snap
+        # to nearest fiber for fiber-fed IFUs instead of block-slit midpoint)
+        slitcen = self.spectrograph.get_arc_extract_center(
+            self.slitcen, self.slits, self.det)
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image,
+            slitcen, self.slitmask, self.msarc.image,
             gpm=self.gpm, slit_bpm=self.wvc_bpm,
             slitIDs=slitIDs, box_rad=self.par['boxcar_radius'])
         # Step
