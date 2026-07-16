@@ -1,4 +1,3 @@
-
 __all__ = [
     # Base class module
     'spectrograph',
@@ -6,6 +5,9 @@ __all__ = [
     # All the subclass modules
     'aat_uhrf',
     'apf_levy',
+    'arc_kosmos',
+    'arc_arces',
+    'arc_tspec',
     'bok_bc',
     'gemini_flamingos',
     'gemini_gmos',
@@ -48,5 +50,4 @@ __all__ = [
     'vlt_xshooter',
     'wht_isis',
 ]
-
 

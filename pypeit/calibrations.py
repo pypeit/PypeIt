@@ -1713,7 +1713,22 @@ class Calibrations:
                 # a real run writes it as the live-monitoring feed.
                 if not status_only:
                     self.state.safe_write()
-            getattr(self, f'get_{step}')(force=force)
+            try:
+                getattr(self, f'get_{step}')(force=force)
+            except Exception:
+                # A step that raises (an unrecoverable error mid-build, e.g. a
+                # PypeItError thrown deep in get_flats) must not leave the state
+                # stuck at 'running': otherwise the Dashboard / pypeit_status
+                # would keep showing the step as in-progress (orange) forever,
+                # even though the run has died (bug report 000).  Mark it 'fail'
+                # and persist so the failure is visible, then re-raise so the
+                # run still aborts with a non-zero exit code.
+                if self.state is not None:
+                    self.state.safe_update_calib(step, self.calib_ID, self.det,
+                                                 'status', 'fail')
+                    if not status_only:
+                        self.state.safe_write()
+                raise
 
             # Update state
             if self.state is not None:

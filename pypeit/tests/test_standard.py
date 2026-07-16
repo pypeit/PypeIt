@@ -100,7 +100,7 @@ def test_nearest_standard():
 
 def test_archive_classes():
     classes = standard.archived_flux_classes()
-    assert len(classes) == 5, 'Number of classes changed'
+    assert len(classes) == 6, 'Number of classes changed'
 
 
 def test_archived_standards():
@@ -290,7 +290,7 @@ def test_pseudo_model():
 
 def test_archive_sets():
     archive = standard.get_archive_sets()
-    assert len(archive) == 5, 'Default list of archives changed'
+    assert len(archive) == 6, 'Default list of archives changed'
     assert archive[0] == 'xshooter', 'Order changed'
 
     archive = standard.get_archive_sets(archives=['esofil', 'calspec'])

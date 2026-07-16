@@ -34,6 +34,9 @@ Functionality/Performance Improvements and Additions
   rejection, controlled by the new ``cr_median_width`` process
   parameter.  Useful for line-rich frames with small tilts; see
   :ref:`image_proc-cr` for details.
+- Adds ability to select the specific archive of standard stars to use when
+  searching for a match to an observed standard.  This is particularly import
+  for LBT/MODS.
 
 Instrument-specific Updates
 ---------------------------
@@ -61,6 +64,11 @@ Instrument-specific Updates
   Wavelength solution uses ``method='full_template'`` against the
   shipped ``wvarxiv_p200_ngps_{u,g,r,i}_thar_central.fits``
   binspec=1 ThAr archives.  See :ref:`p200_ngps_doc`.
+- Palomar/NGPS: the wavelength-calibration ``match_toler`` is now derived from
+  the spectral binning of the data (held fixed in wavelength rather than in
+  binned pixels via ``config_specific_par``), so binnings other than the
+  binspec=3 commissioning setup (e.g. binspec=1) no longer drop the redder,
+  more widely spaced arc lines.  binspec=3 is unchanged (0.3 px).
 - Added wavelength-calibration template for GRIS_1200R grating in VLT/FORS2
 - Added support for the SOAR/TripleSpec near-IR echelle spectrograph
   (``soar_tspec``), reduced via the Echelle pipeline over all five orders
@@ -99,6 +107,12 @@ Under-the-hood Improvements
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
+- Moved code used to generate templates (``pypeit/core/wavecal/templates.py``
+  and ``pypeit/core/wavecal/spectrographs``) to the dev-suite.  These were
+  development-only files, not suited for the released package.
+- Restructuring of :mod:`~pypeit.core`.
+- Increase the breakpoint spacing when fitting the slit illumination profile.
+
 
 Bug Fixes
 ---------
@@ -131,6 +145,11 @@ Bug Fixes
   status-only mode) now records a calibration whose output file is simply
   missing as ``undone`` (not yet built) rather than ``fail``; ``fail`` is
   reserved for genuine build failures.
+- ``Calibrations.run_the_steps`` now marks a calibration step ``fail`` (and
+  persists it to ``*_state.json``) when the step **raises** mid-build, before
+  re-raising the exception.  Previously the step was left stuck at ``running``,
+  so status tools / the Dashboard kept reporting a crashed (re)build as
+  in-progress indefinitely.
 - A **status-only** state derivation (e.g. the Dashboard computing status on
   launch) no longer **writes** ``*_state.json``: it is a read, so it no longer
   leaves the last step marked ``running`` / overwrites an existing state file.
@@ -150,3 +169,7 @@ Bug Fixes
 - MMT/Binospec: flat/trace/illumflat frame typing now requires the
   incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
   ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.
+- Palomar/NGPS: pixelflat/trace/illumflat frame typing now uses only dome flats
+  (``IMGTYPE`` = ``DOMEFLAT``) and no longer includes the internal continuum
+  (``IMGTYPE`` = ``CONT``) lamp flats, whose different illumination contaminated
+  the combined pixel/illumination flat when both were present in a night.

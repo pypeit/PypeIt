@@ -16,6 +16,7 @@ from abc import ABCMeta
 from pypeit import log, utils
 from pypeit import PypeItError
 from pypeit.display import display
+from pypeit.qa import spec_flexure_qa
 from pypeit.core import skysub, extract, flexure, flat
 from pypeit.core.moment import moment1d
 from IPython import embed
@@ -583,8 +584,8 @@ class Extract:
         if flex_list is not None:
             basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
-            flexure.spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
-                                    specobjs=sobjs, out_dir=out_dir)
+            spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
+                            specobjs=sobjs, out_dir=out_dir)
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
