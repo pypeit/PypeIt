@@ -1813,7 +1813,7 @@ class FiberFindObjects(FindObjects):
 
         By default the fit is joint over dedicated sky fibers and all
         science fibers, relying on the iterative sigma rejection in
-        :func:`~pypeit.core.fitting.iterfit` (asymmetric, tighter on the
+        :func:`~pypeit.core.fitting.iterative_bspline_fit` (asymmetric, tighter on the
         upper side) to down-weight pixels that contain real source flux.
         Two ``[reduce][skysub]`` parameters control which fibers
         contribute:
@@ -1977,7 +1977,7 @@ class FiberFindObjects(FindObjects):
         -------
         result : tuple or None
             ``(sset, wave_min, wave_max, outmask)`` on success, or ``None``
-            if there are no good fiber inputs or ``iterfit`` raises.
+            if there are no good fiber inputs or ``iterative_bspline_fit`` raises.
         """
 
         nspec, nspat = self.sciImg.image.shape
@@ -2252,7 +2252,7 @@ class FiberFindObjects(FindObjects):
         sobjs : :class:`~pypeit.specobjs.SpecObjs`
             Fiber SpecObjs from the first pass; ``BOX_WAVE`` is updated in
             place.
-        sset : :class:`~pypeit.bspline.bspline.bspline`
+        sset : :class:`~pypeit.core.bspline.BSpline2D`
             First-pass bspline.
         wave_min, wave_max : float
             Valid wavelength range for the bspline.
@@ -2361,7 +2361,7 @@ class FiberFindObjects(FindObjects):
 
         Parameters
         ----------
-        sset : :class:`~pypeit.bspline.bspline.bspline`
+        sset : :class:`~pypeit.core.bspline.BSpline2D`
             The reference (joint) bspline being refined against.
         wave : :class:`numpy.ndarray`
             Per-row wavelength of the fiber's boxcar spectrum (good rows
