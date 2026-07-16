@@ -33,7 +33,6 @@ from pypeit import io
 from pypeit import qa
 from pypeit.display import display
 from pypeit.images import buildimage
-from pypeit.core import bspline
 from pypeit.core import extract
 from pypeit.core import flat
 from pypeit.core import tracewave

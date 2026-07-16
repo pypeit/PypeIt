@@ -26,7 +26,7 @@ from pypeit.core import procimg
 from pypeit.core import findobj_skymask
 from pypeit.core import extract
 from pypeit.core.moment import moment1d
-from pypeit.core.fitting import iterfit
+from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.flatfield import FiberFlatImages, FlatImages
 from pypeit.extraction import FiberExtract
 
@@ -2056,10 +2056,10 @@ class FiberFindObjects(FindObjects):
             f"(excluded {n_excluded} sci within r<{excl_r}\"), "
             f"bsp={bsp}, npoly={npoly}, sigrej=({lower},{upper})")
         try:
-            sset, outmask = iterfit(
-                all_wave, all_flux, invvar=all_ivar, x2=all_x2,
-                upper=upper, lower=lower, maxiter=10, nord=4,
-                kwargs_bspline={'bkspace': bsp, 'npoly': npoly})
+            sset, outmask = iterative_bspline_fit(
+                all_wave, all_flux, ivar=all_ivar, basis='legendre', npoly=npoly, basis_x=all_x2,
+                upper=upper, lower=lower, maxiter=10, nord=4, kwargs_knots={'spacing': bsp}
+            )
         except Exception as e:
             log.warning(f"Fiber sky bspline fit{tag} failed: {e}")
             return None
@@ -2388,9 +2388,9 @@ class FiberFindObjects(FindObjects):
             The closed-form Delta-p that adds to ``center`` to give the
             estimated shift, or ``None`` if the solve was degenerate.
         """
-        base, _ = sset.value(wave + center * dlam, x2=x2)
+        base, _ = sset.value(wave + center * dlam, basis_x=x2)
         base_plus, _ = sset.value(
-            wave + (center + probe_pix) * dlam, x2=x2)
+            wave + (center + probe_pix) * dlam, basis_x=x2)
         dbase = (base_plus - base) / probe_pix
         # weight^2 = (dbase/dp)^2 * ivar; matches the legacy
         # grad*sqrt(ivar) weighting (the 1/dlam^2 conversion factor cancels
