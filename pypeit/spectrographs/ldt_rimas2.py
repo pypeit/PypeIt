@@ -208,7 +208,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             Whether the spectral direction is flipped from red to blue.
         """
         # The YJ Vph300 grating is installed such that BLUE -> RED
-        if det == 1 and disp == "Vph300":
+        if (det == 1 and disp == "Vph300") or (det == 2 and disp == "Vph30"):
             return False
 
         # Most everything in RIMAS is RED -> BLUE
@@ -1424,7 +1424,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
 
             par["reduce"]["findobj"]["find_fwhm"] = 5
             par["reduce"]["findobj"]["snr_thresh"] = 7
-            par["reduce"]["findobj"]["find_min_max"] = [110,140]
+            par["reduce"]["findobj"]["find_min_max"] = [65,103]
 
             par["reduce"]["skysub"]["no_local_sky"] = True
             par["reduce"]["skysub"]["no_poly"] = True
