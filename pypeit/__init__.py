@@ -24,6 +24,11 @@ log = get_logger(level=logging.DEBUG)
 from .pkg.pypeitdata import PypeItDataPaths
 dataPaths = PypeItDataPaths()
 
+# Import and instantiate the output path manager
+# NOTE: This *MUST* come after log is defined above
+from .pkg.outputpaths import PypeItOutputPaths
+outputPaths = PypeItOutputPaths()          # cwd-based defaults, unconfigured
+
 # Import all the exceptions so that they can be directly imported (e.g., `from
 # pypeit import PypeItError`) in all package imports.
 from .pkg.exceptions import *
