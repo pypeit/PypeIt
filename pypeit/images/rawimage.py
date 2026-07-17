@@ -15,6 +15,7 @@ import numpy as np
 from astropy import stats
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import outputPaths
 from pypeit import qa
 from pypeit.core import arc
 from pypeit.core import parse
@@ -27,7 +28,6 @@ from pypeit.images import pypeitimage
 from pypeit import utils
 from pypeit.display import display
 from pypeit import io
-from pathlib import Path
 
 # TODO: I don't understand why we have some of these attributes.  E.g., why do
 # we need both hdu and headarr?
@@ -796,8 +796,7 @@ class RawImage:
 
         # get filename for QA
         basename = f'{io.remove_suffix(self.filename)}_{self.spectrograph.get_det_name(self.det)}'
-        outdir = str(Path(slits.calib_dir).parent) if slits.calib_dir is not None else None
-        qa_outfile = qa.set_qa_filename(basename, 'spat_flexure_qa_corr', out_dir=outdir)
+        qa_outfile = outputPaths.qa_pngs / qa.set_qa_filename(basename, 'spat_flexure_qa_corr')
 
         self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
                                                              maxlag=self.par['spat_flexure_maxlag'],

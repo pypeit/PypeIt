@@ -26,6 +26,7 @@ from pypeit import PypeItError, PypeItDataModelError
 from pypeit import utils
 from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.containers.bspline import BSplineContainer
+from pypeit import outputPaths
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit import edgetrace
@@ -837,8 +838,8 @@ class FlatField:
                 # Save the QA, if requested
                 if doqa:
                     # TODO :: Probably need to pass in det when more spectrographs implement a structure correction...
-                    outfile = qa.set_qa_filename("DetectorStructure_" + self.calib_key, 'detector_structure',
-                                                 det="DET01", out_dir=self.qa_path)
+                    outfile = outputPaths.qa_pngs / qa.set_qa_filename(
+                        "DetectorStructure_" + self.calib_key, 'detector_structure', det="DET01")
                     detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
                 # Include the structure in the flat model and the pixelflat
                 self.mspixelflat *= det_resp_model
@@ -1746,8 +1747,8 @@ class FlatField:
             prefix = "Spatillum_FineCorr_"
             if self.spat_illum_only:
                 prefix += "illumflat_"
-            outfile = qa.set_qa_filename(prefix+self.calib_key, 'spatillum_finecorr', slit=slit_spat,
-                                         out_dir=self.qa_path)
+            outfile = outputPaths.qa_pngs / qa.set_qa_filename(
+                prefix+self.calib_key, 'spatillum_finecorr', slit=slit_spat)
             title = f"Fine correction to spatial illumination ({slit_txt} {slit_ordid})"
             normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
             spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos_fit, this_slit_trim,

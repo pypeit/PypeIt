@@ -1452,7 +1452,6 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
     # Write to disk?
     if objfindQA_filename is not None:
         qafile = Path(objfindQA_filename).absolute()
-        qafile.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(qafile, dpi=400)
     plt.close('all')
 

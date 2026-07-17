@@ -180,7 +180,7 @@ class PypeIt:
         # creates it (and its QA/ parent) on first use.
         outputPaths.qa_pngs
         qa.gen_mf_html(self.pypeit_file, self.qa_path)
-        qa.gen_exp_html()
+        qa.gen_exp_html(self.qa_path)
 
     def calib_all(self, status_only=False, reload_only=False):
         """

@@ -20,6 +20,7 @@ from pypeit import specobj
 from pypeit import specobjs
 from pypeit import log, utils, qa
 from pypeit import PypeItError
+from pypeit import outputPaths
 from pypeit.display import display
 from pypeit.core import skysub, parse, flat, flexure
 from pypeit.core import procimg
@@ -699,13 +700,12 @@ class FindObjects:
         # Set objfind QA filename
         objfindQA_filename = None
         if save_objfindQA and (self.basename is not None):
-            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
             if self.find_negative:
                 basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
             else:
                 basename = self.basename
-            objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit,
-                                                    det=self.detname, out_dir=out_dir)
+            objfindQA_filename = str(outputPaths.qa_pngs / qa.set_qa_filename(
+                basename, 'obj_profile_qa', slit=slit, det=self.detname))
 
         return objfindQA_filename
 

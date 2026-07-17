@@ -54,6 +54,6 @@ class QAHtml(scriptbase.ScriptBase):
 
         # Exposures
         if flg_exp:
-            qa.gen_exp_html()
+            qa.gen_exp_html(args.qapath)
 
 
