@@ -156,7 +156,7 @@ class ReducebyStep(scriptbase.ScriptBase):
         if args.step == 'process':
             pypeit_steps.process_one_det(
                 pypeIt.spectrograph, pypeIt.fitstbl, pypeIt.par,
-                frames, det, calib_ID, pypeIt.calibrations_path,
+                frames, det, calib_ID,
                 bg_frames=bg_frames, sci_outfile=sci_filename,
                 bkg_outfile=bkg_filename)
             # Fall through to the state refresh below (no early return).
@@ -193,7 +193,7 @@ class ReducebyStep(scriptbase.ScriptBase):
             # find objects + initial sky subtraction
             initial_sky, sobjs_obj_find, objFind = pypeit_steps.findobj_on_det(
                 sciImg, pypeIt.spectrograph, pypeIt.fitstbl, pypeIt.par,
-                frames, calib_ID, det, pypeIt.calibrations_path,
+                frames, calib_ID, det,
                 bkg_redux=bkg_redux,
                 find_negative=find_negative,
                 std_outfile=std_outfile, show=args.show)
@@ -294,7 +294,7 @@ class ReducebyStep(scriptbase.ScriptBase):
             # Extract
             all_spec2d[detname], sobjs_extract = pypeit_steps.extract_det(
                 pypeIt.spectrograph, pypeIt.fitstbl, pypeIt.par, frames, det,
-                calib_ID, pypeIt.calibrations_path,
+                calib_ID,
                 sciImg, skyimg, specobjs_on_det,
                 calib_slits, bkg_redux_final_sky=bkg_redux_skyimg,
                 bkg_redux=bkg_redux, find_negative=find_negative)
@@ -304,7 +304,6 @@ class ReducebyStep(scriptbase.ScriptBase):
             # Save it
             exposure.save_exposure(pypeIt.spectrograph, pypeIt.fitstbl,
                                    pypeIt.par, frame, all_spec2d, sobjs_extract,
-                                   pypeIt.calibrations_path,
                                    in_update_det=det)
 
         # Refresh the science state from the products just written and persist

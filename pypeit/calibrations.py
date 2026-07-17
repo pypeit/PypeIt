@@ -17,6 +17,7 @@ import yaml
 from pypeit import __version__
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import outputPaths
 from pypeit import alignframe
 from pypeit import flatfield
 from pypeit import edgetrace
@@ -52,11 +53,10 @@ class Calibrations:
             for Calibrations
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
-        caldir (:obj:`str`, `Path`_):
-            Path for the processed calibration files.
-        qadir (:obj:`str`, optional):
-            Path for quality assessment output.  If not provided, no QA
-            plots are saved.
+        write_qa (:obj:`bool`, optional):
+            Write QA plots to disk. The QA and calibrations directories are
+            both taken directly from :obj:`~pypeit.outputPaths`; see
+            :class:`~pypeit.pkg.outputpaths.PypeItOutputPaths`.
         reuse_calibs (:obj:`bool`, optional):
             Instead of reprocessing them, load existing calibration files from
             disk if they exist.
@@ -165,18 +165,18 @@ class Calibrations:
                     else IFUCalibrations
 
     @staticmethod
-    def get_instance(fitstbl, par, spectrograph, caldir, calib_ID:str,
+    def get_instance(fitstbl, par, spectrograph, calib_ID:str,
         frame:int, det:int, **kwargs):
         """
         Get the instance of the appropriate subclass of :class:`Calibrations` to
         use for reducing data from the provided ``spectrograph``.  For argument
         descriptions, see :class:`Calibrations`.
         """
-        return Calibrations.get_class(spectrograph)(fitstbl, par, spectrograph, caldir, calib_ID,
+        return Calibrations.get_class(spectrograph)(fitstbl, par, spectrograph, calib_ID,
                                                     frame, det, **kwargs)
 
-    def __init__(self, fitstbl, par, spectrograph, caldir, calib_ID:str,
-                 frame:int, det:int, qadir=None,
+    def __init__(self, fitstbl, par, spectrograph, calib_ID:str,
+                 frame:int, det:int, write_qa=True,
                  reuse_calibs=False, show=False, user_slits=None, chk_version=True,
                  state=None):
 
@@ -201,18 +201,15 @@ class Calibrations:
         # Calibrations
         self.reuse_calibs = reuse_calibs
         self.chk_version = chk_version
-        self.calib_dir = Path(caldir).absolute()
-        if not self.calib_dir.exists():
-            self.calib_dir.mkdir(parents=True)
+        self.calib_dir = outputPaths.calibrations   # property access creates it
 
         # QA
-        self.qa_path = None if qadir is None else Path(qadir).absolute()
-        if self.qa_path is not None:
-            # TODO: This should only be defined in one place!  Where?...
-            qa_png_path = self.qa_path / 'PNGs'
-        self.write_qa = self.qa_path is not None
-        if self.write_qa and not qa_png_path.exists():
-            qa_png_path.mkdir(parents=True)
+        self.write_qa = write_qa
+        self.qa_path = outputPaths.qa if write_qa else None
+        if write_qa:
+            # Ensure the QA/PNGs directory exists; QA-plot code below assumes
+            # it's already there (accessing the property creates it).
+            outputPaths.qa_pngs
 
         # Debugging
         self.show = show

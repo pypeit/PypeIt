@@ -107,7 +107,10 @@ class RunToCalibStep(scriptbase.ScriptBase):
         # the PypeIt Dashboard would show stale statuses after a (re)build
         # (and could not monitor the (re)build live).
         for det in detectors:
-            pypeit_steps.calib_one(pypeIt.spectrograph, pypeIt.fitstbl, pypeIt.par, det, calib_id, pypeIt.calibrations_path, stop_at_step=args.step, run_state=pypeIt.run_state)
+            pypeit_steps.calib_one(
+                pypeIt.spectrograph, pypeIt.fitstbl, pypeIt.par, det, calib_id,
+                stop_at_step=args.step, run_state=pypeIt.run_state
+            )
 
         # QA HTML
         log.info('Generating QA HTML')

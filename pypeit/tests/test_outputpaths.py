@@ -102,6 +102,20 @@ def test_configure_twice_raises(tmp_path):
         op.configure(redux_path=tmp_path)
 
 
+def test_configure_force_bypasses_once_only(tmp_path):
+    # force=True is the narrow PypeIt.__init__ carve-out (see the
+    # `configure` docstring) that allows more than one independent
+    # configuration in the same process, e.g. constructing more than one
+    # PypeIt object (pypeit_ql's calibration + science PypeIt objects).
+    op = PypeItOutputPaths()
+    op.configure(redux_path=tmp_path / 'first')
+    assert op.science == tmp_path / 'first' / 'Science'
+
+    op.configure(redux_path=tmp_path / 'second', force=True)
+    assert op.configured
+    assert op.science == tmp_path / 'second' / 'Science'
+
+
 def test_dryrun_configure_repeatable(tmp_path):
     op = PypeItOutputPaths(dryrun=True)
     op.configure(redux_path=tmp_path / 'first')

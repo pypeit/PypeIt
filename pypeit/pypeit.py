@@ -17,6 +17,7 @@ import numpy as np
 from pypeit import inputfiles
 from pypeit import qa
 from pypeit import log
+from pypeit import outputPaths
 from pypeit import calibrations
 from pypeit import utils
 from pypeit.history import History
@@ -87,6 +88,21 @@ class PypeIt:
         if redux_path is not None:
             self.par['rdx']['redux_path'] = redux_path
 
+        # Configure the output paths for this execution -- this is the one
+        # and only place `outputPaths.configure()` is called in the entire
+        # reduction workflow; everything downstream only reads `outputPaths`.
+        # force=True: NOT a general pattern -- see the `force` parameter's
+        # docstring in PypeItOutputPaths.configure(). It exists narrowly so
+        # that constructing a *new* PypeIt object (e.g. pypeit_ql building a
+        # calibration PypeIt and a science PypeIt in one run, or a notebook
+        # looping over several reductions in one process) always starts a
+        # fresh, correctly-resolved set of output paths, rather than being
+        # blocked by an earlier PypeIt object having already configured
+        # `outputPaths` in the same process. No other caller should use
+        # force=True.
+        outputPaths.configure(self.par, redux_path=redux_path, caller='PypeIt.__init__',
+                              force=True)
+
         # Write the full parameter set here
         # --------------------------------------------------------------
         par_file = pypeit_file.replace(
@@ -116,7 +132,7 @@ class PypeIt:
         self.show = show
 
         # Set paths
-        self.calibrations_path = Path(self.par['rdx']['redux_path']) / self.par['calibrations']['calib_dir']
+        self.calibrations_path = outputPaths.calibrations
 
         # Check for calibrations
         if not self.calib_only:
@@ -147,12 +163,12 @@ class PypeIt:
     @property
     def science_path(self) -> Path:
         """Return the path to the science directory."""
-        return outputfiles.science_path(self.par)
+        return outputPaths.science
 
     @property
-    def qa_path(self) -> str:
+    def qa_path(self) -> Path:
         """Return the path to the top-level QA directory."""
-        return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+        return outputPaths.qa
 
     def build_qa(self):
         """
@@ -160,8 +176,9 @@ class PypeIt:
 
         Called by run_pypeit.py
         """
-#        log.qa_path = self.qa_path
-        qa.gen_qa_dir(self.qa_path)
+        # Ensure the QA/PNGs directory exists; accessing the property
+        # creates it (and its QA/ parent) on first use.
+        outputPaths.qa_pngs
         qa.gen_mf_html(self.pypeit_file, self.qa_path)
         qa.gen_exp_html()
 
@@ -201,7 +218,7 @@ class PypeIt:
                 log.info(f'Working on detector {self.det}')
 
                 caliBrate = pypeit_steps.calib_one(self.spectrograph, self.fitstbl, self.par,
-                                       self.det, calib_ID, self.calibrations_path,
+                                       self.det, calib_ID,
                                        run_state=self.run_state,
                                        status_only=status_only,
                                        reload_only=reload_only)
@@ -229,9 +246,9 @@ class PypeIt:
         for calib_ID in self.fitstbl.calib_groups:
 
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
-                           calib_ID, self.calibrations_path,
+                           calib_ID,
                            reduce_standard=True, overwrite=self.overwrite,
-                           show=self.show, 
+                           show=self.show,
                            run_state=self.run_state,
                            reuse_calibs=self.reuse_calibs)
 
@@ -241,7 +258,7 @@ class PypeIt:
         # Iterate over each calibration group again and reduce the science frames
         for calib_ID in self.fitstbl.calib_groups:
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
-                                        calib_ID, self.calibrations_path,
+                                        calib_ID,
                                         reduce_standard=False, overwrite=self.overwrite,
                                         show=self.show, run_state=self.run_state,
                                         reuse_calibs=self.reuse_calibs)
@@ -263,8 +280,7 @@ class PypeIt:
         return '<{:s}: pypeit_file={}>'.format(self.__class__.__name__, self.pypeit_file)
 
 
-def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str, 
-                   calibrations_path:str,
+def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
                    reduce_standard:bool=False, overwrite:bool=False,
                    show:bool=False,
                    run_state=None,
@@ -288,8 +304,6 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             The metadata table for the current reduction.
         calib_ID (:obj:`str`):
             The calibration group ID to reduce.
-        calibrations_path (:obj:`str`):
-            The path to the calibration files.
         reduce_standard (:obj:`bool`, optional):
             Reduce the standard frames if True; science frames if
             False.
@@ -374,8 +388,8 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             #    std_outfile=std_outfile)
 
             this_spec2d, this_sobjs = exposure.reduce_exposure(
-                spectrograph, fitstbl, par, frames, calib_ID, 
-                calibrations_path, bg_frames=bg_frames,
+                spectrograph, fitstbl, par, frames, calib_ID,
+                bg_frames=bg_frames,
                 reuse_calibs=reuse_calibs, run_state=run_state,
                 show=show,
                 std_outfile=std_outfile)
@@ -384,8 +398,8 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             # save_exposure for combined files
             if len(this_spec2d.detectors) > 0:
                 exposure.save_exposure(spectrograph,
-                                    fitstbl, par, frames[0], 
-                                    this_spec2d, this_sobjs, calibrations_path,
+                                    fitstbl, par, frames[0],
+                                    this_spec2d, this_sobjs,
                                     history=history,
                                     skip_write_2d=par['scienceframe']['process']['skip_write_2d'])
             else:

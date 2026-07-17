@@ -11,6 +11,13 @@ lock in the real, parameter-derived values. Code in ``pypeit/core/`` must
 NOT import or query this object; it only ever receives already-resolved
 ``Path``/``str`` arguments.
 
+The once-only rule has exactly one narrow, documented exception (the
+``force`` parameter of :func:`configure`), used solely by
+:class:`~pypeit.pypeit.PypeIt`'s ``__init__`` so that more than one
+``PypeIt`` object can be constructed in the same process. See that
+parameter's docstring before assuming this is a general pattern -- it is
+not; every other caller must rely on the default once-only behavior.
+
 Each managed directory (``redux``, ``science``, ``qa``, ``qa_pngs``,
 ``calibrations``, ``coadd_science``, ``coadd_qa``, ``coadd_qa_pngs``,
 ``collate``) is tracked internally as a small :class:`_ManagedPath` record
@@ -199,14 +206,14 @@ class PypeItOutputPaths:
     # ---- one-time (re)configuration --------------------------------------
     def configure(self, par=None, redux_path=None, scidir=None, qadir=None,
                   calib_dir=None, coadd_suffix=None, collate_outdir=None,
-                  dryrun=None, caller=None):
+                  dryrun=None, caller=None, force=False):
         """
         Configure the instance from a :class:`~pypeit.par.pypeitpar.PypeItPar`
         and/or explicit overrides, exactly as if it had just been
         constructed with these arguments -- every managed directory's
         ``full``/``ready`` state is discarded and recomputed from scratch.
         May only be called once per instance unless the instance is in
-        dry-run mode.
+        dry-run mode (or ``force`` is used, see below).
 
         Parameters
         ----------
@@ -231,18 +238,37 @@ class PypeItOutputPaths:
         caller : :obj:`str`, optional
             Free-form string identifying the calling code, included in the
             log message for easier debugging.
+        force : :obj:`bool`, optional
+            Bypass the once-only restriction and reconfigure even if this
+            instance has already been configured (and is not in dry-run
+            mode). **This is not a general-purpose escape hatch** -- it
+            exists solely so that :class:`~pypeit.pypeit.PypeIt` can be
+            instantiated more than once in the same process (e.g.,
+            :mod:`~pypeit.scripts.ql` builds a calibration ``PypeIt`` and a
+            science ``PypeIt`` in one run; a notebook or driver script may
+            loop over several reductions). Constructing a new ``PypeIt``
+            object is a deliberate signal that a new, independent reduction
+            context is starting, which is categorically different from
+            some other function accidentally calling :func:`configure`
+            mid-run. Do not pass ``force=True`` from anywhere other than
+            :class:`~pypeit.pypeit.PypeIt`'s ``__init__``; every other
+            caller should rely on the default once-only behavior.
 
         Raises
         ------
         PypeItPathError
             If the instance has already been configured and is not in
-            dry-run mode.
+            dry-run mode, and ``force`` is not used.
         """
-        if self._configured and not self._dryrun:
+        # See the `force` docstring above: this bypass is a narrow carve-out
+        # for PypeIt.__init__ only, not a general reconfiguration mechanism.
+        if self._configured and not self._dryrun and not force:
             raise PypeItPathError(
                 'PypeItOutputPaths has already been configured for this '
                 'execution and cannot be reconfigured (only permitted when '
-                'the instance is in dry-run mode, for inspection/testing).')
+                'the instance is in dry-run mode, for inspection/testing, '
+                'or via the narrow force=True carve-out used by '
+                'PypeIt.__init__).')
 
         if par is not None:
             rdx, cal = par['rdx'], par['calibrations']
