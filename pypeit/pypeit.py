@@ -374,7 +374,8 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
 
         outfile2d = outputfiles.spec_output_file(fitstbl, par,
-                                            frames[0], twod=True)
+                                            frames[0], twod=True,
+                                            sci_path=outputPaths.science)
         if not outfile2d.is_file() or overwrite:
 
             # Build history to document what contributd to the reduced

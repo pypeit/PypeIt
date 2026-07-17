@@ -528,10 +528,8 @@ def save_exposure(spectrograph, fitstbl, par,
         skip_write_2d (:obj:`bool`, optional):
             Skip writing the 2D spectrum to disk
     """
-    # Check for the Science/ directory
-    science_path = outputfiles.science_path(par)
-    if not science_path.is_dir():
-        science_path.mkdir()
+    # The Science/ directory is created (if needed) by the property access.
+    sci_path = outputPaths.science
 
     # Determine the headers
     row_fitstbl = fitstbl[frame]
@@ -558,7 +556,7 @@ def save_exposure(spectrograph, fitstbl, par,
     # 1D spectra
     if all_specobjs.nobj > 0 and not par['reduce']['extraction']['skip_extraction']:
         # Spectra
-        outfile1d = outputfiles.spec_output_file(fitstbl, par, frame)
+        outfile1d = outputfiles.spec_output_file(fitstbl, par, frame, sci_path=sci_path)
         # TODO
         #embed(header='deal with the following for maskIDs;  713 of pypeit')
         all_specobjs.write_to_fits(subheader, outfile1d,
@@ -567,7 +565,7 @@ def save_exposure(spectrograph, fitstbl, par,
                                     history=history)
         # Info
         outfiletxt = outputfiles.spec_output_file(fitstbl, par,
-                                            frame, ext='.txt')
+                                            frame, ext='.txt', sci_path=sci_path)
         # TODO: Note we re-read in the specobjs from disk to deal with situations where
         # only a single detector is run in a second pass but in the same reduction directory.
         # This was to address Issue #1116 in PR #1154. Slightly inefficient, but only other
@@ -579,7 +577,7 @@ def save_exposure(spectrograph, fitstbl, par,
         return
 
     # 2D spectra
-    outfile2d = outputfiles.spec_output_file(fitstbl, par, frame, twod=True)
+    outfile2d = outputfiles.spec_output_file(fitstbl, par, frame, twod=True, sci_path=sci_path)
 
     # Build header
     pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
