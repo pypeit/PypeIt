@@ -120,3 +120,27 @@ def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
     basename = fitstbl.construct_basename(frame)
     # Finish``
     return sci_path / f'spec{"2" if twod else "1"}d_{basename}{ext}'
+
+def coadd_output_file(sci_path, basename:str, twod:bool=False, ext:str='.fits') -> Path:
+    """
+    Return the path to a 2D-coadd spectral output file.
+
+    Same naming convention as :func:`spec_output_file`, but for coadd2d
+    outputs, which are named directly from a ``basename`` string (e.g., as
+    returned by :func:`~pypeit.coadd2d.CoAdd2D.default_basename`) instead of
+    a frame index into a :class:`~pypeit.metadata.PypeItMetaData` table.
+
+    Args:
+        sci_path (:obj:`str`, `Path`_):
+            Path to the coadd science-output directory.
+        basename (:obj:`str`):
+            Basename of the coadd.
+        twod (:obj:`bool`, optional):
+            Name for the 2D output file; 1D file otherwise.
+        ext (:obj:`str`, optional):
+            Extension for the output file.  Default is '.fits'.
+
+    Returns:
+        `Path`_: The path for the output file
+    """
+    return Path(sci_path) / f'spec{"2" if twod else "1"}d_{basename}{ext}'

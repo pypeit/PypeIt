@@ -2531,7 +2531,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
         plt.show()
     else:
         plt.savefig(outfile, dpi=400)
-        log.info("Saved QA:\n"+outfile)
+        log.info(f"Saved QA:\n{outfile}")
 
     plt.close()
     plt.rcdefaults()
@@ -2599,7 +2599,7 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
         plt.show()
     else:
         plt.savefig(outfile, dpi=400)
-        log.info("Saved QA:\n" + outfile)
+        log.info(f"Saved QA:\n{outfile}")
 
     plt.close()
     plt.rcdefaults()

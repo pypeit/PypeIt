@@ -11,9 +11,10 @@ def test_set_qa_filename_bare_name_only():
     # components at all (callers join it with outputPaths.qa_pngs
     # themselves). Every method still supported after the dead-branch
     # removal (§4.1) is checked here.
-    methods = ['slit_trace_qa', 'arc_fit_qa', 'arc_fwhm_qa', 'arc_fit2d_global_qa',
-               'arc_fit2d_orders_qa', 'arc_tilts_spec_qa', 'arc_tilts_spat_qa',
-               'arc_tilts_2d_qa', 'obj_trace_qa', 'obj_profile_qa',
+    methods = ['slit_trace_qa', 'slit_profile_qa', 'arc_fit_qa', 'arc_fwhm_qa',
+               'arc_fit2d_global_qa', 'arc_fit2d_orders_qa', 'arc_tilts_spec_qa',
+               'arc_tilts_spat_qa', 'arc_tilts_2d_qa', 'pca_arctilt',
+               'plot_orderfits_Blaze', 'obj_trace_qa', 'obj_profile_qa',
                'spat_flexure_qa_corr', 'spec_flexure_qa_corr', 'spec_flexure_qa_sky',
                'spatillum_finecorr', 'detector_structure']
     for method in methods:
@@ -26,10 +27,12 @@ def test_set_qa_filename_bare_name_only():
 
 
 def test_set_qa_filename_dead_methods_removed():
-    # The five methods found to have no live call site anywhere in the
-    # codebase (§4.1) should raise, not silently succeed.
-    for method in ['slit_profile_qa', 'plot_orderfits_Arc', 'pca_plot',
-                   'pca_arctilt', 'plot_orderfits_Blaze']:
+    # These two methods have no live call site anywhere in the codebase
+    # (confirmed by a subsequent audit -- three of the five originally
+    # flagged as dead in §4.1 turned out to be reachable indirectly, via
+    # `html_mf_pngs`'s `fname=` dictionary values, and were restored).
+    # They should raise, not silently succeed.
+    for method in ['plot_orderfits_Arc', 'pca_plot']:
         try:
             qa.set_qa_filename('test', method, slit=1, prefix='pre')
         except IOError:

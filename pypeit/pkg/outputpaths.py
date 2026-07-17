@@ -97,9 +97,10 @@ class PypeItOutputPaths:
         production code paths.
     """
 
-    def __init__(self, redux_path=None, scidir='Science', qadir='QA',
-                 calib_dir='Calibrations', coadd_suffix='_coadd',
-                 collate_outdir=None, dryrun=False):
+    def __init__(
+        self, redux_path=None, scidir='Science', qadir='QA', calib_dir='Calibrations',
+        coadd_suffix='_coadd', collate_outdir=None, dryrun=False
+    ):
         self._configured = False
         self._dryrun = dryrun
         self._paths = {}
@@ -107,32 +108,31 @@ class PypeItOutputPaths:
                     collate_outdir)
 
     # ---- internal state management -------------------------------------
-    def _apply(self, redux_path, scidir, qadir, calib_dir, coadd_suffix,
-               collate_outdir):
+    def _apply(self, redux_path, scidir, qadir, calib_dir, coadd_suffix, collate_outdir):
         """
         Compute and store ``parent``/``name`` for every managed directory,
         replacing any existing records (so ``full``/``ready`` are always
         reset to unresolved/not-ready here). Pure path arithmetic -- no I/O,
         no change to ``_configured``.
         """
-        redux_full = Path(redux_path).absolute() if redux_path is not None \
-                        else Path.cwd()
+        redux_full = Path(redux_path).absolute() if redux_path is not None else Path.cwd()
         qa_full = redux_full / qadir
         coadd_qa_name = f'{qadir}{coadd_suffix}'
         coadd_qa_full = redux_full / coadd_qa_name
-        collate_full = Path(collate_outdir).absolute() if collate_outdir is not None \
-                            else redux_full
+        collate_full = (
+            Path(collate_outdir).absolute() if collate_outdir is not None else redux_full
+        )
 
         self._paths = {
-            'redux':         _ManagedPath(redux_full.parent, redux_full.name),
-            'science':       _ManagedPath(redux_full, scidir),
-            'qa':            _ManagedPath(redux_full, qadir),
-            'qa_pngs':       _ManagedPath(qa_full, 'PNGs'),
-            'calibrations':  _ManagedPath(redux_full, calib_dir),
+            'redux': _ManagedPath(redux_full.parent, redux_full.name),
+            'science': _ManagedPath(redux_full, scidir),
+            'qa': _ManagedPath(redux_full, qadir),
+            'qa_pngs': _ManagedPath(qa_full, 'PNGs'),
+            'calibrations': _ManagedPath(redux_full, calib_dir),
             'coadd_science': _ManagedPath(redux_full, f'{scidir}{coadd_suffix}'),
-            'coadd_qa':      _ManagedPath(redux_full, coadd_qa_name),
+            'coadd_qa': _ManagedPath(redux_full, coadd_qa_name),
             'coadd_qa_pngs': _ManagedPath(coadd_qa_full, 'PNGs'),
-            'collate':       _ManagedPath(collate_full.parent, collate_full.name),
+            'collate': _ManagedPath(collate_full.parent, collate_full.name),
         }
 
     def _get(self, key: str) -> Path:
@@ -204,9 +204,10 @@ class PypeItOutputPaths:
         return self._dryrun
 
     # ---- one-time (re)configuration --------------------------------------
-    def configure(self, par=None, redux_path=None, scidir=None, qadir=None,
-                  calib_dir=None, coadd_suffix=None, collate_outdir=None,
-                  dryrun=None, caller=None, force=False):
+    def configure(
+        self, par=None, redux_path=None, scidir=None, qadir=None, calib_dir=None,
+        coadd_suffix=None, collate_outdir=None, dryrun=None, caller=None, force=False
+    ):
         """
         Configure the instance from a :class:`~pypeit.par.pypeitpar.PypeItPar`
         and/or explicit overrides, exactly as if it had just been
@@ -264,11 +265,11 @@ class PypeItOutputPaths:
         # for PypeIt.__init__ only, not a general reconfiguration mechanism.
         if self._configured and not self._dryrun and not force:
             raise PypeItPathError(
-                'PypeItOutputPaths has already been configured for this '
-                'execution and cannot be reconfigured (only permitted when '
-                'the instance is in dry-run mode, for inspection/testing, '
-                'or via the narrow force=True carve-out used by '
-                'PypeIt.__init__).')
+                'PypeItOutputPaths has already been configured for this execution and cannot be '
+                'reconfigured (only permitted when the instance is in dry-run mode, for '
+                'inspection/testing, or via the narrow force=True carve-out used by '
+                'PypeIt.__init__).'
+            )
 
         if par is not None:
             rdx, cal = par['rdx'], par['calibrations']
@@ -276,25 +277,31 @@ class PypeItOutputPaths:
             scidir = scidir if scidir is not None else rdx['scidir']
             qadir = qadir if qadir is not None else rdx['qadir']
             calib_dir = calib_dir if calib_dir is not None else cal['calib_dir']
-            if collate_outdir is None and 'collate1d' in par.keys() \
-                    and par['collate1d']['outdir'] is not None:
+            if (
+                collate_outdir is None and 'collate1d' in par.keys()
+                and par['collate1d']['outdir'] is not None
+            ):
                 collate_outdir = par['collate1d']['outdir']
 
         if dryrun is not None:
             self._dryrun = dryrun
 
-        self._apply(redux_path,
-                    scidir if scidir is not None else 'Science',
-                    qadir if qadir is not None else 'QA',
-                    calib_dir if calib_dir is not None else 'Calibrations',
-                    coadd_suffix if coadd_suffix is not None else '_coadd',
-                    collate_outdir)
+        self._apply(
+            redux_path,
+            scidir if scidir is not None else 'Science',
+            qadir if qadir is not None else 'QA',
+            calib_dir if calib_dir is not None else 'Calibrations',
+            coadd_suffix if coadd_suffix is not None else '_coadd',
+            collate_outdir
+        )
         self._configured = True
 
         ctx = f' [caller={caller}]' if caller else ''
         dry = ' (dry run)' if self._dryrun else ''
-        log.info(f'Output paths configured{ctx}{dry}: '
-                 f'redux_path={self._paths["redux"].parent / self._paths["redux"].name}')
+        log.info(
+            f'Output paths configured{ctx}{dry}: '
+            f'redux_path={self._paths["redux"].parent / self._paths["redux"].name}'
+        )
 
     # ---- held in reserve — stub only, not wired to any caller ------------
     def derive(self, **overrides):
@@ -321,6 +328,7 @@ class PypeItOutputPaths:
 
     def __repr__(self):
         redux = self._paths['redux']
-        return (f'<{self.__class__.__name__}: '
-                f'redux_path={redux.parent / redux.name}, '
-                f'configured={self._configured}, dryrun={self._dryrun}>')
+        return (
+            f'<{self.__class__.__name__}: redux_path={redux.parent / redux.name}, '
+            f'configured={self._configured}, dryrun={self._dryrun}>'
+        )

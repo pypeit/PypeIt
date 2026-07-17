@@ -16,6 +16,7 @@ import numpy as np
 from scipy import ndimage
 
 from pypeit import log
+from pypeit import outputPaths
 from pypeit import PypeItError
 from pypeit import extraction
 from pypeit import find_objects
@@ -475,19 +476,25 @@ class CoAdd2D:
     @staticmethod
     def output_paths(spec2d_files, par, coadd_dir=None):
         """
-        Construct and create the science and QA output directories for coadd2d.
+        Return the science and QA output directories for coadd2d.
+
+        This method assumes :obj:`~pypeit.outputPaths` has already been
+        configured (via :func:`~pypeit.pkg.outputpaths.PypeItOutputPaths.configure`)
+        by the caller -- it only reads the already-resolved
+        :attr:`~pypeit.pkg.outputpaths.PypeItOutputPaths.coadd_science` and
+        :attr:`~pypeit.pkg.outputpaths.PypeItOutputPaths.coadd_qa_pngs`
+        properties (accessing each property both resolves and creates the
+        corresponding directory on first use). ``par`` is no longer mutated.
 
         Parameters
         ----------
         spec2d_files : list
-            List of input ``spec2d`` filenames. The parent reduction directory is
-            inferred from these paths if ``coadd_dir`` is not provided.
+            List of input ``spec2d`` filenames. Unused; retained for call-site
+            compatibility.
         par : :class:`~pypeit.par.pypeitpar.PypeItPar`
-            Full parameter set. The routine uses and may update the values in
-            ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.
+            Full parameter set. Unused; retained for call-site compatibility.
         coadd_dir : str, optional
-            Root directory for the coadd2d output. If None, the parent reduction
-            directory inferred from ``spec2d_files`` is used.
+            Unused; retained for call-site compatibility.
 
         Returns
         -------
@@ -495,25 +502,8 @@ class CoAdd2D:
             Path to the science output directory
         qa_output_dir : str
             Path to the QA output directory.
-
-        Notes
-        -----
-        The required directories are created if they do not already exist.
         """
-        # Science output directory
-        if coadd_dir is not None:
-            pypeit_scidir = Path(coadd_dir).absolute() / 'Science'
-        else:
-            pypeit_scidir = Path(spec2d_files[0]).parent
-        coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_coadd"
-        if not coadd_scidir.exists():
-            coadd_scidir.mkdir(parents=True)
-        # QA directory
-        par['rdx']['qadir'] += '_coadd'
-        qa_path = pypeit_scidir.parent / par['rdx']['qadir'] / 'PNGs'
-        if not qa_path.exists():
-            qa_path.mkdir(parents=True)
-        return str(coadd_scidir), str(qa_path)
+        return str(outputPaths.coadd_science), str(outputPaths.coadd_qa_pngs)
 
     def good_slitindx(self, only_slits=None, exclude_slits=None):
         """

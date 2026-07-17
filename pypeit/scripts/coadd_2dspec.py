@@ -48,6 +48,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         from astropy.io import fits
 
         from pypeit import log
+        from pypeit import outputPaths
+        from pypeit import outputfiles
         from pypeit import coadd2d
         from pypeit import history
         from pypeit import inputfiles
@@ -60,6 +62,15 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # Load the file
         coadd2dFile = inputfiles.Coadd2DFile.from_file(args.coadd2d_file)
         spectrograph, par, _ = coadd2dFile.get_pypeitpar(pypeit_fits=True)
+
+        # Configure the output paths.  This is guarded (rather than called
+        # unconditionally) because this script can also be run in-process by
+        # another script (e.g., ``pypeit_ql`` with ``--coadd2d``) that has
+        # already configured the output paths for the same reduction; in
+        # that case, reuse the existing configuration instead of raising.
+        if not outputPaths.configured:
+            outputPaths.configure(par, redux_path=par['rdx']['redux_path'],
+                                  caller='CoAdd2DSpec.main')
 
         # Check some of the parameters
         # TODO Heliocentric for coadd2d needs to be thought through. Currently turning it off.
@@ -82,7 +93,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Get the paths
         coadd_scidir, qa_path = map(lambda x : Path(x).absolute(),
-                coadd2d.CoAdd2D.output_paths(spec2d_files, par, coadd_dir=par['rdx']['redux_path']))
+                coadd2d.CoAdd2D.output_paths(spec2d_files, par))
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
@@ -226,16 +237,16 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         subheader['coaddobj'] = (basename, 'Coadd object base name')
         # Write spec1D
         if all_specobjs.nobj > 0:
-            outfile1d = coadd_scidir / f'spec1d_{basename}.fits'
+            outfile1d = outputfiles.coadd_output_file(coadd_scidir, basename)
             all_specobjs.write_to_fits(subheader, outfile1d, history=coadd_history)
 
             # Info
-            outfiletxt = coadd_scidir / f'spec1d_{basename}.txt'
+            outfiletxt = outputfiles.coadd_output_file(coadd_scidir, basename, ext='.txt')
             sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
             sobjs.write_info(outfiletxt, spectrograph.pypeline)
 
         # Build header for spec2d
-        outfile2d = coadd_scidir / f'spec2d_{basename}.fits'
+        outfile2d = outputfiles.coadd_output_file(coadd_scidir, basename, twod=True)
         pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
                                                subheader=subheader, history=coadd_history,
                                                # TODO -- JFH :: Decide if we need any of these

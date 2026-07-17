@@ -56,6 +56,9 @@ def set_qa_filename(
         case 'slit_trace_qa':
             return f'Slit_Trace_{root}.png'
 
+        case 'slit_profile_qa':  # This is root for multiple PNGs
+            return f'Slit_Profile_{root}_'
+
         case 'arc_fit_qa':
             return f'Arc_1dfit_{root}_S{slit:04d}.png'
 
@@ -76,6 +79,12 @@ def set_qa_filename(
 
         case 'arc_tilts_2d_qa':
             return f'Arc_tilts_2d_{root}_S{slit:04d}.png'
+
+        case 'pca_arctilt':  # This is root for multiple PNGs
+            return f'Arc_pca_{root}_'
+
+        case 'plot_orderfits_Blaze':  # This is root for multiple PNGs
+            return f'Blaze_{root}_'
 
         case 'obj_trace_qa':
             return f'{root}_{det}_S{slit:04d}_obj_trace.png'

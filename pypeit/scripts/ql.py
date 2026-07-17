@@ -1021,7 +1021,7 @@ class QL(scriptbase.ScriptBase):
             spec2d_files = coadd2dFile.filenames
             coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).absolute()
             basename = coadd2d.CoAdd2D.default_basename(spec2d_files)
-            spec2d_file = str(coadd_scidir / f'spec2d_{basename}.fits')
+            spec2d_file = str(outputfiles.coadd_output_file(coadd_scidir, basename, twod=True))
         else:
             # Grab the spec2d file (or at least the first one)
             frame = pypeIt.fitstbl.find_frames('science', index=True)[0]
