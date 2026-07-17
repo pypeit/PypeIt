@@ -1360,6 +1360,8 @@ def _fit_profile_qa(
             )
         else:
             prof_ylim = utils.growth_lim(profile_x, 0.99, fac=1.7, midpoint='center')
+    else:
+        prof_ylim = utils.growth_lim(norm_obj_x, 0.99, fac=1.3, midpoint='center')
 
     ax_prof.axhline(0, color='0.50', lw=0.5)
     if limits_set:
