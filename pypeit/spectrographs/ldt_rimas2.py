@@ -1414,19 +1414,20 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             par["calibrations"]["slitedges"]["det_min_spec_length"] = 0.05
             par["calibrations"]["wavelengths"][
                 "reid_arxiv"
-            ] = "ldt_deveny_150_HgCdAr.fits"
+            ] = "ldt_rimas_HK_30_OH.fits"
             # Because of the wide wavelength range, split Vph30 arcs in half.
             par["calibrations"]["wavelengths"]["nsnippet"] = 2
             par["calibrations"]["wavelengths"]["n_first"] = 3
             par["calibrations"]["wavelengths"]["n_final"] = 5
-            par["calibrations"]["wavelengths"]["lamps"] = ["Hg_RIMAS"]
+            par["calibrations"]["wavelengths"]["lamps"] = ["OH_RIMAS_HK"]
             par["sensfunc"]["UVIS"]["resolution"] = 40
 
             par["reduce"]["findobj"]["find_fwhm"] = 5
-            par["reduce"]["findobj"]["snr_thresh"] = 2
-            par["reduce"]["findobj"]["find_min_max"] = [60,140]
+            par["reduce"]["findobj"]["snr_thresh"] = 7
+            par["reduce"]["findobj"]["find_min_max"] = [110,140]
 
-            par["reduce"]["skysub"]["mask_by_boxcar"] = True
+            par["reduce"]["skysub"]["no_local_sky"] = True
+            par["reduce"]["skysub"]["no_poly"] = True
 
         elif grating == "Vph300":
             par["calibrations"]["wavelengths"][
