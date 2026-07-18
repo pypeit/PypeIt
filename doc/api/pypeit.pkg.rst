@@ -10,6 +10,7 @@ Submodules
    pypeit.pkg.cache
    pypeit.pkg.exceptions
    pypeit.pkg.logger
+   pypeit.pkg.outputpaths
    pypeit.pkg.pypeitdata
    pypeit.pkg.version
 

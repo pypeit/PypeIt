@@ -8,7 +8,6 @@ pypeit.coadd2d module
    :undoc-members:
    :exclude-members: CoAdd2dStack
 
-
 .. autoclass:: pypeit.coadd2d.CoAdd2dStack
    :members:
    :no-undoc-members:
