@@ -37,14 +37,28 @@ data (e.g., ``keck_deimos``) and ``$SETUP`` is the instrument setup identifier
 (e.g., ``A``).  When referencing output files, we refer to this default
 directory structure throughout this documentation.
 
-.. warning::
+These three directory names, and the top-level reduction directory itself, are
+all set by existing :ref:`parameters`: ``scidir`` and ``qadir`` in
+:ref:`reduxpar` (default ``Science`` and ``QA``, respectively), ``calib_dir``
+in :ref:`calibrationspar` (default ``Calibrations``), and ``redux_path`` in
+:ref:`reduxpar` (default the current working directory).  All output paths
+used internally are resolved from these parameters exactly once, at the start
+of a reduction, so overriding any of them produces a fully consistent
+directory structure -- there's no need to keep everything at its default
+value.
 
-    PypeIt provides options and :ref:`parameters` that allow you to change the
-    default output directory structure.  **BEWARE** that these options are not
-    well tested.  For now, we strongly recommend you use PypeIt's default output
-    directory structure.
+Coadd Directory Structure
+--------------------------
 
-.. TODO: INCLUDE COADD DIRECTORY STRUCTURE
+When coadding data with :ref:`pypeit-coadd-2dspec` (see :ref:`coadd2d`) or
+``pypeit_ql`` with the ``--coadd2d`` option (see :doc:`quicklook`), the
+science and QA outputs are written to ``${scidir}_coadd`` and ``${qadir}_coadd``
+(i.e., ``Science_coadd`` and ``QA_coadd`` by default) instead of ``${scidir}``
+and ``${qadir}``, alongside (not replacing) the directories produced by the
+original reduction.
+
+For the separately-scoped output directory used by :ref:`pypeit_collate_1d`,
+see its own ``outdir`` parameter, described in :doc:`collate1d`.
 
 ----
 
