@@ -332,7 +332,7 @@ class Calibrations:
                 return [], None, None, setup, None, detname
 
             cal_file = cal_file[0]
-            calib_key = frameclass.parse_key_dir(str(cal_file), from_filename=True)[0]
+            calib_key = frameclass.parse_key_dir(cal_file, from_filename=True)[0]
             calib_id = frameclass.parse_calib_key(calib_key)[1]
             return [], cal_file, calib_key, setup, frameclass.ingest_calib_id(calib_id), detname
 
@@ -1332,7 +1332,7 @@ class Calibrations:
             traceImage = traceImage.sub(lampoff_flat)
 
         edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
-                                       qa_path=self.qa_path, auto=True)
+                                       auto=True)
         if not edges.success:
             # Something went amiss
             log.warning('Edge tracing failed.  Continuing, but likely to fail soon...')
@@ -1582,7 +1582,7 @@ class Calibrations:
         # Build
         self.buildwaveTilts = wavetilts.BuildWaveTilts(
             self.mstilt, self.slits, self.spectrograph, self.par['tilts'],
-            self.par['wavelengths'], det=self.det, qa_path=self.qa_path,
+            self.par['wavelengths'], det=self.det,
             spat_flexure=_spat_flexure, measured_fwhms=measured_fwhms)
 
         # Write

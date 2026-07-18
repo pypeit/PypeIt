@@ -531,7 +531,7 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
 
 
 def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
-                    calibrations_path:str, scifile:str=None, initial_slits=False):
+                    calibrations_path:str|Path, scifile:str=None, initial_slits=False):
     """
     Generate or load sky regions, if defined by the user.
 
@@ -849,7 +849,7 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
         # Build the initial sky mask
         initial_skymask = load_skyregions(
             spectrograph, fitstbl, par, frames[0], det,
-            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline not in ['SlicerIFU', 'Fiber'],
+            caliBrate, caliBrate.calib_dir, initial_slits=spectrograph.pypeline not in ['SlicerIFU', 'Fiber'],
             scifile=fitstbl.frame_paths(frames[0]))
             
 

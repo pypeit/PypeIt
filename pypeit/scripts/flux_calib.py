@@ -99,7 +99,7 @@ class FluxCalib(scriptbase.ScriptBase):
 
         # Write the par to disk
         if args.par_outfile is None:
-            args.par_outfile = str(outputPaths.redux / 'fluxing.par')
+            args.par_outfile = outputPaths.redux / 'fluxing.par'
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
 

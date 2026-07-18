@@ -299,8 +299,6 @@ class BuildWaveTilts:
             Uses ``['calibrations']['wavelengths']``.
         det (int):
             Detector index
-        qa_path (:obj:`str`, optional):
-            Directory for QA output.
         spat_flexure (float, optional):
             If input, the slitmask and slit edges are shifted prior
             to tilt analysis.
@@ -332,7 +330,7 @@ class BuildWaveTilts:
     """
 
     # TODO This needs to be modified to take an inmask
-    def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None,
+    def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1,
                  spat_flexure=None, measured_fwhms=None):
 
         # TODO: Perform type checking
@@ -343,7 +341,6 @@ class BuildWaveTilts:
         self.mstilt = mstilt
         self.slits = slits
         self.det = det
-        self.qa_path = qa_path
         self.spat_flexure = spat_flexure
         self.measured_fwhms = measured_fwhms if measured_fwhms is not None else np.array([None] * slits.nslits)
 
@@ -527,12 +524,11 @@ class BuildWaveTilts:
             # tot mask from the output mask
             # rej mask and rms_fit not in any output, recompute, or put into output from fit_tilts?
             arc_tilts_2d_qa(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
-                        rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=self.qa_path)
+                        rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA)
             arc_tilts_spat_qa(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
-                        spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA,
-                        out_dir=self.qa_path)
+                        spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA)
             arc_tilts_spec_qa(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
-                        slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=self.qa_path)
+                        slitord_id=slitord_id, setup=calib_key, show_QA=show_QA)
 
         self.steps.append(inspect.stack()[0][3])
         return self.all_fit_dict[slit_idx]['coeff2']

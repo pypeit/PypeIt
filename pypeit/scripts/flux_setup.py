@@ -147,7 +147,7 @@ class FluxSetup(scriptbase.ScriptBase):
                 file_paths = unique_paths, 
                 data_table=data)
             # Write
-            flux_file = str(outputPaths.redux / f'{output_basename}.flux')
+            flux_file = outputPaths.redux / f'{output_basename}.flux'
             fluxFile.write(flux_file)
 
             ## coadd1d pypeit file
@@ -217,7 +217,7 @@ class FluxSetup(scriptbase.ScriptBase):
                 file_paths = unique_paths, 
                 data_table=data)
             # Write
-            coadd1d_file = str(outputPaths.redux / '{:}.coadd1d'.format(output_basename))
+            coadd1d_file = outputPaths.redux / '{:}.coadd1d'.format(output_basename)
             coadd1dFile.write(coadd1d_file)
 
             ## tellfit pypeit file
@@ -238,7 +238,7 @@ class FluxSetup(scriptbase.ScriptBase):
             tellFile = inputfiles.TelluricFile(
                 config=cfg_lines)
             # Write
-            tellfit_file = str(outputPaths.redux / f'{output_basename}.tell')
+            tellfit_file = outputPaths.redux / f'{output_basename}.tell'
             tellFile.write(tellfit_file)
 
 

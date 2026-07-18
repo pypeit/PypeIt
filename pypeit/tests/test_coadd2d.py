@@ -45,5 +45,5 @@ def test_output_paths_never_configures(output_paths, monkeypatch):
 def test_output_paths_matches_coadd_properties(output_paths):
     par = PypeItPar()
     sci_dir, qa_dir = coadd2d.CoAdd2D.output_paths(['spec2d_file.fits'], par)
-    assert sci_dir == str(output_paths.coadd_science)
-    assert qa_dir == str(output_paths.coadd_qa_pngs)
+    assert sci_dir == output_paths.coadd_science
+    assert qa_dir == output_paths.coadd_qa_pngs

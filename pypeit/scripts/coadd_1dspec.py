@@ -184,7 +184,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
 
         # Write the par to disk
         if args.par_outfile is None:
-            args.par_outfile = str(outputPaths.redux / 'coadd1d.par')
+            args.par_outfile = outputPaths.redux / 'coadd1d.par'
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
         # TODO This needs to come out of the parset

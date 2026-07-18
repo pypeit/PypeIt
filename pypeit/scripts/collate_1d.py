@@ -204,7 +204,7 @@ class Collate1D(scriptbase.ScriptBase):
 
         # Write the par to disk
         if args.par_outfile is None:
-            args.par_outfile = str(outputPaths.collate / 'collate1d.par')
+            args.par_outfile = outputPaths.collate / 'collate1d.par'
         print("Writing the parameters to {}".format(args.par_outfile))
         # Gather up config lines for the sections relevant to collate_1d
         config_lines = par['collate1d'].to_config(section_name='collate1d',include_descr=False) + ['']

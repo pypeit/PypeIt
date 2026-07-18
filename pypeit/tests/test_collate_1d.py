@@ -685,8 +685,8 @@ def test_collate_paths_use_outputpaths_not_par(tmp_path, monkeypatch):
     monkeypatch.setattr(collate, 'outputPaths', op)
 
     archive = create_report_archive()
-    assert archive.archive_root == str(op.collate)
-    assert archive.metadata_list[0].metadata_file == str(op.collate / 'collate_report.dat')
+    assert archive.archive_root == op.collate
+    assert archive.metadata_list[0].metadata_file == op.collate / 'collate_report.dat'
 
     write_warnings([], [], [])
     assert (op.collate / 'collate_warnings.txt').is_file()

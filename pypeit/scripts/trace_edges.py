@@ -124,11 +124,6 @@ class TraceEdges(scriptbase.ScriptBase):
             lampoff_par = rdx.par['calibrations']['lampoffflatsframe']
             if len(lampoff_files) == 0:
                 lampoff_files = None
-
-            # Set the QA path.  `PypeIt.__init__` has already configured
-            # `outputPaths` (using the calib_dir/scidir/qadir from the
-            # loaded .pypeit file's own par, not `args.calib_dir`).
-            qa_path = outputPaths.qa
         else:
             detectors = args.detector
             spec = load_spectrograph(args.spectrograph)
@@ -160,11 +155,8 @@ class TraceEdges(scriptbase.ScriptBase):
             # this script may be run in the same process as another
             # script/entry point that has already configured `outputPaths`.
             if not outputPaths.configured:
-                outputPaths.configure(redux_path=str(redux_path), calib_dir=args.calib_dir,
+                outputPaths.configure(redux_path=redux_path, calib_dir=args.calib_dir,
                                       caller='TraceEdges.main')
-
-            # Set the QA path
-            qa_path = outputPaths.qa
 
         if detectors is None:
             detectors = np.arange(spec.ndet)+1
@@ -213,7 +205,7 @@ class TraceEdges(scriptbase.ScriptBase):
             # Trace the slit edges
             t = time.perf_counter()
             edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, auto=True,
-                                           debug=args.debug, qa_path=qa_path)
+                                           debug=args.debug)
             if not edges.success:
                 log.warning(f'Edge tracing for detector {det} failed.  Continuing...')
                 continue

@@ -206,7 +206,7 @@ class SensFunc(scriptbase.ScriptBase):
 
         # Write the par to disk
         if args.par_outfile is None:
-            args.par_outfile = str(outputPaths.redux / 'sensfunc.par')
+            args.par_outfile = outputPaths.redux / 'sensfunc.par'
         log.info(f'Writing the parameters to {args.par_outfile}')
         par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
@@ -225,7 +225,7 @@ class SensFunc(scriptbase.ScriptBase):
             # if spec1d_ in the filename, remove it
             _names = [n.split('spec1d_')[-1] if n.startswith('spec1d') else n for n in _names]
             spec1dname = _names[0] if len(_names) == 1 else f"{_names[0].split('.fits')[0]}-{_names[-1]}"
-            outfile = str(outputPaths.redux / ('sens_' + spec1dname))
+            outfile = outputPaths.redux / ('sens_' + spec1dname)
         # Instantiate the relevant class for the requested algorithm
         sensobj = sensfunc.SensFunc.get_instance(args.spec1dfiles, outfile, par['sensfunc'],
                                                  par_fluxcalib=par['fluxcalib'], debug=args.debug,

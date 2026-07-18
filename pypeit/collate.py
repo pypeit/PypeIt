@@ -218,7 +218,7 @@ def create_report_archive():
     report_formats = {'s2n':      '%.2f',
                       'wave_rms': '%.3f'}
 
-    report_metadata = ArchiveMetadata(str(outputPaths.collate / "collate_report.dat"),
+    report_metadata = ArchiveMetadata(outputPaths.collate / "collate_report.dat",
                                       report_names,
                                       partial(get_report_metadata,
                                               COADDED_SPEC1D_HEADER_KEYS,
@@ -228,7 +228,7 @@ def create_report_archive():
     archive_metadata_list.append(report_metadata)
 
     # metadatas in archive object
-    return ArchiveDir(str(outputPaths.collate), archive_metadata_list, copy_to_archive=False)
+    return ArchiveDir(outputPaths.collate, archive_metadata_list, copy_to_archive=False)
 
 def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
     """
@@ -693,7 +693,7 @@ def write_warnings(excluded_obj_log, failed_source_log, spec1d_failure_log):
             Messages about failures with spec1d files and why.
 
     """
-    report_filename = str(outputPaths.collate / "collate_warnings.txt")
+    report_filename = outputPaths.collate / "collate_warnings.txt"
 
     with open(report_filename, "w") as f:
         print("pypeit_collate_1d warnings", file=f)

@@ -48,6 +48,13 @@ from .exceptions import PypeItPathError
 # pypeit package (see the circular-import warning atop pkg/logger.py).
 log = logging.getLogger('pypeit')
 
+# Single source of truth for the QA-PNGs subdirectory name.  Exposed so that
+# code that only ever knows a top-level QA directory (not a configured
+# `PypeItOutputPaths` instance -- e.g. `qa.py`'s HTML-generation helpers,
+# reachable from the standalone `pypeit_qa_html` script against an arbitrary
+# user-specified QA directory) can still avoid hardcoding this name itself.
+PNGS_DIRNAME = 'PNGs'
+
 
 @dataclasses.dataclass
 class _ManagedPath:
@@ -127,11 +134,11 @@ class PypeItOutputPaths:
             'redux': _ManagedPath(redux_full.parent, redux_full.name),
             'science': _ManagedPath(redux_full, scidir),
             'qa': _ManagedPath(redux_full, qadir),
-            'qa_pngs': _ManagedPath(qa_full, 'PNGs'),
+            'qa_pngs': _ManagedPath(qa_full, PNGS_DIRNAME),
             'calibrations': _ManagedPath(redux_full, calib_dir),
             'coadd_science': _ManagedPath(redux_full, f'{scidir}{coadd_suffix}'),
             'coadd_qa': _ManagedPath(redux_full, coadd_qa_name),
-            'coadd_qa_pngs': _ManagedPath(coadd_qa_full, 'PNGs'),
+            'coadd_qa_pngs': _ManagedPath(coadd_qa_full, PNGS_DIRNAME),
             'collate': _ManagedPath(collate_full.parent, collate_full.name),
         }
 

@@ -45,6 +45,7 @@ from matplotlib import ticker, rc
 from astropy import table
 
 from pypeit import log
+from pypeit import outputPaths
 from pypeit import PypeItError
 from pypeit import PypeItBitMaskError
 from pypeit import utils
@@ -195,9 +196,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         par (:class:`~pypeit.par.pypeitpar.EdgeTracePar`):
             The parameters used to guide slit tracing. Used to set
             :attr:`par`.
-        qa_path (:obj:`str`, `Path`_, optional):
-            Directory for QA output. If None, no QA plots are
-            provided.
         auto (:obj:`bool`, optional):
             Find the edge traces using :func:`auto_trace`. If False,
             the trace data will only be the result of running
@@ -289,9 +287,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         objects (`astropy.table.Table`_):
             Collated object ID and coordinate information matched to
             the design table.
-        qa_path (`Path`_):
-            Directory for QA output. If None, no QA plots are
-            provided.
         log (:obj:`list`):
             A list of strings indicating the main methods applied
             when tracing.
@@ -337,7 +332,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
     internals = calibframe.CalibFrame.internals \
                  + ['spectrograph',     # Spectrograph instance
                     'par',              # EdgeTracePar instance
-                    'qa_path',          # Path for the QA plots
                     'edge_img',         # Array with the spatial pixel nearest to each trace edge.
                     'sobelsig_left',    # Sobel filtered image used to trace left edges
                     'sobelsig_right',   # Sobel filtered image used to trace right edges
@@ -420,7 +414,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                        'the PCA (center or fit)')}
     """DataContainer datamodel."""
 
-    def __init__(self, traceimg, spectrograph, par, qa_path=None, auto=False, debug=0):
+    def __init__(self, traceimg, spectrograph, par, auto=False, debug=0):
 
         # Instantiate as an empty DataContainer
         super().__init__()
@@ -441,8 +435,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.par = par                                  # Parameters used for slit edge tracing
         self.maskdef_id = None                          # Slit ID number from slit-mask design
                                                         # matched to traced slits
-        # Directory for QA plots
-        self.qa_path = None if qa_path is None else Path(qa_path).absolute()
 
         # Inherit the calibration frame attributes from the trace image:
         self.copy_calib_internals(self.traceimg)
@@ -1079,7 +1071,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
             all HDU extensions.
         """
         _hdr = super()._base_header(hdr=hdr)
-        _hdr['QAPATH'] = 'None' if self.qa_path is None else str(self.qa_path)
         self.par.to_header(_hdr)
         self.bitmask.to_header(_hdr)
         return _hdr
@@ -1251,7 +1242,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.spectrograph = load_spectrograph(hdu['SOBELSIG'].header['PYP_SPEC'])
         self.spectrograph.dispname = self.dispname
         self.par = EdgeTracePar.from_header(hdu['SOBELSIG'].header)
-        self.qa_path = Path(hdu['SOBELSIG'].header['QAPATH']).absolute()
 
         # Check the bitmasks
         hdr_bitmask = BitMask.from_header(hdu['SOBELSIG'].header)
@@ -1628,7 +1618,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                     plt.show()
                 else:
                     page += 1
-                    ofile = self.qa_path / 'PNGs', f'{fileroot}_{str(page).zfill(ndig)}.png'
+                    ofile = outputPaths.qa_pngs / f'{fileroot}_{str(page).zfill(ndig)}.png'
                     fig.canvas.print_figure(ofile, bbox_inches='tight')
                     log.info('Finished page {0}/{1}'.format(page, npages))
                 fig.clear()
@@ -5103,12 +5093,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if not np.any(order_missing):
             return None, None, None
 
-        # QA Plot
-        ofile = None if debug else self.qa_path / 'PNGs' \
-                    / f'{self.get_path().name.split(".")[0]}_orders_qa.png'
-        # TODO: Making this directory should probably be done elsewhere
-        if ofile is not None and not ofile.parent.is_dir():
-            ofile.parent.mkdir(parents=True)
+        # QA Plot.  Accessing `outputPaths.qa_pngs` creates the directory on
+        # first use, so no separate creation call is needed here.
+        ofile = None if debug else \
+                    outputPaths.qa_pngs / f'{self.get_path().name.split(".")[0]}_orders_qa.png'
         self.order_refine_free_format_qa(cen, bad_order, width, gap, width_fit, gap_fit,
                                          order_cen, order_missing, bracket=bracket, ofile=ofile)
 

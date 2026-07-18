@@ -1284,8 +1284,8 @@ class PypeItMetaData:
             list: List of the full paths of one or more frames.
         """
         if isinstance(indx, (int,np.integer)):
-            return os.path.join(self['directory'][indx], self['filename'][indx])
-        return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
+            return str(Path(self['directory'][indx]) / self['filename'][indx])
+        return [str(Path(d) / f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
 
     def set_frame_types(self, type_bits, merge=True):
         """
@@ -1696,7 +1696,7 @@ class PypeItMetaData:
         """
         # Set output path
         if output_path is None:
-            output_path = os.getcwd()
+            output_path = Path.cwd()
 
         # Find unique configurations, always ignoring any 'None'
         # configurations...
@@ -1723,13 +1723,12 @@ class PypeItMetaData:
             # Create the output directory
             root = '{0}_{1}'.format(self.spectrograph.name, setup)
             if config_subdir:
-                odir = os.path.join(output_path, root)
-                if not os.path.isdir(odir):
-                    os.makedirs(odir)
+                odir = Path(output_path) / root
+                odir.mkdir(parents=True, exist_ok=True)
             else:
-                odir = output_path
+                odir = Path(output_path)
             # Create the output file name
-            ofiles[j] = os.path.join(odir, '{0}.pypeit'.format(root))
+            ofiles[j] = str(odir / '{0}.pypeit'.format(root))
 
             # Setup dict
             setup_dict = {}

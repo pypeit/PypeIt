@@ -498,12 +498,12 @@ class CoAdd2D:
 
         Returns
         -------
-        sci_output_dir : str
+        sci_output_dir : Path
             Path to the science output directory
-        qa_output_dir : str
+        qa_output_dir : Path
             Path to the QA output directory.
         """
-        return str(outputPaths.coadd_science), str(outputPaths.coadd_qa_pngs)
+        return outputPaths.coadd_science, outputPaths.coadd_qa_pngs
 
     def good_slitindx(self, only_slits=None, exclude_slits=None):
         """
