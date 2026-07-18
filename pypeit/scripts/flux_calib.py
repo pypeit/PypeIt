@@ -9,6 +9,7 @@ from IPython import embed
 from astropy.io import fits
 
 from pypeit import log
+from pypeit import outputPaths
 from pypeit import PypeItError
 from pypeit import inputfiles
 from pypeit.spectrographs.util import load_spectrograph
@@ -59,8 +60,9 @@ class FluxCalib(scriptbase.ScriptBase):
                                  "specify no sensfiles and use an archived one.\n"
                                  "Archived sensfiles are available for the following spectrographs: " 
                                  + ",".join(SensFileArchive.supported_spectrographs()) + "\n\n")
-        parser.add_argument("--par_outfile", default='fluxing.par', action="store_true",
-                            help="Output to save the parameters")
+        parser.add_argument("--par_outfile", default=None,
+                            help="Name of output file to save the parameters used for fluxing. "
+                                 "Defaults to 'fluxing.par' in the top-level output directory.")
         parser.add_argument('--try_old', default=False, action='store_true',
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
@@ -86,7 +88,18 @@ class FluxCalib(scriptbase.ScriptBase):
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                  merge_with=(fluxFile.cfg_lines,))
+
+        # Configure the output paths, once, immediately after `par` is built.
+        # Guarded (rather than unconditional) since this script may be run
+        # in the same process as another script/entry point (e.g., a test
+        # or notebook chaining `RunPypeIt`, `SensFunc`, `FluxCalib`, ...)
+        # that has already configured `outputPaths`.
+        if not outputPaths.configured:
+            outputPaths.configure(par, caller='FluxCalib.main')
+
         # Write the par to disk
+        if args.par_outfile is None:
+            args.par_outfile = str(outputPaths.redux / 'fluxing.par')
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
 

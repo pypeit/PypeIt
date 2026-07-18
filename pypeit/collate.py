@@ -22,6 +22,8 @@ from astropy.coordinates import SkyCoord, Angle
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import log
+from pypeit import outputPaths
+from pypeit import outputfiles
 from pypeit import PypeItError
 from pypeit import coadd1d
 from pypeit.core import wave
@@ -184,7 +186,7 @@ class SourceObject:
 
         return self
 
-def create_report_archive(par):
+def create_report_archive():
     """
     Create an report archive with the desired metadata information.
 
@@ -216,7 +218,7 @@ def create_report_archive(par):
     report_formats = {'s2n':      '%.2f',
                       'wave_rms': '%.3f'}
 
-    report_metadata = ArchiveMetadata(os.path.join(par['collate1d']['outdir'], "collate_report.dat"),
+    report_metadata = ArchiveMetadata(str(outputPaths.collate / "collate_report.dat"),
                                       report_names,
                                       partial(get_report_metadata,
                                               COADDED_SPEC1D_HEADER_KEYS,
@@ -226,7 +228,7 @@ def create_report_archive(par):
     archive_metadata_list.append(report_metadata)
 
     # metadatas in archive object
-    return ArchiveDir(par['collate1d']['outdir'], archive_metadata_list, copy_to_archive=False)
+    return ArchiveDir(str(outputPaths.collate), archive_metadata_list, copy_to_archive=False)
 
 def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
     """
@@ -665,7 +667,8 @@ def find_spec2d_from_spec1d(spec1d_files):
     for spec1d_file in spec1d_files:
         # Check for a corresponding 2d file
         (path, filename) = os.path.split(spec1d_file)
-        spec2d_file = os.path.join(path, filename.replace('spec1d', 'spec2d', 1))
+        basename, ext = os.path.splitext(filename[len('spec1d_'):])
+        spec2d_file = str(outputfiles.coadd_output_file(path, basename, twod=True, ext=ext))
 
         if not os.path.exists(spec2d_file):
             raise PypeItError(f'Could not find matching spec2d file for {spec1d_file}')
@@ -675,7 +678,7 @@ def find_spec2d_from_spec1d(spec1d_files):
     return spec2d_files
 
 
-def write_warnings(par, excluded_obj_log, failed_source_log, spec1d_failure_log):
+def write_warnings(excluded_obj_log, failed_source_log, spec1d_failure_log):
     """
     Write gathered warning messages to a `collate_warnings.txt` file.
 
@@ -690,7 +693,7 @@ def write_warnings(par, excluded_obj_log, failed_source_log, spec1d_failure_log)
             Messages about failures with spec1d files and why.
 
     """
-    report_filename = os.path.join(par['collate1d']['outdir'], "collate_warnings.txt")
+    report_filename = str(outputPaths.collate / "collate_warnings.txt")
 
     with open(report_filename, "w") as f:
         print("pypeit_collate_1d warnings", file=f)
@@ -799,7 +802,7 @@ def collate_1d(par, spectrograph, tolerance, spec1d_files):
     failed_source_log = []
     for source in source_list:
 
-        coaddfile = os.path.join(par['collate1d']['outdir'], build_coadd_file_name(source))
+        coaddfile = str(outputPaths.collate / build_coadd_file_name(source))
         log.info(f'Creating {coaddfile} from the following sources:')
         for i in range(len(source.spec_obj_list)):
             log.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} '
@@ -822,11 +825,11 @@ def collate_1d(par, spectrograph, tolerance, spec1d_files):
                 failed_source_log.append(formatted_exception)
 
     # Create collate_report.dat
-    archive = create_report_archive(par)
+    archive = create_report_archive()
     archive.add(successful_source_list)
     archive.save()
 
-    write_warnings(par, excluded_obj_log, failed_source_log,
+    write_warnings(excluded_obj_log, failed_source_log,
                     spec1d_failure_log)
 
 

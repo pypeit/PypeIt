@@ -14,6 +14,7 @@ from astropy.table import Table
 
 from pypeit import log
 from pypeit import io
+from pypeit import outputPaths
 from pypeit.scripts import scriptbase
 from pypeit import inputfiles
 from pypeit.spectrographs.util import load_spectrograph
@@ -80,6 +81,15 @@ class FluxSetup(scriptbase.ScriptBase):
         # Initialize the log
         cls.init_log(args)
 
+        # This script has no `PypeItPar` of its own -- configure `outputPaths`
+        # from its own defaults (cwd), matching this script's existing,
+        # implicitly cwd-relative behavior.  Guarded (rather than
+        # unconditional) since this script may be run in the same process
+        # as another script/entry point that has already configured
+        # `outputPaths`.
+        if not outputPaths.configured:
+            outputPaths.configure(caller='FluxSetup.main')
+
         allfiles = []
         for path in args.paths:
             allfiles += Path(path).iterdir()
@@ -137,7 +147,7 @@ class FluxSetup(scriptbase.ScriptBase):
                 file_paths = unique_paths, 
                 data_table=data)
             # Write
-            flux_file = f'{output_basename}.flux'
+            flux_file = str(outputPaths.redux / f'{output_basename}.flux')
             fluxFile.write(flux_file)
 
             ## coadd1d pypeit file
@@ -207,7 +217,7 @@ class FluxSetup(scriptbase.ScriptBase):
                 file_paths = unique_paths, 
                 data_table=data)
             # Write
-            coadd1d_file = '{:}.coadd1d'.format(output_basename)
+            coadd1d_file = str(outputPaths.redux / '{:}.coadd1d'.format(output_basename))
             coadd1dFile.write(coadd1d_file)
 
             ## tellfit pypeit file
@@ -228,7 +238,7 @@ class FluxSetup(scriptbase.ScriptBase):
             tellFile = inputfiles.TelluricFile(
                 config=cfg_lines)
             # Write
-            tellfit_file = f'{output_basename}.tell'
+            tellfit_file = str(outputPaths.redux / f'{output_basename}.tell')
             tellFile.write(tellfit_file)
 
 

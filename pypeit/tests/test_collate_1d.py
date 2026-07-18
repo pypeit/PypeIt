@@ -10,9 +10,12 @@ import astropy.units as u
 from astropy.io import fits
 from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
+from pypeit import collate
 from pypeit.collate import collate_spectra_by_source, SourceObject
 from pypeit.collate import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
 from pypeit.collate import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
+from pypeit.collate import create_report_archive, write_warnings
+from pypeit.pkg.outputpaths import PypeItOutputPaths
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.sensfilearchive import SensFileArchive
 from pypeit.par import pypeitpar
@@ -669,5 +672,23 @@ def test_refframe_correction(monkeypatch):
     assert spec1d_failure_log[0].startswith('Not performing heliocentric correction for spec1d_file4 object SPAT3234_SLIT3236_DET03 because it has already been corrected')
     assert sobjs[0].VEL_CORR == 2.0 # Original value, should not have been overwritten
     assert sobjs[1].VEL_CORR == 1.0 # New value, from apply_helio
+
+
+def test_collate_paths_use_outputpaths_not_par(tmp_path, monkeypatch):
+    # create_report_archive() and write_warnings() must build their paths
+    # from outputPaths.collate, not by reading par['collate1d']['outdir']
+    # directly -- configure a dedicated instance whose `collate` directory
+    # differs from what a stray `par` would otherwise point to, to prove
+    # `par` is never consulted.
+    op = PypeItOutputPaths()
+    op.configure(redux_path=str(tmp_path), collate_outdir=str(tmp_path / 'collate_out'))
+    monkeypatch.setattr(collate, 'outputPaths', op)
+
+    archive = create_report_archive()
+    assert archive.archive_root == str(op.collate)
+    assert archive.metadata_list[0].metadata_file == str(op.collate / 'collate_report.dat')
+
+    write_warnings([], [], [])
+    assert (op.collate / 'collate_warnings.txt').is_file()
 
 

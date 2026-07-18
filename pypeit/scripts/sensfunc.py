@@ -82,8 +82,9 @@ class SensFunc(scriptbase.ScriptBase):
                                  "F|         use_flat = True")
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
-        parser.add_argument("--par_outfile", default='sensfunc.par',
-                            help="Name of output file to save the parameters used by the fit")
+        parser.add_argument("--par_outfile", default=None,
+                            help="Name of output file to save the parameters used by the fit. "
+                                 "Defaults to 'sensfunc.par' in the top-level output directory.")
         return parser
 
     @classmethod
@@ -93,6 +94,7 @@ class SensFunc(scriptbase.ScriptBase):
         import os
 
         from pypeit import log
+        from pypeit import outputPaths
         from pypeit import PypeItError
         from pypeit import inputfiles
         from pypeit import io
@@ -169,6 +171,14 @@ class SensFunc(scriptbase.ScriptBase):
         else:
             par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config())
 
+        # Configure the output paths, once, immediately after `par` is built.
+        # Guarded (rather than unconditional) since this script may be run
+        # in the same process as another script/entry point (e.g., a test
+        # or notebook chaining `RunPypeIt`, `SensFunc`, `FluxCalib`, ...)
+        # that has already configured `outputPaths`.
+        if not outputPaths.configured:
+            outputPaths.configure(par, caller='SensFunc.main')
+
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed
         if args.algorithm is not None:
@@ -195,6 +205,8 @@ class SensFunc(scriptbase.ScriptBase):
         # command line, overwrite the parset values read in from the .sens file
 
         # Write the par to disk
+        if args.par_outfile is None:
+            args.par_outfile = str(outputPaths.redux / 'sensfunc.par')
         log.info(f'Writing the parameters to {args.par_outfile}')
         par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
@@ -213,7 +225,7 @@ class SensFunc(scriptbase.ScriptBase):
             # if spec1d_ in the filename, remove it
             _names = [n.split('spec1d_')[-1] if n.startswith('spec1d') else n for n in _names]
             spec1dname = _names[0] if len(_names) == 1 else f"{_names[0].split('.fits')[0]}-{_names[-1]}"
-            outfile = 'sens_' + spec1dname
+            outfile = str(outputPaths.redux / ('sens_' + spec1dname))
         # Instantiate the relevant class for the requested algorithm
         sensobj = sensfunc.SensFunc.get_instance(args.spec1dfiles, outfile, par['sensfunc'],
                                                  par_fluxcalib=par['fluxcalib'], debug=args.debug,

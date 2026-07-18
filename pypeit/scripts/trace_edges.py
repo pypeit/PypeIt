@@ -12,6 +12,7 @@ class TraceEdges(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
+        from pypeit.par.pypeitpar import CalibrationsPar
         from pypeit.spectrographs.util import available_spectrographs
 
         parser = super().get_parser(description='Trace slit edges', width=width,
@@ -39,7 +40,7 @@ class TraceEdges(scriptbase.ScriptBase):
                                  'providing files directly; default is 1,1.')
         parser.add_argument('-p', '--redux_path', type=str, default='current working directory',
                             help='Path to top-level output directory.')
-        parser.add_argument('-c', '--calib_dir', default='Calibrations',
+        parser.add_argument('-c', '--calib_dir', default=CalibrationsPar()['calib_dir'],
                             help='Name for directory in output path for calibration file(s) '
                                  'relative to the top-level directory.')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
@@ -64,6 +65,7 @@ class TraceEdges(scriptbase.ScriptBase):
 
         from pypeit import edgetrace
         from pypeit import log
+        from pypeit import outputPaths
         from pypeit import PypeItError
         from pypeit.core import parse
         from pypeit.images import buildimage
@@ -123,8 +125,10 @@ class TraceEdges(scriptbase.ScriptBase):
             if len(lampoff_files) == 0:
                 lampoff_files = None
 
-            # Set the QA path
-            qa_path = rdx.qa_path
+            # Set the QA path.  `PypeIt.__init__` has already configured
+            # `outputPaths` (using the calib_dir/scidir/qadir from the
+            # loaded .pypeit file's own par, not `args.calib_dir`).
+            qa_path = outputPaths.qa
         else:
             detectors = args.detector
             spec = load_spectrograph(args.spectrograph)
@@ -150,8 +154,17 @@ class TraceEdges(scriptbase.ScriptBase):
             lampoff_files = None
             lampoff_par = None
 
+            # This is the one branch where `outputPaths` isn't already
+            # configured by a `PypeIt` object -- configure it here, once,
+            # for this script.  Guarded (rather than unconditional) since
+            # this script may be run in the same process as another
+            # script/entry point that has already configured `outputPaths`.
+            if not outputPaths.configured:
+                outputPaths.configure(redux_path=str(redux_path), calib_dir=args.calib_dir,
+                                      caller='TraceEdges.main')
+
             # Set the QA path
-            qa_path = redux_path / 'QA'
+            qa_path = outputPaths.qa
 
         if detectors is None:
             detectors = np.arange(spec.ndet)+1
@@ -160,7 +173,7 @@ class TraceEdges(scriptbase.ScriptBase):
         elif any([isinstance(d,str) for d in detectors]):
             detectors = [parse.eval_detectors(d) for d in detectors]
 
-        calib_dir = redux_path / args.calib_dir
+        calib_dir = outputPaths.calibrations
         for det in detectors:
 
             # Get the bias frame
