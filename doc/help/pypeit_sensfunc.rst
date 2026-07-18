@@ -105,5 +105,6 @@
       --debug               show debug plots?
       --par_outfile PAR_OUTFILE
                             Name of output file to save the parameters used by the
-                            fit
+                            fit. Defaults to 'sensfunc.par' in the top-level output
+                            directory.
     

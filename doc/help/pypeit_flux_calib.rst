@@ -2,7 +2,8 @@
 
     $ pypeit_flux_calib -h
     usage: pypeit_flux_calib [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                             [--log_level LOG_LEVEL] [--par_outfile] [--try_old]
+                             [--log_level LOG_LEVEL] [--par_outfile PAR_OUTFILE]
+                             [--try_old]
                              flux_file
     
     Flux calibrate 1D spectra produced by PypeIt
@@ -61,7 +62,10 @@
                             Verbosity level for the log file. If a log file is
                             produce and this is None, the file log will match the
                             console stream log.
-      --par_outfile         Output to save the parameters
+      --par_outfile PAR_OUTFILE
+                            Name of output file to save the parameters used for
+                            fluxing. Defaults to 'fluxing.par' in the top-level
+                            output directory.
       --try_old             Attempt to load old datamodel versions. A crash may
                             ensue..
     
