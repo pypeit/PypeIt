@@ -194,3 +194,42 @@ def test_ramp_sigma_missing_dark_falls_back(tmp_path):
     sig = spec.get_ramp_sigma(diffs, covar)
     assert np.abs(sig - sig_true) < 1.5
     assert spec._ramp_sigma is None   # fell back to self-cal, not cached
+
+
+def test_get_rawimage_ramp_path(tmp_path):
+    ngroups, ny, nx, rate, gain, grptime = 6, 64, 64, 20., 0.95, 2.
+    exptime = grptime * (ngroups - 1)
+    path = _write_synth(synth_ramp_hdulist(ngroups, ny=ny, nx=nx, rate=rate,
+                                           gain=gain, grptime=grptime,
+                                           seed=41),
+                        tmp_path / 'sci_ramp.fits')
+    from pypeit.spectrographs.util import load_spectrograph
+    spec = load_spectrograph('mmt_mmirs')
+    detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
+    assert img.shape == (ny - 8, nx - 8)
+    assert exp == exptime
+    # Effective read noise replaced the CDS default of 3.14
+    assert detpar['ronoise'][0] != 3.14
+    assert detpar['ronoise'][0] < 15.
+    # Rate recovery: image is ADU; convert back to e-/s
+    rate_meas = np.median(img) * gain / exptime
+    assert np.abs(rate_meas - rate) < 1.5
+
+
+def test_get_rawimage_cds_path(tmp_path):
+    """2-read files must still use the unchanged CDS path."""
+    path = _write_synth(synth_ramp_hdulist(2, ny=64, nx=64, rate=20., seed=51),
+                        tmp_path / 'sci_cds.fits')
+    from pypeit.spectrographs.util import load_spectrograph
+    spec = load_spectrograph('mmt_mmirs')
+    detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
+    assert img.shape == (56, 56)
+    assert detpar['ronoise'][0] == 3.14
+
+
+def test_findobj_trace_defaults():
+    from pypeit.spectrographs.util import load_spectrograph
+    par = load_spectrograph('mmt_mmirs').default_pypeit_par()
+    assert par['reduce']['findobj']['trace_npoly'] == 1
+    assert par['reduce']['findobj']['trace_maxdev'] == 50.
+    assert par['reduce']['findobj']['trace_maxshift'] == 20.

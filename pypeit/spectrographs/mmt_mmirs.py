@@ -304,6 +304,13 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['snr_thresh'] = 5.0
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [5,5]
+        # Object tracing: bound_detector=True gives synthetic straight slit
+        # edges, so the initial object trace is a straight line while the real
+        # trace is inclined; a linear fit with loose rejection lets the
+        # centroids reach and follow the real trace.
+        par['reduce']['findobj']['trace_npoly'] = 1
+        par['reduce']['findobj']['trace_maxdev'] = 50.
+        par['reduce']['findobj']['trace_maxshift'] = 20.
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
 
@@ -465,13 +472,17 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             Overscan section of the detector as provided by setting the
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
+
+        Frames with three or more non-destructive reads are combined using
+        up-the-ramp fitting (see :func:`_ramp_fit_image`); frames with two
+        (or one) reads use correlated double sampling, as before.
         """
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
         log.info(f'Reading MMIRS file: {fil}')
         hdu = io.fits_open(fil)
-        head1 = fits.getheader(fil,1)
+        head1 = hdu[1].header
 
         detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
 
@@ -479,17 +490,28 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         binning = head1['CCDSUM']
         xbin, ybin = [int(ibin) for ibin in binning.split(' ')]
 
-        # First read over the header info to determine the size of the output array...
-        datasec = head1['DATASEC']
-        x1, x2, y1, y2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
+        # Need the exposure time
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
 
-        # ToDo: I am currently using the standard double correlated frame, that is a difference between
-        # the first and final read-outs. In the future need to explore up-the-ramp fitting.
-        if len(hdu)>2:
-            data = mmirs_read_amp(hdu[1].data.astype('float64')) - mmirs_read_amp(hdu[2].data.astype('float64'))
+        # Number of non-destructive reads stored in the file
+        n_reads = sum(1 for h in hdu if h.header.get('NAXIS') == 2
+                      and h.header.get('NAXIS1', 0) > 0)
+
+        if n_reads >= 3:
+            # Up-the-ramp fitting with jump detection
+            array, eff_ronoise = self._ramp_fit_image(hdu, detector_par, exptime)
+            detector_par['ronoise'] = np.atleast_1d(eff_ronoise)
         else:
-            data = mmirs_read_amp(hdu[1].data.astype('float64'))
-        array = data[x1-1:x2,y1-1:y2]
+            # Correlated double sampling (first minus last read)
+            datasec = head1['DATASEC']
+            x1, x2, y1, y2 = np.array(parse.load_sections(datasec,
+                                                          fmt_iraf=False)).flatten()
+            if len(hdu) > 2:
+                data = mmirs_read_amp(hdu[1].data.astype('float64')) \
+                        - mmirs_read_amp(hdu[2].data.astype('float64'))
+            else:
+                data = mmirs_read_amp(hdu[1].data.astype('float64'))
+            array = data[x1-1:x2, y1-1:y2]
 
         ## ToDo: This is a hack. Need to solve this issue. I cut at 998 due to the HK zero order contaminating
         ## the blue part of the zJ+HK spectrum. For other setup, you do not need to cut the detector.
@@ -499,11 +521,43 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         # NOTE: If there is no overscan, must be set to 0s
         oscansec_img = np.zeros_like(array,dtype='int')
 
-        # Need the exposure time
-        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return, transposing array back to orient the overscan properly
         return detector_par, np.flipud(array), hdu, exptime, np.flipud(rawdatasec_img),\
                np.flipud(np.flipud(oscansec_img))
+
+    def _ramp_fit_image(self, hdu, detector_par, exptime):
+        """
+        Perform up-the-ramp fitting of a multi-read MMIRS frame.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_):
+                Opened raw file with at least 3 non-destructive reads.
+            detector_par (:class:`~pypeit.images.detector_container.DetectorContainer`):
+                Detector parameters; provides the gain.
+            exptime (:obj:`float`):
+                Exposure time in seconds, used to scale the fitted count
+                rate to total counts.
+
+        Returns:
+            :obj:`tuple`: The ramp-fitted image in ADU (`numpy.ndarray`_,
+            shape of the trimmed data section) and the effective read noise
+            in electrons (:obj:`float`).
+        """
+        reads, head1 = mmirs_load_ramp(hdu)
+        ngroups = reads.shape[0]
+        gain = detector_par['gain'][0]
+        reads *= gain      # ADU -> electrons
+        covar = fitramp.Covar([head1['GRPTIME'] * (i + 1)
+                               for i in range(ngroups)])
+        diffs = mmirs_ramp_diffs(reads, covar)
+        del reads
+        sig = self.get_ramp_sigma(diffs, covar)
+        log.info(f'Up-the-ramp fitting {ngroups} reads '
+                 f'(single-read noise {sig:.2f} e-)')
+        countrate = mmirs_fit_ramp(diffs, covar, sig)
+        eff_ronoise = mmirs_effective_ronoise(sig, ngroups)
+        log.info(f'Effective read noise: {eff_ronoise:.2f} e-')
+        return countrate * exptime / gain, eff_ronoise
 
 def mmirs_read_amp(img, namps=32):
     """
