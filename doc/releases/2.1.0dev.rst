@@ -106,6 +106,17 @@ Instrument-specific Updates
   grating (``decker`` added to ``configuration_keys``), so frames taken with
   different masks no longer share calibrations.
 
+- MMT/MMIRS raw frames with at least 3 non-destructive reads are now
+  processed with up-the-ramp fitting and cosmic-ray (jump) detection
+  (`Brandt 2024 <https://arxiv.org/abs/2404.01326>`__), replacing the
+  previous first-minus-last correlated double sampling.  The single-read
+  noise is calibrated from a dark frame listed in the pypeit file when
+  available (self-calibrated from each frame otherwise) and the effective
+  read noise is propagated to the detector parameters.  Default MMIRS
+  object-tracing parameters were also adjusted (``trace_npoly = 1``,
+  ``trace_maxdev = 50``, ``trace_maxshift = 20``) to improve tracing with
+  the synthetic slit edges used for this detector-bounded longslit.
+
 Script Changes
 --------------
 - Added ``pypeit_binospec_ifu_cube`` for building datacubes from Binospec IFU
@@ -147,6 +158,14 @@ Under-the-hood Improvements
   development-only files, not suited for the released package.
 - Restructuring of :mod:`~pypeit.core`.
 - Increase the breakpoint spacing when fitting the slit illumination profile.
+
+- Added :func:`~pypeit.spectrographs.spectrograph.Spectrograph.cache_metadata`,
+  a hook called whenever a :class:`~pypeit.metadata.PypeItMetaData` object is
+  built, allowing a spectrograph to record information from the full metadata
+  table for later use when reading raw images.
+
+- Vendored the ``fitramp`` up-the-ramp fitting module of Brandt (2024) as
+  :mod:`pypeit.core.fitramp` (MIT license).
 
 
 Bug Fixes

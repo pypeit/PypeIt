@@ -12,7 +12,25 @@ items for the MMT/MMIRS spectrograph.
 up-the-ramp fitting
 +++++++++++++++++++
 
-The up-the-ramp fitting has not been implemented yet for MMIRS.
+MMIRS raw frames store the non-destructive reads of the HAWAII-2 detector as
+separate FITS extensions.  For frames with at least 3 reads, PypeIt performs
+up-the-ramp fitting with likelihood-based jump (cosmic-ray) detection using
+the algorithm of `Brandt (2024) <https://arxiv.org/abs/2404.01326>`__,
+replacing the correlated double sampling (first minus last read) used
+previously.  Frames with 2 reads still use correlated double sampling.  Each
+read is reference-pixel corrected before fitting.
+
+The single-read noise needed by the fit is calibrated from a dark frame
+listed in the :ref:`pypeit_file` when one with at least 10 reads is
+available (include darks in your raw-data directory when running
+:ref:`pypeit_setup` to enable this); otherwise it is self-calibrated from
+each frame by rescaling the fit chi-squared.  The effective read noise of
+the fitted image, ``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is
+propagated to the detector parameters.
+
+Expect roughly 2 minutes of processing and ~2.5 GB of memory per 69-read
+frame each time a raw science frame is loaded; flats with few reads take
+seconds.
 
 Multislit observations
 ++++++++++++++++++++++
