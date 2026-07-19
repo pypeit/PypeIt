@@ -20,6 +20,7 @@ from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import fitramp
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
 from pypeit.par import parset
@@ -438,6 +439,161 @@ def mmirs_read_amp(img, namps=32):
         img_out[:, amp * ampsize:(amp + 1) * ampsize] -= ref12
 
     return img_out
+
+
+def mmirs_load_ramp(hdu, namps=32):
+    """
+    Load the non-destructive reads of an MMIRS ramp in time order.
+
+    Image extensions are sorted by ``EXTVER`` (in raw MMIRS files, ext 1 is
+    the *final* read and holds the complete metadata).  Each read is
+    reference-pixel corrected with :func:`mmirs_read_amp` on the full frame
+    and then trimmed to ``DATASEC``.
+
+    Parameters
+    ----------
+    hdu : `astropy.io.fits.HDUList`_
+        Opened raw MMIRS file.
+    namps : :obj:`int`, optional
+        Number of readout amplifiers passed to :func:`mmirs_read_amp`.
+
+    Returns
+    -------
+    reads : `numpy.ndarray`_
+        Float64 array with shape ``(ngroups, ny, nx)`` holding the
+        reference-pixel-corrected reads in ADU, trimmed to ``DATASEC``.
+    head1 : `astropy.io.fits.Header`_
+        Header of extension 1 (the metadata-complete final read).
+    """
+    head1 = hdu[1].header
+    img_hdus = sorted([h for h in hdu if h.header.get('NAXIS') == 2
+                       and h.header.get('NAXIS1', 0) > 0],
+                      key=lambda h: h.header['EXTVER'])
+    x1, x2, y1, y2 = np.array(parse.load_sections(head1['DATASEC'],
+                                                  fmt_iraf=False)).flatten()
+    ngroups = len(img_hdus)
+    reads = np.empty((ngroups, x2 - x1 + 1, y2 - y1 + 1), dtype=np.float64)
+    for i, h in enumerate(img_hdus):
+        frame = mmirs_read_amp(h.data.astype(np.float64), namps=namps)
+        reads[i] = frame[x1-1:x2, y1-1:y2]
+    return reads, head1
+
+
+def mmirs_ramp_diffs(reads, covar):
+    """
+    Compute scaled resultant differences from ramp reads.
+
+    Parameters
+    ----------
+    reads : `numpy.ndarray`_
+        Reads in time order, shape ``(ngroups, ny, nx)``, in electrons.
+    covar : :class:`~pypeit.core.fitramp.Covar`
+        Covariance object providing the time intervals ``delta_t``.
+
+    Returns
+    -------
+    diffs : `numpy.ndarray`_
+        ``(reads[i+1] - reads[i]) / covar.delta_t[i]``, shape
+        ``(ngroups-1, ny, nx)``, in e-/s.
+    """
+    return np.diff(reads, axis=0) / np.asarray(covar.delta_t)[:, None, None]
+
+
+def mmirs_calibrate_sigma(diffs, covar, sig_guess=15.0, nrows=200):
+    """
+    Calibrate the single-read noise from ramp differences.
+
+    Fits a subsample of rows without jump detection (two-pass, with the
+    count-rate guess clamped to non-negative values to debias the second
+    pass) and rescales ``sig_guess`` so that the median chi-squared matches
+    the expected degrees of freedom (``ngroups - 2``).
+
+    Parameters
+    ----------
+    diffs : `numpy.ndarray`_
+        Scaled resultant differences, shape ``(ndiffs, ny, nx)``, electrons.
+    covar : :class:`~pypeit.core.fitramp.Covar`
+        Covariance object matching ``diffs``.
+    sig_guess : :obj:`float`, optional
+        Initial guess for the single-read noise in electrons.
+    nrows : :obj:`int`, optional
+        Number of evenly spaced rows (from the central 80% of the detector)
+        to include in the calibration.
+
+    Returns
+    -------
+    :obj:`float`
+        Calibrated single-read noise in electrons (unclamped).
+    """
+    ndiffs, ny, nx = diffs.shape
+    margin = int(ny * 0.10)
+    row_candidates = np.arange(margin, ny - margin)
+    nrows = min(nrows, len(row_candidates))
+    indices = np.linspace(0, len(row_candidates) - 1, nrows, dtype=int)
+    sig_row = np.full(nx, sig_guess, dtype=np.float64)
+    all_chisq = []
+    for row in row_candidates[indices]:
+        result = fitramp.fit_ramps(diffs[:, row, :], covar, sig_row)
+        guess = result.countrate * (result.countrate > 0)
+        result = fitramp.fit_ramps(diffs[:, row, :], covar, sig_row,
+                                   countrateguess=guess)
+        all_chisq.append(result.chisq)
+    median_chisq = float(np.median(np.concatenate(all_chisq)))
+    expected_chisq = float(ndiffs - 1)
+    return sig_guess * np.sqrt(median_chisq / expected_chisq)
+
+
+def mmirs_fit_ramp(diffs, covar, sig):
+    """
+    Fit all pixels of a ramp, row by row, with jump detection.
+
+    Parameters
+    ----------
+    diffs : `numpy.ndarray`_
+        Scaled resultant differences, shape ``(ndiffs, ny, nx)``, electrons.
+    covar : :class:`~pypeit.core.fitramp.Covar`
+        Covariance object matching ``diffs``.
+    sig : :obj:`float`
+        Single-read noise in electrons.
+
+    Returns
+    -------
+    countrate : `numpy.ndarray`_
+        Fitted count rates in e-/s, shape ``(ny, nx)``.
+    """
+    ndiffs, ny, nx = diffs.shape
+    countrate = np.empty((ny, nx), dtype=np.float64)
+    sig_row = np.full(nx, sig, dtype=np.float64)
+    for row in range(ny):
+        diffs2use, guess = fitramp.mask_jumps(diffs[:, row, :], covar, sig_row)
+        result = fitramp.fit_ramps(diffs[:, row, :], covar, sig_row,
+                                   diffs2use=diffs2use,
+                                   countrateguess=guess * (guess > 0))
+        countrate[row] = result.countrate
+    return countrate
+
+
+def mmirs_effective_ronoise(sig, ngroups):
+    """
+    Effective read noise of an up-the-ramp-fitted image.
+
+    For ``N`` uniformly spaced reads with single-read noise ``sig``, the
+    read-noise contribution to the total-count uncertainty of the fitted
+    slope is ``sig * sqrt(12 (N-1) / (N (N+1)))`` (Brandt 2024a).
+
+    Parameters
+    ----------
+    sig : :obj:`float`
+        Single-read noise in electrons.
+    ngroups : :obj:`int`
+        Number of reads in the ramp.
+
+    Returns
+    -------
+    :obj:`float`
+        Effective read noise in electrons.
+    """
+    return sig * np.sqrt(12. * (ngroups - 1) / (ngroups * (ngroups + 1)))
 
 
 
