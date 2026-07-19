@@ -704,7 +704,7 @@ def mask_jumps(
         dropped[recheck] = drop
         recheck[:] = dropped
 
-        # Do not try to search for bad resultants if we have only
+        # Do not try to search for bad resultants if we have already
         # given up on all but one, two, or three resultant differences
         # in the ramp.  If there are only two left we have no way of
         # choosing which one is "good".  If there are three left we
