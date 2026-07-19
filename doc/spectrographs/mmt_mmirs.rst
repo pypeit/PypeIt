@@ -28,7 +28,7 @@ each frame by rescaling the fit chi-squared.  The effective read noise of
 the fitted image, ``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is
 propagated to the detector parameters.
 
-Expect roughly 2 minutes of processing and ~2.5 GB of memory per 69-read
+Expect roughly 2 minutes of processing and ~5 GB of memory per 69-read
 frame each time a raw science frame is loaded; flats with few reads take
 seconds.
 

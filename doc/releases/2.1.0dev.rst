@@ -167,7 +167,6 @@ Under-the-hood Improvements
 - Vendored the ``fitramp`` up-the-ramp fitting module of Brandt (2024) as
   :mod:`pypeit.core.fitramp` (MIT license).
 
-
 Bug Fixes
 ---------
 

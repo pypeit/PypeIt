@@ -562,8 +562,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 def mmirs_read_amp(img, namps=32):
     """
     MMIRS has 32 reading out channels. Need to deal with this issue a little
-    bit. I am not using the pypeit overscan subtraction since we need to do
-    the up-the-ramp fitting in the future.
+    bit. The pypeit overscan subtraction is not used; reference-pixel correction
+    is done here instead.
 
     Imported from MMIRS IDL pipeline refpix.pro
     """
@@ -653,7 +653,9 @@ def mmirs_ramp_diffs(reads, covar):
         ``(reads[i+1] - reads[i]) / covar.delta_t[i]``, shape
         ``(ngroups-1, ny, nx)``, in e-/s.
     """
-    return np.diff(reads, axis=0) / np.asarray(covar.delta_t)[:, None, None]
+    diffs = np.diff(reads, axis=0)
+    diffs /= np.asarray(covar.delta_t)[:, None, None]
+    return diffs
 
 
 def mmirs_calibrate_sigma(diffs, covar, sig_guess=15.0, nrows=200):
@@ -751,6 +753,3 @@ def mmirs_effective_ronoise(sig, ngroups):
         Effective read noise in electrons.
     """
     return sig * np.sqrt(12. * (ngroups - 1) / (ngroups * (ngroups + 1)))
-
-
-
