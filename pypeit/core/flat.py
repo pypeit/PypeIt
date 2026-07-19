@@ -310,6 +310,8 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
         this_slit_trim = (slitmask_trim == spatid)
         this_slit_mask = gpm & this_slit_trim
         this_wave = waveimg[this_slit_mask]
+        if this_wave.size == 0:
+            continue
         wavedg = np.linspace(np.min(this_wave), np.max(this_wave), nbins + 1)
         wavcen = 0.5 * (wavedg[1:] + wavedg[:-1])
         scale_all = rawimg[this_slit_mask] * utils.inverse(model[this_slit_mask])

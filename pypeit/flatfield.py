@@ -14,6 +14,7 @@ import numpy as np
 from scipy import interpolate, ndimage
 
 from astropy.io import fits
+from astropy.table import Table
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -33,6 +34,7 @@ from pypeit import qa
 from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.core import bspline
+from pypeit.core import extract
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
@@ -215,7 +217,7 @@ class FlatImages(calibframe.CalibFrame):
                     # Assume this is because the type failed
                     type_passed = False
                 else:
-                    version_passed &= np.all([d[key][i].version == bspline.bspline.version 
+                    version_passed &= np.all([d[key][i].version == bspline.bspline.version
                                               for i in range(nspat)])
                     parsed_hdus += ext_bspl
             # Parse the finecorr fits
@@ -478,6 +480,125 @@ class FlatImages(calibframe.CalibFrame):
                               (0.9, 1.1), (0.95, 1.05), (0.9, 1.1), None])
         # Display frames
         show_flats(image_list, wcs_match=wcs_match, slits=slits, waveimg=self.pixelflat_waveimg)
+
+
+class FiberFlatImages(calibframe.CalibFrame):
+    """
+    Container for processed flat-field calibrations specific to fiber-fed
+    spectrographs.
+
+    Stores per-fiber throughput scalars derived from the extracted flat
+    spectra.  ``fiber_throughput`` is normalized so that the science fibers
+    average to ~1; sky fibers (which typically subtend a larger area on sky)
+    end up above unity by their geometric ratio.  The extracted flat spectra
+    themselves (``normflat`` / ``normflat_wave``) are retained for diagnostic
+    use only.
+
+    All of the items in the datamodel can be None.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_fiberflatimages.rst
+
+    """
+
+    version = '2.1.0'
+
+    calib_type = 'FiberFlat'
+    """Name for output file naming; see :class:`~pypeit.calibframe.CalibFrame`."""
+
+    hdu_prefix = None
+
+    datamodel = {
+        'PYP_SPEC': dict(otype=str,
+                         descr='PypeIt spectrograph name'),
+        'fiber_throughput': dict(otype=np.ndarray, atype=np.floating,
+                                 descr='Per-fiber throughput scalar, shape '
+                                       '(nfibers,).  Normalized so that the '
+                                       'science fibers average to ~1.'),
+        'normflat': dict(otype=np.ndarray, atype=np.floating,
+                         descr='Extracted flat spectra, shape (nfibers, nwave). '
+                               'Stored for diagnostics; not used to correct '
+                               'science extractions.'),
+        'normflat_wave': dict(otype=np.ndarray, atype=np.floating,
+                              descr='Wavelength array for normflat, shape (nwave,)'),
+        'global_norm': dict(otype=float,
+                            descr='Normalization coefficient applied to the '
+                                  'stored normflat (median of science-fiber '
+                                  'medians over the central wavelength region)'),
+        'fiber_ids': dict(otype=np.ndarray, atype=np.integer,
+                          descr='Fiber ID numbers'),
+        'fiber_types': dict(otype=np.ndarray, atype=str,
+                            descr='Fiber type labels (e.g. sky, science)'),
+    }
+
+    def __init__(self, normflat=None, normflat_wave=None, global_norm=None,
+                 fiber_ids=None, fiber_types=None, fiber_throughput=None,
+                 PYP_SPEC=None):
+        # Parse
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k, values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
+    def _bundle(self):
+        """
+        Override the default _bundle() method to write one HDU per field.
+        Numeric arrays are written as ImageHDUs.  The ``fiber_types`` string
+        array is written as a single-column BinTableHDU.  Scalar values
+        (``PYP_SPEC``, ``global_norm``) are stored as header cards in
+        each extension.
+
+        Returns:
+            :obj:`list`: A list of single-item dictionaries, one per
+            non-None field, each written to its own FITS extension.
+        """
+        scalar_keys = ('PYP_SPEC', 'global_norm')
+        # Scalar header entries to attach to each extension
+        scalars = {}
+        if self.PYP_SPEC is not None:
+            scalars['PYP_SPEC'] = self.PYP_SPEC
+        if self.global_norm is not None:
+            scalars['global_norm'] = self.global_norm
+
+        d = []
+        for key in self.keys():
+            if self[key] is None or key in scalar_keys:
+                continue
+            if key == 'fiber_types':
+                # String arrays cannot be stored in ImageHDU; use an
+                # astropy Table so dict_to_hdu routes to BinTableHDU.
+                tbl = Table({key: self[key]})
+                for sk, sv in scalars.items():
+                    tbl.meta[sk] = sv
+                entry = {key: tbl}
+            else:
+                # Numeric arrays: scalar header cards go alongside the array
+                # and land in the extension header via dict_to_hdu.
+                entry = {key: self[key]}
+                entry.update(scalars)
+            d.append({key: entry})
+        return d
+
+    @classmethod
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None, **kwargs):
+        """
+        Override the base-class parser to convert the ``fiber_types``
+        BinTableHDU back from an ``astropy.table.Table`` to a plain
+        ``numpy.ndarray``.
+
+        See :func:`~pypeit.datamodel.DataContainer._parse` for argument
+        descriptions and return values.
+        """
+        d, version_passed, type_passed, parsed_hdus = super()._parse(
+            hdu, ext=ext, transpose_table_arrays=transpose_table_arrays,
+            hdu_prefix=hdu_prefix, **kwargs)
+        # The base _parse reads BinTableHDUs (when the extension name matches
+        # a datamodel key) as astropy Tables.  Convert fiber_types back to a
+        # plain numpy array.
+        if isinstance(d.get('fiber_types'), Table):
+            d['fiber_types'] = np.asarray(d['fiber_types']['fiber_types'])
+        return d, version_passed, type_passed, parsed_hdus
 
 
 class FlatField:
@@ -975,7 +1096,7 @@ class FlatField:
                 # for this (original) slit.
                 npercol = np.fmax(np.floor(np.sum(onslit_init)/nspec),1.0)
                 npoly  = np.clip(7, 1, int(np.ceil(npercol/10.)))
-            
+
             # TODO: Always calculate the optimized `npoly` and warn the
             #  user if npoly is provided but higher than the nominal
             #  calculation?
@@ -991,9 +1112,10 @@ class FlatField:
             # Collapse the slit spatially and fit the spectral function
             # TODO: Put this stuff in a self.spectral_fit method?
 
-            # Create the tilts image for this slit
+            # Create the tilts for pixels in this slit only (not full image)
             if self.slitless:
                 tilts = np.tile(np.arange(rawflat.shape[0]) / rawflat.shape[0], (rawflat.shape[1], 1)).T
+                spec_coo = tilts * (nspec-1)
             else:
                 # TODO -- JFH Confirm the sign of this shift is correct!
                 _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
@@ -1251,6 +1373,13 @@ class FlatField:
             twod_sigrej = 4.0
 
             poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
+
+            if not np.any(twod_gpm_data):
+                log.warning('No valid data for 2D flat-field fit on slit {0}!  '
+                          'Skipping 2D correction.'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(
+                    self.slits.mask[slit_idx], 'BADFLATCALIB')
+                continue
 
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
@@ -1753,6 +1882,280 @@ class FlatField:
             return flat.tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=maxfrac, debug=debug)
         else:
             raise PypeItError("Method for tweaking slit edges not recognized: {0}".format(method))
+
+
+class FiberFlatField(FlatField):
+    """
+    Flat-field reduction routines specific to fiber-fed spectrographs.
+
+    Inherits from :class:`FlatField` to access the standard flat-field
+    infrastructure (raw image, wavelength calibration, slit traces, etc.)
+    and adds fiber-specific methods.
+
+    Follows the IDL Binospec pipeline approach (Fabricant et al. 2025,
+    Section 6): extract fiber spectra from the flat, then normalize by a
+    single global scalar to produce a 2D normalized flat (nfiber x nwave)
+    that retains the full spectral shape and fiber-to-fiber throughput
+    variation.
+    """
+
+    def run(self, doqa=False, debug=False, show=False):
+        """Build fiber flat field calibration products.
+
+        Produces:
+
+        1. A 2D pixelflat: unity by default, or a standard detector-response
+           pixel flat from the parent :class:`FlatField` pipeline when the
+           ``fiber_pixelflat`` parameter is set (see that parameter for when
+           this is appropriate).
+        2. A globally-normalized extracted flat (nfiber x nwave) preserving
+           spectral shape and fiber-to-fiber throughput differences
+
+        Parameters
+        ----------
+        doqa : :obj:`bool`, optional
+            Save QA plots.  Default is False.
+        debug : :obj:`bool`, optional
+            Run in debug mode.  Default is False.
+        show : :obj:`bool`, optional
+            Show results in a ginga viewer.  Default is False.
+
+        Returns
+        -------
+        flatImages : :class:`FlatImages`
+            Standard flat images.  ``pixelflat_norm`` is unity unless
+            ``fiber_pixelflat`` is set.
+        fiber_flatimages : :class:`FiberFlatImages`
+            Fiber-specific flat products (normflat, wavelengths, metadata).
+        """
+        rawflat = self.rawflatimg.image
+        ivar = self.rawflatimg.ivar
+        gpm = self.rawflatimg.select_flag(invert=True)
+        det = self.rawflatimg.detector.det
+
+        # ------------------------------------------------------------------
+        # Step 1: build the 2D pixel flat
+        # ------------------------------------------------------------------
+        # Whether a meaningful 2D pixel flat can be measured depends on how
+        # the flats illuminate the detector, which is instrument-specific, so
+        # it is controlled by the ``fiber_pixelflat`` parameter rather than
+        # hard-wired.  When enabled, defer to the standard FlatField pipeline
+        # (e.g. for defocused fiber flats that illuminate the full chip).
+        # When disabled (the default, e.g. MMT Binospec), use a unity pixel
+        # flat: in-focus fiber flats only illuminate a few pixels under each
+        # fiber, so a 2D pixel flat would imprint fiber-profile structure
+        # rather than detector response.
+        parent_flat_images = None
+        if self.flatpar['fiber_pixelflat']:
+            log.info("Fiber pypeline: building 2D pixel flat via the standard "
+                     "FlatField pipeline (fiber_pixelflat=True)")
+            parent_flat_images = super().run(doqa=doqa, debug=debug, show=show)
+            pixelflat_norm = parent_flat_images.pixelflat_norm
+        else:
+            log.info("Fiber pypeline: setting pixelflat_norm to unity "
+                     "(no 2D pixel correction)")
+            pixelflat_norm = np.ones_like(rawflat)
+
+        # ------------------------------------------------------------------
+        # Step 2: build wavelength image (or pixel-coordinate proxy)
+        # ------------------------------------------------------------------
+        if self.wavetilts is not None and self.wv_calib is not None:
+            log.info("Building wavelength image for fiber flat extraction")
+            flex = self.wavetilts.spat_flexure
+            slitmask = self.slits.slit_img(initial=True, flexure=flex)
+            tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+            waveimg = self.wv_calib.build_waveimg(tilts, self.slits,
+                                                  spat_flexure=flex)
+        else:
+            log.warning("Wavelength calibration unavailable; using pixel "
+                        "coordinates as wavelength proxy for fiber flat "
+                        "extraction.")
+            nspec = rawflat.shape[0]
+            waveimg = np.tile(np.arange(nspec, dtype=float)[:, np.newaxis],
+                              (1, rawflat.shape[1]))
+
+        # Sky model is zero for a flat-field image
+        skyimg = np.zeros_like(rawflat)
+
+        # ------------------------------------------------------------------
+        # Step 3: extract flat fibers block by block
+        # ------------------------------------------------------------------
+        # Scattered light should already be subtracted from the rawflat
+        # via processimages (subtract_scattlight=True for pixelflatframe).
+        log.info("Extracting flat spectra for all fiber blocks")
+        blocks = self.spectrograph.get_fiber_blocks(det)
+        fiber_shift = self.spectrograph.get_fiber_position_shift(
+            self.slits, det) if hasattr(self.spectrograph, 'get_fiber_position_shift') else 0.0
+
+        all_fiber_spectra = []
+        all_fiber_waves = []
+        all_fiber_ivar = []
+        all_fiber_ids = []
+        all_fiber_names = []
+        all_fiber_types = []
+
+        for slit_idx in range(self.slits.nslits):
+            if slit_idx >= len(blocks):
+                log.warning(f"Slit index {slit_idx} exceeds number of fiber "
+                            f"blocks ({len(blocks)}); skipping.")
+                continue
+
+            block = blocks[slit_idx]
+            fiber_centers = block['fiber_positions'] + fiber_shift
+            if len(fiber_centers) == 0:
+                continue
+
+            # Identify fibers via spectrograph metadata
+            fiber_meta = self.spectrograph.identify_fibers_in_block(
+                det, slit_idx, fiber_centers)
+
+            # Compute inter-fiber half-spacings for BOX_R_PIX
+            spacings = np.diff(fiber_centers)
+            half_spacings = np.zeros(len(fiber_centers))
+            if len(spacings) > 0:
+                half_spacings[0] = spacings[0] / 2.0
+                half_spacings[-1] = spacings[-1] / 2.0
+                half_spacings[1:-1] = (
+                    np.minimum(spacings[:-1], spacings[1:]) / 2.0)
+            else:
+                # Single-fiber block: fall back to half the median block
+                # width (matches FiberFindObjects.find_objects_pypeline).
+                half_spacings[0] = np.median(
+                    self.slits.right_init[:, slit_idx]
+                    - self.slits.left_init[:, slit_idx]) / 2.0
+
+            nspec = rawflat.shape[0]
+            for j, center_pix in enumerate(fiber_centers):
+                trace_spat = np.full(nspec, center_pix)
+                box_r = half_spacings[j]
+
+                box_result = extract.extract_boxcar(
+                    box_r, trace_spat, rawflat, ivar, gpm,
+                    waveimg, skyimg)
+                wave = box_result[0]
+                flux = box_result[1]
+                flux_ivar = box_result[2]
+                npix = box_result[10]
+
+                # moment1d sums img*mask over the full aperture without
+                # dividing by the good-pixel count, so a half-masked box
+                # returns half the true flux.  Rescale by box_width/npix
+                # to recover an unbiased flat estimate.  When too many
+                # pixels are masked the rescale amplifies noise, so
+                # require at least 1/3 of the aperture to be unmasked;
+                # otherwise zero the inverse variance so the bin is masked
+                # (ivar == 0) when deriving ``fiber_throughput``.
+                box_width = 2.0 * box_r
+                min_good = box_width / 3.0
+                scale = np.where(npix > 0, box_width / np.maximum(npix, 1.0), 1.0)
+                heavy = npix < min_good
+                flux = flux * scale
+                flux_ivar = flux_ivar / np.maximum(scale, 1.0) ** 2
+                flux_ivar[heavy] = 0.0
+
+                all_fiber_spectra.append(flux)
+                all_fiber_waves.append(wave)
+                all_fiber_ivar.append(flux_ivar)
+
+                if fiber_meta is not None:
+                    all_fiber_ids.append(int(fiber_meta['fiber_id'][j]))
+                    all_fiber_names.append(fiber_meta['fiber_name'][j])
+                    all_fiber_types.append(fiber_meta['fiber_type'][j])
+                else:
+                    all_fiber_ids.append(j)
+                    all_fiber_names.append(f'FIBER_{j:04d}')
+                    all_fiber_types.append('science')
+
+        if len(all_fiber_spectra) == 0:
+            log.warning("No fiber spectra extracted from flat field.")
+            flat_images = FlatImages(
+                pixelflat_raw=rawflat,
+                pixelflat_norm=pixelflat_norm,
+                PYP_SPEC=self.spectrograph.name,
+                spat_id=self.slits.spat_id)
+            return flat_images, None
+
+        fiber_spectra_arr = np.array(all_fiber_spectra)
+        fiber_ivar_arr = np.array(all_fiber_ivar)
+        fiber_waves_arr = np.array(all_fiber_waves)
+        fiber_ids = np.array(all_fiber_ids, dtype=np.int64)
+        fiber_types = np.array(all_fiber_types)
+
+        # ------------------------------------------------------------------
+        # Step 4: per-fiber scalar throughput
+        # ------------------------------------------------------------------
+        # Collapse each fiber's flat spectrum to a single scalar -- the
+        # median over the central wavelength region -- and divide by the
+        # typical science-fiber median so the scalar equals ~1 for a
+        # science fiber and scales sky fibers to match (Binospec IFU is one
+        # example where sky and science fibers have different throughput).
+        # This is the only correction applied to science extractions;
+        # spectral flattening is performed downstream by flux calibration.
+        nwave = fiber_spectra_arr.shape[1]
+        central_slice = slice(nwave // 10, 9 * nwave // 10)
+        # Median over each fiber's good (ivar > 0) bins in the central
+        # region.  Fibers with no good bins get a 0 median and are excluded
+        # below by the ``> 0`` test.
+        central_flux = fiber_spectra_arr[:, central_slice]
+        central_gpm = fiber_ivar_arr[:, central_slice] > 0.0
+        fiber_medians = np.array([
+            np.median(cf[gp]) if np.any(gp) else 0.0
+            for cf, gp in zip(central_flux, central_gpm)])
+
+        sky_mask = np.array([t.lower() == 'sky' for t in fiber_types])
+        sci_mask = ~sky_mask & (fiber_medians > 0)
+        if np.any(sci_mask):
+            sci_typical = float(np.median(fiber_medians[sci_mask]))
+        else:
+            sci_typical = float(np.median(fiber_medians[fiber_medians > 0])) \
+                if np.any(fiber_medians > 0) else 0.0
+        if not np.isfinite(sci_typical) or sci_typical <= 0:
+            log.warning("Could not derive a science-fiber median; "
+                        "throughput scalars will be set to unity.")
+            sci_typical = 1.0
+
+        fiber_throughput = fiber_medians / sci_typical
+        bad_thru = ~np.isfinite(fiber_throughput) | (fiber_throughput <= 0)
+        fiber_throughput[bad_thru] = 1.0
+
+        # Store the raw extracted flat spectra (divided by sci_typical so the
+        # values are dimensionless and roughly O(1)) for diagnostic use only.
+        # Masked bins carry zero inverse variance in the extraction; the
+        # values are kept as-is rather than blanked to NaN.
+        global_norm = sci_typical
+        normflat = fiber_spectra_arr / global_norm
+        normflat_wave = np.median(fiber_waves_arr, axis=0)
+
+        log.info(f"Per-fiber throughput: science median="
+                 f"{np.nanmedian(fiber_throughput[~sky_mask]):.3f}, "
+                 f"sky median={np.nanmedian(fiber_throughput[sky_mask]):.3f}, "
+                 f"sci_typical={sci_typical:.1f}")
+
+        # ------------------------------------------------------------------
+        # Step 5: assemble and return output containers
+        # ------------------------------------------------------------------
+        # Reuse the FlatImages built by the parent pipeline (which already
+        # holds the real pixel flat) when fiber_pixelflat is enabled;
+        # otherwise wrap the unity pixel flat.
+        if parent_flat_images is not None:
+            flat_images = parent_flat_images
+        else:
+            flat_images = FlatImages(
+                pixelflat_raw=rawflat,
+                pixelflat_norm=pixelflat_norm,
+                PYP_SPEC=self.spectrograph.name,
+                spat_id=self.slits.spat_id)
+
+        fiber_flatimages = FiberFlatImages(
+            normflat=normflat,
+            normflat_wave=normflat_wave,
+            global_norm=global_norm,
+            fiber_ids=fiber_ids,
+            fiber_types=fiber_types,
+            fiber_throughput=fiber_throughput,
+            PYP_SPEC=self.spectrograph.name)
+
+        return flat_images, fiber_flatimages
 
 
 class SlitlessFlat:
@@ -2509,7 +2912,7 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pi
     if to_cache:
         # NOTE that the file saved in the cache is gzipped, while the one saved in the outdir is not
         # This prevents `dataPaths.pixelflat.get_file_path()` from returning the file saved in the outdir
-        cache.write_file_to_cache(pixelflat_file, pixelflat_name+'.gz', f"pixelflats")
+        cache.write_file_to_cache(pixelflat_file, pixelflat_name+'.gz', "pixelflats")
         log.info(
             f"The slitless Pixel Flat file has also been saved to the PypeIt cache directory\n"
             f"{str(dataPaths.pixelflat)}\n"
@@ -2623,4 +3026,3 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
                 nrm_image = None
 
     return merge(flatimages, nrm_image)
-
