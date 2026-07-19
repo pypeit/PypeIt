@@ -281,10 +281,15 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         if meta_key == "idname":
             # Force uppercase to match other LDT instruments
             return headarr[0]["OBJTYPE"].upper()
-
+        
         if meta_key == "binning":
             # Binning in RIMAS headers given as separate values
-            return parse.binning2string(headarr[0]["BINX"], headarr[0]["BINY"])
+            if "BINX" in headarr[0]:
+                return parse.binning2string(headarr[0]["BINX"], headarr[0]["BINY"])
+            elif "XBINNING" in headarr[0]:
+                return parse.binning2string(headarr[0]["XBINNING"], headarr[0]["YBINNING"])
+            
+            
 
         if meta_key == "rawshape":
             # Shape of the raw image written to disk, formatted as rows,columns.
@@ -1426,8 +1431,8 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             par["reduce"]["findobj"]["snr_thresh"] = 7
             par["reduce"]["findobj"]["find_min_max"] = [65,103]
 
-            par["reduce"]["skysub"]["no_local_sky"] = True
-            par["reduce"]["skysub"]["no_poly"] = True
+            #par["reduce"]["skysub"]["no_local_sky"] = True
+            #par["reduce"]["skysub"]["no_poly"] = True
 
         elif grating == "Vph300":
             par["calibrations"]["wavelengths"][
