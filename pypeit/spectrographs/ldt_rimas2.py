@@ -53,6 +53,33 @@ from pypeit.par import parset
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 
+# Module-Level Constants
+# TODO: Update these with commissioning data after RIMAS returns in 2026B!
+RIMAS_FLAT_EXPTIME_RANGES = {
+    ("Vph30", "0.6''", "YJ"): [5.0, 15.0],
+    ("Vph30", "0.6''", "HK"): [None, 5.0],
+    ("Vph30", "1.0''", "YJ"): [5.0, 15.0],
+    ("Vph30", "1.0''", "HK"): [5.0, 15.0],
+    ("Vph30", "2.0''", "YJ"): [None, 10.0],
+    ("Vph30", "2.0''", "HK"): [None, 10.0],
+    ("Vph30", "1.2'' long", "YJ"): [15.0, 45.0],
+    ("Vph30", "1.2'' long", "HK"): [None, 10.0],
+    ("Vph300", "0.6''", "YJ"): [45.0, None],
+    ("Vph300", "0.6''", "HK"): [10.0, 45.0],
+    ("Vph300", "1.0''", "YJ"): [30.0, None],
+    ("Vph300", "1.0''", "HK"): [10.0, 30.0],
+    ("Vph300", "2.0''", "YJ"): [15.0, 45.0],
+    ("Vph300", "2.0''", "HK"): [None, 15.0],
+    ("Vph300", "1.2'' long", "YJ"): [30.0, None],
+    ("Vph300", "1.2'' long", "HK"): [None, 30.0],
+    ("Grism", "0.6''", "YJ"): [90.0, None],
+    ("Grism", "0.6''", "HK"): [30.0, 90.0],
+    ("Grism", "1.0''", "YJ"): [90.0, None],
+    ("Grism", "1.0''", "HK"): [15.0, 60.0],
+    ("Grism", "2.0''", "YJ"): [90.0, None],
+    ("Grism", "2.0''", "HK"): [10.0, 30.0],
+}
+
 
 @dataclasses.dataclass
 class EchelleProps:
@@ -598,6 +625,36 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         return par
 
+    @staticmethod
+    def _match_flat_exptime(fitstbl: astropy.table.Table) -> np.ndarray:
+        """
+        Select RIMAS dome flats with arm/mode-specific exposure times.
+
+        RIMAS dome flats for the YJ channel are intentionally longer than
+        those for the HK channel.  This selection has to happen during frame
+        typing, before :meth:`config_specific_par` is called, so it uses the
+        metadata table directly instead of the calibration frame ``exprng``
+        parameters.
+        """
+        good_exp = np.zeros(len(fitstbl), dtype=bool)
+
+        # Determine which frames are in any given configuration
+        for (dispname, decker, arm), exprng in RIMAS_FLAT_EXPTIME_RANGES.items():
+            in_config = (
+                (fitstbl["dispname"] == dispname)
+                & (fitstbl["decker"] == decker)
+                & (fitstbl["arm"] == arm)
+            )
+
+            # If any frames are found for this configuration, check exptime aginst range
+            if np.any(in_config):
+                good_exp[in_config] = framematch.check_frame_exptime(
+                    fitstbl["exptime"][in_config], exprng
+                )
+
+        # `good_exp` are explicitly only frames that match exptime ranges
+        return good_exp
+
     def check_frame_type(
         self,
         ftype: str,
@@ -643,6 +700,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         if ftype in ["trace", "pixelflat", "illumflat"]:
             return (
                 good_exp
+                & self._match_flat_exptime(fitstbl)
                 & (fitstbl["idname"] == "DOME_FLAT")
                 & (fitstbl["filter1"] != "blank")
                 # & (fitstbl["lampstat01"] == "off")
@@ -651,6 +709,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         if ftype == "lampoffflats":
             return (
                 good_exp
+                & self._match_flat_exptime(fitstbl)
                 & (fitstbl["idname"] == "DOME_BACKGROUND")
                 & (fitstbl["filter1"] != "blank")
             )

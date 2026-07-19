@@ -5,6 +5,7 @@ import copy
 import os
 import pathlib
 
+import numpy as np
 import pytest
 import astropy.table 
 
@@ -106,6 +107,51 @@ def test_list_detectors_hires():
     mosaics = hires.list_detectors(mosaic=True)
     assert mosaics.ndim == 1, 'Mosaics are listed as 1D arrays'
     assert mosaics.size == 1, 'HIRES has 1 predefined mosaic'
+
+
+def test_ldt_rimas_flat_exptime():
+    rimas = load_spectrograph('ldt_rimas_vph')
+    fitstbl = astropy.table.Table()
+    flat_rows = [
+        ('Vph300', "1.2'' long", 'HK', 5.72),
+        ('Vph300', "1.2'' long", 'YJ', 60.06),
+        ('Vph300', "0.6''", 'HK', 30.0),
+        ('Vph300', "0.6''", 'YJ', 60.06),
+        ('Vph300', "1.0''", 'HK', 15.0),
+        ('Vph300', "1.0''", 'YJ', 60.06),
+        ('Vph300', "2.0''", 'HK', 9.0),
+        ('Vph300', "2.0''", 'YJ', 30.0),
+        ('Vph30', "1.2'' long", 'HK', 5.72),
+        ('Vph30', "1.2'' long", 'YJ', 28.6),
+        ('Vph30', "0.6''", 'HK', 3.0),
+        ('Vph30', "0.6''", 'YJ', 9.0),
+        ('Vph30', "1.0''", 'YJ', 9.0),
+        ('Vph30', "2.0''", 'YJ', 6.0),
+        ('Grism', "0.6''", 'HK', 60.06),
+        ('Grism', "0.6''", 'YJ', 120.12),
+        ('Grism', "1.0''", 'HK', 30.0),
+        ('Grism', "1.0''", 'YJ', 120.12),
+        ('Grism', "2.0''", 'HK', 15.0),
+        ('Grism', "2.0''", 'YJ', 120.12),
+    ]
+    rejected_rows = [
+        ('Vph30', "1.0''", 'HK', 9.0),
+        ('Vph30', "2.0''", 'HK', 6.0),
+        ('Vph300', "1.2'' long", 'HK', 60.06),
+    ]
+    rows = flat_rows + rejected_rows
+    fitstbl['dispname'] = [row[0] for row in rows]
+    fitstbl['decker'] = [row[1] for row in rows]
+    fitstbl['arm'] = [row[2] for row in rows]
+    fitstbl['exptime'] = [row[3] for row in rows]
+    fitstbl['idname'] = ['DOME_FLAT'] * len(rows)
+    fitstbl['filter1'] = ['open'] * len(rows)
+
+    expected = np.array([True] * len(flat_rows) + [False] * len(rejected_rows))
+    assert np.array_equal(rimas.check_frame_type('pixelflat', fitstbl), expected)
+
+    fitstbl['idname'] = ['DOME_BACKGROUND'] * len(rows)
+    assert np.array_equal(rimas.check_frame_type('lampoffflats', fitstbl), expected)
 
 
 def test_configs():
