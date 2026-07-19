@@ -132,6 +132,9 @@ class PypeItMetaData:
         self.set_user_added_columns()
         # Validate instrument name
         self._vet_instrument(self.table)
+        # Allow the spectrograph to cache information from the metadata for
+        # later use when reading/processing raw images
+        self.spectrograph.cache_metadata(self)
 
     def _impose_types(self, columns, types):
         """

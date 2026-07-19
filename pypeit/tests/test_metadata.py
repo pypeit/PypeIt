@@ -208,3 +208,17 @@ def test_get_row_for_filename():
     # Try to get a non-existent row
     with pytest.raises(PypeItError):
         row = pmd.get_row_for_filename('not_a_kast_file.fits')
+
+
+def test_cache_metadata_hook():
+    """PypeItMetaData construction must call spectrograph.cache_metadata(fitstbl)."""
+    spec = load_spectrograph('shane_kast_blue')
+    par = spec.default_pypeit_par()
+    called = []
+    # Instance-level monkeypatch records the argument
+    spec.cache_metadata = lambda fitstbl: called.append(fitstbl)
+    fitstbl = PypeItMetaData(spec, par=par,
+                             data=Table({'filename': ['a.fits'],
+                                         'directory': ['/tmp']}))
+    assert len(called) == 1
+    assert called[0] is fitstbl
