@@ -170,3 +170,27 @@ def test_ramp_sigma_selfcal_fallback(tmp_path):
     sig = spec.get_ramp_sigma(diffs, covar)
     assert np.abs(sig - sig_true) < 1.5
     assert spec._ramp_sigma is None                # self-cal is not cached
+
+
+def test_ramp_sigma_missing_dark_falls_back(tmp_path):
+    """A recorded dark that vanishes before first use -> self-cal fallback."""
+    sig_true = 8.
+    gain, grptime, ngroups = 0.95, 2., 15
+    sci = _write_synth(synth_ramp_hdulist(ngroups, rate=2., sig=sig_true,
+                                          gain=gain, grptime=grptime, seed=61),
+                       tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true, seed=62,
+                                           imagetyp='dark'),
+                        tmp_path / 'dark.fits')
+    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+    dark.unlink()                     # dark disappears before any sigma call
+
+    from astropy.io import fits as _fits
+    with _fits.open(sci) as hdu:
+        reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    sig = spec.get_ramp_sigma(diffs, covar)
+    assert np.abs(sig - sig_true) < 1.5
+    assert spec._ramp_sigma is None   # fell back to self-cal, not cached

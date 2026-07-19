@@ -39,12 +39,12 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     supported = True
 
     # Up-the-ramp fitting configuration
-    # Initial guess for the single-read noise in electrons.
     ramp_sig_guess = 15.0
-    # Allowed range for the calibrated single-read noise (electrons).
+    """Initial guess for the single-read noise in electrons."""
     ramp_sig_range = (3.0, 50.0)
-    # Minimum number of reads for a dark to be usable for noise calibration.
+    """Allowed range for the calibrated single-read noise (electrons)."""
     ramp_min_dark_groups = 10
+    """Minimum number of reads for a dark to be usable for noise calibration."""
     _ramp_dark_files = None
     _ramp_sigma = None
 
@@ -136,7 +136,9 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 with io.fits_open(f) as dhdu:
                     n = sum(1 for h in dhdu if h.header.get('NAXIS') == 2
                             and h.header.get('NAXIS1', 0) > 0)
-            except (OSError, FileNotFoundError):
+            except (OSError, PypeItError):
+                log.warning(f'Could not open recorded dark frame {f}; skipping it '
+                            'for read-noise calibration.')
                 continue
             if n >= self.ramp_min_dark_groups and n > best_n:
                 best, best_n = f, n
