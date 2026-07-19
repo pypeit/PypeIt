@@ -38,6 +38,16 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     header_name = 'mmirs'
     supported = True
 
+    # Up-the-ramp fitting configuration
+    # Initial guess for the single-read noise in electrons.
+    ramp_sig_guess = 15.0
+    # Allowed range for the calibrated single-read noise (electrons).
+    ramp_sig_range = (3.0, 50.0)
+    # Minimum number of reads for a dark to be usable for noise calibration.
+    ramp_min_dark_groups = 10
+    _ramp_dark_files = None
+    _ramp_sigma = None
+
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
@@ -83,6 +93,97 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             ttime = Time(time, format='isot')
             return ttime.mjd
         raise PypeItError("Not ready for this compound meta")
+
+    def cache_metadata(self, fitstbl):
+        """
+        Record the dark frames in the metadata table for later use in
+        calibrating the up-the-ramp single-read noise.
+
+        Cheap and idempotent; the darks are only opened (lazily) by
+        :func:`get_ramp_sigma`.
+
+        Args:
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
+        """
+        tbl = fitstbl.table
+        if 'directory' not in tbl.colnames or 'filename' not in tbl.colnames:
+            return
+        if 'frametype' in tbl.colnames:
+            indx = np.array([ft is not None and 'dark' in str(ft)
+                             for ft in tbl['frametype']])
+        elif 'idname' in tbl.colnames:
+            indx = np.array([str(idn).strip().lower() == 'dark'
+                             for idn in tbl['idname']])
+        else:
+            return
+        self._ramp_dark_files = [Path(str(d)) / str(f)
+                                 for d, f in zip(tbl['directory'][indx],
+                                                 tbl['filename'][indx])
+                                 if not str(f).startswith('#')]
+
+    def _best_ramp_dark(self):
+        """
+        Select the recorded dark frame with the most reads.
+
+        Returns:
+            `Path`_: Path to the best dark, or None if no recorded dark
+            exists with at least :attr:`ramp_min_dark_groups` reads.
+        """
+        best, best_n = None, 0
+        for f in self._ramp_dark_files or []:
+            try:
+                with io.fits_open(f) as dhdu:
+                    n = sum(1 for h in dhdu if h.header.get('NAXIS') == 2
+                            and h.header.get('NAXIS1', 0) > 0)
+            except (OSError, FileNotFoundError):
+                continue
+            if n >= self.ramp_min_dark_groups and n > best_n:
+                best, best_n = f, n
+        return best
+
+    def get_ramp_sigma(self, diffs, covar):
+        """
+        Determine the single-read noise for up-the-ramp fitting.
+
+        Preferentially calibrates the noise from a dark frame recorded by
+        :func:`cache_metadata` (the result is cached for the rest of the
+        run).  If no suitable dark is available, self-calibrates from the
+        provided ramp differences (not cached).  The result is clamped to
+        :attr:`ramp_sig_range` in both cases.
+
+        Args:
+            diffs (`numpy.ndarray`_):
+                Scaled resultant differences of the frame being processed,
+                shape ``(ndiffs, ny, nx)``, in electrons.
+            covar (:class:`~pypeit.core.fitramp.Covar`):
+                Covariance object matching ``diffs``.
+
+        Returns:
+            :obj:`float`: Single-read noise in electrons.
+        """
+        if self._ramp_sigma is not None:
+            return self._ramp_sigma
+        dark = self._best_ramp_dark()
+        if dark is not None:
+            log.info(f'Calibrating MMIRS single-read noise from dark: {dark.name}')
+            with io.fits_open(dark) as dhdu:
+                dreads, dhead = mmirs_load_ramp(dhdu)
+            ngroups = dreads.shape[0]
+            dcovar = fitramp.Covar([dhead['GRPTIME'] * (i + 1)
+                                    for i in range(ngroups)])
+            ddiffs = mmirs_ramp_diffs(dreads * dhead['GAIN'], dcovar)
+            sig = mmirs_calibrate_sigma(ddiffs, dcovar,
+                                        sig_guess=self.ramp_sig_guess)
+            self._ramp_sigma = float(np.clip(sig, *self.ramp_sig_range))
+            log.info(f'Calibrated single-read noise: {self._ramp_sigma:.2f} e-')
+            return self._ramp_sigma
+        log.info('No suitable dark listed; self-calibrating MMIRS single-read '
+                 'noise from the frame itself')
+        sig = mmirs_calibrate_sigma(diffs, covar, sig_guess=self.ramp_sig_guess)
+        sig = float(np.clip(sig, *self.ramp_sig_range))
+        log.info(f'Self-calibrated single-read noise: {sig:.2f} e-')
+        return sig
 
     def raw_header_cards(self):
         """

@@ -100,3 +100,73 @@ def test_effective_ronoise_formula():
     measured = np.std(result.countrate * total_exp)
     expected = mmt_mmirs.mmirs_effective_ronoise(sig, ngroups)
     assert np.abs(measured / expected - 1.) < 0.06
+
+
+def _write_synth(hdulist, path):
+    hdulist.writeto(path, overwrite=True)
+    return path
+
+
+def _metadata_for(files, idnames):
+    """Minimal PypeItMetaData carrying directory/filename/idname columns."""
+    from astropy.table import Table
+    from pypeit.metadata import PypeItMetaData
+    from pypeit.spectrographs.util import load_spectrograph
+    spec = load_spectrograph('mmt_mmirs')
+    par = spec.default_pypeit_par()
+    data = Table({'filename': [f.name for f in files],
+                  'directory': [str(f.parent) for f in files],
+                  'idname': idnames})
+    fitstbl = PypeItMetaData(spec, par=par, data=data)
+    return spec, fitstbl
+
+
+def test_cache_metadata_records_darks(tmp_path):
+    sci = _write_synth(synth_ramp_hdulist(4, seed=11), tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, seed=12,
+                                           imagetyp='dark'),
+                        tmp_path / 'dark.fits')
+    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+    # cache_metadata ran inside PypeItMetaData construction (Task 2 hook)
+    assert spec._ramp_dark_files == [dark]
+
+
+def test_ramp_sigma_from_dark_and_cached(tmp_path):
+    sig_true = 8.
+    sci = _write_synth(synth_ramp_hdulist(6, rate=20., sig=sig_true, seed=21),
+                       tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true, seed=22,
+                                           imagetyp='dark'),
+                        tmp_path / 'dark.fits')
+    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+
+    gain, grptime, ngroups = 0.95, 2., 6
+    from astropy.io import fits as _fits
+    with _fits.open(sci) as hdu:
+        reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    sig = spec.get_ramp_sigma(diffs, covar)
+    assert np.abs(sig - sig_true) < 1.5
+    assert spec._ramp_sigma == sig
+    # Cached: works even after the dark file disappears
+    dark.unlink()
+    assert spec.get_ramp_sigma(diffs, covar) == sig
+
+
+def test_ramp_sigma_selfcal_fallback(tmp_path):
+    """No darks recorded (or too few groups) -> self-calibrate from the frame."""
+    sig_true = 8.
+    gain, grptime, ngroups = 0.95, 2., 15
+    hdu = synth_ramp_hdulist(ngroups, rate=2., sig=sig_true, gain=gain,
+                             grptime=grptime, seed=31)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    from pypeit.spectrographs.util import load_spectrograph
+    spec = load_spectrograph('mmt_mmirs')          # fresh: no darks recorded
+    sig = spec.get_ramp_sigma(diffs, covar)
+    assert np.abs(sig - sig_true) < 1.5
+    assert spec._ramp_sigma is None                # self-cal is not cached
