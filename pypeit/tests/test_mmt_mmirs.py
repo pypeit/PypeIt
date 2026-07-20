@@ -5,9 +5,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 from astropy.io import fits
+from astropy.table import Table
 
 from pypeit.core import fitramp
+from pypeit.metadata import PypeItMetaData
+from pypeit.scripts.mmirs_ramp import MMIRSRamp
 from pypeit.spectrographs import mmt_mmirs
+from pypeit.spectrographs.util import load_spectrograph
 
 
 def synth_ramp_hdulist(ngroups, ny=64, nx=64, rate=20., sig=8., gain=0.95,
@@ -113,9 +117,6 @@ def _write_synth(hdulist, path):
 
 def _metadata_for(files, idnames):
     """Minimal PypeItMetaData carrying directory/filename/idname columns."""
-    from astropy.table import Table
-    from pypeit.metadata import PypeItMetaData
-    from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('mmt_mmirs')
     par = spec.default_pypeit_par()
     data = Table({'filename': [f.name for f in files],
@@ -147,8 +148,7 @@ def test_ramp_sigma_from_dark_and_cached(tmp_path):
     spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
 
     gain, grptime, ngroups = 0.95, 2., 6
-    from astropy.io import fits as _fits
-    with _fits.open(sci) as hdu:
+    with fits.open(sci) as hdu:
         reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
     diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
@@ -171,7 +171,6 @@ def test_ramp_sigma_selfcal_fallback(tmp_path):
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
     diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
 
-    from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('mmt_mmirs')          # fresh: no darks recorded
     sig = spec.get_ramp_sigma(diffs, covar)
     assert np.abs(sig - sig_true) < 1.5
@@ -191,8 +190,7 @@ def test_ramp_sigma_missing_dark_falls_back(tmp_path):
     spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
     dark.unlink()                     # dark disappears before any sigma call
 
-    from astropy.io import fits as _fits
-    with _fits.open(sci) as hdu:
+    with fits.open(sci) as hdu:
         reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
     diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
@@ -209,7 +207,6 @@ def test_get_rawimage_ramp_path(tmp_path):
                                            gain=gain, grptime=grptime,
                                            seed=41),
                         tmp_path / 'sci_ramp.fits')
-    from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('mmt_mmirs')
     spec._ramp_output_dir = tmp_path
     detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
@@ -227,7 +224,6 @@ def test_get_rawimage_cds_path(tmp_path):
     """2-read files must still use the unchanged CDS path."""
     path = _write_synth(synth_ramp_hdulist(2, ny=64, nx=64, rate=20., seed=51),
                         tmp_path / 'sci_cds.fits')
-    from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('mmt_mmirs')
     spec._ramp_output_dir = tmp_path
     detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
@@ -238,7 +234,6 @@ def test_get_rawimage_cds_path(tmp_path):
 
 
 def test_findobj_trace_defaults():
-    from pypeit.spectrographs.util import load_spectrograph
     par = load_spectrograph('mmt_mmirs').default_pypeit_par()
     assert par['reduce']['findobj']['trace_npoly'] == 1
     assert par['reduce']['findobj']['trace_maxdev'] == 50.
@@ -254,7 +249,6 @@ def test_write_rampfit_roundtrip(tmp_path):
     ngroups = 6
     raw = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=71),
                        tmp_path / 'sci.fits')
-    from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('mmt_mmirs')
     with fits.open(raw) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
@@ -288,7 +282,6 @@ def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
     ngroups = 6
     raw = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=75),
                        tmp_path / 'sci.fits')
-    from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('mmt_mmirs')
     with fits.open(raw) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
@@ -323,7 +316,6 @@ def test_rampfit_fresh_missing_raw_file(tmp_path):
     ngroups = 6
     raw = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=76),
                        tmp_path / 'sci.fits')
-    from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('mmt_mmirs')
     with fits.open(raw) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
@@ -342,7 +334,6 @@ def test_count_reads():
 
 def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
     # No _ramp_output_dir recorded: exercises the cwd fallback
-    from pypeit.spectrographs.util import load_spectrograph
     monkeypatch.chdir(tmp_path)
     path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=81),
                         tmp_path / 'sci.fits')
@@ -368,7 +359,6 @@ def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
 
 def test_get_rawimage_direct_preprocessed(tmp_path, monkeypatch):
     """A preprocessed file itself (e.g. listed by setup on RampFit) loads."""
-    from pypeit.spectrographs.util import load_spectrograph
     path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=82),
                         tmp_path / 'sci.fits')
     spec = load_spectrograph('mmt_mmirs')
@@ -387,7 +377,6 @@ def test_get_rawimage_direct_preprocessed(tmp_path, monkeypatch):
 
 
 def test_get_rawimage_stale_sidecar_refits(tmp_path):
-    from pypeit.spectrographs.util import load_spectrograph
     path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=83),
                         tmp_path / 'sci.fits')
     spec = load_spectrograph('mmt_mmirs')
@@ -408,7 +397,6 @@ def test_get_rawimage_stale_sidecar_refits(tmp_path):
 
 def test_get_rawimage_unwritable_fallback(tmp_path, monkeypatch):
     """Sidecar write failure must warn and continue, not raise."""
-    from pypeit.spectrographs.util import load_spectrograph
     path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=84),
                         tmp_path / 'sci.fits')
 
@@ -424,7 +412,6 @@ def test_get_rawimage_unwritable_fallback(tmp_path, monkeypatch):
 
 
 def test_mmirs_ramp_script(tmp_path, monkeypatch):
-    from pypeit.scripts.mmirs_ramp import MMIRSRamp
     monkeypatch.chdir(tmp_path)          # keep the log file out of the repo
     raw = _write_synth(synth_ramp_hdulist(6, rate=20., seed=91),
                        tmp_path / 'sci.fits')
@@ -444,7 +431,6 @@ def test_mmirs_ramp_script(tmp_path, monkeypatch):
 
 
 def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
-    from pypeit.scripts.mmirs_ramp import MMIRSRamp
     monkeypatch.chdir(tmp_path)
     raw = _write_synth(synth_ramp_hdulist(2, seed=92), tmp_path / 'cds.fits')
     MMIRSRamp.main(MMIRSRamp.parse_args([str(raw)]))    # must not raise
@@ -453,7 +439,6 @@ def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
 
 def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
     """A write failure for one file must not abort the rest of the batch."""
-    from pypeit.scripts.mmirs_ramp import MMIRSRamp
     monkeypatch.chdir(tmp_path)
     raw1 = _write_synth(synth_ramp_hdulist(6, rate=20., seed=95),
                         tmp_path / 'sci1.fits')
@@ -475,7 +460,6 @@ def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
 
 
 def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):
-    from pypeit.scripts.mmirs_ramp import MMIRSRamp
     monkeypatch.chdir(tmp_path)
     sig_true = 8.
     raw = _write_synth(synth_ramp_hdulist(6, rate=20., sig=sig_true, seed=93),
