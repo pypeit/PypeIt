@@ -22,7 +22,7 @@ from pypeit import flatfield
 from pypeit import edgetrace
 from pypeit import scattlight
 from pypeit import slittrace
-from pypeit import state
+from pypeit.state.run_state import FlatCorrectionMetric
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit.calibframe import CalibFrame
@@ -950,7 +950,7 @@ class Calibrations:
                 good = onslit & np.isfinite(img)
                 if not np.any(good):
                     continue
-                metrics[name] = state.FlatCorrectionMetric(
+                metrics[name] = FlatCorrectionMetric(
                     mean=float(np.mean(img[good])),
                     rms=float(np.std(img[good])))
             if metrics:
@@ -2198,12 +2198,12 @@ def required_calibs(par, fitstbl, spectrograph, run_state):
             PypeIt run.
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             The spectrograph object for the instrument being reduced.
-        run_state (:class:`~pypeit.state.RunPypeItState`):
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`):
             The state object to update.  Each calibration step entry will
             have its ``required`` field set to True or False.
 
     Returns:
-        :class:`~pypeit.state.RunPypeItState`: The updated state object.
+        :class:`~pypeit.state.run_state.RunPypeItState`: The updated state object.
     """
     # Determine which calibration class to use for the step list
     if spectrograph.pypeline in ['MultiSlit', 'Echelle']:

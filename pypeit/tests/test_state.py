@@ -1,7 +1,7 @@
 """
 Unit tests for the PypeIt reduction-state class and its I/O.
 
-These exercise :class:`pypeit.state.RunPypeItState` and the
+These exercise :class:`pypeit.state.run_state.RunPypeItState` and the
 ``pypeit.state`` helpers in isolation.  They are CI-safe: they require no
 RAW_DATA and write only to pytest's ``tmp_path``.
 
@@ -24,14 +24,14 @@ import pytest
 
 from pydantic import ValidationError
 
-from pypeit import state
+from pypeit.state import run_state
 from pypeit import PypeItError
 from pypeit.calibrations import Calibrations, MultiSlitCalibrations
 
 
 def make_state(tmp_path, name='test.pypeit'):
     """
-    Build a minimal, empty :class:`~pypeit.state.RunPypeItState` whose
+    Build a minimal, empty :class:`~pypeit.state.run_state.RunPypeItState` whose
     output file lives under ``tmp_path``.
 
     Args:
@@ -41,11 +41,11 @@ def make_state(tmp_path, name='test.pypeit'):
             Basename of the ``.pypeit`` file to associate with the state.
 
     Returns:
-        :class:`~pypeit.state.RunPypeItState`: A fresh state object with
+        :class:`~pypeit.state.run_state.RunPypeItState`: A fresh state object with
         its ``path`` (output JSON) set under ``tmp_path``.
     """
     pyfile = str(tmp_path / name)
-    s = state.RunPypeItState(pypeit_file=pyfile, current_step='init',
+    s = run_state.RunPypeItState(pypeit_file=pyfile, current_step='init',
                              current_det=-1, current_calibID=-1)
     # Write the JSON beside the .pypeit file
     s.path = str(tmp_path / name.replace('.pypeit', '_state.json'))
@@ -61,10 +61,10 @@ def test_construction_defaults():
     A freshly built state has empty per-step lists and the expected
     required fields.
     """
-    s = state.RunPypeItState(pypeit_file='foo.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='foo.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     assert s.previous_step == 'none'
-    for step in state.calib_classes:
+    for step in run_state.calib_classes:
         assert getattr(s, step) == []
 
 
@@ -72,7 +72,7 @@ def test_outfile_property():
     """
     ``outfile`` derives from the ``.pypeit`` name unless ``path`` is set.
     """
-    s = state.RunPypeItState(pypeit_file='/a/b/run.pypeit',
+    s = run_state.RunPypeItState(pypeit_file='/a/b/run.pypeit',
                              current_step='init', current_det=-1,
                              current_calibID=-1)
     assert s.outfile == '/a/b/run_state.json'
@@ -89,14 +89,14 @@ def test_same_det_scalars_and_mosaics():
     ``same_det`` compares single detectors and mosaics regardless of
     list/tuple storage.
     """
-    assert state.same_det(1, 1)
-    assert not state.same_det(1, 2)
+    assert run_state.same_det(1, 1)
+    assert not run_state.same_det(1, 2)
     # A mosaic stored as a list must match the same mosaic as a tuple
-    assert state.same_det([1, 5], (1, 5))
-    assert state.same_det((1, 5), [1, 5])
-    assert not state.same_det((1, 5), (2, 6))
+    assert run_state.same_det([1, 5], (1, 5))
+    assert run_state.same_det((1, 5), [1, 5])
+    assert not run_state.same_det((1, 5), (2, 6))
     # A scalar is never equal to a mosaic
-    assert not state.same_det(1, (1, 5))
+    assert not run_state.same_det(1, (1, 5))
 
 
 # -----------------------------------------------------------------------
@@ -108,7 +108,7 @@ def test_update_calib_create_and_update():
     The first ``update_calib`` creates the entry; subsequent calls update
     the same entry in place.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     s.update_calib('arc', 0, 1, 'status', 'running')
     assert len(s.arc) == 1
@@ -126,7 +126,7 @@ def test_update_calib_input_files_stored_as_list():
     wholesale (this mirrors the real usage, where ``self.raw_files`` — a
     list — is handed in by ``base_state``).
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     s.update_calib('arc', 0, 1, 'input_files', ['/a.fits', '/b.fits'])
     assert s.arc[0].input_files == ['/a.fits', '/b.fits']
@@ -158,7 +158,7 @@ def test_update_calib_list_field_appends():
     than overwrites.  ``FlatsState.corrections`` defaults to ``[]``, so
     successive scalar updates accumulate.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     s.update_calib('flats', 0, 1, 'corrections', 'pixelflat')
     s.update_calib('flats', 0, 1, 'corrections', 'spat_illum')
@@ -169,7 +169,7 @@ def test_update_calib_tracks_step_transitions():
     """
     ``current_step`` / ``previous_step`` are updated on a step change.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     s.update_calib('arc', 0, 1, 'status', 'running')
     assert s.current_step == 'arc'
@@ -183,18 +183,18 @@ def test_update_calib_unknown_step_is_noop():
     """
     An unrecognized step is silently ignored (no entry, no crash).
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     # 'bpm' is not tracked in calib_classes
     s.update_calib('bpm', 0, 1, 'status', 'running')
-    assert all(getattr(s, step) == [] for step in state.calib_classes)
+    assert all(getattr(s, step) == [] for step in run_state.calib_classes)
 
 
 def test_update_calib_per_slit():
     """
     A per-slit update creates the slit sub-entry and sets its metric.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     s.update_calib('wv_calib', 0, 1, 'status', 'success', slit=196)
     s.update_calib('wv_calib', 0, 1, 'rms', 0.06, slit=196)
@@ -210,7 +210,7 @@ def test_update_calib_mosaic_det_single_entry():
     update a single entry, not create duplicates, and all values must land
     on that one entry.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     det = (1, 5)
     s.update_calib('bias', 0, det, 'status', 'running')
@@ -234,14 +234,14 @@ def test_flats_slit_model_and_skip_status():
     dict of per-correction ``FlatCorrectionMetric``; ``'flats'`` is wired
     into ``slit_classes``.
     """
-    m = state.FlatCorrectionMetric(mean=1.0, rms=0.02)
-    fs = state.FlatsSlit(status='skip', corrections={'pixelflat': m})
+    m = run_state.FlatCorrectionMetric(mean=1.0, rms=0.02)
+    fs = run_state.FlatsSlit(status='skip', corrections={'pixelflat': m})
     assert fs.status == 'skip'
     assert fs.corrections['pixelflat'].rms == pytest.approx(0.02)
-    assert state.slit_classes['flats'] is state.FlatsSlit
+    assert run_state.slit_classes['flats'] is run_state.FlatsSlit
     # An invalid slit status is rejected
     with pytest.raises(ValidationError):
-        state.FlatsSlit(status='running')
+        run_state.FlatsSlit(status='running')
 
 
 def test_flats_per_slit_metrics_via_update_calib():
@@ -250,14 +250,14 @@ def test_flats_per_slit_metrics_via_update_calib():
     path of ``update_calib`` (no special machinery), and an entry-level
     ``corrections`` list records which corrections are present.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     # Entry-level: which corrections exist (list set wholesale)
     s.update_calib('flats', 0, 1, 'corrections', ['pixelflat', 'spat_illum'])
     # Per-slit status + per-correction metrics
     s.update_calib('flats', 0, 1, 'status', 'success', slit=196)
-    metrics = {'pixelflat': state.FlatCorrectionMetric(mean=1.0, rms=0.026),
-               'spat_illum': state.FlatCorrectionMetric(mean=1.0, rms=0.014)}
+    metrics = {'pixelflat': run_state.FlatCorrectionMetric(mean=1.0, rms=0.026),
+               'spat_illum': run_state.FlatCorrectionMetric(mean=1.0, rms=0.014)}
     s.update_calib('flats', 0, 1, 'corrections', metrics, slit=196)
     entry = s.flats[0]
     assert entry.corrections == ['pixelflat', 'spat_illum']
@@ -278,7 +278,7 @@ def test_flats_state_full_roundtrip(tmp_path):
     s.update_calib('flats', 0, 1, 'illumflat_files', ['/a.fits'])
     s.update_calib('flats', 0, 1, 'input_files', ['/a.fits', '/b.fits'])
     s.update_calib('flats', 0, 1, 'status', 'success', slit=196)
-    metric = state.FlatCorrectionMetric(mean=1.0, rms=0.03)
+    metric = run_state.FlatCorrectionMetric(mean=1.0, rms=0.03)
     s.update_calib('flats', 0, 1, 'corrections', {'pixelflat': metric},
                    slit=196)
     s.write()
@@ -303,9 +303,9 @@ def test_status_literal_rejects_failed():
     Validation (i.e. load) must reject the former.
     """
     with pytest.raises(ValidationError):
-        state.BiasCalibState(calib_id=0, det=1, status='failed')
+        run_state.BiasCalibState(calib_id=0, det=1, status='failed')
     # The corrected value validates fine
-    ok = state.BiasCalibState(calib_id=0, det=1, status='fail')
+    ok = run_state.BiasCalibState(calib_id=0, det=1, status='fail')
     assert ok.status == 'fail'
 
 
@@ -406,7 +406,7 @@ def test_get_status_empty_is_none():
     """
     ``get_status`` returns None when there are no entries.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     assert s.get_status() is None
 
@@ -416,7 +416,7 @@ def test_get_status_columns_and_values():
     ``get_status`` returns the expected columns and reports required /
     status / output basename per step.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     s.update_calib('arc', 0, 1, 'required', True)
     s.update_calib('arc', 0, 1, 'status', 'success')
@@ -441,7 +441,7 @@ def test_get_status_ordering_matches_processing_order():
     with ``bpm`` dropped and ``align`` appended) and is independent of the
     order entries were added.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     # Deliberately add flats before slits to prove ordering is not
     # insertion order
@@ -452,7 +452,7 @@ def test_get_status_ordering_matches_processing_order():
     # slits must come before arc (the bug fixed in S1)
     assert steps.index('slits') < steps.index('arc')
     # And the full order matches calib_classes == default_steps order
-    assert steps == list(state.calib_classes.keys())
+    assert steps == list(run_state.calib_classes.keys())
     expected = [st for st in MultiSlitCalibrations.default_steps()
                 if st != 'bpm'] + ['align']
     assert steps == expected
@@ -463,7 +463,7 @@ def test_print_status_runs(capsys):
     ``print_status`` prints a table (smoke test; no entries -> friendly
     message).
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     s.print_status()
     out = capsys.readouterr().out
@@ -484,7 +484,7 @@ def test_add_or_get_science_creates_once():
     ``add_or_get_science`` creates an entry on first call and returns the
     same one thereafter (matched by (frame, det), mosaic-aware).
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     e1 = s.add_or_get_science('b27', 1, calib_id=0, objtype='science')
     e2 = s.add_or_get_science('b27', 1)
@@ -494,7 +494,7 @@ def test_add_or_get_science_creates_once():
     s.add_or_get_science('b50', (1, 5), objtype='standard')
     again = s.add_or_get_science('b50', (1, 5))
     assert len(s.science) == 2
-    assert state.same_det(again.det, (1, 5))
+    assert run_state.same_det(again.det, (1, 5))
 
 
 def test_safe_update_science_sets_step_and_fields():
@@ -502,7 +502,7 @@ def test_safe_update_science_sets_step_and_fields():
     ``safe_update_science`` sets a step status and top-level fields, and
     returns False (no raise) on a bad field.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     e = s.safe_update_science('b27', 1, step='findobj', status='success',
                               nobj=3, calib_id=0)
@@ -517,10 +517,10 @@ def test_science_step_status_literal():
     ``ScienceStep`` accepts the four science statuses and ``ScienceSlit``
     accepts ``'skip'``; invalid values are rejected.
     """
-    assert state.ScienceStep(status='running').status == 'running'
-    assert state.ScienceSlit(status='skip').status == 'skip'
+    assert run_state.ScienceStep(status='running').status == 'running'
+    assert run_state.ScienceSlit(status='skip').status == 'skip'
     with pytest.raises(ValidationError):
-        state.ScienceStep(status='skip')          # not valid for a step
+        run_state.ScienceStep(status='skip')          # not valid for a step
 
 
 def test_science_full_roundtrip(tmp_path):
@@ -531,13 +531,13 @@ def test_science_full_roundtrip(tmp_path):
     s = make_state(tmp_path)
     e = s.add_or_get_science('b27', 1, calib_id=0, objtype='science',
                              comb_id=0)
-    for step in state.science_steps:
+    for step in run_state.science_steps:
         getattr(e, step).status = 'success'
     e.nobj = 1
     e.spec1d_file = 'Science/spec1d_b27.fits'
     e.spec2d_file = 'Science/spec2d_b27.fits'
-    e.slits[175] = state.ScienceSlit(status='success', nobj=1)
-    e.objects.append(state.ScienceObj(objid=1, slitid=175, spat_pixpos=175.5,
+    e.slits[175] = run_state.ScienceSlit(status='success', nobj=1)
+    e.objects.append(run_state.ScienceObj(objid=1, slitid=175, spat_pixpos=175.5,
                                       fwhm=5.1, snr_find=142.5, s2n=9.3,
                                       sign=1, extracted=True))
     s.write()
@@ -556,7 +556,7 @@ def test_get_science_status_table():
     ``get_science_status`` returns one row per (frame, det) with the four
     macro-step columns; None when empty.
     """
-    s = state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
     assert s.get_science_status() is None
     s.safe_update_science('b27', 1, step='process', status='success')
@@ -592,7 +592,7 @@ class _StepRunner:
         """
 
         Args:
-            state_obj (:class:`~pypeit.state.RunPypeItState`): The state to
+            state_obj (:class:`~pypeit.state.run_state.RunPypeItState`): The state to
                 update.
             steps (:obj:`list`): Calibration step names to iterate.
             raising_step (:obj:`str`): The step whose ``get_`` method raises.

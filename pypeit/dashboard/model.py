@@ -15,8 +15,7 @@ from dataclasses import dataclass
 from pydantic import ValidationError
 
 from pypeit import log
-from pypeit.state import RunPypeItState, same_det
-from pypeit.state.run_state import state_table
+from pypeit.state.run_state import RunPypeItState, same_det, state_table
 
 # Map the spectrograph ``pypeline`` attribute to the reduction-path label
 # shown in the header.  Internally PypeIt names the IFU path 'SlicerIFU';
@@ -159,7 +158,7 @@ class DashboardModel:
     """
     Headless (Qt-free) model for one PypeIt reduction.
 
-    It acquires a :class:`pypeit.state.RunPypeItState` by source priority
+    It acquires a :class:`pypeit.state.run_state.RunPypeItState` by source priority
     (load ``<root>_state.json`` if present, R4; otherwise derive it the
     ``pypeit_status`` way, R5), and exposes a clean, normalized API the Qt
     views consume — a status table, the ``(calib_id, det)`` pairs, the
@@ -184,7 +183,7 @@ class DashboardModel:
         redux_dir (:obj:`pathlib.Path`): The reduction directory.
         state_path (:obj:`pathlib.Path`): The expected ``<root>_state.json`` path.
         header_info (:class:`HeaderInfo`): Header metadata, or ``None``.
-        run_state (:class:`~pypeit.state.RunPypeItState`): The state, or
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): The state, or
             ``None`` when unavailable.
         load_status (str): One of the ``LOAD_*`` constants.
         error (str): An error message when relevant, else ``None``.
@@ -441,7 +440,7 @@ class DashboardModel:
         """
         Return the normalized calibration-status table the views consume.
 
-        Built on :meth:`pypeit.state.RunPypeItState.get_status` but
+        Built on :meth:`pypeit.state.run_state.RunPypeItState.get_status` but
         normalized: ``required`` becomes a real :obj:`bool` (or ``None``),
         the ``"--"`` sentinels become ``None``/``"absent"``, an
         ``in_pipeline`` column is added (membership in

@@ -24,7 +24,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit import outputfiles
 from pypeit import exposure
 from pypeit import pypeit_steps
-from pypeit import state
+from pypeit.state.run_state import RunPypeItState
 
 
 class PypeIt:
@@ -67,7 +67,7 @@ class PypeIt:
         self.pypeit_file = pypeit_file
 
         # State
-        self.run_state = state.RunPypeItState(pypeit_file=pypeit_file,
+        self.run_state = RunPypeItState(pypeit_file=pypeit_file,
                                               current_step='init',
                                               current_det=-1,
                                               current_calibID=-1)
@@ -300,7 +300,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             execution until clicked on) and outputs to ginga. Requires
             remote control ginga session via
             ``ginga --modules=RC,SlitWavelength &``
-        run_state (:class:`~pypeit.state.RunPypeItState`, optional):
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
             The current state of the reduction.
         reuse_calibs (:obj:`bool`, optional):
             Reuse any pre-existing calibration files

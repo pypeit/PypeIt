@@ -1,6 +1,6 @@
 """
 Record and derive **science-frame** reduction state for
-:class:`~pypeit.state.RunPypeItState`.
+:class:`~pypeit.state.run_state.RunPypeItState`.
 
 This module translates the in-memory products of the science reduction
 (`SpecObjs`, `AllSpec2DObj`, `SlitTraceSet`) — and, when no live state file is
@@ -67,7 +67,7 @@ def _safe_float(value):
 
 def _obj_from_specobj(sobj, extracted):
     """
-    Build a :class:`~pypeit.state.ScienceObj` from a ``SpecObj``.
+    Build a :class:`~pypeit.state.run_state.ScienceObj` from a ``SpecObj``.
 
     Args:
         sobj (:class:`~pypeit.specobj.SpecObj`): A single detected/extracted
@@ -76,7 +76,7 @@ def _obj_from_specobj(sobj, extracted):
             (sets ``extracted`` and reads the extraction S/N).
 
     Returns:
-        :class:`~pypeit.state.ScienceObj`.
+        :class:`~pypeit.state.run_state.ScienceObj`.
     """
     slitid = getattr(sobj, 'SLITID', None)
     sign = getattr(sobj, 'sign', None)
@@ -144,7 +144,7 @@ def record_process(run_state, spectrograph, fitstbl, frames, detectors,
     Mark the ``process`` step ``success`` for each detector of an exposure.
 
     Args:
-        run_state (:class:`~pypeit.state.RunPypeItState`): State to update.
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to update.
         spectrograph: The spectrograph object.
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`): Metadata table.
         frames (:obj:`list`): Frame indices combined into this exposure.
@@ -176,7 +176,7 @@ def record_findobj(run_state, spectrograph, fitstbl, frames, detectors,
     object count, per-object find metrics, and per-slit sky status.
 
     Args:
-        run_state (:class:`~pypeit.state.RunPypeItState`): State to update.
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to update.
         spectrograph: The spectrograph object.
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`): Metadata table.
         frames (:obj:`list`): Frame indices of this exposure.
@@ -229,7 +229,7 @@ def record_extract(run_state, spectrograph, fitstbl, frames, detectors,
     extraction metrics, per-slit extraction status, and product paths.
 
     Args:
-        run_state (:class:`~pypeit.state.RunPypeItState`): State to update.
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to update.
         spectrograph: The spectrograph object.
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`): Metadata table.
         frames (:obj:`list`): Frame indices of this exposure.
@@ -388,7 +388,7 @@ def seed_planned_science_entries(run_state, planned, group_dets):
     handles single ``DET..`` detectors only).
 
     Args:
-        run_state (:class:`~pypeit.state.RunPypeItState`): State to populate.
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to populate.
         planned (:obj:`list`): Planned-frame dicts (``frame``, ``objtype``,
             ``calib_id``, ``comb_id``, ``raw_files``).
         group_dets (:obj:`dict`): ``{calib_group: [detector, ...]}`` — the
@@ -396,7 +396,7 @@ def seed_planned_science_entries(run_state, planned, group_dets):
             ``(group, det)`` pairs the dashboard already derived).
 
     Returns:
-        :class:`~pypeit.state.RunPypeItState`: The updated state.
+        :class:`~pypeit.state.run_state.RunPypeItState`: The updated state.
     """
     # Fallback detector set: the union across all calibration groups.
     all_dets = []
@@ -425,12 +425,12 @@ def seed_planned_science(run_state, fitstbl, group_dets):
     :func:`seed_planned_science_entries`).
 
     Args:
-        run_state (:class:`~pypeit.state.RunPypeItState`): State to populate.
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to populate.
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData` or None): Metadata.
         group_dets (:obj:`dict`): ``{calib_group: [detector, ...]}``.
 
     Returns:
-        :class:`~pypeit.state.RunPypeItState`: The updated state.
+        :class:`~pypeit.state.run_state.RunPypeItState`: The updated state.
     """
     if fitstbl is None:
         return run_state
@@ -476,7 +476,7 @@ def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
         (single ``DET..`` detectors only); the live run records mosaics fully.
 
     Args:
-        run_state (:class:`~pypeit.state.RunPypeItState`): State to populate
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to populate
             (its existing ``science`` entries are updated/extended in place).
         redux_dir (:obj:`str`): The reduction directory (containing
             ``Science/`` and optionally ``Intermediate/``).
@@ -486,7 +486,7 @@ def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
             when reading products.
 
     Returns:
-        :class:`~pypeit.state.RunPypeItState`: The updated state.
+        :class:`~pypeit.state.run_state.RunPypeItState`: The updated state.
     """
     redux = Path(redux_dir)
     sci_dir = redux / 'Science'
@@ -604,7 +604,7 @@ def _derive_from_intermediate(run_state, inter_dir, lookup, chk_version=False):
     always win (only steps still ``undone`` are filled).
 
     Args:
-        run_state (:class:`~pypeit.state.RunPypeItState`): State to update.
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to update.
         inter_dir (:class:`pathlib.Path`): The ``Intermediate/`` directory.
         lookup (:obj:`dict`): ``{basename: (objtype, calib_id, comb_id)}``.
         chk_version (:obj:`bool`, optional): Strict version check.

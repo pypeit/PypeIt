@@ -12,62 +12,10 @@ while ``run_pypeit`` runs (and read by the PypeIt Dashboard and
   reduction products (``SpecObjs`` / ``AllSpec2DObj`` / slit bitmasks), or the
   on-disk products, into the science portion of the state.
 
-For backward compatibility, the public names of :mod:`pypeit.state.run_state`
-are re-exported here, so ``from pypeit import state`` followed by
-``state.RunPypeItState`` (etc.) continues to work.
+Following the package-wide import convention, this ``__init__`` only lists
+the submodules; import the classes you need directly from them (e.g.
+``from pypeit.state.run_state import RunPypeItState``) to avoid import
+cycles.
 """
-from pypeit.state.run_state import (
-    same_det,
-    BaseCalibState,
-    BiasCalibState,
-    DarkCalibState,
-    ArcCalibState,
-    TiltImgCalibState,
-    ScattLightCalibState,
-    AlignCalibState,
-    WvCalibSlit,
-    WvCalibState,
-    SlitEdges,
-    SlitEdgesState,
-    TiltsSlit,
-    TiltsState,
-    FlatCorrectionMetric,
-    FlatsSlit,
-    FlatsState,
-    ScienceObj,
-    ScienceSlit,
-    ScienceStep,
-    ScienceFrameState,
-    calib_classes,
-    slit_classes,
-    science_steps,
-    RunPypeItState,
-)
 
-__all__ = [
-    'same_det',
-    'BaseCalibState',
-    'BiasCalibState',
-    'DarkCalibState',
-    'ArcCalibState',
-    'TiltImgCalibState',
-    'ScattLightCalibState',
-    'AlignCalibState',
-    'WvCalibSlit',
-    'WvCalibState',
-    'SlitEdges',
-    'SlitEdgesState',
-    'TiltsSlit',
-    'TiltsState',
-    'FlatCorrectionMetric',
-    'FlatsSlit',
-    'FlatsState',
-    'ScienceObj',
-    'ScienceSlit',
-    'ScienceStep',
-    'ScienceFrameState',
-    'calib_classes',
-    'slit_classes',
-    'science_steps',
-    'RunPypeItState',
-]
+__all__ = ['run_state', 'science_status']

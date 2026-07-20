@@ -1284,7 +1284,7 @@ def test_seed_planned_science():
     seed_planned_science() creates an undone entry per (frame, det) from the
     metadata, with raw files, for science and standard frames (Round-3 #2).
     """
-    from pypeit.state import RunPypeItState
+    from pypeit.state.run_state import RunPypeItState
     from pypeit.state import science_status
 
     class _FakeFitstbl:
@@ -1359,7 +1359,7 @@ def test_merge_from_disk_preserves_other_portion(tmp_path):
     calibrations + science, so writing it does not blank out the other
     portion (which disabled all (Re)Build buttons).
     """
-    from pypeit.state import RunPypeItState
+    from pypeit.state.run_state import RunPypeItState
     # A state file with BOTH calibrations and science (the science fixture).
     sj = tmp_path / 'x_state.json'
     sj.write_text(Path(data_path('dashboard_state_science.json')).read_text())

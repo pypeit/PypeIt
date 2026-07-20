@@ -150,7 +150,7 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             defined by the parameters.
         show (:obj:`bool`, optional):
             Show the QA during processing
-        run_state (:class:`~pypeit.state.RunPypeItState`, optional):
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
             The current state of the reduction.
             If None, no state tracking is performed.
         stop_at_step (:obj:`str`, optional):
