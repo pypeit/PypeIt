@@ -7,8 +7,10 @@ import pytest
 from astropy.io import fits
 from astropy.table import Table
 
+from pypeit import log
 from pypeit.core import fitramp
 from pypeit.metadata import PypeItMetaData
+from pypeit.pypeitsetup import PypeItSetup
 from pypeit.scripts.mmirs_ramp import MMIRSRamp
 from pypeit.spectrographs import mmt_mmirs
 from pypeit.spectrographs.util import load_spectrograph
@@ -124,6 +126,26 @@ def _metadata_for(files, idnames):
                   'idname': idnames})
     fitstbl = PypeItMetaData(spec, par=par, data=data)
     return spec, fitstbl
+
+
+def test_setup_warns_and_skips_single_hdu_file(tmp_path, monkeypatch):
+    raw = _write_synth(synth_ramp_hdulist(4), tmp_path / 'sci.fits')
+    bad_files = [tmp_path / 'extra.fits', tmp_path / 'intra.fits']
+    for bad_file in bad_files:
+        fits.PrimaryHDU(np.zeros((80, 80))).writeto(bad_file)
+
+    warnings = []
+    monkeypatch.setattr(log, 'warning',
+                        lambda message, *args, **kwargs: warnings.append(message))
+    setup = PypeItSetup.from_file_root(tmp_path, 'mmt_mmirs')
+    _, _, fitstbl = setup.run(setup_only=True)
+
+    assert fitstbl['filename'].tolist() == [raw.name]
+    assert any('Skipping this file' in message for message in warnings)
+
+    with pytest.raises(IndexError):
+        PypeItMetaData(setup.spectrograph, par=setup.par,
+                       files=[bad_files[0]], strict=True)
 
 
 def test_cache_metadata_records_darks(tmp_path):

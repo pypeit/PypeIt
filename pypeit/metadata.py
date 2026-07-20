@@ -193,8 +193,9 @@ class PypeItMetaData:
                 One or more files to use to build the table.
             strict (:obj:`bool`, optional):
                 Function will fault if `astropy.io.fits.getheader`_ fails to
-                read any of the headers.  Set to False to report a
-                warning and continue.
+                read any of the headers or if metadata access requires a
+                missing FITS extension.  Set to False to report a warning,
+                skip files missing an expected extension, and continue.
             usrdata (`astropy.table.Table`_, optional):
                 Parsed for frametype for a few instruments (e.g. VLT)
                 where meta data may not be required
@@ -209,8 +210,8 @@ class PypeItMetaData:
         log.info(f"Building metadata for {len(_files)} files.")
         # Build lists to fill
         data = {k:[] for k in self.spectrograph.meta.keys()}
-        data['directory'] = ['None']*len(_files)
-        data['filename'] = ['None']*len(_files)
+        data['directory'] = []
+        data['filename'] = []
 
         # Build the table
         for idx, ifile in enumerate(_files):
@@ -226,29 +227,36 @@ class PypeItMetaData:
                                'usrdata argument of instantiation of PypeItMetaData.')
                 usr_row = usrdata[idx]
 
-            # Add the directory and file name to the table
-            data['directory'][idx] = str(_ifile.parent)
-            data['filename'][idx] = _ifile.name
-            if not data['directory'][idx]:
-                data['directory'][idx] = '.'
-
             # Read the fits headers.  NOTE: If the file cannot be opened,
             # headarr will be None, and the subsequent loop over the meta keys
             # will fill the data dictionary with None values.
-            log.info(f'Adding metadata for {data["filename"][idx]}')
-            headarr = self.spectrograph.get_headarr(_ifile, strict=strict)
+            log.info(f'Adding metadata for {_ifile.name}')
+            try:
+                headarr = self.spectrograph.get_headarr(_ifile, strict=strict)
 
-            # Grab Meta
-            for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(headarr, meta_key, 
-                                                         required=strict,
-                                                         usr_row=usr_row, 
-                        ignore_bad_header = (
+                # Grab Meta
+                row_data = {}
+                for meta_key in self.spectrograph.meta.keys():
+                    value = self.spectrograph.get_meta_value(
+                        headarr, meta_key, required=strict, usr_row=usr_row,
+                        ignore_bad_header=(
                             self.par['rdx']['ignore_bad_headers'] or strict))
-                if isinstance(value, str) and '#' in value:
-                    value = value.replace('#', '')
-                    log.warning('Removing troublesome # character from {0}.  Returning {1}.'.format(
-                              meta_key, value))
+                    if isinstance(value, str) and '#' in value:
+                        value = value.replace('#', '')
+                        log.warning('Removing troublesome # character from {0}.  Returning {1}.'.format(
+                                  meta_key, value))
+                    row_data[meta_key] = value
+            except IndexError:
+                if strict:
+                    raise
+                log.warning(f'Unable to read metadata for {_ifile.name}: The file does not contain '
+                            'an expected FITS extension.  Skipping this file.')
+                continue
+
+            directory = str(_ifile.parent)
+            data['directory'].append(directory if directory else '.')
+            data['filename'].append(_ifile.name)
+            for meta_key, value in row_data.items():
                 data[meta_key].append(value)
 
         # JFH Changed the below to not crash if some files have None in
