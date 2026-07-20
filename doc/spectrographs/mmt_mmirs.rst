@@ -38,11 +38,12 @@ Preprocessed ramp images
 
 Fitting a many-read ramp takes minutes, and PypeIt loads each science frame
 several times during a reduction.  To avoid re-fitting, the fitted 2D
-count-rate image (units of e-/s) is written to a ``rampfit/`` subdirectory
-next to the raw cubes the first time each cube is loaded, and reused on
-subsequent loads.  A preprocessed image is re-fit automatically if the raw
-cube's modification time changes; if the raw directory is not writable, the
-fit proceeds in memory with a warning and nothing is cached.
+count-rate image (units of e-/s) is written to a ``RampFit`` directory
+inside the reduction directory (alongside ``Calibrations``, ``Science``,
+and ``QA``) the first time each cube is loaded, and reused on subsequent
+loads.  A preprocessed image is re-fit automatically if the raw cube's
+modification time changes; if the ``RampFit`` directory is not writable,
+the fit proceeds in memory with a warning and nothing is cached.
 
 The fitted images can also be created (and inspected) ahead of a reduction
 with:
@@ -51,12 +52,14 @@ with:
 
     pypeit_mmirs_ramp raw/*.fits
 
-which accepts ``--sig`` to force the single-read noise, ``--dark`` to
-calibrate it from a dark cube, and ``--force`` to re-fit existing outputs.
-Preprocessed files carry the fit parameters in header cards (``RAMPSIG``,
-``RAMPRON``, ``NGROUPS``) and preserve all raw metadata, so
-:ref:`pypeit_setup` can be run directly on a ``rampfit/`` directory if
-preferred.  ``run_pypeit`` never requires the manual step.
+which writes into the ``RampFit`` directory under ``--odir`` (default: the
+current directory, so run it from the reduction directory) and accepts
+``--sig`` to force the single-read noise, ``--dark`` to calibrate it from a
+dark cube, and ``--force`` to re-fit existing outputs.  Preprocessed files
+carry the fit parameters in header cards (``RAMPSIG``, ``RAMPRON``,
+``NGROUPS``) and preserve all raw metadata, so :ref:`pypeit_setup` can be
+run directly on a ``RampFit`` directory if preferred.  ``run_pypeit`` never
+requires the manual step.
 
 Changing the noise-calibration source between runs (e.g. adding dark frames
 to the raw-data directory, or forcing a different ``--sig``) does not

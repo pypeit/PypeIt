@@ -2,8 +2,9 @@
 Preprocess MMT/MMIRS up-the-ramp cubes into 2D count-rate images.
 
 Each multi-read raw cube is fit up the ramp (with jump detection; see
-:mod:`pypeit.core.fitramp`) and the result is written to a ``rampfit/``
-subdirectory next to the raw file, with the same file name.  The reduction
+:mod:`pypeit.core.fitramp`) and the result is written to the ``RampFit``
+directory inside the reduction directory (``--odir``, defaulting to the
+current directory), with the same file name as the raw cube.  The reduction
 (:func:`pypeit.spectrographs.mmt_mmirs.MMTMMIRSSpectrograph.get_rawimage`)
 finds and reuses these files automatically — and creates them itself when
 missing — so running this script is optional: it lets users inspect the
@@ -26,12 +27,16 @@ class MMIRSRamp(scriptbase.ScriptBase):
     def get_parser(cls, width: int | None = None) -> argparse.ArgumentParser:
         parser = super().get_parser(
             description='Preprocess MMT/MMIRS up-the-ramp cubes into 2D '
-                        'count-rate images (e-/s), written to a rampfit/ '
-                        'subdirectory next to each raw file.',
+                        'count-rate images (e-/s), written to the RampFit '
+                        'directory inside the reduction directory.',
             width=width,
             default_log_file=True)
         parser.add_argument('files', type=str, nargs='+',
                             help='One or more raw MMIRS multi-read cubes')
+        parser.add_argument('--odir', type=str, default='.',
+                            help='Reduction directory in which the RampFit '
+                                 'output directory is created (default: '
+                                 'current directory)')
         parser.add_argument('--sig', type=float, default=None,
                             help='Force this single-read noise (e-) instead '
                                  'of calibrating it')
@@ -74,7 +79,7 @@ class MMIRSRamp(scriptbase.ScriptBase):
 
         for f in args.files:
             raw = Path(f)
-            rampfit_file = mmt_mmirs.mmirs_rampfit_path(raw)
+            rampfit_file = mmt_mmirs.mmirs_rampfit_path(raw, args.odir)
             if not args.force and mmt_mmirs.mmirs_rampfit_fresh(rampfit_file,
                                                                 raw):
                 log.info(f'{raw.name}: up-to-date preprocessed image exists; '

@@ -117,8 +117,8 @@ Instrument-specific Updates
   ``trace_maxdev = 50``, ``trace_maxshift = 20``) to improve tracing with
   the synthetic slit edges used for this detector-bounded longslit.
 - MMIRS up-the-ramp fitted images are now cached as 2D count-rate files in a
-  ``rampfit/`` subdirectory next to the raw cubes (each ramp is fit at most
-  once per dataset), and a new ``pypeit_mmirs_ramp`` script preprocesses
+  ``RampFit`` directory inside the reduction directory (each ramp is fit at
+  most once per dataset), and a new ``pypeit_mmirs_ramp`` script preprocesses
   and inspects them ahead of a reduction.
 
 Script Changes

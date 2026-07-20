@@ -130,9 +130,11 @@ def test_cache_metadata_records_darks(tmp_path):
     dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, seed=12,
                                            imagetyp='dark'),
                         tmp_path / 'dark.fits')
-    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+    spec, fitstbl = _metadata_for([sci, dark], ['object', 'dark'])
     # cache_metadata ran inside PypeItMetaData construction (Task 2 hook)
     assert spec._ramp_dark_files == [dark]
+    # ... and recorded the reduction directory for RampFit output
+    assert spec._ramp_output_dir == Path(fitstbl.par['rdx']['redux_path'])
 
 
 def test_ramp_sigma_from_dark_and_cached(tmp_path):
@@ -209,6 +211,7 @@ def test_get_rawimage_ramp_path(tmp_path):
                         tmp_path / 'sci_ramp.fits')
     from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
     detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
     assert img.shape == (ny - 8, nx - 8)
     assert exp == exptime
@@ -226,11 +229,12 @@ def test_get_rawimage_cds_path(tmp_path):
                         tmp_path / 'sci_cds.fits')
     from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
     detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
     assert img.shape == (56, 56)
     assert detpar['ronoise'][0] == 3.14
     # CDS frames never get a preprocessed sidecar
-    assert not mmt_mmirs.mmirs_rampfit_path(path).exists()
+    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists()
 
 
 def test_findobj_trace_defaults():
@@ -242,8 +246,8 @@ def test_findobj_trace_defaults():
 
 
 def test_rampfit_path():
-    p = mmt_mmirs.mmirs_rampfit_path('/data/raw/sci.0001.fits')
-    assert p == Path('/data/raw/rampfit/sci.0001.fits')
+    p = mmt_mmirs.mmirs_rampfit_path('/data/raw/sci.0001.fits', '/data/rdx')
+    assert p == Path('/data/rdx/RampFit/sci.0001.fits')
 
 
 def test_write_rampfit_roundtrip(tmp_path):
@@ -255,10 +259,10 @@ def test_write_rampfit_roundtrip(tmp_path):
     with fits.open(raw) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
         rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
-        sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
         mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
                                       raw.stat().st_mtime)
-    assert sidecar == tmp_path / 'rampfit' / 'sci.fits'
+    assert sidecar == tmp_path / 'RampFit' / 'sci.fits'
     assert sidecar.exists()
     with fits.open(sidecar) as shdu:
         assert shdu[0].header['RAMPFIT']
@@ -268,7 +272,7 @@ def test_write_rampfit_roundtrip(tmp_path):
         assert shdu[1].header['BUNIT'] == 'e-/s'
         assert shdu[1].header['DATASEC'] == \
                 f'[1:{rate.shape[0]},1:{rate.shape[1]}]'
-        # Metadata cards preserved for pypeit_setup on rampfit/ dirs
+        # Metadata cards preserved for pypeit_setup on RampFit dirs
         assert shdu[1].header['IMAGETYP'] == 'object'
         assert shdu[1].header['EXPTIME'] == 10.
         np.testing.assert_allclose(shdu[1].data, rate, rtol=1e-5, atol=1e-3)
@@ -289,7 +293,7 @@ def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
     with fits.open(raw) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
         rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
-        sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
 
         def boom(self, *args, **kwargs):
             raise OSError('disk full')
@@ -305,7 +309,7 @@ def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
 
 def test_rampfit_fresh_missing_or_invalid(tmp_path):
     raw = _write_synth(synth_ramp_hdulist(4, seed=72), tmp_path / 'sci.fits')
-    sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
     # No sidecar
     assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
     # Sidecar without RAWMTIME card
@@ -324,7 +328,7 @@ def test_rampfit_fresh_missing_raw_file(tmp_path):
     with fits.open(raw) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
         rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
-        sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
         mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
                                       raw.stat().st_mtime)
     raw.unlink()
@@ -337,12 +341,14 @@ def test_count_reads():
 
 
 def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
+    # No _ramp_output_dir recorded: exercises the cwd fallback
     from pypeit.spectrographs.util import load_spectrograph
+    monkeypatch.chdir(tmp_path)
     path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=81),
                         tmp_path / 'sci.fits')
     spec = load_spectrograph('mmt_mmirs')
     detpar1, img1, hdu1, exp1, _, _ = spec.get_rawimage(str(path), 1)
-    sidecar = mmt_mmirs.mmirs_rampfit_path(path)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
     assert sidecar.exists()
     assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path)
 
@@ -361,13 +367,14 @@ def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
 
 
 def test_get_rawimage_direct_preprocessed(tmp_path, monkeypatch):
-    """A preprocessed file itself (e.g. listed by setup on rampfit/) loads."""
+    """A preprocessed file itself (e.g. listed by setup on RampFit) loads."""
     from pypeit.spectrographs.util import load_spectrograph
     path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=82),
                         tmp_path / 'sci.fits')
     spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
     _, img1, *_ = spec.get_rawimage(str(path), 1)
-    sidecar = mmt_mmirs.mmirs_rampfit_path(path)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
 
     def boom(*args, **kwargs):
         raise AssertionError('ramp was re-fit for a preprocessed input')
@@ -384,14 +391,16 @@ def test_get_rawimage_stale_sidecar_refits(tmp_path):
     path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=83),
                         tmp_path / 'sci.fits')
     spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
     spec.get_rawimage(str(path), 1)
-    sidecar = mmt_mmirs.mmirs_rampfit_path(path)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
     old_mtime = fits.getval(sidecar, 'RAWMTIME')
 
     # Raw cube "changes": sidecar must be refit and rewritten
     st = path.stat()
     os.utime(path, (st.st_atime, st.st_mtime + 10.))
     spec2 = load_spectrograph('mmt_mmirs')
+    spec2._ramp_output_dir = tmp_path
     spec2.get_rawimage(str(path), 1)
     assert fits.getval(sidecar, 'RAWMTIME') != old_mtime
     assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path)
@@ -407,10 +416,11 @@ def test_get_rawimage_unwritable_fallback(tmp_path, monkeypatch):
         raise OSError('read-only filesystem')
     monkeypatch.setattr(mmt_mmirs, 'mmirs_write_rampfit', read_only)
     spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
     detpar, img, *_ = spec.get_rawimage(str(path), 1)
     assert img.shape == (56, 56)
     assert detpar['ronoise'][0] != 3.14
-    assert not mmt_mmirs.mmirs_rampfit_path(path).exists()
+    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists()
 
 
 def test_mmirs_ramp_script(tmp_path, monkeypatch):
@@ -419,7 +429,7 @@ def test_mmirs_ramp_script(tmp_path, monkeypatch):
     raw = _write_synth(synth_ramp_hdulist(6, rate=20., seed=91),
                        tmp_path / 'sci.fits')
     MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--sig', '8.0']))
-    sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
     assert sidecar.exists()
     assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 8.0)
 
@@ -438,7 +448,7 @@ def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     raw = _write_synth(synth_ramp_hdulist(2, seed=92), tmp_path / 'cds.fits')
     MMIRSRamp.main(MMIRSRamp.parse_args([str(raw)]))    # must not raise
-    assert not mmt_mmirs.mmirs_rampfit_path(raw).exists()
+    assert not mmt_mmirs.mmirs_rampfit_path(raw, tmp_path).exists()
 
 
 def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
@@ -449,7 +459,7 @@ def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
                         tmp_path / 'sci1.fits')
     raw2 = _write_synth(synth_ramp_hdulist(6, rate=20., seed=96),
                         tmp_path / 'sci2.fits')
-    bad_sidecar = mmt_mmirs.mmirs_rampfit_path(raw1)
+    bad_sidecar = mmt_mmirs.mmirs_rampfit_path(raw1, tmp_path)
     real_write_rampfit = mmt_mmirs.mmirs_write_rampfit
 
     def flaky_write_rampfit(rampfit_file, *args, **kwargs):
@@ -458,9 +468,10 @@ def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
         return real_write_rampfit(rampfit_file, *args, **kwargs)
     monkeypatch.setattr(mmt_mmirs, 'mmirs_write_rampfit', flaky_write_rampfit)
 
-    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw1), str(raw2), '--sig', '8.0']))
+    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw1), str(raw2), '--sig', '8.0',
+                                         '--odir', str(tmp_path)]))
     assert not bad_sidecar.exists()
-    assert mmt_mmirs.mmirs_rampfit_path(raw2).exists()
+    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path).exists()
 
 
 def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):
@@ -473,6 +484,6 @@ def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):
                                            seed=94, imagetyp='dark'),
                         tmp_path / 'dark.fits')
     MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--dark', str(dark)]))
-    sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
     assert sidecar.exists()
     assert np.abs(fits.getval(sidecar, 'RAMPSIG') - sig_true) < 1.5

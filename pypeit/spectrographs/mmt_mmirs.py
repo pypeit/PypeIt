@@ -48,6 +48,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     """Minimum number of reads for a dark to be usable for noise calibration."""
     _ramp_dark_files = None
     _ramp_sigma = None
+    _ramp_output_dir = None
 
     def init_meta(self):
         """
@@ -97,16 +98,19 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
     def cache_metadata(self, fitstbl):
         """
-        Record the dark frames in the metadata table for later use in
-        calibrating the up-the-ramp single-read noise.
+        Record the reduction directory and the dark frames in the metadata
+        table for later use when up-the-ramp fitting raw frames.
 
-        Cheap and idempotent; the darks are only opened (lazily) by
-        :func:`get_ramp_sigma`.
+        The reduction directory determines where preprocessed ramp images
+        are written (its ``RampFit`` subdirectory); the darks are used to
+        calibrate the single-read noise.  Cheap and idempotent; the darks
+        are only opened (lazily) by :func:`get_ramp_sigma`.
 
         Args:
             fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
                 The class holding the metadata for all the frames.
         """
+        self._ramp_output_dir = Path(fitstbl.par['rdx']['redux_path'])
         tbl = fitstbl.table
         if 'directory' not in tbl.colnames or 'filename' not in tbl.colnames:
             return
@@ -477,11 +481,14 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         up-the-ramp fitting (see :func:`_ramp_fit_image`); frames with two
         (or one) reads use correlated double sampling, as before.
 
-        Fitted images are persisted as 2D count-rate files in a ``rampfit/``
-        subdirectory next to the raw cubes (written on first load, reused on
-        subsequent loads while the raw file is unchanged).  Preprocessed
-        files — created here or by ``pypeit_mmirs_ramp`` — are identified by
-        the ``RAMPFIT`` header card and loaded directly.
+        Fitted images are persisted as 2D count-rate files in the ``RampFit``
+        directory inside the reduction directory (written on first load,
+        reused on subsequent loads while the raw file is unchanged).  The
+        reduction directory is recorded by :func:`cache_metadata`; when that
+        hook never fired (e.g. direct API use), the current working
+        directory is used instead.  Preprocessed files — created here or by
+        ``pypeit_mmirs_ramp`` — are identified by the ``RAMPFIT`` header
+        card and loaded directly.
         """
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
@@ -489,10 +496,13 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         log.info(f'Reading MMIRS file: {fil}')
         hdu = io.fits_open(fil)
 
+        redux_path = self._ramp_output_dir if self._ramp_output_dir is not None \
+                else Path.cwd()
+
         if hdu[0].header.get('RAMPFIT') is None and mmirs_count_reads(hdu) >= 3:
             # Multi-read cube: swap in a fresh preprocessed 2D image if one
-            # exists next to the raw file
-            rampfit_file = mmirs_rampfit_path(fil)
+            # exists in the reduction directory
+            rampfit_file = mmirs_rampfit_path(fil, redux_path)
             if mmirs_rampfit_fresh(rampfit_file, fil):
                 log.info(f'Loading preprocessed ramp image: {rampfit_file}')
                 hdu.close()
@@ -520,7 +530,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             detector_par['ronoise'] = np.atleast_1d(eff_ronoise)
             array = rate * exptime / gain
             # Persist the fit so later loads (and other scripts) reuse it
-            rampfit_file = mmirs_rampfit_path(fil)
+            rampfit_file = mmirs_rampfit_path(fil, redux_path)
             try:
                 mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise,
                                     Path(fil).stat().st_mtime)
@@ -680,25 +690,27 @@ def mmirs_count_reads(hdu):
                and h.header.get('NAXIS1', 0) > 0)
 
 
-def mmirs_rampfit_path(raw_file):
+def mmirs_rampfit_path(raw_file, redux_path):
     """
     Return the preprocessed-image path for a raw MMIRS cube.
 
-    Preprocessed 2D count-rate images live in a ``rampfit/`` subdirectory
-    next to the raw file, with the same file name.
+    Preprocessed 2D count-rate images live in a ``RampFit`` directory
+    inside the reduction directory (alongside ``Calibrations``,
+    ``Science``, etc.), with the same file name as the raw cube.
 
     Parameters
     ----------
     raw_file : :obj:`str`, `Path`_
         Path to the raw MMIRS cube.
+    redux_path : :obj:`str`, `Path`_
+        Path to the reduction directory.
 
     Returns
     -------
     `Path`_
-        ``<rawdir>/rampfit/<raw filename>``
+        ``<redux_path>/RampFit/<raw filename>``
     """
-    raw = Path(raw_file)
-    return raw.parent / 'rampfit' / raw.name
+    return Path(redux_path) / 'RampFit' / Path(raw_file).name
 
 
 def mmirs_rampfit_fresh(rampfit_file, raw_file):

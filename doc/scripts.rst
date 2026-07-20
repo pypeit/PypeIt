@@ -260,7 +260,7 @@ pypeit_mmirs_ramp
 -----------------
 
 This preprocesses MMT/MMIRS up-the-ramp cubes into 2D count-rate images,
-written to a ``rampfit/`` subdirectory next to the raw files.  This step is
+written to a ``RampFit`` directory inside the reduction directory.  This step is
 optional and instrument-specific: :ref:`run-pypeit` performs it
 automatically for MMIRS as needed, but running it ahead of time lets you
 inspect the fitted images and front-load the fitting cost.  See
