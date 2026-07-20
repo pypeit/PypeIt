@@ -113,12 +113,18 @@ class PypeItMetaData:
         self.type_bitmask = framematch.FrameTypeBitMask()
 
         # Build table
-        self.table = table.Table(data if files is None 
-                                 else self._build(files, strict=strict, 
+        self.skipped_file_indices = []
+        self.table = table.Table(data if files is None
+                                 else self._build(files, strict=strict,
                                                   usrdata=usrdata))
 
-        # Merge with user data, if present
+        # Merge with user data, if present.  Any files skipped by _build are not
+        # in the table, so their rows must be dropped from the user data as well
+        # or the two will be misaligned; see merge().
         if usrdata is not None:
+            if len(self.skipped_file_indices) > 0:
+                usrdata = usrdata[np.setdiff1d(np.arange(len(usrdata)),
+                                               self.skipped_file_indices)]
             self.merge(usrdata)
 
         # Impose types on specific columns
@@ -213,6 +219,10 @@ class PypeItMetaData:
         data['directory'] = []
         data['filename'] = []
 
+        # Indices of any files skipped because they could not be read; used to
+        # cull the matching rows from usrdata before merging (see __init__).
+        self.skipped_file_indices = []
+
         # Build the table
         for idx, ifile in enumerate(_files):
             _ifile = Path(ifile).absolute()
@@ -251,6 +261,7 @@ class PypeItMetaData:
                     raise
                 log.warning(f'Unable to read metadata for {_ifile.name}: The file does not contain '
                             'an expected FITS extension.  Skipping this file.')
+                self.skipped_file_indices.append(idx)
                 continue
 
             directory = str(_ifile.parent)
