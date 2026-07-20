@@ -228,6 +228,8 @@ def test_get_rawimage_cds_path(tmp_path):
     detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
     assert img.shape == (56, 56)
     assert detpar['ronoise'][0] == 3.14
+    # CDS frames never get a preprocessed sidecar
+    assert not mmt_mmirs.mmirs_rampfit_path(path).exists()
 
 
 def test_findobj_trace_defaults():
@@ -290,3 +292,80 @@ def test_rampfit_fresh_missing_or_invalid(tmp_path):
 def test_count_reads():
     hdu = synth_ramp_hdulist(5, seed=73)
     assert mmt_mmirs.mmirs_count_reads(hdu) == 5
+
+
+def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
+    from pypeit.spectrographs.util import load_spectrograph
+    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=81),
+                        tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    detpar1, img1, hdu1, exp1, _, _ = spec.get_rawimage(str(path), 1)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(path)
+    assert sidecar.exists()
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path)
+
+    # Second load must come from the sidecar: make refitting impossible
+    def boom(*args, **kwargs):
+        raise AssertionError('ramp was re-fit despite a fresh sidecar')
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', boom)
+    spec2 = load_spectrograph('mmt_mmirs')
+    detpar2, img2, hdu2, exp2, _, _ = spec2.get_rawimage(str(path), 1)
+    assert exp2 == exp1
+    np.testing.assert_allclose(img2, img1, rtol=1e-4, atol=1e-3)
+    assert np.isclose(detpar2['ronoise'][0], detpar1['ronoise'][0])
+    # Returned hdu is the preprocessed file, with metadata intact
+    assert hdu2[0].header['RAMPFIT']
+    assert hdu2[1].header['IMAGETYP'] == 'object'
+
+
+def test_get_rawimage_direct_preprocessed(tmp_path, monkeypatch):
+    """A preprocessed file itself (e.g. listed by setup on rampfit/) loads."""
+    from pypeit.spectrographs.util import load_spectrograph
+    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=82),
+                        tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    _, img1, *_ = spec.get_rawimage(str(path), 1)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(path)
+
+    def boom(*args, **kwargs):
+        raise AssertionError('ramp was re-fit for a preprocessed input')
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', boom)
+    spec2 = load_spectrograph('mmt_mmirs')
+    detpar2, img2, hdu2, exp2, _, _ = spec2.get_rawimage(str(sidecar), 1)
+    np.testing.assert_allclose(img2, img1, rtol=1e-4, atol=1e-3)
+    assert np.isclose(detpar2['ronoise'][0],
+                      fits.getval(sidecar, 'RAMPRON'))
+
+
+def test_get_rawimage_stale_sidecar_refits(tmp_path):
+    from pypeit.spectrographs.util import load_spectrograph
+    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=83),
+                        tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    spec.get_rawimage(str(path), 1)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(path)
+    old_mtime = fits.getval(sidecar, 'RAWMTIME')
+
+    # Raw cube "changes": sidecar must be refit and rewritten
+    st = path.stat()
+    os.utime(path, (st.st_atime, st.st_mtime + 10.))
+    spec2 = load_spectrograph('mmt_mmirs')
+    spec2.get_rawimage(str(path), 1)
+    assert fits.getval(sidecar, 'RAWMTIME') != old_mtime
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path)
+
+
+def test_get_rawimage_unwritable_fallback(tmp_path, monkeypatch):
+    """Sidecar write failure must warn and continue, not raise."""
+    from pypeit.spectrographs.util import load_spectrograph
+    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=84),
+                        tmp_path / 'sci.fits')
+
+    def read_only(*args, **kwargs):
+        raise OSError('read-only filesystem')
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_write_rampfit', read_only)
+    spec = load_spectrograph('mmt_mmirs')
+    detpar, img, *_ = spec.get_rawimage(str(path), 1)
+    assert img.shape == (56, 56)
+    assert detpar['ronoise'][0] != 3.14
+    assert not mmt_mmirs.mmirs_rampfit_path(path).exists()

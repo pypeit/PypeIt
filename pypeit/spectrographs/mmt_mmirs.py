@@ -475,12 +475,28 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         Frames with three or more non-destructive reads are combined using
         up-the-ramp fitting (see :func:`_ramp_fit_image`); frames with two
         (or one) reads use correlated double sampling, as before.
+
+        Fitted images are persisted as 2D count-rate files in a ``rampfit/``
+        subdirectory next to the raw cubes (written on first load, reused on
+        subsequent loads while the raw file is unchanged).  Preprocessed
+        files — created here or by ``pypeit_mmirs_ramp`` — are identified by
+        the ``RAMPFIT`` header card and loaded directly.
         """
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
         log.info(f'Reading MMIRS file: {fil}')
         hdu = io.fits_open(fil)
+
+        if hdu[0].header.get('RAMPFIT') is None and mmirs_count_reads(hdu) >= 3:
+            # Multi-read cube: swap in a fresh preprocessed 2D image if one
+            # exists next to the raw file
+            rampfit_file = mmirs_rampfit_path(fil)
+            if mmirs_rampfit_fresh(rampfit_file, fil):
+                log.info(f'Loading preprocessed ramp image: {rampfit_file}')
+                hdu.close()
+                hdu = io.fits_open(rampfit_file)
+
         head1 = hdu[1].header
 
         detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
@@ -491,15 +507,26 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+        gain = detector_par['gain'][0]
 
-        # Number of non-destructive reads stored in the file
-        n_reads = mmirs_count_reads(hdu)
-
-        if n_reads >= 3:
+        if hdu[0].header.get('RAMPFIT') is not None:
+            # Preprocessed 2D count-rate image (e-/s): convert to ADU
+            array = hdu[1].data.astype(np.float64) * exptime / gain
+            detector_par['ronoise'] = np.atleast_1d(hdu[0].header['RAMPRON'])
+        elif mmirs_count_reads(hdu) >= 3:
             # Up-the-ramp fitting with jump detection
             rate, sig, eff_ronoise = self._ramp_fit_image(hdu, detector_par)
             detector_par['ronoise'] = np.atleast_1d(eff_ronoise)
-            array = rate * exptime / detector_par['gain'][0]
+            array = rate * exptime / gain
+            # Persist the fit so later loads (and other scripts) reuse it
+            rampfit_file = mmirs_rampfit_path(fil)
+            try:
+                mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise,
+                                    Path(fil).stat().st_mtime)
+                log.info(f'Wrote preprocessed ramp image: {rampfit_file}')
+            except OSError as e:
+                log.warning(f'Could not write preprocessed ramp image '
+                            f'{rampfit_file} ({e}); continuing without it.')
         else:
             # Correlated double sampling (first minus last read)
             datasec = head1['DATASEC']
