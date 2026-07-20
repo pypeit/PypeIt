@@ -27,6 +27,13 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
+- Added the PypeIt Dashboard (``pypeit_dashboard``): a Qt GUI that launches,
+  monitors, and inspects a reduction — calibration and science-frame status,
+  QA drill-downs, and (re)build controls; see :ref:`dashboard`.  Built on the
+  new persistent reduction-state layer (:mod:`pypeit.state`, the
+  ``*_state.json`` file; see :ref:`state`) shared with ``pypeit_status``.
+  Developed by J. X. Prochaska in collaboration with Claude (Anthropic's
+  AI assistant).
 - Setup GUI now uses a standard button bar that can be moved.
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
 - Increased default font size for Setup GUI.

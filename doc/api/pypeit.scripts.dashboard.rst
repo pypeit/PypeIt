@@ -1,7 +1,7 @@
 pypeit.scripts.pypeit\_dashboard module
 =======================================
 
-.. automodule:: pypeit.scripts.pypeit_dashboard
+.. automodule:: pypeit.scripts.dashboard
    :members:
    :private-members:
    :show-inheritance:

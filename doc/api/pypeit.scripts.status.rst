@@ -1,7 +1,7 @@
 pypeit.scripts.pypeit\_status module
 ====================================
 
-.. automodule:: pypeit.scripts.pypeit_status
+.. automodule:: pypeit.scripts.status
    :members:
    :private-members:
    :show-inheritance:

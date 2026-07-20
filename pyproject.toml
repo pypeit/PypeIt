@@ -49,7 +49,6 @@ dependencies = [
     "pygithub",
     "bottleneck",
     "pyqt6",
-    "pandas>=1.5",
     "pydantic>=2.0",
 ]
 
@@ -140,13 +139,13 @@ pypeit_parse_slits = "pypeit.scripts.parse_slits:ParseSlits.entry_point"
 pypeit_print_bpm = "pypeit.scripts.print_bpm:PrintBPM.entry_point"
 pypeit_qa_html = "pypeit.scripts.qa_html:QAHtml.entry_point"
 pypeit_ql = "pypeit.scripts.ql:QL.entry_point"
-pypeit_status = "pypeit.scripts.pypeit_status:PypeItStatus.entry_point"
+pypeit_status = "pypeit.scripts.status:PypeItStatus.entry_point"
 run_pypeit = "pypeit.scripts.run_pypeit:RunPypeIt.entry_point"
 pypeit_run_to_calibstep = "pypeit.scripts.run_to_calibstep:RunToCalibStep.entry_point"
 pypeit_reduce_by_step = "pypeit.scripts.reduce_by_step:ReducebyStep.entry_point"
 pypeit_sensfunc = "pypeit.scripts.sensfunc:SensFunc.entry_point"
 pypeit_setup = "pypeit.scripts.setup:Setup.entry_point"
-pypeit_dashboard = "pypeit.scripts.pypeit_dashboard:RunDashboard.entry_point"
+pypeit_dashboard = "pypeit.scripts.dashboard:PypeItDashboard.entry_point"
 pypeit_setup_coadd2d = "pypeit.scripts.setup_coadd2d:SetupCoAdd2D.entry_point"
 pypeit_show_arxiv = "pypeit.scripts.show_arxiv:ShowArxiv.entry_point"
 pypeit_version = "pypeit.scripts.version:Version.entry_point"
