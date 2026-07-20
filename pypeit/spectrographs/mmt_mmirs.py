@@ -134,8 +134,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         for f in self._ramp_dark_files or []:
             try:
                 with io.fits_open(f) as dhdu:
-                    n = sum(1 for h in dhdu if h.header.get('NAXIS') == 2
-                            and h.header.get('NAXIS1', 0) > 0)
+                    n = mmirs_count_reads(dhdu)
             except (OSError, PypeItError):
                 log.warning(f'Could not open recorded dark frame {f}; skipping it '
                             'for read-noise calibration.')
@@ -494,13 +493,13 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
 
         # Number of non-destructive reads stored in the file
-        n_reads = sum(1 for h in hdu if h.header.get('NAXIS') == 2
-                      and h.header.get('NAXIS1', 0) > 0)
+        n_reads = mmirs_count_reads(hdu)
 
         if n_reads >= 3:
             # Up-the-ramp fitting with jump detection
-            array, eff_ronoise = self._ramp_fit_image(hdu, detector_par, exptime)
+            rate, sig, eff_ronoise = self._ramp_fit_image(hdu, detector_par)
             detector_par['ronoise'] = np.atleast_1d(eff_ronoise)
+            array = rate * exptime / detector_par['gain'][0]
         else:
             # Correlated double sampling (first minus last read)
             datasec = head1['DATASEC']
@@ -525,7 +524,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         return detector_par, np.flipud(array), hdu, exptime, np.flipud(rawdatasec_img),\
                np.flipud(np.flipud(oscansec_img))
 
-    def _ramp_fit_image(self, hdu, detector_par, exptime):
+    def _ramp_fit_image(self, hdu, detector_par):
         """
         Perform up-the-ramp fitting of a multi-read MMIRS frame.
 
@@ -534,14 +533,12 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 Opened raw file with at least 3 non-destructive reads.
             detector_par (:class:`~pypeit.images.detector_container.DetectorContainer`):
                 Detector parameters; provides the gain.
-            exptime (:obj:`float`):
-                Exposure time in seconds, used to scale the fitted count
-                rate to total counts.
 
         Returns:
-            :obj:`tuple`: The ramp-fitted image in ADU (`numpy.ndarray`_,
-            shape of the trimmed data section) and the effective read noise
-            in electrons (:obj:`float`).
+            :obj:`tuple`: The fitted count-rate image in e-/s
+            (`numpy.ndarray`_, shape of the trimmed data section), the
+            single-read noise in electrons (:obj:`float`), and the
+            effective read noise in electrons (:obj:`float`).
         """
         reads, head1 = mmirs_load_ramp(hdu)
         ngroups = reads.shape[0]
@@ -557,7 +554,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         countrate = mmirs_fit_ramp(diffs, covar, sig)
         eff_ronoise = mmirs_effective_ronoise(sig, ngroups)
         log.info(f'Effective read noise: {eff_ronoise:.2f} e-')
-        return countrate * exptime / gain, eff_ronoise
+        return countrate, sig, eff_ronoise
 
 def mmirs_read_amp(img, namps=32):
     """
@@ -634,6 +631,126 @@ def mmirs_load_ramp(hdu, namps=32):
         frame = mmirs_read_amp(h.data.astype(np.float64), namps=namps)
         reads[i] = frame[x1-1:x2, y1-1:y2]
     return reads, head1
+
+
+def mmirs_count_reads(hdu):
+    """
+    Count the non-destructive reads (non-empty 2D image extensions) in an
+    MMIRS file.
+
+    Parameters
+    ----------
+    hdu : `astropy.io.fits.HDUList`_
+        Opened MMIRS file.
+
+    Returns
+    -------
+    :obj:`int`
+        Number of non-empty 2D image extensions.
+    """
+    return sum(1 for h in hdu if h.header.get('NAXIS') == 2
+               and h.header.get('NAXIS1', 0) > 0)
+
+
+def mmirs_rampfit_path(raw_file):
+    """
+    Return the preprocessed-image path for a raw MMIRS cube.
+
+    Preprocessed 2D count-rate images live in a ``rampfit/`` subdirectory
+    next to the raw file, with the same file name.
+
+    Parameters
+    ----------
+    raw_file : :obj:`str`, `Path`_
+        Path to the raw MMIRS cube.
+
+    Returns
+    -------
+    `Path`_
+        ``<rawdir>/rampfit/<raw filename>``
+    """
+    raw = Path(raw_file)
+    return raw.parent / 'rampfit' / raw.name
+
+
+def mmirs_rampfit_fresh(rampfit_file, raw_file):
+    """
+    Check whether a preprocessed image exists and is up to date.
+
+    A preprocessed image is fresh when its ``RAWMTIME`` header card matches
+    the raw cube's current modification time to within 1 second.  Missing
+    or unreadable files (or files without the card) are not fresh.
+
+    Parameters
+    ----------
+    rampfit_file : :obj:`str`, `Path`_
+        Path to the candidate preprocessed image.
+    raw_file : :obj:`str`, `Path`_
+        Path to the source raw cube.
+
+    Returns
+    -------
+    :obj:`bool`
+        True if the preprocessed image can be used in place of the cube.
+    """
+    rampfit_file = Path(rampfit_file)
+    if not rampfit_file.exists():
+        return False
+    try:
+        mtime = float(fits.getval(rampfit_file, 'RAWMTIME'))
+    except (KeyError, OSError):
+        return False
+    return abs(mtime - Path(raw_file).stat().st_mtime) < 1.
+
+
+def mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise, raw_mtime):
+    """
+    Write a preprocessed MMIRS 2D count-rate image.
+
+    The output carries a copy of the raw primary header plus the cards
+    ``RAMPFIT`` (marker), ``RAMPSIG``, ``RAMPRON``, ``NGROUPS`` and
+    ``RAWMTIME``, and a single image extension holding the fitted count
+    rate in e-/s (float32) under a copy of the raw final-read header, so
+    all metadata used by ``pypeit_setup`` is preserved.
+
+    Parameters
+    ----------
+    rampfit_file : :obj:`str`, `Path`_
+        Output path; its parent directory is created if needed.
+    rate : `numpy.ndarray`_
+        Fitted count rate in e-/s, trimmed to the data section.
+    hdu : `astropy.io.fits.HDUList`_
+        Opened source raw cube (headers are copied from it).
+    sig : :obj:`float`
+        Single-read noise used in the fit (electrons).
+    eff_ronoise : :obj:`float`
+        Effective read noise of the fitted image (electrons).
+    raw_mtime : :obj:`float`
+        Modification time of the source raw cube.
+
+    Raises
+    ------
+    OSError
+        If the output directory cannot be created or the file cannot be
+        written.
+    """
+    rampfit_file = Path(rampfit_file)
+    prihead = hdu[0].header.copy()
+    prihead['RAMPFIT'] = (True, 'PypeIt up-the-ramp preprocessed image')
+    prihead['RAMPSIG'] = (float(sig), 'Single-read noise used in the fit (e-)')
+    prihead['RAMPRON'] = (float(eff_ronoise), 'Effective read noise (e-)')
+    prihead['NGROUPS'] = (mmirs_count_reads(hdu),
+                          'Number of reads in the source ramp')
+    prihead['RAWMTIME'] = (float(raw_mtime),
+                           'Modification time of the source raw cube')
+    head1 = hdu[1].header.copy()
+    head1['DATASEC'] = f'[1:{rate.shape[0]},1:{rate.shape[1]}]'
+    head1['BUNIT'] = 'e-/s'
+    out = fits.HDUList([fits.PrimaryHDU(header=prihead),
+                        fits.ImageHDU(data=rate.astype(np.float32),
+                                      header=head1)])
+    rampfit_file.parent.mkdir(parents=True, exist_ok=True)
+    out.writeto(rampfit_file, overwrite=True)
 
 
 def mmirs_ramp_diffs(reads, covar):

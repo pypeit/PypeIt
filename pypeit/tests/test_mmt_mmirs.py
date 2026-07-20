@@ -1,4 +1,7 @@
 """Tests for MMT/MMIRS up-the-ramp fitting support."""
+import os
+from pathlib import Path
+
 import numpy as np
 from astropy.io import fits
 
@@ -233,3 +236,57 @@ def test_findobj_trace_defaults():
     assert par['reduce']['findobj']['trace_npoly'] == 1
     assert par['reduce']['findobj']['trace_maxdev'] == 50.
     assert par['reduce']['findobj']['trace_maxshift'] == 20.
+
+
+def test_rampfit_path():
+    p = mmt_mmirs.mmirs_rampfit_path('/data/raw/sci.0001.fits')
+    assert p == Path('/data/raw/rampfit/sci.0001.fits')
+
+
+def test_write_rampfit_roundtrip(tmp_path):
+    ngroups = 6
+    raw = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=71),
+                       tmp_path / 'sci.fits')
+    from pypeit.spectrographs.util import load_spectrograph
+    spec = load_spectrograph('mmt_mmirs')
+    with fits.open(raw) as hdu:
+        detpar = spec.get_detector_par(1, hdu=hdu)
+        rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+        mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+                                      raw.stat().st_mtime)
+    assert sidecar == tmp_path / 'rampfit' / 'sci.fits'
+    assert sidecar.exists()
+    with fits.open(sidecar) as shdu:
+        assert shdu[0].header['RAMPFIT']
+        assert shdu[0].header['NGROUPS'] == ngroups
+        assert np.isclose(shdu[0].header['RAMPSIG'], sig)
+        assert np.isclose(shdu[0].header['RAMPRON'], eff)
+        assert shdu[1].header['BUNIT'] == 'e-/s'
+        assert shdu[1].header['DATASEC'] == \
+                f'[1:{rate.shape[0]},1:{rate.shape[1]}]'
+        # Metadata cards preserved for pypeit_setup on rampfit/ dirs
+        assert shdu[1].header['IMAGETYP'] == 'object'
+        assert shdu[1].header['EXPTIME'] == 10.
+        np.testing.assert_allclose(shdu[1].data, rate, rtol=1e-5, atol=1e-3)
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
+    # Bumping the raw mtime makes the sidecar stale
+    st = raw.stat()
+    os.utime(raw, (st.st_atime, st.st_mtime + 10.))
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
+
+
+def test_rampfit_fresh_missing_or_invalid(tmp_path):
+    raw = _write_synth(synth_ramp_hdulist(4, seed=72), tmp_path / 'sci.fits')
+    sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+    # No sidecar
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
+    # Sidecar without RAWMTIME card
+    sidecar.parent.mkdir()
+    fits.PrimaryHDU().writeto(sidecar)
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
+
+
+def test_count_reads():
+    hdu = synth_ramp_hdulist(5, seed=73)
+    assert mmt_mmirs.mmirs_count_reads(hdu) == 5
