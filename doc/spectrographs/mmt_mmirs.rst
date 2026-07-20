@@ -28,9 +28,35 @@ each frame by rescaling the fit chi-squared.  The effective read noise of
 the fitted image, ``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is
 propagated to the detector parameters.
 
-Expect roughly 2 minutes of processing and ~5 GB of memory per 69-read
-frame each time a raw science frame is loaded; flats with few reads take
-seconds.
+Expect roughly 2 minutes of processing and ~5 GB of memory to fit a 69-read
+frame; flats with few reads take seconds.  See `Preprocessed ramp images`_
+below for how PypeIt avoids repeating this cost each time a science frame
+is loaded.
+
+Preprocessed ramp images
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Fitting a many-read ramp takes minutes, and PypeIt loads each science frame
+several times during a reduction.  To avoid re-fitting, the fitted 2D
+count-rate image (units of e-/s) is written to a ``rampfit/`` subdirectory
+next to the raw cubes the first time each cube is loaded, and reused on
+subsequent loads.  A preprocessed image is re-fit automatically if the raw
+cube's modification time changes; if the raw directory is not writable, the
+fit proceeds in memory with a warning and nothing is cached.
+
+The fitted images can also be created (and inspected) ahead of a reduction
+with:
+
+.. code-block:: bash
+
+    pypeit_mmirs_ramp raw/*.fits
+
+which accepts ``--sig`` to force the single-read noise, ``--dark`` to
+calibrate it from a dark cube, and ``--force`` to re-fit existing outputs.
+Preprocessed files carry the fit parameters in header cards (``RAMPSIG``,
+``RAMPRON``, ``NGROUPS``) and preserve all raw metadata, so
+:ref:`pypeit_setup` can be run directly on a ``rampfit/`` directory if
+preferred.  ``run_pypeit`` never requires the manual step.
 
 Multislit observations
 ++++++++++++++++++++++
