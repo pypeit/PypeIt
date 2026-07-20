@@ -369,3 +369,46 @@ def test_get_rawimage_unwritable_fallback(tmp_path, monkeypatch):
     assert img.shape == (56, 56)
     assert detpar['ronoise'][0] != 3.14
     assert not mmt_mmirs.mmirs_rampfit_path(path).exists()
+
+
+def test_mmirs_ramp_script(tmp_path, monkeypatch):
+    from pypeit.scripts.mmirs_ramp import MMIRSRamp
+    monkeypatch.chdir(tmp_path)          # keep the log file out of the repo
+    raw = _write_synth(synth_ramp_hdulist(6, rate=20., seed=91),
+                       tmp_path / 'sci.fits')
+    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--sig', '8.0']))
+    sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+    assert sidecar.exists()
+    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 8.0)
+
+    # Re-run without --force: fresh sidecar is skipped, file untouched
+    mtime_ns = sidecar.stat().st_mtime_ns
+    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--sig', '8.0']))
+    assert sidecar.stat().st_mtime_ns == mtime_ns
+
+    # --force refits and overwrites
+    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--sig', '9.0', '--force']))
+    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 9.0)
+
+
+def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
+    from pypeit.scripts.mmirs_ramp import MMIRSRamp
+    monkeypatch.chdir(tmp_path)
+    raw = _write_synth(synth_ramp_hdulist(2, seed=92), tmp_path / 'cds.fits')
+    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw)]))    # must not raise
+    assert not mmt_mmirs.mmirs_rampfit_path(raw).exists()
+
+
+def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):
+    from pypeit.scripts.mmirs_ramp import MMIRSRamp
+    monkeypatch.chdir(tmp_path)
+    sig_true = 8.
+    raw = _write_synth(synth_ramp_hdulist(6, rate=20., sig=sig_true, seed=93),
+                       tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true,
+                                           seed=94, imagetyp='dark'),
+                        tmp_path / 'dark.fits')
+    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--dark', str(dark)]))
+    sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+    assert sidecar.exists()
+    assert np.abs(fits.getval(sidecar, 'RAMPSIG') - sig_true) < 1.5
