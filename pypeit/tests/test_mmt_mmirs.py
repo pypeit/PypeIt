@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+import pytest
 from astropy.io import fits
 
 from pypeit.core import fitramp
@@ -278,6 +279,30 @@ def test_write_rampfit_roundtrip(tmp_path):
     assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
 
 
+def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
+    """A crash/full-disk mid-writeto must not leave a truncated sidecar."""
+    ngroups = 6
+    raw = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=75),
+                       tmp_path / 'sci.fits')
+    from pypeit.spectrographs.util import load_spectrograph
+    spec = load_spectrograph('mmt_mmirs')
+    with fits.open(raw) as hdu:
+        detpar = spec.get_detector_par(1, hdu=hdu)
+        rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+
+        def boom(self, *args, **kwargs):
+            raise OSError('disk full')
+        monkeypatch.setattr(fits.HDUList, 'writeto', boom)
+
+        with pytest.raises(OSError):
+            mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+                                          raw.stat().st_mtime)
+    assert not sidecar.exists()
+    assert sidecar.parent.exists()
+    assert not list(sidecar.parent.glob('*.tmp*'))
+
+
 def test_rampfit_fresh_missing_or_invalid(tmp_path):
     raw = _write_synth(synth_ramp_hdulist(4, seed=72), tmp_path / 'sci.fits')
     sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
@@ -287,6 +312,23 @@ def test_rampfit_fresh_missing_or_invalid(tmp_path):
     sidecar.parent.mkdir()
     fits.PrimaryHDU().writeto(sidecar)
     assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
+
+
+def test_rampfit_fresh_missing_raw_file(tmp_path):
+    """A sidecar that outlives its raw file must be treated as not fresh."""
+    ngroups = 6
+    raw = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=76),
+                       tmp_path / 'sci.fits')
+    from pypeit.spectrographs.util import load_spectrograph
+    spec = load_spectrograph('mmt_mmirs')
+    with fits.open(raw) as hdu:
+        detpar = spec.get_detector_par(1, hdu=hdu)
+        rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw)
+        mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+                                      raw.stat().st_mtime)
+    raw.unlink()
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw) is False
 
 
 def test_count_reads():
@@ -397,6 +439,28 @@ def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
     raw = _write_synth(synth_ramp_hdulist(2, seed=92), tmp_path / 'cds.fits')
     MMIRSRamp.main(MMIRSRamp.parse_args([str(raw)]))    # must not raise
     assert not mmt_mmirs.mmirs_rampfit_path(raw).exists()
+
+
+def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
+    """A write failure for one file must not abort the rest of the batch."""
+    from pypeit.scripts.mmirs_ramp import MMIRSRamp
+    monkeypatch.chdir(tmp_path)
+    raw1 = _write_synth(synth_ramp_hdulist(6, rate=20., seed=95),
+                        tmp_path / 'sci1.fits')
+    raw2 = _write_synth(synth_ramp_hdulist(6, rate=20., seed=96),
+                        tmp_path / 'sci2.fits')
+    bad_sidecar = mmt_mmirs.mmirs_rampfit_path(raw1)
+    real_write_rampfit = mmt_mmirs.mmirs_write_rampfit
+
+    def flaky_write_rampfit(rampfit_file, *args, **kwargs):
+        if Path(rampfit_file) == bad_sidecar:
+            raise OSError('disk full')
+        return real_write_rampfit(rampfit_file, *args, **kwargs)
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_write_rampfit', flaky_write_rampfit)
+
+    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw1), str(raw2), '--sig', '8.0']))
+    assert not bad_sidecar.exists()
+    assert mmt_mmirs.mmirs_rampfit_path(raw2).exists()
 
 
 def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):

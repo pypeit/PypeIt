@@ -60,9 +60,17 @@ class MMIRSRamp(scriptbase.ScriptBase):
             spec._ramp_sigma = float(args.sig)
             log.info(f'Using forced single-read noise: {args.sig:.2f} e-')
         elif args.dark is not None:
+            dark = Path(args.dark)
+            with io.fits_open(dark) as dhdu:
+                n_dark_reads = mmt_mmirs.mmirs_count_reads(dhdu)
+            if n_dark_reads < spec.ramp_min_dark_groups:
+                log.warning(f'{dark.name} has only {n_dark_reads} read(s), '
+                            f'fewer than the {spec.ramp_min_dark_groups} '
+                            'required for read-noise calibration; '
+                            'self-calibration will be used instead')
             # Reuse the reduction's dark-calibration path (calibrated on
             # first use, then cached)
-            spec._ramp_dark_files = [Path(args.dark)]
+            spec._ramp_dark_files = [dark]
 
         for f in args.files:
             raw = Path(f)
@@ -87,8 +95,13 @@ class MMIRSRamp(scriptbase.ScriptBase):
                 detector_par = spec.get_detector_par(1, hdu=hdu)
                 rate, sig, eff_ronoise = spec._ramp_fit_image(hdu,
                                                               detector_par)
-                mmt_mmirs.mmirs_write_rampfit(rampfit_file, rate, hdu, sig,
-                                              eff_ronoise,
-                                              raw.stat().st_mtime)
+                try:
+                    mmt_mmirs.mmirs_write_rampfit(rampfit_file, rate, hdu,
+                                                  sig, eff_ronoise,
+                                                  raw.stat().st_mtime)
+                except OSError as e:
+                    log.error(f'{raw.name}: could not write {rampfit_file} '
+                              f'({e}); skipping')
+                    continue
             log.info(f'{raw.name}: single-read noise {sig:.2f} e-, effective '
                      f'read noise {eff_ronoise:.2f} e- -> {rampfit_file}')

@@ -256,6 +256,21 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_compare_sky.rst
 
+pypeit_mmirs_ramp
+-----------------
+
+This preprocesses MMT/MMIRS up-the-ramp cubes into 2D count-rate images,
+written to a ``rampfit/`` subdirectory next to the raw files.  This step is
+optional and instrument-specific: :ref:`run-pypeit` performs it
+automatically for MMIRS as needed, but running it ahead of time lets you
+inspect the fitted images and front-load the fitting cost.  See
+:doc:`spectrographs/mmt_mmirs` for details.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_mmirs_ramp.rst
+
 pypeit_qa_html
 --------------
 

@@ -3,6 +3,7 @@ Module for MMT MMIRS
 
 .. include:: ../include/links.rst
 """
+import os
 from pathlib import Path
 
 import numpy as np
@@ -725,9 +726,10 @@ def mmirs_rampfit_fresh(rampfit_file, raw_file):
         return False
     try:
         mtime = float(fits.getval(rampfit_file, 'RAWMTIME'))
+        raw_mtime = Path(raw_file).stat().st_mtime
     except (KeyError, OSError):
         return False
-    return abs(mtime - Path(raw_file).stat().st_mtime) < 1.
+    return abs(mtime - raw_mtime) < 1.
 
 
 def mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise, raw_mtime):
@@ -739,6 +741,13 @@ def mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise, raw_mtime):
     ``RAWMTIME``, and a single image extension holding the fitted count
     rate in e-/s (float32) under a copy of the raw final-read header, so
     all metadata used by ``pypeit_setup`` is preserved.
+
+    The file is written atomically: the FITS data are first written to a
+    temporary file in the same directory, which is then renamed onto the
+    final path.  This ensures that a crash or full disk mid-write can never
+    leave a truncated sidecar whose header (and hence its ``RAWMTIME``
+    freshness check) is already flushed, which would otherwise be treated
+    as fresh forever while being unreadable.
 
     Parameters
     ----------
@@ -777,7 +786,12 @@ def mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise, raw_mtime):
                         fits.ImageHDU(data=rate.astype(np.float32),
                                       header=head1)])
     rampfit_file.parent.mkdir(parents=True, exist_ok=True)
-    out.writeto(rampfit_file, overwrite=True)
+    tmp_file = rampfit_file.with_name(rampfit_file.name + f'.tmp{os.getpid()}')
+    try:
+        out.writeto(tmp_file, overwrite=True)
+        tmp_file.replace(rampfit_file)
+    finally:
+        tmp_file.unlink(missing_ok=True)
 
 
 def mmirs_ramp_diffs(reads, covar):

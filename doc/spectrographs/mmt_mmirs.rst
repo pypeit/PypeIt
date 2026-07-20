@@ -34,7 +34,7 @@ below for how PypeIt avoids repeating this cost each time a science frame
 is loaded.
 
 Preprocessed ramp images
-^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Fitting a many-read ramp takes minutes, and PypeIt loads each science frame
 several times during a reduction.  To avoid re-fitting, the fitted 2D
@@ -57,6 +57,12 @@ Preprocessed files carry the fit parameters in header cards (``RAMPSIG``,
 ``RAMPRON``, ``NGROUPS``) and preserve all raw metadata, so
 :ref:`pypeit_setup` can be run directly on a ``rampfit/`` directory if
 preferred.  ``run_pypeit`` never requires the manual step.
+
+Changing the noise-calibration source between runs (e.g. adding dark frames
+to the raw-data directory, or forcing a different ``--sig``) does not
+invalidate an existing preprocessed image, since freshness is only judged
+against the raw cube's modification time; use ``pypeit_mmirs_ramp --force``
+to re-fit with the new calibration.
 
 Multislit observations
 ++++++++++++++++++++++
