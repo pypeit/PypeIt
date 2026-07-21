@@ -191,6 +191,8 @@ class BSplineContainer(datamodel.DataContainer, BSpline):
         return super()._bundle(ext='BSPLINE')
 
 
+# NOTE: This is currently never used in the code, but we should maintain it for
+# future use.
 class BSpline2DContainer(datamodel.DataContainer, BSpline2D):
     """
     FITS-serializable wrapper for :class:`~pypeit.core.bspline.BSpline2D`.
