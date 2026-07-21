@@ -197,7 +197,7 @@ consideration.  The PCC will vet the nominees and contact the nominee to ensure
 they accept the nomination.  Self-nominations are acceptable.  Assuming both the
 PCC and the nominee accept the nomination, voting member nominations will be
 considered alongside PCC elections once per year.  Voting members are not
-elected to a fixed term.  The procedure for removal of a Voting Members is
+elected to a fixed term.  The procedure for removal of a Voting Member is
 discussed :ref:`here<governance-removals>`.
 
 .. _governance-other:
