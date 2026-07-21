@@ -1,43 +1,58 @@
 """
-Tests for the PypeIt Dashboard (Stage 0 — walking skeleton).
+Tests for the PypeIt Dashboard.
 
 They are split into:
 
 * Headless tests of the Qt-free model layer (``read_header_info``,
-  ``HeaderInfo``), which run with plain ``pytest`` and need no display.
+  ``HeaderInfo``, ``DashboardModel``, the palette, and the inspect command
+  builders), which run with plain ``pytest`` and need no display.
 * Structural widget tests of the views, which use ``pytest-qt`` with the
-  offscreen Qt platform (mirroring the ``setup_gui`` test approach).  They
-  assert the *structure* of the window (the tab bar, the header fields),
-  not its pixel-level appearance.
+  offscreen Qt platform.  They assert the *structure* of the window (the
+  tab bar, the header fields), not its pixel-level appearance.
 
 All are CI-safe: they require no RAW_DATA and use a minimal bundled
 ``.pypeit`` fixture.
 """
 
 import os
-# Ensure Qt can initialize without a display before any Qt import.
+# Ensure Qt can initialize without a display.  This must be set before any
+# Qt import, so it precedes the imports below (several of which pull in
+# qtpy/PyQt).
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
 from pathlib import Path
 
 import pytest
 
-# qtpy/pyqt6 are dependencies, but skip cleanly if the GUI stack is absent.
-pytest.importorskip('qtpy')
+from qtpy.QtWidgets import QLabel, QListWidget, QTableWidget
 
-from pypeit.dashboard.model import read_header_info, HeaderInfo, \
-    PYPELINE_DISPLAY
+from pypeit.dashboard import inspect as dash_inspect
+from pypeit.dashboard import model as dash_model
+from pypeit.dashboard import palette
+from pypeit.dashboard.model import read_header_info, HeaderInfo
+from pypeit.dashboard.runlock import RunLock
+from pypeit.dashboard.view.activity import ActivityBar
+from pypeit.dashboard.view.calibrations_view import CalibrationsView
+from pypeit.dashboard.view.main_window import DashboardMainWindow, TAB_LABELS
+from pypeit.dashboard.view.science_view import ScienceView
+from pypeit.dashboard.view.status_view import StatusView, ScienceNavCell
+from pypeit.state import science_status
+from pypeit.state.run_state import RunPypeItState
 
 
 def data_path(filename):
     """
     Return the path to a file in the test ``files`` directory.
 
-    Args:
-        filename (:obj:`str`): The file basename.
+    Parameters
+    ----------
+    filename : :obj:`str`
+        The file basename.
 
-    Returns:
-        str: The absolute path to the test file.
+    Returns
+    -------
+    :obj:`str`
+        The absolute path to the test file.
     """
     return str(Path(__file__).parent / 'files' / filename)
 
@@ -49,7 +64,7 @@ def data_path(filename):
 def test_read_header_info_fields():
     """
     The header metadata is parsed correctly from a minimal ``.pypeit``
-    file (R6 fields).
+    file.
     """
     pyfile = data_path('dashboard_shane_kast_blue.pypeit')
     info = read_header_info(pyfile)
@@ -57,6 +72,7 @@ def test_read_header_info_fields():
     assert info.pypeit_file == 'dashboard_shane_kast_blue.pypeit'
     assert info.spectrograph == 'shane_kast_blue'
     assert info.setup == 'A'
+    # The path is the spectrograph pypeline value, shown verbatim;
     # shane_kast_blue is a long-slit (MultiSlit) spectrograph.
     assert info.path == 'MultiSlit'
     # redux_dir defaults to the directory containing the .pypeit file.
@@ -74,43 +90,41 @@ def test_read_header_info_redux_path_override(tmp_path):
 
 def test_read_header_info_missing_file():
     """
-    A named-but-absent ``.pypeit`` file raises a clear error (R11 edge
-    case).
+    A named-but-absent ``.pypeit`` file raises a clear error.
     """
     with pytest.raises(FileNotFoundError):
         read_header_info('/no/such/file.pypeit')
 
 
-def test_pypeline_display_maps_ifu():
+def test_calib_class_by_pypeline():
     """
-    The internal 'SlicerIFU' pypeline is displayed as 'IFU' (S0-Q7).
+    The calibration-step order is keyed explicitly on the pypeline value
+    (so new pipeline types can be registered), with a full-step-list
+    fallback for an unregistered pypeline.
     """
-    assert PYPELINE_DISPLAY['SlicerIFU'] == 'IFU'
-    assert PYPELINE_DISPLAY['MultiSlit'] == 'MultiSlit'
-    assert PYPELINE_DISPLAY['Echelle'] == 'Echelle'
+    mapping = dash_model.DashboardModel._CALIB_CLASS_BY_PYPELINE
+    assert set(mapping.keys()) == {'MultiSlit', 'Echelle', 'SlicerIFU'}
+    # An unknown pypeline falls back to the full set of known steps.
+    m = dash_model.DashboardModel(
+        data_path('dashboard_shane_kast_blue.pypeit'), derive=False)
+    m.header_info.path = 'SomeFuturePypeline'
+    steps = m.default_steps()
+    assert set(steps) >= set(mapping['MultiSlit'].default_steps())
 
 
 # -----------------------------------------------------------------------
 # Structural widget tests (pytest-qt, offscreen)
 # -----------------------------------------------------------------------
 
-def _example_header_info():
-    """
-    Build a representative :class:`HeaderInfo` for the widget tests.
-
-    Returns:
-        :class:`HeaderInfo`: Example header metadata.
-    """
-    return read_header_info(data_path('dashboard_shane_kast_blue.pypeit'))
-
-
 def _example_model():
     """
     Build a `DashboardModel` from the minimal ``.pypeit`` fixture (no state
-    file → "not started"), for the Stage 0 window/header tests.
+    file → "not started"), for the window/header tests.
 
-    Returns:
-        :class:`~pypeit.dashboard.model.DashboardModel`: The example model.
+    Returns
+    -------
+    :class:`~pypeit.dashboard.model.DashboardModel`
+        The example model.
     """
     return dash_model.DashboardModel(
         data_path('dashboard_shane_kast_blue.pypeit'), derive=False)
@@ -118,11 +132,9 @@ def _example_model():
 
 def test_main_window_tab_bar(qtbot):
     """
-    The main window has the Status | Calibrations | Science tab bar
-    (R3/C1/R15), in that order.
+    The main window has the Status | Calibrations | Science tab bar, in
+    that order.
     """
-    from pypeit.dashboard.view.main_window import (DashboardMainWindow,
-                                                   TAB_LABELS)
     window = DashboardMainWindow(_example_model())
     qtbot.addWidget(window)
     tabs = [window.tab_widget.tabText(i)
@@ -133,10 +145,9 @@ def test_main_window_tab_bar(qtbot):
 
 def test_header_banner_fields(qtbot):
     """
-    The header banner exposes all five R6 fields, populated from the
-    metadata.
+    The header banner exposes all five metadata fields, populated from the
+    ``.pypeit`` file.
     """
-    from pypeit.dashboard.view.main_window import DashboardMainWindow
     window = DashboardMainWindow(_example_model())
     qtbot.addWidget(window)
     labels = window.header.value_labels
@@ -144,15 +155,15 @@ def test_header_banner_fields(qtbot):
                                   'path', 'redux_dir'}
     assert labels['spectrograph'].text() == 'shane_kast_blue'
     assert labels['setup'].text() == 'A'
+    # The pypeline value is displayed verbatim.
     assert labels['path'].text() == 'MultiSlit'
 
 
 def test_main_window_title_and_render(qtbot, tmp_path):
     """
     The window has the expected title and renders offscreen without error
-    (a basic smoke test of the walking skeleton).
+    (a basic smoke test).
     """
-    from pypeit.dashboard.view.main_window import DashboardMainWindow
     window = DashboardMainWindow(_example_model())
     qtbot.addWidget(window)
     window.resize(1650, 900)
@@ -165,13 +176,12 @@ def test_main_window_title_and_render(qtbot, tmp_path):
 
 def test_main_window_failed_run_marks_build_channel(qtbot):
     """
-    **Bug report 000 regression.** A (Re)Build run that exits non-zero must
-    leave a "failed" message on the Build channel — and the still-active live
-    monitor (the ``.log`` mtime stays "recent" for seconds after a crash) must
-    not overwrite it back to "Monitoring…"/"Idle".  A new run starting clears
-    the sticky failure.
+    Regression test: a (Re)Build run that exits non-zero must leave a
+    "failed" message on the Build channel — and the still-active live
+    monitor (the ``.log`` mtime stays "recent" for seconds after a crash)
+    must not overwrite it back to "Monitoring…"/"Idle".  A new run starting
+    clears the sticky failure.
     """
-    from pypeit.dashboard.view.main_window import DashboardMainWindow
     window = DashboardMainWindow(_example_model())
     qtbot.addWidget(window)
     # A failed run (non-zero exit) flags the Build channel as failed.
@@ -194,12 +204,8 @@ def test_main_window_failed_run_marks_build_channel(qtbot):
 
 
 # -----------------------------------------------------------------------
-# Stage 1: headless state-data-layer tests (DashboardModel, no Qt/RAW_DATA)
+# Headless state-data-layer tests (DashboardModel, no Qt/RAW_DATA)
 # -----------------------------------------------------------------------
-
-from pypeit.dashboard import model as dash_model
-from pypeit.dashboard import palette
-
 
 def _make_redux(tmp_path, case):
     """
@@ -208,13 +214,18 @@ def _make_redux(tmp_path, case):
     state fixture as ``shane_kast_blue_A_state.json`` (the name the model
     derives).  Returns the ``.pypeit`` path.
 
-    Args:
-        tmp_path (`pathlib.Path`_): Pytest temporary directory.
-        case (:obj:`str`, optional): Fixture case name (e.g. ``healthy``),
-            or ``None`` to stage no state file.
+    Parameters
+    ----------
+    tmp_path : `pathlib.Path`_
+        Pytest temporary directory.
+    case : :obj:`str`, optional
+        Fixture case name (e.g. ``healthy``), or ``None`` to stage no
+        state file.
 
-    Returns:
-        str: Path to the staged ``.pypeit`` file.
+    Returns
+    -------
+    :obj:`str`
+        Path to the staged ``.pypeit`` file.
     """
     pf = tmp_path / 'shane_kast_blue_A.pypeit'
     pf.write_text(
@@ -235,7 +246,7 @@ def test_model_load_healthy(tmp_path):
     assert m.load_status == dash_model.LOAD_STATE_FILE
     assert m.is_started()
     table = m.status_table()
-    assert table.colnames == dash_model.STATUS_COLUMNS
+    assert table.colnames == dash_model.DashboardModel.STATUS_COLUMNS
     # A successful, required, in-pipeline step.
     wv = table[table['step'] == 'wv_calib'][0]
     assert wv['status'] == 'success'
@@ -300,7 +311,7 @@ def test_model_not_started_with_empty_state(tmp_path):
 
 def test_model_not_started_no_state_file(tmp_path):
     """
-    No state file and deriving disabled -> ``not_started`` (R11), no crash.
+    No state file and deriving disabled -> ``not_started``, no crash.
     """
     m = dash_model.DashboardModel(_make_redux(tmp_path, None), derive=False)
     assert m.load_status == dash_model.LOAD_NOT_STARTED
@@ -310,8 +321,7 @@ def test_model_not_started_no_state_file(tmp_path):
 
 def test_model_malformed_state(tmp_path):
     """
-    A malformed state file is reported as ``malformed`` without raising
-    (R11).
+    A malformed state file is reported as ``malformed`` without raising.
     """
     m = dash_model.DashboardModel(_make_redux(tmp_path, 'malformed'),
                                   derive=False)
@@ -322,7 +332,7 @@ def test_model_malformed_state(tmp_path):
 
 def test_model_file_not_found(tmp_path):
     """
-    A missing ``.pypeit`` file is reported, not raised (R11).
+    A missing ``.pypeit`` file is reported, not raised.
     """
     m = dash_model.DashboardModel(str(tmp_path / 'nope.pypeit'),
                                   derive=False)
@@ -335,8 +345,8 @@ def test_model_file_not_found(tmp_path):
 
 def test_palette_categories():
     """
-    ``classify`` maps (required, status, in_pipeline) to the design's
-    palette categories.
+    ``classify`` maps (required, status, in_pipeline) to the palette
+    categories.
     """
     assert palette.classify(True, 'success', True) == palette.SUCCESS
     assert palette.classify(True, 'complete', True) == palette.SUCCESS
@@ -348,9 +358,9 @@ def test_palette_categories():
     assert palette.classify(True, 'success', False) == palette.NOT_USED
 
 
-def test_palette_colors_and_glyphs_match_design():
+def test_palette_colors_and_glyphs():
     """
-    The light palette hex + glyph match the design doc table exactly.
+    The light palette maps each state to the expected hex + glyph pair.
     """
     expected = {
         (True, 'success', True): ('#2E7D32', '✓'),
@@ -373,7 +383,7 @@ def test_palette_colors_and_glyphs_match_design():
 def test_palette_worst_category():
     """
     ``worst_category`` picks the most severe category; optional/not-used
-    never worsen an otherwise-successful cell (R17).
+    never worsen an otherwise-successful cell.
     """
     assert palette.worst_category(
         [palette.SUCCESS, palette.FAIL]) == palette.FAIL
@@ -390,22 +400,27 @@ def test_palette_worst_category():
 
 
 # -----------------------------------------------------------------------
-# Stage 2: Status view (pytest-qt, offscreen) — structural tests
+# Status view (pytest-qt, offscreen) — structural tests
 # -----------------------------------------------------------------------
 
 def _status_view(case, tmp_path, qtbot):
     """
     Build a `StatusView` over a staged fixture reduction.
 
-    Args:
-        case (:obj:`str`): Fixture case (e.g. ``healthy``), or ``None``.
-        tmp_path (`pathlib.Path`_): Pytest temp dir.
-        qtbot: pytest-qt fixture.
+    Parameters
+    ----------
+    case : :obj:`str`
+        Fixture case (e.g. ``healthy``), or ``None``.
+    tmp_path : `pathlib.Path`_
+        Pytest temp dir.
+    qtbot : pytest-qt fixture
+        The pytest-qt bot.
 
-    Returns:
-        tuple: ``(StatusView, DashboardModel)``.
+    Returns
+    -------
+    :obj:`tuple`
+        ``(StatusView, DashboardModel)``.
     """
-    from pypeit.dashboard.view.status_view import StatusView
     model = dash_model.DashboardModel(_make_redux(tmp_path, case),
                                       derive=False)
     view = StatusView(model)
@@ -457,7 +472,7 @@ def test_status_view_failed_row(tmp_path, qtbot):
 
 def test_status_view_not_started_message(tmp_path, qtbot):
     """
-    A not-started (empty) state renders an edge message and no table (R11).
+    A not-started (empty) state renders an edge message and no table.
     """
     view, _ = _status_view('not_started', tmp_path, qtbot)
     assert view._table is None
@@ -465,7 +480,7 @@ def test_status_view_not_started_message(tmp_path, qtbot):
 
 def test_status_view_malformed_message(tmp_path, qtbot):
     """
-    A malformed state renders an edge message and no table (R11).
+    A malformed state renders an edge message and no table.
     """
     view, model = _status_view('malformed', tmp_path, qtbot)
     assert model.load_status == dash_model.LOAD_MALFORMED
@@ -473,7 +488,7 @@ def test_status_view_malformed_message(tmp_path, qtbot):
 
 
 # -----------------------------------------------------------------------
-# Stage 3: model detail accessors, palette skip, inspect builders
+# Model detail accessors, palette skip, inspect builders
 # -----------------------------------------------------------------------
 
 def _multidet_model(tmp_path):
@@ -486,7 +501,7 @@ def _multidet_model(tmp_path):
 
 def test_model_step_metrics(tmp_path):
     """
-    step_metrics returns entry-level metrics per step (Stage 3).
+    step_metrics returns entry-level metrics per step.
     """
     m = _multidet_model(tmp_path)
     assert m.step_metrics('bias', 0, 1)['mean'] == 1001.0
@@ -499,7 +514,7 @@ def test_model_step_metrics(tmp_path):
 def test_model_slit_table(tmp_path):
     """
     slit_table returns per-slit rows; flats carries per-correction metrics
-    and a `skip` slit (Stage 3).
+    and a `skip` slit.
     """
     m = _multidet_model(tmp_path)
     wv = m.slit_table('wv_calib', 0, 1)
@@ -527,8 +542,7 @@ def test_model_output_and_calib_paths(tmp_path):
 
 def test_palette_slit_style_skip():
     """
-    The per-slit palette maps `skip` to a distinct category with its glyph
-    (S3-Q15).
+    The per-slit palette maps `skip` to a distinct category with its glyph.
     """
     assert palette.slit_style('skip').category == palette.SKIP
     assert palette.slit_style('skip').glyph == '⊘'
@@ -541,11 +555,10 @@ def test_palette_slit_style_skip():
 def test_inspect_output_commands(tmp_path):
     """
     inspect.output_command builds the right argv per step, incl. the
-    non-uniform cases (S3-Q12/Q13).
+    non-uniform cases.
     """
-    from pypeit.dashboard import inspect as dash_inspect
     m = _multidet_model(tmp_path)
-    # Processed calibration image → opened directly in ginga (Stage 4 R2 #1).
+    # Processed calibration image → opened directly in ginga.
     bias = dash_inspect.output_command(m, 'bias', 0, 1)
     assert bias[0] == 'ginga'
     assert bias[1].endswith('Bias_A_0_DET01.fits')
@@ -555,7 +568,7 @@ def test_inspect_output_commands(tmp_path):
     slits = dash_inspect.output_command(m, 'slits', 0, 1)
     assert slits[0] == 'pypeit_chk_edges'
     assert slits[1].endswith('Edges_A_0_DET01.fits.gz')
-    # wv_calib has no standalone viewer (Round-2 #4) → command is None.
+    # wv_calib has no standalone viewer → command is None.
     assert dash_inspect.output_command(m, 'wv_calib', 0, 1) is None
     # An input frame → pypeit_view_fits <spec> <file> --proc (+ --det).
     vin = dash_inspect.view_input_command(m, 'b3.fits.gz', det=1)
@@ -564,14 +577,13 @@ def test_inspect_output_commands(tmp_path):
 
 
 # -----------------------------------------------------------------------
-# Stage 3: Calibrations view (pytest-qt, offscreen) — structural tests
+# Calibrations view (pytest-qt, offscreen) — structural tests
 # -----------------------------------------------------------------------
 
 def _calib_view(case, tmp_path, qtbot):
     """
     Build a `CalibrationsView` over a staged fixture reduction.
     """
-    from pypeit.dashboard.view.calibrations_view import CalibrationsView
     model = dash_model.DashboardModel(_make_redux(tmp_path, case),
                                       derive=False)
     view = CalibrationsView(model)
@@ -582,7 +594,7 @@ def _calib_view(case, tmp_path, qtbot):
 def test_calib_view_button_row_path_aware(tmp_path, qtbot):
     """
     The step-button row contains the spectrograph's steps in order, with
-    `bpm` omitted (C3/C12/C13).
+    `bpm` omitted.
     """
     view, model = _calib_view('multidet', tmp_path, qtbot)
     assert list(view._step_buttons.keys()) == model.step_order()
@@ -591,7 +603,7 @@ def test_calib_view_button_row_path_aware(tmp_path, qtbot):
 
 def test_calib_view_detector_selector_multidet(tmp_path, qtbot):
     """
-    The detector selector lists both detectors (C2, multi-detector).
+    The detector selector lists both detectors (multi-detector case).
     """
     view, _ = _calib_view('multidet', tmp_path, qtbot)
     assert view._group_combo.count() == 1
@@ -601,9 +613,8 @@ def test_calib_view_detector_selector_multidet(tmp_path, qtbot):
 def test_calib_view_per_slit_table(tmp_path, qtbot):
     """
     Selecting `wv_calib` shows a per-slit table (one row per slit), and
-    `flats` shows per-correction columns incl. a skipped slit (C11, S3-Q14).
+    `flats` shows per-correction columns incl. a skipped slit.
     """
-    from qtpy.QtWidgets import QTableWidget
     view, _ = _calib_view('multidet', tmp_path, qtbot)
     view._select_step('wv_calib')
     tables = view.findChildren(QTableWidget)
@@ -622,14 +633,14 @@ def test_calib_view_per_slit_table(tmp_path, qtbot):
 
 def test_calib_view_not_started_message(tmp_path, qtbot):
     """
-    A not-started state shows a message and builds no step buttons (R11).
+    A not-started state shows a message and builds no step buttons.
     """
     view, _ = _calib_view('not_started', tmp_path, qtbot)
     assert view._step_buttons == {}
 
 
 # -----------------------------------------------------------------------
-# Stage 3b: echelle (keck_nires) coverage
+# Echelle (keck_nires) coverage
 # -----------------------------------------------------------------------
 
 def _make_echelle_redux(tmp_path):
@@ -637,11 +648,15 @@ def _make_echelle_redux(tmp_path):
     Stage an echelle reduction: the minimal ``keck_nires`` ``.pypeit`` fixture
     plus the synthesized echelle state, named so the model finds the state.
 
-    Args:
-        tmp_path (`pathlib.Path`_): Pytest temporary directory.
+    Parameters
+    ----------
+    tmp_path : `pathlib.Path`_
+        Pytest temporary directory.
 
-    Returns:
-        str: Path to the staged ``.pypeit`` file.
+    Returns
+    -------
+    :obj:`str`
+        Path to the staged ``.pypeit`` file.
     """
     pf = tmp_path / 'keck_nires_A.pypeit'
     pf.write_text(Path(data_path('dashboard_keck_nires.pypeit')).read_text())
@@ -664,9 +679,8 @@ def test_echelle_pipeline_and_orders(tmp_path):
 def test_echelle_slits_edges_all_naming(tmp_path):
     """
     For shared (``*_all_*``) echelle calibrations, the slits viewer resolves
-    the Edges file from the recorded Slits output (Stage 3b fix).
+    the Edges file from the recorded Slits output.
     """
-    from pypeit.dashboard import inspect as dash_inspect
     m = dash_model.DashboardModel(_make_echelle_redux(tmp_path), derive=False)
     target = dash_inspect.output_target(m, 'slits', 0, 1)
     assert target.name == 'Edges_A_all_DET01.fits.gz'
@@ -678,30 +692,26 @@ def test_echelle_slits_edges_all_naming(tmp_path):
 def test_echelle_per_order_label(tmp_path, qtbot):
     """
     The per-order table is labeled "Order" (not "Slit") for the Echelle
-    pipeline (S3b-Q1).
+    pipeline.
     """
-    from pypeit.dashboard.view.calibrations_view import CalibrationsView
     m = dash_model.DashboardModel(_make_echelle_redux(tmp_path), derive=False)
     view = CalibrationsView(m)
     qtbot.addWidget(view)
     view._select_step('wv_calib')
-    from qtpy.QtWidgets import QTableWidget
     table = view.findChildren(QTableWidget)[-1]
     assert table.horizontalHeaderItem(0).text() == 'Order'
     assert table.rowCount() == 5
 
 
 # -----------------------------------------------------------------------
-# Stage 4: Execution, locking & (Re)Build (C10, C15, X1–X3)
+# Execution, locking & (Re)Build
 # -----------------------------------------------------------------------
 
 def test_inspect_run_command(tmp_path):
     """
     run_command builds the pypeit_run_to_calibstep argv with --calib_group,
-    --det, and --redux_path; mosaics become a parenthesized tuple (C10,
-    S4-Q3).
+    --det, and --redux_path; mosaics become a parenthesized tuple.
     """
-    from pypeit.dashboard import inspect as dash_inspect
     m = _multidet_model(tmp_path)
     argv = dash_inspect.run_command(m, 'wv_calib', 0, 1)
     assert argv[0] == 'pypeit_run_to_calibstep'
@@ -718,7 +728,7 @@ def test_model_step_output_files(tmp_path):
     """
     step_output_files names the existing Calibrations/ outputs a (re)build
     overwrites — both Slits_* and Edges_* for slits, the single output
-    otherwise; empty when nothing is on disk (S4-Q4).
+    otherwise; empty when nothing is on disk.
     """
     m = _multidet_model(tmp_path)
     # Nothing on disk yet → a fresh build, nothing to overwrite.
@@ -740,11 +750,8 @@ def test_model_step_output_files(tmp_path):
 def test_runlock_state_machine(tmp_path, qtbot):
     """
     RunLock locks for a Dashboard-launched run and for an externally-written
-    .log (recent mtime), emitting lockChanged on transitions (X1).
+    .log (recent mtime), emitting lockChanged on transitions.
     """
-    import os
-    from pypeit.dashboard.runlock import RunLock
-
     # The pure recency test.
     assert RunLock._is_recent(100.0, 105.0, 10.0)
     assert not RunLock._is_recent(100.0, 200.0, 10.0)
@@ -775,8 +782,8 @@ def test_runlock_state_machine(tmp_path, qtbot):
 
 def test_calib_view_rebuild_button(tmp_path, qtbot):
     """
-    The detail panel shows a "(Re)Build" control (C10) that the run lock
-    enables/disables (X1).
+    The detail panel shows a "(Re)Build" control that the run lock
+    enables/disables.
     """
     view, _ = _calib_view('multidet', tmp_path, qtbot)
     view._select_step('wv_calib')
@@ -791,11 +798,9 @@ def test_calib_view_rebuild_button(tmp_path, qtbot):
 
 def test_calib_view_rebuild_disabled_when_locked(tmp_path, qtbot):
     """
-    With the run lock already engaged, the (Re)Build control builds disabled
-    (X1).
+    With the run lock already engaged, the (Re)Build control builds
+    disabled.
     """
-    from pypeit.dashboard.view.calibrations_view import CalibrationsView
-    from pypeit.dashboard.runlock import RunLock
     model = dash_model.DashboardModel(_make_redux(tmp_path, 'multidet'),
                                       derive=False)
     lock = RunLock()
@@ -810,7 +815,7 @@ def test_calib_view_rebuild_clobbers_and_launches(tmp_path, qtbot,
                                                    monkeypatch):
     """
     On confirmation, (Re)Build removes the selected step's existing output(s)
-    in code and launches pypeit_run_to_calibstep (C10, X3, S4-Q3).
+    in code and launches pypeit_run_to_calibstep.
     """
     view, model = _calib_view('multidet', tmp_path, qtbot)
     # Stage an existing wv_calib output to be clobbered.
@@ -841,7 +846,7 @@ def test_calib_view_rebuild_clobbers_and_launches(tmp_path, qtbot,
 def test_calib_view_rebuild_restores_on_failure(tmp_path, qtbot):
     """
     A failed (re)build restores the moved-aside output so the calibration is
-    not lost (Round-1 #2).
+    not lost.
     """
     view, model = _calib_view('multidet', tmp_path, qtbot)
     model.calib_dir.mkdir(parents=True, exist_ok=True)
@@ -855,8 +860,8 @@ def test_calib_view_rebuild_restores_on_failure(tmp_path, qtbot):
 
 def test_calib_view_rebuild_drops_backup_on_success(tmp_path, qtbot):
     """
-    A successful (re)build drops the backup and keeps the freshly built output
-    (Round-1 #2).
+    A successful (re)build drops the backup and keeps the freshly built
+    output.
     """
     view, model = _calib_view('multidet', tmp_path, qtbot)
     model.calib_dir.mkdir(parents=True, exist_ok=True)
@@ -872,7 +877,7 @@ def test_calib_view_rebuild_drops_backup_on_success(tmp_path, qtbot):
 def test_calib_view_rebuild_cancel_keeps_output(tmp_path, qtbot, monkeypatch):
     """
     Cancelling the clobber confirmation leaves the output untouched and
-    launches nothing (X2).
+    launches nothing.
     """
     view, model = _calib_view('multidet', tmp_path, qtbot)
     model.calib_dir.mkdir(parents=True, exist_ok=True)
@@ -895,10 +900,9 @@ def test_calib_view_rebuild_cancel_keeps_output(tmp_path, qtbot, monkeypatch):
 
 def test_calib_view_output_filename_shown(tmp_path, qtbot):
     """
-    The detail panel shows the output filename, even for wv_calib (no viewer)
-    (Round-2 #3).
+    The detail panel shows the output filename, even for wv_calib (which has
+    no standalone viewer).
     """
-    from qtpy.QtWidgets import QLabel
     view, _ = _calib_view('multidet', tmp_path, qtbot)
     view._select_step('wv_calib')
     labels = [w.text() for w in view.findChildren(QLabel)]
@@ -909,7 +913,7 @@ def test_calib_view_rebuild_locked_visual_cue(tmp_path, qtbot):
     """
     While locked, the (Re)Build button turns orange, shows a "run in progress"
     label, and is disabled (the lock's visual clue); idle restores the blue
-    "(Re)Build <step>" enabled button (Round-3 #1/#2).
+    "(Re)Build <step>" enabled button.
     """
     view, _ = _calib_view('multidet', tmp_path, qtbot)
     view._select_step('tilts')
@@ -925,8 +929,8 @@ def test_calib_view_rebuild_locked_visual_cue(tmp_path, qtbot):
 
 def test_calib_view_rebuild_keeps_step_selected(tmp_path, qtbot):
     """
-    On completion the rebuilt step stays selected, not reset to the first step
-    (Round-2 #2).
+    On completion the rebuilt step stays selected, not reset to the first
+    step.
     """
     view, _ = _calib_view('multidet', tmp_path, qtbot)
     view._select_step('tilts')
@@ -935,14 +939,13 @@ def test_calib_view_rebuild_keeps_step_selected(tmp_path, qtbot):
 
 
 # -----------------------------------------------------------------------
-# Stage 5: Monitoring (live updates) — R14
+# Monitoring (live updates)
 # -----------------------------------------------------------------------
 
 def test_activity_bar_two_channels(qtbot):
     """
-    The ActivityBar has independent Build and Inspection channels (S5-Q9).
+    The ActivityBar has independent Build and Inspection channels.
     """
-    from pypeit.dashboard.view.activity import ActivityBar
     bar = ActivityBar()
     qtbot.addWidget(bar)
     bar.set_build('building', busy=True)
@@ -958,11 +961,9 @@ def test_activity_bar_two_channels(qtbot):
 
 def test_runlock_state_changed_signal(tmp_path, qtbot):
     """
-    RunLock emits `stateChanged` when the state file's mtime advances **while a
-    run is active**, and not when idle or unchanged (R14, S5-Q3/Q8).
+    RunLock emits `stateChanged` when the state file's mtime advances
+    **while a run is active**, and not when idle or unchanged.
     """
-    import os
-    from pypeit.dashboard.runlock import RunLock
     state = tmp_path / 'x_state.json'
     state.write_text('{}')
     lock = RunLock(state_path=state)        # no log → lock only via dashboard
@@ -987,10 +988,8 @@ def test_runlock_state_changed_signal(tmp_path, qtbot):
 def test_main_window_live_refresh(tmp_path, qtbot):
     """
     While a run is active, a state-file change live-refreshes both views
-    (new model) and preserves the selected step (R14).
+    (new model) and preserves the selected step.
     """
-    import os
-    from pypeit.dashboard.view.main_window import DashboardMainWindow
     model = dash_model.DashboardModel(_make_redux(tmp_path, 'multidet'),
                                       derive=False)
     window = DashboardMainWindow(model)
@@ -1011,7 +1010,7 @@ def test_main_window_live_refresh(tmp_path, qtbot):
 
 
 # -----------------------------------------------------------------------
-# Stage 6: Science frames (R15/R18)
+# Science frames
 # -----------------------------------------------------------------------
 
 def _science_model(tmp_path):
@@ -1024,12 +1023,12 @@ def _science_model(tmp_path):
 
 def test_model_science_accessors(tmp_path):
     """
-    The model exposes the science table + per-slit/per-object detail (Stage 6).
+    The model exposes the science table + per-slit/per-object detail.
     """
     m = _science_model(tmp_path)
     assert m.has_science()
     sci = m.science_table()
-    assert sci.colnames == dash_model.SCIENCE_COLUMNS
+    assert sci.colnames == dash_model.DashboardModel.SCIENCE_COLUMNS
     assert len(sci) == 2
     assert set(sci['objtype']) == {'science', 'standard'}
     # Per-slit + per-object detail for the science frame.
@@ -1042,9 +1041,8 @@ def test_model_science_accessors(tmp_path):
 def test_inspect_science_commands(tmp_path):
     """
     inspect builds the spec2d/spec1d viewers (per-object --obj) and the
-    pypeit_reduce_by_step (Re)Build argv (Stage 6, S6-Q10).
+    pypeit_reduce_by_step (Re)Build argv.
     """
-    from pypeit.dashboard import inspect as dash_inspect
     m = _science_model(tmp_path)
     # 2D viewer.
     s2d = dash_inspect.spec2d_command('spec2d_b27.fits', det=1)
@@ -1067,7 +1065,6 @@ def _science_view(tmp_path, qtbot, run_lock=None):
     """
     Build a `ScienceView` over the science fixture.
     """
-    from pypeit.dashboard.view.science_view import ScienceView
     model = _science_model(tmp_path)
     view = ScienceView(model, run_lock=run_lock)
     qtbot.addWidget(view)
@@ -1077,9 +1074,8 @@ def _science_view(tmp_path, qtbot, run_lock=None):
 def test_science_view_table_and_detail(tmp_path, qtbot):
     """
     The Science view lists per-frame rows and, on selection, shows per-slit +
-    per-object detail (R15/R18).
+    per-object detail.
     """
-    from qtpy.QtWidgets import QTableWidget
     view, _ = _science_view(tmp_path, qtbot)
     assert len(view._rows) == 2                      # two frames
     headers = [view._table.horizontalHeaderItem(c).text()
@@ -1095,9 +1091,8 @@ def test_science_view_table_and_detail(tmp_path, qtbot):
 def test_science_view_rebuild_buttons(tmp_path, qtbot):
     """
     The Science detail offers (Re)Build controls, prerequisite-gated and
-    lock-aware (S6-Q6/Q12).
+    lock-aware.
     """
-    from pypeit.dashboard.runlock import RunLock
     lock = RunLock()
     view, _ = _science_view(tmp_path, qtbot, run_lock=lock)
     view._select_pair(view._rows[0])
@@ -1113,10 +1108,8 @@ def test_science_view_rebuild_buttons(tmp_path, qtbot):
 
 def test_main_window_has_science_tab(tmp_path, qtbot):
     """
-    The window now has a third Science tab (S6-Q1).
+    The window has a third Science tab.
     """
-    from pypeit.dashboard.view.main_window import (DashboardMainWindow,
-                                                   TAB_LABELS)
     assert TAB_LABELS == ('Status', 'Calibrations', 'Science')
     model = _science_model(tmp_path)
     window = DashboardMainWindow(model)
@@ -1125,12 +1118,12 @@ def test_main_window_has_science_tab(tmp_path, qtbot):
     assert window.tab_widget.tabText(2) == 'Science'
 
 
-# -- Stage 6 Round-1 Modifications ---------------------------------------
+# -- Selection styling + navigation ---------------------------------------
 
 def test_palette_selection_style_neutral():
     """
     The neutral selection style names a soft blue-grey and targets the
-    selected-item rule (Round-1 #2).
+    selected-item rule.
     """
     light = palette.selection_style('light')
     dark = palette.selection_style('dark')
@@ -1141,8 +1134,8 @@ def test_palette_selection_style_neutral():
 
 def test_science_view_neutral_selection(tmp_path, qtbot):
     """
-    The Science per-frame table carries the neutral selection stylesheet, so a
-    selected frame never inherits the theme's (red) highlight (Round-1 #2).
+    The Science per-frame table carries the neutral selection stylesheet, so
+    a selected frame never inherits the theme's (possibly red) highlight.
     """
     view, _ = _science_view(tmp_path, qtbot)
     ss = view._table.styleSheet()
@@ -1154,9 +1147,8 @@ def test_science_view_neutral_selection(tmp_path, qtbot):
 def test_status_view_science_navigator(tmp_path, qtbot):
     """
     The Status view shows a clickable science-navigator cell per (frame, det);
-    clicking one emits scienceFrameActivated (Round-1 #1).
+    clicking one emits scienceFrameActivated.
     """
-    from pypeit.dashboard.view.status_view import StatusView, ScienceNavCell
     model = _science_model(tmp_path)
     view = StatusView(model)
     qtbot.addWidget(view)
@@ -1172,11 +1164,9 @@ def test_status_view_science_navigator(tmp_path, qtbot):
 
 def test_status_navigator_switches_to_science_tab(tmp_path, qtbot):
     """
-    Activating a science-navigator cell switches to the Science tab and selects
-    that frame (Round-1 #1).
+    Activating a science-navigator cell switches to the Science tab and
+    selects that frame.
     """
-    from pypeit.dashboard.view.main_window import DashboardMainWindow
-    from pypeit.dashboard.view.status_view import ScienceNavCell
     model = _science_model(tmp_path)
     window = DashboardMainWindow(model)
     qtbot.addWidget(window)
@@ -1209,7 +1199,7 @@ def _stage_science_qa(model):
 def test_model_science_qa_files(tmp_path):
     """
     The model globs the per-(frame, det) QA PNGs (all of them) and maps the
-    per-object obj_prof/obj_trace (Round-1 #3, S6-Q15).
+    per-object obj_prof/obj_trace.
     """
     m = _science_model(tmp_path)
     frame = _stage_science_qa(m)
@@ -1225,10 +1215,8 @@ def test_model_science_qa_files(tmp_path):
 def test_science_view_qa_list_and_object_qa(tmp_path, qtbot):
     """
     The Science detail panel exposes a QA list (all PNGs) and per-object
-    obj_prof/obj_trace columns (Round-1 #3).
+    obj_prof/obj_trace columns.
     """
-    from qtpy.QtWidgets import QListWidget
-    from pypeit.dashboard.view.science_view import ScienceView
     model = _science_model(tmp_path)
     frame = _stage_science_qa(model)
     view = ScienceView(model)
@@ -1240,12 +1228,12 @@ def test_science_view_qa_list_and_object_qa(tmp_path, qtbot):
     assert 'obj_trace' in view._obj_qa_cols
 
 
-# -- Stage 6 Round-3 (planned science frames + calib-gated (Re)Build) -----
+# -- Planned science frames + calibration-gated (Re)Build -----------------
 
 def test_model_calibrations_ready(tmp_path):
     """
     calibrations_ready() is True only when a group/det's required calibs are
-    all successful (Round-3 #2).
+    all successful.
     """
     m = _science_model(tmp_path)                  # healthy calibs
     assert m.calibrations_ready(0, 1) is True
@@ -1263,9 +1251,8 @@ def test_model_calibrations_ready(tmp_path):
 def test_science_rebuild_gated_on_calibrations(tmp_path, qtbot):
     """
     The science (Re)Build is disabled when the frame's calibrations are not
-    built (Round-3 #2).
+    built.
     """
-    from pypeit.dashboard.view.science_view import ScienceView
     model = _science_model(tmp_path)
     view = ScienceView(model)
     qtbot.addWidget(view)
@@ -1281,12 +1268,9 @@ def test_science_rebuild_gated_on_calibrations(tmp_path, qtbot):
 
 def test_seed_planned_science():
     """
-    seed_planned_science() creates an undone entry per (frame, det) from the
-    metadata, with raw files, for science and standard frames (Round-3 #2).
+    Planned frames extracted from the metadata seed an undone entry per
+    (frame, det), with raw files, for science and standard frames.
     """
-    from pypeit.state.run_state import RunPypeItState
-    from pypeit.state import science_status
-
     class _FakeFitstbl:
         """Minimal stand-in for PypeItMetaData for the seeder."""
         _names = ['b27-sci', 'b24-std']
@@ -1316,7 +1300,8 @@ def test_seed_planned_science():
 
     rs = RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                         current_det=-1, current_calibID=-1)
-    science_status.seed_planned_science(rs, _FakeFitstbl(), {0: [1]})
+    planned = science_status.planned_science_from_fitstbl(_FakeFitstbl())
+    science_status.seed_planned_science_entries(rs, planned, {0: [1]})
     tbl = rs.get_science_status()
     assert len(tbl) == 2
     assert set(tbl['objtype']) == {'science', 'standard'}
@@ -1328,14 +1313,15 @@ def test_seed_planned_science():
 
 def test_planned_science_persists_on_state_load(tmp_path):
     """
-    Round-4: loading a state file that has calibrations but **no** science
-    (as a calibration (re)build leaves it) still shows the planned science
+    Loading a state file that has calibrations but **no** science (as a
+    calibration (re)build leaves it) still shows the planned science
     frames, re-seeded from the cached planned-frame list.
     """
     pf = _make_redux(tmp_path, 'healthy')         # calibs, no science entries
     # Warm the planned-frame cache (as the launch/derive would have), then load
     # the calib-only state file the way the post-(re)build refresh does.
-    dash_model._PLANNED_SCIENCE_CACHE[str(Path(pf))] = [
+    cache = dash_model.DashboardModel._PLANNED_SCIENCE_CACHE
+    cache[str(Path(pf))] = [
         {'frame': 'b188-sci', 'objtype': 'science', 'calib_id': 0,
          'comb_id': None, 'raw_files': ['b188.fits.gz']}]
     try:
@@ -1350,16 +1336,15 @@ def test_planned_science_persists_on_state_load(tmp_path):
         entry = m.science_frame_entry('b188-sci', 1)
         assert entry.raw_files == ['b188.fits.gz']
     finally:
-        dash_model._PLANNED_SCIENCE_CACHE.pop(str(Path(pf)), None)
+        cache.pop(str(Path(pf)), None)
 
 
 def test_merge_from_disk_preserves_other_portion(tmp_path):
     """
-    Round-5: a step-runner's fresh state merges the existing on-disk
-    calibrations + science, so writing it does not blank out the other
-    portion (which disabled all (Re)Build buttons).
+    A step-runner's fresh state merges the existing on-disk calibrations +
+    science, so writing it does not blank out the other portion (which
+    would disable all (Re)Build buttons).
     """
-    from pypeit.state.run_state import RunPypeItState
     # A state file with BOTH calibrations and science (the science fixture).
     sj = tmp_path / 'x_state.json'
     sj.write_text(Path(data_path('dashboard_state_science.json')).read_text())
@@ -1369,8 +1354,8 @@ def test_merge_from_disk_preserves_other_portion(tmp_path):
                            current_calibID=-1)
     assert fresh.get_science_status() is None
     fresh.merge_from_disk()
-    # Science carried forward from disk (so a calib build keeps it; Round-4),
-    # and calibrations carried forward (so a science build keeps them; Round-5).
+    # Science carried forward from disk (so a calib build keeps it), and
+    # calibrations carried forward (so a science build keeps them).
     sci = fresh.get_science_status()
     assert sci is not None and len(sci) == 2
     assert fresh.get_status() is not None and len(fresh.get_status()) > 0
@@ -1378,9 +1363,8 @@ def test_merge_from_disk_preserves_other_portion(tmp_path):
 
 def test_inspect_run_pypeit_command(tmp_path):
     """
-    inspect builds the full-reduction `run_pypeit -o` argv (Round-6).
+    inspect builds the full-reduction `run_pypeit -o` argv.
     """
-    from pypeit.dashboard import inspect as dash_inspect
     m = _science_model(tmp_path)
     argv = dash_inspect.run_pypeit_command(m)
     assert argv[0] == 'run_pypeit' and '-o' in argv
@@ -1389,10 +1373,8 @@ def test_inspect_run_pypeit_command(tmp_path):
 
 def test_science_view_run_pypeit_button(tmp_path, qtbot):
     """
-    The Science view offers a view-level "Run PypeIt" button, lock-aware
-    (Round-6).
+    The Science view offers a view-level "Run PypeIt" button, lock-aware.
     """
-    from pypeit.dashboard.runlock import RunLock
     lock = RunLock()
     view, _ = _science_view(tmp_path, qtbot, run_lock=lock)
     assert view._run_pypeit_button is not None

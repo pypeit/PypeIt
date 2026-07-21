@@ -8,7 +8,11 @@ subclass, registered as the ``pypeit_dashboard`` console entry point.
 .. include:: ../include/links.rst
 """
 
+import sys
+
 from pypeit.scripts import scriptbase
+# Qt-free helper module (safe to import for, e.g., the auto-generated docs).
+from pypeit.dashboard import util
 
 
 class PypeItDashboard(scriptbase.ScriptBase):
@@ -43,6 +47,28 @@ class PypeItDashboard(scriptbase.ScriptBase):
                             help='Reduction directory.  Defaults to the '
                                  'directory containing the .pypeit file.')
         return parser
+
+    @classmethod
+    def init_log(cls, args):
+        """
+        Initialize the logger and install the dashboard's exception hook.
+
+        Extends :meth:`~pypeit.scripts.scriptbase.ScriptBase.init_log`:
+        after the standard logger setup (which installs the general
+        :class:`~pypeit.pkg.logger.PypeItLogger` exception hook), replace
+        the hook with :func:`~pypeit.dashboard.util.dashboard_excepthook`,
+        which logs the *full* traceback through the logger.  Exceptions
+        raised inside Qt slots are otherwise swallowed by the C++ event
+        loop, so the dashboard needs every unhandled exception recorded
+        loudly, with its complete traceback, in the console and log file.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`_
+            The parsed command-line arguments.
+        """
+        super().init_log(args)
+        sys.excepthook = util.dashboard_excepthook
 
     @classmethod
     def main(cls, args):

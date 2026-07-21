@@ -107,7 +107,7 @@ class PypeIt:
             self.pypeItFile.frametypes, 
             self.pypeItFile.setup_name)
 
-        # Other Interna
+        # Other Internals
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for

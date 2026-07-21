@@ -60,6 +60,7 @@ class ReducebyStep(scriptbase.ScriptBase):
         from pypeit import spec2dobj
         from pypeit import exposure
         from pypeit import slittrace
+        from pypeit.state import science_status
 
         from IPython import embed
 
@@ -307,15 +308,14 @@ class ReducebyStep(scriptbase.ScriptBase):
                                    in_update_det=det)
 
         # Refresh the science state from the products just written and persist
-        # it, so the Dashboard reflects this (re)build (mirrors the
-        # run_to_calibstep state-write fix; reached by every step since
-        # 'process' no longer returns early).  Non-essential: never crash here.
+        # it, so the Dashboard reflects this (re)build (reached by every step
+        # since 'process' does not return early).  State bookkeeping is
+        # non-essential: log any failure and continue.
         try:
-            from pypeit.state import science_status
-            science_status.derive_science_from_disk(
-                pypeIt.run_state, pypeIt.par['rdx']['redux_path'],
-                fitstbl=pypeIt.fitstbl)
-            pypeIt.run_state.write()
-        except Exception as e:
-            log.warning(f'Could not update science state after '
-                        f'{args.step}: {e}')
+            science_status.derive_science_from_disk(pypeIt.run_state,
+                                                    pypeIt.par['rdx']['redux_path'],
+                                                    fitstbl=pypeIt.fitstbl)
+        except (OSError, PypeItError) as e:
+            log.warning(f'Could not update the science state after {args.step}: {e}')
+        else:
+            pypeIt.run_state.safe_write()

@@ -187,12 +187,6 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
         chk_version=par['rdx']['chk_version'],
         state=run_state)
 
-    # Status check only?
-    #if status_only:
-    #    caliBrate.check_status()
-    #    embed(header='189 pypeit_steps')
-    #    return caliBrate
-
     # Check
     if stop_at_step is not None and stop_at_step not in caliBrate.steps:
         raise PypeItError(
@@ -203,9 +197,6 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
     # Run
     caliBrate.run_the_steps(stop_at_step=stop_at_step,
         reload_only=reload_only, status_only=status_only)
-
-    #embed(header='207 pypeit_steps')
-
 
     # Success?
     if not caliBrate.success:

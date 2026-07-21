@@ -6,12 +6,10 @@
 PypeIt Dashboard: Design
 ========================
 
-**Dashboard documentation version: 1.4.0**
-
 This page explains *how the dashboard is built* — its component structure, how it
-acquires the reduction :doc:`state </state>`, and how it stays in sync with a
+acquires the reduction :ref:`state <state>`, and how it stays in sync with a
 running reduction.  For the user-facing description of the views and controls,
-see :doc:`dashboard`.
+see :ref:`dashboard`.
 
 The diagrams below are rendered with `Mermaid <https://mermaid.js.org/>`__.
 
@@ -22,7 +20,23 @@ The dashboard follows a **Model–View–Controller** organization with a strict
 split: a **Qt-free model** holds all reduction knowledge, **thin Qt views**
 render what the model exposes, and a small set of helpers turn user actions into
 subprocess launches.  Nothing in the model imports Qt, so it is unit-testable
-without a display.
+without a display.  Concretely:
+
+- a **headless model** (:class:`~pypeit.dashboard.model.DashboardModel`) that
+  loads or derives the reduction state and exposes it as clean, Qt-free data
+  (the calibration status table, the ``(calibration group, detector)`` pairs,
+  the path-aware step order, per-step metrics, per-slit/order detail, and the
+  per-frame science table with its per-slit/per-object detail);
+- thin **Qt views** (the Status, Calibrations, and Science tabs —
+  :class:`~pypeit.dashboard.view.status_view.StatusView`,
+  :class:`~pypeit.dashboard.view.calibrations_view.CalibrationsView`, and
+  :class:`~pypeit.dashboard.view.science_view.ScienceView`) that render what
+  the model provides, coloring everything through the shared status palette;
+- a **launcher** (:class:`~pypeit.dashboard.launcher.Launcher`) that runs the
+  inspection tools and (re)builds as subprocesses and reports to the shared
+  status bar; and
+- a single-run **lock** (:class:`~pypeit.dashboard.runlock.RunLock`) that
+  detects an active reduction and drives the live monitoring.
 
 .. mermaid::
 
@@ -70,8 +84,12 @@ without a display.
        RL --> MW
 
 The model never embeds plots: every viewer is an **existing** PypeIt script,
-launched as a subprocess by the ``Launcher`` and reported on the ``ActivityBar``.
-The :ref:`status palette <dashboard-status-palette>` (``palette``) is the one
+launched as a subprocess by the
+:class:`~pypeit.dashboard.launcher.Launcher` (with the command line built by
+:mod:`pypeit.dashboard.inspect`) and reported on the
+:class:`~pypeit.dashboard.view.activity.ActivityBar`.
+The :ref:`status palette <dashboard-status-palette>`
+(:mod:`pypeit.dashboard.palette`) is the one
 place that maps a status to a color, a glyph, and a label.
 
 State acquisition on launch
@@ -98,7 +116,14 @@ processing and writes no state file.
        SEED --> ACCESS["Model accessors:<br/>status_table / slit_table /<br/>science_table / ..."]
        ACCESS --> RENDER["Views render"]
 
-The user's **Refresh** button re-runs this acquisition.  Mid-run (see below) the
+The user's **Refresh** button re-runs this acquisition (by constructing a fresh
+:class:`~pypeit.dashboard.model.DashboardModel`).  A present state file is
+preferred over a re-derivation, so a stale file (e.g. products deleted by hand
+since the last run) is *not* silently corrected: the Status view's stale badge
+(:meth:`~pypeit.dashboard.model.DashboardModel.is_stale`, an mtime comparison
+against the ``.pypeit`` file and the ``Calibrations/`` contents) flags the
+mismatch instead, and ``pypeit_status`` — which always re-derives — provides
+the from-disk answer.  Mid-run (see below) the
 model is re-read from ``*_state.json`` only — it is **never re-derived** while a
 run is active, so a transient mid-write file is skipped rather than triggering a
 heavy re-derivation.
@@ -116,48 +141,72 @@ Live monitoring and (Re)Build
 
 The dashboard observes a reduction whether it was launched from the dashboard's
 **(Re)Build** controls or started independently in a terminal.  A single
-``RunLock`` is the heart of this: one ``QTimer`` polls the reduction ``.log``
-(to detect an active run) and the ``*_state.json`` mtime (to drive live updates),
-emitting ``lockChanged`` and ``stateChanged``.
+:class:`~pypeit.dashboard.runlock.RunLock` is the heart of this: one Qt timer
+polls two file modification times — the reduction ``.log``
+(to detect an active run) and the ``*_state.json`` (to drive live updates) —
+and emits a signal when either changes (``lockChanged`` / ``stateChanged``).
+Two diagrams show the (Re)Build round trip: first the launch, then the
+monitoring loop that runs until the subprocess exits.
+
+**Launching a (Re)Build:**
 
 .. mermaid::
 
    sequenceDiagram
        actor User
-       participant View as Calibrations / Science view
-       participant Launcher
-       participant Proc as PypeIt subprocess
-       participant Lock as RunLock (QTimer ~2s)
-       participant Win as MainWindow
+       participant Dash as Dashboard
+       participant Run as PypeIt run (subprocess)
 
-       User->>View: click (Re)Build (confirm clobber)
-       View->>Launcher: run(run_to_calibstep / reduce_by_step)
-       Launcher->>Proc: start QProcess
-       Launcher->>Lock: engage lock
-       Lock-->>Win: lockChanged(true)
-       Win->>View: set_locked(true)  (buttons orange, disabled)
-       loop while running
-           Proc->>Proc: write *_state.json per step
-           Lock-->>Win: stateChanged
-           Win->>Win: re-read state (no derive)
-           Win->>View: refresh (preserve scope/selection)
+       User->>Dash: click (Re)Build, confirm clobber
+       Dash->>Run: start run_to_calibstep / reduce_by_step
+       Dash->>Dash: lock engaged - run buttons orange + disabled
+
+**While the run is active** (the same loop serves a terminal-started run):
+
+.. mermaid::
+
+   sequenceDiagram
+       participant Run as PypeIt run (subprocess)
+       participant Lock as RunLock (polls every ~2s)
+       participant Views
+
+       loop until the run exits
+           Run->>Run: update *_state.json at each step
+           Lock->>Views: state file changed - refresh
+           Note over Views: re-read the state file (never re-derive);<br/>keep the user's scope and selection
        end
-       Proc-->>Launcher: finished
-       Lock-->>Win: lockChanged(false)
-       Win->>Win: final refresh + idle
+       Run-->>Lock: process exits / log goes quiet
+       Lock->>Views: unlock - final refresh, buttons re-enabled
 
-The same path runs for a terminal-started ``run_pypeit``: the ``.log`` activity
-engages the lock, ``stateChanged`` drives the live refresh, and the views update
+The same monitoring loop runs for a terminal-started ``run_pypeit``: the
+``.log`` activity
+engages the lock, the state-file changes drive the live refresh, and the views
+update
 on their own with no manual Refresh.  The refresh **preserves** the user's scope
 (group/detector) and selected step/frame, and inspection launches use a
-**separate** ``ActivityBar`` channel so monitoring messages and viewer feedback
+**separate** channel of the
+:class:`~pypeit.dashboard.view.activity.ActivityBar` so monitoring messages
+and viewer feedback
 never overwrite each other.  The Science view's **Run PypeIt** button launches a
 full ``run_pypeit -o`` through this same lock-governed path.
+
+**One shared log file.**  ``run_pypeit``, ``pypeit_run_to_calibstep``, and
+``pypeit_reduce_by_step`` all share the same default log file,
+``<pypeit_root>.log`` (the ``.pypeit`` file with its suffix replaced), and the
+dashboard launches them **without** a ``--log_file`` argument, so every run it
+starts writes to that shared default — which is exactly the path
+:class:`~pypeit.dashboard.runlock.RunLock` watches
+(:attr:`~pypeit.dashboard.model.DashboardModel.log_path`).  The detection uses
+only the log's **mtime**, never its contents, so it is insensitive to changes
+in the wording of log messages.  It does depend on the log's *name*: a
+terminal run started with a non-default ``--log_file`` is not detected as
+active by the log watcher.
 
 **One shared state file, two writers.**  ``pypeit_run_to_calibstep`` (a
 calibration build) and ``pypeit_reduce_by_step`` (a science step-build) each only
 populate their own portion of ``*_state.json``.  To avoid one blanking the
-other's portion when it writes, both call ``RunPypeItState.merge_from_disk()``
+other's portion when it writes, both call
+:meth:`~pypeit.state.run_state.RunPypeItState.merge_from_disk`
 first — overlaying the existing on-disk calibration **and** science statuses onto
 their fresh state — so a science (re)build keeps the calibration statuses (and
 vice versa).
@@ -172,28 +221,30 @@ the Science products do not yet cover.
 
 .. mermaid::
 
-   flowchart TD
-       subgraph auth["Authoritative: Science/ products"]
-           S2["spec2d_*.fits present"] --> P1["process = findobj = skysub = success<br/>+ per-slit BADSKYSUB/BADEXTRACT"]
-           S1["spec1d_*.fits present"] --> P2["extract = success<br/>+ per-object metrics (S/N, FWHM, ...)"]
-       end
-       subgraph fb["Fallback: Intermediate/ (reduce_by_step)"]
-           IM1["sciImg_* -> process"]
-           IM2["Sky_* -> skysub"]
-           IM3["spec1d_*_all -> findobj"]
-       end
-       P1 --> INFER["process inferred 'success'<br/>if any later step succeeded"]
-       P2 --> INFER
-       fb --> INFER
-       INFER --> ENTRY["ScienceFrameState per (frame, det)"]
+   flowchart LR
+       S2["Science/spec2d_*.fits"] --> P1["process, findobj, skysub = success"]
+       S1["Science/spec1d_*.fits"] --> P2["extract = success"]
+       IM["Intermediate/ files<br/>(sciImg_*, Sky_*, spec1d_*_all)"] --> P3["fill any step the Science<br/>products do not cover"]
+       P1 --> ENTRY["ScienceFrameState<br/>per (frame, det)"]
+       P2 --> ENTRY
+       P3 --> ENTRY
 
-This mirrors the calibration derive and is why a launch on a finished reduction
-shows full science status even with no state file.  See :doc:`/state` for the
+Along the way the per-slit detail (the ``BADSKYSUB`` / ``BADEXTRACT`` slit
+flags, from the ``spec2d`` files) and the per-object metrics (S/N, FWHM, ...,
+from the ``spec1d`` files) are recorded, and a step is inferred ``success``
+whenever a later step succeeded (an extracted frame was necessarily
+processed).  The ``Intermediate/`` files map to the steps that write them:
+``sciImg_*`` → ``process``, ``spec1d_*_all`` → ``findobj``, ``Sky_*`` →
+``skysub``.
+
+This mirrors the way the *calibration* state is derived from the on-disk
+``Calibrations/`` products, and is why a launch on a finished reduction
+shows full science status even with no state file.  See :ref:`state` for the
 state model itself.
 
 See also
 ========
 
-- :doc:`dashboard` — the user-facing guide to the views and controls.
-- :doc:`/state` — the reduction state the dashboard reads.
-- :doc:`/reduce_by_step` — the step-by-step (re)build entry points.
+- :ref:`dashboard` — the user-facing guide to the views and controls.
+- :ref:`state` — the reduction state the dashboard reads.
+- :ref:`step-by-step-reductions` — the step-by-step (re)build entry points.

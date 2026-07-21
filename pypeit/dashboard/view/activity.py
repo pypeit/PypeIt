@@ -1,42 +1,31 @@
 """
-The Dashboard status/activity area (design X4/X5).
+The Dashboard status/activity area.
 
 A status bar — distinct from the PypeIt reduction *state* — that reports what
-the *Dashboard* is doing and when it is waiting on a task, with busy indicators
-for long operations.  It is shared by both tabs and split into **two channels**
-(Stage 5, S5-Q9) so build/monitoring status and user-inspection feedback never
-overwrite each other:
+the Dashboard itself is doing and when it is waiting on a task, with busy
+indicators for long operations.  The bar is shared by all tabs and is split
+into two channels so that build/monitoring status and user-inspection feedback
+never overwrite each other:
 
-* **Build** (left) — (re)build runs and live monitoring of an active reduction.
-* **Inspection** (right) — feedback for user-launched viewers (Inspect output /
-  QA / input frames).
+* **Build** (left) — reports (re)build runs launched from the Dashboard and
+  the live monitoring of an active reduction.
+* **Inspection** (right) — reports feedback for user-launched viewers
+  (inspecting step outputs, QA figures, or input frames).
 """
 
 from qtpy.QtWidgets import QStatusBar, QLabel, QProgressBar
 
 
-def _busy_bar():
-    """
-    Build an indeterminate busy indicator (hidden until shown).
-
-    Returns:
-        ``QProgressBar``: A range-(0,0) spinner, initially hidden.
-    """
-    bar = QProgressBar()
-    bar.setRange(0, 0)               # range (0,0) → indeterminate spinner
-    bar.setMaximumWidth(120)
-    bar.setVisible(False)
-    return bar
-
-
 class ActivityBar(QStatusBar):
     """
     The shared Dashboard status/activity bar with a **Build** and an
-    **Inspection** channel (X4/X5, Stage 5 S5-Q9).
+    **Inspection** channel; see the module docstring for the channel
+    semantics.
 
-    Args:
-        parent (:obj:`QWidget`, optional):
-            The parent widget.
+    Parameters
+    ----------
+    parent : QWidget, optional
+        The parent widget.
     """
 
     def __init__(self, parent=None):
@@ -47,7 +36,7 @@ class ActivityBar(QStatusBar):
         self.addWidget(build_title)
         self._build_msg = QLabel('Idle')
         self.addWidget(self._build_msg, stretch=1)
-        self._build_busy = _busy_bar()
+        self._build_busy = self._busy_bar()
         self.addWidget(self._build_busy)
 
         # Inspection channel (right, permanent): user viewer launches.  Added
@@ -57,8 +46,24 @@ class ActivityBar(QStatusBar):
         self.addPermanentWidget(inspect_title)
         self._inspect_msg = QLabel('—')
         self.addPermanentWidget(self._inspect_msg)
-        self._inspect_busy = _busy_bar()
+        self._inspect_busy = self._busy_bar()
         self.addPermanentWidget(self._inspect_busy)
+
+    @staticmethod
+    def _busy_bar():
+        """
+        Build an indeterminate busy indicator (hidden until shown).
+
+        Returns
+        -------
+        QProgressBar
+            A range-(0,0) spinner, initially hidden.
+        """
+        bar = QProgressBar()
+        bar.setRange(0, 0)               # range (0,0) → indeterminate spinner
+        bar.setMaximumWidth(120)
+        bar.setVisible(False)
+        return bar
 
     # -- Build channel ---------------------------------------------------
 
@@ -66,12 +71,12 @@ class ActivityBar(QStatusBar):
         """
         Show a message on the **Build** channel ((re)build / monitoring).
 
-        Args:
-            message (:obj:`str`): The message to display.
-            busy (:obj:`bool`, optional): Show the build busy indicator.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        message : str
+            The message to display.
+        busy : bool, optional
+            Show the build busy indicator.
         """
         self._build_msg.setText(message)
         self._build_busy.setVisible(busy)
@@ -82,12 +87,12 @@ class ActivityBar(QStatusBar):
         """
         Show a message on the **Inspection** channel (user viewer launches).
 
-        Args:
-            message (:obj:`str`): The message to display.
-            busy (:obj:`bool`, optional): Show the inspection busy indicator.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        message : str
+            The message to display.
+        busy : bool, optional
+            Show the inspection busy indicator.
         """
         self._inspect_msg.setText(message)
         self._inspect_busy.setVisible(busy)
@@ -97,9 +102,6 @@ class ActivityBar(QStatusBar):
     def idle(self):
         """
         Reset both channels to their idle state.
-
-        Returns:
-            None.
         """
         self.set_build('Idle', busy=False)
         self.set_inspection('—', busy=False)
@@ -108,8 +110,10 @@ class ActivityBar(QStatusBar):
         """
         Return the current Build-channel message (used by tests).
 
-        Returns:
-            str: The Build-channel message.
+        Returns
+        -------
+        str
+            The Build-channel message.
         """
         return self._build_msg.text()
 
@@ -117,7 +121,9 @@ class ActivityBar(QStatusBar):
         """
         Return the current Inspection-channel message (used by tests).
 
-        Returns:
-            str: The Inspection-channel message.
+        Returns
+        -------
+        str
+            The Inspection-channel message.
         """
         return self._inspect_msg.text()

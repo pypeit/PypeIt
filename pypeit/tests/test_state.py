@@ -25,6 +25,7 @@ import pytest
 from pydantic import ValidationError
 
 from pypeit.state import run_state
+from pypeit.state import science_status
 from pypeit import PypeItError
 from pypeit.calibrations import Calibrations, MultiSlitCalibrations
 
@@ -651,9 +652,6 @@ def test_run_the_steps_marks_fail_on_exception(tmp_path):
 # -----------------------------------------------------------------------
 # science_status pure helpers (CI-safe; no RAW_DATA / products needed)
 # -----------------------------------------------------------------------
-
-from pypeit.state import science_status
-
 
 def test_science_status_safe_float():
     """

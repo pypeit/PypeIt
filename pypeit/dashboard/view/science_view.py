@@ -1,14 +1,17 @@
 """
-The Science view of the PypeIt Dashboard (Stage 6).
+The Science view of the PypeIt Dashboard.
 
 The science companion to the Calibrations view: a per-frame **table** (one row
-per reduced ``(frame, detector)`` exposure, science and standard, design R15/R18)
-with the four macro-step statuses (``process`` / ``findobj`` / ``skysub`` /
+per reduced ``(frame, detector)`` exposure, science and standard) with the
+four macro-step statuses (``process`` / ``findobj`` / ``skysub`` /
 ``extract``) as color+glyph cells, ``nobj``, and product presence; and a
-per-frame **detail panel** with per-slit and per-object tables plus the product
-viewers and a **(Re)Build** control.  It stays thin: data via the model, colors
-via the palette, commands via ``inspect``, launches via the shared
+per-frame **detail panel** with per-slit and per-object tables plus the
+product viewers and a **(Re)Build** control.  It stays thin: data via the
+model, colors via the palette, commands via
+:mod:`pypeit.dashboard.inspect`, launches via the shared
 :class:`~pypeit.dashboard.launcher.Launcher`.
+
+.. include:: ../include/links.rst
 """
 
 from pathlib import Path
@@ -18,78 +21,52 @@ from qtpy.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QHeaderView, QScrollArea, QAbstractItemView,
                             QMessageBox, QListWidget, QListWidgetItem)
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QColor, QPalette
+from qtpy.QtGui import QColor
 
-from pypeit import log
 from pypeit.dashboard import palette
-from pypeit.dashboard import inspect as dash_inspect
+# Direct function imports: importing the pypeit.dashboard.inspect module by
+# its bare name would shadow the standard-library inspect module.
+from pypeit.dashboard.inspect import (spec2d_command, spec1d_command,
+                                      science_run_command,
+                                      run_pypeit_command,
+                                      science_object_name)
 from pypeit.dashboard.view.qa_dialog import QaImageDialog
-
-# The science macro-steps that get a (Re)Build control, with the prerequisite
-# step whose success enables them (process has none).
-_REBUILD_STEPS = ('process', 'findobj', 'extract')
-_PREREQ = {'process': None, 'findobj': 'process', 'extract': 'findobj'}
-
-# Table columns (Round-3 #2 adds the calibration group + detector columns).
-_COLUMNS = ['Frame', 'Calib', 'Detector', 'Type', 'process', 'findobj',
-            'skysub', 'extract', 'nobj', 'spec2d', 'spec1d']
-_STEP_COLS = ('process', 'findobj', 'skysub', 'extract')
-
-
-def _clear_layout(layout):
-    """
-    Remove and delete every item from a Qt layout.
-
-    Args:
-        layout (``QLayout``): The layout to empty.
-
-    Returns:
-        None.
-    """
-    while layout.count():
-        item = layout.takeAt(0)
-        widget = item.widget()
-        if widget is not None:
-            widget.setParent(None)
-            widget.deleteLater()
-        else:
-            child = item.layout()
-            if child is not None:
-                _clear_layout(child)
-
-
-def _text_on(hexcolor):
-    """
-    Pick a readable text color (black/white) for a background hex color.
-
-    Args:
-        hexcolor (:obj:`str`): Background color, e.g. ``#1565C0``.
-
-    Returns:
-        str: ``'#000000'`` or ``'#FFFFFF'``.
-    """
-    c = QColor(hexcolor)
-    lum = 0.299 * c.redF() + 0.587 * c.greenF() + 0.114 * c.blueF()
-    return '#000000' if lum > 0.6 else '#FFFFFF'
+from pypeit.dashboard.view.util import (text_on, detect_theme, clear_layout,
+                                        fmt_value)
 
 
 class ScienceView(QWidget):
     """
-    The Science tab: a per-frame table + per-frame detail drill-down (R15/R18).
+    The Science tab: a per-frame table + per-frame detail drill-down.
 
-    Args:
-        model (:class:`~pypeit.dashboard.model.DashboardModel`):
-            The reduction-state model.
-        launcher (:class:`~pypeit.dashboard.launcher.Launcher`, optional):
-            Used to launch product viewers and (Re)Build runs.
-        run_lock (:class:`~pypeit.dashboard.runlock.RunLock`, optional):
-            The single-run lock (X1); the (Re)Build controls are disabled while
-            it is locked.
-        on_run_finished (callable, optional):
-            Called as ``on_run_finished(code)`` when a (Re)Build ends.
-        parent (:obj:`QWidget`, optional):
-            The parent widget.
+    Parameters
+    ----------
+    model : :class:`~pypeit.dashboard.model.DashboardModel`
+        The reduction-state model.
+    launcher : :class:`~pypeit.dashboard.launcher.Launcher`, optional
+        Used to launch product viewers and (Re)Build runs.
+    run_lock : :class:`~pypeit.dashboard.runlock.RunLock`, optional
+        The single-run lock; the (Re)Build controls are disabled while it is
+        locked.
+    on_run_finished : callable, optional
+        Called as ``on_run_finished(code)`` when a (Re)Build ends.
+    parent : QWidget, optional
+        The parent widget.
     """
+
+    #: The science macro-steps that get a (Re)Build control.
+    _REBUILD_STEPS = ('process', 'findobj', 'extract')
+
+    #: The prerequisite step whose success enables each (Re)Build step
+    #: (``process`` has none).
+    _PREREQ = {'process': None, 'findobj': 'process', 'extract': 'findobj'}
+
+    #: Columns of the per-frame science table, in display order.
+    _COLUMNS = ('Frame', 'Calib', 'Detector', 'Type', 'process', 'findobj',
+                'skysub', 'extract', 'nobj', 'spec2d', 'spec1d')
+
+    #: The subset of :attr:`_COLUMNS` that are macro-step status cells.
+    _STEP_COLS = ('process', 'findobj', 'skysub', 'extract')
 
     def __init__(self, model, launcher=None, run_lock=None,
                  on_run_finished=None, parent=None):
@@ -103,12 +80,12 @@ class ScienceView(QWidget):
         self._detail = None
         self._selected = None           # (frame, det)
         self._rows = []                 # row index -> (frame, det)
-        # step -> (button, available) for the current detail panel, so the lock
-        # can restyle without a full rebuild.
+        # step -> (button, available) for the current detail panel, so the
+        # lock can restyle without a full rebuild.
         self._rebuild_buttons = {}
         # Column indices of the per-object QA cells (set per detail rebuild).
         self._obj_qa_cols = {}
-        # The view-level "Run PypeIt" button (full reduction; Round-6).
+        # The view-level "Run PypeIt" button (full reduction).
         self._run_pypeit_button = None
         self._run_pypeit_available = False
         self._outer = QVBoxLayout(self)
@@ -120,15 +97,14 @@ class ScienceView(QWidget):
         """
         Swap in a new model and rebuild from scratch.
 
-        Args:
-            model (:class:`~pypeit.dashboard.model.DashboardModel`): New model.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        model : :class:`~pypeit.dashboard.model.DashboardModel`
+            The new model.
         """
         self._model = model
         self._selected = None
-        _clear_layout(self._outer)
+        clear_layout(self._outer)
         self._build()
 
     def refresh(self, model):
@@ -136,16 +112,15 @@ class ScienceView(QWidget):
         Swap in a new model but preserve the selected frame (used by the live
         monitor / completion refresh).
 
-        Args:
-            model (:class:`~pypeit.dashboard.model.DashboardModel`): New model.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        model : :class:`~pypeit.dashboard.model.DashboardModel`
+            The new model.
         """
         prev = self._selected
         self._model = model
         self._selected = None
-        _clear_layout(self._outer)
+        clear_layout(self._outer)
         self._build()
         if prev is not None:
             self._select_pair(prev)
@@ -153,14 +128,14 @@ class ScienceView(QWidget):
     def select_frame(self, frame, det):
         """
         Publicly select a ``(frame, det)`` row (used when the Status-view
-        science navigator activates a frame; Round-1 #1).
+        science navigator activates a frame).
 
-        Args:
-            frame (:obj:`str`): The exposure basename.
-            det: Detector (int) or mosaic.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        frame : str
+            The exposure basename.
+        det : int or tuple
+            Detector (int) or mosaic.
         """
         if self._table is not None:
             self._select_pair((frame, det))
@@ -170,11 +145,8 @@ class ScienceView(QWidget):
     def _build(self):
         """
         Build the view (edge message or the table + detail panel).
-
-        Returns:
-            None.
         """
-        self._theme = self._detect_theme()
+        self._theme = detect_theme(self)
         self._rebuild_buttons = {}
         self._run_pypeit_button = None
         if not self._model.has_science():
@@ -187,7 +159,7 @@ class ScienceView(QWidget):
             self._outer.addStretch(1)
             return
 
-        # The full-reduction "Run PypeIt" action (Round-6), above the table.
+        # The full-reduction "Run PypeIt" action, above the table.
         self._add_run_pypeit_button()
         self._build_table()
 
@@ -199,28 +171,13 @@ class ScienceView(QWidget):
         scroll.setWidget(container)
         self._outer.addWidget(scroll, stretch=1)
 
-        if self._rows:
+        if len(self._rows) > 0:
             self._select_pair(self._rows[0])
-
-    def _detect_theme(self):
-        """
-        Detect light vs dark from the widget palette.
-
-        Returns:
-            str: ``'dark'`` or ``'light'``.
-        """
-        color = self.palette().color(QPalette.Window)
-        lum = (0.299 * color.redF() + 0.587 * color.greenF()
-               + 0.114 * color.blueF())
-        return 'dark' if lum < 0.5 else 'light'
 
     def _build_table(self):
         """
-        Build the per-frame science table (R18): flat ``(frame, det)`` rows
-        with the four step statuses as color+glyph cells (S6-Q4/Q5/Q6).
-
-        Returns:
-            None.
+        Build the per-frame science table: flat ``(frame, det)`` rows with
+        the four step statuses as color+glyph cells.
         """
         heading = QLabel('Science frames')
         heading.setStyleSheet('font-size: 15px; font-weight: bold;')
@@ -229,8 +186,8 @@ class ScienceView(QWidget):
         table = self._model.science_table()
         self._rows = []
         self._table = QTableWidget()
-        self._table.setColumnCount(len(_COLUMNS))
-        self._table.setHorizontalHeaderLabels(_COLUMNS)
+        self._table.setColumnCount(len(self._COLUMNS))
+        self._table.setHorizontalHeaderLabels(list(self._COLUMNS))
         self._table.verticalHeader().setVisible(False)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -244,8 +201,9 @@ class ScienceView(QWidget):
             self._set_table_row(r, row)
         self._table.setMinimumHeight(150)
         # Neutral selected-row fill, so a selected frame never inherits the
-        # desktop theme's (possibly red) Highlight color (Round-1 #2).
+        # desktop theme's (possibly red) Highlight color.
         self._table.setStyleSheet(palette.selection_style(self._theme))
+        # Selecting a row rebuilds the detail panel for that frame.
         self._table.itemSelectionChanged.connect(self._on_selection_changed)
         self._outer.addWidget(self._table, stretch=1)
 
@@ -253,20 +211,21 @@ class ScienceView(QWidget):
         """
         Populate one science table row.
 
-        Args:
-            r (:obj:`int`): Row index.
-            row (`astropy.table.Row`_): A row from :meth:`science_table`.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        r : int
+            Row index.
+        row : `astropy.table.Row`_
+            A row from
+            :meth:`~pypeit.dashboard.model.DashboardModel.science_table`.
         """
         det_name = self._model.det_name(row['detector'])
         cells = {'Frame': str(row['frame']), 'Calib': str(row['calib']),
                  'Detector': det_name, 'Type': str(row['objtype']),
                  'nobj': str(row['nobj']), 'spec2d': str(row['spec2d']),
                  'spec1d': str(row['spec1d'])}
-        for c, col in enumerate(_COLUMNS):
-            if col in _STEP_COLS:
+        for c, col in enumerate(self._COLUMNS):
+            if col in self._STEP_COLS:
                 status = row[col]
                 style = palette.slit_style(status, theme=self._theme)
                 item = QTableWidgetItem(f'{style.glyph} {style.label}')
@@ -282,12 +241,9 @@ class ScienceView(QWidget):
     def _on_selection_changed(self):
         """
         Rebuild the detail panel for the selected row.
-
-        Returns:
-            None.
         """
         rows = self._table.selectionModel().selectedRows()
-        if not rows:
+        if len(rows) == 0:
             return
         idx = rows[0].row()
         if 0 <= idx < len(self._rows):
@@ -298,15 +254,14 @@ class ScienceView(QWidget):
         """
         Select the table row for ``(frame, det)`` (syncs the detail panel).
 
-        Args:
-            pair (:obj:`tuple`): ``(frame, det)``.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        pair : tuple
+            ``(frame, det)``.
         """
         if pair in self._rows:
             self._table.selectRow(self._rows.index(pair))
-        elif self._rows:
+        elif len(self._rows) > 0:
             self._table.selectRow(0)
 
     # -- detail panel ----------------------------------------------------
@@ -314,18 +269,18 @@ class ScienceView(QWidget):
     def _build_detail(self, frame, det):
         """
         Rebuild the detail panel for one science frame: actions + (Re)Build,
-        per-slit table, per-object table.
+        per-slit table, per-object table, and the frame's QA files.
 
-        Args:
-            frame (:obj:`str`): The exposure basename.
-            det: Detector (int) or mosaic.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        frame : str
+            The exposure basename.
+        det : int or tuple
+            Detector (int) or mosaic.
         """
         if self._detail is None:
             return
-        _clear_layout(self._detail)
+        clear_layout(self._detail)
         self._rebuild_buttons = {}
         entry = self._model.science_frame_entry(frame, det)
 
@@ -341,7 +296,7 @@ class ScienceView(QWidget):
         # obj_prof/obj_trace columns open that object's QA PNG instead).
         self._add_object_table(frame, det, entry)
         # All of the frame's QA PNGs (obj_prof/obj_trace + flexure), exposed
-        # like the Calibrations QA list (Round-1 #3, S6-Q15).
+        # like the Calibrations QA list.
         self._add_qa_files(frame, det)
 
         self._detail.addStretch(1)
@@ -350,36 +305,41 @@ class ScienceView(QWidget):
         """
         Add the View-2D button and the per-step (Re)Build controls.
 
-        Args:
-            frame (:obj:`str`): The exposure basename.
-            det: Detector (int) or mosaic.
-            entry: The :class:`ScienceFrameState` (or ``None``).
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        frame : str
+            The exposure basename.
+        det : int or tuple
+            Detector (int) or mosaic.
+        entry : :class:`~pypeit.state.run_state.ScienceFrameState` or None
+            The frame's state entry.
         """
         row = QHBoxLayout()
 
         # View spec2d (the whole 2D image).
-        spec2d = getattr(entry, 'spec2d_file', None) if entry else None
+        spec2d = getattr(entry, 'spec2d_file', None) if entry is not None \
+            else None
         view2d = QPushButton('View spec2d')
-        available2d = bool(spec2d) and self._product_path(spec2d).exists()
+        available2d = spec2d is not None and spec2d != '' \
+            and self._product_path(spec2d).exists()
         view2d.setEnabled(available2d)
         if available2d:
             inspect = palette.inspect_color(self._theme)
             view2d.setStyleSheet(
-                f'background-color: {inspect}; color: {_text_on(inspect)}; '
+                f'background-color: {inspect}; color: {text_on(inspect)}; '
                 f'border-radius: 4px; padding: 4px 10px; font-weight: bold;')
-            argv2d = dash_inspect.spec2d_command(
+            argv2d = spec2d_command(
                 self._product_path(spec2d), det=det)
+            # Launch the spec2d viewer; the lambda swallows Qt's "checked"
+            # bool and binds the command argv.
             view2d.clicked.connect(
                 lambda _c=False, a=argv2d:
                 self._launch(a, 'view spec2d', hint='Ginga window'))
         row.addWidget(view2d)
 
-        # (Re)Build controls (S6-Q6/Q12): one per step, blue + lock-gated,
-        # enabled only when the prerequisite step succeeded.
-        for step in _REBUILD_STEPS:
+        # (Re)Build controls: one per step, blue + lock-gated, enabled only
+        # when the prerequisite step succeeded.
+        for step in self._REBUILD_STEPS:
             row.addWidget(self._build_rebuild_button(frame, det, entry, step))
         row.addStretch(1)
         self._detail.addLayout(row)
@@ -388,13 +348,16 @@ class ScienceView(QWidget):
         """
         Resolve a product filename to its path under ``Science/``.
 
-        Args:
-            name (:obj:`str`): The product basename (or full path).
+        Parameters
+        ----------
+        name : str
+            The product basename (or full path).
 
-        Returns:
-            :obj:`pathlib.Path`: The resolved path.
+        Returns
+        -------
+        `Path`
+            The resolved path.
         """
-        from pathlib import Path
         p = Path(name)
         if p.is_absolute():
             return p
@@ -402,27 +365,35 @@ class ScienceView(QWidget):
 
     def _build_rebuild_button(self, frame, det, entry, step):
         """
-        Build a (Re)Build button for a science step (S6-Q12): blue action when
-        idle, orange + disabled while a run is active; enabled only when its
-        prerequisite step succeeded and a raw frame is known.
+        Build a (Re)Build button for a science step: blue action when idle,
+        orange + disabled while a run is active; enabled only when its
+        prerequisite step succeeded, its calibrations are built, and a raw
+        frame is known.
 
-        Args:
-            frame (:obj:`str`): The exposure basename.
-            det: Detector (int) or mosaic.
-            entry: The :class:`ScienceFrameState` (or ``None``).
-            step (:obj:`str`): ``process`` / ``findobj`` / ``extract``.
+        Parameters
+        ----------
+        frame : str
+            The exposure basename.
+        det : int or tuple
+            Detector (int) or mosaic.
+        entry : :class:`~pypeit.state.run_state.ScienceFrameState` or None
+            The frame's state entry.
+        step : str
+            ``process``, ``findobj``, or ``extract``.
 
-        Returns:
-            ``QPushButton``: The (Re)Build button.
+        Returns
+        -------
+        QPushButton
+            The (Re)Build button.
         """
         button = QPushButton(f'(Re)Build {step}')
-        argv = dash_inspect.science_run_command(self._model, frame, det, step)
-        prereq = _PREREQ[step]
+        argv = science_run_command(self._model, frame, det, step)
+        prereq = self._PREREQ[step]
         prereq_ok = prereq is None or (
             entry is not None and getattr(entry, prereq).status == 'success')
-        # The science (Re)Build is disabled until the frame's calibrations are
-        # built successfully (Round-3 #2): a science step can only run on
-        # finished calibrations.
+        # The science (Re)Build is disabled until the frame's calibrations
+        # are built successfully: a science step can only run on finished
+        # calibrations.
         calib_id = getattr(entry, 'calib_id', None) if entry is not None \
             else None
         calib_ready = self._model.calibrations_ready(calib_id, det)
@@ -439,6 +410,8 @@ class ScienceView(QWidget):
         button.setToolTip(tip)
         self._rebuild_buttons[step] = (button, available)
         if available:
+            # Launch the confirmation + (re)build for this step; the lambda
+            # swallows Qt's "checked" bool and binds the frame/det/step.
             button.clicked.connect(
                 lambda _c=False, f=frame, d=det, s=step:
                 self._on_rebuild(f, d, s))
@@ -451,12 +424,12 @@ class ScienceView(QWidget):
         Style one (Re)Build button for the lock state (blue idle; orange +
         disabled while a run is active; plain-disabled if unavailable).
 
-        Args:
-            step (:obj:`str`): The step whose button to style.
-            locked (:obj:`bool`): Whether a run is in progress.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        step : str
+            The step whose button to style.
+        locked : bool
+            Whether a run is in progress.
         """
         button, available = self._rebuild_buttons.get(step, (None, False))
         if button is None:
@@ -476,19 +449,18 @@ class ScienceView(QWidget):
             button.setText(f'(Re)Build {step}')
             button.setEnabled(True)
         button.setStyleSheet(
-            f'background-color: {color}; color: {_text_on(color)}; '
+            f'background-color: {color}; color: {text_on(color)}; '
             f'border-radius: 4px; padding: 4px 10px; font-weight: bold;')
 
     def set_locked(self, locked):
         """
-        Restyle the (Re)Build controls and the "Run PypeIt" button when the run
-        lock changes (X1).
+        Restyle the (Re)Build controls and the "Run PypeIt" button when the
+        run lock changes.
 
-        Args:
-            locked (:obj:`bool`): Whether a run is in progress.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        locked : bool
+            Whether a run is in progress.
         """
         for step in list(self._rebuild_buttons):
             self._style_rebuild_button(step, locked)
@@ -498,17 +470,14 @@ class ScienceView(QWidget):
 
     def _add_run_pypeit_button(self):
         """
-        Add the view-level **"Run PypeIt"** button (Round-6): launch the full
-        reduction (``run_pypeit -o``) over all science/standard frames, with an
+        Add the view-level **"Run PypeIt"** button: launch the full reduction
+        (``run_pypeit -o``) over all science/standard frames, with an
         overwrite warning, governed by the same single-run lock.
-
-        Returns:
-            None.
         """
         row = QHBoxLayout()
         button = QPushButton('Run PypeIt')
         self._run_pypeit_button = button
-        argv = dash_inspect.run_pypeit_command(self._model)
+        argv = run_pypeit_command(self._model)
         self._run_pypeit_available = argv is not None
         button.setToolTip(
             'Run the full reduction (run_pypeit -o): process all '
@@ -516,6 +485,8 @@ class ScienceView(QWidget):
             if self._run_pypeit_available else
             'Unavailable: no .pypeit file.')
         if self._run_pypeit_available:
+            # Launch the confirmation + full reduction; the lambda swallows
+            # Qt's "checked" bool.
             button.clicked.connect(lambda _c=False: self._on_run_pypeit())
         locked = self._run_lock is not None and self._run_lock.is_locked()
         self._style_run_pypeit_button(locked)
@@ -525,15 +496,15 @@ class ScienceView(QWidget):
 
     def _style_run_pypeit_button(self, locked):
         """
-        Style the "Run PypeIt" button for the lock state: a distinct **indigo**
-        action when idle (set apart from the per-step blue (Re)Build), orange +
-        disabled "⏳ Run in progress" while any run is active.
+        Style the "Run PypeIt" button for the lock state: a distinct
+        **indigo** action when idle (set apart from the per-step blue
+        (Re)Build), orange + disabled "⏳ Run in progress" while any run is
+        active.
 
-        Args:
-            locked (:obj:`bool`): Whether a run is in progress.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        locked : bool
+            Whether a run is in progress.
         """
         button = self._run_pypeit_button
         if button is None:
@@ -555,20 +526,17 @@ class ScienceView(QWidget):
             button.setText('Run PypeIt')
             button.setEnabled(True)
         button.setStyleSheet(
-            f'background-color: {color}; color: {_text_on(color)}; '
+            f'background-color: {color}; color: {text_on(color)}; '
             f'border-radius: 4px; padding: 4px 14px; font-weight: bold;')
 
     def _on_run_pypeit(self):
         """
         Confirm (overwrite warning) and launch the full reduction
-        (``run_pypeit -o``) via the launcher (Round-6).
-
-        Returns:
-            None.
+        (``run_pypeit -o``) via the launcher.
         """
         if self._run_lock is not None and self._run_lock.is_locked():
             return
-        argv = dash_inspect.run_pypeit_command(self._model)
+        argv = run_pypeit_command(self._model)
         if argv is None:
             return
         box = QMessageBox(self)
@@ -588,20 +556,21 @@ class ScienceView(QWidget):
 
     def _on_rebuild(self, frame, det, step):
         """
-        Confirm and launch a science (Re)Build (S6-Q12: re-run with a
-        confirmation; no move-aside).
+        Confirm and launch a science (Re)Build (re-run with a confirmation;
+        no move-aside of the existing products).
 
-        Args:
-            frame (:obj:`str`): The exposure basename.
-            det: Detector (int) or mosaic.
-            step (:obj:`str`): The science step to (re)build.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        frame : str
+            The exposure basename.
+        det : int or tuple
+            Detector (int) or mosaic.
+        step : str
+            The science step to (re)build.
         """
         if self._run_lock is not None and self._run_lock.is_locked():
             return
-        argv = dash_inspect.science_run_command(self._model, frame, det, step)
+        argv = science_run_command(self._model, frame, det, step)
         if argv is None:
             return
         box = QMessageBox(self)
@@ -626,15 +595,15 @@ class ScienceView(QWidget):
         """
         Add the per-slit science table (status + nobj).
 
-        Args:
-            frame (:obj:`str`): The exposure basename.
-            det: Detector (int) or mosaic.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        frame : str
+            The exposure basename.
+        det : int or tuple
+            Detector (int) or mosaic.
         """
         rows = self._model.science_slit_table(frame, det)
-        if not rows:
+        if rows is None or len(rows) == 0:
             return
         self._detail.addWidget(QLabel(f'Per-slit ({len(rows)}):'))
         table = QTableWidget()
@@ -667,24 +636,25 @@ class ScienceView(QWidget):
     def _add_object_table(self, frame, det, entry):
         """
         Add the per-object science table; double-click a row to view that
-        object's 1D spectrum (S6-Q3/Q10).
+        object's 1D spectrum.
 
-        Args:
-            frame (:obj:`str`): The exposure basename.
-            det: Detector (int) or mosaic.
-            entry: The :class:`ScienceFrameState` (or ``None``).
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        frame : str
+            The exposure basename.
+        det : int or tuple
+            Detector (int) or mosaic.
+        entry : :class:`~pypeit.state.run_state.ScienceFrameState` or None
+            The frame's state entry.
         """
         rows = self._model.science_object_table(frame, det)
-        if not rows:
+        if rows is None or len(rows) == 0:
             return
         self._detail.addWidget(QLabel(
             f'Objects ({len(rows)}) — double-click a metric cell for the 1D '
             f'spectrum, or an obj_prof/obj_trace cell for its QA:'))
-        # The obj_prof/obj_trace columns hold this object's per-object QA PNGs
-        # (Round-1 #3, S6-Q15(c)); the metric columns open the 1D spectrum.
+        # The obj_prof/obj_trace columns hold this object's per-object QA
+        # PNGs; the metric columns open the 1D spectrum.
         cols = ['ObjID', 'Slit', 'Spat', 'FWHM', 'snr_find', 's2n', 'sign',
                 'extracted', 'obj_prof', 'obj_trace']
         keys = ['objid', 'slitid', 'spat_pixpos', 'fwhm', 'snr_find', 's2n',
@@ -700,15 +670,16 @@ class ScienceView(QWidget):
         table.setStyleSheet(palette.selection_style(self._theme))
         table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         table.setRowCount(len(rows))
-        spec1d = getattr(entry, 'spec1d_file', None) if entry else None
+        spec1d = getattr(entry, 'spec1d_file', None) if entry is not None \
+            else None
         det_name = self._model.det_name(det)
         for r, row in enumerate(rows):
             for c, key in enumerate(keys):
-                cell = QTableWidgetItem(self._fmt(row.get(key)))
+                cell = QTableWidgetItem(fmt_value(row.get(key)))
                 cell.setTextAlignment(Qt.AlignCenter)
                 # Stash the object name (for --obj) on the first column.
-                if c == 0 and spec1d:
-                    name = dash_inspect.science_object_name(
+                if c == 0 and spec1d is not None:
+                    name = science_object_name(
                         row.get('spat_pixpos'), row.get('slitid'), det_name)
                     cell.setData(Qt.UserRole, name)
                 table.setItem(r, c, cell)
@@ -717,14 +688,17 @@ class ScienceView(QWidget):
                 frame, det, row.get('slitid'))
             for kind in ('obj_prof', 'obj_trace'):
                 path = qa.get(kind)
-                cell = QTableWidgetItem('🔍 view' if path else '—')
+                cell = QTableWidgetItem('🔍 view' if path is not None
+                                        else '—')
                 cell.setTextAlignment(Qt.AlignCenter)
-                if path:
+                if path is not None:
                     cell.setData(Qt.UserRole, str(path))
                     cell.setForeground(
                         QColor(palette.inspect_color(self._theme)))
                 table.setItem(r, self._obj_qa_cols[kind], cell)
         table.setMinimumHeight(120)
+        # Route a double-click to the QA PNG or the 1D-spectrum viewer,
+        # binding the frame's spec1d product.
         table.itemDoubleClicked.connect(
             lambda item, s=spec1d: self._on_object_double_clicked(item, s))
         self._detail.addWidget(table)
@@ -732,47 +706,48 @@ class ScienceView(QWidget):
     def _on_object_double_clicked(self, item, spec1d):
         """
         Handle a double-click in the per-object table: an ``obj_prof`` /
-        ``obj_trace`` cell opens that object's QA PNG (Round-1 #3); any other
-        cell opens the object's 1D spectrum (``pypeit_show_1dspec --obj``).
+        ``obj_trace`` cell opens that object's QA PNG; any other cell opens
+        the object's 1D spectrum (``pypeit_show_1dspec --obj``).
 
-        Args:
-            item (:obj:`QTableWidgetItem`): The clicked cell.
-            spec1d (:obj:`str`): The frame's ``spec1d`` product (or ``None``).
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        item : QTableWidgetItem
+            The clicked cell.
+        spec1d : str or None
+            The frame's ``spec1d`` product.
         """
         # A QA cell (obj_prof/obj_trace) stashes its PNG path → open it.
         if item.column() in self._obj_qa_cols.values():
             png = item.data(Qt.UserRole)
-            if png:
+            if png is not None:
                 QaImageDialog(png, parent=self).show()
             return
         # Otherwise view the object's 1D spectrum (name stashed on column 0).
-        if not spec1d:
+        if spec1d is None or spec1d == '':
             return
         row = item.row()
         name_item = item.tableWidget().item(row, 0)
-        obj_name = name_item.data(Qt.UserRole) if name_item else None
-        argv = dash_inspect.spec1d_command(self._product_path(spec1d),
+        obj_name = name_item.data(Qt.UserRole) if name_item is not None \
+            else None
+        argv = spec1d_command(self._product_path(spec1d),
                                            obj_name=obj_name)
         self._launch(argv, 'view 1D spectrum', hint='plot window')
 
     def _add_qa_files(self, frame, det):
         """
-        Add a QA-file list for the frame (all of its ``obj_prof``/``obj_trace``
-        and ``spec_flex_*`` PNGs), mirroring the Calibrations QA list
-        (Round-1 #3, S6-Q15(d)); double-click opens the PNG full-view.
+        Add a QA-file list for the frame (all of its
+        ``obj_prof``/``obj_trace`` and ``spec_flex_*`` PNGs), mirroring the
+        Calibrations QA list; double-click opens the PNG full-view.
 
-        Args:
-            frame (:obj:`str`): The exposure basename.
-            det: Detector (int) or mosaic.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        frame : str
+            The exposure basename.
+        det : int or tuple
+            Detector (int) or mosaic.
         """
         qa_files = self._model.science_qa_files(frame, det)
-        if not qa_files:
+        if qa_files is None or len(qa_files) == 0:
             return
         self._detail.addWidget(
             QLabel(f'QA files ({len(qa_files)}) — double-click to open:'))
@@ -787,40 +762,23 @@ class ScienceView(QWidget):
             item = QListWidgetItem(label)
             item.setData(Qt.UserRole, str(path))
             listw.addItem(item)
+        # Open the double-clicked QA PNG in the full-view image dialog.
         listw.itemDoubleClicked.connect(
             lambda it: QaImageDialog(it.data(Qt.UserRole), parent=self).show())
         self._detail.addWidget(listw)
-
-    @staticmethod
-    def _fmt(value):
-        """
-        Format a science metric cell.
-
-        Args:
-            value: The value (or ``None``).
-
-        Returns:
-            str: A short string, em-dash for missing.
-        """
-        if value is None:
-            return '—'
-        if isinstance(value, bool):
-            return 'yes' if value else 'no'
-        if isinstance(value, float):
-            return f'{value:.4g}'
-        return str(value)
 
     def _launch(self, argv, description, hint='viewer window'):
         """
         Launch a viewer command via the launcher (no-op if unavailable).
 
-        Args:
-            argv (:obj:`list`): The command argv (or ``None``).
-            description (:obj:`str`): Human description for the activity bar.
-            hint (:obj:`str`, optional): Where the result appears.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        argv : list or None
+            The command argv.
+        description : str
+            Human description for the activity bar.
+        hint : str, optional
+            Where the result appears.
         """
-        if argv and self._launcher is not None:
+        if argv is not None and self._launcher is not None:
             self._launcher.launch(argv, description=description, hint=hint)

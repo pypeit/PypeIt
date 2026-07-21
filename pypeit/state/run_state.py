@@ -16,20 +16,16 @@ log and swallow any error so that state bookkeeping can never abort a run.
 
 .. include:: ../include/links.rst
 """
-from pydantic import BaseModel, Field
+import json
+from pathlib import Path
+
+from pydantic import BaseModel, Field, ValidationError
 from typing import List, Optional, Dict, Literal
 
 import numpy as np
 from astropy import table
 
-# Hopefully this isn't circular
-import os
-import io
-import json
-
 from pypeit import log
-
-from IPython import embed
 
 
 def same_det(det1, det2):
@@ -198,8 +194,7 @@ class AlignCalibState(BaseCalibState):
 # Unlike calibrations (one entry per step), a science exposure is modeled as a
 # single entry per (frame/basename, detector) carrying the four macro-steps of
 # the science reduction (process -> findobj -> skysub -> extract), the data
-# products, and per-slit / per-object detail.  See the dev-suite planning doc
-# (claude_prompts/state_science.md).
+# products, and per-slit / per-object detail.
 # ---------------------------------------------------------------------------
 
 # The ordered macro-steps of a science-frame reduction
@@ -348,8 +343,9 @@ class RunPypeItState(BaseModel):
             str: :attr:`path` if set, else the ``.pypeit`` file name with the
             ``.pypeit`` extension replaced by ``_state.json``.
         """
-        outfile = self.pypeit_file.replace('.pypeit', '_state.json') if self.path is None else self.path
-        return outfile
+        if self.path is not None:
+            return self.path
+        return self.pypeit_file.replace('.pypeit', '_state.json')
 
     def load(self, path:str=None):
         """
@@ -364,9 +360,9 @@ class RunPypeItState(BaseModel):
             :class:`RunPypeItState`: The state validated from the JSON file,
             or ``self`` unchanged if no state file is present.
         """
-        if not os.path.isfile(self.outfile):
+        if not Path(self.outfile).is_file():
             return self
-        print("Loading existing state from {:s}".format(self.outfile))
+        log.info(f'Loading existing state from {self.outfile}')
         with open(self.outfile, 'rt') as fh:
             update_dict = json.load(fh)
         # Return
@@ -375,8 +371,8 @@ class RunPypeItState(BaseModel):
     def merge_from_disk(self):
         """
         Overlay the calibration and science statuses from the existing on-disk
-        state file onto this state, matching entries by ``(calib_id, det)`` and
-        ``(frame, det)``.
+        state file onto this state (which is updated in place), matching
+        entries by ``(calib_id, det)`` and ``(frame, det)``.
 
         A step-runner script (``pypeit_run_to_calibstep`` /
         ``pypeit_reduce_by_step``) starts with a *fresh* state — its
@@ -389,17 +385,18 @@ class RunPypeItState(BaseModel):
         so the subsequent write goes to the same file.  Best-effort: a missing
         or unreadable state file leaves ``self`` unchanged.
 
-        Returns:
-            :class:`RunPypeItState`: ``self`` (updated in place).
+        Returns
+        -------
+        None
         """
-        if not os.path.isfile(self.outfile):
-            return self
+        if not Path(self.outfile).is_file():
+            return
         try:
             with open(self.outfile, 'rt') as fh:
                 prev = RunPypeItState.model_validate(json.load(fh))
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, ValidationError) as e:
             log.warning(f"Could not merge existing state {self.outfile}: {e}")
-            return self
+            return
         # Overlay each calibration step's prior entries (replace a matching
         # (calib_id, det), else append) so prior statuses survive.
         for step in calib_classes:
@@ -417,7 +414,6 @@ class RunPypeItState(BaseModel):
         for prior in prev.science:
             if self.science_entry(prior.frame, prior.det) is None:
                 self.science.append(prior)
-        return self
 
 
 
@@ -451,8 +447,7 @@ class RunPypeItState(BaseModel):
                 per-slit sub-entry rather than the step entry itself.
         """
         # Current step
-        step_changed = self.current_step != step
-        if step_changed:
+        if self.current_step != step:
             self.previous_step = self.current_step
         self.current_step = step
         # Select items so far
@@ -505,7 +500,7 @@ class RunPypeItState(BaseModel):
         """
         json_string = self.model_dump_json(exclude_none=True, indent=4, round_trip=True)
         # Write
-        with io.open(self.outfile, 'w', encoding='utf-8') as f:
+        with open(self.outfile, 'w', encoding='utf-8') as f:
             f.write(json_string)
 
     def safe_write(self):
@@ -519,13 +514,14 @@ class RunPypeItState(BaseModel):
         """
         try:
             self.write()
-            return True
         except Exception as e:
-            # State I/O is non-essential to the reduction: never let it
-            # raise.  Log and carry on.
+            # Deliberately broad: state I/O is non-essential bookkeeping and
+            # must never abort the reduction.  Log and carry on.
             log.warning(f"Failed to write reduction state to {self.outfile}: "
                         f"{e}")
             return False
+        else:
+            return True
 
     def safe_update_calib(self, step:str, calib_id:int, det, key:str, value,
                           slit:str=None):
@@ -552,12 +548,15 @@ class RunPypeItState(BaseModel):
         """
         try:
             self.update_calib(step, calib_id, det, key, value, slit=slit)
-            return True
         except Exception as e:
+            # Deliberately broad: state bookkeeping is non-essential and must
+            # never abort the reduction.  Log and carry on.
             log.warning(f"Failed to update reduction state "
                         f"(step={step}, calib_id={calib_id}, det={det}, "
                         f"key={key}): {e}")
             return False
+        else:
+            return True
 
     # -------------------------------------------------------------------
     # Science-frame state
@@ -632,11 +631,14 @@ class RunPypeItState(BaseModel):
                 getattr(entry, step).status = status
             for key, value in fields.items():
                 setattr(entry, key, value)
-            return entry
         except Exception as e:
+            # Deliberately broad: science-state bookkeeping is non-essential
+            # and must never abort the reduction.  Log and carry on.
             log.warning(f"Failed to update science state "
                         f"(frame={frame}, det={det}, step={step}): {e}")
             return None
+        else:
+            return entry
 
     def get_science_status(self):
         """
@@ -648,7 +650,7 @@ class RunPypeItState(BaseModel):
             `astropy.table.Table`_ or None: None if there are no science
             entries.
         """
-        if not self.science:
+        if self.science is None or len(self.science) == 0:
             return None
         rows = []
         for item in self.science:
@@ -663,8 +665,8 @@ class RunPypeItState(BaseModel):
                 "skysub": item.skysub.status,
                 "extract": item.extract.status,
                 "nobj": item.nobj if item.nobj is not None else "--",
-                "spec2d": "yes" if item.spec2d_file else "--",
-                "spec1d": "yes" if item.spec1d_file else "--",
+                "spec2d": "yes" if item.spec2d_file is not None else "--",
+                "spec1d": "yes" if item.spec1d_file is not None else "--",
             })
         return state_table(rows)
 
@@ -686,11 +688,11 @@ class RunPypeItState(BaseModel):
         """
         # Collect all unique (calib_id, det) pairs across all steps
         pairs = {
-                (item.calib_id, tuple(item.det) if isinstance(item.det, list) else item.det) 
+                (item.calib_id, tuple(item.det) if isinstance(item.det, list) else item.det)
                 for step in calib_classes for item in getattr(self, step)
-                }   
+                }
 
-        if not pairs:
+        if len(pairs) == 0:
             return None
 
         # Build all rows in one pass.  Sort with the detector stringified so
@@ -699,7 +701,9 @@ class RunPypeItState(BaseModel):
         rows = []
         for calib_id, det in sorted(pairs, key=lambda p: (p[0], str(p[1]))):
             for step_name, step_class in calib_classes.items():
-                # Find the matching entry
+                # Find the matching entry: next() returns the first entry in
+                # this step's list matching (calib_id, det), or None if the
+                # step has no entry for this pair.
                 items = getattr(self, step_name)
                 entry = next(
                         (item for item in items if item.calib_id == calib_id and
@@ -709,9 +713,10 @@ class RunPypeItState(BaseModel):
                     "calibration_group": calib_id,
                     "detector": det,
                     "steps": step_name,
-                    "required": str(entry.required) if entry else "--",
-                    "status": entry.status if entry else "--",
-                    "output_file": os.path.basename(entry.output_file) if entry and entry.output_file else "--"
+                    "required": "--" if entry is None else str(entry.required),
+                    "status": "--" if entry is None else entry.status,
+                    "output_file": Path(entry.output_file).name
+                        if entry is not None and entry.output_file is not None else "--"
                 })
 
         # Make a single table
@@ -729,7 +734,7 @@ class RunPypeItState(BaseModel):
         """
         status_tbl = self.get_status()
 
-        print(f'PypeIt Reduction Status: {os.path.basename(self.pypeit_file)}')
+        print(f'PypeIt Reduction Status: {Path(self.pypeit_file).name}')
         print('=' * 70)
 
         if status_tbl is None or len(status_tbl) == 0:

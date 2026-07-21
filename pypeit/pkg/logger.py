@@ -41,10 +41,12 @@ warnings.simplefilter('default', np.exceptions.RankWarning)
 
 # Custom logging level used to broadcast pipeline-progress milestones (e.g. the
 # current calibration step) to listeners such as the PypeIt Dashboard.  It is
-# placed *below* INFO so that these records are silent on a normal console run
-# (the stream handler is set to INFO) but are still captured by any handler
-# listening at DEBUG (e.g. the dashboard's log queue).
-STEP = 15
+# placed *below* DEBUG so that these records never appear in a normal console
+# run: all scripts default to verbosity level 2 (see ScriptBase.get_parser),
+# which sets the stream (and file) handlers to DEBUG.  STEP records are only
+# received by handlers explicitly set to a level at or below STEP (e.g. the
+# dashboard's log queue).
+STEP = 5
 logging.addLevelName(STEP, "STEP")
 
 
@@ -197,8 +199,9 @@ class PypeItLogger(logging.Logger):
         # instance of PypeItLogger.
         self.warnings_logger = logging.getLogger("py.warnings")
 
-        # Set the base level of the logger to DEBUG    
-        self.setLevel(logging.DEBUG)
+        # Set the base level of the logger to the lowest level used (STEP is
+        # below DEBUG), so that level filtering is performed by each handler.
+        self.setLevel(min(STEP, logging.DEBUG))
 
         # Clear handlers before recreating.
         for handler in self.handlers.copy():
@@ -356,35 +359,6 @@ class PypeItLogger(logging.Logger):
             self, name, level, pathname, lineno, msg, args, exc_info, func=func, extra=extra,
             sinfo=sinfo
         )
-    
-
-#    def step(self, msg, *args, **kwargs):
-#        """
-#        Log a pipeline-progress milestone at the custom ``STEP`` level.
-#
-#        These records are emitted below the console level so they do not add
-#        noise to a normal run, but they are propagated to any handler
-#        listening at DEBUG (e.g. the PypeIt Dashboard log queue), where they
-#        drive live status updates.
-#
-#       Parameters
-#        ----------
-#        msg : :obj:`str`
-#            The message to log.  By convention the dashboard expects a
-#            pipe-delimited ``key=value`` payload (e.g.
-#            ``"calib_id=1|det=1|calib_step=arc"``).
-#        args, kwargs
-#            Additional arguments forwarded to the underlying logging call.
-#
-#        Returns
-#        -------
-#        None
-#        """
-#        # Mirror the guard used by the stdlib level methods (debug/info/...)
-#        # so the record is only built when something is listening.
-#        if self.isEnabledFor(STEP):
-#            self._log(STEP, msg, args, **kwargs)
-
 
     def close_file(self):
         """

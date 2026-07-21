@@ -1,35 +1,18 @@
 """
-The shared header banner for the PypeIt Dashboard (design requirement R6).
+The shared header banner for the PypeIt Dashboard.
 
 The banner shows the reduction's context — the ``.pypeit`` file name, the
 spectrograph (``PYP_SPEC``), the setup/configuration ID, the pipeline
 (MultiSlit / Echelle / IFU), and the reduction directory — with the PypeIt
-logo in the top-right corner.  It is shared by both the Status and
-Calibrations views.
+logo in the top-right corner.  It is shared by all of the Dashboard tabs.
 """
 
-from qtpy.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
+from qtpy.QtWidgets import (QHBoxLayout, QVBoxLayout, QGridLayout,
                             QLabel, QFrame, QSizePolicy)
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QPixmap
 
 from pypeit import __version__, dataPaths
-
-# The logo asset shipped with the package (pypeit/data/images).
-_LOGO_PATH = dataPaths.images.path / 'pypeit_logo.png'
-
-# The header fields, in display order: (attribute on HeaderInfo, label text).
-_FIELDS = (('pypeit_file', 'PypeIt file'),
-           ('spectrograph', 'Spectrograph'),
-           ('setup', 'Setup'),
-           ('path', 'Pipeline'),
-           ('redux_dir', 'Reduction dir'))
-
-# Fields whose values can be long (a filename or a full path).  These use an
-# eliding label so they never force a large minimum width on the window
-# (otherwise the long monospace path prevents the window from shrinking
-# horizontally).
-_LONG_FIELDS = ('pypeit_file', 'redux_dir')
 
 
 class ElidingLabel(QLabel):
@@ -38,12 +21,13 @@ class ElidingLabel(QLabel):
     and reports a small minimum width so it never blocks the window from
     being resized narrower.
 
-    Args:
-        mode (``Qt.TextElideMode``, optional):
-            How to elide; defaults to eliding the middle (keeps the start
-            and end of a path visible).
-        parent (:obj:`QWidget`, optional):
-            The parent widget.
+    Parameters
+    ----------
+    mode : Qt.TextElideMode, optional
+        How to elide; defaults to eliding the middle (keeps the start and end
+        of a path visible).
+    parent : QWidget, optional
+        The parent widget.
     """
 
     def __init__(self, mode=Qt.ElideMiddle, parent=None):
@@ -59,11 +43,10 @@ class ElidingLabel(QLabel):
         """
         Store the full text and display an elided version.
 
-        Args:
-            text (:obj:`str`): The full (un-elided) text.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        text : str
+            The full (un-elided) text.
         """
         self._full_text = '' if text is None else str(text)
         self._update_elided()
@@ -72,8 +55,10 @@ class ElidingLabel(QLabel):
         """
         Return the full, un-elided text.
 
-        Returns:
-            str: The stored full text.
+        Returns
+        -------
+        str
+            The stored full text.
         """
         return self._full_text
 
@@ -81,11 +66,10 @@ class ElidingLabel(QLabel):
         """
         Re-elide the text whenever the label is resized.
 
-        Args:
-            event (``QResizeEvent``): The resize event.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        event : QResizeEvent
+            The resize event.
         """
         super().resizeEvent(event)
         self._update_elided()
@@ -93,9 +77,6 @@ class ElidingLabel(QLabel):
     def _update_elided(self):
         """
         Set the displayed text to the full text elided to the current width.
-
-        Returns:
-            None.
         """
         metrics = self.fontMetrics()
         elided = metrics.elidedText(self._full_text, self._elide_mode,
@@ -105,14 +86,32 @@ class ElidingLabel(QLabel):
 
 class HeaderBanner(QFrame):
     """
-    The shared context banner + PypeIt logo (R6).
+    The shared context banner + PypeIt logo.
 
-    Args:
-        header_info (:class:`pypeit.dashboard.model.HeaderInfo`):
-            The reduction metadata to display.
-        parent (:obj:`QWidget`, optional):
-            The parent widget.
+    Parameters
+    ----------
+    header_info : :class:`pypeit.dashboard.model.HeaderInfo`
+        The reduction metadata to display.
+    parent : QWidget, optional
+        The parent widget.
     """
+
+    #: The logo asset shipped with the package (pypeit/data/images).
+    _LOGO_PATH = dataPaths.images.path / 'pypeit_logo.png'
+
+    #: The header fields, in display order: (attribute on
+    #: :class:`~pypeit.dashboard.model.HeaderInfo`, label text).
+    _FIELDS = (('pypeit_file', 'PypeIt file'),
+               ('spectrograph', 'Spectrograph'),
+               ('setup', 'Setup'),
+               ('path', 'Pipeline'),
+               ('redux_dir', 'Reduction dir'))
+
+    #: Fields whose values can be long (a filename or a full path).  These use
+    #: an eliding label so they never force a large minimum width on the
+    #: window (otherwise the long monospace path prevents the window from
+    #: shrinking horizontally).
+    _LONG_FIELDS = ('pypeit_file', 'redux_dir')
 
     def __init__(self, header_info, parent=None):
         super().__init__(parent=parent)
@@ -125,15 +124,15 @@ class HeaderBanner(QFrame):
 
         layout = QHBoxLayout(self)
 
-        # Left: the field grid (label : value), one row per R6 field.
+        # Left: the field grid (label : value), one row per header field.
         grid = QGridLayout()
-        for row, (attr, text) in enumerate(_FIELDS):
+        for row, (attr, text) in enumerate(self._FIELDS):
             name_label = QLabel(f'{text}:')
             name_label.setStyleSheet('font-weight: bold;')
             # Long values (filename, path) use an eliding label so they do
             # not force a large minimum window width; short values use a
             # plain label.
-            if attr in _LONG_FIELDS:
+            if attr in self._LONG_FIELDS:
                 value_label = ElidingLabel()
                 # Monospace for file/dir values, matching the design sketches.
                 value_label.setStyleSheet('font-family: monospace;')
@@ -147,8 +146,8 @@ class HeaderBanner(QFrame):
         grid.setColumnStretch(1, 1)
         layout.addLayout(grid, stretch=1)
 
-        # Right: the PypeIt logo (top-right corner, R6) with the PypeIt
-        # version number underneath it.
+        # Right: the PypeIt logo (top-right corner) with the PypeIt version
+        # number underneath it.
         right = QVBoxLayout()
         self._logo_label = QLabel()
         self._logo_label.setAlignment(Qt.AlignTop | Qt.AlignRight)
@@ -170,14 +169,11 @@ class HeaderBanner(QFrame):
     def _set_logo(self):
         """
         Load and scale the PypeIt logo into the corner label, if present.
-
-        Returns:
-            None.
         """
-        if not _LOGO_PATH.is_file():
+        if not self._LOGO_PATH.is_file():
             # Non-fatal: render without a logo rather than failing startup.
             return
-        pixmap = QPixmap(str(_LOGO_PATH))
+        pixmap = QPixmap(str(self._LOGO_PATH))
         if pixmap.isNull():
             return
         # Constrain the logo height so it stays clear of the banner text.
@@ -186,16 +182,15 @@ class HeaderBanner(QFrame):
 
     def set_header_info(self, header_info):
         """
-        Update the displayed field values from a :class:`HeaderInfo`.
+        Update the displayed field values from a
+        :class:`~pypeit.dashboard.model.HeaderInfo`.
 
-        Args:
-            header_info (:class:`pypeit.dashboard.model.HeaderInfo`):
-                The reduction metadata to display.
-
-        Returns:
-            None.
+        Parameters
+        ----------
+        header_info : :class:`pypeit.dashboard.model.HeaderInfo`
+            The reduction metadata to display.
         """
-        for attr, _ in _FIELDS:
+        for attr, _ in self._FIELDS:
             value = getattr(header_info, attr, None)
             self.value_labels[attr].setText('' if value is None else
-                                             str(value))
+                                            str(value))

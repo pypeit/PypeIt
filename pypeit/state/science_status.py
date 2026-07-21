@@ -5,9 +5,10 @@ Record and derive **science-frame** reduction state for
 This module translates the in-memory products of the science reduction
 (`SpecObjs`, `AllSpec2DObj`, `SlitTraceSet`) — and, when no live state file is
 available, the on-disk products — into the science portion of the reduction
-state.  It is kept separate from :mod:`pypeit.state` (which stays free of
-product imports) and is used both by the live run (``exposure.reduce_exposure``)
-and by the no-state-file *derive* path (the Dashboard and ``pypeit_status``).
+state.  It is kept separate from :mod:`pypeit.state.run_state` (which stays
+free of product imports) and is used both by the live run
+(``exposure.reduce_exposure``) and by the no-state-file *derive* path (the
+Dashboard and ``pypeit_status``).
 
 The science reduction has four macro-steps: ``process`` -> ``findobj`` ->
 ``skysub`` -> ``extract`` (matching ``pypeit_reduce_by_step``).  ``findobj`` and
@@ -22,7 +23,8 @@ do not yet cover.
 from pathlib import Path
 
 from pypeit import log
-from pypeit.state import run_state as pypeit_state
+from pypeit import PypeItError
+from pypeit.state import run_state
 from pypeit import specobjs
 from pypeit import spec2dobj
 from pypeit import pypeit_steps
@@ -80,8 +82,9 @@ def _obj_from_specobj(sobj, extracted):
     """
     slitid = getattr(sobj, 'SLITID', None)
     sign = getattr(sobj, 'sign', None)
-    return pypeit_state.ScienceObj(
-        objid=int(getattr(sobj, 'OBJID', 0) or 0),
+    objid = getattr(sobj, 'OBJID', None)
+    return run_state.ScienceObj(
+        objid=int(objid) if objid is not None else 0,
         slitid=int(slitid) if slitid is not None else None,
         spat_pixpos=_safe_float(getattr(sobj, 'SPAT_PIXPOS', None)),
         fwhm=_safe_float(getattr(sobj, 'FWHM', None)),
@@ -95,108 +98,174 @@ def _slit_status_map(slits, flag):
     """
     Map each slit ``spat_id`` to ``'fail'`` (flag set) or ``'success'``.
 
-    Args:
-        slits (:class:`~pypeit.slittrace.SlitTraceSet`): The slit set.
-        flag (:obj:`str`): Bitmask flag to test (``'BADSKYSUB'`` /
-            ``'BADEXTRACT'``).
+    Parameters
+    ----------
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`
+        The slit set; may be None.
+    flag : str
+        Bitmask flag to test (``'BADSKYSUB'`` / ``'BADEXTRACT'``).
 
-    Returns:
-        :obj:`dict`: ``{spat_id (int): status (str)}``.
+    Returns
+    -------
+    dict
+        ``{spat_id (int): status (str)}``; empty if ``slits`` is None.
     """
-    out = {}
     if slits is None:
-        return out
-    for i, spat in enumerate(slits.spat_id):
-        bad = slits.bitmask.flagged(slits.mask[i], flag=flag)
-        out[int(spat)] = 'fail' if bad else 'success'
-    return out
+        return {}
+    bad = slits.bitmask.flagged(slits.mask, flag=flag)
+    return {int(spat): 'fail' if bad[i] else 'success'
+            for i, spat in enumerate(slits.spat_id)}
 
 
 def _exposure_ids(fitstbl, frames):
     """
     Return the ``(comb_id, bkg_id)`` group IDs for an exposure.
 
-    Args:
-        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
-            The metadata table (indexed by frame row).
-        frames (:obj:`list`):
-            Frame indices combined into this exposure; the first is used.
+    Parameters
+    ----------
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The metadata table (indexed by frame row).
+    frames : list
+        Frame indices combined into this exposure; the first is used.
 
-    Returns:
-        :obj:`tuple`: ``(comb_id, bkg_id)`` as ints, with a negative
-        (unset) value mapped to ``None``; ``(None, None)`` if either column
-        is absent or unreadable.
+    Returns
+    -------
+    tuple
+        ``(comb_id, bkg_id)`` as ints, with a negative (unset) value mapped
+        to ``None``; ``(None, None)`` if either column is absent or
+        unreadable.
     """
     try:
         comb = int(fitstbl['comb_id'][frames[0]])
         bkg = int(fitstbl['bkg_id'][frames[0]])
-        return (comb if comb >= 0 else None, bkg if bkg >= 0 else None)
-    except Exception:
+    except (KeyError, IndexError, TypeError, ValueError):
+        # Either group-ID column may be absent (e.g. a minimal metadata
+        # table) or hold a masked/uncastable value.
         return None, None
+    else:
+        return comb if comb >= 0 else None, bkg if bkg >= 0 else None
 
 
 # ---------------------------------------------------------------------------
 # Live recording (from in-memory products during ``reduce_exposure``)
+#
+# NOTE: these record_* functions are deliberately module-level helpers rather
+# than methods of RunPypeItState: they need the science product classes
+# (SpecObjs, AllSpec2DObj) and pypeit_steps, and run_state.py must stay free
+# of those heavy imports so the pydantic state model remains lightweight and
+# import-cycle free.
 # ---------------------------------------------------------------------------
-def record_process(run_state, spectrograph, fitstbl, frames, detectors,
-                   calib_ID):
+def _exposure_entries(state, spectrograph, fitstbl, frames, detectors,
+                      calib_ID=-1):
     """
-    Mark the ``process`` step ``success`` for each detector of an exposure.
+    Get-or-create the science state entry for each detector of one exposure.
 
-    Args:
-        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to update.
-        spectrograph: The spectrograph object.
-        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`): Metadata table.
-        frames (:obj:`list`): Frame indices combined into this exposure.
-        detectors (:obj:`list`): Detectors/mosaics being reduced.
-        calib_ID (:obj:`int`): Calibration group ID.
+    This is the boilerplate shared by the ``record_*`` functions: for each
+    detector it resolves the exposure basename, object type, and detector
+    name, reads the ``(comb_id, bkg_id)`` group IDs, and gets or creates the
+    matching :class:`~pypeit.state.run_state.ScienceFrameState` entry.
+
+    Parameters
+    ----------
+    state : :class:`~pypeit.state.run_state.RunPypeItState`
+        State to update.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph object.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        Metadata table.
+    frames : list
+        Frame indices combined into this exposure.
+    detectors : list
+        Detectors/mosaics being reduced.
+    calib_ID : int, optional
+        Calibration group ID (only used if the entry must be created).
+
+    Yields
+    ------
+    det : int or tuple
+        The detector or detector mosaic.
+    detname : str
+        The PypeIt detector name (e.g. ``'DET01'``).
+    entry : :class:`~pypeit.state.run_state.ScienceFrameState`
+        The (created or existing) state entry for ``(basename, det)``.
     """
-    if run_state is None:
-        return
     comb_id, bkg_id = _exposure_ids(fitstbl, frames)
     for det in detectors:
         objtype, _, _, basename, _ = pypeit_steps.get_sci_metadata(
             spectrograph, fitstbl, frames[0], det)
-        entry = run_state.add_or_get_science(
+        detname = spectrograph.get_det_name(det)
+        entry = state.add_or_get_science(
             basename, det, calib_id=calib_ID, objtype=objtype,
             comb_id=comb_id, bkg_id=bkg_id)
+        yield det, detname, entry
+
+
+def record_process(state, spectrograph, fitstbl, frames, detectors, calib_ID):
+    """
+    Mark the ``process`` step ``success`` for each detector of an exposure.
+
+    Parameters
+    ----------
+    state : :class:`~pypeit.state.run_state.RunPypeItState`
+        State to update.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph object.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        Metadata table.
+    frames : list
+        Frame indices combined into this exposure.
+    detectors : list
+        Detectors/mosaics being reduced.
+    calib_ID : int
+        Calibration group ID.
+    """
+    if state is None:
+        return
+    # The contributing raw frame(s), recorded so the Dashboard can re-run this
+    # exposure (pypeit_reduce_by_step takes a raw frame, not the basename).
+    # Best-effort provenance: a missing/odd metadata column leaves it unset.
+    try:
+        raw_files = [str(f) for f in fitstbl['filename'][frames]]
+    except (KeyError, IndexError, TypeError):
+        raw_files = None
+    for _, _, entry in _exposure_entries(state, spectrograph, fitstbl, frames,
+                                         detectors, calib_ID=calib_ID):
         entry.process.status = 'success'
-        # Record the contributing raw frame(s) so the Dashboard can re-run this
-        # exposure (pypeit_reduce_by_step takes a raw frame, not the basename).
-        try:
-            entry.raw_files = [str(f) for f in fitstbl['filename'][frames]]
-        except Exception:
-            pass
+        if raw_files is not None:
+            entry.raw_files = list(raw_files)
 
 
-def record_findobj(run_state, spectrograph, fitstbl, frames, detectors,
+def record_findobj(state, spectrograph, fitstbl, frames, detectors,
                    calib_ID, all_specobjs_find, all_slits):
     """
     Record the ``findobj`` and ``skysub`` steps for each detector: status,
     object count, per-object find metrics, and per-slit sky status.
 
-    Args:
-        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to update.
-        spectrograph: The spectrograph object.
-        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`): Metadata table.
-        frames (:obj:`list`): Frame indices of this exposure.
-        detectors (:obj:`list`): Detectors/mosaics being reduced.
-        calib_ID (:obj:`int`): Calibration group ID.
-        all_specobjs_find (:class:`~pypeit.specobjs.SpecObjs`): Objects found
-            across all detectors (selected per detector via ``DET``).
-        all_slits (:obj:`list`): Per-detector ``SlitTraceSet`` (same order as
-            ``detectors``).
+    Parameters
+    ----------
+    state : :class:`~pypeit.state.run_state.RunPypeItState`
+        State to update.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph object.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        Metadata table.
+    frames : list
+        Frame indices of this exposure.
+    detectors : list
+        Detectors/mosaics being reduced.
+    calib_ID : int
+        Calibration group ID.
+    all_specobjs_find : :class:`~pypeit.specobjs.SpecObjs`
+        Objects found across all detectors (selected per detector via
+        ``DET``).
+    all_slits : list
+        Per-detector ``SlitTraceSet`` (same order as ``detectors``).
     """
-    if run_state is None:
+    if state is None:
         return
-    comb_id, bkg_id = _exposure_ids(fitstbl, frames)
-    for i, det in enumerate(detectors):
-        objtype, _, _, basename, _ = pypeit_steps.get_sci_metadata(
-            spectrograph, fitstbl, frames[0], det)
-        detname = spectrograph.get_det_name(det)
-        entry = run_state.add_or_get_science(
-            basename, det, calib_id=calib_ID, objtype=objtype,
-            comb_id=comb_id, bkg_id=bkg_id)
+    for i, (det, detname, entry) in enumerate(
+            _exposure_entries(state, spectrograph, fitstbl, frames, detectors,
+                              calib_ID=calib_ID)):
         entry.findobj.status = 'success'
         entry.skysub.status = 'success'
         # Objects on this detector
@@ -217,37 +286,42 @@ def record_findobj(run_state, spectrograph, fitstbl, frames, detectors,
         slits = all_slits[i] if all_slits is not None and i < len(all_slits) \
             else None
         for spat, status in _slit_status_map(slits, 'BADSKYSUB').items():
-            entry.slits[spat] = pypeit_state.ScienceSlit(
+            entry.slits[spat] = run_state.ScienceSlit(
                 status=status, nobj=per_slit.get(spat, 0))
 
 
-def record_extract(run_state, spectrograph, fitstbl, frames, detectors,
+def record_extract(state, spectrograph, fitstbl, frames, detectors,
                    all_spec2d, all_specobjs_extract, spec1d_file=None,
                    spec2d_file=None):
     """
     Record the ``extract`` step for each detector: status, per-object
     extraction metrics, per-slit extraction status, and product paths.
 
-    Args:
-        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to update.
-        spectrograph: The spectrograph object.
-        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`): Metadata table.
-        frames (:obj:`list`): Frame indices of this exposure.
-        detectors (:obj:`list`): Detectors/mosaics being reduced.
-        all_spec2d (:class:`~pypeit.spec2dobj.AllSpec2DObj`): 2D products
-            (keyed by detector name).
-        all_specobjs_extract (:class:`~pypeit.specobjs.SpecObjs`): Extracted
-            objects across all detectors.
-        spec1d_file (:obj:`str`, optional): Path to the final spec1d file.
-        spec2d_file (:obj:`str`, optional): Path to the final spec2d file.
+    Parameters
+    ----------
+    state : :class:`~pypeit.state.run_state.RunPypeItState`
+        State to update.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph object.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        Metadata table.
+    frames : list
+        Frame indices of this exposure.
+    detectors : list
+        Detectors/mosaics being reduced.
+    all_spec2d : :class:`~pypeit.spec2dobj.AllSpec2DObj`
+        2D products (keyed by detector name).
+    all_specobjs_extract : :class:`~pypeit.specobjs.SpecObjs`
+        Extracted objects across all detectors.
+    spec1d_file : str, optional
+        Path to the final spec1d file.
+    spec2d_file : str, optional
+        Path to the final spec2d file.
     """
-    if run_state is None:
+    if state is None:
         return
-    for det in detectors:
-        _, _, _, basename, _ = pypeit_steps.get_sci_metadata(
-            spectrograph, fitstbl, frames[0], det)
-        detname = spectrograph.get_det_name(det)
-        entry = run_state.add_or_get_science(basename, det)
+    for det, detname, entry in _exposure_entries(state, spectrograph, fitstbl,
+                                                 frames, detectors):
         entry.extract.status = 'success'
         if spec1d_file is not None:
             entry.spec1d_file = str(spec1d_file)
@@ -269,7 +343,9 @@ def record_extract(run_state, spectrograph, fitstbl, frames, detectors,
             all_spec2d is not None and detname in all_spec2d.detectors) \
             else None
         for spat, status in _slit_status_map(slits, 'BADEXTRACT').items():
-            cur = entry.slits.get(spat) or pypeit_state.ScienceSlit()
+            cur = entry.slits.get(spat)
+            if cur is None:
+                cur = run_state.ScienceSlit()
             if status == 'fail':
                 cur.status = 'fail'
             entry.slits[spat] = cur
@@ -299,14 +375,17 @@ def _basename_lookup(fitstbl):
             continue
         try:
             basename = fitstbl.construct_basename(i)
-        except Exception:
+        except (KeyError, ValueError):
+            # Missing metadata column or an unparseable observation time
             continue
         objtype = 'standard' if is_std[i] else 'science'
         try:
             cgrp = fitstbl.find_frame_calib_groups(i)
-            calib_id = int(cgrp[0]) if len(cgrp) else -1
-        except Exception:
+        except (AttributeError, KeyError):
+            # Calibration groups not (yet) set up for this metadata table
             calib_id = -1
+        else:
+            calib_id = int(cgrp[0]) if len(cgrp) > 0 else -1
         comb_id = int(fitstbl['comb_id'][i]) if 'comb_id' in fitstbl.keys() \
             else -1
         out[basename] = (objtype, calib_id, comb_id if comb_id >= 0 else None)
@@ -335,12 +414,11 @@ def _raw_files_by_basename(fitstbl):
             continue
         try:
             basename = fitstbl.construct_basename(i)
-        except Exception:
+            filename = str(fitstbl['filename'][i])
+        except (KeyError, ValueError, IndexError):
+            # Missing metadata column or an unparseable observation time
             continue
-        try:
-            out.setdefault(basename, []).append(str(fitstbl['filename'][i]))
-        except Exception:
-            pass
+        out.setdefault(basename, []).append(filename)
     return out
 
 
@@ -350,8 +428,9 @@ def planned_science_from_fitstbl(fitstbl):
     metadata — one record per exposure, ``{frame, objtype, calib_id, comb_id,
     raw_files}`` — for the Dashboard to seed before any reduction.
 
-    Separated from the seeding so the (expensive) metadata read can be done
-    once and cached, then re-seeded cheaply on later state loads (Round-4).
+    Separated from the seeding (:func:`seed_planned_science_entries`) so the
+    (expensive) metadata read can be done once and cached, then re-seeded
+    cheaply on later state loads.
 
     Args:
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData` or None): Metadata.
@@ -372,13 +451,13 @@ def planned_science_from_fitstbl(fitstbl):
     return out
 
 
-def seed_planned_science_entries(run_state, planned, group_dets):
+def seed_planned_science_entries(state, planned, group_dets):
     """
-    Seed **planned** science/standard frame entries into ``run_state`` from a
+    Seed **planned** science/standard frame entries into ``state`` from a
     precomputed planned-frame list (see :func:`planned_science_from_fitstbl`),
     so the Dashboard's Science view lists upcoming frames *before* they are
     reduced and keeps showing them after a calibration (re)build replaces the
-    state file (Round-3 #2 / Round-4).
+    state file.
 
     One entry is created per ``(frame, detector)``, with all four macro-steps
     left ``undone`` and the contributing raw frame(s) recorded (so the science
@@ -387,16 +466,23 @@ def seed_planned_science_entries(run_state, planned, group_dets):
     backfilling ``raw_files``.  Mosaic detectors are skipped (the derive path
     handles single ``DET..`` detectors only).
 
-    Args:
-        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to populate.
-        planned (:obj:`list`): Planned-frame dicts (``frame``, ``objtype``,
-            ``calib_id``, ``comb_id``, ``raw_files``).
-        group_dets (:obj:`dict`): ``{calib_group: [detector, ...]}`` — the
-            detectors to plan per calibration group (typically the calibration
-            ``(group, det)`` pairs the dashboard already derived).
+    Parameters
+    ----------
+    state : :class:`~pypeit.state.run_state.RunPypeItState`
+        State to populate.
+    planned : list
+        Planned-frame dicts (``frame``, ``objtype``, ``calib_id``,
+        ``comb_id``, ``raw_files``); build one from a metadata table with
+        :func:`planned_science_from_fitstbl`.
+    group_dets : dict
+        ``{calib_group: [detector, ...]}`` — the detectors to plan per
+        calibration group (typically the calibration ``(group, det)`` pairs
+        the dashboard already derived).
 
-    Returns:
-        :class:`~pypeit.state.run_state.RunPypeItState`: The updated state.
+    Returns
+    -------
+    :class:`~pypeit.state.run_state.RunPypeItState`
+        The updated state (modified in place).
     """
     # Fallback detector set: the union across all calibration groups.
     all_dets = []
@@ -405,37 +491,21 @@ def seed_planned_science_entries(run_state, planned, group_dets):
             if det not in all_dets:
                 all_dets.append(det)
     for rec in planned:
-        dets = group_dets.get(rec['calib_id']) or all_dets
+        dets = group_dets.get(rec['calib_id'])
+        if dets is None or len(dets) == 0:
+            dets = all_dets
         for det in dets:
             # Single detectors only (mosaics are not derived from disk yet).
             if isinstance(det, (tuple, list)):
                 continue
-            entry = run_state.add_or_get_science(
+            entry = state.add_or_get_science(
                 rec['frame'], det, calib_id=rec['calib_id'],
                 objtype=rec['objtype'], comb_id=rec.get('comb_id'))
-            if not entry.raw_files and rec.get('raw_files'):
-                entry.raw_files = list(rec['raw_files'])
-    return run_state
-
-
-def seed_planned_science(run_state, fitstbl, group_dets):
-    """
-    Convenience wrapper: compute the planned frames from ``fitstbl`` and seed
-    them (see :func:`planned_science_from_fitstbl` and
-    :func:`seed_planned_science_entries`).
-
-    Args:
-        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to populate.
-        fitstbl (:class:`~pypeit.metadata.PypeItMetaData` or None): Metadata.
-        group_dets (:obj:`dict`): ``{calib_group: [detector, ...]}``.
-
-    Returns:
-        :class:`~pypeit.state.run_state.RunPypeItState`: The updated state.
-    """
-    if fitstbl is None:
-        return run_state
-    return seed_planned_science_entries(
-        run_state, planned_science_from_fitstbl(fitstbl), group_dets)
+            raw_files = rec.get('raw_files')
+            if (entry.raw_files is None or len(entry.raw_files) == 0) \
+                    and raw_files is not None and len(raw_files) > 0:
+                entry.raw_files = list(raw_files)
+    return state
 
 
 def _basename_from_product(path, prefix):
@@ -458,10 +528,10 @@ def _basename_from_product(path, prefix):
     return None
 
 
-def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
+def derive_science_from_disk(state, redux_dir, fitstbl=None,
                              chk_version=False):
     """
-    Populate ``run_state.science`` from the on-disk products, preferring the
+    Populate ``state.science`` from the on-disk products, preferring the
     final Science products and falling back to ``Intermediate/`` files.
 
     Science ``spec2d``/``spec1d`` are authoritative (a present product implies
@@ -475,27 +545,28 @@ def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
         Mosaic (``MSC..``) detectors are not yet handled by the derive path
         (single ``DET..`` detectors only); the live run records mosaics fully.
 
-    Args:
-        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to populate
-            (its existing ``science`` entries are updated/extended in place).
-        redux_dir (:obj:`str`): The reduction directory (containing
-            ``Science/`` and optionally ``Intermediate/``).
-        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`, optional): Used to
-            tag each exposure's ``objtype``/``calib_id``/``comb_id``.
-        chk_version (:obj:`bool`, optional): Strict datamodel version check
-            when reading products.
+    Parameters
+    ----------
+    state : :class:`~pypeit.state.run_state.RunPypeItState`
+        State to populate (its existing ``science`` entries are
+        updated/extended in place).
+    redux_dir : str
+        The reduction directory (containing ``Science/`` and optionally
+        ``Intermediate/``).
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`, optional
+        Used to tag each exposure's ``objtype``/``calib_id``/``comb_id``.
+    chk_version : bool, optional
+        Strict datamodel version check when reading products.
 
-    Returns:
-        :class:`~pypeit.state.run_state.RunPypeItState`: The updated state.
+    Returns
+    -------
+    :class:`~pypeit.state.run_state.RunPypeItState`
+        The updated state (modified in place).
     """
     redux = Path(redux_dir)
     sci_dir = redux / 'Science'
     inter_dir = redux / 'Intermediate'
     lookup = _basename_lookup(fitstbl)
-
-    def _meta(basename):
-        """``(objtype, calib_id, comb_id)`` for ``basename``, with defaults."""
-        return lookup.get(basename, ('science', -1, None))
 
     # --- 1. Science products (authoritative) ---
     # spec2d -> process/findobj/skysub success + per-slit detail
@@ -503,18 +574,18 @@ def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
         basename = _basename_from_product(path, 'spec2d')
         if basename is None:
             continue
-        objtype, calib_id, comb_id = _meta(basename)
+        objtype, calib_id, comb_id = lookup.get(basename, ('science', -1, None))
         try:
             all2d = spec2dobj.AllSpec2DObj.from_fits(str(path),
                                                      chk_version=chk_version)
-        except Exception as e:
+        except (OSError, PypeItError) as e:
             log.warning(f"Could not read {path.name} for science state: {e}")
             continue
         for detname in all2d.detectors:
             det = _det_from_name(detname)
             if det is None:
                 continue
-            entry = run_state.add_or_get_science(
+            entry = state.add_or_get_science(
                 basename, det, calib_id=calib_id, objtype=objtype,
                 comb_id=comb_id)
             entry.spec2d_file = str(path)
@@ -527,7 +598,9 @@ def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
             for spat in sky:
                 status = 'fail' if (sky[spat] == 'fail'
                                     or ext.get(spat) == 'fail') else 'success'
-                cur = entry.slits.get(spat) or pypeit_state.ScienceSlit()
+                cur = entry.slits.get(spat)
+                if cur is None:
+                    cur = run_state.ScienceSlit()
                 cur.status = status
                 entry.slits[spat] = cur
 
@@ -536,11 +609,11 @@ def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
         basename = _basename_from_product(path, 'spec1d')
         if basename is None:
             continue
-        objtype, calib_id, comb_id = _meta(basename)
+        objtype, calib_id, comb_id = lookup.get(basename, ('science', -1, None))
         try:
             sobjs = specobjs.SpecObjs.from_fitsfile(str(path),
                                                     chk_version=chk_version)
-        except Exception as e:
+        except (OSError, PypeItError) as e:
             log.warning(f"Could not read {path.name} for science state: {e}")
             continue
         # Group objects by detector
@@ -551,7 +624,7 @@ def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
                 continue
             by_det.setdefault(det, []).append(sobj)
         for det, det_sobjs in by_det.items():
-            entry = run_state.add_or_get_science(
+            entry = state.add_or_get_science(
                 basename, det, calib_id=calib_id, objtype=objtype,
                 comb_id=comb_id)
             entry.spec1d_file = str(path)
@@ -568,18 +641,19 @@ def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
                 if o.slitid is not None:
                     per_slit[o.slitid] = per_slit.get(o.slitid, 0) + 1
             for spat, n in per_slit.items():
-                cur = entry.slits.get(spat) or pypeit_state.ScienceSlit(
-                    status='success')
+                cur = entry.slits.get(spat)
+                if cur is None:
+                    cur = run_state.ScienceSlit(status='success')
                 cur.nobj = n
                 entry.slits[spat] = cur
 
     # --- 2. Intermediate files (fallback only) ---
     if inter_dir.is_dir():
-        _derive_from_intermediate(run_state, inter_dir, lookup,
+        _derive_from_intermediate(state, inter_dir, lookup,
                                   chk_version=chk_version)
 
     # --- 3. process inference (later step done => process done) ---
-    for entry in run_state.science:
+    for entry in state.science:
         if entry.process.status in ('undone', 'running') and any(
                 getattr(entry, s).status == 'success'
                 for s in ('findobj', 'skysub', 'extract')):
@@ -587,37 +661,34 @@ def derive_science_from_disk(run_state, redux_dir, fitstbl=None,
 
     # --- 4. backfill the contributing raw frame(s) from the metadata, so a
     # derived/older entry (whose products carry no raw-file record) can still
-    # be (re)built via pypeit_reduce_by_step (Round-2 fix). ---
+    # be (re)built via pypeit_reduce_by_step. ---
     raws = _raw_files_by_basename(fitstbl)
-    for entry in run_state.science:
-        if not entry.raw_files and entry.frame in raws:
+    for entry in state.science:
+        no_raw = entry.raw_files is None or len(entry.raw_files) == 0
+        if no_raw and entry.frame in raws:
             entry.raw_files = list(raws[entry.frame])
 
-    return run_state
+    return state
 
 
-def _derive_from_intermediate(run_state, inter_dir, lookup, chk_version=False):
+def _derive_from_intermediate(state, inter_dir, lookup, chk_version=False):
     """
     Fill not-yet-covered steps from ``Intermediate/`` files written by
     ``pypeit_reduce_by_step``: ``sciImg`` -> ``process``,
     ``spec1d_*_all`` -> ``findobj``, ``Sky`` -> ``skysub``.  Science products
-    always win (only steps still ``undone`` are filled).
+    always win (only steps still ``undone``/``running`` are filled).
 
-    Args:
-        run_state (:class:`~pypeit.state.run_state.RunPypeItState`): State to update.
-        inter_dir (:class:`pathlib.Path`): The ``Intermediate/`` directory.
-        lookup (:obj:`dict`): ``{basename: (objtype, calib_id, comb_id)}``.
-        chk_version (:obj:`bool`, optional): Strict version check.
+    Parameters
+    ----------
+    state : :class:`~pypeit.state.run_state.RunPypeItState`
+        State to update.
+    inter_dir : :class:`pathlib.Path`
+        The ``Intermediate/`` directory.
+    lookup : dict
+        ``{basename: (objtype, calib_id, comb_id)}``.
+    chk_version : bool, optional
+        Strict version check.
     """
-    def _meta(basename):
-        """``(objtype, calib_id, comb_id)`` for ``basename``, with defaults."""
-        return lookup.get(basename, ('science', -1, None))
-
-    def _set_if_undone(entry, step):
-        """Mark ``step`` ``success`` only if it is still undone/running."""
-        if getattr(entry, step).status in ('undone', 'running'):
-            getattr(entry, step).status = 'success'
-
     # sciImg_<basename>_<detname>.fits -> process
     for path in sorted(inter_dir.glob('sciImg_*.fits')):
         stem = path.name[len('sciImg_'):-len('.fits')]
@@ -625,10 +696,11 @@ def _derive_from_intermediate(run_state, inter_dir, lookup, chk_version=False):
         basename = stem.rsplit('_', 1)[0]
         if det is None:
             continue
-        objtype, calib_id, comb_id = _meta(basename)
-        entry = run_state.add_or_get_science(basename, det, calib_id=calib_id,
-                                             objtype=objtype, comb_id=comb_id)
-        _set_if_undone(entry, 'process')
+        objtype, calib_id, comb_id = lookup.get(basename, ('science', -1, None))
+        entry = state.add_or_get_science(basename, det, calib_id=calib_id,
+                                         objtype=objtype, comb_id=comb_id)
+        if entry.process.status in ('undone', 'running'):
+            entry.process.status = 'success'
 
     # Sky_<basename>_<detname>.fits -> skysub
     for path in sorted(inter_dir.glob('Sky_*.fits')):
@@ -637,22 +709,24 @@ def _derive_from_intermediate(run_state, inter_dir, lookup, chk_version=False):
         basename = stem.rsplit('_', 1)[0]
         if det is None:
             continue
-        entry = run_state.science_entry(basename, det)
+        entry = state.science_entry(basename, det)
         if entry is None:
-            objtype, calib_id, comb_id = _meta(basename)
-            entry = run_state.add_or_get_science(
+            objtype, calib_id, comb_id = lookup.get(basename,
+                                                    ('science', -1, None))
+            entry = state.add_or_get_science(
                 basename, det, calib_id=calib_id, objtype=objtype,
                 comb_id=comb_id)
-        _set_if_undone(entry, 'skysub')
+        if entry.skysub.status in ('undone', 'running'):
+            entry.skysub.status = 'success'
 
     # spec1d_<basename>_all.fits -> findobj (objects found, not extracted)
     for path in sorted(inter_dir.glob('spec1d_*_all.fits')):
         basename = path.name[len('spec1d_'):-len('_all.fits')]
-        objtype, calib_id, comb_id = _meta(basename)
+        objtype, calib_id, comb_id = lookup.get(basename, ('science', -1, None))
         try:
             sobjs = specobjs.SpecObjs.from_fitsfile(str(path),
                                                     chk_version=chk_version)
-        except Exception as e:
+        except (OSError, PypeItError) as e:
             log.warning(f"Could not read {path.name} for science state: {e}")
             continue
         by_det = {}
@@ -662,13 +736,13 @@ def _derive_from_intermediate(run_state, inter_dir, lookup, chk_version=False):
                 continue
             by_det.setdefault(det, []).append(sobj)
         for det, det_sobjs in by_det.items():
-            entry = run_state.add_or_get_science(
+            entry = state.add_or_get_science(
                 basename, det, calib_id=calib_id, objtype=objtype,
                 comb_id=comb_id)
             if entry.findobj.status in ('undone', 'running'):
                 entry.findobj.status = 'success'
                 # Only fill objects if extract has not already done so
-                if not entry.objects:
+                if entry.objects is None or len(entry.objects) == 0:
                     entry.objects = [_obj_from_specobj(s, extracted=False)
                                      for s in det_sobjs]
                     entry.nobj = len(entry.objects)

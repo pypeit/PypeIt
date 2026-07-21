@@ -1,9 +1,9 @@
 """
-A simple full-view dialog for a QA PNG (design C9).
+A simple full-view dialog for a QA PNG.
 
-Per the Stage 3 decisions it is a basic image window: the PNG is scaled to fit
-a window that is **smaller than the screen** (Round-2 #5), so it opens showing
-the whole figure rather than a zoomed-in crop.
+The dialog is a basic image window: the PNG is scaled to fit a window that is
+smaller than the screen, so it opens showing the whole figure rather than a
+zoomed-in crop.
 """
 
 from pathlib import Path
@@ -18,11 +18,12 @@ class QaImageDialog(QDialog):
     A modeless dialog showing a single QA PNG, scaled to fit a window that is
     smaller than the screen.
 
-    Args:
-        png_path (:obj:`str`, :obj:`pathlib.Path`):
-            Path to the QA PNG.
-        parent (:obj:`QWidget`, optional):
-            The parent widget.
+    Parameters
+    ----------
+    png_path : str or `Path`
+        Path to the QA PNG.
+    parent : QWidget, optional
+        The parent widget.
     """
 
     def __init__(self, png_path, parent=None):
@@ -55,8 +56,10 @@ class QaImageDialog(QDialog):
         """
         Return the maximum image size (~80% of the available screen).
 
-        Returns:
-            tuple: ``(max_width, max_height)`` in pixels.
+        Returns
+        -------
+        tuple
+            ``(max_width, max_height)`` in pixels.
         """
         screen = QApplication.primaryScreen()
         if screen is not None:

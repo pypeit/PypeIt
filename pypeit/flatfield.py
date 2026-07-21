@@ -402,6 +402,74 @@ class FlatImages(calibframe.CalibFrame):
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
+    def correction_images(self, slits):
+        """
+        Reconstruct the flat-field correction images present in this
+        container.
+
+        The set mirrors what :func:`show` displays: the pixel-to-pixel
+        response, the slit (spatial) illumination, and the spectral
+        illumination.  Each image hovers about 1.0, so its mean and scatter
+        characterize the correction.
+
+        Parameters
+        ----------
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
+            Definition of the slit edges, needed to evaluate the spatial
+            illumination profile.
+
+        Returns
+        -------
+        :obj:`dict`
+            Mapping of the correction name (``'pixelflat'``, ``'spat_illum'``,
+            ``'spec_illum'``) to its full-detector image (`numpy.ndarray`_).
+            Empty if ``slits`` is None.
+        """
+        if slits is None:
+            return {}
+        imgs = {}
+        # Pixel-to-pixel response
+        if self.pixelflat_norm is not None:
+            imgs['pixelflat'] = self.pixelflat_norm
+        # Slit (spatial) illumination: prefer the dedicated illumflat
+        # bsplines, else use the pixelflat's (illumination can come from the
+        # pixelflat frames), matching the fit2illumflat / merge precedence.
+        if self.illumflat_spat_bsplines is not None \
+                or self.pixelflat_spat_bsplines is not None:
+            frametype = 'illum' if self.illumflat_spat_bsplines is not None else 'pixel'
+            imgs['spat_illum'] = self.fit2illumflat(slits, frametype=frametype)
+        # Spectral illumination
+        if self.pixelflat_spec_illum is not None:
+            imgs['spec_illum'] = self.pixelflat_spec_illum
+        return imgs
+
+    def qa_files(self, qa_path):
+        """
+        Find the flat-field QA PNGs associated with this calibration.
+
+        Parameters
+        ----------
+        qa_path : :obj:`str`, `Path`_, optional
+            Root of the QA directory (containing the ``PNGs`` subdirectory).
+            Can be None, in which case an empty list is returned.
+
+        Returns
+        -------
+        :obj:`list`
+            Sorted list of QA PNG paths (as strings) for this flat's
+            calibration key.  Empty if QA is disabled or none are found.
+        """
+        if qa_path is None or self.calib_key is None:
+            return []
+        png_dir = Path(qa_path) / 'PNGs'
+        if not png_dir.exists():
+            return []
+        # Flat QA file prefixes (per-slit spatial illumination + detector
+        # structure); match those that carry this calibration's key.
+        prefixes = ('Spatillum_FineCorr', 'DetectorStructure')
+        return sorted(str(p) for p in png_dir.glob('*.png')
+                      if self.calib_key in p.name and p.name.startswith(prefixes))
+
     def show(self, frametype='all', slits=None, wcs_match=True, chk_version=True):
         """
         Simple wrapper to :func:`show_flats`.
@@ -2412,7 +2480,13 @@ def merge(init_cls, merge_cls):
         dd[key] = getattr(init_cls, key) if getattr(merge_cls, key) is None \
                     else getattr(merge_cls, key)
     # Construct the merged class
-    return FlatImages(**dd)
+    merged = FlatImages(**dd)
+    # The FlatImages constructor only sets the datamodel components, dropping
+    # the calibration "internals" (calib_id, calib_key, calib_dir).  Carry them
+    # over -- preferring those of the initial class -- so the merged frame can
+    # still construct its on-disk path (e.g., via get_path()).
+    merged.copy_calib_internals(init_cls if init_cls.calib_key is not None else merge_cls)
+    return merged
 
 
 def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pixelflat_name, to_cache=True):
@@ -2622,13 +2696,5 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
                 nrm_image = None
 
     # Merge the user/archived pixel flat into the existing flat images.
-    merged = merge(flatimages, nrm_image)
-    # merge() rebuilds the object from datamodel fields only, so it drops the
-    # calibration identifiers (calib_key/calib_dir).  Carry them over from the
-    # input so the merged FlatImages can still report its on-disk path (e.g.
-    # via get_path()); otherwise calib_key is None and get_path() raises.
-    if merged is not None and flatimages is not None:
-        merged.calib_key = flatimages.calib_key
-        merged.calib_dir = flatimages.calib_dir
-    return merged
+    return merge(flatimages, nrm_image)
 

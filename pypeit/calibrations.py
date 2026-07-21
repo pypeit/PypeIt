@@ -146,6 +146,25 @@ class Calibrations:
     }
 
     @staticmethod
+    def get_class(spectrograph):
+        """
+        Return the subclass of :class:`Calibrations` appropriate for reducing
+        data from the provided ``spectrograph``.
+
+        Parameters
+        ----------
+        spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+            The spectrograph used to collect the data to be reduced.
+
+        Returns
+        -------
+        :class:`type`
+            The relevant subclass of :class:`Calibrations`.
+        """
+        return MultiSlitCalibrations if spectrograph.pypeline in ['MultiSlit', 'Echelle'] \
+                    else IFUCalibrations
+
+    @staticmethod
     def get_instance(fitstbl, par, spectrograph, caldir, calib_ID:str,
         frame:int, det:int, **kwargs):
         """
@@ -153,10 +172,8 @@ class Calibrations:
         use for reducing data from the provided ``spectrograph``.  For argument
         descriptions, see :class:`Calibrations`.
         """
-        calibclass = MultiSlitCalibrations if spectrograph.pypeline in ['MultiSlit', 'Echelle'] \
-                        else IFUCalibrations
-        return calibclass(fitstbl, par, spectrograph, caldir, calib_ID, frame, det,
-                          **kwargs)
+        return Calibrations.get_class(spectrograph)(fitstbl, par, spectrograph, caldir, calib_ID,
+                                                    frame, det, **kwargs)
 
     def __init__(self, fitstbl, par, spectrograph, caldir, calib_ID:str,
                  frame:int, det:int, qadir=None,
@@ -221,6 +238,10 @@ class Calibrations:
         self.flatimages = None
 
         self.buildwaveTilts = None
+
+        # Raw files used to construct the most recent calibration frame; set by
+        # each get_ method and recorded in the state by the *_state methods.
+        self.raw_files = []
 
         # Steps
         self.steps = self.__class__.default_steps()
@@ -554,7 +575,7 @@ class Calibrations:
         self.alignments.to_file()
         return self.alignments
 
-    def bias_state(self):#, outfile:str):
+    def bias_state(self):
         # Base
         self.base_state('bias', self.msbias)
         # Metrics
@@ -612,13 +633,10 @@ class Calibrations:
         # Save the result
         self.msbias.to_file()
 
-        # State
-        #self.bias_state(self.msbias.get_path())
-
         # Return it
         return self.msbias
 
-    def dark_state(self):#, outfile:str):
+    def dark_state(self):
         # Base
         self.base_state('dark', self.msdark)
         # Metrics
@@ -819,143 +837,106 @@ class Calibrations:
 
         return self.msscattlight
 
-    def _flat_correction_images(self):
-        """
-        Reconstruct the applied flat-field correction images present in the
-        current ``FlatImages`` product.
-
-        The set mirrors what ``FlatImages.show()`` displays: pixel-to-pixel
-        response, slit (spatial) illumination, and spectral illumination.
-        Each image hovers about 1.0, so its mean/scatter characterize the
-        correction.
-
-        Returns:
-            :obj:`dict`: Mapping of correction name (``'pixelflat'``,
-            ``'spat_illum'``, ``'spec_illum'``) to its full-detector image
-            (`numpy.ndarray`_).  Empty if there are no flats or no slits.
-        """
-        fi = self.flatimages
-        if fi is None or self.slits is None:
-            return {}
-        imgs = {}
-        # Pixel-to-pixel response
-        if fi.pixelflat_norm is not None:
-            imgs['pixelflat'] = fi.pixelflat_norm
-        # Slit (spatial) illumination: prefer the dedicated illumflat
-        # bsplines, else use the pixelflat's (illumination can come from the
-        # pixelflat frames), matching fit2illumflat / merge precedence.
-        if fi.illumflat_spat_bsplines is not None \
-                or fi.pixelflat_spat_bsplines is not None:
-            ft = 'illum' if fi.illumflat_spat_bsplines is not None else 'pixel'
-            imgs['spat_illum'] = fi.fit2illumflat(self.slits, frametype=ft)
-        # Spectral illumination
-        if fi.pixelflat_spec_illum is not None:
-            imgs['spec_illum'] = fi.pixelflat_spec_illum
-        return imgs
-
-    def _flat_qa_files(self):
-        """
-        Find the flat-field QA PNGs associated with this calibration.
-
-        Returns:
-            :obj:`list`: Sorted list of QA PNG paths (as strings) for this
-            flat's calibration key.  Empty if QA is disabled or none found.
-        """
-        if self.qa_path is None or self.flatimages is None:
-            return []
-        key = getattr(self.flatimages, 'calib_key', None)
-        png_dir = Path(self.qa_path) / 'PNGs'
-        if key is None or not png_dir.exists():
-            return []
-        # Flat QA file prefixes (per-slit spatial illumination + detector
-        # structure); match those that carry this calibration's key.
-        prefixes = ('Spatillum_FineCorr', 'DetectorStructure')
-        return sorted(str(p) for p in png_dir.glob('*.png')
-                      if key in p.name and p.name.startswith(prefixes))
-
     def flats_state(self):
         """
-        Record the flat-field state: status, output/input files, pixel-flat
-        provenance, which corrections are present, the flat QA files, and a
-        per-slit status with per-correction mean/RMS metrics.
+        Record the flat-field calibration state.
+
+        This records the step status and the output file, the input files and
+        pixel-flat provenance (see :func:`_flats_state_files`), the set of
+        flat-field corrections present in the product and its QA files, and
+        the per-slit status and metrics (see :func:`_flats_state_per_slit`).
         """
         if self.state is None:
             return
-        cid, det = self.calib_ID, self.det
         if self.flatimages is None:
-            self.state.update_calib('flats', cid, det, 'status', 'undone')
+            self.state.update_calib('flats', self.calib_ID, self.det, 'status', 'undone')
             return
-        # Status + output file
+        # Status, output file, input files, and pixel-flat provenance
+        self._flats_state_files()
+        # Reconstruct the correction images present in the product and record
+        # which they are.
+        corrections = {} if self.slits is None \
+                        else self.flatimages.correction_images(self.slits)
+        if corrections:
+            self.state.update_calib('flats', self.calib_ID, self.det, 'corrections',
+                                    list(corrections.keys()))
+        # QA files
+        qa_files = self.flatimages.qa_files(self.qa_path)
+        if qa_files:
+            self.state.update_calib('flats', self.calib_ID, self.det, 'qa_files', qa_files)
+        # Per-slit status and metrics
+        if self.slits is not None:
+            self._flats_state_per_slit(corrections)
+
+    def _flats_state_files(self):
+        """
+        Record the flat-field status, output file, input files (grouped by
+        their role), and the pixel-flat provenance in the state.
+
+        The input-file groups and the pixel-flat provenance are stashed by
+        :func:`get_flats` in :attr:`_flat_input_files` and
+        :attr:`_pixelflat_source`, respectively.
+        """
+        cid, det = self.calib_ID, self.det
         self.state.update_calib('flats', cid, det, 'status', 'success')
-        # Get the output path defensively: a FlatImages merged from a
-        # user/archived pixelflat may lack calib_key, so get_path() can raise;
-        # never let that abort the rest of the state recording.
+        # A FlatImages merged from a user/archived pixel flat may lack its
+        # calibration key, in which case get_path() raises.
         try:
             out_path = self.flatimages.get_path()
-        except Exception as e:
-            log.warning(f"Could not determine flat output path for state: {e}")
-            out_path = None
-        if out_path is not None:
+        except PypeItError as e:
+            log.warning(f'Could not determine the flat output path for the state: {e}')
+        else:
             self.state.update_calib('flats', cid, det, 'output_file', out_path)
-        # Input files: grouped by role plus a de-duplicated union for the
-        # generic input list.  (Stashed by get_flats.)
+        # Input files grouped by role, plus their de-duplicated union as the
+        # generic input-file list.
         inputs = getattr(self, '_flat_input_files', None) or {}
-        pix = inputs.get('pixelflat') or []
-        ill = inputs.get('illumflat') or []
-        lamp = inputs.get('lampoff') or []
-        if pix:
-            self.state.update_calib('flats', cid, det, 'pixelflat_files', pix)
-        if ill:
-            self.state.update_calib('flats', cid, det, 'illumflat_files', ill)
-        if lamp:
-            self.state.update_calib('flats', cid, det, 'lampoff_files', lamp)
-        union = list(dict.fromkeys([*pix, *ill, *lamp]))
+        for role in ['pixelflat', 'illumflat', 'lampoff']:
+            if inputs.get(role):
+                self.state.update_calib('flats', cid, det, f'{role}_files', inputs[role])
+        union = list(dict.fromkeys(f for role in ['pixelflat', 'illumflat', 'lampoff']
+                                     for f in inputs.get(role) or []))
         if union:
             self.state.update_calib('flats', cid, det, 'input_files', union)
         # Pixel-flat provenance
         source = getattr(self, '_pixelflat_source', None)
         if source is not None:
-            self.state.update_calib('flats', cid, det, 'pixelflat_source',
-                                    source)
-        # Which corrections are present + per-slit metrics
-        corr_imgs = self._flat_correction_images()
-        if corr_imgs:
-            self.state.update_calib('flats', cid, det, 'corrections',
-                                    list(corr_imgs.keys()))
-        # QA files
-        qa_files = self._flat_qa_files()
-        if qa_files:
-            self.state.update_calib('flats', cid, det, 'qa_files', qa_files)
-        # Per-slit status + per-correction mean/RMS
-        if self.slits is None:
-            return
+            self.state.update_calib('flats', cid, det, 'pixelflat_source', source)
+
+    def _flats_state_per_slit(self, corrections):
+        """
+        Record the per-slit flat-field status and correction metrics in the
+        state.
+
+        Parameters
+        ----------
+        corrections : :obj:`dict`
+            Flat-field correction images; see
+            :func:`~pypeit.flatfield.FlatImages.correction_images`.  For each
+            slit, the mean and RMS of each correction image over the good,
+            on-slit pixels are recorded.
+        """
+        cid, det = self.calib_ID, self.det
         slitid_img = self.slits.slit_img()
         for islit, spat in enumerate(self.slits.spat_id):
             spat = int(spat)
             # Status from the slit bitmask (mirrors wv_calib/tilts)
-            if self.slits.bitmask.flagged(self.slits.mask[islit],
-                                          flag='BADFLATCALIB'):
+            if self.slits.bitmask.flagged(self.slits.mask[islit], flag='BADFLATCALIB'):
                 slit_status = 'fail'
-            elif self.slits.bitmask.flagged(self.slits.mask[islit],
-                                            flag='SKIPFLATCALIB'):
+            elif self.slits.bitmask.flagged(self.slits.mask[islit], flag='SKIPFLATCALIB'):
                 slit_status = 'skip'
             else:
                 slit_status = 'success'
-            self.state.update_calib('flats', cid, det, 'status', slit_status,
-                                    slit=spat)
-            # Per-correction mean/RMS over this slit's good, on-slit pixels
+            self.state.update_calib('flats', cid, det, 'status', slit_status, slit=spat)
+            # Mean/RMS of each correction image over this slit's good pixels
             onslit = slitid_img == spat
             metrics = {}
-            for name, img in corr_imgs.items():
+            for name, img in corrections.items():
                 good = onslit & np.isfinite(img)
-                if not np.any(good):
-                    continue
-                metrics[name] = FlatCorrectionMetric(
-                    mean=float(np.mean(img[good])),
-                    rms=float(np.std(img[good])))
+                if np.any(good):
+                    metrics[name] = FlatCorrectionMetric(mean=float(np.mean(img[good])),
+                                                         rms=float(np.std(img[good])))
             if metrics:
-                self.state.update_calib('flats', cid, det, 'corrections',
-                                        metrics, slit=spat)
+                self.state.update_calib('flats', cid, det, 'corrections', metrics, slit=spat)
 
     def get_flats(self, force:str=None):
         """
@@ -1243,7 +1224,7 @@ class Calibrations:
             return
         self.state.update_calib('slits', self.calib_ID, self.det,
                                 'nslits', self.slits.nslits)
-        # Slit/order QA (e.g. the echelle order-prediction figure; Stage 3b).
+        # Slit/order QA (e.g. the echelle order-prediction figure).
         qa_files = self._slits_qa_files()
         if qa_files:
             self.state.update_calib('slits', self.calib_ID, self.det,
@@ -1378,9 +1359,6 @@ class Calibrations:
         edges = None
         self.slits.to_file()
 
-        # State
-        #self.slits_state(self.slits.get_path())
-
         if self.user_slits is not None:
             self.slits.user_mask(detname, self.user_slits)
         return self.slits
@@ -1403,7 +1381,7 @@ class Calibrations:
             return []
         # The wavelength 1D fit + FWHM figures, the echelle 2D-fit figures
         # (Arc_2dfit_global / Arc_2dfit_orders), and the arc-line tilt figures
-        # (the user groups Arc_tilts_* under wv_calib too; Round-2 #7, 3b).
+        # (Arc_tilts_* are grouped under wv_calib as well).
         prefixes = ('Arc_1dfit', 'Arc_FWHMfit', 'Arc_2dfit', 'Arc_tilts')
         return sorted(str(p) for p in png_dir.glob('*.png')
                       if key in p.name and p.name.startswith(prefixes))
@@ -1412,7 +1390,7 @@ class Calibrations:
         self.base_state('wv_calib', self.wv_calib)
         if self.wv_calib is None or self.slits is None:
             return
-        # Record the wavelength QA PNGs for the dashboard (C9).
+        # Record the wavelength QA PNGs for the dashboard.
         qa_files = self._wv_calib_qa_files()
         if qa_files:
             self.state.update_calib('wv_calib', self.calib_ID, self.det,
@@ -1491,7 +1469,6 @@ class Calibrations:
 
             # Return
             if self.par['wavelengths']['redo_slits'] is None:
-                #self.wv_calib_state()
                 return self.wv_calib
 
         # Determine lamp list to use for wavecalib
@@ -1524,13 +1501,10 @@ class Calibrations:
         # Save calibration frame
         self.wv_calib.to_file()
 
-        # State
-        #self.wvcalib_state(self.wv_calib.get_path())
-
         # Return
         return self.wv_calib
 
-    def tilts_state(self):#, buildTilts, outfile:str):
+    def tilts_state(self):
         self.base_state('tilts', self.wavetilts)
 
         # Update
@@ -1618,9 +1592,6 @@ class Calibrations:
         self.wavetilts = self.buildwaveTilts.run(doqa=self.write_qa, show=self.show)
         self.wavetilts.to_file()
 
-        # State
-        #self.tilts_state(buildwaveTilts, self.wavetilts.get_path())
-
         return self.wavetilts
 
     def process_load_selection(self, frame, cal_file, force):
@@ -1677,8 +1648,8 @@ class Calibrations:
         # State (use the safe_* wrappers so state I/O can never abort a run).
         # A status-only pass is a *read* (e.g. the Dashboard deriving status on
         # launch): it must not write the state file, or it would leave the
-        # last step marked 'running' / current_step set (Stage 5 R2, S5-Q12
-        # option A).  Only a real run persists state.
+        # last step marked 'running' / current_step set.  Only a real run
+        # persists state.
         if self.state is not None:
             self.state.current_det = self.det
             self.state.current_calibID = self.calib_ID
@@ -1698,8 +1669,8 @@ class Calibrations:
             # Run the step
             if self.state is not None:
                 self.state.safe_update_calib(step, self.calib_ID, self.det, 'status', 'running')
-                # Skip the 'running' write for a status-only read (S5-Q12 A);
-                # a real run writes it as the live-monitoring feed.
+                # Skip the 'running' write for a status-only read; a real run
+                # writes it as the live-monitoring feed.
                 if not status_only:
                     self.state.safe_write()
             try:
@@ -1708,10 +1679,10 @@ class Calibrations:
                 # A step that raises (an unrecoverable error mid-build, e.g. a
                 # PypeItError thrown deep in get_flats) must not leave the state
                 # stuck at 'running': otherwise the Dashboard / pypeit_status
-                # would keep showing the step as in-progress (orange) forever,
-                # even though the run has died (bug report 000).  Mark it 'fail'
-                # and persist so the failure is visible, then re-raise so the
-                # run still aborts with a non-zero exit code.
+                # would keep showing the step as in-progress forever, even
+                # though the run has died.  Mark it 'fail' and persist so the
+                # failure is visible, then re-raise so the run still aborts
+                # with a non-zero exit code.
                 if self.state is not None:
                     self.state.safe_update_calib(step, self.calib_ID, self.det,
                                                  'status', 'fail')
@@ -1725,9 +1696,9 @@ class Calibrations:
                     # A step can be "not successful" two ways: a genuine build
                     # failure (-> 'fail'), or — in reload/status-only mode — a
                     # calibration that simply has not been built yet (its file
-                    # is missing; see _reload_or_remake).  The latter is
+                    # is missing; see process_load_selection).  The latter is
                     # 'undone' (required-but-not-done in the Dashboard), not a
-                    # failure (Stage 5 R1 #1).
+                    # failure.
                     # NOTE: must match the BaseCalibState.status Literal
                     # ('fail'/'undone', not 'failed') or the file fails to
                     # reload.
@@ -2113,55 +2084,50 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     pass_calib = True
     # Find the science frames
     is_science = fitstbl.find_frames('science')
-    # Frame indices
-    frame_indx = np.arange(len(fitstbl))
 
     for calib_ID in fitstbl.calib_groups:
         in_grp = fitstbl.find_calib_group(calib_ID)
         if not np.any(is_science & in_grp & cut_cfg):
             continue
-        grp_science = frame_indx[is_science & in_grp & cut_cfg]
-        u_combid = np.unique(fitstbl['comb_id'][grp_science])
-        # TODO It does not appear comb_id is used for anything
-        #   Maybe remove this for loop?
-        for j, comb_id in enumerate(u_combid):
-            frames = np.where(fitstbl['comb_id'] == comb_id)[0]
-            # Arc, tilt, science
-            for ftype in ['arc', 'tilt', 'science', 'trace']:
+        # NOTE: These checks only depend on the calibration group, so there is
+        # no need to repeat them for each combination group (comb_id) of
+        # science frames.
+        # Arc, tilt, science
+        for ftype in ['arc', 'tilt', 'science', 'trace']:
+            rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
+            if len(rows) == 0:
+                # Fail
+                msg = f'No frames of type={ftype} provided. Add them to your PypeIt file ' \
+                      'if this is a standard run!'
+                pass_calib = False
+                if raise_error:
+                    raise PypeItError(msg)
+                else:
+                    log.warning(msg)
+
+        # Explore science frame
+        for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat',
+                               'use_illumflat'], ['bias', 'dark', 'pixelflat', 'illumflat']):
+            if par['scienceframe']['process'][key]:
                 rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                 if len(rows) == 0:
-                    # Fail
-                    msg = f'No frames of type={ftype} provided. Add them to your PypeIt file ' \
-                          'if this is a standard run!'
+                    # Allow for pixelflat inserted
+                    if ftype == 'pixelflat' \
+                            and par['calibrations']['flatfield']['pixelflat_file'] is not None:
+                        continue
+                    # Allow for no pixelflat but slitless_pixflat needs to exist
+                    elif ftype == 'pixelflat' \
+                            and len(fitstbl.find_frame_files('slitless_pixflat', calib_ID=calib_ID)) > 0:
+                        continue
+                    # Otherwise fail
+                    add_msg = ' or slitless_pixflat' if ftype == 'pixelflat' else ''
+                    msg = f'No frames of type={ftype}{add_msg} provided for the *{key}* processing ' \
+                          'step. Add them to your PypeIt file!'
                     pass_calib = False
                     if raise_error:
                         raise PypeItError(msg)
                     else:
                         log.warning(msg)
-
-            # Explore science frame
-            for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat',
-                                   'use_illumflat'], ['bias', 'dark', 'pixelflat', 'illumflat']):
-                if par['scienceframe']['process'][key]:
-                    rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
-                    if len(rows) == 0:
-                        # Allow for pixelflat inserted
-                        if ftype == 'pixelflat' \
-                                and par['calibrations']['flatfield']['pixelflat_file'] is not None:
-                            continue
-                        # Allow for no pixelflat but slitless_pixflat needs to exist
-                        elif ftype == 'pixelflat' \
-                                and len(fitstbl.find_frame_files('slitless_pixflat', calib_ID=calib_ID)) > 0:
-                            continue
-                        # Otherwise fail
-                        add_msg = ' or slitless_pixflat' if ftype == 'pixelflat' else ''
-                        msg = f'No frames of type={ftype}{add_msg} provided for the *{key}* processing ' \
-                              'step. Add them to your PypeIt file!'
-                        pass_calib = False
-                        if raise_error:
-                            raise PypeItError(msg)
-                        else:
-                            log.warning(msg)
 
     if pass_calib:
         log.info("Congrats!!  You passed the calibrations inspection!!")
@@ -2205,11 +2171,9 @@ def required_calibs(par, fitstbl, spectrograph, run_state):
     Returns:
         :class:`~pypeit.state.run_state.RunPypeItState`: The updated state object.
     """
-    # Determine which calibration class to use for the step list
-    if spectrograph.pypeline in ['MultiSlit', 'Echelle']:
-        steps = MultiSlitCalibrations.default_steps()
-    else:
-        steps = IFUCalibrations.default_steps()
+    # Get the step list from the Calibrations subclass appropriate for this
+    # spectrograph (the same selection made by Calibrations.get_instance).
+    steps = Calibrations.get_class(spectrograph).default_steps()
 
     # Find detectors
     detectors = spectrograph.select_detectors(
