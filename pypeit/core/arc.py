@@ -804,7 +804,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
         #frac_mask = np.sum(np.logical_not(cont_mask))/float(nspec)
         nmask = np.sum(np.logical_not(peak_mask[gpm]))
         if nmask > max_nmask:
-            log.warning('Too many pixels {:d} masked in spectrum continuum definiton: frac_mask = {:5.3f} > {:5.3f} which is '
+            log.warning('Too many pixels {:d} masked in spectrum continuum definition: frac_mask = {:5.3f} > {:5.3f} which is '
                       'max allowed. Only masking the {:d} largest values....'.format(nmask, nmask/nspec_available, max_mask_frac, max_nmask))
             # Old
             #cont_mask = np.ones_like(cont_mask) & gpm
