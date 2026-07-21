@@ -23,6 +23,10 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- Added the ``lamps_wvrng`` wavelength-calibration parameter, which restricts
+  the lines used from each entry in ``lamps`` to a wavelength range.  This
+  allows a subset of a shipped line list to be used without copying the file.
+
 - Added a new ``Fiber`` pypeline for fiber-fed spectrographs, where each fiber
   is treated as a distinct object without peak-detection object finding.  The
   pypeline dispatch system (``FiberFindObjects``, ``FiberExtract``) follows the
@@ -41,6 +45,13 @@ Functionality/Performance Improvements and Additions
 
 Instrument-specific Updates
 ---------------------------
+
+- P200/NGPS ``u`` channel: support He dome-lamp frames (``IMGTYPE=DOMEHE``) as a
+  second arc lamp.  The internal ThAr lamp has no detectable lines below
+  ~3490 A, leaving the wavelength solution extrapolated over 3050-3490 A.  Each
+  arc frame is now blanked outside the band its own lamp illuminates, so the
+  stock masked combine builds the master arc from He frames alone below 3400 A
+  and ThAr frames alone above it.  Nights without DOMEHE frames are unaffected.
 
 - Added support for the MMT Binospec IFU (``mmt_binospec_ifu``), a fiber-fed
   integral field unit with ~360 fibers per detector side.  This introduces the
