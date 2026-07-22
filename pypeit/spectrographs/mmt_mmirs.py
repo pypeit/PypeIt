@@ -40,8 +40,11 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     supported = True
 
     # Up-the-ramp fitting configuration
-    ramp_sig_guess = 15.0
-    """Initial guess for the single-read noise in electrons."""
+    ramp_sig_guess = 11.0
+    """Initial guess for the single-read noise in electrons.  This is the
+    measured per-read noise at gain=1, from the MMIRS instrument statistics
+    (https://lweb.cfa.harvard.edu/mmti/mmirs/instrstats.html); the value
+    used by the fit is refined from darks or self-calibrated per frame."""
     ramp_sig_range = (3.0, 50.0)
     """Allowed range for the calibrated single-read noise (electrons)."""
     ramp_min_dark_groups = 10
@@ -832,7 +835,7 @@ def mmirs_ramp_diffs(reads, covar):
     return diffs
 
 
-def mmirs_calibrate_sigma(diffs, covar, sig_guess=15.0, nrows=200):
+def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200):
     """
     Calibrate the single-read noise from ramp differences.
 

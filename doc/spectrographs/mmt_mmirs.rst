@@ -27,7 +27,10 @@ The single-read noise needed by the fit is calibrated from a dark frame
 listed in the :ref:`pypeit_file` when one with at least 10 reads is
 available (include darks in your raw-data directory when running
 :ref:`pypeit_setup` to enable this); otherwise it is self-calibrated from
-each frame by rescaling the fit chi-squared.  The effective read noise of
+each frame by rescaling the fit chi-squared.  Both start from the measured
+per-read noise of 11 e- (at gain 1) reported on the `MMIRS instrument
+statistics page
+<https://lweb.cfa.harvard.edu/mmti/mmirs/instrstats.html>`__.  The effective read noise of
 the fitted image, ``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is
 propagated to the detector parameters.
 
