@@ -379,6 +379,158 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     return sky_bmodel, obj_bmodel, gpm
 
 
+def skyoptimal_refactor(piximg, data, ivar, oprof, localmask, sigrej=3.0, npoly=1,
+                         spatial_img=None, fullbkpt=None):
+    """
+    Utility routine used by local_skysub_extract that performs the joint
+    b-spline fit for sky-background and object flux.
+
+    This is a refactored version of :func:`skyoptimal` that accepts
+    native-shape arrays (e.g. shape ``(nspec, nspat)``) plus an explicit
+    boolean ``localmask`` selecting the pixels to fit, rather than requiring
+    the calling routine to pre-flatten every array to 1d.  This mirrors the
+    approach used in :func:`pypeit.core.spatialprofile.fit_profile`: the
+    boolean-index extraction and scatter happen internally, via
+    ``arr[localmask]``/``arr[localmask] = ...``, instead of via
+    ``arr.flat[isub]``/``arr.flat[isub] = ...`` in the calling routine.
+
+    Parameters
+    ----------
+    piximg : `numpy.ndarray`_
+        piximg is tilts*(nspec-1) where nspec is the number of pixels in the
+        spectral direction of the raw image.  This is a wavelength in image
+        coordinates which acts as the independent variable for sky and
+        object model fits.  Native image shape, e.g. ``(nspec, nspat)``.
+    data : `numpy.ndarray`_
+        science data that is being fit. Same shape as piximg.
+    ivar : `numpy.ndarray`_
+        inverse variance of science data that is being fit. Same shape as piximg.
+    oprof : `numpy.ndarray`_
+        Object profiles for the data that is being fit. Shape =
+        piximg.shape + (nobj,) where nobj is the number of objects being
+        simultaneously fit. In other words, there are nobj object profiles.
+    localmask : `numpy.ndarray`_
+        Boolean array, same shape as piximg, selecting the pixels to include
+        in the fit.
+    sigrej : :obj:`float`, optional
+        Sigma  threshold for outlier rejection.
+    npoly : :obj:`int`, optional
+        Order of polynomaial for the sky-background basis function. If
+        spatial_img is passed in a fit with two independent variables will
+        be performed (spectral described by piximg, and spatial direction
+        described by spatia_img) and a legendre polynomial basis of order
+        npoly will be used for the spatial direction.  If npoly=1 or if
+        spatial_img is not passed, a flat spatial profile basis funciton
+        will instead be used.
+    spatial_img : `numpy.ndarray`_, optional
+        Image of the spatial coordinates of each pixel in the image used for
+        2d fitting.  Same shape as piximg.
+    fullbkpt : `numpy.ndarray`_, optional
+        A 1d float array containing the breakpoints to be used for the
+        B-spline fit. The breakpoints are arranged in the spectral
+        direction,  i.e. along the direction of the piximg independent
+        variable.
+
+    Returns
+    -------
+    sky_bmodel : `numpy.ndarray`_
+        Array with same shape as piximg containing the B-spline model of the
+        sky. Only the pixels selected by ``localmask`` are populated; all
+        others are zero.
+    obj_bmodel : `numpy.ndarray`_
+        Array with same shape as piximg containing the B-spline model of the
+        object flux. Only the pixels selected by ``localmask`` are
+        populated; all others are zero.
+    gpm : `numpy.ndarray`_
+        Boolean good pixel mask array with the same shape as piximg
+        indicating whether a pixel is good (True) or was masked (False).
+        Only pixels selected by ``localmask`` can be True; all others are
+        False.
+    """
+    if oprof.shape[:piximg.ndim] != piximg.shape:
+        raise ValueError('Object profile should have oprof.shape[:piximg.ndim] equal to piximg.shape')
+
+    piximg_x = piximg[localmask]
+    data_x = data[localmask]
+    ivar_x = ivar[localmask]
+    oprof_x = oprof[localmask, :]
+    spatial_x = None if spatial_img is None else spatial_img[localmask]
+
+    sortpix = piximg_x.argsort(kind='stable')
+
+    nx = data_x.size
+    nobj = oprof_x.shape[1]
+
+    if npoly == 1 or spatial_x is None:
+        profile_basis = np.column_stack((oprof_x, np.ones(nx)))
+    else:
+        xmin = spatial_x.min()
+        xmax = spatial_x.max()
+        x2 = 2.0 * (spatial_x - xmin) / (xmax - xmin) - 1
+        poly_basis = basis.flegendre(x2, npoly)
+        profile_basis = np.column_stack((oprof_x, poly_basis))
+
+    relative_mask = (np.sum(oprof_x, axis=1) > 1e-10)
+
+    indx, = np.where(ivar_x[sortpix] > 0.0)
+    ngood = indx.size
+    good = sortpix[indx]
+    good = good[piximg_x[good].argsort(kind='stable')]
+    relative, = np.where(relative_mask[good])
+
+    sky_bmodel = np.zeros_like(piximg)
+    obj_bmodel = np.zeros_like(piximg)
+    gpm = np.zeros(piximg.shape, dtype=bool)
+
+    if ngood == 0:
+        log.warning('All pixels are masked in skyoptimal_refactor. Not performing local sky '
+                     'subtraction.')
+        return sky_bmodel, obj_bmodel, gpm
+
+    sset1, gpm_good1, yfit1, red_chi1, exit_status = iterative_bspline_fit(
+        piximg_x[good], data_x[good], ivar=ivar_x[good], basis=profile_basis[good, :],
+        kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej, relative=relative,
+        kwargs_reject={'groupbadpix': True, 'maxrej': 5}
+    )
+    chi2 = (data_x[good] - yfit1)**2 * ivar_x[good]
+    chi2_srt = np.sort(chi2)
+    gauss_prob = 1.0 - 2.0 * scipy.special.ndtr(-1.2 * sigrej)
+    sigind = int(np.fmin(np.rint(gauss_prob * float(ngood)), ngood - 1))
+    chi2_sigrej = chi2_srt[sigind]
+    mask1 = (chi2 < chi2_sigrej)
+
+    if not np.any(mask1):
+        log.warning(
+            'All pixels are masked in skyoptimal_refactor after first round of rejection. Not '
+            'performing local sky subtraction.'
+        )
+        return sky_bmodel, obj_bmodel, gpm
+
+    log.info('2nd round....')
+    sset, gpm_good, yfit, red_chi, exit_status = iterative_bspline_fit(
+        piximg_x[good], data_x[good], ivar=ivar_x[good], basis=profile_basis[good, :], gpm=mask1,
+        kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej, relative=relative,
+        kwargs_reject={'groupbadpix': True, 'maxrej': 1}
+    )
+
+    # When constructing the `profile_basis` functions above, the object profiles
+    # are the first `nobj` columns and the sky polynomials are all the remaining
+    # columns.  This allows us to construct the two models separately.
+    # - Get the sky-only model
+    sky_bmodel_x, _ = sset.value(piximg_x, basis=profile_basis[:, nobj:], coeff=sset.coeff[:, nobj:])
+    # Get the source-only model
+    obj_bmodel_x, _ = sset.value(piximg_x, basis=profile_basis[:, :nobj], coeff=sset.coeff[:, :nobj])
+
+    sky_bmodel[localmask] = sky_bmodel_x
+    obj_bmodel[localmask] = obj_bmodel_x
+
+    gpm_x = np.zeros(nx, dtype=bool)
+    gpm_x[good] = gpm_good
+    gpm[localmask] = gpm_x
+
+    return sky_bmodel, obj_bmodel, gpm
+
+
 def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
                   skyimage = None, min_spat=None, max_spat=None, debug=False):
     """

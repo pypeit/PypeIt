@@ -72,3 +72,120 @@ def test_skyregions_io():
     ofile.unlink()
 
 
+def _make_skyoptimal_inputs(npoly=1, use_spatial=False, seed=1234):
+    """
+    Build small, deterministic, synthetic 2d inputs for comparing
+    :func:`~pypeit.core.skysub.skyoptimal` and
+    :func:`~pypeit.core.skysub.skyoptimal_refactor`.
+
+    The ``localmask`` is deliberately irregular (not a simple rectangular
+    sub-image) and some pixels inside it have ``ivar <= 0``, so that both the
+    boolean-index extraction/scatter and the internal good-pixel
+    sub-selection are exercised.
+    """
+    rng = np.random.default_rng(seed)
+    nspec, nspat, nobj = 50, 16, 2
+
+    piximg = np.broadcast_to(np.arange(nspec, dtype=float)[:, None], (nspec, nspat)).copy()
+    spatial_img = np.broadcast_to(np.arange(nspat, dtype=float)[None, :], (nspec, nspat)).copy()
+
+    spat = np.arange(nspat, dtype=float)
+    centers = [5.0, 10.0]
+    sigma = 1.3
+    oprof = np.zeros((nspec, nspat, nobj), dtype=float)
+    for iobj, cen in enumerate(centers):
+        profile = np.exp(-0.5 * ((spat - cen) / sigma) ** 2)
+        profile /= profile.sum()
+        oprof[:, :, iobj] = np.broadcast_to(profile[None, :], (nspec, nspat))
+
+    sky_true = 4.0 + 0.03 * piximg
+    flux_true = [8.0, 5.0]
+    noise_sigma = 0.3
+    data = sky_true + flux_true[0] * oprof[:, :, 0] + flux_true[1] * oprof[:, :, 1] \
+            + rng.normal(scale=noise_sigma, size=(nspec, nspat))
+    ivar = np.full((nspec, nspat), 1.0 / noise_sigma ** 2)
+
+    # Irregular local mask: a band of central spatial columns, minus a
+    # scattered set of pixels within that band.
+    localmask = np.zeros((nspec, nspat), dtype=bool)
+    localmask[:, 2:14] = True
+    iband = np.where(localmask)
+    nband = iband[0].size
+    idrop = rng.choice(nband, size=nband // 10, replace=False)
+    localmask[iband[0][idrop], iband[1][idrop]] = False
+
+    # Zero out ivar for a separate scattered subset of pixels within the
+    # (already trimmed) local mask, to exercise the internal ivar>0
+    # sub-selection.
+    iband = np.where(localmask)
+    nband = iband[0].size
+    izero = rng.choice(nband, size=nband // 10, replace=False)
+    ivar[iband[0][izero], iband[1][izero]] = 0.0
+
+    fullbkpt = np.linspace(0.0, float(nspec - 1), 11)
+
+    return piximg, data, ivar, oprof, (spatial_img if use_spatial else None), localmask, fullbkpt
+
+
+def test_skyoptimal_refactor_matches_skyoptimal():
+    """
+    Compare :func:`~pypeit.core.skysub.skyoptimal_refactor` (native-shape
+    arrays + explicit boolean mask) against the existing
+    :func:`~pypeit.core.skysub.skyoptimal` (pre-flattened arrays, as done by
+    its caller ``local_skysub_extract``), on the same synthetic data.
+    """
+    for npoly, use_spatial in [(1, False), (3, True)]:
+        piximg, data, ivar, oprof, spatial_img, localmask, fullbkpt = \
+                _make_skyoptimal_inputs(npoly=npoly, use_spatial=use_spatial)
+        nspec, nspat, nobj = oprof.shape
+
+        # Old convention: caller pre-flattens everything using .flat/isub,
+        # as done today in local_skysub_extract.
+        isub, = np.where(localmask.flatten())
+        oprof_flat = oprof.reshape(nspec * nspat, nobj)
+        sky_old, obj_old, gpm_old = skysub.skyoptimal(
+                piximg.flat[isub], data.flat[isub], ivar.flat[isub], oprof_flat[isub, :],
+                spatial_img=None if spatial_img is None else spatial_img.flat[isub],
+                fullbkpt=fullbkpt, sigrej=3.0, npoly=npoly)
+
+        # New convention: native-shape arrays plus an explicit localmask.
+        sky_new, obj_new, gpm_new = skysub.skyoptimal_refactor(
+                piximg, data, ivar, oprof, localmask, spatial_img=spatial_img,
+                fullbkpt=fullbkpt, sigrej=3.0, npoly=npoly)
+
+        assert np.allclose(sky_old, sky_new[localmask]), 'sky_bmodel mismatch'
+        assert np.allclose(obj_old, obj_new[localmask]), 'obj_bmodel mismatch'
+        assert np.array_equal(gpm_old, gpm_new[localmask]), 'gpm mismatch'
+
+        # Outside localmask, the refactored outputs must be untouched
+        # (zero/False), since skyoptimal never had those pixels at all.
+        assert not np.any(sky_new[~localmask]), 'sky_bmodel populated outside localmask'
+        assert not np.any(obj_new[~localmask]), 'obj_bmodel populated outside localmask'
+        assert not np.any(gpm_new[~localmask]), 'gpm populated outside localmask'
+
+
+def test_skyoptimal_refactor_all_masked():
+    """
+    Both functions must degrade identically (all-zero models, all-False
+    gpm) when there are no good pixels to fit.
+    """
+    piximg, data, ivar, oprof, spatial_img, localmask, fullbkpt = \
+            _make_skyoptimal_inputs(npoly=1, use_spatial=False)
+    nspec, nspat, nobj = oprof.shape
+    ivar_all_bad = np.zeros_like(ivar)
+
+    isub, = np.where(localmask.flatten())
+    oprof_flat = oprof.reshape(nspec * nspat, nobj)
+    sky_old, obj_old, gpm_old = skysub.skyoptimal(
+            piximg.flat[isub], data.flat[isub], ivar_all_bad.flat[isub], oprof_flat[isub, :],
+            fullbkpt=fullbkpt, sigrej=3.0, npoly=1)
+    sky_new, obj_new, gpm_new = skysub.skyoptimal_refactor(
+            piximg, data, ivar_all_bad, oprof, localmask, fullbkpt=fullbkpt, sigrej=3.0, npoly=1)
+
+    assert not np.any(sky_old) and not np.any(sky_new)
+    assert not np.any(obj_old) and not np.any(obj_new)
+    assert not np.any(gpm_old) and not np.any(gpm_new)
+    assert sky_new.shape == piximg.shape
+    assert gpm_new.shape == piximg.shape
+
+
