@@ -17,12 +17,8 @@ fitting cost.
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
-from pypeit import io, log
 from pypeit.scripts import scriptbase
-from pypeit.spectrographs import mmt_mmirs
-from pypeit.spectrographs.util import load_spectrograph
 
 
 class MMIRSRamp(scriptbase.ScriptBase):
@@ -55,6 +51,12 @@ class MMIRSRamp(scriptbase.ScriptBase):
 
     @classmethod
     def main(cls, args: argparse.Namespace) -> None:
+        from pathlib import Path
+
+        from pypeit import io, log
+        from pypeit.spectrographs import mmt_mmirs
+        from pypeit.spectrographs.util import load_spectrograph
+
         cls.init_log(args)
 
         spec = load_spectrograph('mmt_mmirs')
