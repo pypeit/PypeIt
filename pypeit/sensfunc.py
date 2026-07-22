@@ -248,9 +248,9 @@ class SensFunc(datamodel.DataContainer):
         self.algorithm = self.__class__._algorithm
 
         # QA and throughput plot filenames
-        self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
-        self.thrufile = sensfile.replace('.fits', '') + '_throughput.pdf'
-        self.fstdfile = sensfile.replace('.fits', '') + '_fluxed_std.pdf'
+        self.qafile = sensfile.parent / f'{sensfile.stem}_QA.pdf'
+        self.thrufile = sensfile.parent / f'{sensfile.stem}_throughput.pdf'
+        self.fstdfile = sensfile.parent / f'{sensfile.stem}_fluxed_std.pdf'
 
         # Other
         self.debug = debug
