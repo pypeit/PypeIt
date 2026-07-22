@@ -543,7 +543,8 @@ class RawImage:
             raise PypeItError('No bias available for bias subtraction!')
         if self.par['use_darkimage'] and dark is None:
             raise PypeItError('No dark available for dark subtraction!')
-        if self.par['subtract_scattlight'] and scattlight is None:
+        if self.par['subtract_scattlight'] and scattlight is None \
+                and self.par['scattlight']['method'] not in ['frame', 'archive', 'gaps']:
             raise PypeItError('Scattered light subtraction requested, but scattered light model not provided.')
         if self.par['spat_flexure_correct'] and slits is None:
             raise PypeItError('Spatial flexure correction requested but no slits provided.')
@@ -1175,6 +1176,32 @@ class RawImage:
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
+    @staticmethod
+    def _scattlight_modpar(modpar):
+        """
+        Return a copy of a scattered-light parameter vector with the zero-level
+        removed.
+
+        Element 8 holds the constant flux offset (the "zero-level") of the
+        scattered-light model.  The zero-level is determined separately by the
+        fine-correction step, so it is set to zero here before the model is
+        evaluated.
+
+        Parameters
+        ----------
+        modpar : `numpy.ndarray`_
+            Scattered-light model parameters (e.g. from a calibration frame or
+            the spectrograph archive).
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            A copy of ``modpar`` with element 8 set to 0.
+        """
+        _modpar = modpar.copy()
+        _modpar[8] = 0.0
+        return _modpar
+
     def subtract_scattlight(self, msscattlight, slits, debug=False):
         """
         Analyze and subtract the scattered light from the image.
@@ -1197,7 +1224,7 @@ class RawImage:
             log.warning("The scattered light has already been subtracted from the image!")
             return
 
-        if self.par["scattlight"]["method"] == "model" and msscattlight.scattlight_param is None:
+        if self.par["scattlight"]["method"] == "model" and (msscattlight is None or msscattlight.scattlight_param is None):
             log.warning("Scattered light parameters are not set. Cannot perform scattered light subtraction.")
             return
 
@@ -1218,14 +1245,12 @@ class RawImage:
             # Replace all bad pixels with the nearest good pixel
             full_bpm = self.bpm[ii, ...] | crmask
             _img = utils.replace_bad(self.image[ii, ...], full_bpm)
-            # Get a copy of the best-fitting model parameters
-            this_modpar = msscattlight.scattlight_param.copy()
-            this_modpar[8] = 0.0  # This is the zero-level of the scattlight frame. The zero-level is determined by the finecorr
             # Apply the requested method for the scattered light
             do_finecorr = self.par["scattlight"]["finecorr_method"] is not None
             if self.par["scattlight"]["method"] == "model":
-                # Use predefined model parameters
-                scatt_img = scattlight.scattered_light_model_pad(this_modpar, _img)
+                # Use the best-fitting model parameters from the calibration frame
+                scatt_img = scattlight.scattered_light_model_pad(
+                    self._scattlight_modpar(msscattlight.scattlight_param), _img)
                 if debug:
                     specbin, spatbin = parse.parse_binning(self.detector[0]['binning'])
                     tmp = msscattlight.scattlight_param.copy()
@@ -1260,31 +1285,40 @@ class RawImage:
             elif self.par["scattlight"]["method"] == "archive":
                 # Use archival model parameters
                 arx_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
-                arx_modpar[8] = 0.0
                 if arx_modpar is None:
                     raise PypeItError(f"{self.spectrograph.name} does not have archival scattered light parameters. Please "
                                f"set 'scattlight_method' to another option.")
-                scatt_img = scattlight.scattered_light_model(arx_modpar, _img)
+                scatt_img = scattlight.scattered_light_model(self._scattlight_modpar(arx_modpar), _img)
             elif self.par["scattlight"]["method"] == "frame":
-                # Calculate a model specific for this frame
-                pad = msscattlight.pad // spatbin
+                # Calculate a model specific for this frame.
+                # Use pad from the scattlight calibration if available,
+                # otherwise fall back to finecorr_pad.
+                _pad = msscattlight.pad if msscattlight is not None \
+                    else self.par['scattlight']['finecorr_pad']
+                pad = _pad // spatbin
                 offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
                 # Get starting parameters for the scattered light model
                 x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
                 # Perform a fit to the scattered light
                 scatt_img, _, success = scattlight.scattered_light(self.image[ii, ...], full_bpm, offslitmask,
                                                                    x0, bounds)
-                # If failure, revert back to the Scattered Light calibration frame model parameters
+                # If failure, revert back to predefined model parameters: prefer
+                # the scattered-light calibration frame, else the archive.
                 if not success:
                     if msscattlight is not None:
                         log.warning("Scattered light model failed - using predefined model parameters")
-                        scatt_img = scattlight.scattered_light_model(this_modpar, _img)
+                        fallback_modpar = msscattlight.scattlight_param
                     else:
                         log.warning("Scattered light model failed - using archival model parameters")
-                        # Use archival model parameters
-                        arx_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
-                        arx_modpar[8] = 0.0
-                        scatt_img = scattlight.scattered_light_model(arx_modpar, _img)
+                        fallback_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
+                    scatt_img = scattlight.scattered_light_model(
+                        self._scattlight_modpar(fallback_modpar), _img)
+            elif self.par["scattlight"]["method"] == "gaps":
+                # Measure scattered light in inter-slit gaps and interpolate.
+                # Requires spectrograph to implement subtract_scattered_light_gaps().
+                offslitmask = slits.slit_img(flexure=None) == -1
+                scatt_img = self.spectrograph.subtract_scattered_light_gaps(
+                    self.image[ii, ...], offslitmask)
             else:
                 log.warning("Scattered light not performed")
                 scatt_img = np.zeros(self.image[ii, ...].shape)

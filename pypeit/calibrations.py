@@ -2059,6 +2059,316 @@ class IFUCalibrations(Calibrations):
         return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align',
                 'scattlight', 'flats']
 
+    def get_slits(self, force:str=None):
+        """
+        Load or generate the definition of the slit boundaries.
+
+        For Fiber pypeline spectrographs that provide a
+        ``get_block_slit_edges`` method, this bypasses the standard Sobel
+        edge detection and instead defines block-slit edges directly from
+        the reference fiber profile with bulk shift correction. This is
+        necessary when scattered light in inter-block gaps prevents
+        reliable edge detection.
+
+        For all other IFU spectrographs, falls back to the parent
+        :meth:`Calibrations.get_slits`.
+
+        Returns:
+            :class:`~pypeit.slittrace.SlitTraceSet`: Traces of the
+            slit edges; also kept internally as :attr:`slits`.
+        """
+        # If the spectrograph doesn't provide block slit edges, use
+        # the standard edge tracing flow.
+        if not hasattr(self.spectrograph, 'get_block_slit_edges'):
+            return super().get_slits(force=force)
+
+        # Check for existing data
+        if not self._chk_objs(['msbpm']):
+            return None
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Prep
+        frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
+        raw_trace_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
+
+        if len(raw_trace_files) == 0 and cal_file is None:
+            log.warning(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
+            self.slits = None
+            return self.slits
+
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        self.slits = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.slits is not None:
+            self.slits.mask = self.slits.mask_init.copy()
+            if self.user_slits is not None:
+                self.slits.user_mask(detname, self.user_slits)
+            return self.slits
+
+        # Need to build from scratch.  Build the trace image.
+        log.info('Creating block-slit edges from reference fiber profile '
+                 'using trace files: ')
+        for f in raw_trace_files:
+            log.info(f'        {Path(f).name}')
+        self.raw_files = raw_trace_files
+
+        # Reset the BPM
+        self.get_bpm(frame=raw_trace_files[0])
+
+        # Perform a check on the files
+        self.check_calibrations(raw_trace_files)
+
+        traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                    self.par['traceframe'], raw_trace_files,
+                                                    bias=self.msbias, bpm=self.msbpm,
+                                                    dark=self.msdark, calib_dir=self.calib_dir,
+                                                    setup=setup, calib_id=calib_id)
+
+        # Handle lamp-off flats if present
+        raw_lampoff_files = self.fitstbl.find_frame_files('lampoffflats',
+                                                           calib_ID=self.calib_ID)
+        if len(raw_lampoff_files) > 0:
+            log.info('Subtracting lamp off flats using files: ')
+            for f in raw_lampoff_files:
+                log.info(f'        {Path(f).name}')
+            self.get_bpm(frame=raw_trace_files[0])
+            self.check_calibrations(raw_lampoff_files)
+            lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                          self.par['lampoffflatsframe'],
+                                                          raw_lampoff_files, dark=self.msdark,
+                                                          bias=self.msbias, bpm=self.msbpm)
+            traceImage = traceImage.sub(lampoff_flat)
+
+        # Get block-slit edges from the reference fiber profile
+        left_edges, right_edges = self.spectrograph.get_block_slit_edges(
+            traceImage.image, self.det)
+
+        nspec, nspat = traceImage.image.shape
+        binspec, binspat = parse.parse_binning(traceImage.detector.binning)
+
+        # Construct SlitTraceSet directly from the block edges
+        self.slits = slittrace.SlitTraceSet(
+            left_init=left_edges,
+            right_init=right_edges,
+            pypeline=self.spectrograph.pypeline,
+            detname=detname,
+            nspec=nspec,
+            nspat=nspat,
+            PYP_SPEC=self.spectrograph.name,
+            binspec=binspec,
+            binspat=binspat,
+            pad=self.par['slitedges']['pad'],
+        )
+
+        # Set calibration paths and save
+        self.slits.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.slits.to_file()
+
+        # State
+        self.slits_state(self.slits.get_path())
+
+        if self.user_slits is not None:
+            self.slits.user_mask(detname, self.user_slits)
+
+        traceImage = None
+        return self.slits
+
+    def get_flats(self, force: str = None):
+        """
+        Load or generate the flat-field calibration images.
+
+        For Fiber pypeline spectrographs, this instantiates
+        :class:`~pypeit.flatfield.FiberFlatField` instead of the standard
+        :class:`~pypeit.flatfield.FlatField`, producing both the standard
+        :class:`~pypeit.flatfield.FlatImages` (pixel-only flat) and a
+        :class:`~pypeit.flatfield.FiberFlatImages` (globally-normalized
+        extracted flat, fiber metadata).
+
+        For all other IFU spectrographs, falls back to the parent
+        :meth:`Calibrations.get_flats`.
+
+        Args:
+            force (:obj:`str`, optional):
+                'remake' -- Force the frame to be remade.
+                'reload' -- Reload the frame if it exists.
+                None -- Load the existing frame if it exists and
+                reuse_calibs=True
+
+        Returns:
+            :class:`~pypeit.flatfield.FlatImages`: The processed calibration
+            image.
+        """
+        # Non-Fiber IFU spectrographs use the standard flat-field flow
+        if self.spectrograph.pypeline != 'Fiber':
+            return super().get_flats(force=force)
+
+        # Initialize fiber_flatimages attribute
+        self.fiber_flatimages = None
+
+        # Check for existing data
+        if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
+            log.warning('Must have the arc, bpm, slits, and wv_calib defined '
+                        'to make flats!  Skipping and may crash down the line')
+            self.flatimages = None
+            return self.flatimages
+
+        # Slit and tilt traces are required to flat-field the data
+        if not self._chk_objs(['slits', 'wavetilts']):
+            log.warning('Flats were requested, but there are quantities '
+                        'missing necessary to create flats.  Proceeding '
+                        'without flat fielding....')
+            self.flatimages = None
+            return self.flatimages
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Find pixel flat frames (Fiber pypeline does not use illumflat)
+        pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
+        raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, \
+            pixel_calib_id, detname \
+            = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
+
+        if len(raw_pixel_files) == 0 and pixel_cal_file is None:
+            if self.par['flatfield']['pixelflat_file'] is not None:
+                log.warning('No raw pixelflat frames found but a user-defined '
+                            'pixel flat file was provided. Using that file.')
+                self.flatimages = flatfield.FlatImages(
+                    PYP_SPEC=self.spectrograph.name,
+                    spat_id=self.slits.spat_id)
+                self.flatimages.calib_key = \
+                    flatfield.FlatImages.construct_calib_key(
+                        self.fitstbl['setup'][self.frame],
+                        self.calib_ID, detname)
+                self.flatimages = flatfield.load_pixflat(
+                    self.par['flatfield']['pixelflat_file'],
+                    self.spectrograph, self.det, self.flatimages,
+                    calib_dir=self.calib_dir,
+                    chk_version=self.chk_version)
+            else:
+                log.warning('No raw pixelflat frames found and unable to '
+                            'identify a relevant processed calibration frame. '
+                            'Continuing...')
+                self.flatimages = None
+            return self.flatimages
+
+        # Reuse existing processed calibration if available
+        cal_file = pixel_cal_file
+        calib_key = pixel_calib_key
+        setup = pixel_setup
+        calib_id = pixel_calib_id
+
+        if cal_file is not None and cal_file.exists() \
+                and self.reuse_calibs and force != 'remake':
+            self.flatimages = flatfield.FlatImages.from_file(
+                cal_file, chk_version=self.chk_version)
+            self.flatimages.is_synced(self.slits)
+            # Load user defined pixel flat if provided
+            if self.par['flatfield']['pixelflat_file'] is not None:
+                self.flatimages = flatfield.load_pixflat(
+                    self.par['flatfield']['pixelflat_file'],
+                    self.spectrograph, self.det, self.flatimages,
+                    calib_dir=self.calib_dir,
+                    chk_version=self.chk_version)
+            # Update slits
+            self.slits.mask_flats(self.flatimages)
+            # Try to load existing FiberFlatImages
+            tmp_ffi = flatfield.FiberFlatImages()
+            tmp_ffi.set_paths(self.calib_dir, setup, calib_id, detname)
+            ffi_path = tmp_ffi.get_path()
+            if ffi_path.exists():
+                self.fiber_flatimages = flatfield.FiberFlatImages.from_file(
+                    ffi_path, chk_version=self.chk_version)
+            return self.flatimages
+
+        # Generate from scratch
+        # Reset the BPM
+        self.get_bpm(frame=raw_pixel_files[0])
+
+        # Perform a check on the files
+        self.check_calibrations(raw_pixel_files)
+
+        # Adjust slit edges to fiber reference positions so that
+        # inter-block gaps are exposed for scattered light modeling.
+        if hasattr(self.spectrograph, 'adjust_slit_edges_to_fibers'):
+            self.spectrograph.adjust_slit_edges_to_fibers(
+                self.slits, self.det)
+
+        log.info('Creating fiber flat calibration frame using files: ')
+        for f in raw_pixel_files:
+            log.info(f'        {Path(f).name}')
+        pixel_flat = buildimage.buildimage_fromlist(
+            self.spectrograph, self.det, self.par['pixelflatframe'],
+            raw_pixel_files, dark=self.msdark, slits=self.slits,
+            bias=self.msbias, bpm=self.msbpm,
+            scattlight=self.msscattlight)
+
+        # Handle lamp-off flats if present
+        raw_lampoff_files = self.fitstbl.find_frame_files(
+            'lampoffflats', calib_ID=self.calib_ID)
+        if len(raw_lampoff_files) > 0:
+            self.get_bpm(frame=raw_lampoff_files[0])
+            self.check_calibrations(raw_lampoff_files)
+            log.info('Subtracting lamp off flats using files: ')
+            for f in raw_lampoff_files:
+                log.info(f'        {Path(f).name}')
+            lampoff_flat = buildimage.buildimage_fromlist(
+                self.spectrograph, self.det,
+                self.par['lampoffflatsframe'], raw_lampoff_files,
+                slits=self.slits, dark=self.msdark, bias=self.msbias,
+                bpm=self.msbpm, scattlight=self.msscattlight)
+            pixel_flat = pixel_flat.sub(lampoff_flat)
+
+        # Instantiate FiberFlatField instead of FlatField
+        fiberFlatField = flatfield.FiberFlatField(
+            pixel_flat, self.spectrograph, self.par['flatfield'],
+            self.slits, wavetilts=self.wavetilts, wv_calib=self.wv_calib,
+            qa_path=self.qa_path, calib_key=calib_key)
+
+        # Run returns (flatImages, fiber_flatimages)
+        self.flatimages, self.fiber_flatimages = fiberFlatField.run(
+            doqa=self.write_qa, show=self.show)
+
+        # State
+        if self.state is not None:
+            self.state.update_calib('flats', self.calib_ID, self.det,
+                                    'types', 'pixelflat')
+
+        if self.flatimages is not None:
+            self.flatimages.set_paths(self.calib_dir, setup, calib_id,
+                                      detname)
+            self.flatimages.to_file()
+            # Save slits too, in case they were tweaked
+            self.slits.to_file()
+            # State
+            if self.state is not None:
+                self.state.update_calib('flats', self.calib_ID, self.det,
+                                        'output_file',
+                                        self.flatimages.get_path())
+
+        if self.fiber_flatimages is not None:
+            self.fiber_flatimages.set_paths(self.calib_dir, setup, calib_id,
+                                            detname)
+            self.fiber_flatimages.to_file(overwrite=True)
+            log.info(f'Saved FiberFlatImages to '
+                     f'{self.fiber_flatimages.get_path()}')
+
+        # Apply user-supplied pixel flat if provided
+        if self.par['flatfield']['pixelflat_file'] is not None:
+            self.flatimages = flatfield.load_pixflat(
+                self.par['flatfield']['pixelflat_file'],
+                self.spectrograph, self.det, self.flatimages,
+                calib_dir=self.calib_dir,
+                chk_version=self.chk_version)
+
+        return self.flatimages
+
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     """

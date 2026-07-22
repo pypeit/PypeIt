@@ -26,6 +26,10 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- Added a new ``Fiber`` pypeline for fiber-fed spectrographs, where each fiber
+  is treated as a distinct object without peak-detection object finding.  The
+  pypeline dispatch system (``FiberFindObjects``, ``FiberExtract``) follows the
+  existing class-name convention.
 
 - Added the PypeIt Dashboard (``pypeit_dashboard``): a Qt GUI that launches,
   monitors, and inspects a reduction — calibration and science-frame status,
@@ -48,14 +52,39 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
+- Added support for the MMT Binospec IFU (``mmt_binospec_ifu``), a fiber-fed
+  integral field unit with ~360 fibers per detector side.  This introduces the
+  new ``Fiber`` pypeline for fiber-fed spectrographs, with dedicated
+  :class:`~pypeit.find_objects.FiberFindObjects` and
+  :class:`~pypeit.extraction.FiberExtract` classes.  Key features include:
+
+  - Joint sky subtraction across all fibers using dedicated sky fibers
+  - Sky-line-based per-fiber throughput correction to account for the
+    different optical paths of bare sky fibers vs. lenslet-fed science fibers
+  - Fiber identification via cross-correlation against a reference profile
+  - Boxcar and optimal (Horne 1986) extraction with empirical spatial
+    profiles from the flat field
+  - A dedicated ``pypeit_binospec_ifu_cube`` script for building datacubes
+    from fiber spectra
+
+  See the :ref:`mmt_binospec` documentation for details.
+
 - Rewrote MMT Binospec overscan subtraction in ``binospec_read_amp()`` to match
   the IDL pipeline (``bino_mosaic.pro``): Y-axis postscan first, then X-axis
   prescan+postscan, using sigma-clipped mean with outlier cleaning.  Added
   per-amplifier nonlinearity correction using degree-4 polynomial coefficients
   from the IDL calibration file.
+
+- Enabled scattered light correction for MMT Binospec IFU mode using PypeIt's
+  parametric kernel model, fitting to inter-fiber gap pixels.
+
 - Updated the MMT Binospec bad pixel mask to match the IDL pipeline, adding
   ~12,500 individual bad pixels, additional bad columns, and detector trap
   region masking from static calibration files.
+- Enabled the new residual-CR path (``cr_median_width=31``) by default
+  for MMT/Binospec arc and tilt frames.  See :ref:`image_proc-cr` for
+  details.
+
 - MMT/Binospec: extended the ``mmt_binospec_1000`` reid_arxiv template redward
   from 6760 Å to 7211 Å to support central wavelengths around 6450 Å.  The
   red extension was wavelength-calibrated from a calibration arc centered at
@@ -89,8 +118,16 @@ Instrument-specific Updates
 
 Script Changes
 --------------
+- Added ``pypeit_binospec_ifu_cube`` for building datacubes from Binospec IFU
+  spec1d files.  Combines both detector sides and produces FITS datacubes
+  with 3-axis WCS.
 
 - Removed -G/--gui option from pypeit_obslog.
+
+- Added ``pypeit_binospec_ifu_extract`` for interactive selection of
+  Binospec IFU fibers and extraction of combined 1D spectra from spec1d
+  files. Output is a :class:`~pypeit.onespec.OneSpec` FITS file. See the
+  :ref:`mmt_binospec` documentation for details.
 
 Testing
 -------

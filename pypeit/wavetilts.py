@@ -24,6 +24,7 @@ from pypeit import calibframe
 from pypeit import slittrace, wavecalib
 from pypeit.display import display
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core import tracewave
 from pypeit.core.wavecal import autoid
 from pypeit.images import buildimage
@@ -146,12 +147,14 @@ class WaveTilts(calibframe.CalibFrame):
 
         _flexure = 0. if flexure is None else flexure
 
-        final_tilts = np.zeros_like(slitmask).astype(float)
+        final_tilts = np.zeros_like(slitmask, dtype=float)
+        # NOTE: -1 is the only off-slit sentinel used by SlitTraceSet.slit_img;
+        # valid slit IDs can be negative (e.g. Echelle edge orders whose spat_id
+        # extrapolates below zero), so this must test against -1 and NOT `>= 0`.
         gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)
         # Loop
         for slit_spat in gdslit_spat:
             slit_idx = self.spatid_to_zero(slit_spat)
-            # Calculate
             coeff_out = self.coeffs[:self.spec_order[slit_idx]+1,:self.spat_order[slit_idx]+1,slit_idx]
             thismask_science = slitmask == slit_spat
             _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d,

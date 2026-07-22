@@ -864,7 +864,7 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
         # Build the initial sky mask
         initial_skymask = load_skyregions(
             spectrograph, fitstbl, par, frames[0], det,
-            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline != 'SlicerIFU',
+            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline not in ['SlicerIFU', 'Fiber'],
             scifile=fitstbl.frame_paths(frames[0]))
             
 
