@@ -169,7 +169,9 @@ Under-the-hood Improvements
   table for later use when reading raw images.
 
 - Vendored the ``fitramp`` up-the-ramp fitting module of Brandt (2024) as
-  :mod:`pypeit.core.fitramp` (MIT license).
+  :mod:`pypeit.core.fitramp` (MIT license).  The MMIRS integration was
+  inspired by the prototype at
+  https://github.com/zhechenghu/mmt-mmirs-up-the-ramp-pypeit.
 
 Bug Fixes
 ---------

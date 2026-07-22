@@ -18,7 +18,10 @@ up-the-ramp fitting with likelihood-based jump (cosmic-ray) detection using
 the algorithm of `Brandt (2024) <https://arxiv.org/abs/2404.01326>`__,
 replacing the correlated double sampling (first minus last read) used
 previously.  Frames with 2 reads still use correlated double sampling.  Each
-read is reference-pixel corrected before fitting.
+read is reference-pixel corrected before fitting.  This implementation was
+inspired by the prototype at
+`mmt-mmirs-up-the-ramp-pypeit
+<https://github.com/zhechenghu/mmt-mmirs-up-the-ramp-pypeit>`__.
 
 The single-read noise needed by the fit is calibrated from a dark frame
 listed in the :ref:`pypeit_file` when one with at least 10 reads is

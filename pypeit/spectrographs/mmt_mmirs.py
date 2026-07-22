@@ -566,6 +566,10 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         """
         Perform up-the-ramp fitting of a multi-read MMIRS frame.
 
+        This uses the ``fitramp`` algorithm of Brandt (2024,
+        https://arxiv.org/abs/2404.01326) and was inspired by the prototype
+        at https://github.com/zhechenghu/mmt-mmirs-up-the-ramp-pypeit.
+
         Args:
             hdu (`astropy.io.fits.HDUList`_):
                 Opened raw file with at least 3 non-destructive reads.
