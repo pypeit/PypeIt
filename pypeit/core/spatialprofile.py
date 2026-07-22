@@ -1361,7 +1361,9 @@ def _fit_profile_qa(
         else:
             prof_ylim = utils.growth_lim(profile_x, 0.99, fac=1.7, midpoint='center')
     else:
-        prof_ylim = utils.growth_lim(norm_obj_x, 0.99, fac=1.3, midpoint='center')
+        # NOTE: This will cause the `set_ylim` call to leave the default limits
+        # unchanged.
+        prof_ylim = None
 
     ax_prof.axhline(0, color='0.50', lw=0.5)
     if limits_set:
@@ -1374,7 +1376,7 @@ def _fit_profile_qa(
     ax_prof.tick_params(labelsize=8, labelbottom=False)
     ax_prof.set_axisbelow(True)
     ax_prof.grid(True, color='lightgray', lw=0.5)
-    if success:
+    if success and finite.any():
         ax_prof.legend(fontsize=8, loc='lower center')
 
     # -----------------------------------------------------------------------

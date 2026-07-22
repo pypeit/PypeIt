@@ -23,8 +23,6 @@ from astropy import units
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
 from IPython import embed
-import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 import scipy.ndimage
@@ -620,10 +618,12 @@ def growth_lim(a, lim, fac=1.0, midpoint='median', default=[0., 1.]):
 
     Args:
         a (array-like):
-            Array for which to determine limits.
+            Array for which to determine limits.  If there are no unmasked
+            values or if None, the default range (``default``) is returned.
         lim (:obj:`float`):
-            Percentage of the array values to cover. Set to 1 if
-            provided value is greater than 1.
+            Fraction of the array values to cover; i.e., to cover the central
+            90% of the data, set to 0.9. Set to 1 if provided value is greater
+            than 1.
         fac (:obj:`float`, optional):
             Factor to increase the range based on the growth limits.
             Default is no increase.
@@ -641,13 +641,20 @@ def growth_lim(a, lim, fac=1.0, midpoint='median', default=[0., 1.]):
     """
     # Get the values to plot
     _a = a.compressed() if isinstance(a, np.ma.MaskedArray) else np.asarray(a).ravel()
-    if len(_a) == 0:
+    if a is None or len(_a) == 0:
         # No data so return the default range
         return default
 
+    # Bail out if there's only one value
+    if len(_a) == 1:
+        if _a[0] > default[0] and _a[0] < default[1]:
+            return default
+        # Very ad hoc, but there's not a clear solution.
+        return (_a[0] + np.array([-1, 1])).tolist()
+
     # Set the starting and ending values based on a fraction of the
     # growth
-    _lim = 1.0 if lim > 1.0 else lim
+    _lim = np.clip(lim, 0.0, 1.0)
     start, end = (len(_a) * (1.0 + _lim * np.array([-1, 1])) / 2).astype(int)
     if end == len(_a):
         end -= 1
@@ -665,6 +672,10 @@ def growth_lim(a, lim, fac=1.0, midpoint='median', default=[0., 1.]):
         mid = midpoint
     if not isinstance(mid, (float, np.floating)):
         raise PypeItError('midpoint must be a floating point value, "median", or "center".')
+
+    # Guard against start == end
+    if Da == 0.0:
+        Da = 1.0
 
     # Return the range centered on the midpoint
     return [mid - Da / 2, mid + Da / 2]
