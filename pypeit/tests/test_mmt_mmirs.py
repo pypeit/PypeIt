@@ -96,6 +96,28 @@ def test_fit_ramp_recovers_rate():
     assert np.abs(np.median(interior) - rate) < 1.0
 
 
+def test_fit_ramp_threaded_matches_serial():
+    """Threaded, chunked fitting must be numerically identical to the serial
+    row-by-row fit for both the count-rate fit and the noise calibration."""
+    ngroups, gain, grptime = 10, 0.95, 2.
+    # Detector well beyond one chunk (nb=16) so multiple blocks are dispatched
+    # (kept square: mmirs_read_amp assumes a square frame).
+    hdu = synth_ramp_hdulist(ngroups, ny=96, nx=96, rate=20., sig=8.,
+                             gain=gain, grptime=grptime, seed=11)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    reads *= gain
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
+
+    serial = mmt_mmirs.mmirs_fit_ramp(diffs, covar, 8., workers=1)
+    threaded = mmt_mmirs.mmirs_fit_ramp(diffs, covar, 8., workers=4)
+    assert np.array_equal(serial, threaded, equal_nan=True)
+
+    sig_serial = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, workers=1, nrows=40)
+    sig_threaded = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, workers=4, nrows=40)
+    assert sig_serial == sig_threaded
+
+
 def test_effective_ronoise_formula():
     """Monte-Carlo check: total-count noise of a fitted pure-noise ramp."""
     rng = np.random.default_rng(99)
@@ -158,6 +180,35 @@ def test_cache_metadata_records_darks(tmp_path):
     assert spec._ramp_dark_files == [dark]
     # ... and recorded the reduction directory for RampFit output
     assert spec._ramp_output_dir == Path(fitstbl.par['rdx']['redux_path'])
+
+
+def test_cache_metadata_applies_rdx_ramp_overrides(tmp_path):
+    """[rdx] ramp_fit_cores / ramp_fit_chunk_rows override the class defaults."""
+    sci = _write_synth(synth_ramp_hdulist(4, seed=31), tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    default_workers = spec.ramp_fit_workers
+    default_chunk = spec.ramp_fit_chunk_rows
+
+    par = spec.default_pypeit_par()
+    par['rdx']['ramp_fit_cores'] = 3
+    par['rdx']['ramp_fit_chunk_rows'] = 40
+    data = Table({'filename': [sci.name], 'directory': [str(sci.parent)],
+                  'idname': ['object']})
+    # Construction triggers the cache_metadata hook.
+    PypeItMetaData(spec, par=par, data=data)
+
+    assert spec.ramp_fit_workers == 3
+    assert spec.ramp_fit_chunk_rows == 40
+    assert mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers == default_workers
+    assert mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_chunk_rows == default_chunk
+
+
+def test_cache_metadata_keeps_ramp_defaults_when_unset(tmp_path):
+    """With no [rdx] override, the ramp-fit class defaults are left untouched."""
+    sci = _write_synth(synth_ramp_hdulist(4, seed=32), tmp_path / 'sci.fits')
+    spec, _ = _metadata_for([sci], ['object'])
+    assert spec.ramp_fit_workers == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers
+    assert spec.ramp_fit_chunk_rows == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_chunk_rows
 
 
 def test_ramp_sigma_from_dark_and_cached(tmp_path):

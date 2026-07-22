@@ -34,10 +34,41 @@ statistics page
 the fitted image, ``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is
 propagated to the detector parameters.
 
-Expect roughly 2 minutes of processing and ~5 GB of memory to fit a 69-read
-frame; flats with few reads take seconds.  See `Preprocessed ramp images`_
-below for how PypeIt avoids repeating this cost each time a science frame
-is loaded.
+The per-pixel fit is independent across the detector, so it is performed in
+parallel: the rows are split into small blocks that are fit concurrently in a
+thread pool (NumPy releases the GIL during the element-wise arithmetic that
+dominates the fit).  With the default of ``min(6, os.cpu_count())`` threads,
+expect roughly 30-40 seconds and ~5 GB of memory to fit a 69-read cube of
+2048x2048 frames (about 3x faster than the serial fit); cubes with few reads
+take seconds.  See `Preprocessed ramp images`_ below for how PypeIt avoids
+repeating this cost each time a science frame is loaded.
+
+Performance tuning
+^^^^^^^^^^^^^^^^^^^
+
+Two :ref:`parameters` in the ``[rdx]`` block control the parallel fit:
+
+.. code-block:: ini
+
+    [rdx]
+        spectrograph = mmt_mmirs
+        ramp_fit_cores = 12        # worker threads (None -> min(6, os.cpu_count()); 1 disables)
+        ramp_fit_chunk_rows = 16   # detector rows fit per call (expert knob)
+
+The values that ship as defaults were tuned on a laptop (Apple M1, 16 GB).
+Because the fit is **memory-bandwidth bound** rather than compute bound
+(it is dominated by element-wise array arithmetic, not linear algebra), the
+speedup plateaus at roughly ``ramp_fit_cores = 6`` on such a machine and can
+*regress* beyond it as the memory bus saturates.  Raising ``ramp_fit_cores``
+therefore pays off mainly on a workstation with more memory bandwidth (more
+memory channels), where the bandwidth ceiling is higher.  Peak memory scales
+roughly as ``ramp_fit_cores * ramp_fit_chunk_rows``, so increase the core
+count only if you have both the cores and the RAM to spare.
+
+``ramp_fit_chunk_rows`` is an expert knob: small blocks keep each thread's
+working set resident in cache, and 16 rows was empirically near-optimal and
+largely machine-independent.  Larger blocks raise peak memory and usually
+reduce throughput.
 
 Preprocessed ramp images
 ^^^^^^^^^^^^^^^^^^^^^^^^

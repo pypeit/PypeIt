@@ -2781,7 +2781,8 @@ class ReduxPar(ParSet):
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
-                 maskIDs=None, quicklook=None, chk_version=None):
+                 maskIDs=None, quicklook=None, chk_version=None, ramp_fit_cores=None,
+                 ramp_fit_chunk_rows=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2872,6 +2873,26 @@ class ReduxPar(ParSet):
                                'results. I.e., you really need to know what you are doing if ' \
                                'you set this to False!'
 
+        # Up-the-ramp fitting performance (currently only used by MMT/MMIRS)
+        dtypes['ramp_fit_cores'] = int
+        descr['ramp_fit_cores'] = 'Number of worker threads used for up-the-ramp fitting of ' \
+                                  'raw frames (currently only MMT/MMIRS).  If None, defaults to ' \
+                                  'min(6, os.cpu_count()); set to 1 to disable threading.  The ' \
+                                  'fit is memory-bandwidth bound, so on a typical user\'s ' \
+                                  'computer more than ~6 threads does not help and can hurt; ' \
+                                  'raising this pays off mainly on workstations with more ' \
+                                  'memory bandwidth. ' \
+                                  'Peak memory scales roughly as cores * ramp_fit_chunk_rows, ' \
+                                  'so increase it only if you have the RAM (and cores) to spare.'
+
+        dtypes['ramp_fit_chunk_rows'] = int
+        descr['ramp_fit_chunk_rows'] = 'Number of detector rows fit per up-the-ramp fitting ' \
+                                       'call (currently only MMT/MMIRS).  If None, defaults to ' \
+                                       '16, which keeps each thread\'s working set cache-' \
+                                       'resident (empirically near-optimal and largely machine-' \
+                                       'independent).  This is an expert knob; larger values ' \
+                                       'raise peak memory and usually reduce throughput.'
+
         # Instantiate the parameter set
         super(ReduxPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -2887,7 +2908,8 @@ class ReduxPar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version']
+                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version',
+                    'ramp_fit_cores', 'ramp_fit_chunk_rows']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

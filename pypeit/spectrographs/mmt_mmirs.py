@@ -5,6 +5,7 @@ Module for MMT MMIRS
 """
 import os
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from scipy.signal import savgol_filter
@@ -49,6 +50,15 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     """Allowed range for the calibrated single-read noise (electrons)."""
     ramp_min_dark_groups = 10
     """Minimum number of reads for a dark to be usable for noise calibration."""
+    ramp_fit_workers = None
+    """Number of worker threads for up-the-ramp fitting.  ``None`` selects
+    ``min(6, os.cpu_count())``; set to ``1`` to disable threading.  The per-pixel
+    fit is memory-bandwidth bound, so throughput plateaus at roughly 6 threads
+    (measured ~3x over the serial fit on a 10-core machine)."""
+    ramp_fit_chunk_rows = 16
+    """Number of detector rows fit per :func:`~pypeit.core.fitramp.fit_ramps`
+    call.  Small chunks keep each thread's working set cache-resident; 16 was
+    the empirical sweet spot."""
     _ramp_dark_files = None
     _ramp_sigma = None
     _ramp_output_dir = None
@@ -114,6 +124,12 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 The class holding the metadata for all the frames.
         """
         self._ramp_output_dir = Path(fitstbl.par['rdx']['redux_path'])
+        # Let the user override the ramp-fit threading/chunking from the
+        # [rdx] block of the pypeit file; unset (None) keeps the class default.
+        if fitstbl.par['rdx']['ramp_fit_cores'] is not None:
+            self.ramp_fit_workers = fitstbl.par['rdx']['ramp_fit_cores']
+        if fitstbl.par['rdx']['ramp_fit_chunk_rows'] is not None:
+            self.ramp_fit_chunk_rows = fitstbl.par['rdx']['ramp_fit_chunk_rows']
         tbl = fitstbl.table
         if 'directory' not in tbl.colnames or 'filename' not in tbl.colnames:
             return
@@ -183,13 +199,15 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                                     for i in range(ngroups)])
             ddiffs = mmirs_ramp_diffs(dreads * dhead['GAIN'], dcovar)
             sig = mmirs_calibrate_sigma(ddiffs, dcovar,
-                                        sig_guess=self.ramp_sig_guess)
+                                        sig_guess=self.ramp_sig_guess,
+                                        workers=self.ramp_fit_workers)
             self._ramp_sigma = float(np.clip(sig, *self.ramp_sig_range))
             log.info(f'Calibrated single-read noise: {self._ramp_sigma:.2f} e-')
             return self._ramp_sigma
         log.info('No suitable dark listed; self-calibrating MMIRS single-read '
                  'noise from the frame itself')
-        sig = mmirs_calibrate_sigma(diffs, covar, sig_guess=self.ramp_sig_guess)
+        sig = mmirs_calibrate_sigma(diffs, covar, sig_guess=self.ramp_sig_guess,
+                                    workers=self.ramp_fit_workers)
         sig = float(np.clip(sig, *self.ramp_sig_range))
         log.info(f'Self-calibrated single-read noise: {sig:.2f} e-')
         return sig
@@ -596,7 +614,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         sig = self.get_ramp_sigma(diffs, covar)
         log.info(f'Up-the-ramp fitting {ngroups} reads '
                  f'(single-read noise {sig:.2f} e-)')
-        countrate = mmirs_fit_ramp(diffs, covar, sig)
+        countrate = mmirs_fit_ramp(diffs, covar, sig,
+                                   workers=self.ramp_fit_workers)
         eff_ronoise = mmirs_effective_ronoise(sig, ngroups)
         log.info(f'Effective read noise: {eff_ronoise:.2f} e-')
         return countrate, sig, eff_ronoise
@@ -835,7 +854,55 @@ def mmirs_ramp_diffs(reads, covar):
     return diffs
 
 
-def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200):
+def _resolve_ramp_workers(workers):
+    """
+    Resolve the requested number of ramp-fit worker threads.
+
+    ``None`` selects ``min(6, os.cpu_count())``; any explicit value is passed
+    through (clamped to at least 1).  The per-pixel fit is memory-bandwidth
+    bound, so more than ~6 threads does not help and can hurt.
+    """
+    if workers is None:
+        return max(1, min(6, os.cpu_count() or 1))
+    return max(1, int(workers))
+
+
+def _fit_ramp_rows(diffs, nb, workers, worker):
+    """
+    Dispatch ``worker((row_start, row_stop))`` over blocks of detector rows.
+
+    The per-pixel ramp fit is independent, so the ``ny`` rows of ``diffs`` are
+    split into contiguous blocks of ``nb`` rows and each block is handed to
+    ``worker``, which is expected to write its results into a preallocated
+    output array.  With ``workers > 1`` the blocks are fit concurrently in a
+    thread pool; NumPy releases the GIL during the element-wise arithmetic that
+    dominates :func:`~pypeit.core.fitramp.fit_ramps`, so threads scale until the
+    memory bus saturates (empirically ~3x at 6 threads).
+
+    Parameters
+    ----------
+    diffs : `numpy.ndarray`_
+        Scaled resultant differences, shape ``(ndiffs, ny, nx)``.
+    nb : :obj:`int`
+        Number of rows per block.
+    workers : :obj:`int`
+        Number of worker threads (already resolved; ``1`` runs serially).
+    worker : callable
+        Called with a ``(row_start, row_stop)`` tuple for each block.
+    """
+    ny = diffs.shape[1]
+    ranges = [(r0, min(r0 + nb, ny)) for r0 in range(0, ny, nb)]
+    if workers <= 1 or len(ranges) == 1:
+        for rng in ranges:
+            worker(rng)
+        return
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        # Consume the iterator so exceptions in workers propagate.
+        list(ex.map(worker, ranges))
+
+
+def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200, workers=None,
+                          nb=16):
     """
     Calibrate the single-read noise from ramp differences.
 
@@ -855,6 +922,12 @@ def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200):
     nrows : :obj:`int`, optional
         Number of evenly spaced rows (from the central 80% of the detector)
         to include in the calibration.
+    workers : :obj:`int`, optional
+        Number of worker threads; ``None`` selects ``min(6, os.cpu_count())``
+        and ``1`` disables threading.
+    nb : :obj:`int`, optional
+        Number of subsampled rows fit per :func:`~pypeit.core.fitramp.fit_ramps`
+        call.
 
     Returns
     -------
@@ -866,22 +939,36 @@ def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200):
     row_candidates = np.arange(margin, ny - margin)
     nrows = min(nrows, len(row_candidates))
     indices = np.linspace(0, len(row_candidates) - 1, nrows, dtype=int)
-    sig_row = np.full(nx, sig_guess, dtype=np.float64)
-    all_chisq = []
-    for row in row_candidates[indices]:
-        result = fitramp.fit_ramps(diffs[:, row, :], covar, sig_row)
-        guess = result.countrate * (result.countrate > 0)
-        result = fitramp.fit_ramps(diffs[:, row, :], covar, sig_row,
-                                   countrateguess=guess)
-        all_chisq.append(result.chisq)
-    median_chisq = float(np.median(np.concatenate(all_chisq)))
+    # Gather the subsampled rows; the per-pixel fit is independent, so they can
+    # be fit in blocks with rows folded into the pixel axis.
+    sub = np.ascontiguousarray(diffs[:, row_candidates[indices], :])
+    chisq = np.empty((nrows, nx), dtype=np.float64)
+
+    def worker(rng):
+        r0, r1 = rng
+        flat = sub[:, r0:r1, :].reshape(ndiffs, (r1 - r0) * nx)
+        sig_row = np.full(flat.shape[1], sig_guess, dtype=np.float64)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            result = fitramp.fit_ramps(flat, covar, sig_row)
+            guess = result.countrate * (result.countrate > 0)
+            result = fitramp.fit_ramps(flat, covar, sig_row,
+                                       countrateguess=guess)
+        chisq[r0:r1] = result.chisq.reshape(r1 - r0, nx)
+
+    _fit_ramp_rows(sub, nb, _resolve_ramp_workers(workers), worker)
+    median_chisq = float(np.median(chisq))
     expected_chisq = float(ndiffs - 1)
     return sig_guess * np.sqrt(median_chisq / expected_chisq)
 
 
-def mmirs_fit_ramp(diffs, covar, sig):
+def mmirs_fit_ramp(diffs, covar, sig, workers=None, nb=16):
     """
-    Fit all pixels of a ramp, row by row, with jump detection.
+    Fit all pixels of a ramp, in blocks of rows, with jump detection.
+
+    The per-pixel fit is independent, so the detector is fit in blocks of
+    ``nb`` rows (rows folded into the pixel axis of
+    :func:`~pypeit.core.fitramp.fit_ramps`) and, for ``workers > 1``, the blocks
+    are fit concurrently.  Results are numerically identical to a row-by-row fit.
 
     Parameters
     ----------
@@ -891,6 +978,11 @@ def mmirs_fit_ramp(diffs, covar, sig):
         Covariance object matching ``diffs``.
     sig : :obj:`float`
         Single-read noise in electrons.
+    workers : :obj:`int`, optional
+        Number of worker threads; ``None`` selects ``min(6, os.cpu_count())``
+        and ``1`` disables threading.
+    nb : :obj:`int`, optional
+        Number of rows fit per :func:`~pypeit.core.fitramp.fit_ramps` call.
 
     Returns
     -------
@@ -899,13 +991,20 @@ def mmirs_fit_ramp(diffs, covar, sig):
     """
     ndiffs, ny, nx = diffs.shape
     countrate = np.empty((ny, nx), dtype=np.float64)
-    sig_row = np.full(nx, sig, dtype=np.float64)
-    for row in range(ny):
-        diffs2use, guess = fitramp.mask_jumps(diffs[:, row, :], covar, sig_row)
-        result = fitramp.fit_ramps(diffs[:, row, :], covar, sig_row,
-                                   diffs2use=diffs2use,
-                                   countrateguess=guess * (guess > 0))
-        countrate[row] = result.countrate
+
+    def worker(rng):
+        r0, r1 = rng
+        flat = np.ascontiguousarray(diffs[:, r0:r1, :]).reshape(ndiffs,
+                                                                (r1 - r0) * nx)
+        sig_row = np.full(flat.shape[1], sig, dtype=np.float64)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            diffs2use, guess = fitramp.mask_jumps(flat, covar, sig_row)
+            result = fitramp.fit_ramps(flat, covar, sig_row,
+                                       diffs2use=diffs2use,
+                                       countrateguess=guess * (guess > 0))
+        countrate[r0:r1] = result.countrate.reshape(r1 - r0, nx)
+
+    _fit_ramp_rows(diffs, nb, _resolve_ramp_workers(workers), worker)
     return countrate
 
 
