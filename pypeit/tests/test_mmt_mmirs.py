@@ -8,10 +8,10 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import log
-from pypeit.core import fitramp
+from pypeit.ext.fitramp import fitramp
 from pypeit.metadata import PypeItMetaData
 from pypeit.pypeitsetup import PypeItSetup
-from pypeit.scripts.mmirs_ramp import MMIRSRamp
+from pypeit.scripts.fit_ramp import FitRamp
 from pypeit.spectrographs import mmt_mmirs
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -488,25 +488,25 @@ def test_mmirs_ramp_script(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)          # keep the log file out of the repo
     raw = _write_synth(synth_ramp_hdulist(6, rate=20., seed=91),
                        tmp_path / 'sci.fits')
-    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--sig', '8.0']))
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '8.0']))
     sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
     assert sidecar.exists()
     assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 8.0)
 
     # Re-run without --force: fresh sidecar is skipped, file untouched
     mtime_ns = sidecar.stat().st_mtime_ns
-    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--sig', '8.0']))
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '8.0']))
     assert sidecar.stat().st_mtime_ns == mtime_ns
 
     # --force refits and overwrites
-    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--sig', '9.0', '--force']))
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '9.0', '--force']))
     assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 9.0)
 
 
 def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     raw = _write_synth(synth_ramp_hdulist(2, seed=92), tmp_path / 'cds.fits')
-    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw)]))    # must not raise
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw)]))    # must not raise
     assert not mmt_mmirs.mmirs_rampfit_path(raw, tmp_path).exists()
 
 
@@ -526,7 +526,7 @@ def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
         return real_write_rampfit(rampfit_file, *args, **kwargs)
     monkeypatch.setattr(mmt_mmirs, 'mmirs_write_rampfit', flaky_write_rampfit)
 
-    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw1), str(raw2), '--sig', '8.0',
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw1), str(raw2), '--sig', '8.0',
                                          '--odir', str(tmp_path)]))
     assert not bad_sidecar.exists()
     assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path).exists()
@@ -540,7 +540,17 @@ def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):
     dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true,
                                            seed=94, imagetyp='dark'),
                         tmp_path / 'dark.fits')
-    MMIRSRamp.main(MMIRSRamp.parse_args([str(raw), '--dark', str(dark)]))
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--dark', str(dark)]))
     sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
     assert sidecar.exists()
     assert np.abs(fits.getval(sidecar, 'RAMPSIG') - sig_true) < 1.5
+
+
+def test_fit_ramp_script_rejects_unsupported_spectrograph(tmp_path, monkeypatch):
+    """A spectrograph without up-the-ramp support must be rejected up front."""
+    from pypeit import PypeItError
+    monkeypatch.chdir(tmp_path)
+    # The guard fires before any file is opened, so the path need not exist.
+    with pytest.raises(PypeItError):
+        FitRamp.main(FitRamp.parse_args(['shane_kast_blue',
+                                         str(tmp_path / 'nonexistent.fits')]))

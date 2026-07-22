@@ -1,7 +1,7 @@
-"""Tests for the vendored up-the-ramp fitting module (pypeit.core.fitramp)."""
+"""Tests for the vendored up-the-ramp fitting module (pypeit.ext.fitramp.fitramp)."""
 import numpy as np
 
-from pypeit.core import fitramp
+from pypeit.ext.fitramp import fitramp
 
 
 def make_ramp(ngroups, npix, rate, sig, grptime, rng):

@@ -87,7 +87,7 @@ with:
 
 .. code-block:: bash
 
-    pypeit_mmirs_ramp raw/*.fits
+    pypeit_fit_ramp mmt_mmirs raw/*.fits
 
 which writes into the ``RampFit`` directory under ``--odir`` (default: the
 current directory, so run it from the reduction directory) and accepts
@@ -101,7 +101,7 @@ requires the manual step.
 Changing the noise-calibration source between runs (e.g. adding dark frames
 to the raw-data directory, or forcing a different ``--sig``) does not
 invalidate an existing preprocessed image, since freshness is only judged
-against the raw cube's modification time; use ``pypeit_mmirs_ramp --force``
+against the raw cube's modification time; use ``pypeit_fit_ramp --force``
 to re-fit with the new calibration.
 
 Multislit observations

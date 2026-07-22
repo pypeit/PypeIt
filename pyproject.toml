@@ -130,7 +130,7 @@ pypeit_install_ql_calibs = "pypeit.scripts.install_ql_calib:InstallQLCalibs.entr
 pypeit_install_telluric = "pypeit.scripts.install_telluric:InstallTelluric.entry_point"
 pypeit_install_wvarxiv = "pypeit.scripts.install_wvarxiv:InstallWvArxiv.entry_point"
 pypeit_lowrdx_skyspec = "pypeit.scripts.lowrdx_skyspec:LowRDXSkySpec.entry_point"
-pypeit_mmirs_ramp = "pypeit.scripts.mmirs_ramp:MMIRSRamp.entry_point"
+pypeit_fit_ramp = "pypeit.scripts.fit_ramp:FitRamp.entry_point"
 pypeit_multislit_flexure = "pypeit.scripts.multislit_flexure:MultiSlitFlexure.entry_point"
 pypeit_obslog = "pypeit.scripts.obslog:ObsLog.entry_point"
 pypeit_parse_slits = "pypeit.scripts.parse_slits:ParseSlits.entry_point"
@@ -206,14 +206,14 @@ testpaths = [
             "pypeit/*setup_package*",
             "pypeit/tests/*",
             "pypeit/*/tests/*",
-            "pypeit/extern/*",
+            "pypeit/ext/*",
             "pypeit/version*",
             "*/pypeit/_astropy_init*",
             "*/pypeit/conftest.py",
             "*/pypeit/*setup_package*",
             "*/pypeit/tests/*",
             "*/pypeit/*/tests/*",
-            "*/pypeit/extern/*",
+            "*/pypeit/ext/*",
             "*/pypeit/version*",
         ]
 

@@ -118,7 +118,7 @@ Instrument-specific Updates
   the synthetic slit edges used for this detector-bounded longslit.
 - MMIRS up-the-ramp fitted images are now cached as 2D count-rate files in a
   ``RampFit`` directory inside the reduction directory (each ramp is fit at
-  most once per dataset), and a new ``pypeit_mmirs_ramp`` script preprocesses
+  most once per dataset), and a new ``pypeit_fit_ramp`` script preprocesses
   and inspects them ahead of a reduction.
 
 Script Changes
@@ -169,7 +169,7 @@ Under-the-hood Improvements
   table for later use when reading raw images.
 
 - Vendored the ``fitramp`` up-the-ramp fitting module of Brandt (2024) as
-  :mod:`pypeit.core.fitramp` (MIT license).  The MMIRS integration was
+  :mod:`pypeit.ext.fitramp.fitramp` (MIT license).  The MMIRS integration was
   inspired by the prototype at
   https://github.com/zhechenghu/mmt-mmirs-up-the-ramp-pypeit.
 

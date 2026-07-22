@@ -1,15 +1,17 @@
 """
-Preprocess MMT/MMIRS up-the-ramp cubes into 2D count-rate images.
+Preprocess up-the-ramp cubes into 2D count-rate images.
 
 Each multi-read raw cube is fit up the ramp (with jump detection; see
-:mod:`pypeit.core.fitramp`) and the result is written to the ``RampFit``
+:mod:`pypeit.ext.fitramp.fitramp`) and the result is written to the ``RampFit``
 directory inside the reduction directory (``--odir``, defaulting to the
 current directory), with the same file name as the raw cube.  The reduction
-(:func:`pypeit.spectrographs.mmt_mmirs.MMTMMIRSSpectrograph.get_rawimage`)
 finds and reuses these files automatically — and creates them itself when
 missing — so running this script is optional: it lets users inspect the
 fitted images (units of e-/s) before a full reduction and front-loads the
 fitting cost.
+
+Up-the-ramp fitting is currently only implemented for MMT/MMIRS, so the
+spectrograph must be one of :data:`RAMP_SPECTROGRAPHS`.
 
 .. include:: ../include/links.rst
 """
@@ -20,19 +22,30 @@ import argparse
 
 from pypeit.scripts import scriptbase
 
+#: Spectrographs for which up-the-ramp preprocessing is implemented.  Adding a
+#: new instrument here is the only change needed to enable it for this script,
+#: provided the spectrograph implements the ramp-fitting interface used below.
+RAMP_SPECTROGRAPHS = ('mmt_mmirs',)
 
-class MMIRSRamp(scriptbase.ScriptBase):
+
+class FitRamp(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width: int | None = None) -> argparse.ArgumentParser:
+        from pypeit.spectrographs.util import available_spectrographs
+
         parser = super().get_parser(
-            description='Preprocess MMT/MMIRS up-the-ramp cubes into 2D '
-                        'count-rate images (e-/s), written to the RampFit '
-                        'directory inside the reduction directory.',
+            description='Preprocess up-the-ramp cubes into 2D count-rate '
+                        'images (e-/s), written to the RampFit directory '
+                        'inside the reduction directory.  Currently only '
+                        f'supports: {", ".join(RAMP_SPECTROGRAPHS)}.',
             width=width,
             default_log_file=True)
+        parser.add_argument('spectrograph', type=str,
+                            help='A valid spectrograph identifier: {0}'.format(
+                                 ', '.join(available_spectrographs)))
         parser.add_argument('files', type=str, nargs='+',
-                            help='One or more raw MMIRS multi-read cubes')
+                            help='One or more raw multi-read cubes')
         parser.add_argument('--odir', type=str, default='.',
                             help='Reduction directory in which the RampFit '
                                  'output directory is created (default: '
@@ -41,7 +54,7 @@ class MMIRSRamp(scriptbase.ScriptBase):
                             help='Force this single-read noise (e-) instead '
                                  'of calibrating it')
         parser.add_argument('--dark', type=str, default=None,
-                            help='Raw MMIRS dark cube used to calibrate the '
+                            help='Raw dark cube used to calibrate the '
                                  'single-read noise (calibrated once, used '
                                  'for all files). Ignored if --sig is given.')
         parser.add_argument('--force', default=False, action='store_true',
@@ -53,13 +66,18 @@ class MMIRSRamp(scriptbase.ScriptBase):
     def main(cls, args: argparse.Namespace) -> None:
         from pathlib import Path
 
-        from pypeit import io, log
+        from pypeit import io, log, PypeItError
         from pypeit.spectrographs import mmt_mmirs
         from pypeit.spectrographs.util import load_spectrograph
 
         cls.init_log(args)
 
-        spec = load_spectrograph('mmt_mmirs')
+        spec = load_spectrograph(args.spectrograph)
+        if spec.name not in RAMP_SPECTROGRAPHS:
+            raise PypeItError(
+                f'Up-the-ramp fitting is not implemented for {spec.name}; '
+                f'supported spectrographs: {", ".join(RAMP_SPECTROGRAPHS)}.')
+
         if args.sig is not None:
             # Seeds the sigma cache: used for every frame
             spec._ramp_sigma = float(args.sig)

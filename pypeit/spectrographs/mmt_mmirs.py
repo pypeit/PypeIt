@@ -22,7 +22,7 @@ from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.core import fitramp
+from pypeit.ext.fitramp import fitramp
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
 from pypeit.par import parset
@@ -56,7 +56,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     fit is memory-bandwidth bound, so throughput plateaus at roughly 6 threads
     (measured ~3x over the serial fit on a 10-core machine)."""
     ramp_fit_chunk_rows = 16
-    """Number of detector rows fit per :func:`~pypeit.core.fitramp.fit_ramps`
+    """Number of detector rows fit per :func:`~pypeit.ext.fitramp.fitramp.fit_ramps`
     call.  Small chunks keep each thread's working set cache-resident; 16 was
     the empirical sweet spot."""
     _ramp_dark_files = None
@@ -181,7 +181,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             diffs (`numpy.ndarray`_):
                 Scaled resultant differences of the frame being processed,
                 shape ``(ndiffs, ny, nx)``, in electrons.
-            covar (:class:`~pypeit.core.fitramp.Covar`):
+            covar (:class:`~pypeit.ext.fitramp.fitramp.Covar`):
                 Covariance object matching ``diffs``.
 
         Returns:
@@ -508,7 +508,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         reduction directory is recorded by :func:`cache_metadata`; when that
         hook never fired (e.g. direct API use), the current working
         directory is used instead.  Preprocessed files — created here or by
-        ``pypeit_mmirs_ramp`` — are identified by the ``RAMPFIT`` header
+        ``pypeit_fit_ramp`` — are identified by the ``RAMPFIT`` header
         card and loaded directly.
         """
         fil = utils.find_single_file(f'{raw_file}*', required=True)
@@ -840,7 +840,7 @@ def mmirs_ramp_diffs(reads, covar):
     ----------
     reads : `numpy.ndarray`_
         Reads in time order, shape ``(ngroups, ny, nx)``, in electrons.
-    covar : :class:`~pypeit.core.fitramp.Covar`
+    covar : :class:`~pypeit.ext.fitramp.fitramp.Covar`
         Covariance object providing the time intervals ``delta_t``.
 
     Returns
@@ -876,7 +876,7 @@ def _fit_ramp_rows(diffs, nb, workers, worker):
     ``worker``, which is expected to write its results into a preallocated
     output array.  With ``workers > 1`` the blocks are fit concurrently in a
     thread pool; NumPy releases the GIL during the element-wise arithmetic that
-    dominates :func:`~pypeit.core.fitramp.fit_ramps`, so threads scale until the
+    dominates :func:`~pypeit.ext.fitramp.fitramp.fit_ramps`, so threads scale until the
     memory bus saturates (empirically ~3x at 6 threads).
 
     Parameters
@@ -915,7 +915,7 @@ def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200, workers=None,
     ----------
     diffs : `numpy.ndarray`_
         Scaled resultant differences, shape ``(ndiffs, ny, nx)``, electrons.
-    covar : :class:`~pypeit.core.fitramp.Covar`
+    covar : :class:`~pypeit.ext.fitramp.fitramp.Covar`
         Covariance object matching ``diffs``.
     sig_guess : :obj:`float`, optional
         Initial guess for the single-read noise in electrons.
@@ -926,7 +926,7 @@ def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200, workers=None,
         Number of worker threads; ``None`` selects ``min(6, os.cpu_count())``
         and ``1`` disables threading.
     nb : :obj:`int`, optional
-        Number of subsampled rows fit per :func:`~pypeit.core.fitramp.fit_ramps`
+        Number of subsampled rows fit per :func:`~pypeit.ext.fitramp.fitramp.fit_ramps`
         call.
 
     Returns
@@ -967,14 +967,14 @@ def mmirs_fit_ramp(diffs, covar, sig, workers=None, nb=16):
 
     The per-pixel fit is independent, so the detector is fit in blocks of
     ``nb`` rows (rows folded into the pixel axis of
-    :func:`~pypeit.core.fitramp.fit_ramps`) and, for ``workers > 1``, the blocks
+    :func:`~pypeit.ext.fitramp.fitramp.fit_ramps`) and, for ``workers > 1``, the blocks
     are fit concurrently.  Results are numerically identical to a row-by-row fit.
 
     Parameters
     ----------
     diffs : `numpy.ndarray`_
         Scaled resultant differences, shape ``(ndiffs, ny, nx)``, electrons.
-    covar : :class:`~pypeit.core.fitramp.Covar`
+    covar : :class:`~pypeit.ext.fitramp.fitramp.Covar`
         Covariance object matching ``diffs``.
     sig : :obj:`float`
         Single-read noise in electrons.
@@ -982,7 +982,7 @@ def mmirs_fit_ramp(diffs, covar, sig, workers=None, nb=16):
         Number of worker threads; ``None`` selects ``min(6, os.cpu_count())``
         and ``1`` disables threading.
     nb : :obj:`int`, optional
-        Number of rows fit per :func:`~pypeit.core.fitramp.fit_ramps` call.
+        Number of rows fit per :func:`~pypeit.ext.fitramp.fitramp.fit_ramps` call.
 
     Returns
     -------
